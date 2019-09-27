@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using System.Collections;
 using System.Diagnostics;
 
+using Value = System.Int64;
+
 namespace adb
 {
     // it carries global info needed by expression binding
@@ -48,16 +50,16 @@ namespace adb
     }
 
     static public class ExprHelper {
-        static public Expr listToExpr(List<Expr> andlist)
+        static public Expr AndListToExpr(List<Expr> andlist)
         {
             Debug.Assert(andlist.Count >= 1);
             if (andlist.Count == 1)
                 return andlist[0];
             else
             {
-                var andexpr = new arithandexpr(andlist[0], andlist[1]);
+                var andexpr = new LogicAndExpr(andlist[0], andlist[1]);
                 for (int i = 2; i < andlist.Count; i++)
-                    andexpr.l_ = new arithandexpr(andexpr.l_, andlist[i]);
+                    andexpr.l_ = new LogicAndExpr(andexpr.l_, andlist[i]);
                 return andexpr;
             }
         }
@@ -65,12 +67,11 @@ namespace adb
 
     public class Expr
     {
-        // an expression can reference multiple tables/columns
-        //      e.g., a.i + b.j > [a.]k => references 2 tables and 3 columns
+        // an expression can reference multiple tables
+        //      e.g., a.i + b.j > [a.]k => references 2 tables
         // it is a sum of all its children
         //
         public BitArray whichTab_ = new BitArray(256);
-        public BitArray whichCol_ = new BitArray(256);
         internal bool bounded_ = false;
 
         public bool EqualTableRefs(BindContext context, TableRef tableRef) {
@@ -118,15 +119,22 @@ namespace adb
             });
         }
 
+        // APIs children may implment
         public virtual void Bind(BindContext context) { bounded_ = true; }
         public virtual string PrintString(int depth) { return ToString(); }
+        public virtual Value Exec(Row input) { return Value.MaxValue;}
     }
 
     public class ColExpr : Expr
     {
-        public string db_;
-        public string table_;
-        public string col_;
+        internal string db_;
+        internal string table_;
+        internal string col_;
+
+        // -- execution section --
+
+        // which column in the input row
+        internal int ordinal_;
 
         public ColExpr(string db, string table, string col)
         {
@@ -170,10 +178,13 @@ namespace adb
 
             bounded_ = true;
         }
-
         public override string ToString()
         {
             return $@"{table_}.{col_}";
+        }
+        public override Value Exec(Row input)
+        {
+            return input.values_[ordinal_];
         }
     }
 
@@ -185,13 +196,16 @@ namespace adb
         }
     }
 
+    // we can actually put all binary ops in BinExpr class but we want to keep 
+    // some special ones (say AND/OR) so we can coding easier
+    //
     public class BinExpr : Expr
     {
         public Expr l_;
         public Expr r_;
-        public int op_;
+        public string op_;
 
-        public BinExpr(Expr l, Expr r, int op)
+        public BinExpr(Expr l, Expr r, string op)
         {
             l_ = l; r_ = r; op_ = op;
         }
@@ -204,53 +218,31 @@ namespace adb
             whichTab_ = (l_.whichTab_.Clone() as BitArray).Or(r_.whichTab_);
             bounded_ = true;
         }
-    }
 
-    public class Arithplusexpr : BinExpr
-    {
-        public Arithplusexpr(Expr l, Expr r, int op) : base(l, r, op) { }
+        public override string ToString() => $"{l_}{op_}{r_}";
 
-        public override string PrintString(int depth)
+        public override Value Exec(Row input)
         {
-            return l_.PrintString(depth) + '+' + r_.PrintString(depth);
+            Value r = Value.MaxValue;
+            switch (op_) {
+                case "+":
+                    r = l_.Exec(input) + r_.Exec(input);
+                    break;
+                case "*":
+                    r = l_.Exec(input) * r_.Exec(input);
+                    break;
+                case "=":
+                    r = l_.Exec(input) == r_.Exec(input)?1:0;
+                    break;
+            }
+
+            return r;
         }
     }
 
-    public class Arithtimesexpr : BinExpr
+    public class LogicAndExpr : BinExpr
     {
-        public Arithtimesexpr(Expr l, Expr r, int op) : base(l, r, op) { }
-        public override string PrintString(int depth)
-        {
-            return l_.PrintString(depth) + '*' + r_.PrintString(depth);
-        }
-    }
-
-    public class Arithcompexpr : BinExpr
-    {
-        public Arithcompexpr(Expr l, Expr r, int op) : base(l, r, op) { }
-        public override string PrintString(int depth)
-        {
-            return l_.PrintString(depth) + '=' + r_.PrintString(depth);
-        }
-    }
-
-    public class arithandexpr : BinExpr
-    {
-        public arithandexpr(Expr l, Expr r) : base(l, r, 0) { }
-        public override string PrintString(int depth)
-        {
-            return l_.PrintString(depth) + " and " + r_.PrintString(depth);
-        }
-    }
-
-    public class arithequalexpr : BinExpr
-    {
-        public arithequalexpr(Expr l, Expr r, int op) : base(l, r, op) { }
-
-        public override string PrintString(int depth)
-        {
-            return l_.PrintString(depth) + '=' + r_.PrintString(depth);
-        }
+        public LogicAndExpr(Expr l, Expr r) : base(l, r, " and ") { }
     }
 
     public class SubqueryExpr : Expr {
@@ -272,7 +264,7 @@ namespace adb
             bounded_ = true;
         }
 
-        public override string PrintString(int depth)
+        public override string ToString()
         {
             return $@"@{subqueryid_}";
         }
@@ -290,6 +282,11 @@ namespace adb
         public override string ToString()
         {
             return val_.GetText();
+        }
+
+        public override Value Exec(Row input)
+        {
+            return Value.Parse(val_.GetText());
         }
     }
 

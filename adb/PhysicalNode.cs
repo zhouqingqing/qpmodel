@@ -4,49 +4,32 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using Value = System.Int64;
+
 namespace adb
 {
     public class Row {
-        public List<object> values_ = new List<object>();
+        public List<Value> values_ = new List<Value>();
 
         public Row() { }
-
         public Row(Row l, Row r) {
             values_.AddRange(l.values_);
             values_.AddRange(r.values_);
         }
 
-        public override string ToString()
-        {
-            string r = "";
-            foreach (var v in values_) {
-                r += v.ToString() + ", ";
-            }
-            return r;
-        }
+        public override string ToString()=> string.Join(",", values_);
     }
 
     public abstract class PhysicNode: PlanNode<PhysicNode>
     {
-        public LogicNode logic_;
+        internal LogicNode logic_;
 
-        public PhysicNode(LogicNode logic) {
-            logic_ = logic;
-        }
-
-        public virtual void Open() {
-            foreach (var v in children_)
-                v.Open();
-        }
-        public virtual void Close() {
-            foreach (var v in children_)
-                v.Close();
-        }
-
+        public PhysicNode(LogicNode logic)=>logic_ = logic;
+        public virtual void Open() => children_.ForEach(x => x.Open());
+        public virtual void Close() => children_.ForEach(x => x.Close());
+        public override string PrintInlineDetails(int depth) => logic_.PrintInlineDetails(depth);
+        public override string PrintMoreDetails(int depth) => logic_.PrintMoreDetails(depth);
         public abstract IEnumerable<Row> Next();
-
-        public override string PrintInlineDetails(int depth) { return logic_.PrintInlineDetails(depth); }
-        public override string PrintMoreDetails(int depth) { return logic_.PrintMoreDetails(depth); }
     }
 
     public class PhysicGet : PhysicNode{
@@ -80,6 +63,18 @@ namespace adb
                     Row n = new Row(l, r);
                     yield return n;
                 }
+        }
+    }
+
+    public class PhysicResult : PhysicNode {
+        public PhysicResult(LogicResult logic) : base(logic) { }
+
+        public override IEnumerable<Row> Next()
+        {
+            Row r = new Row();
+            (logic_ as LogicResult).expr_.ForEach(
+                            x => r.values_.Add(x.Exec(null)));
+            yield return r;
         }
     }
 

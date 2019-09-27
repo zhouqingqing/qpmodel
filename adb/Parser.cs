@@ -29,6 +29,42 @@ namespace adb
         }
     }
 
+    public class TableRef
+    {
+        public string alias_;
+        public override string ToString() => alias_;
+    }
+
+    public class BaseTableRef : TableRef
+    {
+        public string relname_;
+
+        public BaseTableRef([NotNull] string name, string alias = null)
+        {
+            relname_ = name;
+            alias_ = alias ?? relname_;
+        }
+
+        public override string ToString()
+        {
+            if (relname_ == alias_)
+                return $"{relname_}";
+            else
+                return $"{relname_} as {alias_}";
+        }
+    }
+
+    // subquery in FROM clause
+    public class SubqueryRef : TableRef
+    {
+        public SelectCore query_;
+
+        public SubqueryRef(SelectCore query, [NotNull] string alias)
+        {
+            query_ = query;
+            alias_ = alias;
+        }
+    }
 
     class SQLiteVisitor : SQLiteBaseVisitor<object>
     {
@@ -45,14 +81,14 @@ namespace adb
         public override object VisitArithtimesexpr([NotNull] SQLiteParser.ArithtimesexprContext context)
         {
             Console.WriteLine($@"{context.expr(0).GetText()}{context.op.Type}{context.expr(1).GetText()}");
-            return new Arithtimesexpr((Expr)Visit(context.expr(0)),
-                (Expr)Visit(context.expr(1)), context.op.Type);
+            return new BinExpr((Expr)Visit(context.expr(0)),
+                                    (Expr)Visit(context.expr(1)), context.op.Text);
         }
 
         public override object VisitArithplusexpr([NotNull] SQLiteParser.ArithplusexprContext context)
         {
             Console.WriteLine($@"{context.expr(0).GetText()}{context.op.Type}{context.expr(1).GetText()}");
-            return new Arithplusexpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Type);
+            return new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
         }
 
         public override object VisitFuncExpr([NotNull] SQLiteParser.FuncExprContext context)
@@ -70,17 +106,17 @@ namespace adb
 
         public override object VisitArithcompexpr([NotNull] SQLiteParser.ArithcompexprContext context)
         {
-            return new Arithcompexpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Type);
+            return new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
         }
 
-        public override object VisitArithandexpr([NotNull] SQLiteParser.ArithandexprContext context)
+        public override object VisitLogicAndExpr([NotNull] SQLiteParser.LogicAndExprContext context)
         {
-            return new arithandexpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)));
+            return new LogicAndExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)));
         }
 
         public override object VisitArithequalexpr([NotNull] SQLiteParser.ArithequalexprContext context)
         {
-            return new arithequalexpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Type);
+            return new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
         }
 
         public override object VisitSubqueryExpr([NotNull] SQLiteParser.SubqueryExprContext context)
@@ -107,16 +143,19 @@ namespace adb
         public override object VisitFromSelectStmt([NotNull] SQLiteParser.FromSelectStmtContext context)
         {
             var query = Visit(context.select_stmt()) as SelectCore;
-            return new SubqueryRef(query, context.table_alias().GetText());
+            var alias = context.table_alias().GetText();
+            if (alias is null)
+                throw new Exception("subquery in FROM shall have an alias");
+            return new SubqueryRef(query, alias);
         }
 
         public override object VisitSelect_core([NotNull] SQLiteParser.Select_coreContext context)
         {
             // -- parser stage
-            var resultCols = new List<object>();
+            var resultCols = new List<Expr>();
             foreach (var r in context.result_column())
             {
-                var col = VisitResult_column(r);
+                var col = VisitResult_column(r) as Expr;
                 resultCols.Add(col);
             }
 

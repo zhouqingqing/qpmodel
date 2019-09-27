@@ -5,19 +5,10 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
 
-/*
-SQL is implemented as if a query was executed in the following order:
-
-    FROM clause
-    WHERE clause
-    GROUP BY clause
-    HAVING clause
-    SELECT clause
-    ORDER BY clause
-*/
 namespace adb
 {
-    public abstract class PlanNode<T> where T: PlanNode<T> {
+    public abstract class PlanNode<T> where T : PlanNode<T>
+    {
         public List<T> children_ = new List<T>();
 
         // print utilities
@@ -42,9 +33,7 @@ namespace adb
             }
 
             depth++;
-            foreach (var v in children_)
-                r += v.PrintString(depth);
-
+            children_.ForEach(x => r += x.PrintString(depth));
             return r;
         }
 
@@ -64,7 +53,7 @@ namespace adb
         }
     }
 
-    public abstract class LogicNode: PlanNode<LogicNode>
+    public abstract class LogicNode : PlanNode<LogicNode>
     {
         public List<Expr> output_ = new List<Expr>();
 
@@ -72,7 +61,8 @@ namespace adb
         public PhysicNode SimpleConvertPhysical()
         {
             PhysicNode root = null;
-            VisitEachNode(n => {
+            VisitEachNode(n =>
+            {
                 PhysicNode phy = null;
                 switch (n)
                 {
@@ -80,9 +70,12 @@ namespace adb
                         phy = new PhysicGet(ln);
                         break;
                     case LogicCrossJoin lc:
-                        phy = new PhysicCrossJoin(lc, 
+                        phy = new PhysicCrossJoin(lc,
                             lc.children_[0].SimpleConvertPhysical(),
                             lc.children_[1].SimpleConvertPhysical());
+                        break;
+                    case LogicResult lr:
+                        phy = new PhysicResult(lr);
                         break;
                 }
 
@@ -100,7 +93,8 @@ namespace adb
         public LogicCrossJoin(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
     }
 
-    public class LogicFilter : LogicNode {
+    public class LogicFilter : LogicNode
+    {
         internal Expr filter_;
 
         public override string PrintMoreDetails(int depth)
@@ -129,10 +123,14 @@ namespace adb
             }
             return r;
         }
-        public LogicFilter(LogicNode child, Expr filter) { children_.Add(child); filter_ = filter;}
+
+        public LogicFilter(LogicNode child, Expr filter) {
+            children_.Add(child); filter_ = filter;
+        }
     }
 
-    public class LogicAgg : LogicNode {
+    public class LogicAgg : LogicNode
+    {
         internal List<Expr> groupby_;
         internal List<Expr> aggr_;
         internal Expr having_;
@@ -144,23 +142,27 @@ namespace adb
             return null;
         }
 
-        public LogicAgg(LogicNode child, List<Expr> groupby, Expr having) {
+        public LogicAgg(LogicNode child, List<Expr> groupby, Expr having)
+        {
             children_.Add(child); groupby_ = groupby; having_ = having;
         }
     }
 
-    public class LogicSubquery : LogicNode {
+    public class LogicSubquery : LogicNode
+    {
         public SubqueryRef query_;
 
-        public override string ToString()=> $"<{query_.alias_}>";
+        public override string ToString() => $"<{query_.alias_}>";
         public LogicSubquery(SubqueryRef query, LogicNode child) { query_ = query; children_.Add(child); }
     }
 
-    public class LogicGet : LogicNode {
+    public class LogicGet : LogicNode
+    {
         public BaseTableRef tabref_;
         public Expr filter_;
 
-        public LogicGet(BaseTableRef tab) {
+        public LogicGet(BaseTableRef tab)
+        {
             tabref_ = tab;
         }
 
@@ -173,12 +175,29 @@ namespace adb
             return null;
         }
 
-        public bool AddFilter(Expr filter) {
+        public bool AddFilter(Expr filter)
+        {
             if (filter_ is null)
                 filter_ = filter;
             else
-                filter_ = new arithandexpr(filter_, filter);
+                filter_ = new LogicAndExpr(filter_, filter);
             return true;
+        }
+    }
+
+    public class LogicResult : LogicNode
+    {
+        internal List<Expr> expr_;
+
+        public override string ToString() {
+            string r = string.Join(",", expr_);
+            return r;
+        } 
+        public LogicResult(List<Expr> expr) { expr_ = expr; }
+
+        public override string PrintMoreDetails(int depth)
+        {
+            return "Expr: " + ToString();
         }
     }
 }
