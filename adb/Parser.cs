@@ -29,10 +29,11 @@ namespace adb
         }
     }
 
-    public class TableRef
+    public abstract class TableRef
     {
         public string alias_;
         public override string ToString() => alias_;
+        public abstract List<Expr> GenerateAllColumnsRefs();
     }
 
     public class BaseTableRef : TableRef
@@ -52,6 +53,18 @@ namespace adb
             else
                 return $"{relname_} as {alias_}";
         }
+
+        public override List<Expr> GenerateAllColumnsRefs()
+        {
+            List<Expr> l = new List<Expr>();
+            var columns = Catalog.systable_.Table(relname_);
+            foreach (var c in columns) {
+                ColumnDef coldef = c.Value;
+                l.Add(new ColExpr(null, relname_, coldef.name_));
+            }
+
+            return l;
+        }
     }
 
     // subquery in FROM clause
@@ -63,6 +76,11 @@ namespace adb
         {
             query_ = query;
             alias_ = alias;
+        }
+
+        public override List<Expr> GenerateAllColumnsRefs()
+        {
+            return query_.Selection();
         }
     }
 
@@ -140,13 +158,20 @@ namespace adb
             throw new NotImplementedException();
         }
 
+        public override object VisitResult_column([NotNull] SQLiteParser.Result_columnContext context)
+        {
+            if (context.expr() != null)
+                return Visit(context.expr());
+            else
+                return new SelStar(context.table_name()?.GetText());
+        }
+
         public override object VisitFromSelectStmt([NotNull] SQLiteParser.FromSelectStmtContext context)
         {
             var query = Visit(context.select_stmt()) as SelectCore;
-            var alias = context.table_alias().GetText();
-            if (alias is null)
+            if (context.table_alias() is null)
                 throw new Exception("subquery in FROM shall have an alias");
-            return new SubqueryRef(query, alias);
+            return new SubqueryRef(query, context.table_alias().GetText());
         }
 
         public override object VisitSelect_core([NotNull] SQLiteParser.Select_coreContext context)
@@ -197,7 +222,7 @@ namespace adb
             }
 
             // -- binding stage
-            return new SelectCore(resultCols, resultRels, where, groupby, having);
+            return new SelectCore(resultCols, resultRels, where, groupby, having, context.GetText());
         }
     }
 

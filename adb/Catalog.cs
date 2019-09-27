@@ -8,11 +8,31 @@ using TableColumn = System.Tuple<string, string>;
 
 namespace adb
 {
-    class ColumnDef {
+    public class ColumnDef {
         public string name_;
+
         public int ordinal_;
 
         public ColumnDef(string name, int ord) { name_ = name; ordinal_ = ord; }
+    }
+
+    public class TableDef
+    {
+        public string name_;
+        public Dictionary<string, ColumnDef> columns_ = new Dictionary<string, ColumnDef>();
+
+        public TableDef(string tabName, List<ColumnDef> columns) {
+            Dictionary<string, ColumnDef> cols = new Dictionary<string, ColumnDef>();
+            foreach (var c in columns)
+                cols.Add(c.name_, c);
+            name_ = tabName; columns_ = cols;
+        }
+
+        public ColumnDef GetColumn(string column) {
+            ColumnDef value;
+            columns_.TryGetValue(column, out value);
+            return value;
+        }
     }
 
     class SystemTable
@@ -21,34 +41,32 @@ namespace adb
 
     // format: tableName:key, list of <ColName: Key, Column definition>
     class SysTable : SystemTable {
-        Dictionary<string, Dictionary<string, ColumnDef>> records_ = new Dictionary<string, Dictionary<string, ColumnDef>>();
+        Dictionary<string, TableDef> records_ = new Dictionary<string, TableDef>();
 
-        public void Add(string tablename, List<ColumnDef> columns) {
-            Dictionary<string, ColumnDef> cols = new Dictionary<string, ColumnDef>();
-            foreach (var c in columns)
-                cols.Add(c.name_, c);
-            records_.Add(tablename, cols);
+        public void Add(string tabName, List<ColumnDef> columns) {
+            records_.Add(tabName, 
+                new TableDef(tabName, columns));
         }
 
-        public Dictionary<string, ColumnDef> Table(string table) {
-            return records_[table];
+        public Dictionary<string, ColumnDef> Table(string tabName) {
+            return records_[tabName].columns_;
         }
-        public ColumnDef Column(string table, string column) {
-            return records_[table][column];
+        public ColumnDef Column(string tabName, string colName) {
+            return Table(tabName)[colName];
         }
-        public string ColumnFindTable(string column)
+        public TableDef ColumnFindTable(string colName)
         {
-            string r = null;
+            TableDef r = null;
             foreach (var v in records_)
             {
                 // shall check duplicates as well
-                ColumnDef value;
-                if (v.Value.TryGetValue(column, out value))
+                var value = v.Value.GetColumn(colName);
+                if (value != null)
                 {
                     if (r is null)
-                        r = v.Key;
+                        r = v.Value;
                     else
-                        throw new Exception($@"ambigous column {column}");
+                        throw new Exception($@"ambigous column {colName}");
                 }
             }
 
@@ -64,13 +82,13 @@ namespace adb
     class SysStats : SystemTable {
         Dictionary<TableColumn, ColumnStat> records_ = new Dictionary<TableColumn, ColumnStat>();
 
-        public void Add(string table, string column, ColumnStat stat) {
-            records_.Add(new TableColumn(table, column), stat);
+        public void Add(string tabName, string colName, ColumnStat stat) {
+            records_.Add(new TableColumn(tabName, colName), stat);
         }
 
-        public ColumnStat Column(string table, string column)
+        public ColumnStat Column(string tabName, string colName)
         {
-            return records_[new TableColumn(table, column)];
+            return records_[new TableColumn(tabName, colName)];
         }
     }
 

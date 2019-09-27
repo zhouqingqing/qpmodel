@@ -20,23 +20,25 @@ namespace adb
         public override string ToString()=> string.Join(",", values_);
     }
 
-    public abstract class PhysicNode: PlanNode<PhysicNode>
+    public abstract class PhysicNode : PlanNode<PhysicNode>
     {
         internal LogicNode logic_;
 
-        public PhysicNode(LogicNode logic)=>logic_ = logic;
-        public virtual void Open() => children_.ForEach(x => x.Open());
-        public virtual void Close() => children_.ForEach(x => x.Close());
+        public PhysicNode(LogicNode logic) => logic_ = logic;
+
         public override string PrintInlineDetails(int depth) => logic_.PrintInlineDetails(depth);
         public override string PrintMoreDetails(int depth) => logic_.PrintMoreDetails(depth);
-        public abstract IEnumerable<Row> Next();
+
+        public virtual void Open() => children_.ForEach(x => x.Open());
+        public virtual void Close() => children_.ForEach(x => x.Close());
+        public abstract void Exec(Func<Row, string> callback);
     }
 
     public class PhysicGet : PhysicNode{
         int nrows_ = 3;
         public PhysicGet(LogicNode logic): base(logic) { }
 
-        public override IEnumerable<Row> Next()
+        public override void Exec(Func<Row, string> callback)
         {
             Expr filter = (logic_ as LogicGet).filter_;
 
@@ -44,12 +46,12 @@ namespace adb
             {
                 Row r = new Row();
                 r.values_.Add(i);
-                r.values_.Add(i+1);
-                r.values_.Add(i+2);
+                r.values_.Add(i + 1);
+                r.values_.Add(i + 2);
 
                 if (filter?.Exec(r) == 0)
                     continue;
-                yield return r;
+                callback(r);
             }
         }
     }
@@ -60,41 +62,90 @@ namespace adb
             children_.Add(l); children_.Add(r);
         }
 
-        public override IEnumerable<Row> Next()
+        public override void Exec(Func<Row, string> callback)
         {
-            foreach (var l in children_[0].Next())
-                foreach (var r in children_[1].Next()) {
+            children_[0].Exec(l =>
+            {
+                children_[1].Exec(r =>
+                {
                     Row n = new Row(l, r);
-                    yield return n;
-                }
+                    callback(n);
+                    return null;
+                });
+                return null;
+            });
+        }
+    }
+
+    public class PhysicSubquery : PhysicNode {
+        public PhysicSubquery(LogicSubquery logic, PhysicNode l) : base(logic) => children_.Add(l);
+
+        public override void Exec(Func<Row, string> callback)
+        {
+            children_[0].Exec(l => {
+                callback(l);
+                return null;
+            });
+        }
+    }
+
+    // this class shall be removed after filter associated with each node
+    public class PhysicFilter : PhysicNode
+    {
+        public PhysicFilter(LogicFilter logic, PhysicNode l) : base(logic) => children_.Add(l);
+
+        public override void Exec(Func<Row, string> callback)
+        {
+            Expr filter = (logic_ as LogicFilter).filter_;
+
+            children_[0].Exec(l => {
+                if (filter is null || filter.Exec(l) == 1)
+                    callback(l);
+                return null;
+            });
         }
     }
 
     public class PhysicResult : PhysicNode {
         public PhysicResult(LogicResult logic) : base(logic) { }
 
-        public override IEnumerable<Row> Next()
+        public override void Exec(Func<Row, string> callback)
         {
             Row r = new Row();
             (logic_ as LogicResult).expr_.ForEach(
                             x => r.values_.Add(x.Exec(null)));
-            yield return r;
+            callback(r);
         }
     }
-
     public class PhysicPrint : PhysicNode {
         public PhysicPrint(PhysicNode child) : base(null) {
             children_.Add(child);
         }
 
-        public override IEnumerable<Row> Next()
+        public override void Exec(Func<Row, string> callback)
         {
-            foreach (var r in children_[0].Next())
+            children_[0].Exec(r =>
             {
                 Console.WriteLine($"{r}");
-            }
+                return null;
+            });
+        }
+    }
+    public class PhysicCollect : PhysicNode
+    {
+        public List<Row> rows_ = new List<Row>();
+        public PhysicCollect(PhysicNode child) : base(null)
+        {
+            children_.Add(child);
+        }
 
-            return null;
+        public override void Exec(Func<Row, string> callback)
+        {
+            children_[0].Exec(r =>
+            {
+                rows_.Add(r);
+                return null;
+            });
         }
     }
 }

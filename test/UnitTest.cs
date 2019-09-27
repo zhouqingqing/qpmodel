@@ -39,24 +39,13 @@ namespace test
     {
         private TestContext testContextInstance;
 
-        internal IEnumerable<Row> ExecuteSQL(string sql) {
+        internal List<Row> ExecuteSQL(string sql) {
             var stmt = RawParser.ParseSelect(sql).Bind(null);
-            var result = stmt.Optimize(stmt.CreatePlan()).SimpleConvertPhysical().Next();
-            return result;
-        }
+            var phyplan = stmt.Optimize(stmt.CreatePlan()).SimpleConvertPhysical();
+            var result = new PhysicCollect(phyplan);
+            result.Exec(null);
 
-        internal Row Row0(IEnumerable<Row> rows) {
-            foreach (var r in rows)
-                return r;
-            return null;
-        }
-
-        internal int RowCount(IEnumerable<Row> rows)
-        {
-            int cnt = 0;
-            foreach (var r in rows)
-                cnt++;
-            return cnt;
+            return result.rows_;
         }
 
         /// <summary>
@@ -75,23 +64,44 @@ namespace test
         }
 
         [TestMethod]
+        public void TestExecCrossJoin()
+        {
+            var result = ExecuteSQL("select a.a1 from a, b where a2>1");
+            Assert.AreEqual(2 * 3, result.Count);
+            result = ExecuteSQL("select a.a1 from a, b where a2>2");
+            Assert.AreEqual(1 * 3, result.Count);
+        }
+
+        [TestMethod]
+        public void TestExecSubFrom()
+        {
+            var result = ExecuteSQL("select * from a, (select * from b) c");
+            Assert.AreEqual(9, result.Count);
+            result = ExecuteSQL("select * from a, (select * from b where b2>2) c;");
+            Assert.AreEqual(3, result.Count);
+        }
+
+        [TestMethod]
         public void TestExecSelectFilter()
         {
-            var result = ExecuteSQL("select a1 from a");
-            Assert.AreEqual(3, RowCount(result));
+            var result = ExecuteSQL("select * from a");
+            Assert.AreEqual(3, result.Count);
+            result = ExecuteSQL("select a1 from a");
+            Assert.AreEqual(3, result.Count);
             result = ExecuteSQL("select a1 from a where a2>1");
-            Assert.AreEqual(2, RowCount(result));
+            Assert.AreEqual(2, result.Count);
+            result = ExecuteSQL("select a.a1 from a where a2 > 1 and a3> 3");
+            Assert.AreEqual(1, result.Count);
             result = ExecuteSQL("select a1 from a where a2>2");
-            Assert.AreEqual(1, RowCount(result));
+            Assert.AreEqual(1, result.Count);
         }
 
         [TestMethod]
         public void TestExecResult() {
             string sql = "select 2+6*3+2*6;";
-            var stmt = RawParser.ParseSelect(sql).Bind(null);
-            var result = stmt.Optimize(stmt.CreatePlan()).SimpleConvertPhysical().Next();
-            Assert.AreEqual(1, RowCount(result));
-            Assert.AreEqual(32, Row0(result).values_[0]);
+            var result = ExecuteSQL(sql); 
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual(32, result[0].values_[0]);
         }
 
         [TestMethod]

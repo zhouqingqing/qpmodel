@@ -17,7 +17,7 @@ namespace adb
         //      these fields are local to current subquery
         // -----------------------------
 
-        // bounded tables
+        // bounded tables/subqueries
         Dictionary<int, TableRef> boundFrom_ = new Dictionary<int, TableRef>();
         // parent bind context - non-null for subquery only
         internal BindContext parent_;
@@ -44,9 +44,22 @@ namespace adb
             return -1;
         }
 
+        public TableRef Table(string name)
+        {
+            foreach (var e in boundFrom_)
+            {
+                if (e.Value.alias_.Equals(name))
+                    return e.Value;
+            }
+
+            return null;
+        }
+
         public void AddTable(TableRef tab) {
             boundFrom_.Add(boundFrom_.Count, tab);
         }
+
+        public List<TableRef> TableList() => boundFrom_.Values.ToList();
     }
 
     static public class ExprHelper {
@@ -125,6 +138,41 @@ namespace adb
         public virtual Value Exec(Row input) { return Value.MaxValue;}
     }
 
+    // represents "*" or "table.*"
+    public class SelStar : Expr {
+        internal string table_;
+
+        // bound
+        List<Expr> exprs_;
+
+        public SelStar(string table) => table_ = table;
+
+        public override void Bind(BindContext context)
+        {
+            exprs_ = new List<Expr>();
+            if (table_ is null)
+            {
+                // *
+                context.TableList().ForEach(x 
+                    => exprs_.AddRange(x.GenerateAllColumnsRefs()));
+            }
+            else {
+                // table.*
+                exprs_.AddRange(context.Table(table_).GenerateAllColumnsRefs());
+            }
+        }
+
+        public override string ToString()
+        {
+            if (exprs_ is null)
+                // if not bound
+                return table_ + ".*";
+            else
+                // after bound
+                return string.Join(",", exprs_);
+        }
+    }
+
     public class ColExpr : Expr
     {
         internal string db_;
@@ -146,7 +194,7 @@ namespace adb
             // if table name is not given, get table by column name search
             if (table_ is null)
             {
-                table_ = Catalog.systable_.ColumnFindTable(col_);
+                table_ = Catalog.systable_.ColumnFindTable(col_).name_;
                 if (table_ is null)
                     throw new Exception($@"can't find column {col_}");
             }
@@ -195,6 +243,8 @@ namespace adb
         public FuncExpr(string func) {
             func_ = func;
         }
+
+        public override string ToString() => func_;
     }
 
     // we can actually put all binary ops in BinExpr class but we want to keep 
@@ -249,6 +299,16 @@ namespace adb
     public class LogicAndExpr : BinExpr
     {
         public LogicAndExpr(Expr l, Expr r) : base(l, r, " and ") { }
+
+        public override Value Exec(Row input)
+        {
+            Value lv = l_.Exec(input);
+            Value rv = r_.Exec(input);
+
+            if (lv == 1 && rv == 1)
+                return 1;
+            return 0;
+        }
     }
 
     public class SubqueryExpr : Expr {

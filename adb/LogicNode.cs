@@ -10,9 +10,11 @@ namespace adb
     public abstract class PlanNode<T> where T : PlanNode<T>
     {
         public List<T> children_ = new List<T>();
+        public List<Expr> output_ = new List<Expr>();
 
         // print utilities
-        public string tabs(int depth) => new string(' ', depth * 2);
+        internal string tabs(int depth) => new string(' ', depth * 2);
+        string printOutput() => string.Join(",", output_);
         public virtual string PrintInlineDetails(int depth) { return null; }
         public virtual string PrintMoreDetails(int depth) { return null; }
         public string PrintString(int depth)
@@ -23,6 +25,8 @@ namespace adb
                 r += "-> ";
             r += this.GetType().Name + " " + PrintInlineDetails(depth) + "\n";
             var details = PrintMoreDetails(depth);
+            var outputs = printOutput();
+            r += outputs;
             if (details != null)
             {
                 // remove the last \n in case the details is a subquery
@@ -55,8 +59,6 @@ namespace adb
 
     public abstract class LogicNode : PlanNode<LogicNode>
     {
-        public List<Expr> output_ = new List<Expr>();
-
         // This is an honest translation from logic to physical plan
         public PhysicNode SimpleConvertPhysical()
         {
@@ -76,6 +78,12 @@ namespace adb
                         break;
                     case LogicResult lr:
                         phy = new PhysicResult(lr);
+                        break;
+                    case LogicSubquery ls:
+                        phy = new PhysicSubquery(ls, ls.children_[0].SimpleConvertPhysical());
+                        break;
+                    case LogicFilter lf:
+                        phy = new PhysicFilter(lf, lf.children_[0].SimpleConvertPhysical());
                         break;
                 }
 
@@ -137,9 +145,12 @@ namespace adb
 
         public override string PrintMoreDetails(int depth)
         {
+            string r = null;
+            if (groupby_ != null)
+                r += $"Group by: {string.Join(", ", groupby_)}\n";
             if (having_ != null)
-                return "Having: " + having_.PrintString(depth);
-            return null;
+                r += tabs(depth +2) + $"Filter: {having_}";
+            return r;
         }
 
         public LogicAgg(LogicNode child, List<Expr> groupby, Expr having)
