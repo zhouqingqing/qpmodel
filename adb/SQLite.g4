@@ -305,8 +305,8 @@ expr
  | expr op=( '<<' | '>>' | '&' | '|' ) expr					#arithbitexpr
  | expr op=( '<' | '<=' | '>' | '>=' ) expr					#arithcompexpr																		
  | expr op=( '=' | '==' | '!=' | '<>' | K_IS | 'is not' | K_IN | K_LIKE | K_GLOB | K_MATCH | K_REGEXP ) expr				#arithequalexpr
- | expr K_AND expr											#arithandexpr
- | expr K_OR expr											#arithorexpr
+ | expr K_AND expr											#LogicAndExpr
+ | expr K_OR expr											#LogicOrExpr
  | function_name '(' ( K_DISTINCT? expr ( ',' expr )* | '*' )? ')'	#FuncExpr
  | '(' expr ')'												#brackexpr
  | K_CAST '(' expr K_AS type_name ')'						#CastExpr
