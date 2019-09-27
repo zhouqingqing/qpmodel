@@ -10,9 +10,9 @@ namespace adb
 {
     class ColumnDef {
         public string name_;
-        public int ord_;
+        public int ordinal_;
 
-        public ColumnDef(string name, int ord) { name_ = name; ord_ = ord; }
+        public ColumnDef(string name, int ord) { name_ = name; ordinal_ = ord; }
     }
 
     class SystemTable

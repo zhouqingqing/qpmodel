@@ -39,6 +39,12 @@ namespace test
     {
         private TestContext testContextInstance;
 
+        internal IEnumerable<Row> ExecuteSQL(string sql) {
+            var stmt = RawParser.ParseSelect(sql).Bind(null);
+            var result = stmt.Optimize(stmt.CreatePlan()).SimpleConvertPhysical().Next();
+            return result;
+        }
+
         internal Row Row0(IEnumerable<Row> rows) {
             foreach (var r in rows)
                 return r;
@@ -66,6 +72,17 @@ namespace test
         [TestInitialize]
         public void TestInitialize()
         {
+        }
+
+        [TestMethod]
+        public void TestExecSelectFilter()
+        {
+            var result = ExecuteSQL("select a1 from a");
+            Assert.AreEqual(3, RowCount(result));
+            result = ExecuteSQL("select a1 from a where a2>1");
+            Assert.AreEqual(2, RowCount(result));
+            result = ExecuteSQL("select a1 from a where a2>2");
+            Assert.AreEqual(1, RowCount(result));
         }
 
         [TestMethod]

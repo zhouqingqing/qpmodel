@@ -38,6 +38,8 @@ namespace adb
 
         public override IEnumerable<Row> Next()
         {
+            Expr filter = (logic_ as LogicGet).filter_;
+
             for (int i = 0; i < nrows_; i++)
             {
                 Row r = new Row();
@@ -45,6 +47,8 @@ namespace adb
                 r.values_.Add(i+1);
                 r.values_.Add(i+2);
 
+                if (filter?.Exec(r) == 0)
+                    continue;
                 yield return r;
             }
         }
