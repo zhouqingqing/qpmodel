@@ -133,7 +133,7 @@ namespace adb
 
         // -- execution section --
 
-        // which column in the input row
+        // bound: which column in the input row
         internal int ordinal_;
 
         public ColExpr(string db, string table, string col)
@@ -172,6 +172,7 @@ namespace adb
 
             if (tableindex != -1)
             {
+                ordinal_ = Catalog.systable_.Column(table_, col_).ordinal_;
             }
             else
                 throw new Exception($"can't find table {table_}");
@@ -231,9 +232,14 @@ namespace adb
                 case "*":
                     r = l_.Exec(input) * r_.Exec(input);
                     break;
+                case ">":
+                    r = l_.Exec(input) > r_.Exec(input) ? 1 : 0;
+                    break;
                 case "=":
                     r = l_.Exec(input) == r_.Exec(input)?1:0;
                     break;
+                default:
+                    throw new NotImplementedException();
             }
 
             return r;
