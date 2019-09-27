@@ -33,13 +33,21 @@ namespace adb
         LogicNode plan_;
         public LogicNode GetPlan() => plan_;
 
-        public SelectCore(List<Expr> selection, List<TableRef> from, Expr where, List<Expr> groupby, Expr having)
+        // output
+        public List<Expr> Selection() => selection_;
+
+        // debug support
+        string text_;
+
+        public SelectCore(List<Expr> selection, List<TableRef> from, Expr where, List<Expr> groupby, Expr having, string text)
         {
             selection_ = selection;
             from_ = from;
             where_ = where;
             groupby_ = groupby;
             having_ = having;
+
+            text_ = text;
         }
 
         void BindFrom(BindContext context)
@@ -52,7 +60,7 @@ namespace adb
                         if (Catalog.systable_.Table(bref.relname_) != null)
                             context.AddTable(bref);
                         else
-                            throw new Exception($@"table {bref.alias_} not exists");
+                            throw new Exception($@"base table {bref.alias_} not exists");
                         break;
                     case SubqueryRef sref:
                         sref.query_.Bind(context);
@@ -64,27 +72,10 @@ namespace adb
             }
         }
 
-        void BindSelectionList(BindContext context)
-        {
-            foreach (var s in selection_)
-            {
-                if (s is Expr expr)
-                    expr.Bind(context);
-                else
-                    // handle '*'
-                    throw new NotSupportedException();
-            }
-        }
+        void BindSelectionList(BindContext context) => selection_.ForEach(x => x.Bind(context));
         void BindWhere(BindContext context) => where_?.Bind(context);
-        void BindGroupBy(BindContext context)
-        {
-            if (groupby_ != null)
-            {
-                foreach (var v in groupby_)
-                    v.Bind(context);
-            }
-            having_?.Bind(context);
-        }
+        void BindGroupBy(BindContext context)=> groupby_?.ForEach(x => x.Bind(context));
+        void BindHaving(BindContext context) => having_?.Bind(context);
         public SelectCore Bind(BindContext parent)
         {
             BindContext context = new BindContext(parent);
@@ -96,6 +87,8 @@ namespace adb
             BindSelectionList(context);
             BindWhere(context);
             BindGroupBy(context);
+            BindHaving(context);
+
             bindContext_ = context;
             return this;
         }
