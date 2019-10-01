@@ -10,9 +10,14 @@ using System.Diagnostics;
 namespace adb
 {
     // Antlr requires user defined exception
-    class RuntimeException : System.Exception
+    public class RuntimeException : System.Exception
     {
         public RuntimeException(string msg) {}
+    }
+
+    public class SemanticAnalyzeException: System.Exception
+    {
+        public SemanticAnalyzeException(string ms) { }
     }
 
     public class RawParser
@@ -33,7 +38,18 @@ namespace adb
     {
         public string alias_;
         public override string ToString() => alias_;
+
         public abstract List<Expr> GenerateAllColumnsRefs();
+        public Expr LocateColumn(string colName)
+        {
+            var list = GenerateAllColumnsRefs();
+            foreach (var v in list) {
+                if (v.alias_?.Equals(colName)??false)
+                    return v;
+            }
+
+            return null;
+        }
     }
 
     public class BaseTableRef : TableRef
@@ -160,10 +176,23 @@ namespace adb
 
         public override object VisitResult_column([NotNull] SQLiteParser.Result_columnContext context)
         {
+            Expr r;
+            string alias = context.column_alias()?.GetText();
             if (context.expr() != null)
-                return Visit(context.expr());
+            {
+                r = Visit(context.expr()) as Expr;
+                // ColExpr assume alias same as column name if not given
+                if (r is ColExpr cr && alias is null)
+                    alias = cr.colName_;
+            }
             else
-                return new SelStar(context.table_name()?.GetText());
+            {
+                Debug.Assert(alias is null);
+                r = new SelStar(context.table_name()?.GetText());
+            }
+
+            r.alias_ = alias;
+            return r;
         }
 
         public override object VisitFromSelectStmt([NotNull] SQLiteParser.FromSelectStmtContext context)

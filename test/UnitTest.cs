@@ -8,7 +8,7 @@ namespace test
 {
     public class PlanCompare {
         static public void AreEqual(string l, string r) {
-            char[] splitters = {' ', '\r', '\n'};
+            char[] splitters = {' ', '\t', '\r', '\n'};
             var lw = l.Split(splitters, StringSplitOptions.RemoveEmptyEntries);
             var rw = r.Split(splitters, StringSplitOptions.RemoveEmptyEntries);
 
@@ -39,13 +39,22 @@ namespace test
     {
         private TestContext testContextInstance;
 
+        string error_ = null;
         internal List<Row> ExecuteSQL(string sql) {
-            var stmt = RawParser.ParseSelect(sql).Bind(null);
-            var phyplan = stmt.Optimize(stmt.CreatePlan()).SimpleConvertPhysical();
-            var result = new PhysicCollect(phyplan);
-            result.Exec(null);
+            try
+            {
+                error_ = null;
 
-            return result.rows_;
+                var stmt = RawParser.ParseSelect(sql).Bind(null);
+                var phyplan = stmt.Optimize(stmt.CreatePlan()).SimpleConvertPhysical();
+                var result = new PhysicCollect(phyplan);
+                result.Exec(null);
+                return result.rows_;
+            }
+            catch (Exception e) {
+                error_ = e.Message;
+                return null;
+            }
         }
 
         /// <summary>
@@ -66,18 +75,32 @@ namespace test
         [TestMethod]
         public void TestExecCrossJoin()
         {
-            var result = ExecuteSQL("select a.a1 from a, b where a2>1");
+            var sql = "select a.a1 from a, b where a2 > 1";
+            var result = ExecuteSQL(sql);
             Assert.AreEqual(2 * 3, result.Count);
-            result = ExecuteSQL("select a.a1 from a, b where a2>2");
+            sql = "select a.a1 from a, b where a2>2";
+            result = ExecuteSQL(sql);
             Assert.AreEqual(1 * 3, result.Count);
         }
 
         [TestMethod]
         public void TestExecSubFrom()
         {
-            var result = ExecuteSQL("select * from a, (select * from b) c");
+            var sql = "select * from a, (select * from b) c";
+            var result = ExecuteSQL(sql);
             Assert.AreEqual(9, result.Count);
-            result = ExecuteSQL("select * from a, (select * from b where b2>2) c;");
+            sql = "select * from a, (select * from b where b2>2) c";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(3, result.Count);
+            sql = "select b.a1 + b.a2 from (select a1 from a) b";
+            result = ExecuteSQL(sql);
+            Assert.IsNull(result);
+            Assert.IsTrue(error_.Contains("SemanticAnalyzeException"));
+            sql = "select b.a1 + a2 from (select a1,a2 from a) b";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(3, result.Count);
+            sql = "select a1 from (select a1,a3 from a) b";
+            result = ExecuteSQL(sql);
             Assert.AreEqual(3, result.Count);
         }
 
@@ -86,7 +109,7 @@ namespace test
         {
             var result = ExecuteSQL("select * from a");
             Assert.AreEqual(3, result.Count);
-            result = ExecuteSQL("select a1 from a");
+            result = ExecuteSQL("select a1+a2,a1-a2,a1*a2 from a");
             Assert.AreEqual(3, result.Count);
             result = ExecuteSQL("select a1 from a where a2>1");
             Assert.AreEqual(2, result.Count);
@@ -98,7 +121,7 @@ namespace test
 
         [TestMethod]
         public void TestExecResult() {
-            string sql = "select 2+6*3+2*6;";
+            string sql = "select 2+6*3+2*6";
             var result = ExecuteSQL(sql); 
             Assert.AreEqual(1, result.Count);
             Assert.AreEqual(32, result[0].values_[0]);
@@ -107,31 +130,40 @@ namespace test
         [TestMethod]
         public void TestPushdown()
         {
-            string sql = "select a.a1 from a where a.a2 > 3";
+            string sql = "select a.a1,a.a1+a.a2 from a where a.a2 > 3";
             var stmt = RawParser.ParseSelect(sql).Bind(null);
             var plan = stmt.Optimize(stmt.CreatePlan());
             var answer = @"LogicGet a
-                             Filter: a.a2>3";
+                                Output: a.a1,a.a1+a.a2,a.a2
+                                Filter: a.a2>3";
             PlanCompare.AreEqual (answer,  plan.PrintString(0));
 
-            sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b3) and b.b3 > ((select c2 from c where c.c3=b2)));";
+            sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b3) and b.b3 > ((select c2 from c where c.c3=b2)))";
             stmt = RawParser.ParseSelect(sql).Bind(null);
             plan = stmt.CreatePlan();
             answer = @"LogicFilter
+                        Output: 1
                         Filter: a.a1>@0
                         <SubLink> 0
                         -> LogicFilter
+                            Output: b.b1
                             Filter: b.b2>@1 and b.b3>@2
                             <SubLink> 1
                             -> LogicFilter
-                                Filter: c.c2=b.b3
-                                -> LogicGet c
+                                Output: c.c2
+                                Filter: c.c2=?b.b3
+                              -> LogicGet c
+                                  Output: c.c2
                             <SubLink> 2
                             -> LogicFilter
-                                Filter: c.c3=b.b2
-                                -> LogicGet c
-                            -> LogicGet b
-                        -> LogicGet a";
+                                Output: c.c2
+                                Filter: c.c3=?b.b2
+                              -> LogicGet c
+                                  Output: c.c2,c.c3
+                          -> LogicGet b
+                              Output: b.b1,b.b2,b.b3
+                      -> LogicGet a
+                          Output: 1,a.a1";
             PlanCompare.AreEqual(answer, plan.PrintString(0));
         }
     }

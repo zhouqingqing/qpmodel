@@ -18,7 +18,7 @@ namespace adb
         // -----------------------------
 
         // bounded tables/subqueries
-        Dictionary<int, TableRef> boundFrom_ = new Dictionary<int, TableRef>();
+        internal Dictionary<int, TableRef> boundFrom_ = new Dictionary<int, TableRef>();
         // parent bind context - non-null for subquery only
         internal BindContext parent_;
 
@@ -35,31 +35,48 @@ namespace adb
                 nSubqueries = parent.nSubqueries;
         }
 
-        public int TableIndex(string name) {
-            foreach (var e in boundFrom_) {
-                if (e.Value.alias_.Equals(name))
-                    return e.Key;
-            }
+        // table APIs
+        public void AddTable(TableRef tab) => boundFrom_.Add(boundFrom_.Count, tab);
+        public List<TableRef> EnumTableRefs() => boundFrom_.Values.ToList();
+        public TableRef Table(string name) => boundFrom_.Values.FirstOrDefault(x => x.alias_.Equals(name));
+        public int TableIndex(string name) => boundFrom_.Where(x => x.Value.alias_.Equals(name))?.First().Key ?? -1;
 
-            return -1;
-        }
-
-        public TableRef Table(string name)
+        // column APIs
+        TableRef locateByColumnName (string colName)
         {
-            foreach (var e in boundFrom_)
+            var result  = EnumTableRefs().FirstOrDefault(x => x.LocateColumn(colName) != null);
+            if (result != EnumTableRefs().LastOrDefault(x => x.LocateColumn(colName) != null))
+                throw new SemanticAnalyzeException("ambigous column name");
+            return result;
+        }
+        public TableRef GetTableRef(string tabName, string colName)
+        {
+            if (tabName is null)
+                return locateByColumnName(colName); 
+            else
+                return Table(tabName);
+        }
+
+        public int ColumnOrdinal(string tabName, string colName) {
+            int r = -1;
+            var lc = Table(tabName).GenerateAllColumnsRefs();
+            for (int i = 0; i < lc.Count; i++)
             {
-                if (e.Value.alias_.Equals(name))
-                    return e.Value;
+                if (lc[i].alias_.Equals(colName))
+                {
+                    r = i;
+                    break;
+                }
             }
 
-            return null;
-        }
+            if (Table(tabName) is BaseTableRef bt) {
+                Debug.Assert(r == Catalog.systable_.Column(tabName, colName).ordinal_);
+            }
 
-        public void AddTable(TableRef tab) {
-            boundFrom_.Add(boundFrom_.Count, tab);
+            if (r != -1)
+                return r;
+            throw new SemanticAnalyzeException($"column not exists {tabName}.{colName}");
         }
-
-        public List<TableRef> TableList() => boundFrom_.Values.ToList();
     }
 
     static public class ExprHelper {
@@ -76,10 +93,42 @@ namespace adb
                 return andexpr;
             }
         }
+
+        static public List<ColExpr> EnumAllColExpr(Expr expr, bool includingParameters) {
+            var list = new HashSet<ColExpr>();
+            expr.VisitEachExpr(x => {
+                if (x is ColExpr xc)
+                {
+                    if (includingParameters || (!includingParameters && !xc.isOuterRef_))
+                        list.Add(xc);
+                }
+                return false;
+            });
+
+            return list.ToList();
+        }
+
+        static public List<TableRef> EnumAllTableRef(Expr expr)
+        {
+            var list = new HashSet<TableRef>();
+            expr.VisitEachExpr(x => {
+                if (x is ColExpr xc)
+                    list.Add(xc.tabRef_);
+                else if (x is SelStar xs) {
+                    xs.tabRefs_.ForEach(y => list.Add(y));
+                }
+                return false;
+            });
+
+            return list.ToList();
+        }
     }
 
     public class Expr
     {
+        // a.i+b.i as total
+        internal string alias_;
+
         // an expression can reference multiple tables
         //      e.g., a.i + b.j > [a.]k => references 2 tables
         // it is a sum of all its children
@@ -112,6 +161,7 @@ namespace adb
                         if (m.VisitEachExpr(callback))
                             return true;
                     }
+                    // if container<Expr> we shall also handle
                 }
                 return false;
             }
@@ -140,25 +190,31 @@ namespace adb
 
     // represents "*" or "table.*"
     public class SelStar : Expr {
-        internal string table_;
+        internal string tabName_;
 
         // bound
-        List<Expr> exprs_;
+        internal List<Expr> exprs_;
+        internal List<TableRef> tabRefs_;
 
-        public SelStar(string table) => table_ = table;
+        public SelStar(string table) => tabName_ = table;
 
         public override void Bind(BindContext context)
         {
             exprs_ = new List<Expr>();
-            if (table_ is null)
+            tabRefs_ = new List<TableRef>();
+            if (tabName_ is null)
             {
                 // *
-                context.TableList().ForEach(x 
-                    => exprs_.AddRange(x.GenerateAllColumnsRefs()));
+                context.EnumTableRefs().ForEach(x => {
+                    tabRefs_.Add(x);
+                    exprs_.AddRange(x.GenerateAllColumnsRefs());
+                });
             }
             else {
-                // table.*
-                exprs_.AddRange(context.Table(table_).GenerateAllColumnsRefs());
+                // table.* - you have to find it in current context
+                var tabref = context.Table(tabName_);
+                tabRefs_.Add(tabref);
+                exprs_.AddRange(tabref.GenerateAllColumnsRefs());
             }
         }
 
@@ -166,70 +222,91 @@ namespace adb
         {
             if (exprs_ is null)
                 // if not bound
-                return table_ + ".*";
+                return tabName_ + ".*";
             else
                 // after bound
                 return string.Join(",", exprs_);
         }
     }
 
+    // case 1: [A.a1] select A.a1 from (select ...) A;
+    //   -- A.a1 tabRef_ is SubqueryRef
+    // [A.a1] select * from A where exists (select ... from B where B.b1 = A.a1); 
+    //   -- A.a1 is OuterRef_
+    //
     public class ColExpr : Expr
     {
-        internal string db_;
-        internal string table_;
-        internal string col_;
+        internal string dbName_;
+        internal string tabName_;
+        internal string colName_;
+
+        // bound: which column in the input row
+        internal TableRef tabRef_;
+        internal bool isOuterRef_;
+        internal int ordinal_;
 
         // -- execution section --
 
-        // bound: which column in the input row
-        internal int ordinal_;
-
-        public ColExpr(string db, string table, string col)
+        public ColExpr(string dbName, string tabName, string colName)
         {
-            db_ = db; table_ = table; col_ = col;
+            dbName_ = dbName; tabName_ = tabName; colName_ = colName; alias_ = colName;
         }
 
         public override void Bind(BindContext context)
         {
-            // if table name is not given, get table by column name search
-            if (table_ is null)
-            {
-                table_ = Catalog.systable_.ColumnFindTable(col_).name_;
-                if (table_ is null)
-                    throw new Exception($@"can't find column {col_}");
-            }
+            Debug.Assert(tabRef_ is null);
 
-            // mark column's tableref
-            int tableindex = context.TableIndex(table_);
-            if (tableindex == -1)
+            // if table name is not given, search through all tablerefs
+            isOuterRef_ = false;
+            tabRef_ = context.GetTableRef(tabName_, colName_);
+
+            // we can't find the column in current context, so it could an outer reference
+            if (tabRef_ is null)
             {
                 // can't find in my current context, try my ancestors
                 BindContext parent = context;
                 while ((parent = parent.parent_) != null)
                 {
-                    tableindex = parent.TableIndex(table_);
-                    if (tableindex != -1)
+                    tabRef_ = parent.GetTableRef(tabName_, colName_);
+                    if (tabRef_ != null)
+                    {
+                        // we are actually switch the context to parent, whichTab_ is not right ...
+                        context = parent;
+                        isOuterRef_ = true;
                         break;
+                    }
                 }
-            }
-            else
-            {
-                // current context solvable
-                whichTab_.Set(context.TableIndex(table_), true);
+                if (tabRef_ is null)
+                    throw new Exception($"can't bind table {tabName_}");
             }
 
-            if (tableindex != -1)
-            {
-                ordinal_ = Catalog.systable_.Column(table_, col_).ordinal_;
-            }
-            else
-                throw new Exception($"can't find table {table_}");
-
+            Debug.Assert(tabRef_ != null);
+            if (tabName_ is null)
+                tabName_ = tabRef_.alias_;
+            whichTab_.Set(context.TableIndex(tabName_), true);
+            ordinal_ = context.ColumnOrdinal(tabName_, colName_);
             bounded_ = true;
         }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is ColExpr co)
+                //return co.dbName_.Equals(dbName_) && co.colName_.Equals(colName_);
+                return ToString().Equals(co.ToString());
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            return ToString().GetHashCode();
+        }
+
         public override string ToString()
         {
-            return $@"{table_}.{col_}";
+            string para = isOuterRef_ ? "?" : "";
+            if (colName_.Equals(alias_))
+                return $@"{para}{tabName_}.{colName_}";
+            return $@"{para}{tabName_}.{colName_} [{alias_}]";
         }
         public override Value Exec(Row input)
         {
@@ -274,25 +351,19 @@ namespace adb
 
         public override Value Exec(Row input)
         {
-            Value r = Value.MaxValue;
             switch (op_) {
-                case "+":
-                    r = l_.Exec(input) + r_.Exec(input);
-                    break;
-                case "*":
-                    r = l_.Exec(input) * r_.Exec(input);
-                    break;
-                case ">":
-                    r = l_.Exec(input) > r_.Exec(input) ? 1 : 0;
-                    break;
-                case "=":
-                    r = l_.Exec(input) == r_.Exec(input)?1:0;
-                    break;
+                case "+": return l_.Exec(input) + r_.Exec(input);
+                case "-": return l_.Exec(input) - r_.Exec(input);
+                case "*": return l_.Exec(input) * r_.Exec(input);
+                case "/": return l_.Exec(input) / r_.Exec(input);
+                case ">": return l_.Exec(input) > r_.Exec(input) ? 1 : 0;
+                case ">=": return l_.Exec(input) >= r_.Exec(input) ? 1 : 0;
+                case "<": return l_.Exec(input) < r_.Exec(input) ? 1 : 0;
+                case "<=": return l_.Exec(input) <= r_.Exec(input) ? 1 : 0;
+                case "=": return l_.Exec(input) == r_.Exec(input)?1:0;
                 default:
                     throw new NotImplementedException();
             }
-
-            return r;
         }
     }
 

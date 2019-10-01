@@ -27,7 +27,7 @@ namespace adb
 
         // bounded context
         BindContext bindContext_;
-        public BindContext Parent() => bindContext_;
+        public BindContext BinContext() => bindContext_;
 
         // plan
         LogicNode plan_;
@@ -50,11 +50,10 @@ namespace adb
             text_ = text;
         }
 
-        void BindFrom(BindContext context)
+        void bindFrom(BindContext context)
         {
-            foreach (var f in from_)
-            {
-                switch (f)
+            from_.ForEach(x => {
+                switch (x)
                 {
                     case BaseTableRef bref:
                         if (Catalog.systable_.Table(bref.relname_) != null)
@@ -69,13 +68,12 @@ namespace adb
                         context.AddTable(sref);
                         break;
                 }
-            }
+            });
         }
-
-        void BindSelectionList(BindContext context) => selection_.ForEach(x => x.Bind(context));
-        void BindWhere(BindContext context) => where_?.Bind(context);
-        void BindGroupBy(BindContext context)=> groupby_?.ForEach(x => x.Bind(context));
-        void BindHaving(BindContext context) => having_?.Bind(context);
+        void bindSelectionList(BindContext context) => selection_.ForEach(x => x.Bind(context));
+        void bindWhere(BindContext context) => where_?.Bind(context);
+        void bindGroupBy(BindContext context)=> groupby_?.ForEach(x => x.Bind(context));
+        void bindHaving(BindContext context) => having_?.Bind(context);
         public SelectCore Bind(BindContext parent)
         {
             BindContext context = new BindContext(parent);
@@ -83,56 +81,71 @@ namespace adb
             Debug.Assert(plan_ == null);
 
             // from binding shall be the first since it may create new alias
-            BindFrom(context);
-            BindSelectionList(context);
-            BindWhere(context);
-            BindGroupBy(context);
-            BindHaving(context);
+            bindFrom(context);
+            bindSelectionList(context);
+            bindWhere(context);
+            bindGroupBy(context);
+            bindHaving(context);
 
             bindContext_ = context;
             return this;
         }
 
-        public LogicNode CreatePlan()
+        LogicNode transformOneFrom(TableRef tab)
+        {
+            LogicNode from;
+            switch (tab)
+            {
+                case BaseTableRef bref:
+                    from = new LogicGet(bref);
+                    break;
+                case SubqueryRef sref:
+                    from = new LogicSubquery(sref,
+                                    sref.query_.CreatePlan());
+                    break;
+                default:
+                    throw new Exception();
+            }
+
+            return from;
+        }
+
+        // from clause -
+        //  pair each from item with cross join, their join conditions will be handled
+        //  with where clauss processing.
+        //
+        LogicNode transformFromClause()
         {
             LogicNode root;
 
-            // from clause -
-            //  pair each from item with cross join, their join conditions will be handled
-            //  with where clauss processing.
-            //
             if (from_.Count >= 2)
             {
                 var join = new LogicCrossJoin(null, null);
                 var children = join.children_;
-                foreach (var v in from_)
+                from_.ForEach(x =>
                 {
-                    LogicNode from = null;
-                    switch (v)
-                    {
-                        case BaseTableRef bref:
-                            from = new LogicGet(bref);
-                            break;
-                        case SubqueryRef sref:
-                            from = new LogicSubquery(sref,
-                                            sref.query_.CreatePlan());
-                            break;
-                    }
+                    LogicNode from = transformOneFrom(x);
                     if (children[0] is null)
                         children[0] = from;
                     else
                         children[1] = (children[1] is null) ? from :
                                         new LogicCrossJoin(from, children[1]);
-                }
-
+                });
                 root = join;
             }
             else if (from_.Count == 1)
-                root = new LogicGet(from_[0] as BaseTableRef);
+                root = transformOneFrom(from_[0]);
             else
                 root = new LogicResult(selection_);
 
-            // filter
+            return root;
+        }
+
+        public LogicNode CreatePlan()
+        {
+            LogicNode root = transformFromClause();
+
+            // transform where clause
             if (where_ != null)
             {
                 if (where_.HasSubQuery())
@@ -152,6 +165,9 @@ namespace adb
             // group by
             if (groupby_ != null)
                 root = new LogicAgg(root, groupby_, having_);
+
+            // resolve the output
+            root.ResolveChildrenColumns(selection_);
 
             plan_ = root;
             return root;
@@ -200,9 +216,8 @@ namespace adb
                 // top filter node is not needed
                 plan = plan.children_[0];
             }
-            else
-                plan = new LogicFilter(plan.children_[0],
-                                        ExprHelper.AndListToExpr(andlist));
+            else 
+                filter.filter_ = ExprHelper.AndListToExpr(andlist);
 
             return plan;
         }
