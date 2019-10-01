@@ -10,11 +10,10 @@ namespace adb
     public abstract class PlanNode<T> where T : PlanNode<T>
     {
         public List<T> children_ = new List<T>();
-        public List<Expr> output_ = new List<Expr>();
 
         // print utilities
         internal string tabs(int depth) => new string(' ', depth * 2);
-        string printOutput() => string.Join(",", output_);
+        public virtual string PrintOutput(int depth) { return null; }
         public virtual string PrintInlineDetails(int depth) { return null; }
         public virtual string PrintMoreDetails(int depth) { return null; }
         public string PrintString(int depth)
@@ -25,8 +24,7 @@ namespace adb
                 r += "-> ";
             r += this.GetType().Name + " " + PrintInlineDetails(depth) + "\n";
             var details = PrintMoreDetails(depth);
-            var outputs = printOutput();
-            r += outputs;
+            r += tabs(depth + 2) + PrintOutput(depth) + "\n";
             if (details != null)
             {
                 // remove the last \n in case the details is a subquery
@@ -41,7 +39,10 @@ namespace adb
             return r;
         }
 
-        // traversal pattern
+        // traversal pattern 
+        //  if any visit returns a true, stop recursion. So if you want to
+        //  visit all nodes, your callback shall always return false
+        //
         public bool VisitEachNode(Func<PlanNode<T>, bool> callback)
         {
             bool r = callback(this);
@@ -59,6 +60,10 @@ namespace adb
 
     public abstract class LogicNode : PlanNode<LogicNode>
     {
+        public List<Expr> output_ = new List<Expr>();
+
+        public override string PrintOutput(int depth) => "Output: " + string.Join(",", output_);
+
         // This is an honest translation from logic to physical plan
         public PhysicNode SimpleConvertPhysical()
         {
@@ -94,11 +99,56 @@ namespace adb
 
             return root;
         }
+
+        public virtual List<TableRef> EnumTableRefs() {
+            List<TableRef> refs = new List<TableRef>();
+            children_.ForEach(x => refs.AddRange(x.EnumTableRefs()));
+            return refs;
+        }
+
+        // what columns this node requires from its children
+        public virtual void ResolveChildrenColumns(List<Expr> reqOutput) {
+            output_.AddRange(reqOutput);
+            output_ = output_.Distinct().ToList();
+        }
     }
 
     public class LogicCrossJoin : LogicNode
     {
         public LogicCrossJoin(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
+
+        public override void ResolveChildrenColumns(List<Expr> reqOutput)
+        {
+            // push to left and right: to which side depends on the TableRef it contains
+            var lrefs = children_[0].EnumTableRefs();
+            var rrefs = children_[1].EnumTableRefs();
+
+            foreach (var v in reqOutput) {
+                var refs = ExprHelper.EnumAllTableRef(v);
+
+                if (Utils.ListAContainsB(lrefs, refs))
+                    children_[0].ResolveChildrenColumns(new List<Expr> { v });
+                else if (Utils.ListAContainsB(rrefs, refs))
+                    children_[1].ResolveChildrenColumns(new List<Expr> { v });
+                else
+                {
+                    // the whole list can't push to the children (Eg. a.a1 + b.b1)
+                    // decompose to singleton and push down
+                    var colref = ExprHelper.EnumAllColExpr(v, false);
+                    colref.ForEach(x=> {
+                        if (lrefs.Contains(x.tabRef_))
+                            children_[0].ResolveChildrenColumns(new List<Expr> { x });
+                        else if (rrefs.Contains(x.tabRef_))
+                            children_[1].ResolveChildrenColumns(new List<Expr> { x });
+                        else
+                            throw new InvalidProgramException("contains invalid tableref");
+                    });
+
+                }
+            }
+
+            base.ResolveChildrenColumns(reqOutput);
+        }
     }
 
     public class LogicFilter : LogicNode
@@ -121,7 +171,7 @@ namespace adb
                         if (x is SubqueryExpr sx)
                         {
                             r += tabs(depth + 2) + $"<SubLink> {sx.subqueryid_}\n";
-                            Debug.Assert(sx.query_.Parent() != null);
+                            Debug.Assert(sx.query_.BinContext() != null);
                             r += $"{sx.query_.GetPlan().PrintString(depth + 2)}";
                         }
                         return false;
@@ -134,6 +184,15 @@ namespace adb
 
         public LogicFilter(LogicNode child, Expr filter) {
             children_.Add(child); filter_ = filter;
+        }
+
+        public override void ResolveChildrenColumns(List<Expr> reqOutput)
+        {
+            List<Expr> newreq = new List<Expr>(reqOutput);
+            newreq.AddRange(ExprHelper.EnumAllColExpr(filter_, false));
+            children_[0].ResolveChildrenColumns(newreq.Distinct().ToList());
+
+            base.ResolveChildrenColumns(reqOutput);
         }
     }
 
@@ -161,10 +220,17 @@ namespace adb
 
     public class LogicSubquery : LogicNode
     {
-        public SubqueryRef query_;
+        public SubqueryRef queryRef_;
 
-        public override string ToString() => $"<{query_.alias_}>";
-        public LogicSubquery(SubqueryRef query, LogicNode child) { query_ = query; children_.Add(child); }
+        public override string ToString() => $"<{queryRef_.alias_}>";
+        public LogicSubquery(SubqueryRef query, LogicNode child) { queryRef_ = query; children_.Add(child); }
+
+        public override List<TableRef> EnumTableRefs() => queryRef_.query_.BinContext().EnumTableRefs();
+        public override void ResolveChildrenColumns(List<Expr> reqOutput)
+        {
+            queryRef_.query_.GetPlan().ResolveChildrenColumns(queryRef_.query_.Selection());
+            base.ResolveChildrenColumns(reqOutput);
+        }
     }
 
     public class LogicGet : LogicNode
@@ -172,11 +238,7 @@ namespace adb
         public BaseTableRef tabref_;
         public Expr filter_;
 
-        public LogicGet(BaseTableRef tab)
-        {
-            tabref_ = tab;
-        }
-
+        public LogicGet(BaseTableRef tab) => tabref_ = tab;
         public override string ToString() => tabref_.alias_;
         public override string PrintInlineDetails(int depth) => ToString();
         public override string PrintMoreDetails(int depth)
@@ -194,6 +256,31 @@ namespace adb
                 filter_ = new LogicAndExpr(filter_, filter);
             return true;
         }
+
+        public override void ResolveChildrenColumns(List<Expr> reqOutput)
+        {
+            // it can be an litral, or only uses my tableref
+            reqOutput.ForEach(x =>
+            {
+                switch (x) {
+                    case LiteralExpr lx:
+                        break;
+                    case SelStar ls:
+                        Debug.Assert(ls.tabRefs_.Count == 1);
+                        Debug.Assert(ls.tabRefs_[0].Equals(tabref_));
+                        break;
+                    default:
+                        Debug.Assert(ExprHelper.EnumAllTableRef(x).Count == 1);
+                        Debug.Assert(ExprHelper.EnumAllTableRef(x)[0].Equals(tabref_));
+                        break;
+                }
+            });
+
+            // don't need to include columns it uses (say filter) for output
+            base.ResolveChildrenColumns(reqOutput);
+        }
+
+        public override List<TableRef> EnumTableRefs() => new List<TableRef>{tabref_};
     }
 
     public class LogicResult : LogicNode
@@ -210,5 +297,7 @@ namespace adb
         {
             return "Expr: " + ToString();
         }
+
+        public override List<TableRef> EnumTableRefs() => null;
     }
 }

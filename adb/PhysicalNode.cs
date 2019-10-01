@@ -26,6 +26,7 @@ namespace adb
 
         public PhysicNode(LogicNode logic) => logic_ = logic;
 
+        public override string PrintOutput(int depth) => "Output: " + string.Join(",", logic_.output_);
         public override string PrintInlineDetails(int depth) => logic_.PrintInlineDetails(depth);
         public override string PrintMoreDetails(int depth) => logic_.PrintMoreDetails(depth);
 
