@@ -172,7 +172,7 @@ namespace adb
                         {
                             r += tabs(depth + 2) + $"<SubLink> {sx.subqueryid_}\n";
                             Debug.Assert(sx.query_.cores_[0].BinContext() != null);
-                            r += $"{sx.query_.cores_[0].GetPlan().PrintString(depth + 2)}";
+                            r += $"{sx.query_.GetPlan().PrintString(depth + 2)}";
                         }
                         return false;
                     });
@@ -228,7 +228,7 @@ namespace adb
         public override List<TableRef> EnumTableRefs() => queryRef_.query_.cores_[0].BinContext().EnumTableRefs();
         public override void ResolveChildrenColumns(List<Expr> reqOutput)
         {
-            queryRef_.query_.cores_[0].GetPlan().ResolveChildrenColumns(queryRef_.query_.Selection());
+            queryRef_.query_.GetPlan().ResolveChildrenColumns(queryRef_.query_.Selection());
             base.ResolveChildrenColumns(reqOutput);
         }
     }

@@ -150,8 +150,10 @@ namespace test
         }
 
         [TestMethod]
-        public void TestPlan()
+        public void TestSelectStmt()
         {
+            string sql = "with cte1 as (select * from a) select a.a1,a.a1+a.a2 from cte1 where a.a2 > 3";
+            var stmt = RawParser.ParseSQLStatement(sql);
         }
 
         [TestMethod]
