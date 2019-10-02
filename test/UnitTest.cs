@@ -45,13 +45,34 @@ namespace test
             {
                 error_ = null;
 
-                var stmt = RawParser.ParseSelect(sql).Bind(null);
-                var phyplan = stmt.Optimize(stmt.CreatePlan()).SimpleConvertPhysical();
+                var stmt = RawParser.ParseSQLStatement(sql).Bind(null);
+                stmt.CreatePlan();
+                var phyplan = stmt.Optimize().SimpleConvertPhysical();
                 var result = new PhysicCollect(phyplan);
                 result.Exec(null);
                 return result.rows_;
             }
             catch (Exception e) {
+                error_ = e.Message;
+                return null;
+            }
+        }
+
+        internal Tuple<List<Row>, PhysicNode> ExecuteSQL2(string sql)
+        {
+            try
+            {
+                error_ = null;
+
+                var stmt = RawParser.ParseSQLStatement(sql).Bind(null);
+                stmt.CreatePlan();
+                var phyplan = stmt.Optimize().SimpleConvertPhysical();
+                var result = new PhysicCollect(phyplan);
+                result.Exec(null);
+                return new Tuple<List<Row>, PhysicNode>(result.rows_, phyplan);
+            }
+            catch (Exception e)
+            {
                 error_ = e.Message;
                 return null;
             }
@@ -87,10 +108,11 @@ namespace test
         public void TestExecSubFrom()
         {
             var sql = "select * from a, (select * from b) c";
-            var result = ExecuteSQL(sql);
-            Assert.AreEqual(9, result.Count);
+            var result2 = ExecuteSQL2(sql);
+            Assert.AreEqual(9, result2.Item1.Count);
+            Assert.IsTrue(result2.Item2.PrintOutput(0).Contains("a.a1,a.a2,a.a3,b.b1,b.b2,b.b3"));
             sql = "select * from a, (select * from b where b2>2) c";
-            result = ExecuteSQL(sql);
+            var result = ExecuteSQL(sql);
             Assert.AreEqual(3, result.Count);
             sql = "select b.a1 + b.a2 from (select a1 from a) b";
             result = ExecuteSQL(sql);
@@ -128,18 +150,24 @@ namespace test
         }
 
         [TestMethod]
+        public void TestPlan()
+        {
+        }
+
+        [TestMethod]
         public void TestPushdown()
         {
             string sql = "select a.a1,a.a1+a.a2 from a where a.a2 > 3";
-            var stmt = RawParser.ParseSelect(sql).Bind(null);
-            var plan = stmt.Optimize(stmt.CreatePlan());
+            var stmt = RawParser.ParseSQLStatement(sql).Bind(null);
+            stmt.CreatePlan();
+            var plan = stmt.Optimize();
             var answer = @"LogicGet a
                                 Output: a.a1,a.a1+a.a2,a.a2
                                 Filter: a.a2>3";
             PlanCompare.AreEqual (answer,  plan.PrintString(0));
 
             sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b3) and b.b3 > ((select c2 from c where c.c3=b2)))";
-            stmt = RawParser.ParseSelect(sql).Bind(null);
+            stmt = RawParser.ParseSQLStatement(sql).Bind(null);
             plan = stmt.CreatePlan();
             answer = @"LogicFilter
                         Output: 1

@@ -171,8 +171,8 @@ namespace adb
                         if (x is SubqueryExpr sx)
                         {
                             r += tabs(depth + 2) + $"<SubLink> {sx.subqueryid_}\n";
-                            Debug.Assert(sx.query_.BinContext() != null);
-                            r += $"{sx.query_.GetPlan().PrintString(depth + 2)}";
+                            Debug.Assert(sx.query_.cores_[0].BinContext() != null);
+                            r += $"{sx.query_.cores_[0].GetPlan().PrintString(depth + 2)}";
                         }
                         return false;
                     });
@@ -225,10 +225,10 @@ namespace adb
         public override string ToString() => $"<{queryRef_.alias_}>";
         public LogicSubquery(SubqueryRef query, LogicNode child) { queryRef_ = query; children_.Add(child); }
 
-        public override List<TableRef> EnumTableRefs() => queryRef_.query_.BinContext().EnumTableRefs();
+        public override List<TableRef> EnumTableRefs() => queryRef_.query_.cores_[0].BinContext().EnumTableRefs();
         public override void ResolveChildrenColumns(List<Expr> reqOutput)
         {
-            queryRef_.query_.GetPlan().ResolveChildrenColumns(queryRef_.query_.Selection());
+            queryRef_.query_.cores_[0].GetPlan().ResolveChildrenColumns(queryRef_.query_.Selection());
             base.ResolveChildrenColumns(reqOutput);
         }
     }
