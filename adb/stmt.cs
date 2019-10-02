@@ -38,15 +38,24 @@ namespace adb
         ORDER BY clause
     */
     public class SelectStmt : SQLStatement {
-        // setop connected cores
+        internal List<CTExpr> ctes_;
         internal List<SelectCore> cores_ = new List<SelectCore>();
+        internal List<OrderTerm> orders_;
 
         // most common case is that there is only one core
         public SelectStmt(SelectCore core) => cores_.Add(core);
         public override SQLStatement Bind(BindContext parent) => cores_[0].Bind(parent);
-        public override LogicNode Optimize() => cores_[0].Optimize();
-        public override LogicNode CreatePlan() => cores_[0].CreatePlan();
+        public override LogicNode Optimize() => plan_ = cores_[0].Optimize();
+        public override LogicNode CreatePlan() => plan_ = cores_[0].CreatePlan();
         public List<Expr> Selection() => cores_[0].Selection();
+
+        // generic form
+        public SelectStmt(List<CTExpr> ctes, List<SelectCore> cores, List<OrderTerm> orders)
+        {
+            ctes_ = ctes;
+            cores_ = cores;
+            orders_ = orders;
+        }
     }
 
     public class SelectCore: SQLStatement

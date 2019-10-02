@@ -255,9 +255,41 @@ namespace adb
             return new SelectCore(resultCols, resultRels, where, groupby, having, context.GetText());
         }
 
+        public override object VisitCommon_table_expression([NotNull] SQLiteParser.Common_table_expressionContext context)
+        {
+            List<string> colNames = null;
+            if (context.column_name() != null)
+            {
+                colNames = new List<string>();
+                Array.ForEach(context.column_name(), x => colNames.Add(x.GetText()));
+            }
+            return new CTExpr(context.table_name().GetText(), colNames, Visit(context.select_stmt()) as SelectStmt);
+        }
+
+        public override object VisitOrdering_term([NotNull] SQLiteParser.Ordering_termContext context)
+        {
+            return new OrderTerm(Visit(context.expr()) as Expr, (context.K_DESC() is null)?false:true);
+        }
+
         public override object VisitSelect_stmt([NotNull] SQLiteParser.Select_stmtContext context)
         {
-            return new SelectStmt (Visit(context.select_core(0)) as SelectCore);
+            List<CTExpr> ctes = null;
+            if (context.K_WITH() != null) {
+                ctes = new List<CTExpr>();
+                Array.ForEach(context.common_table_expression(), x => ctes.Add(VisitCommon_table_expression(x) as CTExpr));
+            }
+
+            List<SelectCore> cores = new List<SelectCore>();
+            Array.ForEach(context.select_core(), x => cores.Add(VisitSelect_core(x) as SelectCore));
+
+            List<OrderTerm> orders = null;
+            if (context.K_ORDER() != null)
+            {
+                Debug.Assert(context.K_BY() != null);
+                orders = new List<OrderTerm>();
+                Array.ForEach(context.ordering_term(), x=> orders.Add(VisitOrdering_term(x) as OrderTerm));
+            }
+            return new SelectStmt (ctes, cores, orders);
         }
 
         public override object VisitSql_stmt([NotNull] SQLiteParser.Sql_stmtContext context)

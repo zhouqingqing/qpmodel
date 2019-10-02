@@ -402,6 +402,25 @@ namespace adb
         }
     }
 
+    public class CTExpr : Expr {
+        public string tabName_;
+        public List<string> colNames_;
+        public SelectStmt query_;
+
+        public CTExpr(string tabName, List<string> colNames, SelectStmt query) {
+            tabName_ = tabName; colNames_ = colNames; query_ = query;
+        }
+    }
+
+    public class OrderTerm : Expr {
+        public Expr expr_;
+        bool descend_;
+
+        public OrderTerm(Expr expr, bool descend) {
+            expr_ = expr; descend_ = descend;
+        }
+    }
+
     public class LiteralExpr : Expr
     {
         public SQLiteParser.Literal_valueContext val_;
