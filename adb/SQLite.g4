@@ -51,7 +51,6 @@ sql_stmt
                                       | attach_stmt
                                       | begin_stmt
                                       | commit_stmt
-                                      | compound_select_stmt
                                       | create_index_stmt
                                       | create_table_stmt
                                       | create_trigger_stmt
@@ -64,7 +63,6 @@ sql_stmt
                                       | drop_table_stmt
                                       | drop_trigger_stmt
                                       | drop_view_stmt
-                                      | factored_select_stmt
                                       | insert_stmt
                                       | pragma_stmt
                                       | reindex_stmt
@@ -98,13 +96,6 @@ begin_stmt
 
 commit_stmt
  : ( K_COMMIT | K_END ) ( K_TRANSACTION transaction_name? )?
- ;
-
-compound_select_stmt
- : ( K_WITH K_RECURSIVE? common_table_expression ( ',' common_table_expression )* )?
-   select_core ( ( K_UNION K_ALL? | K_INTERSECT | K_EXCEPT ) select_core )+
-   ( K_ORDER K_BY ordering_term ( ',' ordering_term )* )?
-   ( K_LIMIT expr ( ( K_OFFSET | ',' ) expr )? )?
  ;
 
 create_index_stmt
@@ -171,13 +162,6 @@ drop_trigger_stmt
 
 drop_view_stmt
  : K_DROP K_VIEW ( K_IF K_EXISTS )? ( database_name '.' )? view_name
- ;
-
-factored_select_stmt
- : ( K_WITH K_RECURSIVE? common_table_expression ( ',' common_table_expression )* )?
-   select_core ( compound_operator select_core )*
-   ( K_ORDER K_BY ordering_term ( ',' ordering_term )* )?
-   ( K_LIMIT expr ( ( K_OFFSET | ',' ) expr )? )?
  ;
 
 insert_stmt

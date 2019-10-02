@@ -22,15 +22,16 @@ namespace adb
 
     public class RawParser
     {
-        static public SelectCore ParseSelect(string sql) {
+        static public SQLStatement ParseSQLStatement(string sql)
+        {
             AntlrInputStream inputStream = new AntlrInputStream(sql);
             SQLiteLexer sqlLexer = new SQLiteLexer(inputStream);
             CommonTokenStream commonTokenStream = new CommonTokenStream(sqlLexer);
             SQLiteParser sqlParser = new SQLiteParser(commonTokenStream);
             SQLiteVisitor visitor = new SQLiteVisitor();
 
-            SQLiteParser.Select_coreContext coreCxt = sqlParser.select_core();
-            return visitor.VisitSelect_core(coreCxt) as SelectCore;
+            SQLiteParser.Sql_stmtContext stmtCxt = sqlParser.sql_stmt();
+            return visitor.VisitSql_stmt(stmtCxt) as SQLStatement;
         }
     }
 
@@ -86,9 +87,9 @@ namespace adb
     // subquery in FROM clause
     public class SubqueryRef : TableRef
     {
-        public SelectCore query_;
+        public SelectStmt query_;
 
-        public SubqueryRef(SelectCore query, [NotNull] string alias)
+        public SubqueryRef(SelectStmt query, [NotNull] string alias)
         {
             query_ = query;
             alias_ = alias;
@@ -155,7 +156,7 @@ namespace adb
 
         public override object VisitSubqueryExpr([NotNull] SQLiteParser.SubqueryExprContext context)
         {
-            var query = Visit(context.select_stmt()) as SelectCore;
+            var query = Visit(context.select_stmt()) as SelectStmt;
             return new SubqueryExpr(query);
         }
 
@@ -197,7 +198,7 @@ namespace adb
 
         public override object VisitFromSelectStmt([NotNull] SQLiteParser.FromSelectStmtContext context)
         {
-            var query = Visit(context.select_stmt()) as SelectCore;
+            var query = Visit(context.select_stmt()) as SelectStmt;
             if (context.table_alias() is null)
                 throw new Exception("subquery in FROM shall have an alias");
             return new SubqueryRef(query, context.table_alias().GetText());
@@ -253,6 +254,26 @@ namespace adb
             // -- binding stage
             return new SelectCore(resultCols, resultRels, where, groupby, having, context.GetText());
         }
-    }
 
+        public override object VisitSelect_stmt([NotNull] SQLiteParser.Select_stmtContext context)
+        {
+            return new SelectStmt (Visit(context.select_core(0)) as SelectCore);
+        }
+
+        public override object VisitSql_stmt([NotNull] SQLiteParser.Sql_stmtContext context)
+        {
+            SQLStatement r = null;
+            bool explain = false;
+
+            if (context.K_EXPLAIN() != null)
+                explain = true;
+            if (context.select_stmt() != null)
+                r = Visit(context.select_stmt()) as SelectStmt;
+
+            if (r is null)
+                throw new NotImplementedException();
+            r.explain_ = explain;
+            return r;
+        }
+    }
 }

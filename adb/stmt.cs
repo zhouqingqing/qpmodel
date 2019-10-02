@@ -7,6 +7,26 @@ using System.Diagnostics;
 
 namespace adb
 {
+    public abstract class SQLStatement
+    {
+        internal bool explain_ = false;
+
+        // bounded context
+        internal BindContext bindContext_;
+        public BindContext BinContext() => bindContext_;
+
+        // plan
+        internal LogicNode plan_;
+        public LogicNode GetPlan() => plan_;
+
+        // debug support
+        internal string text_;
+
+        public virtual SQLStatement Bind(BindContext parent) { return this; }
+        public virtual LogicNode Optimize() => plan_;
+        public virtual LogicNode CreatePlan() => plan_;
+    }
+
     /*
     SQL is implemented as if a query was executed in the following order:
 
@@ -17,7 +37,19 @@ namespace adb
         SELECT clause
         ORDER BY clause
     */
-    public class SelectCore
+    public class SelectStmt : SQLStatement {
+        // setop connected cores
+        internal List<SelectCore> cores_ = new List<SelectCore>();
+
+        // most common case is that there is only one core
+        public SelectStmt(SelectCore core) => cores_.Add(core);
+        public override SQLStatement Bind(BindContext parent) => cores_[0].Bind(parent);
+        public override LogicNode Optimize() => cores_[0].Optimize();
+        public override LogicNode CreatePlan() => cores_[0].CreatePlan();
+        public List<Expr> Selection() => cores_[0].Selection();
+    }
+
+    public class SelectCore: SQLStatement
     {
         List<TableRef> from_;
         Expr where_;
@@ -25,19 +57,8 @@ namespace adb
         Expr having_;
         List<Expr> selection_;
 
-        // bounded context
-        BindContext bindContext_;
-        public BindContext BinContext() => bindContext_;
-
-        // plan
-        LogicNode plan_;
-        public LogicNode GetPlan() => plan_;
-
         // output
         public List<Expr> Selection() => selection_;
-
-        // debug support
-        string text_;
 
         public SelectCore(List<Expr> selection, List<TableRef> from, Expr where, List<Expr> groupby, Expr having, string text)
         {
@@ -74,7 +95,7 @@ namespace adb
         void bindWhere(BindContext context) => where_?.Bind(context);
         void bindGroupBy(BindContext context)=> groupby_?.ForEach(x => x.Bind(context));
         void bindHaving(BindContext context) => having_?.Bind(context);
-        public SelectCore Bind(BindContext parent)
+        public override SQLStatement Bind(BindContext parent)
         {
             BindContext context = new BindContext(parent);
 
@@ -141,7 +162,7 @@ namespace adb
             return root;
         }
 
-        public LogicNode CreatePlan()
+        public override LogicNode CreatePlan()
         {
             LogicNode root = transformFromClause();
 
@@ -196,8 +217,9 @@ namespace adb
             });
         }
 
-        public LogicNode Optimize(LogicNode plan)
+        public override LogicNode Optimize()
         {
+            LogicNode plan = plan_;
             var filter = plan as LogicFilter;
             if (filter is null || filter.filter_ is null)
                 return plan;

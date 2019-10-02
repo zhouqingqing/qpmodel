@@ -288,17 +288,12 @@ namespace adb
             bounded_ = true;
         }
 
+        public override int GetHashCode() => (tabName_ + colName_).GetHashCode();
         public override bool Equals(object obj)
         {
             if (obj is ColExpr co)
-                //return co.dbName_.Equals(dbName_) && co.colName_.Equals(colName_);
-                return ToString().Equals(co.ToString());
+                return co.tabName_.Equals(tabName_) && co.colName_.Equals(colName_);
             return false;
-        }
-
-        public override int GetHashCode()
-        {
-            return ToString().GetHashCode();
         }
 
         public override string ToString()
@@ -383,12 +378,12 @@ namespace adb
     }
 
     public class SubqueryExpr : Expr {
-        public SelectCore query_;
+        public SelectStmt query_;
         public int subqueryid_; // bound
 
         // bounded data
 
-        public SubqueryExpr(SelectCore query) { query_ = query; }
+        public SubqueryExpr(SelectStmt query) { query_ = query; }
 
         public override void Bind(BindContext context)
         {
