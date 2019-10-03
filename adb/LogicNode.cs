@@ -115,8 +115,24 @@ namespace adb
 
         // what columns this node requires from its children
         public virtual void ResolveChildrenColumns(List<Expr> reqOutput) {
-            output_.AddRange(reqOutput);
-            output_ = output_.Distinct().ToList();
+            // LogicGet is different from others - it has input as a full scan of table, so the ordinal
+            // shall be related to the table layout. Other logic nodes shall have sequential ordinal.
+            //
+            Debug.Assert(!(this is LogicGet));
+
+            int seq = 0;
+            reqOutput.ForEach(x =>
+            {
+                if (x is ColExpr xc)
+                {
+                    // fix colexpr's ordinal
+                    var n = new ColExpr(xc.dbName_, xc.tabName_, xc.colName_);
+                    n.ordinal_ = seq++;
+                    output_.Add(n);
+                }
+                else
+                    output_.Add(x);
+            });
         }
     }
 
@@ -129,31 +145,35 @@ namespace adb
             // push to left and right: to which side depends on the TableRef it contains
             var lrefs = children_[0].EnumTableRefs();
             var rrefs = children_[1].EnumTableRefs();
-
+            List<Expr> lreq = new List<Expr>();
+            List<Expr> rreq = new List<Expr>();
             foreach (var v in reqOutput) {
                 var refs = ExprHelper.EnumAllTableRef(v);
 
                 if (Utils.ListAContainsB(lrefs, refs))
-                    children_[0].ResolveChildrenColumns(new List<Expr> { v });
+                    lreq.Add(v);
                 else if (Utils.ListAContainsB(rrefs, refs))
-                    children_[1].ResolveChildrenColumns(new List<Expr> { v });
+                    rreq.Add(v);
                 else
                 {
                     // the whole list can't push to the children (Eg. a.a1 + b.b1)
                     // decompose to singleton and push down
                     var colref = ExprHelper.EnumAllColExpr(v, false);
-                    colref.ForEach(x=> {
+                    colref.ForEach(x =>
+                    {
                         if (lrefs.Contains(x.tabRef_))
-                            children_[0].ResolveChildrenColumns(new List<Expr> { x });
+                            lreq.Add(x);
                         else if (rrefs.Contains(x.tabRef_))
-                            children_[1].ResolveChildrenColumns(new List<Expr> { x });
+                            rreq.Add(x);
                         else
                             throw new InvalidProgramException("contains invalid tableref");
                     });
-
                 }
             }
 
+            // get left and right child to resolve columns
+            children_[0].ResolveChildrenColumns(lreq);
+            children_[1].ResolveChildrenColumns(rreq);
             base.ResolveChildrenColumns(reqOutput);
         }
     }
@@ -182,7 +202,7 @@ namespace adb
         {
             List<Expr> newreq = new List<Expr>(reqOutput);
             newreq.AddRange(ExprHelper.EnumAllColExpr(filter_, false));
-            children_[0].ResolveChildrenColumns(newreq.Distinct().ToList());
+            children_[0].ResolveChildrenColumns(newreq);
 
             base.ResolveChildrenColumns(reqOutput);
         }
@@ -266,7 +286,7 @@ namespace adb
             });
 
             // don't need to include columns it uses (say filter) for output
-            base.ResolveChildrenColumns(reqOutput);
+			output_.AddRange(reqOutput);
         }
 
         public override List<TableRef> EnumTableRefs() => new List<TableRef>{tabref_};

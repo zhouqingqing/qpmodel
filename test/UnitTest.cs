@@ -122,6 +122,8 @@ namespace test
             var sql = "select * from a, (select * from b) c";
             var result2 = ExecuteSQL2(sql);
             Assert.AreEqual(9, result2.Item1.Count);
+            Assert.AreEqual("0,1,2,0,1,2", result2.Item1[0].ToString());
+            Assert.AreEqual("2,3,4,2,3,4", result2.Item1[8].ToString());
             Assert.IsTrue(result2.Item2.PrintOutput(0).Contains("a.a1,a.a2,a.a3"));
             Assert.IsTrue(result2.Item2.PrintOutput(0).Contains("b.b1,b.b2,b.b3"));
             sql = "select * from a, (select * from b where b2>2) c";
@@ -142,18 +144,18 @@ namespace test
         [TestMethod]
         public void TestExecSubquery()
         {
-            var sql = "select a1, a2  from a where a.a1 = (select b1,b2 from b)";
+            var sql = "select a1, a3  from a where a.a1 = (select b1,b2 from b)";
             var result = ExecuteSQL(sql); Assert.IsNull(result);
             Assert.IsTrue(error_.Contains("SemanticAnalyzeException"));
             sql = "select a1, a2  from a where a.a1 = (select b1 from b)";
             result = ExecuteSQL(sql); Assert.IsNull(result);
             Assert.IsTrue(error_.Contains("SemanticExecutionException"));
 
-            sql = "select a1, a2  from a where a.a1 = (select b1 from b where b2 = 3)";
+            sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = 3)";
             result = ExecuteSQL(sql);
             Assert.AreEqual(1, result.Count);
-            Assert.AreEqual ("2,3", result[0].ToString());
-            sql = "select a1, a2  from a where a.a1 = (select b1 from b where b2 = 4)";
+            Assert.AreEqual ("2,4", result[0].ToString());
+            sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = 4)";
             result = ExecuteSQL(sql);
             Assert.AreEqual(0, result.Count);
         }
@@ -175,6 +177,9 @@ namespace test
             Assert.AreEqual(1, result.Count);
             result = ExecuteSQL("select a1 from a where a2>2");
             Assert.AreEqual(1, result.Count);
+            result = ExecuteSQL("select a1,a1,a3,a3 from a where a1>1");
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual("2,2,4,4", result[0].ToString());
         }
 
         [TestMethod]
@@ -224,7 +229,7 @@ namespace test
                                 Output: c.c2
                                 Filter: c.c2=?b.b3
                               -> LogicGet c
-                                  Output: c.c2
+                                  Output: c.c2,c.c2
                             <SubLink> 2
                             -> LogicFilter
                                 Output: c.c2
