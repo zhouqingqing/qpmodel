@@ -114,9 +114,6 @@ namespace adb
             expr.VisitEachExpr(x => {
                 if (x is ColExpr xc)
                     list.Add(xc.tabRef_);
-                else if (x is SelStar xs) {
-                    xs.tabRefs_.ForEach(y => list.Add(y));
-                }
                 return false;
             });
 
@@ -188,34 +185,44 @@ namespace adb
         public virtual Value Exec(Row input) { return Value.MaxValue;}
     }
 
-    // represents "*" or "table.*"
+    // represents "*" or "table.*" - it is not in the tree after Bind().
     public class SelStar : Expr {
         internal string tabName_;
 
         // bound
         internal List<Expr> exprs_;
-        internal List<TableRef> tabRefs_;
 
         public SelStar(string table) => tabName_ = table;
 
         public override void Bind(BindContext context)
         {
+            var unbounds = new List<Expr>();
             exprs_ = new List<Expr>();
-            tabRefs_ = new List<TableRef>();
             if (tabName_ is null)
             {
                 // *
                 context.EnumTableRefs().ForEach(x => {
-                    tabRefs_.Add(x);
-                    exprs_.AddRange(x.GenerateAllColumnsRefs());
+                    // subquery's shall be bounded already, and only * from basetable 
+                    // are not bounded. We don't have to differentitate them, but I 
+                    // just try to be strict.
+                    //
+                    if (x is SubqueryRef)
+                        exprs_.AddRange(x.GenerateAllColumnsRefs());
+                    else
+                        unbounds.AddRange(x.GenerateAllColumnsRefs());
                 });
             }
             else {
                 // table.* - you have to find it in current context
-                var tabref = context.Table(tabName_);
-                tabRefs_.Add(tabref);
-                exprs_.AddRange(tabref.GenerateAllColumnsRefs());
+                var x = context.Table(tabName_);
+                if (x is SubqueryRef)
+                    exprs_.AddRange(x.GenerateAllColumnsRefs());
+                else
+                    unbounds.AddRange(x.GenerateAllColumnsRefs());
             }
+
+            unbounds.ForEach(x => x.Bind(context));
+            exprs_.AddRange(unbounds);
         }
 
         public override string ToString()
@@ -277,7 +284,7 @@ namespace adb
                     }
                 }
                 if (tabRef_ is null)
-                    throw new Exception($"can't bind table {tabName_}");
+                    throw new Exception($"can't bind column '{colName_}' to table");
             }
 
             Debug.Assert(tabRef_ != null);

@@ -100,7 +100,19 @@ namespace adb
                 }
             });
         }
-        void bindSelectionList(BindContext context) => selection_.ForEach(x => x.Bind(context));
+        void bindSelectionList(BindContext context)
+        {
+            List<SelStar> selstars = new List<SelStar>();
+            selection_.ForEach(x => {
+                x.Bind(context);
+                if (x is SelStar xs)
+                    selstars.Add(xs);
+            });
+
+            // expand * into actual columns
+            selstars.ForEach(x => {
+                selection_.Remove(x); selection_.AddRange(x.exprs_); });
+        }
         void bindWhere(BindContext context) => where_?.Bind(context);
         void bindGroupBy(BindContext context)=> groupby_?.ForEach(x => x.Bind(context));
         void bindHaving(BindContext context) => having_?.Bind(context);

@@ -265,10 +265,6 @@ namespace adb
                 switch (x) {
                     case LiteralExpr lx:
                         break;
-                    case SelStar ls:
-                        Debug.Assert(ls.tabRefs_.Count == 1);
-                        Debug.Assert(ls.tabRefs_[0].Equals(tabref_));
-                        break;
                     default:
                         Debug.Assert(ExprHelper.EnumAllTableRef(x).Count == 1);
                         Debug.Assert(ExprHelper.EnumAllTableRef(x)[0].Equals(tabref_));
