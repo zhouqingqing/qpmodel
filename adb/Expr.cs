@@ -205,10 +205,7 @@ namespace adb
             return true;
         }
 
-        public bool HasSubQuery() {
-            return VisitEachExpr(e => e is SubqueryExpr);
-        }
-
+        public bool HasSubQuery() =>  VisitEachExpr(e => e is SubqueryExpr);
         public bool IsConst() {
             return !VisitEachExpr(e => {
                 // meaning has non-constantable (or we don't want to waste time try 
@@ -220,9 +217,9 @@ namespace adb
         }
 
         // APIs children may implment
-        public virtual void Bind(BindContext context) { bounded_ = true; }
-        public virtual string PrintString(int depth) { return ToString(); }
-        public virtual Value Exec(Row input) { throw new Exception("shall not be here"); }
+        public virtual void Bind(BindContext context) => bounded_ = true;
+        public virtual string PrintString(int depth) => ToString();
+        public virtual Value Exec(Row input) => throw new Exception($"{this} subclass shall implment Exec()");
     }
 
     // represents "*" or "table.*" - it is not in the tree after Bind().
