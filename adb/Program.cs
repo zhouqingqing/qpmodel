@@ -36,20 +36,23 @@ namespace adb
             /////////////// sql = "select a.a1 from a, b where a2>2";
             //sql = "select a.a1 from a where a2>1 and a3>3";
             //sql = "select 2*3";
-            //sql = "select a1 from (select a1 from a) b;";
+            sql = "select a1*2+a2*1+3 from (select a1,a2 from a) b;";
             ////////////// sql = "select * from a, (select * from b where b2>2) c;";
             //sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b3) and b.b3 > ((select c2 from c where c.c3=b2)));";
             //sql = "select a.a1 from a, b where a2 > 1";
-            //sql = "select * from a";
-            //sql = "select * from a, (select * from b) c";
-            //sql = "select b.a1 + a2 from (select a1,a2 from a) b";
-            //sql = "select b.a1 + a2 from (select a1,a2 from a, c) b";
-            //sql = @"with cte1 as (select * from a), cte2 as (select * from b) select a1,a1+a2 from cte1 where a1<6 group by a1, a1+a2  
-            //        union select b2, b3 from cte2 where b2 > 3 group by b1, b1+b2 
-            //        order by 2, 1 desc;";
+            sql = "select * from a";
+            sql = "select * from a, (select * from b) c";
+            sql = "select*from a, (select * from b) c";
+
+           //sql = "select * from a, (select * from b) c";
+           //sql = "select b.a1 + a2 from (select a1,a2 from a) b";
+           //sql = "select b.a1 + a2 from (select a1,a2 from a, c) b";
+           //sql = @"with cte1 as (select * from a), cte2 as (select * from b) select a1,a1+a2 from cte1 where a1<6 group by a1, a1+a2  
+           //        union select b2, b3 from cte2 where b2 > 3 group by b1, b1+b2 
+           //        order by 2, 1 desc;";
 
 
-            var a = RawParser.ParseSQLStatement(sql);
+           var a = RawParser.ParseSQLStatement(sql);
 
             // -- Semantic analysis:
             //  - bind the query

@@ -122,7 +122,8 @@ namespace test
             var sql = "select * from a, (select * from b) c";
             var result2 = ExecuteSQL2(sql);
             Assert.AreEqual(9, result2.Item1.Count);
-            Assert.IsTrue(result2.Item2.PrintOutput(0).Contains("a.a1,a.a2,a.a3,b.b1,b.b2,b.b3"));
+            Assert.IsTrue(result2.Item2.PrintOutput(0).Contains("a.a1,a.a2,a.a3"));
+            Assert.IsTrue(result2.Item2.PrintOutput(0).Contains("b.b1,b.b2,b.b3"));
             sql = "select * from a, (select * from b where b2>2) c";
             var result = ExecuteSQL(sql);
             Assert.AreEqual(3, result.Count);
@@ -143,6 +144,10 @@ namespace test
         {
             var result = ExecuteSQL("select * from a");
             Assert.AreEqual(3, result.Count);
+            Assert.AreEqual(3, result[1].values_.Count);
+            Assert.AreEqual(1, result[0].values_[1]);
+            Assert.AreEqual(2, result[1].values_[1]);
+            Assert.AreEqual(3, result[2].values_[1]);
             result = ExecuteSQL("select a1+a2,a1-a2,a1*a2 from a");
             Assert.AreEqual(3, result.Count);
             result = ExecuteSQL("select a1 from a where a2>1");
