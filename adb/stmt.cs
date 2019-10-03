@@ -16,15 +16,17 @@ namespace adb
         public BindContext BinContext() => bindContext_;
 
         // plan
-        internal LogicNode plan_;
-        public LogicNode GetPlan() => plan_;
+        internal LogicNode logicPlan_;
+        public LogicNode GetLogicPlan() => logicPlan_;
+        internal PhysicNode physicPlan_;
+        public PhysicNode GetPhysicPlan() => physicPlan_;
 
         // debug support
         internal string text_;
 
         public virtual SQLStatement Bind(BindContext parent) { return this; }
-        public virtual LogicNode Optimize() => plan_;
-        public virtual LogicNode CreatePlan() => plan_;
+        public virtual LogicNode Optimize() => logicPlan_;
+        public virtual LogicNode CreatePlan() => logicPlan_;
     }
 
     /*
@@ -45,8 +47,13 @@ namespace adb
         // most common case is that there is only one core
         public SelectStmt(SelectCore core) => cores_.Add(core);
         public override SQLStatement Bind(BindContext parent) => cores_[0].Bind(parent);
-        public override LogicNode Optimize() => plan_ = cores_[0].Optimize();
-        public override LogicNode CreatePlan() => plan_ = cores_[0].CreatePlan();
+        public override LogicNode Optimize()
+        {
+            logicPlan_ = cores_[0].Optimize();
+            physicPlan_ = cores_[0].GetPhysicPlan();
+            return logicPlan_;
+        }
+        public override LogicNode CreatePlan() => logicPlan_ = cores_[0].CreatePlan();
         public List<Expr> Selection() => cores_[0].Selection();
 
         // generic form
@@ -120,7 +127,7 @@ namespace adb
         {
             BindContext context = new BindContext(parent);
 
-            Debug.Assert(plan_ == null);
+            Debug.Assert(logicPlan_ == null);
 
             // from binding shall be the first since it may create new alias
             bindFrom(context);
@@ -183,6 +190,23 @@ namespace adb
             return root;
         }
 
+        void createSubQueryExprPlan(Expr expr)
+        {
+            if (!expr.HasSubQuery())
+                return;
+            if (expr.HasSubQuery())
+            {
+                expr.VisitEachExpr(x =>
+                {
+                    if (x is SubqueryExpr sx)
+                    {
+                        sx.query_.CreatePlan();
+                    }
+                    return false;
+                });
+            }
+        }
+
         public override LogicNode CreatePlan()
         {
             LogicNode root = transformFromClause();
@@ -190,17 +214,7 @@ namespace adb
             // transform where clause
             if (where_ != null)
             {
-                if (where_.HasSubQuery())
-                {
-                    where_.VisitEachExpr(x =>
-                    {
-                        if (x is SubqueryExpr sx)
-                        {
-                            sx.query_.CreatePlan();
-                        }
-                        return false;
-                    });
-                }
+                createSubQueryExprPlan(where_);
                 root = new LogicFilter(root, where_);
             }
 
@@ -208,10 +222,13 @@ namespace adb
             if (groupby_ != null)
                 root = new LogicAgg(root, groupby_, having_);
 
+            // selection list
+            selection_.ForEach(x => createSubQueryExprPlan(x));
+
             // resolve the output
             root.ResolveChildrenColumns(selection_);
 
-            plan_ = root;
+            logicPlan_ = root;
             return root;
         }
 
@@ -240,10 +257,13 @@ namespace adb
 
         public override LogicNode Optimize()
         {
-            LogicNode plan = plan_;
+            LogicNode plan = logicPlan_;
             var filter = plan as LogicFilter;
             if (filter is null || filter.filter_ is null)
+            {
+                physicPlan_ = logicPlan_.DirectToPhysical();
                 return plan;
+            }
 
             // filter push down
             var topfilter = filter.filter_;
@@ -262,6 +282,8 @@ namespace adb
             else 
                 filter.filter_ = ExprHelper.AndListToExpr(andlist);
 
+            // convert to physical plan
+            physicPlan_ = logicPlan_.DirectToPhysical();
             return plan;
         }
     }

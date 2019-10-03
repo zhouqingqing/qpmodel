@@ -25,7 +25,7 @@ namespace adb
             //sql = "select b1 from b where b.b2 = a.a2";
             //sql = "select 1 from a where a.a1 > (select b.b1 from b) and a.a2 > (select c3 from c);";
             //sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b3));";
-            //sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b3) and b.b3 > ((select c2 from c where c.c3=b2)));";
+            sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b3) and b.b3 > ((select c2 from c where c.c3=b2)));";
             //sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > 2);";
             //sql = "select 1 from a, (select b1,b2 from b) k where k.b1 > 0 and a.a1 = k.b1"; // bug: can't push filter across subuquery
             //sql = "select a.a1+b.b2 from a, b, c where a3>6 and c2 > 10 and a1=b1 and a2 = c2;";
@@ -35,24 +35,25 @@ namespace adb
             //sql = "select a.a1, a.a1+a.a3, a1+b2 from a, b where a1 = b1 and a2>2";
             /////////////// sql = "select a.a1 from a, b where a2>2";
             //sql = "select a.a1 from a where a2>1 and a3>3";
-            //sql = "select 2*3";
-            sql = "select a1*2+a2*1+3 from (select a1,a2 from a) b;";
+            //sql = "select a1*2+a2*1+3 from (select a1,a2 from a) b;";
             ////////////// sql = "select * from a, (select * from b where b2>2) c;";
             //sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b3) and b.b3 > ((select c2 from c where c.c3=b2)));";
             //sql = "select a.a1 from a, b where a2 > 1";
-            sql = "select * from a";
-            sql = "select * from a, (select * from b) c";
-            sql = "select*from a, (select * from b) c";
+            //sql = "select * from a";
+            //sql = "select * from a, (select * from b) c";
+            //sql = "select c.* from a, (select * from b) c";
 
-           //sql = "select * from a, (select * from b) c";
-           //sql = "select b.a1 + a2 from (select a1,a2 from a) b";
-           //sql = "select b.a1 + a2 from (select a1,a2 from a, c) b";
-           //sql = @"with cte1 as (select * from a), cte2 as (select * from b) select a1,a1+a2 from cte1 where a1<6 group by a1, a1+a2  
-           //        union select b2, b3 from cte2 where b2 > 3 group by b1, b1+b2 
-           //        order by 2, 1 desc;";
+            //sql = "select * from a, (select * from b) c";
+            //sql = "select b.a1 + a2 from (select a1,a2 from a) b";
+            //sql = "select b.a1 + a2 from (select a1,a2 from a, c) b";
+            //sql = @"with cte1 as (select * from a), cte2 as (select * from b) select a1,a1+a2 from cte1 where a1<6 group by a1, a1+a2  
+            //        union select b2, b3 from cte2 where b2 > 3 group by b1, b1+b2 
+            //        order by 2, 1 desc;";
+            sql = "select a1,a2  from a where a.a1 = (select b1 from b);";
+            //sql = "select 1,  (select b1 from b) from a where a.a1 = 2;";
 
 
-           var a = RawParser.ParseSQLStatement(sql);
+            var a = RawParser.ParseSQLStatement(sql);
 
             // -- Semantic analysis:
             //  - bind the query
@@ -69,7 +70,7 @@ namespace adb
 
             // -- physical plan
             Console.WriteLine("-- physical plan --");
-            var phyplan = optplan.SimpleConvertPhysical();
+            var phyplan = a.GetPhysicPlan();
             Console.WriteLine(phyplan.PrintString(0));
 
             var final = new PhysicPrint(phyplan);

@@ -62,10 +62,15 @@ namespace adb
     {
         public List<Expr> output_ = new List<Expr>();
 
-        public override string PrintOutput(int depth) => "Output: " + string.Join(",", output_);
+        public override string PrintOutput(int depth)
+        {
+            string r = "Output: " + string.Join(",", output_);
+            output_.ForEach(x => r += ExprHelper.PrintExprWithSubqueryExpanded(x, depth));
+            return r;
+        }
 
         // This is an honest translation from logic to physical plan
-        public PhysicNode SimpleConvertPhysical()
+        public PhysicNode DirectToPhysical()
         {
             PhysicNode root = null;
             VisitEachNode(n =>
@@ -75,20 +80,22 @@ namespace adb
                 {
                     case LogicGet ln:
                         phy = new PhysicGet(ln);
+                        if (ln.filter_ != null)
+                            ExprHelper.SubqueryDirectToPhysic(ln.filter_);
                         break;
                     case LogicCrossJoin lc:
                         phy = new PhysicCrossJoin(lc,
-                            lc.children_[0].SimpleConvertPhysical(),
-                            lc.children_[1].SimpleConvertPhysical());
+                            lc.children_[0].DirectToPhysical(),
+                            lc.children_[1].DirectToPhysical());
                         break;
                     case LogicResult lr:
                         phy = new PhysicResult(lr);
                         break;
                     case LogicSubquery ls:
-                        phy = new PhysicSubquery(ls, ls.children_[0].SimpleConvertPhysical());
+                        phy = new PhysicSubquery(ls, ls.children_[0].DirectToPhysical());
                         break;
                     case LogicFilter lf:
-                        phy = new PhysicFilter(lf, lf.children_[0].SimpleConvertPhysical());
+                        phy = new PhysicFilter(lf, lf.children_[0].DirectToPhysical());
                         break;
                 }
 
@@ -161,23 +168,8 @@ namespace adb
             if (filter_ != null)
             {
                 r += "Filter: " + filter_.PrintString(depth);
-
                 // append the subquery plan align with filter
-                if (filter_.HasSubQuery())
-                {
-                    r += "\n";
-                    filter_.VisitEachExpr(x =>
-                    {
-                        if (x is SubqueryExpr sx)
-                        {
-                            r += tabs(depth + 2) + $"<SubLink> {sx.subqueryid_}\n";
-                            Debug.Assert(sx.query_.cores_[0].BinContext() != null);
-                            r += $"{sx.query_.GetPlan().PrintString(depth + 2)}";
-                        }
-                        return false;
-                    });
-
-                }
+                r += ExprHelper.PrintExprWithSubqueryExpanded(filter_, depth);
             }
             return r;
         }
@@ -228,7 +220,7 @@ namespace adb
         public override List<TableRef> EnumTableRefs() => queryRef_.query_.cores_[0].BinContext().EnumTableRefs();
         public override void ResolveChildrenColumns(List<Expr> reqOutput)
         {
-            queryRef_.query_.GetPlan().ResolveChildrenColumns(queryRef_.query_.Selection());
+            queryRef_.query_.GetLogicPlan().ResolveChildrenColumns(queryRef_.query_.Selection());
             base.ResolveChildrenColumns(reqOutput);
         }
     }
@@ -264,6 +256,7 @@ namespace adb
             {
                 switch (x) {
                     case LiteralExpr lx:
+                    case SubqueryExpr sx:
                         break;
                     default:
                         Debug.Assert(ExprHelper.EnumAllTableRef(x).Count == 1);

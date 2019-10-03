@@ -59,8 +59,8 @@ namespace test
 
                 var stmt = RawParser.ParseSQLStatement(sql).Bind(null);
                 stmt.CreatePlan();
-                var phyplan = stmt.Optimize().SimpleConvertPhysical();
-                var result = new PhysicCollect(phyplan);
+                stmt.Optimize();
+                var result = new PhysicCollect(stmt.GetPhysicPlan());
                 result.Exec(null);
                 return result.rows_;
             }
@@ -78,7 +78,7 @@ namespace test
 
                 var stmt = RawParser.ParseSQLStatement(sql).Bind(null);
                 stmt.CreatePlan();
-                var phyplan = stmt.Optimize().SimpleConvertPhysical();
+                var phyplan = stmt.Optimize().DirectToPhysical();
                 var result = new PhysicCollect(phyplan);
                 result.Exec(null);
                 return new Tuple<List<Row>, PhysicNode>(result.rows_, phyplan);
@@ -137,6 +137,25 @@ namespace test
             sql = "select a1 from (select a1,a3 from a) b";
             result = ExecuteSQL(sql);
             Assert.AreEqual(3, result.Count);
+        }
+
+        [TestMethod]
+        public void TestExecSubquery()
+        {
+            var sql = "select a1, a2  from a where a.a1 = (select b1,b2 from b)";
+            var result = ExecuteSQL(sql); Assert.IsNull(result);
+            Assert.IsTrue(error_.Contains("SemanticAnalyzeException"));
+            sql = "select a1, a2  from a where a.a1 = (select b1 from b)";
+            result = ExecuteSQL(sql); Assert.IsNull(result);
+            Assert.IsTrue(error_.Contains("SemanticExecutionException"));
+
+            sql = "select a1, a2  from a where a.a1 = (select b1 from b where b2 = 3)";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual ("2,3", result[0].ToString());
+            sql = "select a1, a2  from a where a.a1 = (select b1 from b where b2 = 4)";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(0, result.Count);
         }
 
         [TestMethod]

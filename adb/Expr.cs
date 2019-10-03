@@ -80,6 +80,8 @@ namespace adb
     }
 
     static public class ExprHelper {
+        static internal string tabs(int depth) => new string(' ', depth * 2);
+
         static public Expr AndListToExpr(List<Expr> andlist)
         {
             Debug.Assert(andlist.Count >= 1);
@@ -118,6 +120,44 @@ namespace adb
             });
 
             return list.ToList();
+        }
+
+        static public string PrintExprWithSubqueryExpanded(Expr expr, int depth) {
+            string r = "";
+            // append the subquery plan align with expr
+            if (expr.HasSubQuery())
+            {
+                r += "\n";
+                expr.VisitEachExpr(x =>
+                {
+                    if (x is SubqueryExpr sx)
+                    {
+                        r += tabs(depth + 2) + $"<SubLink> {sx.subqueryid_}\n";
+                        Debug.Assert(sx.query_.cores_[0].BinContext() != null);
+                        r += $"{sx.query_.GetLogicPlan().PrintString(depth + 2)}";
+                    }
+                    return false;
+                });
+            }
+
+            return r;
+        }
+
+        // this is a hack - shall be removed after all optimization process in place
+        static public void SubqueryDirectToPhysic(Expr expr)
+        {
+            // append the subquery plan align with expr
+            if (expr.HasSubQuery())
+            {
+                expr.VisitEachExpr(x =>
+                {
+                    if (x is SubqueryExpr sx)
+                    {
+                        sx.query_.physicPlan_ = sx.query_.GetLogicPlan().DirectToPhysical();
+                    }
+                    return false;
+                });
+            }
         }
     }
 
@@ -182,7 +222,7 @@ namespace adb
         // APIs children may implment
         public virtual void Bind(BindContext context) { bounded_ = true; }
         public virtual string PrintString(int depth) { return ToString(); }
-        public virtual Value Exec(Row input) { return Value.MaxValue;}
+        public virtual Value Exec(Row input) { throw new Exception("shall not be here"); }
     }
 
     // represents "*" or "table.*" - it is not in the tree after Bind().
@@ -391,9 +431,13 @@ namespace adb
         // bounded data
 
         public SubqueryExpr(SelectStmt query) { query_ = query; }
+        public override string ToString() => $@"@{subqueryid_}";
 
         public override void Bind(BindContext context)
         {
+            if (query_.Selection().Count != 1)
+                throw new SemanticAnalyzeException("subquery must return only one column");
+
         	// subquery id is global
             subqueryid_ = context.nSubqueries++;
 
@@ -403,7 +447,22 @@ namespace adb
             bounded_ = true;
         }
 
-        public override string ToString() => $@"@{subqueryid_}";
+
+        public override Value Exec(Row input)
+        {
+            Row r = null;
+            query_.GetPhysicPlan().Exec(l => {
+                if (r is null)
+                    r = l;
+                else
+                    throw new SemanticExecutionException("subquery more than one row returned");
+                return null;
+            });
+
+            if (r is null)
+                return Value.MaxValue;
+             return r.values_[0];
+        }
     }
 
     public class CTExpr : Expr {
