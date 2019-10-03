@@ -46,7 +46,7 @@ sql_stmt_list
  ;
 
 sql_stmt
- : ( K_EXPLAIN ( K_QUERY K_PLAN )? )? ( alter_table_stmt
+ : ( K_EXPLAIN ( K_ANALYZE K_VERBOSE )? )? ( alter_table_stmt
                                       | analyze_stmt
                                       | attach_stmt
                                       | begin_stmt
@@ -793,6 +793,7 @@ K_UPDATE : U P D A T E;
 K_USING : U S I N G;
 K_VACUUM : V A C U U M;
 K_VALUES : V A L U E S;
+K_VERBOSE: V E R B O S E;
 K_VIEW : V I E W;
 K_VIRTUAL : V I R T U A L;
 K_WHEN : W H E N;

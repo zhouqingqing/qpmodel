@@ -396,10 +396,7 @@ namespace adb
             bounded_ = true;
         }
 
-        public override string ToString()
-        {
-            return $@"@{subqueryid_}";
-        }
+        public override string ToString() => $@"@{subqueryid_}";
     }
 
     public class CTExpr : Expr {
@@ -414,7 +411,7 @@ namespace adb
 
     public class OrderTerm : Expr {
         public Expr expr_;
-        bool descend_;
+        bool descend_ = false;
 
         public OrderTerm(Expr expr, bool descend) {
             expr_ = expr; descend_ = descend;
@@ -425,20 +422,9 @@ namespace adb
     {
         public SQLiteParser.Literal_valueContext val_;
 
-        public LiteralExpr(SQLiteParser.Literal_valueContext val)
-        {
-            val_ = val;
-        }
-
-        public override string ToString()
-        {
-            return val_.GetText();
-        }
-
-        public override Value Exec(Row input)
-        {
-            return Value.Parse(val_.GetText());
-        }
+        public LiteralExpr(SQLiteParser.Literal_valueContext val) => val_ = val;
+        public override string ToString() => val_.GetText();
+        public override Value Exec(Row input) => Value.Parse(val_.GetText());
     }
 
 }

@@ -38,9 +38,9 @@ namespace adb
         ORDER BY clause
     */
     public class SelectStmt : SQLStatement {
-        internal List<CTExpr> ctes_;
-        internal List<SelectCore> cores_ = new List<SelectCore>();
-        internal List<OrderTerm> orders_;
+        public List<CTExpr> ctes_;
+        public List<SelectCore> cores_ = new List<SelectCore>();
+        public List<OrderTerm> orders_;
 
         // most common case is that there is only one core
         public SelectStmt(SelectCore core) => cores_.Add(core);
