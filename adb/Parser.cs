@@ -19,6 +19,10 @@ namespace adb
     {
         public SemanticAnalyzeException(string ms) { }
     }
+    public class SemanticExecutionException : System.Exception
+    {
+        public SemanticExecutionException(string ms) { }
+    }
 
     public class RawParser
     {
