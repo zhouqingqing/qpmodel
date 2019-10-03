@@ -78,6 +78,7 @@ namespace adb
                 children_[1].Exec(r =>
                 {
                     Row n = new Row(l, r);
+                    n = ExecProject(n);
                     callback(n);
                     return null;
                 });
@@ -125,7 +126,7 @@ namespace adb
         public override void Exec(Func<Row, string> callback)
         {
             Row r = new Row();
-            (logic_ as LogicResult).expr_.ForEach(
+            (logic_ as LogicResult).exprs_.ForEach(
                             x => r.values_.Add(x.Exec(null)));
             callback(r);
         }

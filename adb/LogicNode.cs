@@ -294,19 +294,11 @@ namespace adb
 
     public class LogicResult : LogicNode
     {
-        internal List<Expr> expr_;
+        internal List<Expr> exprs_;
 
-        public override string ToString() {
-            string r = string.Join(",", expr_);
-            return r;
-        } 
-        public LogicResult(List<Expr> expr) { expr_ = expr; }
-
-        public override string PrintMoreDetails(int depth)
-        {
-            return "Expr: " + ToString();
-        }
-
+        public override string ToString()=> string.Join(",", exprs_);
+        public LogicResult(List<Expr> exprs) => exprs_ = exprs;
+        public override string PrintMoreDetails(int depth) => "Expr: " + ToString();
         public override List<TableRef> EnumTableRefs() => null;
     }
 }

@@ -21,7 +21,7 @@ namespace adb
         {
             string sql = "";
 
-            sql = "select 1 from a where a.a1 = (select b1 from b where b.b2 = 2);";
+            sql = "select 1 from a where a.a1 = (select b1 from b where b.b2 = a2);";
             //sql = "select b1 from b where b.b2 = a.a2";
             //sql = "select 1 from a where a.a1 > (select b.b1 from b) and a.a2 > (select c3 from c);";
             //sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b3));";
@@ -41,7 +41,7 @@ namespace adb
             //sql = "select a.a1 from a, b where a2 > 1";
             //sql = "select c.* from a, (select * from b) c";
 
-            sql = "select * from a, (select * from b) c";
+            //sql = "select * from a, (select * from b) c";
             //sql = "select b.a1 + a3 from (select a3,a1 from a) b";
             //sql = "select b.a1 + a2 from (select a1,a2 from a, c) b";
             //sql = @"with cte1 as (select * from a), cte2 as (select * from b) select a1,a1+a2 from cte1 where a1<6 group by a1, a1+a2  
@@ -50,6 +50,7 @@ namespace adb
             //sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = 3)";
             //sql = "select a1,a1,a3,a3 from a where a1>1";
             //sql = "select 1,  (select b1 from b) from a where a.a1 = 2;";
+            sql = "select a1+b1 from a, b";
 
             var a = RawParser.ParseSQLStatement(sql);
 
