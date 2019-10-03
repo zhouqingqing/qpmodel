@@ -32,6 +32,18 @@ namespace test
             ColExpr col = new ColExpr(null, "a", "a1");
             Assert.AreEqual("a.a1", col.ToString());
         }
+
+        [TestMethod]
+        public void TestSelectStmt()
+        {
+            string sql = "with cte1 as (select * from a), cte2 as (select * from b) select a1,a1+a2 from cte1 where a1<6 group by a1, a1+a2 " +
+                                "union select b2, b3 from cte2 where b2 > 3 group by b1, b1+b2 " +
+                                "order by 2, 1 desc";
+            var stmt = RawParser.ParseSQLStatement(sql) as SelectStmt;
+            Assert.AreEqual(2, stmt.ctes_.Count);
+            Assert.AreEqual(2, stmt.cores_.Count);
+            Assert.AreEqual(2, stmt.orders_.Count);
+        }
     }
 
     [TestClass]
@@ -150,10 +162,15 @@ namespace test
         }
 
         [TestMethod]
-        public void TestSelectStmt()
+        public void TestExecProject()
         {
-            string sql = "with cte1 as (select * from a) select a.a1,a.a1+a.a2 from cte1 where a.a2 > 3";
-            var stmt = RawParser.ParseSQLStatement(sql);
+            string sql = "select b.a1 + a2 from (select a1,a2 from a, c) b";
+            var result = ExecuteSQL(sql);
+            Assert.AreEqual(9, result.Count);
+            int i; Assert.AreEqual(1, result[0].values_.Count);
+            for (i = 0; i < 3; i++) Assert.AreEqual(1, result[i].values_[0]);
+            for (; i < 6; i++) Assert.AreEqual(3, result[i].values_[0]);
+            for (; i < 9; i++) Assert.AreEqual(5, result[i].values_[0]);
         }
 
         [TestMethod]

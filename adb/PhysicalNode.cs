@@ -33,6 +33,13 @@ namespace adb
         public virtual void Open() => children_.ForEach(x => x.Open());
         public virtual void Close() => children_.ForEach(x => x.Close());
         public abstract void Exec(Func<Row, string> callback);
+
+        internal Row ExecProject(Row input) {
+            Row r = new Row();
+            logic_.output_.ForEach(x => r.values_.Add(x.Exec(input)));
+
+            return r;
+        }
     }
 
     public class PhysicGet : PhysicNode{
@@ -52,6 +59,7 @@ namespace adb
 
                 if (filter?.Exec(r) == 0)
                     continue;
+                r = ExecProject(r);
                 callback(r);
             }
         }
@@ -84,7 +92,8 @@ namespace adb
         public override void Exec(Func<Row, string> callback)
         {
             children_[0].Exec(l => {
-                callback(l);
+                var r = ExecProject(l);
+                callback(r);
                 return null;
             });
         }
@@ -101,7 +110,10 @@ namespace adb
 
             children_[0].Exec(l => {
                 if (filter is null || filter.Exec(l) == 1)
-                    callback(l);
+                {
+                    var r = ExecProject(l);
+                    callback(r);
+                }
                 return null;
             });
         }
