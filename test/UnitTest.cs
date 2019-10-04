@@ -208,7 +208,7 @@ namespace test
             stmt.CreatePlan();
             var plan = stmt.Optimize();
             var answer = @"LogicGet a
-                                Output: a.a1[0],a.a1[0]+a.a2[1],a.a2[1]
+                                Output: a.a1[0],a.a1[0]+a.a2[1]
                                 Filter: a.a2[1]>3";
             PlanCompare.AreEqual (answer,  plan.PrintString(0));
 
