@@ -51,6 +51,8 @@ namespace adb
             //sql = "select a1,a1,a3,a3 from a where a1>1";
             //sql = "select 1,  (select b1 from b) from a where a.a1 = 2;";
             sql = "select a1+b1 from a, b";
+            sql = "select a.a1,a.a1+a.a2 from a where a.a2 > 3";
+            sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b3) and b.b3 > ((select c2 from c where c.c3=b2)))";
 
             var a = RawParser.ParseSQLStatement(sql);
 
