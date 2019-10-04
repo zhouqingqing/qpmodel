@@ -344,8 +344,8 @@ namespace adb
         {
             string para = isOuterRef_ ? "?" : "";
             if (colName_.Equals(alias_))
-                return $@"{para}{tabName_}.{colName_}";
-            return $@"{para}{tabName_}.{colName_} [{alias_}]";
+                return $@"{para}{tabName_}.{colName_}[{ordinal_}]";
+            return $@"{para}{tabName_}.{colName_} [{alias_}][{ordinal_}]";
         }
         public override Value Exec(Row input)
         {

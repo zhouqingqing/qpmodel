@@ -30,7 +30,7 @@ namespace test
         public void TestColExpr()
         {
             ColExpr col = new ColExpr(null, "a", "a1");
-            Assert.AreEqual("a.a1", col.ToString());
+            Assert.AreEqual("a.a1[0]", col.ToString());
         }
 
         [TestMethod]
@@ -124,8 +124,6 @@ namespace test
             Assert.AreEqual(9, result2.Item1.Count);
             Assert.AreEqual("0,1,2,0,1,2", result2.Item1[0].ToString());
             Assert.AreEqual("2,3,4,2,3,4", result2.Item1[8].ToString());
-            Assert.IsTrue(result2.Item2.PrintOutput(0).Contains("a.a1,a.a2,a.a3"));
-            Assert.IsTrue(result2.Item2.PrintOutput(0).Contains("b.b1,b.b2,b.b3"));
             sql = "select * from a, (select * from b where b2>2) c";
             var result = ExecuteSQL(sql);
             Assert.AreEqual(3, result.Count);
@@ -210,8 +208,8 @@ namespace test
             stmt.CreatePlan();
             var plan = stmt.Optimize();
             var answer = @"LogicGet a
-                                Output: a.a1,a.a1+a.a2,a.a2
-                                Filter: a.a2>3";
+                                Output: a.a1[0],a.a1[0]+a.a2[1],a.a2[1]
+                                Filter: a.a2[1]>3";
             PlanCompare.AreEqual (answer,  plan.PrintString(0));
 
             sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b3) and b.b3 > ((select c2 from c where c.c3=b2)))";
@@ -219,27 +217,27 @@ namespace test
             plan = stmt.CreatePlan();
             answer = @"LogicFilter
                         Output: 1
-                        Filter: a.a1>@0
+                        Filter: a.a1[0]>@0
                         <SubLink> 0
                         -> LogicFilter
-                            Output: b.b1
-                            Filter: b.b2>@1 and b.b3>@2
+                            Output: b.b1[0]
+                            Filter: b.b2[1]>@1 and b.b3[2]>@2
                             <SubLink> 1
                             -> LogicFilter
-                                Output: c.c2
-                                Filter: c.c2=?b.b3
+                                Output: c.c2[0]
+                                Filter: c.c2[1]=?b.b3[2]
                               -> LogicGet c
-                                  Output: c.c2,c.c2
+                                  Output: c.c2[1],c.c2[1]
                             <SubLink> 2
                             -> LogicFilter
-                                Output: c.c2
-                                Filter: c.c3=?b.b2
+                                Output: c.c2[0]
+                                Filter: c.c3[2]=?b.b2[1]
                               -> LogicGet c
-                                  Output: c.c2,c.c3
+                                  Output: c.c2[1],c.c3[2]
                           -> LogicGet b
-                              Output: b.b1,b.b2,b.b3
+                              Output: b.b1[0],b.b2[1],b.b3[2]
                       -> LogicGet a
-                          Output: 1,a.a1";
+                          Output: 1,a.a1[0]";
             PlanCompare.AreEqual(answer, plan.PrintString(0));
         }
     }
