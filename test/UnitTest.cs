@@ -134,9 +134,15 @@ namespace test
             sql = "select b.a1 + a2 from (select a1,a2 from a) b";
             result = ExecuteSQL(sql);
             Assert.AreEqual(3, result.Count);
-            sql = "select a1 from (select a1,a3 from a) b";
+            Assert.AreEqual("1", result[0].ToString());
+            Assert.AreEqual("3", result[1].ToString());
+            Assert.AreEqual("5", result[2].ToString());
+            sql = "select a3 from (select a1,a3 from a) b";
             result = ExecuteSQL(sql);
             Assert.AreEqual(3, result.Count);
+            Assert.AreEqual("2", result[0].ToString());
+            Assert.AreEqual("3", result[1].ToString());
+            Assert.AreEqual("4", result[2].ToString());
         }
 
         [TestMethod]
@@ -153,10 +159,10 @@ namespace test
             Assert.IsTrue(error_.Contains("SemanticAnalyzeException"));
 
             // subquery in FROM clause
-            sql = "select a1,a1,a3,a3, (select b2 from b where b2=2) from a where a1>1";
+            sql = "select a1,a1,a3,a3, (select b3 from b where b2=2) from a where a1>1";
             result = ExecuteSQL(sql);
             Assert.AreEqual(1, result.Count);
-            Assert.AreEqual("2,2,4,4,2", result[0].ToString());
+            Assert.AreEqual("2,2,4,4,3", result[0].ToString());
 
             // scalar subquery
             sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = 3)";
@@ -223,11 +229,8 @@ namespace test
             for (; i < 9; i++) Assert.AreEqual(5, result[i].values_[0]);
             sql = "select b.a1 + a2 from (select a3,a1,a2,a3,a2,a1,a1 from a, c) b";
             result = ExecuteSQL(sql);
-            Assert.AreEqual(9, result.Count);
-            Assert.AreEqual(1, result[0].values_.Count);
-            for (i = 0; i < 3; i++) Assert.AreEqual(1, result[i].values_[0]);
-            for (; i < 6; i++) Assert.AreEqual(3, result[i].values_[0]);
-            for (; i < 9; i++) Assert.AreEqual(5, result[i].values_[0]);
+            result = ExecuteSQL(sql); Assert.IsNull(result);
+            Assert.IsTrue(error_.Contains("SemanticAnalyzeException"));
         }
 
         [TestMethod]

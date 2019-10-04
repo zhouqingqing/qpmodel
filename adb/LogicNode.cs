@@ -141,6 +141,33 @@ namespace adb
             output_ = new List<Expr>();
             children_.ForEach(x => x.ClearOutput());
         }
+
+        // fix each expression by using source's ordinal
+        internal List<Expr> FixColumnOrdinal(bool ignoreTable, List<Expr> tofix, List<Expr> source)
+        {
+            tofix.ForEach(x =>
+            {
+                x.VisitEachExpr(y => {
+                    if (y is ColExpr yc)
+                    {
+                        Predicate<Expr> nameTest;
+                        if (ignoreTable)
+                            nameTest = z => (z as ColExpr)?.colName_.Equals(yc.colName_)??false;
+                        else
+                            nameTest = z => z.Equals(yc);
+
+                        // fix colexpr's ordinal
+                        yc.ordinal_ = source.FindIndex(nameTest);
+                        Debug.Assert(yc.ordinal_ != -1);
+                        if (source.FindAll(nameTest).Count > 1)
+                            throw new SemanticAnalyzeException("ambigous column name");
+                    }
+                    return false;
+                });
+            });
+
+            return tofix;
+        }
     }
 
     public class LogicCrossJoin : LogicNode
@@ -242,13 +269,17 @@ namespace adb
         public SubqueryRef queryRef_;
 
         public override string ToString() => $"<{queryRef_.alias_}>";
+        public override string PrintInlineDetails(int depth) => $"<{queryRef_.alias_}>";
         public LogicSubquery(SubqueryRef query, LogicNode child) { queryRef_ = query; children_.Add(child); }
 
         public override List<TableRef> EnumTableRefs() => queryRef_.query_.cores_[0].BinContext().EnumTableRefs();
         public override void ResolveChildrenColumns(List<Expr> reqOutput)
         {
+            List<Expr> tofix = new List<Expr>();
+            tofix.AddRange(ExprHelper.CloneExprList(reqOutput));
+
             queryRef_.query_.GetLogicPlan().ResolveChildrenColumns(queryRef_.query_.Selection());
-            base.ResolveChildrenColumns(reqOutput);
+            output_.AddRange(FixColumnOrdinal(true, tofix, queryRef_.query_.Selection()));
         }
     }
 
