@@ -52,13 +52,18 @@ namespace adb
             sql = "select a1,a1,a3,a3, (select b2 from b where b2=2) from a where a1>1";
             //sql = "select 1,  (select b1 from b) from a where a.a1 = 2;";
             //sql = "select a1+b1 from a, b";
-            //sql = "select a.a1,a.a1+a.a2 from a where a.a2 > 2";
             //sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b1 > ((select c2 from c where c.c2=b2)))";
 
             // testc:
-            // sql = "select a1,a1,a3,a3, (select * from b where b2=2) from a where a1>1"; 
             sql = "select * from (select a3,a1,a2,a3,a2,a1,a1 from a, c) b";
+            sql = "select a2 from (select a3,a1,a2 from a) b";
+            sql = "select a3 from (select a1,a3 from a) b";
+            sql = "select a1,a1,a3,a3, (select b3 from b where b2=2) from a where a1>1";
+            sql = "select a.a1,a.a1+b2 from a,b where a.a2 > 2";
 
+            //sql = "select a1, a2, b.a1 + a2 from (select a3,a1,a2 from a, c) b";
+
+            Console.WriteLine(sql);
             var a = RawParser.ParseSQLStatement(sql);
 
             // -- Semantic analysis:

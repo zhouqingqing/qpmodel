@@ -56,7 +56,6 @@ namespace adb
             else
                 return Table(tabAlias);
         }
-
         public int ColumnOrdinal(string tabAlias, string colAlias) {
             int r = -1;
             var lc = Table(tabAlias).GenerateAllColumnsRefs();
@@ -162,6 +161,13 @@ namespace adb
                 });
             }
         }
+
+        static public List<Expr> CloneExprList(List<Expr> exprs)
+        {
+            var list = new List<Expr>();
+            exprs.ForEach(x => list.Add(x.Clone()));
+            return list;
+        }
     }
 
     public class Expr
@@ -220,6 +226,16 @@ namespace adb
         }
 
         // APIs children may implment
+        //  - we have to copy out expressions - consider the following query
+        // select a2 from(select a3, a1, a2 from a) b
+        // PhysicSubquery <b>
+        //    Output: b.a2[0]
+        //  -> PhysicGet a
+        //      Output: a.a2[1]
+        // notice b.a2 and a.a2 are the same column but have differenti ordinal.
+        // This means we have to copy ColExpr, so its parents, then everything.
+        //
+        public virtual Expr Clone() => (Expr)this.MemberwiseClone();
         public virtual void Bind(BindContext context) => bounded_ = true;
         public virtual string PrintString(int depth) => ToString();
         public virtual Value Exec(Row input) => throw new Exception($"{this} subclass shall implment Exec()");
@@ -234,6 +250,7 @@ namespace adb
         public SelStar(string tabAlias) => tabAlias_ = tabAlias;
         public override string ToString() => tabAlias_ + ".*";
 
+        public override void Bind(BindContext context) => throw new InvalidProgramException("shall not be here");
         internal List<Expr> Expand(BindContext context)
         {
             var unbounds = new List<Expr>();

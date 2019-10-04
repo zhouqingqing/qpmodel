@@ -54,24 +54,6 @@ namespace adb
         public ColumnDef Column(string tabName, string colName) {
             return Table(tabName)[colName];
         }
-        public TableDef ColumnFindTable(string colName)
-        {
-            TableDef r = null;
-            foreach (var v in records_)
-            {
-                // shall check duplicates as well
-                var value = v.Value.GetColumn(colName);
-                if (value != null)
-                {
-                    if (r is null)
-                        r = v.Value;
-                    else
-                        throw new Exception($@"ambigous column {colName}");
-                }
-            }
-
-            return r;
-        }
     }
 
     class ColumnStat {
