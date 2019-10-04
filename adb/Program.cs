@@ -57,7 +57,7 @@ namespace adb
 
             // testc:
             // sql = "select a1,a1,a3,a3, (select * from b where b2=2) from a where a1>1"; 
-
+            sql = "select * from (select a3,a1,a2,a3,a2,a1,a1 from a, c) b";
 
             var a = RawParser.ParseSQLStatement(sql);
 

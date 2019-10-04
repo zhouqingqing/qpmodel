@@ -38,44 +38,44 @@ namespace adb
         // table APIs
         public void AddTable(TableRef tab) => boundFrom_.Add(boundFrom_.Count, tab);
         public List<TableRef> EnumTableRefs() => boundFrom_.Values.ToList();
-        public TableRef Table(string name) => boundFrom_.Values.FirstOrDefault(x => x.alias_.Equals(name));
-        public int TableIndex(string name) => boundFrom_.Where(x => x.Value.alias_.Equals(name))?.First().Key ?? -1;
+        public TableRef Table(string alias) => boundFrom_.Values.FirstOrDefault(x => x.alias_.Equals(alias));
+        public int TableIndex(string alias) => boundFrom_.Where(x => x.Value.alias_.Equals(alias))?.First().Key ?? -1;
 
         // column APIs
-        TableRef locateByColumnName (string colName)
+        TableRef locateByColumnName (string colAlias)
         {
-            var result  = EnumTableRefs().FirstOrDefault(x => x.LocateColumn(colName) != null);
-            if (result != EnumTableRefs().LastOrDefault(x => x.LocateColumn(colName) != null))
+            var result  = EnumTableRefs().FirstOrDefault(x => x.LocateColumn(colAlias) != null);
+            if (result != EnumTableRefs().LastOrDefault(x => x.LocateColumn(colAlias) != null))
                 throw new SemanticAnalyzeException("ambigous column name");
             return result;
         }
-        public TableRef GetTableRef(string tabName, string colName)
+        public TableRef GetTableRef(string tabAlias, string colAlias)
         {
-            if (tabName is null)
-                return locateByColumnName(colName); 
+            if (tabAlias is null)
+                return locateByColumnName(colAlias); 
             else
-                return Table(tabName);
+                return Table(tabAlias);
         }
 
-        public int ColumnOrdinal(string tabName, string colName) {
+        public int ColumnOrdinal(string tabAlias, string colAlias) {
             int r = -1;
-            var lc = Table(tabName).GenerateAllColumnsRefs();
+            var lc = Table(tabAlias).GenerateAllColumnsRefs();
             for (int i = 0; i < lc.Count; i++)
             {
-                if (lc[i].alias_.Equals(colName))
+                if (lc[i].alias_.Equals(colAlias))
                 {
                     r = i;
                     break;
                 }
             }
 
-            if (Table(tabName) is BaseTableRef bt) {
-                Debug.Assert(r == Catalog.systable_.Column(tabName, colName).ordinal_);
+            if (Table(tabAlias) is BaseTableRef bt) {
+                Debug.Assert(r == Catalog.systable_.Column(tabAlias, colAlias).ordinal_);
             }
 
             if (r != -1)
                 return r;
-            throw new SemanticAnalyzeException($"column not exists {tabName}.{colName}");
+            throw new SemanticAnalyzeException($"column not exists {tabAlias}.{colAlias}");
         }
     }
 
@@ -225,20 +225,20 @@ namespace adb
         public virtual Value Exec(Row input) => throw new Exception($"{this} subclass shall implment Exec()");
     }
 
-    // represents "*" or "table.*" - it is not in the tree after Bind().
+    // Represents "*" or "table.*" - it is not in the tree after Bind(). 
+    // To avoid confusion, we implment Expand() instead of Bind().
+    //
     public class SelStar : Expr {
-        internal string tabName_;
+        internal string tabAlias_;
 
-        // bound
-        internal List<Expr> exprs_;
+        public SelStar(string tabAlias) => tabAlias_ = tabAlias;
+        public override string ToString() => tabAlias_ + ".*";
 
-        public SelStar(string table) => tabName_ = table;
-
-        public override void Bind(BindContext context)
+        internal List<Expr> Expand(BindContext context)
         {
             var unbounds = new List<Expr>();
-            exprs_ = new List<Expr>();
-            if (tabName_ is null)
+            var exprs = new List<Expr>();
+            if (tabAlias_ is null)
             {
                 // *
                 context.EnumTableRefs().ForEach(x => {
@@ -247,32 +247,23 @@ namespace adb
                     // just try to be strict.
                     //
                     if (x is SubqueryRef)
-                        exprs_.AddRange(x.GenerateAllColumnsRefs());
+                        exprs.AddRange(x.GenerateAllColumnsRefs());
                     else
                         unbounds.AddRange(x.GenerateAllColumnsRefs());
                 });
             }
             else {
                 // table.* - you have to find it in current context
-                var x = context.Table(tabName_);
+                var x = context.Table(tabAlias_);
                 if (x is SubqueryRef)
-                    exprs_.AddRange(x.GenerateAllColumnsRefs());
+                    exprs.AddRange(x.GenerateAllColumnsRefs());
                 else
                     unbounds.AddRange(x.GenerateAllColumnsRefs());
             }
 
             unbounds.ForEach(x => x.Bind(context));
-            exprs_.AddRange(unbounds);
-        }
-
-        public override string ToString()
-        {
-            if (exprs_ is null)
-                // if not bound
-                return tabName_ + ".*";
-            else
-                // after bound
-                return string.Join(",", exprs_);
+            exprs.AddRange(unbounds);
+            return exprs;
         }
     }
 
