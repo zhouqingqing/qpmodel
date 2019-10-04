@@ -111,14 +111,15 @@ namespace adb
         {
             List<SelStar> selstars = new List<SelStar>();
             selection_.ForEach(x => {
-                x.Bind(context);
                 if (x is SelStar xs)
                     selstars.Add(xs);
+				else
+					x.Bind(context);
             });
 
             // expand * into actual columns
             selstars.ForEach(x => {
-                selection_.Remove(x); selection_.AddRange(x.exprs_); });
+                selection_.Remove(x); selection_.AddRange(x.Expand(context)); });
         }
         void bindWhere(BindContext context) => where_?.Bind(context);
         void bindGroupBy(BindContext context)=> groupby_?.ForEach(x => x.Bind(context));
