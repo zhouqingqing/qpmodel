@@ -96,6 +96,8 @@ namespace adb
                         break;
                     case LogicFilter lf:
                         phy = new PhysicFilter(lf, lf.children_[0].DirectToPhysical());
+                        if (lf.filter_ != null)
+                            ExprHelper.SubqueryDirectToPhysic(lf.filter_);
                         break;
                 }
 
