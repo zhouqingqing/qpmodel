@@ -260,10 +260,7 @@ namespace adb
             LogicNode plan = logicPlan_;
             var filter = plan as LogicFilter;
             if (filter is null || filter.filter_ is null)
-            {
-                physicPlan_ = logicPlan_.DirectToPhysical();
-                return plan;
-            }
+                goto Convert;
 
             // filter push down
             var topfilter = filter.filter_;
@@ -285,8 +282,10 @@ namespace adb
             else 
                 filter.filter_ = ExprHelper.AndListToExpr(andlist);
 
+Convert:        
             // convert to physical plan
             physicPlan_ = logicPlan_.DirectToPhysical();
+            selection_.ForEach(x => ExprHelper.SubqueryDirectToPhysic(x));
             return plan;
         }
     }

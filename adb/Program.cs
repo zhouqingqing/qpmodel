@@ -47,12 +47,17 @@ namespace adb
             //sql = @"with cte1 as (select * from a), cte2 as (select * from b) select a1,a1+a2 from cte1 where a1<6 group by a1, a1+a2  
             //        union select b2, b3 from cte2 where b2 > 3 group by b1, b1+b2 
             //        order by 2, 1 desc;";
-            sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<3)";
+            //sql = "select a1, a3  from a where a.a1 > (select b1,b2 from b where b2 = a2 and b3<3)";
             //sql = "select a1,a1,a3,a3 from a where a1>1";
+            sql = "select a1,a1,a3,a3, (select b2 from b where b2=2) from a where a1>1";
             //sql = "select 1,  (select b1 from b) from a where a.a1 = 2;";
             //sql = "select a1+b1 from a, b";
             //sql = "select a.a1,a.a1+a.a2 from a where a.a2 > 2";
-            sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b1 > ((select c2 from c where c.c2=b2)))";
+            //sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b1 > ((select c2 from c where c.c2=b2)))";
+
+            // testc:
+            // sql = "select a1,a1,a3,a3, (select * from b where b2=2) from a where a1>1"; 
+
 
             var a = RawParser.ParseSQLStatement(sql);
 

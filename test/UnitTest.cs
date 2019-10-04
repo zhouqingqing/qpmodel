@@ -148,7 +148,17 @@ namespace test
             sql = "select a1, a2  from a where a.a1 = (select b1 from b)";
             result = ExecuteSQL(sql); Assert.IsNull(result);
             Assert.IsTrue(error_.Contains("SemanticExecutionException"));
+            sql = "select a1,a1,a3,a3, (select * from b where b2=2) from a where a1>1"; // * handling
+            result = ExecuteSQL(sql); Assert.IsNull(result);
+            Assert.IsTrue(error_.Contains("SemanticAnalyzeException"));
 
+            // subquery in FROM clause
+            sql = "select a1,a1,a3,a3, (select b2 from b where b2=2) from a where a1>1";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual("2,2,4,4,2", result[0].ToString());
+
+            // scalar subquery
             sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = 3)";
             result = ExecuteSQL(sql);
             Assert.AreEqual(1, result.Count);
@@ -157,6 +167,7 @@ namespace test
             result = ExecuteSQL(sql);
             Assert.AreEqual(0, result.Count);
 
+            // correlated scalar subquery
             sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<3)";
             result = ExecuteSQL(sql);
             Assert.AreEqual(1, result.Count);
