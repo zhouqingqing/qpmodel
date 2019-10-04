@@ -428,22 +428,23 @@ namespace adb
         public SelectStmt query_;
         public int subqueryid_; // bound
 
-        // bounded data
-
         public SubqueryExpr(SelectStmt query) { query_ = query; }
-        public override string ToString() => $@"@{subqueryid_}";
+        // don't print the subquery here, it shall be printed by up caller layer for pretty format
+        public override string ToString() => $@"@{subqueryid_}";  
 
         public override void Bind(BindContext context)
         {
-            if (query_.Selection().Count != 1)
-                throw new SemanticAnalyzeException("subquery must return only one column");
-
         	// subquery id is global
             subqueryid_ = context.nSubqueries++;
 
             // we are using a new query context
             BindContext newcontext = new BindContext(context);
             query_.Bind(newcontext);
+
+            // verify column count after bound because SelStar expansion
+            if (query_.Selection().Count != 1)
+                throw new SemanticAnalyzeException("subquery must return only one column");
+
             bounded_ = true;
         }
 
