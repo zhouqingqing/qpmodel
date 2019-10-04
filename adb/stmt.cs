@@ -278,6 +278,9 @@ namespace adb
             {
                 // top filter node is not needed
                 plan = plan.children_[0];
+                plan.ClearOutput();
+                plan.ResolveChildrenColumns(selection_);
+                logicPlan_ = plan;
             }
             else 
                 filter.filter_ = ExprHelper.AndListToExpr(andlist);

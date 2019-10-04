@@ -134,7 +134,10 @@ namespace adb
                     {
                         r += tabs(depth + 2) + $"<SubLink> {sx.subqueryid_}\n";
                         Debug.Assert(sx.query_.cores_[0].BinContext() != null);
-                        r += $"{sx.query_.GetLogicPlan().PrintString(depth + 2)}";
+                        if (sx.query_.GetPhysicPlan() != null)
+                            r += $"{sx.query_.GetPhysicPlan().PrintString(depth + 2)}";
+                        else
+                            r += $"{sx.query_.GetLogicPlan().PrintString(depth + 2)}";
                     }
                     return false;
                 });

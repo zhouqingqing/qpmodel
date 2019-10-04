@@ -134,6 +134,11 @@ namespace adb
                     output_.Add(x);
             });
         }
+
+        public void ClearOutput() {
+            output_ = new List<Expr>();
+            children_.ForEach(x => x.ClearOutput());
+        }
     }
 
     public class LogicCrossJoin : LogicNode
@@ -255,9 +260,14 @@ namespace adb
         public override string PrintInlineDetails(int depth) => ToString();
         public override string PrintMoreDetails(int depth)
         {
+            string r = null;
             if (filter_ != null)
-                return "Filter: " + filter_.PrintString(depth);
-            return null;
+            {
+                r += "Filter: " + filter_.PrintString(depth);
+                // append the subquery plan align with filter
+                r += ExprHelper.PrintExprWithSubqueryExpanded(filter_, depth);
+            }
+            return r;
         }
 
         public bool AddFilter(Expr filter)
