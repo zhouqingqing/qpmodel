@@ -114,6 +114,12 @@ namespace test
             sql = "select a.a1 from a, b where a2>2";
             result = ExecuteSQL(sql);
             Assert.AreEqual(1 * 3, result.Count);
+            sql = "select a.a2,a3,a.a1+b2 from a,b where a.a1 > 1";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(3, result.Count);
+            Assert.AreEqual("3,4,3", result[0].ToString());
+            Assert.AreEqual("3,4,4", result[1].ToString());
+            Assert.AreEqual("3,4,5", result[2].ToString());
         }
 
         [TestMethod]

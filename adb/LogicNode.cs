@@ -179,8 +179,8 @@ namespace adb
             // push to left and right: to which side depends on the TableRef it contains
             var lrefs = children_[0].EnumTableRefs();
             var rrefs = children_[1].EnumTableRefs();
-            List<Expr> lreq = new List<Expr>();
-            List<Expr> rreq = new List<Expr>();
+            var lreq = new HashSet<Expr>();
+            var rreq = new HashSet<Expr>();
             foreach (var v in reqOutput) {
                 var refs = ExprHelper.EnumAllTableRef(v);
 
@@ -206,9 +206,10 @@ namespace adb
             }
 
             // get left and right child to resolve columns
-            children_[0].ResolveChildrenColumns(lreq);
-            children_[1].ResolveChildrenColumns(rreq);
-            base.ResolveChildrenColumns(reqOutput);
+            children_[0].ResolveChildrenColumns(lreq.ToList());
+            children_[1].ResolveChildrenColumns(rreq.ToList());
+            var newlist = lreq.ToList(); newlist.AddRange(rreq.ToList());
+            output_.AddRange(FixColumnOrdinal(true, ExprHelper.CloneExprList(reqOutput), newlist));
         }
     }
 
