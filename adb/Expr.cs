@@ -383,6 +383,13 @@ namespace adb
         public Expr r_;
         public string op_;
 
+        public override Expr Clone()
+        {
+            var n = (BinExpr)this.MemberwiseClone();
+            n.l_ = l_.Clone();
+            n.r_ = r_.Clone();
+            return n;
+        }
         public BinExpr(Expr l, Expr r, string op)
         {
             l_ = l; r_ = r; op_ = op;
