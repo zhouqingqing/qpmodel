@@ -206,6 +206,19 @@ namespace test
             result = ExecuteSQL("select a1,a1,a3,a3 from a where a1>1");
             Assert.AreEqual(1, result.Count);
             Assert.AreEqual("2,2,4,4", result[0].ToString());
+            result = ExecuteSQL("select a1,a1,a3,a3 from a where a1+a2>2");
+            Assert.AreEqual(2, result.Count);
+            Assert.AreEqual("1,1,3,3", result[0].ToString());
+            Assert.AreEqual("2,2,4,4", result[1].ToString());
+            result = ExecuteSQL("select a1,a1,a3,a3 from a where a1+a2+a3>2");
+            Assert.AreEqual(3, result.Count);
+            Assert.AreEqual("0,0,2,2", result[0].ToString());
+            Assert.AreEqual("1,1,3,3", result[1].ToString());
+            Assert.AreEqual("2,2,4,4", result[2].ToString());
+            result = ExecuteSQL("select a1 from a where a1+a2>2");
+            Assert.AreEqual(2, result.Count);
+            Assert.AreEqual("1", result[0].ToString());
+            Assert.AreEqual("2", result[1].ToString());
         }
 
         [TestMethod]
@@ -261,22 +274,22 @@ namespace test
                         Filter: a.a1[0]>@0
                         <SubLink> 0
                         -> PhysicFilter
-                            Output: b.b1[0]
+                            Output: b.b1[0],b.b2[1],b.b1[0]
                             Filter: b.b2[1]>@1 and b.b1[0]>@2
                             <SubLink> 1
                             -> PhysicFilter
-                                Output: c.c2[0]
+                                Output: c.c2[0],c.c2[0]
                                 Filter: c.c2[1]=?b.b2[1]
                               -> PhysicGet c
-                                  Output: c.c2[1],c.c2[1]
+                                  Output: c.c2[1]
                             <SubLink> 2
                             -> PhysicFilter
-                                Output: c.c2[0]
+                                Output: c.c2[0],c.c2[0]
                                 Filter: c.c2[1]=?b.b2[1]
                               -> PhysicGet c
-                                  Output: c.c2[1],c.c2[1]
+                                  Output: c.c2[1]
                           -> PhysicGet b
-                              Output: b.b1[0],b.b2[1],b.b1[0]";
+                              Output: b.b1[0],b.b2[1]";
             PlanCompare.AreEqual(answer, phyplan.PrintString(0));
         }
     }

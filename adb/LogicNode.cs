@@ -116,32 +116,11 @@ namespace adb
         }
 
         // what columns this node requires from its children
-        public virtual void ResolveChildrenColumns(List<Expr> reqOutput) {
-            // LogicGet is different from others - it has input as a full scan of table, so the ordinal
-            // shall be related to the table layout. Other logic nodes shall have sequential ordinal.
-            //
-            Debug.Assert(!(this is LogicGet));
-
-            int seq = 0;
-            reqOutput.ForEach(x =>
-            {
-                if (x is ColExpr xc)
-                {
-                    // fix colexpr's ordinal
-                    var n = new ColExpr(xc.dbName_, xc.tabName_, xc.colName_);
-                    n.ordinal_ = seq++;
-                    output_.Add(n);
-                }
-                else
-                    output_.Add(x);
-            });
-        }
-
-        public void ClearOutput() {
+        public virtual void ResolveChildrenColumns(List<Expr> reqOutput) {}
+        internal void ClearOutput() {
             output_ = new List<Expr>();
             children_.ForEach(x => x.ClearOutput());
         }
-
         // fix each expression by using source's ordinal
         internal List<Expr> FixColumnOrdinal(bool ignoreTable, List<Expr> tofix, List<Expr> source)
         {
@@ -195,9 +174,9 @@ namespace adb
                     var colref = ExprHelper.EnumAllColExpr(v, false);
                     colref.ForEach(x =>
                     {
-                        if (lrefs.Contains(x.tabRef_))
+                        if (lrefs.Contains((x as ColExpr).tabRef_))
                             lreq.Add(x);
-                        else if (rrefs.Contains(x.tabRef_))
+                        else if (rrefs.Contains((x as ColExpr).tabRef_))
                             rreq.Add(x);
                         else
                             throw new InvalidProgramException("contains invalid tableref");
@@ -235,11 +214,12 @@ namespace adb
 
         public override void ResolveChildrenColumns(List<Expr> reqOutput)
         {
-            List<Expr> newreq = new List<Expr>(reqOutput);
-            newreq.AddRange(ExprHelper.EnumAllColExpr(filter_, false));
-            children_[0].ResolveChildrenColumns(newreq);
+            List<Expr> tofix = new List<Expr>();
+            reqOutput.ForEach(x => tofix.AddRange(ExprHelper.CloneExprList(ExprHelper.EnumAllColExpr(x, false))));
+            tofix.AddRange(ExprHelper.CloneExprList(ExprHelper.EnumAllColExpr(filter_, false)));
+            children_[0].ResolveChildrenColumns(tofix.Distinct().ToList());
 
-            base.ResolveChildrenColumns(reqOutput);
+            output_.AddRange(FixColumnOrdinal(true, ExprHelper.CloneExprList(tofix), tofix.Distinct().ToList()));
         }
     }
 
@@ -329,7 +309,9 @@ namespace adb
                 }
             });
 
-            // don't need to include columns it uses (say filter) for output
+            // don't need to include columns it uses (say filter) for output. Also, no need
+            // to make copy of reqOutput since it is bottom and won't change anyway.
+            //
 			output_.AddRange(reqOutput);
         }
 

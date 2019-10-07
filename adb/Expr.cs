@@ -95,8 +95,8 @@ namespace adb
             }
         }
 
-        static public List<ColExpr> EnumAllColExpr(Expr expr, bool includingParameters) {
-            var list = new HashSet<ColExpr>();
+        static public List<Expr> EnumAllColExpr(Expr expr, bool includingParameters) {
+            var list = new HashSet<Expr>();
             expr.VisitEachExpr(x => {
                 if (x is ColExpr xc)
                 {
