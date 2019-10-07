@@ -326,8 +326,8 @@ namespace adb
                     if (tabRef_ != null)
                     {
                         // we are actually switch the context to parent, whichTab_ is not right ...
-                        context = parent;
                         isOuterRef_ = true;
+                        context = parent;
                         break;
                     }
                 }
@@ -449,12 +449,12 @@ namespace adb
 
         public override void Bind(BindContext context)
         {
+            var parent = context;
         	// subquery id is global
             subqueryid_ = context.nSubqueries++;
 
-            // we are using a new query context
-            BindContext newcontext = new BindContext(context);
-            query_.Bind(newcontext);
+            // query will use a new query context inside
+            query_.Bind(parent);
 
             // verify column count after bound because SelStar expansion
             if (query_.Selection().Count != 1)
