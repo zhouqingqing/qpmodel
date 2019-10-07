@@ -91,8 +91,8 @@ namespace adb
                     case LogicResult lr:
                         phy = new PhysicResult(lr);
                         break;
-                    case LogicSubquery ls:
-                        phy = new PhysicSubquery(ls, ls.children_[0].DirectToPhysical());
+                    case LogicFromQuery ls:
+                        phy = new PhysicFromQuery(ls, ls.children_[0].DirectToPhysical());
                         break;
                     case LogicFilter lf:
                         phy = new PhysicFilter(lf, lf.children_[0].DirectToPhysical());
@@ -245,13 +245,13 @@ namespace adb
         }
     }
 
-    public class LogicSubquery : LogicNode
+    public class LogicFromQuery : LogicNode
     {
-        public SubqueryRef queryRef_;
+        public FromQueryRef queryRef_;
 
         public override string ToString() => $"<{queryRef_.alias_}>";
         public override string PrintInlineDetails(int depth) => $"<{queryRef_.alias_}>";
-        public LogicSubquery(SubqueryRef query, LogicNode child) { queryRef_ = query; children_.Add(child); }
+        public LogicFromQuery(FromQueryRef query, LogicNode child) { queryRef_ = query; children_.Add(child); }
 
         public override List<TableRef> EnumTableRefs() => queryRef_.query_.cores_[0].BinContext().EnumTableRefs();
         public override void ResolveChildrenColumns(List<Expr> reqOutput)

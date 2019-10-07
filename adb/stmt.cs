@@ -98,7 +98,7 @@ namespace adb
                         else
                             throw new Exception($@"base table {bref.alias_} not exists");
                         break;
-                    case SubqueryRef sref:
+                    case FromQueryRef sref:
                         sref.query_.Bind(context);
 
                         // the subquery itself in from clause can be seen as a new table, so register it here
@@ -149,8 +149,8 @@ namespace adb
                 case BaseTableRef bref:
                     from = new LogicGet(bref);
                     break;
-                case SubqueryRef sref:
-                    from = new LogicSubquery(sref,
+                case FromQueryRef sref:
+                    from = new LogicFromQuery(sref,
                                     sref.query_.CreatePlan());
                     break;
                 default:
