@@ -116,36 +116,45 @@ namespace adb
         }
 
         // what columns this node requires from its children
-        public virtual void ResolveChildrenColumns(List<Expr> reqOutput) {}
+        public virtual void ResolveChildrenColumns(List<Expr> reqOutput) {
+            // you shall first compute the reqOutput by accouting parent's reqOutput and your filter etc
+            // then fix all exprs used there
+        }
         internal void ClearOutput() {
             output_ = new List<Expr>();
             children_.ForEach(x => x.ClearOutput());
         }
-        // fix each expression by using source's ordinal
-        internal List<Expr> FixColumnOrdinal(bool ignoreTable, List<Expr> tofix, List<Expr> source)
-        {
-            tofix.ForEach(x =>
-            {
-                x.VisitEachExpr(y => {
-                    if (y is ColExpr yc)
-                    {
-                        Predicate<Expr> nameTest;
-                        if (ignoreTable)
-                            nameTest = z => (z as ColExpr)?.colName_.Equals(yc.colName_)??false;
-                        else
-                            nameTest = z => z.Equals(yc);
 
-                        // fix colexpr's ordinal
-                        yc.ordinal_ = source.FindIndex(nameTest);
-                        Debug.Assert(yc.ordinal_ != -1);
-                        if (source.FindAll(nameTest).Count > 1)
-                            throw new SemanticAnalyzeException("ambigous column name");
-                    }
-                    return false;
-                });
+        internal Expr CloneFixColumnOrdinal(bool ignoreTable, Expr toclone, List<Expr> source)
+        {
+            var clone = toclone.Clone();
+            clone.VisitEachExpr(y => {
+                if (y is ColExpr target)
+                {
+                    Predicate<Expr> nameTest;
+                    if (ignoreTable)
+                        nameTest = z => (z as ColExpr)?.colName_.Equals(target.colName_) ?? false;
+                    else
+                        nameTest = z => z.Equals(target);
+
+                    // fix colexpr's ordinal
+                    target.ordinal_ = source.FindIndex(nameTest);
+                    Debug.Assert(target.ordinal_ != -1 || target.isOuterRef_);
+                    if (source.FindAll(nameTest).Count > 1)
+                        throw new SemanticAnalyzeException("ambigous column name");
+                }
+                return false;
             });
 
-            return tofix;
+            return clone;
+        }
+
+        // fix each expression by using source's ordinal and make a copy
+        internal List<Expr> CloneFixColumnOrdinal(bool ignoreTable, List<Expr> toclone, List<Expr> source)
+        {
+            var clone = new List<Expr>();
+            toclone.ForEach(x => clone.Add(CloneFixColumnOrdinal(ignoreTable, x, source)));
+            return clone;
         }
     }
 
@@ -188,7 +197,7 @@ namespace adb
             children_[0].ResolveChildrenColumns(lreq.ToList());
             children_[1].ResolveChildrenColumns(rreq.ToList());
             var newlist = lreq.ToList(); newlist.AddRange(rreq.ToList());
-            output_.AddRange(FixColumnOrdinal(true, ExprHelper.CloneExprList(reqOutput), newlist));
+            output_.AddRange(CloneFixColumnOrdinal(true, reqOutput, newlist));
         }
     }
 
@@ -215,11 +224,13 @@ namespace adb
         public override void ResolveChildrenColumns(List<Expr> reqOutput)
         {
             List<Expr> tofix = new List<Expr>();
-            reqOutput.ForEach(x => tofix.AddRange(ExprHelper.CloneExprList(ExprHelper.EnumAllColExpr(x, false))));
-            tofix.AddRange(ExprHelper.CloneExprList(ExprHelper.EnumAllColExpr(filter_, false)));
-            children_[0].ResolveChildrenColumns(tofix.Distinct().ToList());
+            reqOutput.ForEach(x => tofix.AddRange(ExprHelper.EnumAllColExpr(x, false)));
+            tofix.AddRange(ExprHelper.EnumAllColExpr(filter_, false));
+            var source = tofix.Distinct().ToList();
+            filter_ = CloneFixColumnOrdinal(true, filter_, source);
+            output_.AddRange(CloneFixColumnOrdinal(true, tofix, source));
 
-            output_.AddRange(FixColumnOrdinal(true, ExprHelper.CloneExprList(tofix), tofix.Distinct().ToList()));
+            children_[0].ResolveChildrenColumns(source);
         }
     }
 
@@ -257,10 +268,10 @@ namespace adb
         public override void ResolveChildrenColumns(List<Expr> reqOutput)
         {
             List<Expr> tofix = new List<Expr>();
-            tofix.AddRange(ExprHelper.CloneExprList(reqOutput));
+            tofix.AddRange(reqOutput);
 
             queryRef_.query_.GetLogicPlan().ResolveChildrenColumns(queryRef_.query_.Selection());
-            output_.AddRange(FixColumnOrdinal(true, tofix, queryRef_.query_.Selection()));
+            output_.AddRange(CloneFixColumnOrdinal(true, tofix, queryRef_.query_.Selection()));
         }
     }
 
@@ -309,10 +320,14 @@ namespace adb
                 }
             });
 
+            // the filter might be pushed from somewhere, so we need to resolve its columns
+            if (filter_ != null)
+                filter_ = CloneFixColumnOrdinal(true, filter_, tabref_.GenerateAllColumnsRefs());
+
             // don't need to include columns it uses (say filter) for output. Also, no need
             // to make copy of reqOutput since it is bottom and won't change anyway.
             //
-			output_.AddRange(reqOutput);
+            output_.AddRange(reqOutput);
         }
 
         public override List<TableRef> EnumTableRefs() => new List<TableRef>{tabref_};

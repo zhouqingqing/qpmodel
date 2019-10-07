@@ -20,6 +20,14 @@ namespace adb
         public override string ToString()=> string.Join(",", values_);
     }
 
+    public class ExecContext {
+        public Row row_;
+        public Row parameter_;
+
+        public ExecContext() { }
+        public ExecContext(Row row) => row_ = row;
+    }
+
     public abstract class PhysicNode : PlanNode<PhysicNode>
     {
         internal LogicNode logic_;
