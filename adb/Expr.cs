@@ -21,15 +21,16 @@ namespace adb
         internal Dictionary<int, TableRef> boundFrom_ = new Dictionary<int, TableRef>();
         // parent bind context - non-null for subquery only
         internal BindContext parent_;
+        internal SelectCore stmt_;
 
         // Global seciton
         //      fields maintained across subquery boundary
         // -----------------------------
-
         // number of subqueries in the whole query
         internal int nSubqueries = 0;
 
-        public BindContext(BindContext parent) {
+        public BindContext(SelectCore stmt, BindContext parent) {
+            stmt_ = stmt;
             parent_ = parent;
             if (parent != null)
                 nSubqueries = parent.nSubqueries;
@@ -160,13 +161,6 @@ namespace adb
                     return false;
                 });
             }
-        }
-
-        static public List<Expr> CloneExprList(List<Expr> exprs)
-        {
-            var list = new List<Expr>();
-            exprs.ForEach(x => list.Add(x.Clone()));
-            return list;
         }
     }
 
@@ -327,6 +321,7 @@ namespace adb
                     {
                         // we are actually switch the context to parent, whichTab_ is not right ...
                         isOuterRef_ = true;
+                        context.stmt_.hasParameter_ = true;
                         context = parent;
                         break;
                     }
@@ -459,7 +454,6 @@ namespace adb
             // verify column count after bound because SelStar expansion
             if (query_.Selection().Count != 1)
                 throw new SemanticAnalyzeException("subquery must return only one column");
-
             bounded_ = true;
         }
 

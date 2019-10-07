@@ -55,6 +55,7 @@ namespace adb
         }
         public override LogicNode CreatePlan() => logicPlan_ = cores_[0].CreatePlan();
         public List<Expr> Selection() => cores_[0].Selection();
+        public bool HasParameter() => cores_[0].hasParameter_;
 
         // generic form
         public SelectStmt(List<CTExpr> ctes, List<SelectCore> cores, List<OrderTerm> orders)
@@ -72,6 +73,8 @@ namespace adb
         List<Expr> groupby_;
         Expr having_;
         List<Expr> selection_;
+
+        internal bool hasParameter_ = false;
 
         // output
         public List<Expr> Selection() => selection_;
@@ -126,7 +129,7 @@ namespace adb
         void bindHaving(BindContext context) => having_?.Bind(context);
         public override SQLStatement Bind(BindContext parent)
         {
-            BindContext context = new BindContext(parent);
+            BindContext context = new BindContext(this, parent);
 
             Debug.Assert(logicPlan_ == null);
 
