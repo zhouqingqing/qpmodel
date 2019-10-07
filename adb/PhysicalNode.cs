@@ -92,8 +92,8 @@ namespace adb
         }
     }
 
-    public class PhysicSubquery : PhysicNode {
-        public PhysicSubquery(LogicSubquery logic, PhysicNode l) : base(logic) => children_.Add(l);
+    public class PhysicFromQuery : PhysicNode {
+        public PhysicFromQuery(LogicFromQuery logic, PhysicNode l) : base(logic) => children_.Add(l);
 
         public override void Exec(Func<Row, string> callback)
         {
@@ -136,20 +136,7 @@ namespace adb
             callback(r);
         }
     }
-    public class PhysicPrint : PhysicNode {
-        public PhysicPrint(PhysicNode child) : base(null) {
-            children_.Add(child);
-        }
 
-        public override void Exec(Func<Row, string> callback)
-        {
-            children_[0].Exec(r =>
-            {
-                Console.WriteLine($"{r}");
-                return null;
-            });
-        }
-    }
     public class PhysicCollect : PhysicNode
     {
         public List<Row> rows_ = new List<Row>();
@@ -162,6 +149,7 @@ namespace adb
         {
             children_[0].Exec(r =>
             {
+                Console.WriteLine($"{r}");
                 rows_.Add(r);
                 return null;
             });

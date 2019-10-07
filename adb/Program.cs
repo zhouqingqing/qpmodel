@@ -36,7 +36,7 @@ namespace adb
             /////////////// sql = "select a.a1 from a, b where a2>2";
             //sql = "select a.a1 from a where a2>1 and a3>3";
             //sql = "select a1*2+a2*1+3 from (select a1,a2 from a) b;";
-            ////////////// sql = "select * from a, (select * from b where b2>2) c;";
+            sql = "select * from a, (select * from b where b2>2) c;";
             //sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b3) and b.b3 > ((select c2 from c where c.c3=b2)));";
             //sql = "select a.a1 from a, b where a2 > 1";
             sql = "select c.* from a, (select * from b) c";
@@ -47,7 +47,7 @@ namespace adb
             //sql = @"with cte1 as (select * from a), cte2 as (select * from b) select a1,a1+a2 from cte1 where a1<6 group by a1, a1+a2  
             //        union select b2, b3 from cte2 where b2 > 3 group by b1, b1+b2 
             //        order by 2, 1 desc;";
-            sql = "select a2  from a where a.a1 > (select b1 from b where b2 = a3 and b3<3)";
+            //sql = "select a2  from a where a.a1 > (select b1 from b where b2 = a3 and b3<3)";
             //sql = "select a1,a1,a3,a3 from a where a1>1";
             //sql = "select a1,a1,a3,a3, (select b2 from b where b2=2) from a where a1>1";
             //sql = "select 1,  (select b1 from b) from a where a.a1 = 2;";
@@ -55,7 +55,7 @@ namespace adb
             //sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b1 > ((select c2 from c where c.c2=b2)))";
 
             // test candiates ---
-            sql = "select a1,a1,a3,a3 from a where a1+a2+a3>3";
+            //sql = "select a1,a1,a3,a3 from a where a1+a2+a3>3";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSQLStatement(sql);
@@ -78,7 +78,7 @@ namespace adb
             var phyplan = a.GetPhysicPlan();
             Console.WriteLine(phyplan.PrintString(0));
 
-            var final = new PhysicPrint(phyplan);
+            var final = new PhysicCollect(phyplan);
             final.Open();
             final.Exec(null);
             final.Close();

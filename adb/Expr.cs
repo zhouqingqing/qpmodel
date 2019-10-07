@@ -263,7 +263,7 @@ namespace adb
                     // are not bounded. We don't have to differentitate them, but I 
                     // just try to be strict.
                     //
-                    if (x is SubqueryRef)
+                    if (x is FromQueryRef)
                         exprs.AddRange(x.GenerateAllColumnsRefs());
                     else
                         unbounds.AddRange(x.GenerateAllColumnsRefs());
@@ -272,7 +272,7 @@ namespace adb
             else {
                 // table.* - you have to find it in current context
                 var x = context.Table(tabAlias_);
-                if (x is SubqueryRef)
+                if (x is FromQueryRef)
                     exprs.AddRange(x.GenerateAllColumnsRefs());
                 else
                     unbounds.AddRange(x.GenerateAllColumnsRefs());

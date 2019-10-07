@@ -89,11 +89,11 @@ namespace adb
     }
 
     // subquery in FROM clause
-    public class SubqueryRef : TableRef
+    public class FromQueryRef : TableRef
     {
         public SelectStmt query_;
 
-        public SubqueryRef(SelectStmt query, [NotNull] string alias)
+        public FromQueryRef(SelectStmt query, [NotNull] string alias)
         {
             query_ = query;
             alias_ = alias;
@@ -205,7 +205,7 @@ namespace adb
             var query = Visit(context.select_stmt()) as SelectStmt;
             if (context.table_alias() is null)
                 throw new Exception("subquery in FROM shall have an alias");
-            return new SubqueryRef(query, context.table_alias().GetText());
+            return new FromQueryRef(query, context.table_alias().GetText());
         }
 
         public override object VisitSelect_core([NotNull] SQLiteParser.Select_coreContext context)
