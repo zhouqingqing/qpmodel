@@ -55,7 +55,7 @@ namespace adb
         }
         public override LogicNode CreatePlan() => logicPlan_ = cores_[0].CreatePlan();
         public List<Expr> Selection() => cores_[0].Selection();
-        public bool HasParameter() => cores_[0].hasParameter_;
+        public bool HasParameter() => cores_[0].hasOuterRef_;
 
         // generic form
         public SelectStmt(List<CTExpr> ctes, List<SelectCore> cores, List<OrderTerm> orders)
@@ -74,7 +74,8 @@ namespace adb
         Expr having_;
         List<Expr> selection_;
 
-        internal bool hasParameter_ = false;
+        internal bool hasOuterRef_ = false;
+        bool hasParent_ = false;
 
         // output
         public List<Expr> Selection() => selection_;
@@ -130,6 +131,7 @@ namespace adb
         public override SQLStatement Bind(BindContext parent)
         {
             BindContext context = new BindContext(this, parent);
+            hasParent_ = (parent != null);
 
             Debug.Assert(logicPlan_ == null);
 
@@ -230,7 +232,7 @@ namespace adb
             selection_.ForEach(x => createSubQueryExprPlan(x));
 
             // resolve the output
-            root.ResolveChildrenColumns(selection_);
+            root.ResolveChildrenColumns(selection_, hasParent_);
 
             logicPlan_ = root;
             return root;
@@ -280,7 +282,7 @@ namespace adb
                 // top filter node is not needed
                 plan = plan.children_[0];
                 plan.ClearOutput();
-                plan.ResolveChildrenColumns(selection_);
+                plan.ResolveChildrenColumns(selection_, hasParent_);
                 logicPlan_ = plan;
             }
             else 

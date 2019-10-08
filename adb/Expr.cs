@@ -30,13 +30,13 @@ namespace adb
         //      fields maintained across subquery boundary
         // -----------------------------
         // number of subqueries in the whole query
-        internal int nSubqueries = 0;
+        internal int nSubqueries_ = 0;
 
         public BindContext(SelectCore current, BindContext parent) {
             stmt_ = current;
             parent_ = parent;
             if (parent != null)
-                nSubqueries = parent.nSubqueries;
+                nSubqueries_ = parent.nSubqueries_;
         }
 
         // table APIs
@@ -324,7 +324,7 @@ namespace adb
                     {
                         // we are actually switch the context to parent, whichTab_ is not right ...
                         isOuterRef_ = true;
-                        context.stmt_.hasParameter_ = true;
+                        context.stmt_.hasOuterRef_ = true;
                         context = parent;
                         break;
                     }
@@ -447,12 +447,15 @@ namespace adb
 
         public override void Bind(BindContext context)
         {
-            var parent = context;
-        	// subquery id is global
-            subqueryid_ = context.nSubqueries++;
+        	// subquery id is global, so accumulating at top
+			var top = context;
+        	while (top.parent_ != null){
+				top = top.parent_;
+			}
+            subqueryid_ = ++top.nSubqueries_;
 
             // query will use a new query context inside
-            query_.Bind(parent);
+            query_.Bind(context);
 
             // verify column count after bound because SelStar expansion
             if (query_.Selection().Count != 1)

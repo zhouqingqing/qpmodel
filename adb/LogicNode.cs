@@ -115,8 +115,8 @@ namespace adb
             return refs;
         }
 
-        // what columns this node requires from its children
-        public virtual void ResolveChildrenColumns(List<Expr> reqOutput) {
+        // what columns this node requires from its children - only top node shall not remove redundant
+        public virtual void ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true) {
             // you shall first compute the reqOutput by accouting parent's reqOutput and your filter etc
             // then fix all exprs used there
         }
@@ -162,7 +162,7 @@ namespace adb
     {
         public LogicCrossJoin(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
 
-        public override void ResolveChildrenColumns(List<Expr> reqOutput)
+        public override void ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
             // push to left and right: to which side depends on the TableRef it contains
             var lrefs = children_[0].EnumTableRefs();
@@ -198,6 +198,8 @@ namespace adb
             children_[1].ResolveChildrenColumns(rreq.ToList());
             var newlist = lreq.ToList(); newlist.AddRange(rreq.ToList());
             output_.AddRange(CloneFixColumnOrdinal(true, reqOutput, newlist));
+            if (removeRedundant)
+                output_ = output_.Distinct().ToList();
         }
     }
 
@@ -221,7 +223,7 @@ namespace adb
             children_.Add(child); filter_ = filter;
         }
 
-        public override void ResolveChildrenColumns(List<Expr> reqOutput)
+        public override void ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
             List<Expr> tofix = new List<Expr>();
             reqOutput.ForEach(x => tofix.AddRange(ExprHelper.EnumAllColExpr(x, false)));
@@ -229,7 +231,8 @@ namespace adb
             var source = tofix.Distinct().ToList();
             filter_ = CloneFixColumnOrdinal(true, filter_, source);
             output_.AddRange(CloneFixColumnOrdinal(true, tofix, source));
-            output_ = output_.Distinct().ToList();
+            if (removeRedundant)
+                output_ = output_.Distinct().ToList();
 
             children_[0].ResolveChildrenColumns(source);
         }
@@ -266,13 +269,15 @@ namespace adb
         public LogicFromQuery(FromQueryRef query, LogicNode child) { queryRef_ = query; children_.Add(child); }
 
         public override List<TableRef> EnumTableRefs() => queryRef_.query_.cores_[0].BinContext().EnumTableRefs();
-        public override void ResolveChildrenColumns(List<Expr> reqOutput)
+        public override void ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
             List<Expr> tofix = new List<Expr>();
             tofix.AddRange(reqOutput);
 
             queryRef_.query_.GetLogicPlan().ResolveChildrenColumns(queryRef_.query_.Selection());
             output_.AddRange(CloneFixColumnOrdinal(true, tofix, queryRef_.query_.Selection()));
+            if (removeRedundant)
+                output_ = output_.Distinct().ToList();
         }
     }
 
@@ -305,7 +310,7 @@ namespace adb
             return true;
         }
 
-        public override void ResolveChildrenColumns(List<Expr> reqOutput)
+        public override void ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
             // it can be an litral, or only uses my tableref
             reqOutput.ForEach(x =>
@@ -329,6 +334,8 @@ namespace adb
             // to make copy of reqOutput since it is bottom and won't change anyway.
             //
             output_.AddRange(reqOutput);
+            if (removeRedundant)
+                output_ = output_.Distinct().ToList();
         }
 
         public override List<TableRef> EnumTableRefs() => new List<TableRef>{tabref_};
