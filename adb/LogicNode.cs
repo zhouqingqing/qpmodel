@@ -34,7 +34,7 @@ namespace adb
                 r += tabs(depth + 2) + details + trailing;
             }
 
-            depth++;
+            depth += 2;
             children_.ForEach(x => r += x.PrintString(depth));
             return r;
         }
@@ -139,10 +139,8 @@ namespace adb
 
                     // fix colexpr's ordinal - leave the outerref
                     if (!target.isOuterRef_)
-                    {
                         target.ordinal_ = source.FindIndex(nameTest);
-                        Debug.Assert(target.ordinal_ != -1);
-                    }
+                    Debug.Assert(target.ordinal_ != -1);
                     if (source.FindAll(nameTest).Count > 1)
                         throw new SemanticAnalyzeException("ambigous column name");
                 }

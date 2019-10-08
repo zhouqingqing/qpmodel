@@ -137,9 +137,9 @@ namespace adb
                         r += tabs(depth + 2) + $"<SubLink> {sx.subqueryid_}\n";
                         Debug.Assert(sx.query_.bindContext_ != null);
                         if (sx.query_.physicPlan_ != null)
-                            r += $"{sx.query_.physicPlan_.PrintString(depth + 2)}";
+                            r += $"{sx.query_.physicPlan_.PrintString(depth + 4)}";
                         else
-                            r += $"{sx.query_.logicPlan_.PrintString(depth + 2)}";
+                            r += $"{sx.query_.logicPlan_.PrintString(depth + 4)}";
                     }
                     return false;
                 });
