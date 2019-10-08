@@ -52,12 +52,20 @@ namespace adb
             //sql = "select a1,a1,a3,a3, (select b2 from b where b2=2) from a where a1>1";
             //sql = "select 1,  (select b1 from b) from a where a.a1 = 2;";
             //sql = "select a1+b1 from a, b";
-            sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b2 > ((select c1 from c where c.c2=b1)))";
+            //sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b2 > ((select c1 from c where c.c2=b1)))";
 
             // test candiates ---
             //sql = "select a1,a1,a3,a3 from a where a1+a2+a3>3";
             //sql = "select * from a, (select * from b where b2>2) c;";
-            //sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<3);";
+
+            // test1: simple case
+            sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<3);";
+            // test2: two variables
+            sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b1 = a1 and b3<3);";
+            // test3: deep vars
+            sql = "select a1  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3 = a3 and b3>1) and b3<3);";
+            // test4: deep/ref 2+ outside vars
+            sql = "select a1  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 3) and b3<3);";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSQLStatement(sql);

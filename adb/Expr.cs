@@ -10,14 +10,17 @@ using Value = System.Int64;
 
 namespace adb
 {
-    // it carries global info needed by expression binding
+    // it carries global info needed by expression binding, it includes
+    //  - tablerefs, so we can lookup column names
+    //  - parent bind context (if it is a subquery)
+    // 
     public class BindContext {
 
         // Local section
         //      these fields are local to current subquery
         // -----------------------------
 
-        // bounded tables/subqueries
+        // bounded tables/subqueries: <seq#, tableref>
         internal Dictionary<int, TableRef> boundFrom_ = new Dictionary<int, TableRef>();
         // parent bind context - non-null for subquery only
         internal BindContext parent_;
@@ -29,8 +32,8 @@ namespace adb
         // number of subqueries in the whole query
         internal int nSubqueries = 0;
 
-        public BindContext(SelectCore stmt, BindContext parent) {
-            stmt_ = stmt;
+        public BindContext(SelectCore current, BindContext parent) {
+            stmt_ = current;
             parent_ = parent;
             if (parent != null)
                 nSubqueries = parent.nSubqueries;
@@ -70,7 +73,7 @@ namespace adb
             }
 
             if (Table(tabAlias) is BaseTableRef bt) {
-                Debug.Assert(r == Catalog.systable_.Column(tabAlias, colAlias).ordinal_);
+                Debug.Assert(r == Catalog.systable_.Column(bt.relname_, colAlias).ordinal_);
             }
 
             if (r != -1)
@@ -166,7 +169,7 @@ namespace adb
 
     public class Expr
     {
-        // a.i+b.i as total
+        // e.g, a.i+b.i as total
         internal string alias_;
 
         // an expression can reference multiple tables
@@ -244,7 +247,7 @@ namespace adb
         public SelStar(string tabAlias) => tabAlias_ = tabAlias;
         public override string ToString() => tabAlias_ + ".*";
 
-        public override void Bind(BindContext context) => throw new InvalidProgramException("shall not be here");
+        public override void Bind(BindContext context) => throw new InvalidProgramException("shall be expanded already");
         internal List<Expr> Expand(BindContext context)
         {
             var unbounds = new List<Expr>();

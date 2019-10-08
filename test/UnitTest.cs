@@ -288,22 +288,44 @@ namespace test
                         Filter: a.a1[0]>@0
                         <SubLink> 0
                         -> PhysicFilter
-                            Output: b.b1[0],b.b2[1],b.b1[0]
+                            Output: b.b1[0],b.b2[1]
                             Filter: b.b2[1]>@1 and b.b1[0]>@2
                             <SubLink> 1
                             -> PhysicFilter
-                                Output: c.c2[0],c.c2[0]
+                                Output: c.c2[0]
                                 Filter: c.c2[0]=?b.b2[-1]
                               -> PhysicGet c
                                   Output: c.c2[1]
                             <SubLink> 2
                             -> PhysicFilter
-                                Output: c.c2[0],c.c2[0]
+                                Output: c.c2[0]
                                 Filter: c.c2[0]=?b.b2[-1]
                               -> PhysicGet c
                                   Output: c.c2[1]
                           -> PhysicGet b
                               Output: b.b1[0],b.b2[1]";
+            PlanCompare.AreEqual(answer, phyplan.PrintString(0));
+
+            sql = "select a1  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 3) and b3<3);";
+            stmt = RawParser.ParseSQLStatement(sql).Bind(null);
+            stmt.CreatePlan();
+            stmt.Optimize();
+            phyplan = stmt.GetPhysicPlan();
+            answer = @"PhysicGet a
+                        Output: a.a1[0]
+                        Filter: a.a1[0]=@0
+                        <SubLink> 0
+                        -> PhysicFilter
+                            Output: bo.b1[0],bo.b2[1],bo.b3[2]
+                            Filter: bo.b2[1]=?a.a2[-1] and bo.b1[0]=@1 and bo.b3[2]<3
+                            <SubLink> 1
+                            -> PhysicFilter
+                                Output: b.b1[0],b.b3[1]
+                                Filter: b.b3[1]=?a.a3[-1] and ?bo.b3[1]=?a.a3[-1] and b.b3[1]>3
+                              -> PhysicGet b
+                                  Output: b.b1[0],b.b3[2]
+                          -> PhysicGet b as bo
+                              Output: bo.b1[0],bo.b2[1],bo.b3[2]";
             PlanCompare.AreEqual(answer, phyplan.PrintString(0));
         }
     }
