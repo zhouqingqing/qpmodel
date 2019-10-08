@@ -24,7 +24,7 @@ namespace adb
         internal Dictionary<int, TableRef> boundFrom_ = new Dictionary<int, TableRef>();
         // parent bind context - non-null for subquery only
         internal BindContext parent_;
-        internal SelectCore stmt_;
+        internal SelectStmt stmt_;
 
         // Global seciton
         //      fields maintained across subquery boundary
@@ -32,7 +32,7 @@ namespace adb
         // number of subqueries in the whole query
         internal int nSubqueries_ = 0;
 
-        public BindContext(SelectCore current, BindContext parent) {
+        public BindContext(SelectStmt current, BindContext parent) {
             stmt_ = current;
             parent_ = parent;
             if (parent != null)
@@ -136,11 +136,11 @@ namespace adb
                     if (x is SubqueryExpr sx)
                     {
                         r += tabs(depth + 2) + $"<SubLink> {sx.subqueryid_}\n";
-                        Debug.Assert(sx.query_.cores_[0].BinContext() != null);
-                        if (sx.query_.GetPhysicPlan() != null)
-                            r += $"{sx.query_.GetPhysicPlan().PrintString(depth + 2)}";
+                        Debug.Assert(sx.query_.bindContext_ != null);
+                        if (sx.query_.physicPlan_ != null)
+                            r += $"{sx.query_.physicPlan_.PrintString(depth + 2)}";
                         else
-                            r += $"{sx.query_.GetLogicPlan().PrintString(depth + 2)}";
+                            r += $"{sx.query_.logicPlan_.PrintString(depth + 2)}";
                     }
                     return false;
                 });
@@ -159,7 +159,7 @@ namespace adb
                 {
                     if (x is SubqueryExpr sx)
                     {
-                        sx.query_.physicPlan_ = sx.query_.GetLogicPlan().DirectToPhysical();
+                        sx.query_.physicPlan_ = sx.query_.logicPlan_.DirectToPhysical();
                     }
                     return false;
                 });
@@ -467,7 +467,7 @@ namespace adb
         public override Value Exec(Row input)
         {
             Row r = null;
-            query_.GetPhysicPlan().Exec(l => {
+            query_.physicPlan_.Exec(l => {
                 if (r is null)
                     r = l;
                 else

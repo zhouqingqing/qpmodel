@@ -41,7 +41,7 @@ namespace test
                                 "order by 2, 1 desc";
             var stmt = RawParser.ParseSQLStatement(sql) as SelectStmt;
             Assert.AreEqual(2, stmt.ctes_.Count);
-            Assert.AreEqual(2, stmt.cores_.Count);
+            Assert.AreEqual(2, stmt.setqs_.Count);
             Assert.AreEqual(2, stmt.orders_.Count);
         }
     }
@@ -60,7 +60,7 @@ namespace test
                 var stmt = RawParser.ParseSQLStatement(sql).Bind(null);
                 stmt.CreatePlan();
                 stmt.Optimize();
-                var result = new PhysicCollect(stmt.GetPhysicPlan());
+                var result = new PhysicCollect(stmt.physicPlan_);
                 result.Exec(null);
                 return result.rows_;
             }
@@ -281,7 +281,7 @@ namespace test
             stmt = RawParser.ParseSQLStatement(sql).Bind(null);
             stmt.CreatePlan();
             stmt.Optimize();
-            var phyplan = stmt.GetPhysicPlan();
+            var phyplan = stmt.physicPlan_;
             answer = @"PhysicCrossJoin
                         Output: a.a2[0],a.a3[1],a.a1[2]+b.b2[3]
                       -> PhysicGet a
@@ -295,7 +295,7 @@ namespace test
             stmt = RawParser.ParseSQLStatement(sql).Bind(null);
             stmt.CreatePlan();
             stmt.Optimize();
-            phyplan = stmt.GetPhysicPlan();
+            phyplan = stmt.physicPlan_;
             answer = @"PhysicGet a
                         Output: 1
                         Filter: a.a1[0]>@1
@@ -323,7 +323,7 @@ namespace test
             stmt = RawParser.ParseSQLStatement(sql).Bind(null);
             stmt.CreatePlan();
             stmt.Optimize();
-            phyplan = stmt.GetPhysicPlan();
+            phyplan = stmt.physicPlan_;
             answer = @"PhysicGet a
                         Output: a.a1[0]
                         Filter: a.a1[0]=@1
@@ -346,7 +346,7 @@ namespace test
             stmt = RawParser.ParseSQLStatement(sql).Bind(null);
             stmt.CreatePlan();
             stmt.Optimize();
-            phyplan = stmt.GetPhysicPlan();
+            phyplan = stmt.physicPlan_;
             answer = @"PhysicGet a
                         Output: a.a1[0],a.a2[1],a.a3[2]
                         Filter: a.a1[0]=@1 and a.a2[1]=@3

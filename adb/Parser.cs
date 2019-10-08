@@ -256,7 +256,7 @@ namespace adb
             }
 
             // -- binding stage
-            return new SelectCore(resultCols, resultRels, where, groupby, having, context.GetText());
+            return new SelectStmt(resultCols, resultRels, where, groupby, having, null, null, null, context.GetText());
         }
 
         public override object VisitCommon_table_expression([NotNull] SQLiteParser.Common_table_expressionContext context)
@@ -283,8 +283,8 @@ namespace adb
                 Array.ForEach(context.common_table_expression(), x => ctes.Add(VisitCommon_table_expression(x) as CTExpr));
             }
 
-            List<SelectCore> cores = new List<SelectCore>();
-            Array.ForEach(context.select_core(), x => cores.Add(VisitSelect_core(x) as SelectCore));
+            List<SelectStmt> cores = new List<SelectStmt>();
+            Array.ForEach(context.select_core(), x => cores.Add(VisitSelect_core(x) as SelectStmt));
 
             List<OrderTerm> orders = null;
             if (context.K_ORDER() != null)
@@ -293,7 +293,10 @@ namespace adb
                 orders = new List<OrderTerm>();
                 Array.ForEach(context.ordering_term(), x=> orders.Add(VisitOrdering_term(x) as OrderTerm));
             }
-            return new SelectStmt (ctes, cores, orders);
+
+            // cores_[0] is also expanded to main body
+            return new SelectStmt (cores[0].Selection(), cores[0].from_, cores[0].where_, cores[0].groupby_, cores[0].having_, 
+                                    ctes, cores, orders, context.GetText());
         }
 
         public override object VisitSql_stmt([NotNull] SQLiteParser.Sql_stmtContext context)

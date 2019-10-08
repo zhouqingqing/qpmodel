@@ -13,13 +13,10 @@ namespace adb
 
         // bounded context
         internal BindContext bindContext_;
-        public BindContext BinContext() => bindContext_;
 
         // plan
-        internal LogicNode logicPlan_;
-        public LogicNode GetLogicPlan() => logicPlan_;
-        internal PhysicNode physicPlan_;
-        public PhysicNode GetPhysicPlan() => physicPlan_;
+        public LogicNode logicPlan_;
+        public PhysicNode physicPlan_;
 
         // debug support
         internal string text_;
@@ -40,39 +37,15 @@ namespace adb
         ORDER BY clause
     */
     public class SelectStmt : SQLStatement {
+        internal List<TableRef> from_;
+        internal Expr where_;
+        internal List<Expr> groupby_;
+        internal Expr having_;
+        internal List<Expr> selection_;
+
         public List<CTExpr> ctes_;
-        public List<SelectCore> cores_ = new List<SelectCore>();
+        public List<SelectStmt> setqs_ = new List<SelectStmt>();
         public List<OrderTerm> orders_;
-
-        // most common case is that there is only one core
-        public SelectStmt(SelectCore core) => cores_.Add(core);
-        public override SQLStatement Bind(BindContext parent) => cores_[0].Bind(parent);
-        public override LogicNode Optimize()
-        {
-            logicPlan_ = cores_[0].Optimize();
-            physicPlan_ = cores_[0].GetPhysicPlan();
-            return logicPlan_;
-        }
-        public override LogicNode CreatePlan() => logicPlan_ = cores_[0].CreatePlan();
-        public List<Expr> Selection() => cores_[0].Selection();
-        public bool HasParameter() => cores_[0].hasOuterRef_;
-
-        // generic form
-        public SelectStmt(List<CTExpr> ctes, List<SelectCore> cores, List<OrderTerm> orders)
-        {
-            ctes_ = ctes;
-            cores_ = cores;
-            orders_ = orders;
-        }
-    }
-
-    public class SelectCore: SQLStatement
-    {
-        List<TableRef> from_;
-        Expr where_;
-        List<Expr> groupby_;
-        Expr having_;
-        List<Expr> selection_;
 
         internal bool hasOuterRef_ = false;
         bool hasParent_ = false;
@@ -80,13 +53,22 @@ namespace adb
         // output
         public List<Expr> Selection() => selection_;
 
-        public SelectCore(List<Expr> selection, List<TableRef> from, Expr where, List<Expr> groupby, Expr having, string text)
+        public SelectStmt(
+            // these fields are ok with select_core
+            List<Expr> selection, List<TableRef> from, Expr where, List<Expr> groupby, Expr having,
+            // these fields are only avaliable for top query
+            List<CTExpr> ctes, List<SelectStmt> cores, List<OrderTerm> orders, 
+            string text)
         {
             selection_ = selection;
             from_ = from;
             where_ = where;
             groupby_ = groupby;
             having_ = having;
+
+            ctes_ = ctes;
+            setqs_ = cores;
+            orders_ = orders;
 
             text_ = text;
         }
