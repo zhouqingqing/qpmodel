@@ -137,9 +137,12 @@ namespace adb
                     else
                         nameTest = z => z.Equals(target);
 
-                    // fix colexpr's ordinal
-                    target.ordinal_ = source.FindIndex(nameTest);
-                    Debug.Assert(target.ordinal_ != -1 || target.isOuterRef_);
+                    // fix colexpr's ordinal - leave the outerref
+                    if (!target.isOuterRef_)
+                    {
+                        target.ordinal_ = source.FindIndex(nameTest);
+                        Debug.Assert(target.ordinal_ != -1);
+                    }
                     if (source.FindAll(nameTest).Count > 1)
                         throw new SemanticAnalyzeException("ambigous column name");
                 }

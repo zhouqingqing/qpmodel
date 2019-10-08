@@ -193,10 +193,14 @@ namespace test
             Assert.AreEqual(0, result.Count);
 
             // correlated scalar subquery
-            //sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<3)";
-            //result = ExecuteSQL(sql);
-            //Assert.AreEqual(1, result.Count);
-            //Assert.AreEqual("0,2", result[0].ToString());
+            sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<3);";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual("0,2", result[0].ToString());
+            sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b1 = a1 and b3<3);";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual("0,2", result[0].ToString());
         }
 
         [TestMethod]
@@ -306,13 +310,13 @@ namespace test
                             <SubLink> 2
                             -> PhysicFilter
                                 Output: c.c2[0]
-                                Filter: c.c2[0]=?b.b2[-1]
+                                Filter: c.c2[0]=?b.b2[1]
                               -> PhysicGet c
                                   Output: c.c2[1]
                             <SubLink> 3
                             -> PhysicFilter
                                 Output: c.c2[0]
-                                Filter: c.c2[0]=?b.b2[-1]
+                                Filter: c.c2[0]=?b.b2[1]
                               -> PhysicGet c
                                   Output: c.c2[1]
                           -> PhysicGet b
@@ -330,11 +334,11 @@ namespace test
                         <SubLink> 1
                         -> PhysicFilter
                             Output: bo.b1[0],bo.b2[1],bo.b3[2]
-                            Filter: bo.b2[1]=?a.a2[-1] and bo.b1[0]=@2 and bo.b3[2]<3
+                            Filter: bo.b2[1]=?a.a2[1] and bo.b1[0]=@2 and bo.b3[2]<3
                             <SubLink> 2
                             -> PhysicFilter
                                 Output: b.b1[0],b.b3[1]
-                                Filter: b.b3[1]=?a.a3[-1] and ?bo.b3[1]=?a.a3[-1] and b.b3[1]>3
+                                Filter: b.b3[1]=?a.a3[2] and ?bo.b3[2]=?a.a3[2] and b.b3[1]>3
                               -> PhysicGet b
                                   Output: b.b1[0],b.b3[2]
                           -> PhysicGet b as bo
@@ -353,11 +357,11 @@ namespace test
                         <SubLink> 1
                         -> PhysicFilter
                             Output: bo.b1[0],bo.b2[1],bo.b3[2]
-                            Filter: bo.b2[1]=?a.a2[-1] and bo.b1[0]=@2 and bo.b3[2]<3
+                            Filter: bo.b2[1]=?a.a2[1] and bo.b1[0]=@2 and bo.b3[2]<3
                             <SubLink> 2
                             -> PhysicFilter
                                 Output: b.b1[0],b.b3[1]
-                                Filter: b.b3[1]=?a.a3[-1] and ?bo.b3[1]=?a.a3[-1] and b.b3[1]>3
+                                Filter: b.b3[1]=?a.a3[2] and ?bo.b3[2]=?a.a3[2] and b.b3[1]>3
                               -> PhysicGet b
                                   Output: b.b1[0],b.b3[2]
                           -> PhysicGet b as bo
@@ -365,11 +369,11 @@ namespace test
                         <SubLink> 3
                         -> PhysicFilter
                             Output: bo.b2[0],bo.b1[1],bo.b3[2]
-                            Filter: bo.b1[1]=?a.a1[-1] and bo.b2[0]=@4 and bo.b3[2]<2
+                            Filter: bo.b1[1]=?a.a1[0] and bo.b2[0]=@4 and bo.b3[2]<2
                             <SubLink> 4
                             -> PhysicFilter
                                 Output: b.b2[0],b.b3[1]
-                                Filter: b.b3[1]=?a.a3[-1] and ?bo.b3[1]=?a.a3[-1] and b.b3[1]>1
+                                Filter: b.b3[1]=?a.a3[2] and ?bo.b3[2]=?a.a3[2] and b.b3[1]>1
                               -> PhysicGet b
                                   Output: b.b2[1],b.b3[2]
                           -> PhysicGet b as bo
