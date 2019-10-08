@@ -13,9 +13,9 @@ namespace adb
 
         // print utilities
         internal string tabs(int depth) => new string(' ', depth * 2);
-        public virtual string PrintOutput(int depth) { return null; }
-        public virtual string PrintInlineDetails(int depth) { return null; }
-        public virtual string PrintMoreDetails(int depth) { return null; }
+        public virtual string PrintOutput(int depth) => null;
+        public virtual string PrintInlineDetails(int depth) => null;
+        public virtual string PrintMoreDetails(int depth) => null;
         public string PrintString(int depth)
         {
             string r = tabs(depth);
@@ -274,11 +274,12 @@ namespace adb
         public override List<TableRef> EnumTableRefs() => queryRef_.query_.bindContext_.EnumTableRefs();
         public override void ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
+            var query = queryRef_.query_;
             List<Expr> tofix = new List<Expr>();
             tofix.AddRange(reqOutput);
 
-            queryRef_.query_.logicPlan_.ResolveChildrenColumns(queryRef_.query_.Selection());
-            output_.AddRange(CloneFixColumnOrdinal(true, tofix, queryRef_.query_.Selection()));
+            query.logicPlan_.ResolveChildrenColumns(query.selection_);
+            output_.AddRange(CloneFixColumnOrdinal(true, tofix, query.selection_));
             if (removeRedundant)
                 output_ = output_.Distinct().ToList();
         }

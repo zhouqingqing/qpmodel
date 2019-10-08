@@ -458,7 +458,7 @@ namespace adb
             query_.Bind(context);
 
             // verify column count after bound because SelStar expansion
-            if (query_.Selection().Count != 1)
+            if (query_.selection_.Count != 1)
                 throw new SemanticAnalyzeException("subquery must return only one column");
             bounded_ = true;
         }

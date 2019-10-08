@@ -9,7 +9,7 @@ using System.Diagnostics;
 
 namespace adb
 {
-    // Antlr requires user defined exception
+    // antlr requires user defined exception with this name
     public class RuntimeException : System.Exception
     {
         public RuntimeException(string msg) {}
@@ -19,6 +19,7 @@ namespace adb
     {
         public SemanticAnalyzeException(string ms) { }
     }
+
     public class SemanticExecutionException : System.Exception
     {
         public SemanticExecutionException(string ms) { }
@@ -99,10 +100,7 @@ namespace adb
             alias_ = alias;
         }
 
-        public override List<Expr> GenerateAllColumnsRefs()
-        {
-            return query_.Selection();
-        }
+        public override List<Expr> GenerateAllColumnsRefs() => query_.selection_;
     }
 
     class SQLiteVisitor : SQLiteBaseVisitor<object>
@@ -295,7 +293,7 @@ namespace adb
             }
 
             // cores_[0] is also expanded to main body
-            return new SelectStmt (cores[0].Selection(), cores[0].from_, cores[0].where_, cores[0].groupby_, cores[0].having_, 
+            return new SelectStmt (cores[0].selection_, cores[0].from_, cores[0].where_, cores[0].groupby_, cores[0].having_, 
                                     ctes, cores, orders, context.GetText());
         }
 
