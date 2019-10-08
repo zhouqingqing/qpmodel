@@ -148,11 +148,8 @@ namespace adb
     public class PhysicCollect : PhysicNode
     {
         public List<Row> rows_ = new List<Row>();
-        public PhysicCollect(PhysicNode child) : base(null)
-        {
-            children_.Add(child);
-        }
 
+        public PhysicCollect(PhysicNode child) : base(null) => children_.Add(child);
         public override void Exec(Func<Row, string> callback)
         {
             children_[0].Exec(r =>

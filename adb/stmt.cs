@@ -50,9 +50,6 @@ namespace adb
         internal bool hasOuterRef_ = false;
         bool hasParent_ = false;
 
-        // output
-        public List<Expr> Selection() => selection_;
-
         public SelectStmt(
             // these fields are ok with select_core
             List<Expr> selection, List<TableRef> from, Expr where, List<Expr> groupby, Expr having,
