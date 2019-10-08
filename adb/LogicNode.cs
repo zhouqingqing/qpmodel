@@ -268,13 +268,13 @@ namespace adb
         public override string PrintInlineDetails(int depth) => $"<{queryRef_.alias_}>";
         public LogicFromQuery(FromQueryRef query, LogicNode child) { queryRef_ = query; children_.Add(child); }
 
-        public override List<TableRef> EnumTableRefs() => queryRef_.query_.cores_[0].BinContext().EnumTableRefs();
+        public override List<TableRef> EnumTableRefs() => queryRef_.query_.bindContext_.EnumTableRefs();
         public override void ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
             List<Expr> tofix = new List<Expr>();
             tofix.AddRange(reqOutput);
 
-            queryRef_.query_.GetLogicPlan().ResolveChildrenColumns(queryRef_.query_.Selection());
+            queryRef_.query_.logicPlan_.ResolveChildrenColumns(queryRef_.query_.Selection());
             output_.AddRange(CloneFixColumnOrdinal(true, tofix, queryRef_.query_.Selection()));
             if (removeRedundant)
                 output_ = output_.Distinct().ToList();

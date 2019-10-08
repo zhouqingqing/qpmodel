@@ -90,7 +90,7 @@ namespace adb
 
             // -- physical plan
             Console.WriteLine("-- physical plan --");
-            var phyplan = a.GetPhysicPlan();
+            var phyplan = a.physicPlan_;
             Console.WriteLine(phyplan.PrintString(0));
 
             var final = new PhysicCollect(phyplan);
