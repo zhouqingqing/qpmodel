@@ -61,7 +61,7 @@ namespace adb
     {
         public string relname_;
 
-        public BaseTableRef([NotNull] string name, string alias = null)
+        public BaseTableRef([NotNull] string name, string alias)
         {
             relname_ = name;
             alias_ = alias ?? relname_;
@@ -171,7 +171,7 @@ namespace adb
 
         public override object VisitFromSimpleTable([NotNull] SQLiteParser.FromSimpleTableContext context)
         {
-            return new BaseTableRef(context.table_name().GetText());
+            return new BaseTableRef(context.table_name().GetText(), context.table_alias()?.GetText());
         }
 
         public override object VisitFromJoinTable([NotNull] SQLiteParser.FromJoinTableContext context)

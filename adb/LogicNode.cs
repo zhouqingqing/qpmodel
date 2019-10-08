@@ -229,6 +229,7 @@ namespace adb
             var source = tofix.Distinct().ToList();
             filter_ = CloneFixColumnOrdinal(true, filter_, source);
             output_.AddRange(CloneFixColumnOrdinal(true, tofix, source));
+            output_ = output_.Distinct().ToList();
 
             children_[0].ResolveChildrenColumns(source);
         }
@@ -281,7 +282,7 @@ namespace adb
         public Expr filter_;
 
         public LogicGet(BaseTableRef tab) => tabref_ = tab;
-        public override string ToString() => tabref_.alias_;
+        public override string ToString() => tabref_.ToString();
         public override string PrintInlineDetails(int depth) => ToString();
         public override string PrintMoreDetails(int depth)
         {
