@@ -114,12 +114,25 @@ namespace test
             sql = "select a.a1 from a, b where a2>2";
             result = ExecuteSQL(sql);
             Assert.AreEqual(1 * 3, result.Count);
-            sql = "select a.a2,a3,a.a1+b2 from a,b where a.a1 > 1";
+            sql = "select a.a2,a.a2,a3,a.a1+b2 from a,b where a.a1 > 1";
             result = ExecuteSQL(sql);
             Assert.AreEqual(3, result.Count);
-            Assert.AreEqual("3,4,3", result[0].ToString());
-            Assert.AreEqual("3,4,4", result[1].ToString());
-            Assert.AreEqual("3,4,5", result[2].ToString());
+            Assert.AreEqual("3,3,4,3", result[0].ToString());
+            Assert.AreEqual("3,3,4,4", result[1].ToString());
+            Assert.AreEqual("3,3,4,5", result[2].ToString());
+            sql = @"select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2;";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(9, result.Count);
+            Assert.AreEqual(3, result[0].values_.Count);
+            Assert.AreEqual("0,1,2", result[0].ToString());
+            Assert.AreEqual("1,1,2", result[1].ToString());
+            Assert.AreEqual("2,1,2", result[2].ToString());
+            Assert.AreEqual("0,2,3", result[3].ToString());
+            Assert.AreEqual("1,2,3", result[4].ToString());
+            Assert.AreEqual("2,2,3", result[5].ToString());
+            Assert.AreEqual("0,3,4", result[6].ToString());
+            Assert.AreEqual("1,3,4", result[7].ToString());
+            Assert.AreEqual("2,3,4", result[8].ToString());
         }
 
         [TestMethod]
@@ -285,18 +298,18 @@ namespace test
             phyplan = stmt.GetPhysicPlan();
             answer = @"PhysicGet a
                         Output: 1
-                        Filter: a.a1[0]>@0
-                        <SubLink> 0
+                        Filter: a.a1[0]>@1
+                        <SubLink> 1
                         -> PhysicFilter
                             Output: b.b1[0],b.b2[1]
-                            Filter: b.b2[1]>@1 and b.b1[0]>@2
-                            <SubLink> 1
+                            Filter: b.b2[1]>@2 and b.b1[0]>@3
+                            <SubLink> 2
                             -> PhysicFilter
                                 Output: c.c2[0]
                                 Filter: c.c2[0]=?b.b2[-1]
                               -> PhysicGet c
                                   Output: c.c2[1]
-                            <SubLink> 2
+                            <SubLink> 3
                             -> PhysicFilter
                                 Output: c.c2[0]
                                 Filter: c.c2[0]=?b.b2[-1]
@@ -313,12 +326,12 @@ namespace test
             phyplan = stmt.GetPhysicPlan();
             answer = @"PhysicGet a
                         Output: a.a1[0]
-                        Filter: a.a1[0]=@0
-                        <SubLink> 0
+                        Filter: a.a1[0]=@1
+                        <SubLink> 1
                         -> PhysicFilter
                             Output: bo.b1[0],bo.b2[1],bo.b3[2]
-                            Filter: bo.b2[1]=?a.a2[-1] and bo.b1[0]=@1 and bo.b3[2]<3
-                            <SubLink> 1
+                            Filter: bo.b2[1]=?a.a2[-1] and bo.b1[0]=@2 and bo.b3[2]<3
+                            <SubLink> 2
                             -> PhysicFilter
                                 Output: b.b1[0],b.b3[1]
                                 Filter: b.b3[1]=?a.a3[-1] and ?bo.b3[1]=?a.a3[-1] and b.b3[1]>3
@@ -326,6 +339,41 @@ namespace test
                                   Output: b.b1[0],b.b3[2]
                           -> PhysicGet b as bo
                               Output: bo.b1[0],bo.b2[1],bo.b3[2]";
+            PlanCompare.AreEqual(answer, phyplan.PrintString(0));
+
+            sql = @"select a1,a2,a3  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 3) and b3<3)
+                and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b3<2);";
+            stmt = RawParser.ParseSQLStatement(sql).Bind(null);
+            stmt.CreatePlan();
+            stmt.Optimize();
+            phyplan = stmt.GetPhysicPlan();
+            answer = @"PhysicGet a
+                        Output: a.a1[0],a.a2[1],a.a3[2]
+                        Filter: a.a1[0]=@1 and a.a2[1]=@3
+                        <SubLink> 1
+                        -> PhysicFilter
+                            Output: bo.b1[0],bo.b2[1],bo.b3[2]
+                            Filter: bo.b2[1]=?a.a2[-1] and bo.b1[0]=@2 and bo.b3[2]<3
+                            <SubLink> 2
+                            -> PhysicFilter
+                                Output: b.b1[0],b.b3[1]
+                                Filter: b.b3[1]=?a.a3[-1] and ?bo.b3[1]=?a.a3[-1] and b.b3[1]>3
+                              -> PhysicGet b
+                                  Output: b.b1[0],b.b3[2]
+                          -> PhysicGet b as bo
+                              Output: bo.b1[0],bo.b2[1],bo.b3[2]
+                        <SubLink> 3
+                        -> PhysicFilter
+                            Output: bo.b2[0],bo.b1[1],bo.b3[2]
+                            Filter: bo.b1[1]=?a.a1[-1] and bo.b2[0]=@4 and bo.b3[2]<2
+                            <SubLink> 4
+                            -> PhysicFilter
+                                Output: b.b2[0],b.b3[1]
+                                Filter: b.b3[1]=?a.a3[-1] and ?bo.b3[1]=?a.a3[-1] and b.b3[1]>1
+                              -> PhysicGet b
+                                  Output: b.b2[1],b.b3[2]
+                          -> PhysicGet b as bo
+                              Output: bo.b2[1],bo.b1[0],bo.b3[2]";
             PlanCompare.AreEqual(answer, phyplan.PrintString(0));
         }
     }
