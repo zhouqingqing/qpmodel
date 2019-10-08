@@ -15,7 +15,6 @@ namespace adb
     //  - parent bind context (if it is a subquery)
     // 
     public class BindContext {
-
         // Local section
         //      these fields are local to current subquery
         // -----------------------------
@@ -235,7 +234,7 @@ namespace adb
         public virtual Expr Clone() => (Expr)this.MemberwiseClone();
         public virtual void Bind(BindContext context) => bounded_ = true;
         public virtual string PrintString(int depth) => ToString();
-        public virtual Value Exec(Row input) => throw new Exception($"{this} subclass shall implment Exec()");
+        public virtual Value Exec(ExecContext context, Row input) => throw new Exception($"{this} subclass shall implment Exec()");
     }
 
     // Represents "*" or "table.*" - it is not in the tree after Bind(). 
@@ -348,7 +347,6 @@ namespace adb
                 return co.tabName_.Equals(tabName_) && co.colName_.Equals(colName_);
             return false;
         }
-
         public override string ToString()
         {
             string para = isOuterRef_ ? "?" : "";
@@ -356,9 +354,12 @@ namespace adb
                 return $@"{para}{tabName_}.{colName_}[{ordinal_}]";
             return $@"{para}{tabName_}.{colName_} [{alias_}][{ordinal_}]";
         }
-        public override Value Exec(Row input)
+        public override Value Exec(ExecContext context, Row input)
         {
-            return input.values_[ordinal_];
+            if (isOuterRef_)
+                return context.GetParam(tabRef_, ordinal_);
+            else
+                return input.values_[ordinal_];
         }
     }
 
@@ -404,18 +405,18 @@ namespace adb
 
         public override string ToString() => $"{l_}{op_}{r_}";
 
-        public override Value Exec(Row input)
+        public override Value Exec(ExecContext context, Row input)
         {
             switch (op_) {
-                case "+": return l_.Exec(input) + r_.Exec(input);
-                case "-": return l_.Exec(input) - r_.Exec(input);
-                case "*": return l_.Exec(input) * r_.Exec(input);
-                case "/": return l_.Exec(input) / r_.Exec(input);
-                case ">": return l_.Exec(input) > r_.Exec(input) ? 1 : 0;
-                case ">=": return l_.Exec(input) >= r_.Exec(input) ? 1 : 0;
-                case "<": return l_.Exec(input) < r_.Exec(input) ? 1 : 0;
-                case "<=": return l_.Exec(input) <= r_.Exec(input) ? 1 : 0;
-                case "=": return l_.Exec(input) == r_.Exec(input)?1:0;
+                case "+": return l_.Exec(context, input) + r_.Exec(context, input);
+                case "-": return l_.Exec(context, input) - r_.Exec(context, input);
+                case "*": return l_.Exec(context, input) * r_.Exec(context, input);
+                case "/": return l_.Exec(context, input) / r_.Exec(context, input);
+                case ">": return l_.Exec(context, input) > r_.Exec(context, input) ? 1 : 0;
+                case ">=": return l_.Exec(context, input) >= r_.Exec(context, input) ? 1 : 0;
+                case "<": return l_.Exec(context, input) < r_.Exec(context, input) ? 1 : 0;
+                case "<=": return l_.Exec(context, input) <= r_.Exec(context, input) ? 1 : 0;
+                case "=": return l_.Exec(context, input) == r_.Exec(context, input) ?1:0;
                 default:
                     throw new NotImplementedException();
             }
@@ -426,10 +427,10 @@ namespace adb
     {
         public LogicAndExpr(Expr l, Expr r) : base(l, r, " and ") { }
 
-        public override Value Exec(Row input)
+        public override Value Exec(ExecContext context, Row input)
         {
-            Value lv = l_.Exec(input);
-            Value rv = r_.Exec(input);
+            Value lv = l_.Exec(context, input);
+            Value rv = r_.Exec(context, input);
 
             if (lv == 1 && rv == 1)
                 return 1;
@@ -464,10 +465,11 @@ namespace adb
         }
 
 
-        public override Value Exec(Row input)
+        public override Value Exec(ExecContext context, Row input)
         {
             Row r = null;
-            query_.physicPlan_.Exec(l => {
+            context.AddParam(input);
+            query_.physicPlan_.Exec(context, l => {
                 if (r is null)
                     r = l;
                 else
@@ -506,7 +508,7 @@ namespace adb
 
         public LiteralExpr(SQLiteParser.Literal_valueContext val) => val_ = val;
         public override string ToString() => val_.GetText();
-        public override Value Exec(Row input) => Value.Parse(val_.GetText());
+        public override Value Exec(ExecContext context, Row input) => Value.Parse(val_.GetText());
     }
 
 }

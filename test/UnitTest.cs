@@ -61,7 +61,7 @@ namespace test
                 stmt.CreatePlan();
                 stmt.Optimize();
                 var result = new PhysicCollect(stmt.physicPlan_);
-                result.Exec(null);
+                result.Exec(new ExecContext(), null);
                 return result.rows_;
             }
             catch (Exception e) {
@@ -80,7 +80,7 @@ namespace test
                 stmt.CreatePlan();
                 var phyplan = stmt.Optimize().DirectToPhysical();
                 var result = new PhysicCollect(phyplan);
-                result.Exec(null);
+                result.Exec(new ExecContext(), null);
                 return new Tuple<List<Row>, PhysicNode>(result.rows_, phyplan);
             }
             catch (Exception e)
@@ -193,14 +193,52 @@ namespace test
             Assert.AreEqual(0, result.Count);
 
             // correlated scalar subquery
+            // test1: simple case
             sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<3);";
             result = ExecuteSQL(sql);
             Assert.AreEqual(1, result.Count);
             Assert.AreEqual("0,2", result[0].ToString());
+            sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4);";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(2, result.Count);
+            Assert.AreEqual("0,2", result[0].ToString());
+            Assert.AreEqual("1,3", result[1].ToString());
+            // test2: 2+ variables
             sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b1 = a1 and b3<3);";
             result = ExecuteSQL(sql);
             Assert.AreEqual(1, result.Count);
             Assert.AreEqual("0,2", result[0].ToString());
+            sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b1 = a1 and b3<5);";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(3, result.Count);
+            Assert.AreEqual("0,2", result[0].ToString());
+            Assert.AreEqual("1,3", result[1].ToString());
+            Assert.AreEqual("2,4", result[2].ToString());
+            // test3: deep vars
+            sql = "select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3 = a3 and b3>1) and b3<4);";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(2, result.Count);
+            Assert.AreEqual("0", result[0].ToString());
+            Assert.AreEqual("1", result[1].ToString());
+            // test4: deep/ref 2+ outside vars
+            sql = "select a1,a2,a3  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b3<4);";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(2, result.Count);
+            Assert.AreEqual("0,1,2", result[0].ToString());
+            Assert.AreEqual("1,2,3", result[1].ToString());
+            sql = @" select a1+a2+a3  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 2) and b3<5)
+                and a.a2 = (select b2 from b bo where b1 = a1 and b2 >= (select b2 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b3<4);";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual("6", result[0].ToString());
+            sql = @"select a1  from a where a.a1 = (select b1 from (select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2
+                and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b3<5)
+                and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b3=a3 and bo.b3 = a3 and b3> 0) and b3<5);";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(3, result.Count);
+            Assert.AreEqual("0", result[0].ToString());
+            Assert.AreEqual("1", result[1].ToString());
+            Assert.AreEqual("2", result[2].ToString());
         }
 
         [TestMethod]
