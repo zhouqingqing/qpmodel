@@ -69,26 +69,6 @@ namespace test
             }
         }
 
-        internal Tuple<List<Row>, PhysicNode> ExecuteSQL2(string sql)
-        {
-            try
-            {
-                error_ = null;
-
-                var stmt = RawParser.ParseSQLStatement(sql).Bind(null);
-                stmt.CreatePlan();
-                var phyplan = stmt.Optimize().DirectToPhysical();
-                var result = new PhysicCollect(phyplan);
-                result.Exec(new ExecContext(), null);
-                return new Tuple<List<Row>, PhysicNode>(result.rows_, phyplan);
-            }
-            catch (Exception e)
-            {
-                error_ = e.Message;
-                return null;
-            }
-        }
-
         /// <summary>
         ///  Gets or sets the test context which provides
         ///  information about and functionality for the current test run.
@@ -138,12 +118,12 @@ namespace test
         public void TestExecSubFrom()
         {
             var sql = "select * from a, (select * from b) c";
-            var result2 = ExecuteSQL2(sql);
-            Assert.AreEqual(9, result2.Item1.Count);
-            Assert.AreEqual("0,1,2,3,0,1,2,3", result2.Item1[0].ToString());
-            Assert.AreEqual("2,3,4,5,2,3,4,5", result2.Item1[8].ToString());
-            sql = "select * from a, (select * from b where b2>2) c";
             var result = ExecuteSQL(sql);
+            Assert.AreEqual(9, result.Count);
+            Assert.AreEqual("0,1,2,3,0,1,2,3", result[0].ToString());
+            Assert.AreEqual("2,3,4,5,2,3,4,5", result[8].ToString());
+            sql = "select * from a, (select * from b where b2>2) c";
+            result = ExecuteSQL(sql);
             Assert.AreEqual(3, result.Count);
             sql = "select b.a1 + b.a2 from (select a1 from a) b";
             result = ExecuteSQL(sql);
@@ -239,6 +219,14 @@ namespace test
             Assert.AreEqual("3", result[0].ToString());
             Assert.AreEqual("4", result[1].ToString());
             Assert.AreEqual("5", result[2].ToString());
+            sql = @"select a1  from a where a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
+                and b1 = (select b1 from b where b3 = a3 and bo.b3 = a3 and b3> 1) and b2<5)
+                and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and b3<5);";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(3, result.Count);
+            Assert.AreEqual("0", result[0].ToString());
+            Assert.AreEqual("1", result[1].ToString());
+            Assert.AreEqual("2", result[2].ToString());
         }
 
         [TestMethod]
@@ -384,7 +372,7 @@ namespace test
             PlanCompare.AreEqual(answer, phyplan.PrintString(0));
 
             sql = @"select a1  from a where a.a1 = (select b1 from (select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b2<5)
-                and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b3=a3 and bo.b3 = a3 and b3> 0) and b3<5);";
+                and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4=a3 and bo.b3 = a3 and b3> 0) and b3<5);";
             stmt = RawParser.ParseSQLStatement(sql).Bind(null);
             stmt.CreatePlan();
             stmt.Optimize();
@@ -417,9 +405,9 @@ namespace test
                                 <SubLink> 4
                                     -> PhysicFilter
                                         Output: b.b2[0]
-                                        Filter: b.b3[1]=?a.a3[2] and ?bo.b3[2]=?a.a3[2] and b.b3[1]>0
+                                        Filter: b.b4[1]=?a.a3[2] and ?bo.b3[2]=?a.a3[2] and b.b3[2]>0
                                         -> PhysicGet b
-                                            Output: b.b2[1],b.b3[2]
+                                            Output: b.b2[1],b.b4[3],b.b3[2]
                                 -> PhysicGet b as bo
                                     Output: bo.b2[1],bo.b1[0],bo.b3[2]";
             PlanCompare.AreEqual(answer, phyplan.PrintString(0));

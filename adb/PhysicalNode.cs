@@ -10,7 +10,7 @@ using Value = System.Int64;
 namespace adb
 {
     public class Row {
-        public List<Value> values_ = new List<Value>();
+        readonly public List<Value> values_ = new List<Value>();
 
         public Row() { }
         public Row(Row l, Row r) {
@@ -22,8 +22,8 @@ namespace adb
     }
 
     public class Parameter {
-        public TableRef tabref_;
-        public Row row_;
+        readonly public TableRef tabref_;
+        readonly public Row row_;
 
         public Parameter(TableRef tabref, Row row) { tabref_ = tabref; row_ = row; }
     }
@@ -49,7 +49,7 @@ namespace adb
 
     public abstract class PhysicNode : PlanNode<PhysicNode>
     {
-        internal LogicNode logic_;
+        readonly internal LogicNode logic_;
 
         public PhysicNode(LogicNode logic) => logic_ = logic;
 
@@ -172,7 +172,7 @@ namespace adb
 
     public class PhysicCollect : PhysicNode
     {
-        public List<Row> rows_ = new List<Row>();
+        readonly public List<Row> rows_ = new List<Row>();
 
         public PhysicCollect(PhysicNode child) : base(null) => children_.Add(child);
         public override void Exec(ExecContext context, Func<Row, string> callback)

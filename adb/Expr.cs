@@ -15,17 +15,17 @@ namespace adb
     //  - parent bind context (if it is a subquery)
     // 
     public class BindContext {
-        // bounded tables/subqueries: <seq#, tableref>
-        internal Dictionary<int, TableRef> boundFrom_ = new Dictionary<int, TableRef>();
-
-        // current statement
-        internal SQLStatement stmt_;
-
-        // parent bind context - non-null for subquery only
-        internal BindContext parent_; 
-
         // number of subqueries in the whole query
         static internal int globalSubqCounter_;
+
+        // bounded tables/subqueries: <seq#, tableref>
+        readonly internal Dictionary<int, TableRef> boundFrom_ = new Dictionary<int, TableRef>();
+
+        // current statement
+        readonly internal SQLStatement stmt_;
+
+        // parent bind context - non-null for subquery only
+        readonly internal BindContext parent_; 
 
         public BindContext(SQLStatement current, BindContext parent) {
             stmt_ = current;
@@ -35,16 +35,18 @@ namespace adb
         }
 
         // table APIs
+        //
         public void AddTable(TableRef tab) => boundFrom_.Add(boundFrom_.Count, tab);
-        public List<TableRef> EnumTableRefs() => boundFrom_.Values.ToList();
+        public List<TableRef> AllTableRefs() => boundFrom_.Values.ToList();
         public TableRef Table(string alias) => boundFrom_.Values.FirstOrDefault(x => x.alias_.Equals(alias));
         public int TableIndex(string alias) => boundFrom_.Where(x => x.Value.alias_.Equals(alias))?.First().Key ?? -1;
 
         // column APIs
+        //
         TableRef locateByColumnName (string colAlias)
         {
-            var result  = EnumTableRefs().FirstOrDefault(x => x.LocateColumn(colAlias) != null);
-            if (result != EnumTableRefs().LastOrDefault(x => x.LocateColumn(colAlias) != null))
+            var result  = AllTableRefs().FirstOrDefault(x => x.LocateColumn(colAlias) != null);
+            if (result != AllTableRefs().LastOrDefault(x => x.LocateColumn(colAlias) != null))
                 throw new SemanticAnalyzeException("ambigous column name");
             return result;
         }
@@ -57,7 +59,7 @@ namespace adb
         }
         public int ColumnOrdinal(string tabAlias, string colAlias) {
             int r = -1;
-            var lc = Table(tabAlias).GenerateAllColumnsRefs();
+            var lc = Table(tabAlias).AllColumnsRefs();
             for (int i = 0; i < lc.Count; i++)
             {
                 if (lc[i].alias_.Equals(colAlias))
@@ -102,7 +104,6 @@ namespace adb
                     if (includingParameters || (!includingParameters && !xc.isOuterRef_))
                         list.Add(xc);
                 }
-                return false;
             });
 
             return list.ToList();
@@ -114,7 +115,6 @@ namespace adb
             expr.VisitEachExpr(x => {
                 if (x is ColExpr xc)
                     list.Add(xc.tabRef_);
-                return false;
             });
 
             return list.ToList();
@@ -137,7 +137,6 @@ namespace adb
                         else
                             r += $"{sx.query_.logicPlan_.PrintString(depth + 4)}";
                     }
-                    return false;
                 });
             }
 
@@ -156,7 +155,6 @@ namespace adb
                     {
                         sx.query_.physicPlan_ = sx.query_.logicPlan_.DirectToPhysical();
                     }
-                    return false;
                 });
             }
         }
@@ -196,8 +194,10 @@ namespace adb
             return false;
         }
 
-        // this one uses c# reflection 
-        public bool VisitEachExpr(Func<Expr, bool> callback) {
+        // this one uses c# reflection
+        // Similar to PlanNode.VisitEachNodeExists()
+        //
+        public bool VisitEachExprExists(Func<Expr, bool> callback) {
             bool r = callback(this);
 
             if (!r) {
@@ -205,7 +205,7 @@ namespace adb
                 foreach (var v in members) {
                     if (v.FieldType == typeof(Expr)) {
                         var m = v.GetValue(this) as Expr;
-                        if (m.VisitEachExpr(callback))
+                        if (m.VisitEachExprExists(callback))
                             return true;
                     }
                     // if container<Expr> we shall also handle
@@ -215,9 +215,24 @@ namespace adb
             return true;
         }
 
-        public bool HasSubQuery() =>  VisitEachExpr(e => e is SubqueryExpr);
+        public void VisitEachExpr(Action<Expr> callback)
+        {
+            callback(this);
+            var members = GetType().GetFields();
+            foreach (var v in members)
+            {
+                if (v.FieldType == typeof(Expr))
+                {
+                    var m = v.GetValue(this) as Expr;
+                    m.VisitEachExpr(callback);
+                }
+                // if container<Expr> we shall also handle
+            }
+        }
+
+        public bool HasSubQuery() =>  VisitEachExprExists(e => e is SubqueryExpr);
         public bool IsConst() {
-            return !VisitEachExpr(e => {
+            return !VisitEachExprExists(e => {
                 // meaning has non-constantable (or we don't want to waste time try 
                 // to figure out if they are constant, say 'select 1' or sin(2))
                 //
@@ -246,7 +261,7 @@ namespace adb
     // To avoid confusion, we implment Expand() instead of Bind().
     //
     public class SelStar : Expr {
-        internal string tabAlias_;
+        readonly internal string tabAlias_;
 
         public SelStar(string tabAlias) => tabAlias_ = tabAlias;
         public override string ToString() => tabAlias_ + ".*";
@@ -259,24 +274,24 @@ namespace adb
             if (tabAlias_ is null)
             {
                 // *
-                context.EnumTableRefs().ForEach(x => {
+                context.AllTableRefs().ForEach(x => {
                     // subquery's shall be bounded already, and only * from basetable 
                     // are not bounded. We don't have to differentitate them, but I 
                     // just try to be strict.
                     //
                     if (x is FromQueryRef)
-                        exprs.AddRange(x.GenerateAllColumnsRefs());
+                        exprs.AddRange(x.AllColumnsRefs());
                     else
-                        unbounds.AddRange(x.GenerateAllColumnsRefs());
+                        unbounds.AddRange(x.AllColumnsRefs());
                 });
             }
             else {
                 // table.* - you have to find it in current context
                 var x = context.Table(tabAlias_);
                 if (x is FromQueryRef)
-                    exprs.AddRange(x.GenerateAllColumnsRefs());
+                    exprs.AddRange(x.AllColumnsRefs());
                 else
-                    unbounds.AddRange(x.GenerateAllColumnsRefs());
+                    unbounds.AddRange(x.AllColumnsRefs());
             }
 
             unbounds.ForEach(x => x.Bind(context));
@@ -294,7 +309,7 @@ namespace adb
     {
         internal string dbName_;
         internal string tabName_;
-        internal string colName_;
+        readonly internal string colName_;
 
         // bound: which column in the input row
         internal TableRef tabRef_;

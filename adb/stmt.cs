@@ -20,8 +20,9 @@ namespace adb
         public PhysicNode physicPlan_;
 
         // DEBUG support
-        internal string text_;
+        readonly internal string text_;
 
+        public SQLStatement(string text) => text_ = text;
         public virtual SQLStatement Bind(BindContext parent) => this;
         public virtual LogicNode Optimize() => logicPlan_;
         public virtual LogicNode CreatePlan() => logicPlan_;
@@ -39,27 +40,27 @@ namespace adb
     */
     public class SelectStmt : SQLStatement {
         // this section can show up in setops
-        internal List<TableRef> from_;
-        internal Expr where_;
-        internal List<Expr> groupby_;
-        internal Expr having_;
-        internal List<Expr> selection_;
+        readonly internal List<TableRef> from_;
+        readonly internal Expr where_;
+        readonly internal List<Expr> groupby_;
+        readonly internal Expr having_;
+        readonly internal List<Expr> selection_;
 
         // this seciton can only show up in top query
-        public List<CTExpr> ctes_;
-        public List<SelectStmt> setqs_ = new List<SelectStmt>();
-        public List<OrderTerm> orders_;
+        readonly public List<CTExpr> ctes_;
+        readonly public List<SelectStmt> setqs_ = new List<SelectStmt>();
+        readonly public List<OrderTerm> orders_;
 
         // details of outerrefs are recorded in referenced TableRef
         internal bool hasOuterRef_ = false;
-        bool hasParent_ = false;
+        internal bool hasParent_ = false;
 
         public SelectStmt(
             // setops ok fields
             List<Expr> selection, List<TableRef> from, Expr where, List<Expr> groupby, Expr having,
             // top query only fields
             List<CTExpr> ctes, List<SelectStmt> setqs, List<OrderTerm> orders, 
-            string text)
+            string text): base(text)
         {
             selection_ = selection;
             from_ = from;
@@ -70,8 +71,6 @@ namespace adb
             ctes_ = ctes;
             setqs_ = setqs;
             orders_ = orders;
-
-            text_ = text;
         }
 
         void bindFrom(BindContext context)
@@ -119,6 +118,7 @@ namespace adb
             BindContext context = new BindContext(this, parent);
             hasParent_ = (parent != null);
 
+            // bind stage is earlier than plan creation
             Debug.Assert(logicPlan_ == null);
 
             // from binding shall be the first since it may create new alias
@@ -192,7 +192,6 @@ namespace adb
                     {
                         sx.query_.CreatePlan();
                     }
-                    return false;
                 });
             }
         }
@@ -224,7 +223,7 @@ namespace adb
 
         bool pushdownATableFilter(LogicNode plan, Expr filter)
         {
-            return plan.VisitEachNode(n =>
+            return plan.VisitEachNodeExists(n =>
             {
                 if (n is LogicGet nodeGet &&
                     filter.EqualTableRefs(bindContext_, nodeGet.tabref_))

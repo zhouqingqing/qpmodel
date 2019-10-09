@@ -39,22 +39,29 @@ namespace adb
             return r;
         }
 
-        // traversal pattern 
+        // traversal pattern EXISTS pattern
         //  if any visit returns a true, stop recursion. So if you want to
         //  visit all nodes, your callback shall always return false
         //
-        public bool VisitEachNode(Func<PlanNode<T>, bool> callback)
+        public bool VisitEachNodeExists(Func<PlanNode<T>, bool> callback)
         {
             bool r = callback(this);
 
             if (!r)
             {
                 foreach (var c in children_)
-                    if (c.VisitEachNode(callback))
+                    if (c.VisitEachNodeExists(callback))
                         return true;
                 return false;
             }
             return true;
+        }
+
+        public void VisitEachNode(Action<PlanNode<T>> callback)
+        {
+            callback(this);
+            foreach (var c in children_)
+                c.VisitEachNode(callback);
         }
     }
 
@@ -103,7 +110,6 @@ namespace adb
 
                 if (root is null)
                     root = phy;
-                return false;
             });
 
             return root;
@@ -144,7 +150,6 @@ namespace adb
                     if (source.FindAll(nameTest).Count > 1)
                         throw new SemanticAnalyzeException("ambigous column name");
                 }
-                return false;
             });
 
             return clone;
@@ -269,7 +274,7 @@ namespace adb
         public override string PrintInlineDetails(int depth) => $"<{queryRef_.alias_}>";
         public LogicFromQuery(FromQueryRef query, LogicNode child) { queryRef_ = query; children_.Add(child); }
 
-        public override List<TableRef> EnumTableRefs() => queryRef_.query_.bindContext_.EnumTableRefs();
+        public override List<TableRef> EnumTableRefs() => queryRef_.query_.bindContext_.AllTableRefs();
         public override void ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
             var query = queryRef_.query_;
@@ -335,7 +340,7 @@ namespace adb
 
             // the filter might be pushed from somewhere, so we need to resolve its columns
             if (filter_ != null)
-                filter_ = CloneFixColumnOrdinal(true, filter_, tabref_.GenerateAllColumnsRefs());
+                filter_ = CloneFixColumnOrdinal(true, filter_, tabref_.AllColumnsRefs());
 
             // don't need to include columns it uses (say filter) for output. Also, no need
             // to make copy of reqOutput since it is bottom and won't change anyway.
