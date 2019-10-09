@@ -80,9 +80,9 @@ namespace adb
         public static SysTable systable_ = new SysTable();
 
         static Catalog() {
-            systable_.Add("a", new List<ColumnDef> (){new ColumnDef("a1", 0), new ColumnDef("a2", 1), new ColumnDef("a3", 2) });
-            systable_.Add("b", new List<ColumnDef>() { new ColumnDef("b1", 0), new ColumnDef("b2", 1), new ColumnDef("b3", 2) });
-            systable_.Add("c", new List<ColumnDef>() { new ColumnDef("c1", 0), new ColumnDef("c2", 1), new ColumnDef("c3", 2) });
+            systable_.Add("a", new List<ColumnDef> (){new ColumnDef("a1", 0), new ColumnDef("a2", 1), new ColumnDef("a3", 2), new ColumnDef("a4", 3) });
+            systable_.Add("b", new List<ColumnDef>() { new ColumnDef("b1", 0), new ColumnDef("b2", 1), new ColumnDef("b3", 2), new ColumnDef("b4", 3) });
+            systable_.Add("c", new List<ColumnDef>() { new ColumnDef("c1", 0), new ColumnDef("c2", 1), new ColumnDef("c3", 2), new ColumnDef("c4", 3) });
         }
     }
 }

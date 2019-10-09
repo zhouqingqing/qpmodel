@@ -90,6 +90,7 @@ namespace adb
                 r.values_.Add(i);
                 r.values_.Add(i + 1);
                 r.values_.Add(i + 2);
+                r.values_.Add(i + 3);
 
                 context.SetTableRef(logic.tabref_);
                 if (filter?.Exec(context, r) == 0)

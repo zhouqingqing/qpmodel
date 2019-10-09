@@ -76,6 +76,7 @@ namespace adb
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b3=a3 and bo.b3 = a3 and b3> 0) and b3<5);";
             // test5: subquery in selection list
             //sql = "select a1, (select b1 from b where b2 = a2) from a;";
+            sql = "select * from a;";
 
 
             Console.WriteLine(sql);
