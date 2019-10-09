@@ -179,8 +179,20 @@ namespace adb
             context.Reset();
             children_[0].Exec(context, r =>
             {
-                Console.WriteLine($"{r}");
-                rows_.Add(r);
+                Row newr = new Row();
+                List<Expr> output = children_[0].logic_.output_;
+                if (output.Count > 1)
+                {
+                    for (int i = 0; i < output.Count; i++)
+                    {
+                        if (output[i].isVisible_)
+                            newr.values_.Add(r.values_[i]);
+                    }
+                }
+                else
+                    newr = r;
+                Console.WriteLine($"{newr}");
+                rows_.Add(newr);
                 return null;
             });
         }

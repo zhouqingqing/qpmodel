@@ -39,7 +39,10 @@ namespace adb
         }
 
         // table APIs
-        public void AddTable(TableRef tab) => boundFrom_.Add(boundFrom_.Count, tab);
+        public void AddTable(TableRef tab)
+        {
+            boundFrom_.Add(boundFrom_.Count, tab);
+        }
         public List<TableRef> EnumTableRefs() => boundFrom_.Values.ToList();
         public TableRef Table(string alias) => boundFrom_.Values.FirstOrDefault(x => x.alias_.Equals(alias));
         public int TableIndex(string alias) => boundFrom_.Where(x => x.Value.alias_.Equals(alias))?.First().Key ?? -1;
@@ -98,7 +101,7 @@ namespace adb
             }
         }
 
-        static public List<Expr> EnumAllColExpr(Expr expr, bool includingParameters) {
+        static public List<Expr> AllColExpr(Expr expr, bool includingParameters) {
             var list = new HashSet<Expr>();
             expr.VisitEachExpr(x => {
                 if (x is ColExpr xc)
@@ -112,7 +115,7 @@ namespace adb
             return list.ToList();
         }
 
-        static public List<TableRef> EnumAllTableRef(Expr expr)
+        static public List<TableRef> AllTableRef(Expr expr)
         {
             var list = new HashSet<TableRef>();
             expr.VisitEachExpr(x => {
@@ -170,6 +173,7 @@ namespace adb
     {
         // e.g, a.i+b.i as total
         internal string alias_;
+        internal bool isVisible_ = true;
 
         // an expression can reference multiple tables
         //      e.g., a.i + b.j > [a.]k => references 2 tables
@@ -293,7 +297,7 @@ namespace adb
 
         // bound: which column in the input row
         internal TableRef tabRef_;
-        internal bool isOuterRef_;
+        internal bool isOuterRef_ = false;
         internal int ordinal_;
 
         // -- execution section --
@@ -324,6 +328,7 @@ namespace adb
                         // we are actually switch the context to parent, whichTab_ is not right ...
                         isOuterRef_ = true;
                         context.stmt_.hasOuterRef_ = true;
+                        tabRef_.outerrefs_.Add(this);
                         context = parent;
                         break;
                     }
@@ -350,6 +355,7 @@ namespace adb
         public override string ToString()
         {
             string para = isOuterRef_ ? "?" : "";
+            para += isVisible_ ? "" : "#";
             if (colName_.Equals(alias_))
                 return $@"{para}{tabName_}.{colName_}[{ordinal_}]";
             return $@"{para}{tabName_}.{colName_} [{alias_}][{ordinal_}]";

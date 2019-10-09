@@ -43,6 +43,8 @@ namespace adb
     public abstract class TableRef
     {
         public string alias_;
+        public List<ColExpr> outerrefs_ = new List<ColExpr>();
+
         public override string ToString() => alias_;
 
         public abstract List<Expr> GenerateAllColumnsRefs();

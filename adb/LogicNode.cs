@@ -171,7 +171,7 @@ namespace adb
             var lreq = new HashSet<Expr>();
             var rreq = new HashSet<Expr>();
             foreach (var v in reqOutput) {
-                var refs = ExprHelper.EnumAllTableRef(v);
+                var refs = ExprHelper.AllTableRef(v);
 
                 if (Utils.ListAContainsB(lrefs, refs))
                     lreq.Add(v);
@@ -181,7 +181,7 @@ namespace adb
                 {
                     // the whole list can't push to the children (Eg. a.a1 + b.b1)
                     // decompose to singleton and push down
-                    var colref = ExprHelper.EnumAllColExpr(v, false);
+                    var colref = ExprHelper.AllColExpr(v, false);
                     colref.ForEach(x =>
                     {
                         if (lrefs.Contains((x as ColExpr).tabRef_))
@@ -226,15 +226,15 @@ namespace adb
 
         public override void ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
-            List<Expr> tofix = new List<Expr>();
-            reqOutput.ForEach(x => tofix.AddRange(ExprHelper.EnumAllColExpr(x, false)));
-            tofix.AddRange(ExprHelper.EnumAllColExpr(filter_, false));
-            var source = tofix.Distinct().ToList();
+            List<Expr> colsFromChild = new List<Expr>();
+            reqOutput.ForEach(x => colsFromChild.AddRange(ExprHelper.AllColExpr(x, false)));
+            colsFromChild.AddRange(ExprHelper.AllColExpr(filter_, false));
+            var source = colsFromChild.Distinct().ToList();
+
             filter_ = CloneFixColumnOrdinal(true, filter_, source);
-            output_.AddRange(CloneFixColumnOrdinal(true, tofix, source));
+            output_.AddRange(CloneFixColumnOrdinal(true, reqOutput, source));
             if (removeRedundant)
                 output_ = output_.Distinct().ToList();
-
             children_[0].ResolveChildrenColumns(source);
         }
     }
@@ -280,6 +280,19 @@ namespace adb
             output_.AddRange(CloneFixColumnOrdinal(true, tofix, query.selection_));
             if (removeRedundant)
                 output_ = output_.Distinct().ToList();
+
+            // finally, consider outerref to this table: if it is not there, add it. We can't
+            // simply remove redundant because we have to respect removeRedundant flag
+            //
+            queryRef_.outerrefs_.ForEach(x => {
+                if (!output_.Contains(x))
+                {
+                    var clone = x.Clone() as ColExpr;
+                    clone.isVisible_ = false;
+                    clone.isOuterRef_ = false;
+                    output_.Add(clone);
+                }
+            });
         }
     }
 
@@ -322,8 +335,8 @@ namespace adb
                     case SubqueryExpr sx:
                         break;
                     default:
-                        Debug.Assert(ExprHelper.EnumAllTableRef(x).Count == 1);
-                        Debug.Assert(ExprHelper.EnumAllTableRef(x)[0].Equals(tabref_));
+                        Debug.Assert(ExprHelper.AllTableRef(x).Count == 1);
+                        Debug.Assert(ExprHelper.AllTableRef(x)[0].Equals(tabref_));
                         break;
                 }
             });
@@ -338,6 +351,18 @@ namespace adb
             output_.AddRange(reqOutput);
             if (removeRedundant)
                 output_ = output_.Distinct().ToList();
+
+            // finally, consider outerref to this table: if it is not there, add it. We can't
+            // simply remove redundant because we have to respect removeRedundant flag
+            //
+            tabref_.outerrefs_.ForEach(x => {
+                if (!output_.Contains(x)) {
+                    var clone = x.Clone() as ColExpr;
+                    clone.isVisible_ = false;
+                    clone.isOuterRef_ = false;
+                    output_.Add(clone);
+                }
+            });
         }
 
         public override List<TableRef> EnumTableRefs() => new List<TableRef>{tabref_};
