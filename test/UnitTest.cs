@@ -3,7 +3,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using adb;
 using System.Collections.Generic;
 
-
 namespace test
 {
     public class PlanCompare {
@@ -302,7 +301,7 @@ namespace test
             for (i = 0; i < 3; i++) Assert.AreEqual(1, result[i].values_[0]);
             for (; i < 6; i++) Assert.AreEqual(3, result[i].values_[0]);
             for (; i < 9; i++) Assert.AreEqual(5, result[i].values_[0]);
-            sql = "select b.a1 + a2 from (select a3,a1,a2,a3,a2,a1,a1 from a, c) b";
+            sql = "select b.a1 + a2 from (select a1,a2,a4,a2,a1 from a, c) b";
             result = ExecuteSQL(sql);
             result = ExecuteSQL(sql); Assert.IsNull(result);
             Assert.IsTrue(error_.Contains("SemanticAnalyzeException"));
