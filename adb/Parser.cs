@@ -43,12 +43,12 @@ namespace adb
     public abstract class TableRef
     {
         internal string alias_;
-        internal List<ColExpr> outerrefs_ = new List<ColExpr>();
+        readonly internal List<ColExpr> outerrefs_ = new List<ColExpr>();
 
         public override string ToString() => alias_;
         public Expr LocateColumn(string colName)
         {
-            var list = GenerateAllColumnsRefs();
+            var list = AllColumnsRefs();
             foreach (var v in list) {
                 if (v.alias_?.Equals(colName)??false)
                     return v;
@@ -71,7 +71,7 @@ namespace adb
             return output;
         }
 
-        public abstract List<Expr> GenerateAllColumnsRefs();
+        public abstract List<Expr> AllColumnsRefs();
     }
 
     // FROM <table>
@@ -85,15 +85,10 @@ namespace adb
             alias_ = alias ?? relname_;
         }
 
-        public override string ToString()
-        {
-            if (relname_ == alias_)
-                return $"{relname_}";
-            else
-                return $"{relname_} as {alias_}";
-        }
+        public override string ToString() 
+            => (relname_.Equals(alias_)) ? $"{relname_}" : $"{relname_} as {alias_}";
 
-        public override List<Expr> GenerateAllColumnsRefs()
+        public override List<Expr> AllColumnsRefs()
         {
             List<Expr> l = new List<Expr>();
             var columns = Catalog.systable_.Table(relname_);
@@ -117,9 +112,10 @@ namespace adb
             alias_ = alias;
         }
 
-        public override List<Expr> GenerateAllColumnsRefs() => query_.selection_;
+        public override List<Expr> AllColumnsRefs() => query_.selection_;
     }
 
+    // antlr visitor pattern parser
     class SQLiteVisitor : SQLiteBaseVisitor<object>
     {
         public override object VisitLiteral_value([NotNull] SQLiteParser.Literal_valueContext context)
@@ -133,9 +129,9 @@ namespace adb
         public override object VisitFuncExpr([NotNull] SQLiteParser.FuncExprContext context)
             => new FuncExpr(context.function_name().GetText());
         public override object VisitColExpr([NotNull] SQLiteParser.ColExprContext context)
-            => new ColExpr(context.database_name()?.GetText() ?? null,
-                context.table_name()?.GetText() ?? null,
-                context.column_name()?.GetText() ?? null);
+            => new ColExpr(context.database_name()?.GetText(),
+                context.table_name()?.GetText(),
+                context.column_name()?.GetText());
         public override object VisitArithcompexpr([NotNull] SQLiteParser.ArithcompexprContext context)
             => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
         public override object VisitLogicAndExpr([NotNull] SQLiteParser.LogicAndExprContext context)
@@ -195,11 +191,8 @@ namespace adb
             var resultRels = new List<TableRef>();
             foreach (var r in context.table_or_subquery())
             {
-                var tab = VisitTable_or_subquery(r);
-                if (tab is TableRef tabref)
-                    resultRels.Add(tabref);
-                else
-                    throw new Exception();
+                var tab = VisitTable_or_subquery(r) as TableRef;
+                resultRels.Add(tab);
             }
 
             int whichexpr = 0;
