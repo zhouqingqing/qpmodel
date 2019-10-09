@@ -46,15 +46,22 @@ namespace adb
         readonly internal List<ColExpr> outerrefs_ = new List<ColExpr>();
 
         public override string ToString() => alias_;
-        public Expr LocateColumn(string colName)
+        public Expr LocateColumn(string colAlias)
         {
+            // TODO: the logic here only uses alias, but not table. Need polish 
+            // here to differentiate alias from different tables
+            //
+            Expr r = null;
             var list = AllColumnsRefs();
             foreach (var v in list) {
-                if (v.alias_?.Equals(colName)??false)
-                    return v;
+                if (v.alias_?.Equals(colAlias) ?? false)
+                    if (r is null)
+                        r = v;
+                    else
+                        throw new SemanticAnalyzeException($"ambigous column name {colAlias}");
             }
 
-            return null;
+            return r;
         }
 
         public List<Expr> AddOuterRefsToOutput(List<Expr> output) {
