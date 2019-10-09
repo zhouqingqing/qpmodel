@@ -9,19 +9,20 @@ namespace adb
 {
     public abstract class SQLStatement
     {
+        // do we want to EXPLAIN the statement?
         internal bool explain_ = false;
 
         // bounded context
         internal BindContext bindContext_;
 
-        // plan
+        // logic and physical plans
         public LogicNode logicPlan_;
         public PhysicNode physicPlan_;
 
-        // debug support
+        // DEBUG support
         internal string text_;
 
-        public virtual SQLStatement Bind(BindContext parent) { return this; }
+        public virtual SQLStatement Bind(BindContext parent) => this;
         public virtual LogicNode Optimize() => logicPlan_;
         public virtual LogicNode CreatePlan() => logicPlan_;
     }
@@ -37,24 +38,27 @@ namespace adb
         ORDER BY clause
     */
     public class SelectStmt : SQLStatement {
+        // this section can show up in setops
         internal List<TableRef> from_;
         internal Expr where_;
         internal List<Expr> groupby_;
         internal Expr having_;
         internal List<Expr> selection_;
 
+        // this seciton can only show up in top query
         public List<CTExpr> ctes_;
         public List<SelectStmt> setqs_ = new List<SelectStmt>();
         public List<OrderTerm> orders_;
 
+        // details of outerrefs are recorded in referenced TableRef
         internal bool hasOuterRef_ = false;
         bool hasParent_ = false;
 
         public SelectStmt(
-            // these fields are ok with select_core
+            // setops ok fields
             List<Expr> selection, List<TableRef> from, Expr where, List<Expr> groupby, Expr having,
-            // these fields are only avaliable for top query
-            List<CTExpr> ctes, List<SelectStmt> cores, List<OrderTerm> orders, 
+            // top query only fields
+            List<CTExpr> ctes, List<SelectStmt> setqs, List<OrderTerm> orders, 
             string text)
         {
             selection_ = selection;
@@ -64,7 +68,7 @@ namespace adb
             having_ = having;
 
             ctes_ = ctes;
-            setqs_ = cores;
+            setqs_ = setqs;
             orders_ = orders;
 
             text_ = text;
@@ -90,6 +94,7 @@ namespace adb
                 }
             });
         }
+
         void bindSelectionList(BindContext context)
         {
             List<SelStar> selstars = new List<SelStar>();
@@ -104,9 +109,11 @@ namespace adb
             selstars.ForEach(x => {
                 selection_.Remove(x); selection_.AddRange(x.Expand(context)); });
         }
+
         void bindWhere(BindContext context) => where_?.Bind(context);
         void bindGroupBy(BindContext context)=> groupby_?.ForEach(x => x.Bind(context));
         void bindHaving(BindContext context) => having_?.Bind(context);
+
         public override SQLStatement Bind(BindContext parent)
         {
             BindContext context = new BindContext(this, parent);
@@ -177,8 +184,6 @@ namespace adb
 
         void createSubQueryExprPlan(Expr expr)
         {
-            if (!expr.HasSubQuery())
-                return;
             if (expr.HasSubQuery())
             {
                 expr.VisitEachExpr(x =>
@@ -217,18 +222,6 @@ namespace adb
             return root;
         }
 
-        void breakEachAndExprs(LogicAndExpr andexpr, List<Expr> andlist)
-        {
-            for (int i = 0; i < 2; i++)
-            {
-                Expr e = i == 0 ? andexpr.l_ : andexpr.r_;
-                if (e is LogicAndExpr ea)
-                    breakEachAndExprs(ea, andlist);
-                else
-                    andlist.Add(e);
-            }
-        }
-
         bool pushdownATableFilter(LogicNode plan, Expr filter)
         {
             return plan.VisitEachNode(n =>
@@ -251,7 +244,7 @@ namespace adb
             var topfilter = filter.filter_;
             List<Expr> andlist = new List<Expr>();
             if (topfilter is LogicAndExpr andexpr)
-                breakEachAndExprs(andexpr, andlist);
+                andlist = andexpr.BreakToList();
             else
                 andlist.Add(topfilter);
             andlist.RemoveAll(e => pushdownATableFilter(plan, e));

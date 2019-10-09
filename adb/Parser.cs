@@ -241,7 +241,7 @@ namespace adb
                 colNames = new List<string>();
                 Array.ForEach(context.column_name(), x => colNames.Add(x.GetText()));
             }
-            return new CTExpr(context.table_name().GetText(), colNames, Visit(context.select_stmt()) as SelectStmt);
+            return new CTExpr(context.table_name().GetText(), colNames, Visit(context.select_stmt()) as SQLStatement);
         }
 
         public override object VisitSelect_stmt([NotNull] SQLiteParser.Select_stmtContext context)
@@ -252,8 +252,8 @@ namespace adb
                 Array.ForEach(context.common_table_expression(), x => ctes.Add(VisitCommon_table_expression(x) as CTExpr));
             }
 
-            List<SelectStmt> cores = new List<SelectStmt>();
-            Array.ForEach(context.select_core(), x => cores.Add(VisitSelect_core(x) as SelectStmt));
+            var setqs = new List<SelectStmt>();
+            Array.ForEach(context.select_core(), x => setqs.Add(VisitSelect_core(x) as SelectStmt));
 
             List<OrderTerm> orders = null;
             if (context.K_ORDER() != null)
@@ -264,8 +264,8 @@ namespace adb
             }
 
             // cores_[0] is also expanded to main body
-            return new SelectStmt (cores[0].selection_, cores[0].from_, cores[0].where_, cores[0].groupby_, cores[0].having_, 
-                                    ctes, cores, orders, context.GetText());
+            return new SelectStmt(setqs[0].selection_, setqs[0].from_, setqs[0].where_, setqs[0].groupby_, setqs[0].having_, 
+                                    ctes, setqs, orders, context.GetText());
         }
 
         public override object VisitSql_stmt([NotNull] SQLiteParser.Sql_stmtContext context)
@@ -276,7 +276,7 @@ namespace adb
             if (context.K_EXPLAIN() != null)
                 explain = true;
             if (context.select_stmt() != null)
-                r = Visit(context.select_stmt()) as SelectStmt;
+                r = Visit(context.select_stmt()) as SQLStatement;
 
             if (r is null)
                 throw new NotImplementedException();

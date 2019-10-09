@@ -10,39 +10,32 @@ using Value = System.Int64;
 
 namespace adb
 {
-    // it carries global info needed by expression binding, it includes
+    // It carries info needed by expression binding, it includes
     //  - tablerefs, so we can lookup column names
     //  - parent bind context (if it is a subquery)
     // 
     public class BindContext {
-        // Local section
-        //      these fields are local to current subquery
-        // -----------------------------
-
         // bounded tables/subqueries: <seq#, tableref>
         internal Dictionary<int, TableRef> boundFrom_ = new Dictionary<int, TableRef>();
+
+        // current statement
+        internal SQLStatement stmt_;
+
         // parent bind context - non-null for subquery only
-        internal BindContext parent_;
-        internal SelectStmt stmt_;
+        internal BindContext parent_; 
 
-        // Global seciton
-        //      fields maintained across subquery boundary
-        // -----------------------------
         // number of subqueries in the whole query
-        internal int nSubqueries_ = 0;
+        static internal int globalSubqCounter_;
 
-        public BindContext(SelectStmt current, BindContext parent) {
+        public BindContext(SQLStatement current, BindContext parent) {
             stmt_ = current;
             parent_ = parent;
-            if (parent != null)
-                nSubqueries_ = parent.nSubqueries_;
+            if (parent is null)
+                globalSubqCounter_ = 0;
         }
 
         // table APIs
-        public void AddTable(TableRef tab)
-        {
-            boundFrom_.Add(boundFrom_.Count, tab);
-        }
+        public void AddTable(TableRef tab) => boundFrom_.Add(boundFrom_.Count, tab);
         public List<TableRef> EnumTableRefs() => boundFrom_.Values.ToList();
         public TableRef Table(string alias) => boundFrom_.Values.FirstOrDefault(x => x.alias_.Equals(alias));
         public int TableIndex(string alias) => boundFrom_.Where(x => x.Value.alias_.Equals(alias))?.First().Key ?? -1;
@@ -171,8 +164,16 @@ namespace adb
 
     public class Expr
     {
+        // Expression in selection list can have an alias
         // e.g, a.i+b.i as total
+        //
         internal string alias_;
+
+        // we require some columns for query processing but user may not want 
+        // them in the final output, so they are marked as invisible.
+        // This includes:
+        // 1. subquery's outerref 
+        //
         internal bool isVisible_ = true;
 
         // an expression can reference multiple tables
@@ -327,7 +328,7 @@ namespace adb
                     {
                         // we are actually switch the context to parent, whichTab_ is not right ...
                         isOuterRef_ = true;
-                        context.stmt_.hasOuterRef_ = true;
+                        (context.stmt_ as SelectStmt).hasOuterRef_ = true;
                         tabRef_.outerrefs_.Add(this);
                         context = parent;
                         break;
@@ -442,6 +443,20 @@ namespace adb
                 return 1;
             return 0;
         }
+
+        internal List<Expr> BreakToList() {
+            var andlist = new List<Expr>();
+            for (int i = 0; i < 2; i++)
+            {
+                Expr e = i == 0 ? l_ : r_;
+                if (e is LogicAndExpr ea)
+                    andlist.AddRange(ea.BreakToList());
+                else
+                    andlist.Add(e);
+            }
+
+            return andlist;
+        }
     }
 
     public class SubqueryExpr : Expr {
@@ -456,10 +471,9 @@ namespace adb
         {
         	// subquery id is global, so accumulating at top
 			var top = context;
-        	while (top.parent_ != null){
+        	while (top.parent_ != null)
 				top = top.parent_;
-			}
-            subqueryid_ = ++top.nSubqueries_;
+            subqueryid_ = ++BindContext.globalSubqCounter_;
 
             // query will use a new query context inside
             query_.Bind(context);
@@ -492,9 +506,9 @@ namespace adb
     public class CTExpr : Expr {
         public string tabName_;
         public List<string> colNames_;
-        public SelectStmt query_;
+        public SQLStatement query_;
 
-        public CTExpr(string tabName, List<string> colNames, SelectStmt query) {
+        public CTExpr(string tabName, List<string> colNames, SQLStatement query) {
             tabName_ = tabName; colNames_ = colNames; query_ = query;
         }
     }

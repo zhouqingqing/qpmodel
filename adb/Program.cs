@@ -77,6 +77,8 @@ namespace adb
             // test5: subquery in selection list
             //sql = "select a1, (select b1 from b where b2 = a2) from a;";
             sql = "select a2  from a where a.a1 >= (select b1 from b where b4 = a4 and b3<3)";
+            sql = "select a1  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 2) and b2<4);";
+
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSQLStatement(sql);
