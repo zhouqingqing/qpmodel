@@ -164,7 +164,7 @@ namespace adb
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
             Row r = new Row();
-            (logic_ as LogicResult).exprs_.ForEach(
+            logic_.output_.ForEach(
                             x => r.values_.Add(x.Exec(context, null)));
             callback(r);
         }
@@ -182,18 +182,13 @@ namespace adb
             {
                 Row newr = new Row();
                 List<Expr> output = children_[0].logic_.output_;
-                if (output.Count > 1)
+                for (int i = 0; i < output.Count; i++)
                 {
-                    for (int i = 0; i < output.Count; i++)
-                    {
-                        if (output[i].isVisible_)
-                            newr.values_.Add(r.values_[i]);
-                    }
+                    if (output[i].isVisible_)
+                        newr.values_.Add(r.values_[i]);
                 }
-                else
-                    newr = r;
-                Console.WriteLine($"{newr}");
                 rows_.Add(newr);
+                Console.WriteLine($"{newr}");
                 return null;
             });
         }

@@ -284,15 +284,7 @@ namespace adb
             // finally, consider outerref to this table: if it is not there, add it. We can't
             // simply remove redundant because we have to respect removeRedundant flag
             //
-            queryRef_.outerrefs_.ForEach(x => {
-                if (!output_.Contains(x))
-                {
-                    var clone = x.Clone() as ColExpr;
-                    clone.isVisible_ = false;
-                    clone.isOuterRef_ = false;
-                    output_.Add(clone);
-                }
-            });
+            output_ = queryRef_.AddOuterRefsToOutput(output_);
         }
     }
 
@@ -355,14 +347,7 @@ namespace adb
             // finally, consider outerref to this table: if it is not there, add it. We can't
             // simply remove redundant because we have to respect removeRedundant flag
             //
-            tabref_.outerrefs_.ForEach(x => {
-                if (!output_.Contains(x)) {
-                    var clone = x.Clone() as ColExpr;
-                    clone.isVisible_ = false;
-                    clone.isOuterRef_ = false;
-                    output_.Add(clone);
-                }
-            });
+            output_ = tabref_.AddOuterRefsToOutput(output_);
         }
 
         public override List<TableRef> EnumTableRefs() => new List<TableRef>{tabref_};
@@ -370,10 +355,8 @@ namespace adb
 
     public class LogicResult : LogicNode
     {
-        internal List<Expr> exprs_;
-
-        public override string ToString()=> string.Join(",", exprs_);
-        public LogicResult(List<Expr> exprs) => exprs_ = exprs;
+        public override string ToString()=> string.Join(",", output_);
+        public LogicResult(List<Expr> exprs) => output_ = exprs;
         public override string PrintMoreDetails(int depth) => "Expr: " + ToString();
         public override List<TableRef> EnumTableRefs() => null;
     }
