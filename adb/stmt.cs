@@ -247,19 +247,18 @@ namespace adb
             else
                 andlist.Add(topfilter);
             andlist.RemoveAll(e => pushdownATableFilter(plan, e));
-
             if (andlist.Count == 0)
-            {
                 // top filter node is not needed
                 plan = plan.children_[0];
-                plan.ClearOutput();
-                plan.ResolveChildrenColumns(selection_, hasParent_);
-                logicPlan_ = plan;
-            }
-            else 
+            else
                 filter.filter_ = ExprHelper.AndListToExpr(andlist);
+            // we have to redo the column binding as the top filter might change
+            plan.ClearOutput();
+            plan.ResolveChildrenColumns(selection_, hasParent_);
+            logicPlan_ = plan;
 
-Convert:        
+        Convert:
+
             // convert to physical plan
             physicPlan_ = logicPlan_.DirectToPhysical();
             selection_.ForEach(x => ExprHelper.SubqueryDirectToPhysic(x));

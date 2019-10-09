@@ -219,7 +219,7 @@ namespace test
             Assert.AreEqual("3", result[0].ToString());
             Assert.AreEqual("4", result[1].ToString());
             Assert.AreEqual("5", result[2].ToString());
-            sql = @"select a1  from a where a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
+            sql = @"select a1 from a, b where a1=b1 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = a3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and b3<5);";
             result = ExecuteSQL(sql);
