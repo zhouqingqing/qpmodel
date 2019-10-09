@@ -47,7 +47,7 @@ namespace adb
             //sql = @"with cte1 as (select * from a), cte2 as (select * from b) select a1,a1+a2 from cte1 where a1<6 group by a1, a1+a2  
             //        union select b2, b3 from cte2 where b2 > 3 group by b1, b1+b2 
             //        order by 2, 1 desc;";
-            sql = "select a2  from a where a.a1 > (select b1 from b where b2 = a2 and b3<3)";
+            sql = "select a2  from a where a.a1 > (select b1 from b where b4 = a4 and b3<3)";
             //sql = "select a1,a1,a3,a3 from a where a1>1";
             //sql = "select a1,a1,a3,a3, (select b2 from b where b2=2) from a where a1>1";
             //sql = "select 1,  (select b1 from b) from a where a.a1 = 2;";
@@ -76,8 +76,7 @@ namespace adb
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b3=a3 and bo.b3 = a3 and b3> 0) and b3<5);";
             // test5: subquery in selection list
             //sql = "select a1, (select b1 from b where b2 = a2) from a;";
-            sql = "select * from a;";
-
+            sql = "select a2  from a where a.a1 >= (select b1 from b where b4 = a4 and b3<3)";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSQLStatement(sql);

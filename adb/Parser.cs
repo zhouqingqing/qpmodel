@@ -42,12 +42,10 @@ namespace adb
 
     public abstract class TableRef
     {
-        public string alias_;
-        public List<ColExpr> outerrefs_ = new List<ColExpr>();
+        internal string alias_;
+        internal List<ColExpr> outerrefs_ = new List<ColExpr>();
 
         public override string ToString() => alias_;
-
-        public abstract List<Expr> GenerateAllColumnsRefs();
         public Expr LocateColumn(string colName)
         {
             var list = GenerateAllColumnsRefs();
@@ -58,8 +56,25 @@ namespace adb
 
             return null;
         }
+
+        public List<Expr> AddOuterRefsToOutput(List<Expr> output) {
+            outerrefs_.ForEach(x => {
+                if (!output.Contains(x))
+                {
+                    var clone = x.Clone() as ColExpr;
+                    clone.isVisible_ = false;
+                    clone.isOuterRef_ = false;
+                    output.Add(clone);
+                }
+            });
+
+            return output;
+        }
+
+        public abstract List<Expr> GenerateAllColumnsRefs();
     }
 
+    // FROM <table>
     public class BaseTableRef : TableRef
     {
         public string relname_;
@@ -91,7 +106,7 @@ namespace adb
         }
     }
 
-    // subquery in FROM clause
+    // FROM <subquery>
     public class FromQueryRef : TableRef
     {
         public SelectStmt query_;
@@ -108,76 +123,35 @@ namespace adb
     class SQLiteVisitor : SQLiteBaseVisitor<object>
     {
         public override object VisitLiteral_value([NotNull] SQLiteParser.Literal_valueContext context)
-        {
-            return new LiteralExpr(context);
-        }
-
-        public override object VisitBrackexpr([NotNull] SQLiteParser.BrackexprContext context)
-        {
-            return Visit(context.expr());
-        }
-
+            => new LiteralExpr(context);
+        public override object VisitBrackexpr([NotNull] SQLiteParser.BrackexprContext context) 
+            => Visit(context.expr());
         public override object VisitArithtimesexpr([NotNull] SQLiteParser.ArithtimesexprContext context)
-        {
-            Console.WriteLine($@"{context.expr(0).GetText()}{context.op.Type}{context.expr(1).GetText()}");
-            return new BinExpr((Expr)Visit(context.expr(0)),
-                                    (Expr)Visit(context.expr(1)), context.op.Text);
-        }
-
+            => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
         public override object VisitArithplusexpr([NotNull] SQLiteParser.ArithplusexprContext context)
-        {
-            Console.WriteLine($@"{context.expr(0).GetText()}{context.op.Type}{context.expr(1).GetText()}");
-            return new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
-        }
-
+            => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
         public override object VisitFuncExpr([NotNull] SQLiteParser.FuncExprContext context)
-        {
-            return new FuncExpr(context.function_name().GetText());
-        }
-
-        // ((database_name '.' )? table_name '.' )? column_name	#colexpr
+            => new FuncExpr(context.function_name().GetText());
         public override object VisitColExpr([NotNull] SQLiteParser.ColExprContext context)
-        {
-            return new ColExpr(context.database_name()?.GetText() ?? null,
+            => new ColExpr(context.database_name()?.GetText() ?? null,
                 context.table_name()?.GetText() ?? null,
                 context.column_name()?.GetText() ?? null);
-        }
-
         public override object VisitArithcompexpr([NotNull] SQLiteParser.ArithcompexprContext context)
-        {
-            return new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
-        }
-
+            => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
         public override object VisitLogicAndExpr([NotNull] SQLiteParser.LogicAndExprContext context)
-        {
-            return new LogicAndExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)));
-        }
-
+            => new LogicAndExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)));
         public override object VisitArithequalexpr([NotNull] SQLiteParser.ArithequalexprContext context)
-        {
-            return new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
-        }
-
+            => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
         public override object VisitSubqueryExpr([NotNull] SQLiteParser.SubqueryExprContext context)
-        {
-            var query = Visit(context.select_stmt()) as SelectStmt;
-            return new SubqueryExpr(query);
-        }
-
+            => new SubqueryExpr(Visit(context.select_stmt()) as SelectStmt);
         public override object VisitTable_or_subquery([NotNull] SQLiteParser.Table_or_subqueryContext context)
-        {
-            return Visit(context);
-        }
-
+            => Visit(context);
         public override object VisitFromSimpleTable([NotNull] SQLiteParser.FromSimpleTableContext context)
-        {
-            return new BaseTableRef(context.table_name().GetText(), context.table_alias()?.GetText());
-        }
-
+            => new BaseTableRef(context.table_name().GetText(), context.table_alias()?.GetText());
+        public override object VisitOrdering_term([NotNull] SQLiteParser.Ordering_termContext context)
+            => new OrderTerm(Visit(context.expr()) as Expr, (context.K_DESC() is null) ? false : true);
         public override object VisitFromJoinTable([NotNull] SQLiteParser.FromJoinTableContext context)
-        {
-            throw new NotImplementedException();
-        }
+            => throw new NotImplementedException();
 
         public override object VisitResult_column([NotNull] SQLiteParser.Result_columnContext context)
         {
@@ -268,11 +242,6 @@ namespace adb
                 Array.ForEach(context.column_name(), x => colNames.Add(x.GetText()));
             }
             return new CTExpr(context.table_name().GetText(), colNames, Visit(context.select_stmt()) as SelectStmt);
-        }
-
-        public override object VisitOrdering_term([NotNull] SQLiteParser.Ordering_termContext context)
-        {
-            return new OrderTerm(Visit(context.expr()) as Expr, (context.K_DESC() is null)?false:true);
         }
 
         public override object VisitSelect_stmt([NotNull] SQLiteParser.Select_stmtContext context)
