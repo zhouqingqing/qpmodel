@@ -141,8 +141,8 @@ namespace test
             var sql = "select * from a, (select * from b) c";
             var result2 = ExecuteSQL2(sql);
             Assert.AreEqual(9, result2.Item1.Count);
-            Assert.AreEqual("0,1,2,0,1,2", result2.Item1[0].ToString());
-            Assert.AreEqual("2,3,4,2,3,4", result2.Item1[8].ToString());
+            Assert.AreEqual("0,1,2,3,0,1,2,3", result2.Item1[0].ToString());
+            Assert.AreEqual("2,3,4,5,2,3,4,5", result2.Item1[8].ToString());
             sql = "select * from a, (select * from b where b2>2) c";
             var result = ExecuteSQL(sql);
             Assert.AreEqual(3, result.Count);
@@ -208,7 +208,7 @@ namespace test
             result = ExecuteSQL(sql);
             Assert.AreEqual(1, result.Count);
             Assert.AreEqual("0,2", result[0].ToString());
-            sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b1 = a1 and b2<5);";
+            sql = "select a1, a3  from a where a.a1 = (select b1 from b where b4 = a4 and b1 = a1 and b2<5);";
             result = ExecuteSQL(sql);
             Assert.AreEqual(3, result.Count);
             Assert.AreEqual("0,2", result[0].ToString());
@@ -227,19 +227,19 @@ namespace test
             Assert.AreEqual(2, result.Count);
             Assert.AreEqual("0,1,2", result[0].ToString());
             Assert.AreEqual("1,2,3", result[1].ToString());
-            sql = @" select a1+a2+a3  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 2) and b3<5)
+            sql = @" select a1+a2+a3  from a where a.a1 = (select b1 from b bo where b4 = a4 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 2) and b3<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 >= (select b2 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b3<4);";
             result = ExecuteSQL(sql);
             Assert.AreEqual(1, result.Count);
             Assert.AreEqual("6", result[0].ToString());
-            sql = @"select a1  from a where a.a1 = (select b1 from (select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2
+            sql = @"select a4  from a where a.a1 = (select b1 from (select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2
                 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b3=a3 and bo.b3 = a3 and b3> 0) and b3<5);";
             result = ExecuteSQL(sql);
             Assert.AreEqual(3, result.Count);
-            Assert.AreEqual("0", result[0].ToString());
-            Assert.AreEqual("1", result[1].ToString());
-            Assert.AreEqual("2", result[2].ToString());
+            Assert.AreEqual("3", result[0].ToString());
+            Assert.AreEqual("4", result[1].ToString());
+            Assert.AreEqual("5", result[2].ToString());
         }
 
         [TestMethod]
@@ -247,7 +247,7 @@ namespace test
         {
             var result = ExecuteSQL("select * from a");
             Assert.AreEqual(3, result.Count);
-            Assert.AreEqual(3, result[1].values_.Count);
+            Assert.AreEqual(4, result[1].values_.Count);
             Assert.AreEqual(1, result[0].values_[1]);
             Assert.AreEqual(2, result[1].values_[1]);
             Assert.AreEqual(3, result[2].values_[1]);
@@ -262,10 +262,10 @@ namespace test
             result = ExecuteSQL("select a1,a1,a3,a3 from a where a1>1");
             Assert.AreEqual(1, result.Count);
             Assert.AreEqual("2,2,4,4", result[0].ToString());
-            result = ExecuteSQL("select a1,a1,a3,a3 from a where a1+a2>2");
+            result = ExecuteSQL("select a1,a1,a4,a4 from a where a1+a2>2");
             Assert.AreEqual(2, result.Count);
-            Assert.AreEqual("1,1,3,3", result[0].ToString());
-            Assert.AreEqual("2,2,4,4", result[1].ToString());
+            Assert.AreEqual("1,1,4,4", result[0].ToString());
+            Assert.AreEqual("2,2,5,5", result[1].ToString());
             result = ExecuteSQL("select a1,a1,a3,a3 from a where a1+a2+a3>2");
             Assert.AreEqual(3, result.Count);
             Assert.AreEqual("0,0,2,2", result[0].ToString());
