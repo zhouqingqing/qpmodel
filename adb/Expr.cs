@@ -503,7 +503,6 @@ namespace adb
         public override Value Exec(ExecContext context, Row input)
         {
             Row r = null;
-            context.AddParam(input);
             query_.physicPlan_.Exec(context, l => {
                 if (r is null)
                     r = l;
