@@ -237,7 +237,7 @@ namespace adb
             List<Expr> reqFromChild = new List<Expr>();
             reqOutput.ForEach(x => reqFromChild.AddRange(ExprHelper.AllColExpr(x, false)));
             reqFromChild.AddRange(ExprHelper.AllColExpr(filter_, false));
-            var childout = children_[0].ResolveChildrenColumns(reqFromChild.Distinct().ToList());
+            var childout = children_[0].ResolveChildrenColumns(reqFromChild);
 
             filter_ = CloneFixColumnOrdinal(true, filter_, childout);
             output_.AddRange(CloneFixColumnOrdinal(true, reqOutput, childout));
@@ -283,7 +283,7 @@ namespace adb
         {
             var query = queryRef_.query_;
             var childout = query.logicPlan_.ResolveChildrenColumns(query.selection_);
-            output_.AddRange(CloneFixColumnOrdinal(true, reqOutput, childout.Distinct().ToList()));
+            output_.AddRange(CloneFixColumnOrdinal(true, reqOutput, childout));
             if (removeRedundant)
                 output_ = output_.Distinct().ToList();
 
