@@ -82,6 +82,12 @@ namespace adb
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = a3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and b3<5);";
 
+            sql = "select b3+c2 from a, b, c where (select b1+b2 from b where b1=a1)>4 and (select c2+c3 from c where c1=b1)>6 and c1<1";
+            // sql = "create table a (a1 int, a2 char(10), a3 datetime, a4 numeric(9,2), a5 numeric(9));";
+            sql = "insert into a values(5*2+1, 'string' ,'2019-09-01', 50.2, 50);";
+            var stmt = RawParser.ParseSQLStatement(sql) as InsertStmt;
+            return;
+
         doit:
             Console.WriteLine(sql);
             var a = RawParser.ParseSQLStatement(sql);

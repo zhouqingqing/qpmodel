@@ -5,6 +5,11 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
 
+//
+// Parser is the only place shall deal with antlr 
+// do NOT using any antlr structure here
+//
+
 namespace adb
 {
     public abstract class SQLStatement
@@ -26,6 +31,29 @@ namespace adb
         public virtual SQLStatement Bind(BindContext parent) => this;
         public virtual LogicNode Optimize() => logicPlan_;
         public virtual LogicNode CreatePlan() => logicPlan_;
+    }
+
+    public class CreateTableStmt : SQLStatement {
+        readonly public string tabName_;
+        readonly public List<ColumnDef> cols_;
+        public CreateTableStmt(string tabName, List<ColumnDef> cols, string text) : base(text) {
+            tabName_ = tabName; cols_ = cols;
+            int ord = 0; cols_.ForEach(x => x.ordinal_ = ord++);
+            if (cols.GroupBy(x => x.name_).Count() < cols.Count)
+                throw new SemanticAnalyzeException("duplicated column name");
+        }
+        public override string ToString() => $"{tabName_ }: {string.Join(",", cols_)}";
+    }
+
+    public class InsertStmt : SQLStatement
+    {
+        readonly public string tabName_;
+        readonly public List<string> cols_;
+        readonly public List<Expr> vals_;
+        public InsertStmt(string tabName, List<string> cols, List<Expr> vals, string text) : base(text)
+        {
+            tabName_ = tabName; cols_ = cols; vals_ = vals;
+        }
     }
 
     /*
