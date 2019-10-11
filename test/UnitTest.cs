@@ -219,6 +219,14 @@ namespace test
             Assert.AreEqual("3", result[0].ToString());
             Assert.AreEqual("4", result[1].ToString());
             Assert.AreEqual("5", result[2].ToString());
+            sql = @"select a1 from a, b where a1=b1 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
+                and b1 = (select b1 from b where b3 = a3 and bo.b3 = a3 and b3> 1) and b2<5)
+                and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and b3<5);";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(3, result.Count);
+            Assert.AreEqual("0", result[0].ToString());
+            Assert.AreEqual("1", result[1].ToString());
+            Assert.AreEqual("2", result[2].ToString());
             sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
@@ -371,45 +379,57 @@ namespace test
                               Output: bo.b1[0],bo.b2[1],#bo.b3[2]";
             PlanCompare.AreEqual(answer, phyplan.PrintString(0));
 
-            sql = @"select a1  from a where a.a1 = (select b1 from (select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b2<5)
-                and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4=a3 and bo.b3 = a3 and b3> 0) and b3<5);";
+            sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
+                and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
+                and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             stmt = RawParser.ParseSQLStatement(sql).Bind(null);
             stmt.CreatePlan();
             stmt.Optimize();
             phyplan = stmt.physicPlan_;
-            answer = @"PhysicGet a
-                        Output: a.a1[0],#a.a2[1],#a.a3[2]
-                        Filter: a.a1[0]=@1 and a.a2[1]=@3
-                        <SubLink> 1
-                            -> PhysicFilter
-                                Output: bo.b1[0]
-                                Filter: bo.b2[1]=?a.a2[1] and bo.b1[0]=@2 and bo.b2[1]<5
-                                <SubLink> 2
-                                    -> PhysicFilter
-                                        Output: b.b1[0]
-                                        Filter: b.b3[1]=?a.a3[2] and ?bo.b3[2]=?a.a3[2] and b.b3[1]>1
-                                        -> PhysicGet b
-                                            Output: b.b1[0],b.b3[2]
-                                -> PhysicFromQuery <bo>
-                                    Output: bo.b1[0],bo.b2[1],#bo.b3[2]
-                                    -> PhysicCrossJoin
-                                        Output: b_2.b1[2],b_1.b2[0],b_1.b3[1]
-                                        -> PhysicGet b as b_1
-                                            Output: b_1.b2[1],b_1.b3[2]
-                                        -> PhysicGet b as b_2
-                                            Output: b_2.b1[0]
-                        <SubLink> 3
-                            -> PhysicFilter
-                                Output: bo.b2[0]
-                                Filter: bo.b1[1]=?a.a1[0] and bo.b2[0]=@4 and bo.b3[2]<5
-                                <SubLink> 4
-                                    -> PhysicFilter
-                                        Output: b.b2[0]
-                                        Filter: b.b4[1]=?a.a3[2] and ?bo.b3[2]=?a.a3[2] and b.b3[2]>0
-                                        -> PhysicGet b
-                                            Output: b.b2[1],b.b4[3],b.b3[2]
-                                -> PhysicGet b as bo
-                                    Output: bo.b2[1],bo.b1[0],bo.b3[2]";
+            answer = @"PhysicFilter
+                        Output: a.a1[0]
+                        Filter: a.a1[0]=b.b1[1] and b.b2[2]=c.c2[3]
+                        -> PhysicCrossJoin
+                            Output: a.a1[2],b.b1[3],b.b2[4],c.c2[0]
+                            -> PhysicGet c
+                                Output: c.c2[1],#c.c3[2]
+                            -> PhysicCrossJoin
+                                Output: a.a1[2],b.b1[0],b.b2[1]
+                                -> PhysicGet b
+                                    Output: b.b1[0],b.b2[1]
+                                -> PhysicGet a
+                                    Output: a.a1[0],#a.a2[1],#a.a3[2]
+                                    Filter: a.a1[0]=@1 and a.a2[1]=@3
+                                    <SubLink> 1
+                                        -> PhysicFilter
+                                            Output: bo.b1[0]
+                                            Filter: bo.b2[1]=?a.a2[1] and bo.b1[0]=@2 and bo.b2[1]<5
+                                            <SubLink> 2
+                                                -> PhysicFilter
+                                                    Output: b.b1[0]
+                                                    Filter: b.b3[1]=?a.a3[2] and ?bo.b3[2]=?c.c3[2] and b.b3[1]>1
+                                                    -> PhysicGet b
+                                                        Output: b.b1[0],b.b3[2]
+                                            -> PhysicFromQuery <bo>
+                                                Output: bo.b1[0],bo.b2[1],#bo.b3[2]
+                                                -> PhysicCrossJoin
+                                                    Output: b_2.b1[2],b_1.b2[0],b_1.b3[1]
+                                                    -> PhysicGet b as b_1
+                                                        Output: b_1.b2[1],b_1.b3[2]
+                                                    -> PhysicGet b as b_2
+                                                        Output: b_2.b1[0]
+                                    <SubLink> 3
+                                        -> PhysicFilter
+                                            Output: bo.b2[0]
+                                            Filter: bo.b1[1]=?a.a1[0] and bo.b2[0]=@4 and ?c.c3[2]<5
+                                            <SubLink> 4
+                                                -> PhysicFilter
+                                                    Output: b.b2[0]
+                                                    Filter: b.b4[1]=?a.a3[2]+1 and ?bo.b3[2]=?a.a3[2] and b.b3[2]>0
+                                                    -> PhysicGet b
+                                                        Output: b.b2[1],b.b4[3],b.b3[2]
+                                            -> PhysicGet b as bo
+                                                Output: bo.b2[1],bo.b1[0],#bo.b3[2]";
             PlanCompare.AreEqual(answer, phyplan.PrintString(0));
         }
     }
