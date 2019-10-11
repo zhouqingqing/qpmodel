@@ -268,6 +268,60 @@ namespace adb
                                     ctes, setqs, orders, context.GetText());
         }
 
+        public override object VisitType_name([NotNull] SQLiteParser.Type_nameContext context)
+        {
+            Dictionary<string, DType> nameMap = new Dictionary<string, DType> {
+                {"int", DType.INT4},
+                {"char", DType.CHAR},
+                {"datetime", DType.DATETIME},
+                {"numeric", DType.NUMERIC},
+            };
+
+            string typename = context.name(0).GetText().Trim().ToLower();
+            DType type = nameMap[typename];
+            if (type == DType.INT4)
+                return new IntType();
+            else if (type == DType.DATETIME)
+                return new DateTimeType();
+            else if (type == DType.CHAR) {
+                var numbers = context.signed_number();
+                Utils.Checks(numbers.Count() == 1);
+                return new CharType(int.Parse(numbers[0].NUMERIC_LITERAL().GetText()));
+            }
+            else if (type == DType.NUMERIC)
+            {
+                var numbers = context.signed_number();
+                Utils.Checks(numbers.Count() >= 1 && numbers.Count() <= 2);
+                int prec = int.Parse(context.signed_number()[0].NUMERIC_LITERAL().GetText());
+                int scale = 0;
+                if (numbers.Count() >1)
+                    scale = int.Parse(context.signed_number()[1].NUMERIC_LITERAL().GetText());
+                return new NumericType(prec, scale);
+            }
+
+            throw new SemanticAnalyzeException("unknow data type");
+        }
+        public override object VisitColumn_def([NotNull] SQLiteParser.Column_defContext context)
+            => new ColumnDef(context.column_name().GetText(), VisitType_name(context.type_name()) as ColumnType, 0);
+        public override object VisitCreate_table_stmt([NotNull] SQLiteParser.Create_table_stmtContext context)
+        {
+            var cols = new List<ColumnDef>();
+            foreach (var v in context.column_def())
+                cols.Add(VisitColumn_def(v) as ColumnDef);
+            return new CreateTableStmt(context.table_name().GetText(), cols, context.GetText());
+        }
+
+        public override object VisitInsert_stmt([NotNull] SQLiteParser.Insert_stmtContext context)
+        {
+            var cols = new List<string>();
+            foreach (var v in context.column_name())
+                cols.Add(v.GetText());
+            var vals = new List<Expr>();
+            foreach (var v in context.expr())
+                vals.Add(Visit(v) as Expr);
+            return new InsertStmt(context.table_name().GetText(), cols, vals, context.GetText());
+        }
+
         public override object VisitSql_stmt([NotNull] SQLiteParser.Sql_stmtContext context)
         {
             SQLStatement r = null;
@@ -277,6 +331,10 @@ namespace adb
                 explain = true;
             if (context.select_stmt() != null)
                 r = Visit(context.select_stmt()) as SQLStatement;
+            else if (context.create_table_stmt() != null)
+                r = Visit(context.create_table_stmt()) as SQLStatement;
+            else if (context.insert_stmt()!= null)
+                r = Visit(context.insert_stmt()) as SQLStatement;
 
             if (r is null)
                 throw new NotImplementedException();

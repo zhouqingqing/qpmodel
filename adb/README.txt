@@ -1,5 +1,16 @@
-﻿Known issues:
+﻿TODO items:
+======================================
+1. csv reader so we can load TPCH data
+2. CREATE TABLE/INSERT  to support data loading
+3. tpch data types, sql syntax
+4. subquery to join conversion
+5. join re-ordering
+6. parallel query/ctes etc
+7. [Executor] codegen
 
+
+Known issues:
+======================================
 1. subquery shall force join order to let referenced tablerefs show up before subquery. Example:
 
             sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 

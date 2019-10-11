@@ -8,12 +8,50 @@ using TableColumn = System.Tuple<string, string>;
 
 namespace adb
 {
-    public class ColumnDef {
-        public string name_;
+    public enum DType {
+        INT4,
+        CHAR,
+        DATETIME,
+        NUMERIC
+    }
 
+    public class ColumnType {
+        public DType type_;
+        public int len_;
+        public ColumnType(DType type, int len) { type_ = type; len_ = len; }
+    }
+
+    public class IntType : ColumnType
+    {
+        public IntType() : base(DType.INT4, 4) { }
+        public override string ToString() => $"int";
+    }
+    public class DateTimeType : ColumnType
+    {
+        public DateTimeType() : base(DType.DATETIME, 8) { }
+        public override string ToString() => $"datetime";
+    }
+    public class CharType : ColumnType
+    {
+        public CharType(int len) : base(DType.CHAR, len) { }
+        public override string ToString() => $"char({len_})";
+    }
+    public class NumericType : ColumnType
+    {
+        public int scale_;
+        public NumericType(int prec, int scale) : base(DType.NUMERIC, prec) => scale_ = scale;
+        public override string ToString() => $"numeric({len_}, {scale_})";
+    }
+
+    public class ColumnDef {
+        readonly public string name_;
+        readonly public ColumnType type_;
         public int ordinal_;
 
-        public ColumnDef(string name, int ord) { name_ = name; ordinal_ = ord; }
+        public ColumnDef(string name, ColumnType type, int ord) { name_ = name; type_ = type; ordinal_ = ord; }
+        public ColumnDef(string name, int ord) : this(name, new IntType(), ord){}
+
+        public override string ToString() => $"{name_} {type_} [{ordinal_}]";
     }
 
     public class TableDef
