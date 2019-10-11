@@ -12,4 +12,5 @@
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
 
 	first query works but not second because of table 'c' is outerref'ed as c3<5.
+	Try this with  set join_collapse_limit = 1 - you shall see 'c' always show up before its outerref.
 
