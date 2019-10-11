@@ -29,21 +29,19 @@ namespace adb
     }
 
     public class ExecContext {
-        public TableRef curref_;
         public List<Parameter> params_ = new List<Parameter>();
 
         public void Reset() { params_.Clear(); }
-        public void SetTableRef(TableRef tabref) => curref_ = tabref;
         public Value GetParam(TableRef tabref, int ordinal)
         {
             Debug.Assert(params_.FindAll(x => x.tabref_.Equals(tabref)).Count == 1);
             return params_.Find(x => x.tabref_.Equals(tabref)).row_.values_[ordinal];
         }
-        public void AddParam(Row row)
+        public void AddParam(TableRef tabref, Row row)
         {
-            Debug.Assert(params_.FindAll(x => x.tabref_.Equals(curref_)).Count <= 1);
-            params_.Remove(params_.Find(x => x.tabref_.Equals(curref_)));
-            params_.Add(new Parameter(curref_, row));
+            Debug.Assert(params_.FindAll(x => x.tabref_.Equals(tabref)).Count <= 1);
+            params_.Remove(params_.Find(x => x.tabref_.Equals(tabref)));
+            params_.Add(new Parameter(tabref, row));
         }
     }
 
@@ -92,7 +90,8 @@ namespace adb
                 r.values_.Add(i + 2);
                 r.values_.Add(i + 3);
 
-                context.SetTableRef(logic.tabref_);
+                if (logic.tabref_.outerrefs_.Count != 0)
+                    context.AddParam(logic.tabref_, r);
                 if (filter?.Exec(context, r) == 0)
                     continue;
                 r = ExecProject(context, r);
@@ -130,7 +129,8 @@ namespace adb
         {
             var logic = logic_ as LogicFromQuery;
             children_[0].Exec(context, l => {
-                context.SetTableRef(logic.queryRef_);
+                if (logic.queryRef_.outerrefs_.Count != 0)
+                    context.AddParam(logic.queryRef_, l);
                 var r = ExecProject(context, l);
                 callback(r);
                 return null;
