@@ -26,6 +26,7 @@ namespace adb
         readonly public Row row_;
 
         public Parameter(TableRef tabref, Row row) { tabref_ = tabref; row_ = row; }
+        public override string ToString() => $"?{tabref_}.{row_}";
     }
 
     public class ExecContext {
@@ -167,6 +168,22 @@ namespace adb
             logic_.output_.ForEach(
                             x => r.values_.Add(x.Exec(context, null)));
             callback(r);
+        }
+    }
+
+    public class PhysicProfiling : PhysicNode
+    {
+        Int64 nrows_ = 0;
+
+        public PhysicProfiling(PhysicNode l) : base(null) => children_.Add(l);
+
+        public override void Exec(ExecContext context, Func<Row, string> callback)
+        {
+            children_[0].Exec(context, l => {
+                nrows_++;
+                callback(l);
+                return null;
+            });
         }
     }
 

@@ -28,7 +28,7 @@ namespace adb
         readonly internal string text_;
 
         public SQLStatement(string text) => text_ = text;
-        public virtual SQLStatement Bind(BindContext parent) => this;
+        public virtual BindContext Bind(BindContext parent) => null;
         public virtual LogicNode Optimize() => logicPlan_;
         public virtual LogicNode CreatePlan() => logicPlan_;
     }
@@ -81,7 +81,18 @@ namespace adb
 
         // details of outerrefs are recorded in referenced TableRef
         internal bool hasOuterRef_ = false;
-        internal bool hasParent_ = false;
+
+        internal SelectStmt parent_ = null;
+        internal SelectStmt TopStmt() {
+            var top = this;
+            while (top.parent_ != null)
+                top = top.parent_;
+            Debug.Assert(top != null);
+            return top;
+        }
+
+        // others
+        internal ProfileOption profileOpt_ = new ProfileOption();
 
         public SelectStmt(
             // setops ok fields
@@ -141,10 +152,10 @@ namespace adb
         void bindGroupBy(BindContext context)=> groupby_?.ForEach(x => x.Bind(context));
         void bindHaving(BindContext context) => having_?.Bind(context);
 
-        public override SQLStatement Bind(BindContext parent)
+        public override BindContext Bind(BindContext parent)
         {
             BindContext context = new BindContext(this, parent);
-            hasParent_ = (parent != null);
+            parent_ = parent?.stmt_ as SelectStmt;
 
             // bind stage is earlier than plan creation
             Debug.Assert(logicPlan_ == null);
@@ -157,7 +168,7 @@ namespace adb
             bindHaving(context);
 
             bindContext_ = context;
-            return this;
+            return context;
         }
 
         LogicNode transformOneFrom(TableRef tab)
@@ -243,7 +254,7 @@ namespace adb
             selection_.ForEach(x => createSubQueryExprPlan(x));
 
             // resolve the output
-            root.ResolveChildrenColumns(selection_, hasParent_);
+            root.ResolveChildrenColumns(selection_, parent_!=null);
 
             logicPlan_ = root;
             return root;
@@ -282,13 +293,14 @@ namespace adb
                 filter.filter_ = ExprHelper.AndListToExpr(andlist);
             // we have to redo the column binding as the top filter might change
             plan.ClearOutput();
-            plan.ResolveChildrenColumns(selection_, hasParent_);
+            plan.ResolveChildrenColumns(selection_, parent_ != null);
             logicPlan_ = plan;
 
         Convert:
 
             // convert to physical plan
-            physicPlan_ = logicPlan_.DirectToPhysical();
+            profileOpt_.enabled_ = true;
+            physicPlan_ = logicPlan_.DirectToPhysical(profileOpt_);
             selection_.ForEach(x => ExprHelper.SubqueryDirectToPhysic(x));
             return plan;
         }

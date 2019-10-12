@@ -153,7 +153,9 @@ namespace adb
                 {
                     if (x is SubqueryExpr sx)
                     {
-                        sx.query_.physicPlan_ = sx.query_.logicPlan_.DirectToPhysical();
+                        var query = sx.query_;
+                        ProfileOption poption = query.TopStmt().profileOpt_;
+                        query.physicPlan_ = query.logicPlan_.DirectToPhysical(poption);
                     }
                 });
             }
@@ -485,13 +487,11 @@ namespace adb
         public override void Bind(BindContext context)
         {
         	// subquery id is global, so accumulating at top
-			var top = context;
-        	while (top.parent_ != null)
-				top = top.parent_;
             subqueryid_ = ++BindContext.globalSubqCounter_;
 
             // query will use a new query context inside
-            query_.Bind(context);
+            var mycontext = query_.Bind(context);
+            Debug.Assert(query_.parent_ == mycontext.parent_?.stmt_);
 
             // verify column count after bound because SelStar expansion
             if (query_.selection_.Count != 1)
