@@ -65,6 +65,10 @@ namespace adb
         }
     }
 
+    public class ProfileOption {
+        internal bool enabled_ = false;
+    }
+
     public abstract class LogicNode : PlanNode<LogicNode>
     {
         public List<Expr> output_ = new List<Expr>();
@@ -77,7 +81,7 @@ namespace adb
         }
 
         // This is an honest translation from logic to physical plan
-        public PhysicNode DirectToPhysical()
+        public PhysicNode DirectToPhysical(ProfileOption profiling)
         {
             PhysicNode root = null;
             VisitEachNode(n =>
@@ -92,17 +96,17 @@ namespace adb
                         break;
                     case LogicCrossJoin lc:
                         phy = new PhysicCrossJoin(lc,
-                            lc.children_[0].DirectToPhysical(),
-                            lc.children_[1].DirectToPhysical());
+                            lc.children_[0].DirectToPhysical(profiling),
+                            lc.children_[1].DirectToPhysical(profiling));
                         break;
                     case LogicResult lr:
                         phy = new PhysicResult(lr);
                         break;
                     case LogicFromQuery ls:
-                        phy = new PhysicFromQuery(ls, ls.children_[0].DirectToPhysical());
+                        phy = new PhysicFromQuery(ls, ls.children_[0].DirectToPhysical(profiling));
                         break;
                     case LogicFilter lf:
-                        phy = new PhysicFilter(lf, lf.children_[0].DirectToPhysical());
+                        phy = new PhysicFilter(lf, lf.children_[0].DirectToPhysical(profiling));
                         if (lf.filter_ != null)
                             ExprHelper.SubqueryDirectToPhysic(lf.filter_);
                         break;

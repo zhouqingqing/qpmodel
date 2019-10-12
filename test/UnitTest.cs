@@ -17,7 +17,8 @@ namespace test
             {
                 error_ = null;
 
-                var stmt = RawParser.ParseSQLStatement(sql).Bind(null);
+                var stmt = RawParser.ParseSQLStatement(sql);
+                stmt.Bind(null);
                 stmt.CreatePlan();
                 stmt.Optimize();
                 var result = new PhysicCollect(stmt.physicPlan_);
@@ -370,7 +371,8 @@ namespace test
         public void TestPushdown()
         {
             string sql = "select a.a1,a.a1+a.a2 from a where a.a2 > 3";
-            var stmt = RawParser.ParseSQLStatement(sql).Bind(null);
+            var stmt = RawParser.ParseSQLStatement(sql);
+            stmt.Bind(null);
             stmt.CreatePlan();
             var plan = stmt.Optimize();
             var answer = @"LogicGet a
@@ -379,9 +381,8 @@ namespace test
             TestHelper.PlanAssertEqual(answer,  plan.PrintString(0));
 
             sql = "select a.a2,a3,a.a1+b2 from a,b where a.a1 > 1";
-            stmt = RawParser.ParseSQLStatement(sql).Bind(null);
-            stmt.CreatePlan();
-            stmt.Optimize();
+            stmt = RawParser.ParseSQLStatement(sql);
+            stmt.Bind(null); stmt.CreatePlan(); stmt.Optimize();
             var phyplan = stmt.physicPlan_;
             answer = @"PhysicCrossJoin
                         Output: a.a2[0],a.a3[1],a.a1[2]+b.b2[3]
@@ -393,9 +394,8 @@ namespace test
             TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
 
             sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b1 > ((select c2 from c where c.c2=b2)))";
-            stmt = RawParser.ParseSQLStatement(sql).Bind(null);
-            stmt.CreatePlan();
-            stmt.Optimize();
+            stmt = RawParser.ParseSQLStatement(sql);
+            stmt.Bind(null); stmt.CreatePlan(); stmt.Optimize();
             phyplan = stmt.physicPlan_;
             answer = @"PhysicGet a
                         Output: 1
@@ -421,9 +421,8 @@ namespace test
             TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
 
             sql = "select a1  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 3) and b2<3);";
-            stmt = RawParser.ParseSQLStatement(sql).Bind(null);
-            stmt.CreatePlan();
-            stmt.Optimize();
+            stmt = RawParser.ParseSQLStatement(sql);
+            stmt.Bind(null); stmt.CreatePlan(); stmt.Optimize();
             phyplan = stmt.physicPlan_;
             answer = @"PhysicGet a
                         Output: a.a1[0],#a.a2[1],#a.a3[2]
@@ -445,7 +444,8 @@ namespace test
             sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
-            stmt = RawParser.ParseSQLStatement(sql).Bind(null);
+            stmt = RawParser.ParseSQLStatement(sql);
+            stmt.Bind(null);
             stmt.CreatePlan();
             stmt.Optimize();
             phyplan = stmt.physicPlan_;
