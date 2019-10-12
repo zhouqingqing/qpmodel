@@ -18,23 +18,30 @@ namespace adb
         public virtual string PrintMoreDetails(int depth) => null;
         public string PrintString(int depth)
         {
-            string r = tabs(depth);
-
-            if (depth != 0)
-                r += "-> ";
-            r += this.GetType().Name + " " + PrintInlineDetails(depth) + "\n";
-            var details = PrintMoreDetails(depth);
-            r += tabs(depth + 2) + PrintOutput(depth) + "\n";
-            if (details != null)
+            string r = null;
+            if (!(this is PhysicProfiling))
             {
-                // remove the last \n in case the details is a subquery
-                var trailing = "\n";
-                if (details[details.Length - 1] == '\n')
-                    trailing = "";
-                r += tabs(depth + 2) + details + trailing;
+                r = tabs(depth);
+                if (depth != 0)
+                    r += "-> ";
+                r += this.GetType().Name + " " + PrintInlineDetails(depth);
+                if (this is PhysicNode && (this as PhysicNode).profile_ != null)
+                    r += $@"  (rows = {(this as PhysicNode).profile_.nrows_})";
+                r += "\n";
+                var details = PrintMoreDetails(depth);
+                r += tabs(depth + 2) + PrintOutput(depth) + "\n";
+                if (details != null)
+                {
+                    // remove the last \n in case the details is a subquery
+                    var trailing = "\n";
+                    if (details[details.Length - 1] == '\n')
+                        trailing = "";
+                    r += tabs(depth + 2) + details + trailing;
+                }
+
+                depth += 2;
             }
 
-            depth += 2;
             children_.ForEach(x => r += x.PrintString(depth));
             return r;
         }
@@ -111,6 +118,9 @@ namespace adb
                             ExprHelper.SubqueryDirectToPhysic(lf.filter_);
                         break;
                 }
+
+                if (profiling.enabled_)
+                    phy = new PhysicProfiling(phy);
 
                 if (root is null)
                     root = phy;

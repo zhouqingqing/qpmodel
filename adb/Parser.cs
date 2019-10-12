@@ -327,8 +327,6 @@ namespace adb
             SQLStatement r = null;
             bool explain = false;
 
-            if (context.K_EXPLAIN() != null)
-                explain = true;
             if (context.select_stmt() != null)
                 r = Visit(context.select_stmt()) as SQLStatement;
             else if (context.create_table_stmt() != null)
@@ -338,7 +336,6 @@ namespace adb
 
             if (r is null)
                 throw new NotImplementedException();
-            r.explain_ = explain;
             return r;
         }
     }

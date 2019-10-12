@@ -49,6 +49,7 @@ namespace adb
     public abstract class PhysicNode : PlanNode<PhysicNode>
     {
         readonly internal LogicNode logic_;
+        internal PhysicProfiling profile_;
 
         public PhysicNode(LogicNode logic) => logic_ = logic;
 
@@ -173,9 +174,14 @@ namespace adb
 
     public class PhysicProfiling : PhysicNode
     {
-        Int64 nrows_ = 0;
+        internal Int64 nrows_ = 0;
 
-        public PhysicProfiling(PhysicNode l) : base(null) => children_.Add(l);
+        public PhysicProfiling(PhysicNode l) : base(null)
+        {
+            children_.Add(l);
+            l.profile_ = this;
+            Debug.Assert(this.profile_ is null);
+        }
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
@@ -198,7 +204,9 @@ namespace adb
             children_[0].Exec(context, r =>
             {
                 Row newr = new Row();
-                List<Expr> output = children_[0].logic_.output_;
+                var child = (children_[0] is PhysicProfiling) ?
+                        children_[0].children_[0] : children_[0];
+                List<Expr> output = child.logic_.output_;
                 for (int i = 0; i < output.Count; i++)
                 {
                     if (output[i].isVisible_)
