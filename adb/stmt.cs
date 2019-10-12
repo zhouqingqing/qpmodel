@@ -14,8 +14,8 @@ namespace adb
 {
     public abstract class SQLStatement
     {
-        // do we want to EXPLAIN the statement?
-        internal bool explain_ = false;
+        // others
+        internal ProfileOption profileOpt_ = new ProfileOption();
 
         // bounded context
         internal BindContext bindContext_;
@@ -90,9 +90,6 @@ namespace adb
             Debug.Assert(top != null);
             return top;
         }
-
-        // others
-        internal ProfileOption profileOpt_ = new ProfileOption();
 
         public SelectStmt(
             // setops ok fields
@@ -299,7 +296,6 @@ namespace adb
         Convert:
 
             // convert to physical plan
-            profileOpt_.enabled_ = true;
             physicPlan_ = logicPlan_.DirectToPhysical(profileOpt_);
             selection_.ForEach(x => ExprHelper.SubqueryDirectToPhysic(x));
             return plan;
