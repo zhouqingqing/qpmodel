@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Diagnostics;
 
 //
@@ -25,9 +22,9 @@ namespace adb
         public PhysicNode physicPlan_;
 
         // DEBUG support
-        readonly internal string text_;
+        internal readonly string text_;
 
-        public SQLStatement(string text) => text_ = text;
+        protected SQLStatement(string text) => text_ = text;
         public virtual BindContext Bind(BindContext parent) => null;
         public virtual LogicNode Optimize() => logicPlan_;
         public virtual LogicNode CreatePlan() => logicPlan_;
@@ -54,21 +51,21 @@ namespace adb
     */
     public class SelectStmt : SQLStatement {
         // this section can show up in setops
-        readonly internal List<TableRef> from_;
-        readonly internal Expr where_;
-        readonly internal List<Expr> groupby_;
-        readonly internal Expr having_;
-        readonly internal List<Expr> selection_;
+        internal readonly List<TableRef> from_;
+        internal readonly Expr where_;
+        internal readonly List<Expr> groupby_;
+        internal readonly Expr having_;
+        internal readonly List<Expr> selection_;
 
-        // this seciton can only show up in top query
-        readonly public List<CTExpr> ctes_;
-        readonly public List<SelectStmt> setqs_ = new List<SelectStmt>();
-        readonly public List<OrderTerm> orders_;
+        // this section can only show up in top query
+        public readonly List<CTExpr> ctes_;
+        public readonly List<SelectStmt> setqs_;
+        public readonly List<OrderTerm> orders_;
 
         // details of outerrefs are recorded in referenced TableRef
         internal bool hasOuterRef_ = false;
 
-        internal SelectStmt parent_ = null;
+        internal SelectStmt parent_;
         internal SelectStmt TopStmt() {
             var top = this;
             while (top.parent_ != null)
@@ -249,7 +246,7 @@ namespace adb
                 root = new LogicAgg(root, groupby_, having_);
 
             // selection list
-            selection_.ForEach(x => createSubQueryExprPlan(x));
+            selection_.ForEach(createSubQueryExprPlan);
 
             // resolve the output
             root.ResolveChildrenColumns(selection_, parent_!=null);
@@ -273,7 +270,7 @@ namespace adb
         {
             LogicNode plan = logicPlan_;
             var filter = plan as LogicFilter;
-            if (filter is null || filter.filter_ is null)
+            if (filter?.filter_ is null)
                 goto Convert;
 
             // filter push down
@@ -298,7 +295,7 @@ namespace adb
 
             // convert to physical plan
             physicPlan_ = logicPlan_.DirectToPhysical(profileOpt_);
-            selection_.ForEach(x => ExprHelper.SubqueryDirectToPhysic(x));
+            selection_.ForEach(ExprHelper.SubqueryDirectToPhysic);
             return plan;
         }
     }

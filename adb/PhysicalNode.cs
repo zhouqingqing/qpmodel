@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Diagnostics;
 
 using Value = System.Int64;
@@ -48,14 +45,14 @@ namespace adb
 
     public abstract class PhysicNode : PlanNode<PhysicNode>
     {
-        readonly internal LogicNode logic_;
+        internal readonly LogicNode logic_;
         internal PhysicProfiling profile_;
 
-        public PhysicNode(LogicNode logic) => logic_ = logic;
+        protected PhysicNode(LogicNode logic) => logic_ = logic;
 
         public override string PrintOutput(int depth)
         {
-            string r = "Output: " + string.Join(",", logic_.output_);
+            var r = "Output: " + string.Join(",", logic_.output_);
             logic_.output_.ForEach(x => r += ExprHelper.PrintExprWithSubqueryExpanded(x, depth));
             return r;
         }
@@ -201,7 +198,7 @@ namespace adb
 
     public class PhysicProfiling : PhysicNode
     {
-        internal Int64 nrows_ = 0;
+        internal Int64 nrows_;
 
         public PhysicProfiling(PhysicNode l) : base(null)
         {
