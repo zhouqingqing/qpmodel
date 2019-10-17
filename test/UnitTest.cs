@@ -85,7 +85,7 @@ namespace test
             var sql = "insert into a values(1+2*3, 'something' ,'2019-09-01', 50.2, 50);";
             var stmt = RawParser.ParseSQLStatement(sql) as InsertStmt;
             Assert.AreEqual(5, stmt.vals_.Count);
-            sql = "insert into a values(1,2,3,4);";
+            sql = "insert into a values(1+2,2*3,3,4);";
             var result = TestHelper.ExecuteSQL(sql);
             sql = "insert into a select * from a where a1>1;";
             result = TestHelper.ExecuteSQL(sql);
@@ -458,9 +458,7 @@ namespace test
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             stmt = RawParser.ParseSQLStatement(sql);
-            stmt.Bind(null);
-            stmt.CreatePlan();
-            stmt.Optimize();
+            stmt.Bind(null); stmt.CreatePlan(); stmt.Optimize();
             phyplan = stmt.physicPlan_;
             answer = @"PhysicFilter
                         Output: a.a1[0]

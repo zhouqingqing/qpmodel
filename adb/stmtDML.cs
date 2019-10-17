@@ -46,14 +46,21 @@ namespace adb
 
             // use selectstmt's target list is not given
             Utils.Assumes(cols_ is null);
-            if (cols_ is null)
-                cols_ = select_.selection_;
-            bindSelectStmt(context);
-
-            // verify selectStmt's selection list is compatible with insert target table's
-            var selectlist = select_.selection_;
-            if (selectlist.Count != cols_.Count)
-                throw new SemanticAnalyzeException("insert has no equal expressions than target columns");
+            if (select_ is null) {
+                if (cols_ is null)
+                    cols_ = targetref_.AllColumnsRefs();
+                if (vals_.Count != cols_.Count)
+                    throw new SemanticAnalyzeException("insert has no equal expressions than target columns");
+            }
+            else
+            {
+                if (cols_ is null)
+                    cols_ = select_.selection_;
+                bindSelectStmt(context);
+                // verify selectStmt's selection list is compatible with insert target table's
+                if (select_.selection_.Count != cols_.Count)
+                    throw new SemanticAnalyzeException("insert has no equal expressions than target columns");
+            }
 
             bindContext_ = context;
             return context;
@@ -61,7 +68,10 @@ namespace adb
 
         public override LogicNode CreatePlan()
         {
-            logicPlan_ =  new LogicInsert(targetref_, select_.CreatePlan());
+            if (select_ is null)
+                logicPlan_ = new LogicInsert(targetref_, new LogicResult(vals_));
+            else
+                logicPlan_ =  new LogicInsert(targetref_, select_.CreatePlan());
             return logicPlan_;
         }
 
