@@ -73,15 +73,15 @@ namespace adb
     }
 
     public class PhysicGetTable : PhysicNode{
-        int nrows_ = 3;
+        readonly int nrows_ = 3;
         public PhysicGetTable(LogicNode logic): base(logic) { }
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicGetTable;
-            Expr filter = logic.filter_;
+            var filter = logic.filter_;
 
-            for (int i = 0; i < nrows_; i++)
+            for (var i = 0; i < nrows_; i++)
             {
                 Row r = new Row();
                 r.values_.Add(i);

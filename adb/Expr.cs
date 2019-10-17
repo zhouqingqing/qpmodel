@@ -14,16 +14,16 @@ namespace adb
     // 
     public class BindContext {
         // number of subqueries in the whole query
-        static internal int globalSubqCounter_;
+        internal static int globalSubqCounter_;
 
         // bounded tables/subqueries: <seq#, tableref>
-        readonly internal Dictionary<int, TableRef> boundFrom_ = new Dictionary<int, TableRef>();
+        internal readonly Dictionary<int, TableRef> boundFrom_ = new Dictionary<int, TableRef>();
 
         // current statement
-        readonly internal SQLStatement stmt_;
+        internal readonly SQLStatement stmt_;
 
         // parent bind context - non-null for subquery only
-        readonly internal BindContext parent_; 
+        internal readonly BindContext parent_; 
 
         public BindContext(SQLStatement current, BindContext parent) {
             stmt_ = current;
@@ -77,10 +77,10 @@ namespace adb
         }
     }
 
-    static public class ExprHelper {
-        static internal string tabs(int depth) => new string(' ', depth * 2);
+    public static class ExprHelper {
+        internal static string tabs(int depth) => new string(' ', depth * 2);
 
-        static public Expr AndListToExpr(List<Expr> andlist)
+        public static Expr AndListToExpr(List<Expr> andlist)
         {
             Debug.Assert(andlist.Count >= 1);
             if (andlist.Count == 1)
@@ -94,12 +94,12 @@ namespace adb
             }
         }
 
-        static public List<Expr> AllColExpr(Expr expr, bool includingParameters) {
-            var list = new HashSet<Expr>();
+        public static List<ColExpr> AllColExpr(Expr expr, bool includingParameters) {
+            var list = new HashSet<ColExpr>();
             expr.VisitEachExpr(x => {
                 if (x is ColExpr xc)
                 {
-                    if (includingParameters || (!includingParameters && !xc.isOuterRef_))
+                    if (includingParameters || !xc.isOuterRef_)
                         list.Add(xc);
                 }
             });
@@ -107,7 +107,7 @@ namespace adb
             return list.ToList();
         }
 
-        static public List<TableRef> AllTableRef(Expr expr)
+        public static List<TableRef> AllTableRef(Expr expr)
         {
             var list = new HashSet<TableRef>();
             expr.VisitEachExpr(x => {
@@ -118,7 +118,7 @@ namespace adb
             return list.ToList();
         }
 
-        static public string PrintExprWithSubqueryExpanded(Expr expr, int depth) {
+        public static string PrintExprWithSubqueryExpanded(Expr expr, int depth) {
             string r = "";
             // append the subquery plan align with expr
             if (expr.HasSubQuery())
@@ -142,7 +142,7 @@ namespace adb
         }
 
         // this is a hack - shall be removed after all optimization process in place
-        static public void SubqueryDirectToPhysic(Expr expr)
+        public static void SubqueryDirectToPhysic(Expr expr)
         {
             // append the subquery plan align with expr
             if (expr.HasSubQuery())

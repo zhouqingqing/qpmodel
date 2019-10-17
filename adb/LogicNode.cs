@@ -91,7 +91,7 @@ namespace adb
             PhysicNode root = null;
             ForEachNode(n =>
             {
-                PhysicNode phy = null;
+                PhysicNode phy;
                 switch (n)
                 {
                     case LogicGetTable ln:
@@ -211,9 +211,9 @@ namespace adb
                     var colref = ExprHelper.AllColExpr(v, false);
                     colref.ForEach(x =>
                     {
-                        if (lrefs.Contains((x as ColExpr).tabRef_))
+                        if (lrefs.Contains(x.tabRef_))
                             lreq.Add(x);
-                        else if (rrefs.Contains((x as ColExpr).tabRef_))
+                        else if (rrefs.Contains(x.tabRef_))
                             rreq.Add(x);
                         else
                             throw new InvalidProgramException("contains invalid tableref");
