@@ -64,6 +64,7 @@ sql_stmt
                                       | drop_trigger_stmt
                                       | drop_view_stmt
                                       | insert_stmt
+									  | copy_stmt
                                       | pragma_stmt
                                       | reindex_stmt
                                       | release_stmt
@@ -179,6 +180,12 @@ insert_stmt
    )
  ;
 
+copy_stmt
+ : K_COPY table_name ( '(' column_name ( ',' column_name )* ')' )?  
+   K_FROM STRING_LITERAL
+   ( K_WHERE expr )?
+ ;
+
 pragma_stmt
  : K_PRAGMA ( database_name '.' )? pragma_name ( '=' pragma_value
                                                | '(' pragma_value ')' )?
@@ -288,13 +295,15 @@ expr
  | expr op=( PLUS | MINUS ) expr							#arithplusexpr
  | expr op=( '<<' | '>>' | '&' | '|' ) expr					#arithbitexpr
  | expr op=( '<' | '<=' | '>' | '>=' ) expr					#arithcompexpr																		
- | expr op=( '=' | '==' | '!=' | '<>' | K_IS | 'is not' | K_IN | K_LIKE | K_GLOB | K_MATCH | K_REGEXP ) expr				#arithequalexpr
+ | expr op=( '=' | '==' | '!=' | '<>' | K_IS | 'is not' 
+	| K_IN | K_LIKE | K_GLOB | K_MATCH | K_REGEXP ) expr	#arithequalexpr
  | expr K_AND expr											#LogicAndExpr
  | expr K_OR expr											#LogicOrExpr
  | function_name '(' ( K_DISTINCT? expr ( ',' expr )* | '*' )? ')'	#FuncExpr
  | '(' expr ')'												#brackexpr
  | K_CAST '(' expr K_AS type_name ')'						#CastExpr
- | expr K_NOT? ( K_LIKE | K_GLOB | K_REGEXP | K_MATCH ) expr ( K_ESCAPE expr )?		#LikeExpr
+ | expr K_NOT? ( K_LIKE | K_GLOB | K_REGEXP | K_MATCH ) 
+		expr ( K_ESCAPE expr )?								#LikeExpr
  | expr ( K_ISNULL | K_NOTNULL | K_NOT K_NULL )				#NullExpr
  | expr K_IS K_NOT? expr									#IsExpr
  | expr K_NOT? K_BETWEEN expr K_AND expr					#BetweenExpr
@@ -700,6 +709,7 @@ K_COLUMN : C O L U M N;
 K_COMMIT : C O M M I T;
 K_CONFLICT : C O N F L I C T;
 K_CONSTRAINT : C O N S T R A I N T;
+K_COPY : C O P Y;
 K_CREATE : C R E A T E;
 K_CROSS : C R O S S;
 K_CURRENT_DATE : C U R R E N T '_' D A T E;

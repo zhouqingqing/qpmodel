@@ -86,7 +86,7 @@ namespace adb
     {
         public string relname_;
 
-        public BaseTableRef([NotNull] string name, string alias)
+        public BaseTableRef([NotNull] string name, string alias = null)
         {
             relname_ = name;
             alias_ = alias ?? relname_;
@@ -106,6 +106,25 @@ namespace adb
 
             return l;
         }
+    }
+
+    // FROM <filename>
+    public class ExternalTableRef : TableRef
+    {
+        public string filename_;
+        public BaseTableRef baseref_;
+        public List<Expr> colrefs_;
+
+        public ExternalTableRef([NotNull] string filename, BaseTableRef baseref, List<Expr> colrefs)
+        {
+            filename_ = filename.Replace('\'', ' ');
+            baseref_ = baseref;
+            colrefs_ = colrefs;
+            alias_ = baseref.alias_;
+        }
+
+        public override string ToString() => filename_;
+        public override List<Expr> AllColumnsRefs() => colrefs_;
     }
 
     // FROM <subquery>
@@ -313,13 +332,29 @@ namespace adb
 
         public override object VisitInsert_stmt([NotNull] SQLiteParser.Insert_stmtContext context)
         {
+            var tabref = new BaseTableRef(context.table_name().GetText());
             var cols = new List<string>();
             foreach (var v in context.column_name())
                 cols.Add(v.GetText());
             var vals = new List<Expr>();
             foreach (var v in context.expr())
                 vals.Add(Visit(v) as Expr);
-            return new InsertStmt(context.table_name().GetText(), cols, vals, context.GetText());
+            SelectStmt select = null;
+            if (context.select_stmt() != null)
+                select = Visit(context.select_stmt()) as SelectStmt;
+            return new InsertStmt(tabref, cols, vals, select, context.GetText());
+        }
+
+        public override object VisitCopy_stmt([NotNull] SQLiteParser.Copy_stmtContext context)
+        {
+            var tabref = new BaseTableRef(context.table_name().GetText());
+            var cols = new List<string>();
+            foreach (var v in context.column_name())
+                cols.Add(v.GetText());
+            Expr where = null;
+            if (context.K_WHERE() != null)
+                where = Visit(context.expr()) as Expr;
+            return new CopyStmt(tabref, cols, context.STRING_LITERAL().GetText(), where, context.GetText());
         }
 
         public override object VisitSql_stmt([NotNull] SQLiteParser.Sql_stmtContext context)
@@ -333,6 +368,8 @@ namespace adb
                 r = Visit(context.create_table_stmt()) as SQLStatement;
             else if (context.insert_stmt()!= null)
                 r = Visit(context.insert_stmt()) as SQLStatement;
+            else if (context.copy_stmt() != null)
+                r = Visit(context.copy_stmt()) as SQLStatement;
 
             if (r is null)
                 throw new NotImplementedException();

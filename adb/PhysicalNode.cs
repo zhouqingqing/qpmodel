@@ -75,13 +75,13 @@ namespace adb
         }
     }
 
-    public class PhysicGet : PhysicNode{
+    public class PhysicGetTable : PhysicNode{
         int nrows_ = 3;
-        public PhysicGet(LogicNode logic): base(logic) { }
+        public PhysicGetTable(LogicNode logic): base(logic) { }
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
-            var logic = logic_ as LogicGet;
+            var logic = logic_ as LogicGetTable;
             Expr filter = logic.filter_;
 
             for (int i = 0; i < nrows_; i++)
@@ -99,6 +99,20 @@ namespace adb
                 r = ExecProject(context, r);
                 callback(r);
             }
+        }
+    }
+
+    public class PhysicGetExternal : PhysicNode {
+        public PhysicGetExternal(LogicNode logic) : base(logic) { }
+
+        public override void Exec(ExecContext context, Func<Row, string> callback)
+        {
+            var filename = (logic_ as LogicGetExternal).FileName();
+            Utils.ReadCSVLine(filename, fields=> {
+                Row r = new Row();
+                Array.ForEach(fields, f => r.values_.Add(Int64.Parse(f)));
+                callback(r);
+            });
         }
     }
 
@@ -155,6 +169,19 @@ namespace adb
                     var r = ExecProject(context, l);
                     callback(r);
                 }
+                return null;
+            });
+        }
+    }
+
+    public class PhysicInsert : PhysicNode
+    {
+        public PhysicInsert(LogicInsert logic, PhysicNode l): base(logic) => children_.Add(l);
+
+        public override void Exec(ExecContext context, Func<Row, string> callback)
+        {
+            children_[0].Exec(context, l => {
+                Console.WriteLine($"insert {l}");
                 return null;
             });
         }

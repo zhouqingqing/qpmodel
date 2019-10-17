@@ -18,12 +18,7 @@ namespace test
                 error_ = null;
 
                 var stmt = RawParser.ParseSQLStatement(sql);
-                stmt.Bind(null);
-                stmt.CreatePlan();
-                stmt.Optimize();
-                var result = new PhysicCollect(stmt.physicPlan_);
-                result.Exec(new ExecContext(), null);
-                return result.rows_;
+                return stmt.Exec();
             }
             catch (Exception e)
             {
@@ -53,9 +48,10 @@ namespace test
             List<string> r = new List<string>();
             Utils.ReadCSVLine(@"d:\test.csv", 
                 x=> r.Add(string.Join(",", x)));
-            Assert.AreEqual(2, r.Count);
-            Assert.AreEqual("1,2", r[0]);
-            Assert.AreEqual("3,4", r[1]);
+            Assert.AreEqual(3, r.Count);
+            Assert.AreEqual("1,2,3,4", r[0]);
+            Assert.AreEqual("2,2,3,4", r[1]);
+            Assert.AreEqual("5,6,7,8", r[2]);
         }
     }
 
@@ -89,6 +85,23 @@ namespace test
             var sql = "insert into a values(1+2*3, 'something' ,'2019-09-01', 50.2, 50);";
             var stmt = RawParser.ParseSQLStatement(sql) as InsertStmt;
             Assert.AreEqual(5, stmt.vals_.Count);
+            sql = "insert into a values(1,2,3,4);";
+            var result = TestHelper.ExecuteSQL(sql);
+            sql = "insert into a select * from a where a1>1;";
+            result = TestHelper.ExecuteSQL(sql);
+            sql = "insert into a select * from b where b1>1;";
+            result = TestHelper.ExecuteSQL(sql);
+        }
+
+        [TestMethod]
+        public void TestCopy()
+        {
+            string filename = @"'d:\test.csv'";
+            var sql = $"copy a from {filename};";
+            var stmt = RawParser.ParseSQLStatement(sql) as CopyStmt;
+            Assert.AreEqual(filename, stmt.fileName_);
+            sql = $"copy a from {filename} where a1 >1;";
+            var result = TestHelper.ExecuteSQL(sql);
         }
     }
 
@@ -375,7 +388,7 @@ namespace test
             stmt.Bind(null);
             stmt.CreatePlan();
             var plan = stmt.Optimize();
-            var answer = @"LogicGet a
+            var answer = @"LogicGetTable a
                                 Output: a.a1[0],a.a1[0]+a.a2[1]
                                 Filter: a.a2[1]>3";
             TestHelper.PlanAssertEqual(answer,  plan.PrintString(0));
@@ -386,10 +399,10 @@ namespace test
             var phyplan = stmt.physicPlan_;
             answer = @"PhysicCrossJoin
                         Output: a.a2[0],a.a3[1],a.a1[2]+b.b2[3]
-                      -> PhysicGet a
+                      -> PhysicGetTable a
                           Output: a.a2[1],a.a3[2],a.a1[0]
                           Filter: a.a1[0]>1
-                      -> PhysicGet b
+                      -> PhysicGetTable b
                           Output: b.b2[1]";
             TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
 
@@ -397,7 +410,7 @@ namespace test
             stmt = RawParser.ParseSQLStatement(sql);
             stmt.Bind(null); stmt.CreatePlan(); stmt.Optimize();
             phyplan = stmt.physicPlan_;
-            answer = @"PhysicGet a
+            answer = @"PhysicGetTable a
                         Output: 1
                         Filter: a.a1[0]>@1
                         <SubLink> 1
@@ -408,15 +421,15 @@ namespace test
                             -> PhysicFilter
                                 Output: c.c2[0]
                                 Filter: c.c2[0]=?b.b2[1]
-                              -> PhysicGet c
+                              -> PhysicGetTable c
                                   Output: c.c2[1]
                             <SubLink> 3
                             -> PhysicFilter
                                 Output: c.c2[0]
                                 Filter: c.c2[0]=?b.b2[1]
-                              -> PhysicGet c
+                              -> PhysicGetTable c
                                   Output: c.c2[1]
-                          -> PhysicGet b
+                          -> PhysicGetTable b
                               Output: b.b1[0],b.b2[1]";
             TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
 
@@ -424,7 +437,7 @@ namespace test
             stmt = RawParser.ParseSQLStatement(sql);
             stmt.Bind(null); stmt.CreatePlan(); stmt.Optimize();
             phyplan = stmt.physicPlan_;
-            answer = @"PhysicGet a
+            answer = @"PhysicGetTable a
                         Output: a.a1[0],#a.a2[1],#a.a3[2]
                         Filter: a.a1[0]=@1
                         <SubLink> 1
@@ -435,9 +448,9 @@ namespace test
                             -> PhysicFilter
                                 Output: b.b1[0]
                                 Filter: b.b3[1]=?a.a3[2] and ?bo.b3[2]=?a.a3[2] and b.b3[1]>3
-                              -> PhysicGet b
+                              -> PhysicGetTable b
                                   Output: b.b1[0],b.b3[2]
-                          -> PhysicGet b as bo
+                          -> PhysicGetTable b as bo
                               Output: bo.b1[0],bo.b2[1],#bo.b3[2]";
             TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
 
@@ -454,13 +467,13 @@ namespace test
                         Filter: a.a1[0]=b.b1[1] and b.b2[2]=c.c2[3]
                         -> PhysicCrossJoin
                             Output: a.a1[2],b.b1[3],b.b2[4],c.c2[0]
-                            -> PhysicGet c
+                            -> PhysicGetTable c
                                 Output: c.c2[1],#c.c3[2]
                             -> PhysicCrossJoin
                                 Output: a.a1[2],b.b1[0],b.b2[1]
-                                -> PhysicGet b
+                                -> PhysicGetTable b
                                     Output: b.b1[0],b.b2[1]
-                                -> PhysicGet a
+                                -> PhysicGetTable a
                                     Output: a.a1[0],#a.a2[1],#a.a3[2]
                                     Filter: a.a1[0]=@1 and a.a2[1]=@3
                                     <SubLink> 1
@@ -471,15 +484,15 @@ namespace test
                                                 -> PhysicFilter
                                                     Output: b.b1[0]
                                                     Filter: b.b3[1]=?a.a3[2] and ?bo.b3[2]=?c.c3[2] and b.b3[1]>1
-                                                    -> PhysicGet b
+                                                    -> PhysicGetTable b
                                                         Output: b.b1[0],b.b3[2]
                                             -> PhysicFromQuery <bo>
                                                 Output: bo.b1[0],bo.b2[1],#bo.b3[2]
                                                 -> PhysicCrossJoin
                                                     Output: b_2.b1[2],b_1.b2[0],b_1.b3[1]
-                                                    -> PhysicGet b as b_1
+                                                    -> PhysicGetTable b as b_1
                                                         Output: b_1.b2[1],b_1.b3[2]
-                                                    -> PhysicGet b as b_2
+                                                    -> PhysicGetTable b as b_2
                                                         Output: b_2.b1[0]
                                     <SubLink> 3
                                         -> PhysicFilter
@@ -489,9 +502,9 @@ namespace test
                                                 -> PhysicFilter
                                                     Output: b.b2[0]
                                                     Filter: b.b4[1]=?a.a3[2]+1 and ?bo.b3[2]=?a.a3[2] and b.b3[2]>0
-                                                    -> PhysicGet b
+                                                    -> PhysicGetTable b
                                                         Output: b.b2[1],b.b4[3],b.b3[2]
-                                            -> PhysicGet b as bo
+                                            -> PhysicGetTable b as bo
                                                 Output: bo.b2[1],bo.b1[0],#bo.b3[2]";
             TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
         }
