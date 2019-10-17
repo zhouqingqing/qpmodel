@@ -15,6 +15,8 @@ namespace adb
         //
         public static void Checks(bool cond) => Debug.Assert(cond);
         public static void Assumes(bool cond) => Debug.Assert(cond);
+        public static void Checks(bool cond, string message) => Debug.Assert(cond, message);
+        public static void Assumes(bool cond, string message) => Debug.Assert(cond, message);
 
         // a contains b?
         public static bool ListAContainsB<T>(List<T> a, List<T> b) => !b.Except(a).Any();

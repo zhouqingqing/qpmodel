@@ -88,6 +88,8 @@ namespace adb
             //var stmt = RawParser.ParseSQLStatement(sql) as InsertStmt;
             //return;
             //sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<3);";
+            sql = "insert into a select * from b where b1>1;";
+            //string filename = @"'d:\test.csv'";            sql = $"copy a from {filename} where a1>1;";
 
         doit:
             Console.WriteLine(sql);

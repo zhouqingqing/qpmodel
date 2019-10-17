@@ -96,8 +96,8 @@ namespace adb
                 PhysicNode phy = null;
                 switch (n)
                 {
-                    case LogicGet ln:
-                        phy = new PhysicGet(ln);
+                    case LogicGetTable ln:
+                        phy = new PhysicGetTable(ln);
                         if (ln.filter_ != null)
                             ExprHelper.SubqueryDirectToPhysic(ln.filter_);
                         break;
@@ -117,6 +117,14 @@ namespace adb
                         if (lf.filter_ != null)
                             ExprHelper.SubqueryDirectToPhysic(lf.filter_);
                         break;
+                    case LogicInsert li:
+                        phy = new PhysicInsert(li, li.children_[0].DirectToPhysical(profiling));
+                        break;
+                    case LogicGetExternal le:
+                        phy = new PhysicGetExternal(le);
+                        break;
+                    default:
+                        throw new NotImplementedException();
                 }
 
                 if (profiling.enabled_)
@@ -309,12 +317,11 @@ namespace adb
         }
     }
 
-    public class LogicGet : LogicNode
-    {
-        public BaseTableRef tabref_;
+    public class LogicGet : LogicNode {
+        public TableRef tabref_;
         public Expr filter_;
 
-        public LogicGet(BaseTableRef tab) => tabref_ = tab;
+        public LogicGet(TableRef tab) => tabref_ = tab;
         public override string ToString() => tabref_.ToString();
         public override string PrintInlineDetails(int depth) => ToString();
         public override string PrintMoreDetails(int depth)
@@ -328,7 +335,6 @@ namespace adb
             }
             return r;
         }
-
         public bool AddFilter(Expr filter)
         {
             if (filter_ is null)
@@ -337,13 +343,13 @@ namespace adb
                 filter_ = new LogicAndExpr(filter_, filter);
             return true;
         }
-
         public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
             // it can be an litral, or only uses my tableref
             reqOutput.ForEach(x =>
             {
-                switch (x) {
+                switch (x)
+                {
                     case LiteralExpr lx:
                     case SubqueryExpr sx:
                         break;
@@ -368,8 +374,35 @@ namespace adb
             output_ = tabref_.AddOuterRefsToOutput(output_);
             return output_;
         }
+        public override List<TableRef> EnumTableRefs() => new List<TableRef> { tabref_ };
+    }
 
-        public override List<TableRef> EnumTableRefs() => new List<TableRef>{tabref_};
+    public class LogicGetTable : LogicGet
+    {
+        public LogicGetTable(BaseTableRef tab) : base(tab) { }
+    }
+
+    public class LogicGetExternal: LogicGet
+    {
+        public string FileName() => (tabref_ as ExternalTableRef).filename_;
+        public LogicGetExternal(ExternalTableRef tab) : base(tab) { }
+    }
+
+    public class LogicInsert : LogicNode {
+        public BaseTableRef tabref_;
+        public LogicInsert(BaseTableRef tab, LogicNode child)
+        {
+            tabref_ = tab;
+            children_.Add(child);
+        }
+        public override string ToString() => tabref_.ToString();
+        public override string PrintInlineDetails(int depth) => ToString();
+
+        public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
+        {
+            children_[0].ResolveChildrenColumns(reqOutput, removeRedundant);
+            return output_;
+        }
     }
 
     public class LogicResult : LogicNode

@@ -31,28 +31,14 @@ namespace adb
         public virtual BindContext Bind(BindContext parent) => null;
         public virtual LogicNode Optimize() => logicPlan_;
         public virtual LogicNode CreatePlan() => logicPlan_;
-    }
 
-    public class CreateTableStmt : SQLStatement {
-        readonly public string tabName_;
-        readonly public List<ColumnDef> cols_;
-        public CreateTableStmt(string tabName, List<ColumnDef> cols, string text) : base(text) {
-            tabName_ = tabName; cols_ = cols;
-            int ord = 0; cols_.ForEach(x => x.ordinal_ = ord++);
-            if (cols.GroupBy(x => x.name_).Count() < cols.Count)
-                throw new SemanticAnalyzeException("duplicated column name");
-        }
-        public override string ToString() => $"{tabName_ }: {string.Join(",", cols_)}";
-    }
-
-    public class InsertStmt : SQLStatement
-    {
-        readonly public string tabName_;
-        readonly public List<string> cols_;
-        readonly public List<Expr> vals_;
-        public InsertStmt(string tabName, List<string> cols, List<Expr> vals, string text) : base(text)
-        {
-            tabName_ = tabName; cols_ = cols; vals_ = vals;
+        public List<Row> Exec() {
+            Bind(null);
+            CreatePlan();
+            Optimize();
+            var result = new PhysicCollect(physicPlan_);
+            result.Exec(new ExecContext(), null);
+            return result.rows_;
         }
     }
 
@@ -118,7 +104,13 @@ namespace adb
                         if (Catalog.systable_.Table(bref.relname_) != null)
                             context.AddTable(bref);
                         else
-                            throw new Exception($@"base table {bref.alias_} not exists");
+                            throw new Exception($@"base table {bref.relname_} not exists");
+                        break;
+                    case ExternalTableRef eref:
+                        if (Catalog.systable_.Table(eref.baseref_.relname_) != null)
+                            context.AddTable(eref);
+                        else
+                            throw new Exception($@"base table {eref.baseref_.relname_} not exists");
                         break;
                     case FromQueryRef sref:
                         sref.query_.Bind(context);
@@ -126,6 +118,8 @@ namespace adb
                         // the subquery itself in from clause can be seen as a new table, so register it here
                         context.AddTable(sref);
                         break;
+                    default:
+                        throw new NotImplementedException();
                 }
             });
         }
@@ -153,7 +147,12 @@ namespace adb
         {
             BindContext context = new BindContext(this, parent);
             parent_ = parent?.stmt_ as SelectStmt;
+            bindContext_ = context;
 
+            return BindWithContext(context);
+        }
+
+        internal BindContext BindWithContext(BindContext context) {
             // bind stage is earlier than plan creation
             Debug.Assert(logicPlan_ == null);
 
@@ -164,7 +163,6 @@ namespace adb
             bindGroupBy(context);
             bindHaving(context);
 
-            bindContext_ = context;
             return context;
         }
 
@@ -174,7 +172,10 @@ namespace adb
             switch (tab)
             {
                 case BaseTableRef bref:
-                    from = new LogicGet(bref);
+                    from = new LogicGetTable(bref);
+                    break;
+                case ExternalTableRef eref:
+                    from = new LogicGetExternal(eref);
                     break;
                 case FromQueryRef sref:
                     from = new LogicFromQuery(sref,
@@ -261,7 +262,7 @@ namespace adb
         {
             return plan.VisitEachNodeExists(n =>
             {
-                if (n is LogicGet nodeGet &&
+                if (n is LogicGetTable nodeGet &&
                     filter.EqualTableRefs(bindContext_, nodeGet.tabref_))
                     return nodeGet.AddFilter(filter);
                 return false;
