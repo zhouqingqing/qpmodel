@@ -1,16 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Diagnostics;
 
 namespace adb
 {
     public class CreateTableStmt : SQLStatement
     {
-        readonly public string tabName_;
-        readonly public List<ColumnDef> cols_;
+        public readonly string tabName_;
+        public readonly List<ColumnDef> cols_;
         public CreateTableStmt(string tabName, List<ColumnDef> cols, string text) : base(text)
         {
             tabName_ = tabName; cols_ = cols;
@@ -23,10 +21,10 @@ namespace adb
 
     public class InsertStmt : SQLStatement
     {
-        readonly public BaseTableRef targetref_;
+        public readonly BaseTableRef targetref_;
         public List<Expr> cols_;
-        readonly public List<Expr> vals_;
-        readonly public SelectStmt select_;
+        public readonly List<Expr> vals_;
+        public readonly SelectStmt select_;
 
         public InsertStmt(BaseTableRef target, List<string> cols, List<Expr> vals, SelectStmt select, string text) : base(text)
         {
@@ -68,10 +66,8 @@ namespace adb
 
         public override LogicNode CreatePlan()
         {
-            if (select_ is null)
-                logicPlan_ = new LogicInsert(targetref_, new LogicResult(vals_));
-            else
-                logicPlan_ =  new LogicInsert(targetref_, select_.CreatePlan());
+            logicPlan_ = select_ is null ? 
+                new LogicInsert(targetref_, new LogicResult(vals_)) : new LogicInsert(targetref_, select_.CreatePlan());
             return logicPlan_;
         }
 
@@ -85,9 +81,9 @@ namespace adb
 
     public class CopyStmt : SQLStatement
     {
-        readonly public BaseTableRef targetref_;
-        readonly public string fileName_;
-        readonly public Expr where_;
+        public readonly BaseTableRef targetref_;
+        public readonly string fileName_;
+        public readonly Expr where_;
 
         internal InsertStmt insert_;
 
@@ -106,8 +102,7 @@ namespace adb
             ExternalTableRef sourcetab = new ExternalTableRef(fileName, targetref, colrefs);
             SelectStmt select = new SelectStmt(new List<Expr>{ new SelStar(null) }, 
                             new List<TableRef> {sourcetab}, where, null, null, null, null, null, text);
-            insert_ = new InsertStmt(targetref, cols, null, select, text);
-            insert_.profileOpt_ = profileOpt_;
+            insert_ = new InsertStmt(targetref, cols, null, select, text) {profileOpt_ = profileOpt_};
         }
 
         public override BindContext Bind(BindContext parent)=> insert_.Bind(parent);

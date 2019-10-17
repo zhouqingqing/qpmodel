@@ -1,14 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.VisualBasic.FileIO;
 using System.Diagnostics;
 
 namespace adb
 {
-    static public class Utils
+    public static class Utils
     {
         // this is shortcut for unhandled conditions - they shall be translated to 
         // related exceptional handling code later

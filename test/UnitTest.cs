@@ -17,7 +17,7 @@ namespace test
             {
                 error_ = null;
 
-                var stmt = RawParser.ParseSQLStatement(sql);
+                var stmt = RawParser.ParseSqlStatement(sql);
                 return stmt.Exec();
             }
             catch (Exception e)
@@ -64,14 +64,14 @@ namespace test
             var sql = "create table a (a1 int, a2 char(10), a3 datetime, a4 numeric(9,2), a4 numeric(9));";
             try
             {
-                var l = RawParser.ParseSQLStatement(sql) as CreateTableStmt;
+                var l = RawParser.ParseSqlStatement(sql) as CreateTableStmt;
             }
             catch (Exception e)
             {
                 Assert.IsTrue(e.Message.Contains("SemanticAnalyzeException"));
             }
             sql = "create table a (a1 int, a2 char(10), a3 datetime, a4 numeric(9,2), a5 numeric(9));";
-            var stmt = RawParser.ParseSQLStatement(sql) as CreateTableStmt;
+            var stmt = RawParser.ParseSqlStatement(sql) as CreateTableStmt;
             Assert.AreEqual(5, stmt.cols_.Count);
         }
     }
@@ -83,7 +83,7 @@ namespace test
         public void TestInsert()
         {
             var sql = "insert into a values(1+2*3, 'something' ,'2019-09-01', 50.2, 50);";
-            var stmt = RawParser.ParseSQLStatement(sql) as InsertStmt;
+            var stmt = RawParser.ParseSqlStatement(sql) as InsertStmt;
             Assert.AreEqual(5, stmt.vals_.Count);
             sql = "insert into a values(1+2,2*3,3,4);";
             var result = TestHelper.ExecuteSQL(sql);
@@ -98,7 +98,7 @@ namespace test
         {
             string filename = @"'d:\test.csv'";
             var sql = $"copy a from {filename};";
-            var stmt = RawParser.ParseSQLStatement(sql) as CopyStmt;
+            var stmt = RawParser.ParseSqlStatement(sql) as CopyStmt;
             Assert.AreEqual(filename, stmt.fileName_);
             sql = $"copy a from {filename} where a1 >1;";
             var result = TestHelper.ExecuteSQL(sql);
@@ -126,7 +126,7 @@ namespace test
             var sql = "with cte1 as (select * from a), cte2 as (select * from b) select a1,a1+a2 from cte1 where a1<6 group by a1, a1+a2 " +
                                 "union select b2, b3 from cte2 where b2 > 3 group by b1, b1+b2 " +
                                 "order by 2, 1 desc";
-            var stmt = RawParser.ParseSQLStatement(sql) as SelectStmt;
+            var stmt = RawParser.ParseSqlStatement(sql) as SelectStmt;
             Assert.AreEqual(2, stmt.ctes_.Count);
             Assert.AreEqual(2, stmt.setqs_.Count);
             Assert.AreEqual(2, stmt.orders_.Count);
@@ -384,7 +384,7 @@ namespace test
         public void TestPushdown()
         {
             string sql = "select a.a1,a.a1+a.a2 from a where a.a2 > 3";
-            var stmt = RawParser.ParseSQLStatement(sql);
+            var stmt = RawParser.ParseSqlStatement(sql);
             stmt.Bind(null);
             stmt.CreatePlan();
             var plan = stmt.Optimize();
@@ -394,7 +394,7 @@ namespace test
             TestHelper.PlanAssertEqual(answer,  plan.PrintString(0));
 
             sql = "select a.a2,a3,a.a1+b2 from a,b where a.a1 > 1";
-            stmt = RawParser.ParseSQLStatement(sql);
+            stmt = RawParser.ParseSqlStatement(sql);
             stmt.Bind(null); stmt.CreatePlan(); stmt.Optimize();
             var phyplan = stmt.physicPlan_;
             answer = @"PhysicCrossJoin
@@ -407,7 +407,7 @@ namespace test
             TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
 
             sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b1 > ((select c2 from c where c.c2=b2)))";
-            stmt = RawParser.ParseSQLStatement(sql);
+            stmt = RawParser.ParseSqlStatement(sql);
             stmt.Bind(null); stmt.CreatePlan(); stmt.Optimize();
             phyplan = stmt.physicPlan_;
             answer = @"PhysicGetTable a
@@ -434,7 +434,7 @@ namespace test
             TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
 
             sql = "select a1  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 3) and b2<3);";
-            stmt = RawParser.ParseSQLStatement(sql);
+            stmt = RawParser.ParseSqlStatement(sql);
             stmt.Bind(null); stmt.CreatePlan(); stmt.Optimize();
             phyplan = stmt.physicPlan_;
             answer = @"PhysicGetTable a
@@ -457,7 +457,7 @@ namespace test
             sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
-            stmt = RawParser.ParseSQLStatement(sql);
+            stmt = RawParser.ParseSqlStatement(sql);
             stmt.Bind(null); stmt.CreatePlan(); stmt.Optimize();
             phyplan = stmt.physicPlan_;
             answer = @"PhysicFilter

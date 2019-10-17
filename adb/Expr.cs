@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Collections;
 using System.Diagnostics;
 
@@ -181,7 +179,7 @@ namespace adb
         // it is a sum of all its children
         //
         public BitArray whichTab_ = new BitArray(256);
-        internal bool bounded_ = false;
+        internal bool bounded_;
 
         public bool EqualTableRefs(BindContext context, TableRef tableRef) {
             Debug.Assert(bounded_);
@@ -311,11 +309,11 @@ namespace adb
     {
         internal string dbName_;
         internal string tabName_;
-        readonly internal string colName_;
+        internal readonly string colName_;
 
         // bound: which column in the input row
         internal TableRef tabRef_;
-        internal bool isOuterRef_ = false;
+        internal bool isOuterRef_;
         internal int ordinal_;
 
         // -- execution section --
@@ -388,7 +386,7 @@ namespace adb
     }
 
     public class FuncExpr : Expr {
-        string func_;
+        readonly string func_;
 
         public FuncExpr(string func) {
             func_ = func;
@@ -513,7 +511,7 @@ namespace adb
 
             if (r is null)
                 return Value.MaxValue;
-             return r.values_[0];
+            return r.values_[0];
         }
     }
 
@@ -529,7 +527,7 @@ namespace adb
 
     public class OrderTerm : Expr {
         public Expr expr_;
-        bool descend_ = false;
+        bool descend_;
 
         public OrderTerm(Expr expr, bool descend) {
             expr_ = expr; descend_ = descend;

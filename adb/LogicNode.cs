@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Diagnostics;
 
 namespace adb
@@ -64,11 +62,11 @@ namespace adb
             return true;
         }
 
-        public void VisitEachNode(Action<PlanNode<T>> callback)
+        public void ForEachNode(Action<PlanNode<T>> callback)
         {
             callback(this);
             foreach (var c in children_)
-                c.VisitEachNode(callback);
+                c.ForEachNode(callback);
         }
     }
 
@@ -91,7 +89,7 @@ namespace adb
         public PhysicNode DirectToPhysical(ProfileOption profiling)
         {
             PhysicNode root = null;
-            VisitEachNode(n =>
+            ForEachNode(n =>
             {
                 PhysicNode phy = null;
                 switch (n)
@@ -337,10 +335,8 @@ namespace adb
         }
         public bool AddFilter(Expr filter)
         {
-            if (filter_ is null)
-                filter_ = filter;
-            else
-                filter_ = new LogicAndExpr(filter_, filter);
+            filter_ = filter_ is null ? filter : 
+                new LogicAndExpr(filter_, filter);
             return true;
         }
         public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)

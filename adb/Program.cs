@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 // profiling with callback mode - not sure if callback is good for profiling
 // output expression by push down from top: a node's output including two parts: 
@@ -89,12 +85,12 @@ namespace adb
             //return;
             //sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<3);";
             sql = "insert into a select * from b where b1>1;";
-            //string filename = @"'d:\test.csv'";            sql = $"copy a from {filename} where a1>1;";
-            sql = "insert into a values(1,2*5,3,4);";
+            string filename = @"'d:\test.csv'";            sql = $"copy a from {filename} where a1>1;";
+            //sql = "insert into a values(1,2*5,3,4);";
 
         doit:
             Console.WriteLine(sql);
-            var a = RawParser.ParseSQLStatement(sql);
+            var a = RawParser.ParseSqlStatement(sql);
 
             // -- Semantic analysis:
             //  - bind the query

@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Antlr4.Runtime;
 using Antlr4.Runtime.Misc;
 using System.Diagnostics;
@@ -10,24 +8,24 @@ using System.Diagnostics;
 namespace adb
 {
     // antlr requires user defined exception with this name
-    public class RuntimeException : System.Exception
+    public class RuntimeException : Exception
     {
         public RuntimeException(string msg) {}
     }
 
-    public class SemanticAnalyzeException: System.Exception
+    public class SemanticAnalyzeException: Exception
     {
         public SemanticAnalyzeException(string ms) { }
     }
 
-    public class SemanticExecutionException : System.Exception
+    public class SemanticExecutionException: Exception
     {
         public SemanticExecutionException(string ms) { }
     }
 
     public class RawParser
     {
-        static public SQLStatement ParseSQLStatement(string sql)
+        public static SQLStatement ParseSqlStatement(string sql)
         {
             AntlrInputStream inputStream = new AntlrInputStream(sql);
             SQLiteLexer sqlLexer = new SQLiteLexer(inputStream);
@@ -171,7 +169,7 @@ namespace adb
         public override object VisitFromSimpleTable([NotNull] SQLiteParser.FromSimpleTableContext context)
             => new BaseTableRef(context.table_name().GetText(), context.table_alias()?.GetText());
         public override object VisitOrdering_term([NotNull] SQLiteParser.Ordering_termContext context)
-            => new OrderTerm(Visit(context.expr()) as Expr, (context.K_DESC() is null) ? false : true);
+            => new OrderTerm(Visit(context.expr()) as Expr, (!(context.K_DESC() is null)));
         public override object VisitFromJoinTable([NotNull] SQLiteParser.FromJoinTableContext context)
             => throw new NotImplementedException();
 
@@ -290,27 +288,27 @@ namespace adb
         public override object VisitType_name([NotNull] SQLiteParser.Type_nameContext context)
         {
             Dictionary<string, DType> nameMap = new Dictionary<string, DType> {
-                {"int", DType.INT4},
-                {"char", DType.CHAR},
-                {"datetime", DType.DATETIME},
-                {"numeric", DType.NUMERIC},
+                {"int", DType.Int4},
+                {"char", DType.Char},
+                {"datetime", DType.Datetime},
+                {"numeric", DType.Numeric},
             };
 
             string typename = context.name(0).GetText().Trim().ToLower();
             DType type = nameMap[typename];
-            if (type == DType.INT4)
+            if (type == DType.Int4)
                 return new IntType();
-            else if (type == DType.DATETIME)
+            else if (type == DType.Datetime)
                 return new DateTimeType();
-            else if (type == DType.CHAR) {
+            else if (type == DType.Char) {
                 var numbers = context.signed_number();
                 Utils.Checks(numbers.Count() == 1);
                 return new CharType(int.Parse(numbers[0].NUMERIC_LITERAL().GetText()));
             }
-            else if (type == DType.NUMERIC)
+            else if (type == DType.Numeric)
             {
                 var numbers = context.signed_number();
-                Utils.Checks(numbers.Count() >= 1 && numbers.Count() <= 2);
+                Utils.Checks(numbers.Any() && numbers.Count() <= 2);
                 int prec = int.Parse(context.signed_number()[0].NUMERIC_LITERAL().GetText());
                 int scale = 0;
                 if (numbers.Count() >1)
@@ -360,7 +358,6 @@ namespace adb
         public override object VisitSql_stmt([NotNull] SQLiteParser.Sql_stmtContext context)
         {
             SQLStatement r = null;
-            bool explain = false;
 
             if (context.select_stmt() != null)
                 r = Visit(context.select_stmt()) as SQLStatement;

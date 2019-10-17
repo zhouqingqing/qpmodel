@@ -1,18 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 using TableColumn = System.Tuple<string, string>;
 
 namespace adb
 {
     public enum DType {
-        INT4,
-        CHAR,
-        DATETIME,
-        NUMERIC
+        Int4,
+        Char,
+        Datetime,
+        Numeric
     }
 
     public class ColumnType {
@@ -23,23 +20,23 @@ namespace adb
 
     public class IntType : ColumnType
     {
-        public IntType() : base(DType.INT4, 4) { }
+        public IntType() : base(DType.Int4, 4) { }
         public override string ToString() => $"int";
     }
     public class DateTimeType : ColumnType
     {
-        public DateTimeType() : base(DType.DATETIME, 8) { }
+        public DateTimeType() : base(DType.Datetime, 8) { }
         public override string ToString() => $"datetime";
     }
     public class CharType : ColumnType
     {
-        public CharType(int len) : base(DType.CHAR, len) { }
+        public CharType(int len) : base(DType.Char, len) { }
         public override string ToString() => $"char({len_})";
     }
     public class NumericType : ColumnType
     {
         public int scale_;
-        public NumericType(int prec, int scale) : base(DType.NUMERIC, prec) => scale_ = scale;
+        public NumericType(int prec, int scale) : base(DType.Numeric, prec) => scale_ = scale;
         public override string ToString() => $"numeric({len_}, {scale_})";
     }
 
@@ -57,7 +54,7 @@ namespace adb
     public class TableDef
     {
         public string name_;
-        public Dictionary<string, ColumnDef> columns_ = new Dictionary<string, ColumnDef>();
+        public Dictionary<string, ColumnDef> columns_;
 
         public TableDef(string tabName, List<ColumnDef> columns) {
             Dictionary<string, ColumnDef> cols = new Dictionary<string, ColumnDef>();
@@ -67,8 +64,7 @@ namespace adb
         }
 
         public ColumnDef GetColumn(string column) {
-            ColumnDef value;
-            columns_.TryGetValue(column, out value);
+            columns_.TryGetValue(column, out var value);
             return value;
         }
     }
@@ -79,7 +75,7 @@ namespace adb
 
     // format: tableName:key, list of <ColName: Key, Column definition>
     class SysTable : SystemTable {
-        Dictionary<string, TableDef> records_ = new Dictionary<string, TableDef>();
+        readonly Dictionary<string, TableDef> records_ = new Dictionary<string, TableDef>();
 
         public void Add(string tabName, List<ColumnDef> columns) {
             records_.Add(tabName, 
@@ -100,7 +96,7 @@ namespace adb
 
     // format: (tableName, colName):key, column stat
     class SysStats : SystemTable {
-        Dictionary<TableColumn, ColumnStat> records_ = new Dictionary<TableColumn, ColumnStat>();
+        readonly Dictionary<TableColumn, ColumnStat> records_ = new Dictionary<TableColumn, ColumnStat>();
 
         public void Add(string tabName, string colName, ColumnStat stat) {
             records_.Add(new TableColumn(tabName, colName), stat);
