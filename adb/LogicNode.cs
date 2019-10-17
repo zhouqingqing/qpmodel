@@ -409,7 +409,6 @@ namespace adb
     {
         public override string ToString()=> string.Join(",", output_);
         public LogicResult(List<Expr> exprs) => output_ = exprs;
-        public override string PrintMoreDetails(int depth) => "Expr: " + ToString();
         public override List<TableRef> EnumTableRefs() => null;
     }
 }
