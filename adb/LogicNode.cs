@@ -10,7 +10,6 @@ namespace adb
         public List<T> children_ = new List<T>();
 
         // print utilities
-        internal string Tabs(int depth) => new string(' ', depth * 2);
         public virtual string PrintOutput(int depth) => null;
         public virtual string PrintInlineDetails(int depth) => null;
         public virtual string PrintMoreDetails(int depth) => null;
@@ -19,7 +18,7 @@ namespace adb
             string r = null;
             if (!(this is PhysicProfiling))
             {
-                r = Tabs(depth);
+                r = Utils.Tabs(depth);
                 if (depth != 0)
                     r += "-> ";
                 r += this.GetType().Name + " " + PrintInlineDetails(depth);
@@ -27,14 +26,14 @@ namespace adb
                     r += $@"  (rows = {(this as PhysicNode).profile_.nrows_})";
                 r += "\n";
                 var details = PrintMoreDetails(depth);
-                r += Tabs(depth + 2) + PrintOutput(depth) + "\n";
+                r += Utils.Tabs(depth + 2) + PrintOutput(depth) + "\n";
                 if (details != null)
                 {
                     // remove the last \n in case the details is a subquery
                     var trailing = "\n";
                     if (details[details.Length - 1] == '\n')
                         trailing = "";
-                    r += Tabs(depth + 2) + details + trailing;
+                    r += Utils.Tabs(depth + 2) + details + trailing;
                 }
 
                 depth += 2;
@@ -286,7 +285,7 @@ namespace adb
             if (groupby_ != null)
                 r += $"Group by: {string.Join(", ", groupby_)}\n";
             if (having_ != null)
-                r += Tabs(depth + 2) + $"Filter: {having_}";
+                r += Utils.Tabs(depth + 2) + $"Filter: {having_}";
             return r;
         }
 

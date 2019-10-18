@@ -82,8 +82,6 @@ namespace adb
 
     public static class ExprHelper
     {
-        internal static string tabs(int depth) => new string(' ', depth * 2);
-
         public static Expr AndListToExpr(List<Expr> andlist)
         {
             Debug.Assert(andlist.Count >= 1);
@@ -136,7 +134,7 @@ namespace adb
                 {
                     if (x is SubqueryExpr sx)
                     {
-                        r += tabs(depth + 2) + $"<SubLink> {sx.subqueryid_}\n";
+                        r += Utils.Tabs(depth + 2) + $"<SubLink> {sx.subqueryid_}\n";
                         Debug.Assert(sx.query_.bindContext_ != null);
                         if (sx.query_.physicPlan_ != null)
                             r += $"{sx.query_.physicPlan_.PrintString(depth + 4)}";
