@@ -67,7 +67,8 @@ namespace adb
         public override LogicNode CreatePlan()
         {
             logicPlan_ = select_ is null ? 
-                new LogicInsert(targetref_, new LogicResult(vals_)) : new LogicInsert(targetref_, select_.CreatePlan());
+                new LogicInsert(targetref_, new LogicResult(vals_)) : 
+                new LogicInsert(targetref_, select_.CreatePlan());
             return logicPlan_;
         }
 

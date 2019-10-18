@@ -261,7 +261,7 @@ namespace adb
     // To avoid confusion, we implment Expand() instead of Bind().
     //
     public class SelStar : Expr {
-        readonly internal string tabAlias_;
+        internal readonly string tabAlias_;
 
         public SelStar(string tabAlias) => tabAlias_ = tabAlias;
         public override string ToString() => tabAlias_ + ".*";
@@ -307,14 +307,15 @@ namespace adb
     //
     public class ColExpr : Expr
     {
+        // parse info
         internal string dbName_;
         internal string tabName_;
         internal readonly string colName_;
 
-        // bound: which column in the input row
+        // bound info
         internal TableRef tabRef_;
-        internal bool isOuterRef_;
-        internal int ordinal_;
+        internal bool isOuterRef_;      
+        internal int ordinal_;          // which column in children's output
 
         // -- execution section --
 
@@ -343,7 +344,6 @@ namespace adb
                     {
                         // we are actually switch the context to parent, whichTab_ is not right ...
                         isOuterRef_ = true;
-                        (context.stmt_ as SelectStmt).hasOuterRef_ = true;
                         tabRef_.outerrefs_.Add(this);
                         context = parent;
                         break;
