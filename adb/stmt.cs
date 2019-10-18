@@ -296,7 +296,7 @@ namespace adb
                             return nodeGet.AddFilter(filter);
                         return false;
                     });
-                case 2:
+                default:
                     // Consider 
                     // - filter1: a.a1 = c.c1
                     // - filter2: a.a2 = b.b2
@@ -315,9 +315,6 @@ namespace adb
                     });
             }
 
-            // what if a.a1+b.b1+c.c3 = 3? This is normal case, and 
-            // let's keep them on top filter. 
-            //
             return false;
         }
 
