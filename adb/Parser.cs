@@ -15,12 +15,12 @@ namespace adb
 
     public class SemanticAnalyzeException: Exception
     {
-        public SemanticAnalyzeException(string ms) { }
+        public SemanticAnalyzeException(string msg) { }
     }
 
     public class SemanticExecutionException: Exception
     {
-        public SemanticExecutionException(string ms) { }
+        public SemanticExecutionException(string msg) { }
     }
 
     public class RawParser

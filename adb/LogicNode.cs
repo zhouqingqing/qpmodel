@@ -304,13 +304,13 @@ namespace adb
             var query = queryRef_.query_;
             var childout = query.logicPlan_.ResolveChildrenColumns(query.selection_);
             output_.AddRange(CloneFixColumnOrdinal(true, reqOutput, childout));
-            if (removeRedundant)
-                output_ = output_.Distinct().ToList();
 
             // finally, consider outerref to this table: if it is not there, add it. We can't
             // simply remove redundant because we have to respect removeRedundant flag
             //
             output_ = queryRef_.AddOuterRefsToOutput(output_);
+            if (removeRedundant)
+                output_ = output_.Distinct().ToList();
             return output_;
         }
     }
@@ -361,13 +361,13 @@ namespace adb
 
             output_.AddRange(reqOutput);
             output_ = CloneFixColumnOrdinal(true, output_, tabref_.AllColumnsRefs());
-            if (removeRedundant)
-                output_ = output_.Distinct().ToList();
 
             // finally, consider outerref to this table: if it is not there, add it. We can't
             // simply remove redundant because we have to respect removeRedundant flag
             //
             output_ = tabref_.AddOuterRefsToOutput(output_);
+            if (removeRedundant)
+                output_ = output_.Distinct().ToList();
             return output_;
         }
         public override List<TableRef> EnumTableRefs() => new List<TableRef> { tabref_ };

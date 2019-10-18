@@ -63,9 +63,8 @@ namespace adb
         public readonly List<OrderTerm> orders_;
 
         // details of outerrefs are recorded in referenced TableRef
-        internal bool hasOuterRef_ = false;
-
         internal SelectStmt parent_;
+
         internal SelectStmt TopStmt() {
             var top = this;
             while (top.parent_ != null)

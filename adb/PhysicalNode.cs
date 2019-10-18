@@ -219,7 +219,7 @@ namespace adb
 
     public class PhysicCollect : PhysicNode
     {
-        readonly public List<Row> rows_ = new List<Row>();
+        public readonly List<Row> rows_ = new List<Row>();
 
         public PhysicCollect(PhysicNode child) : base(null) => children_.Add(child);
         public override void Exec(ExecContext context, Func<Row, string> callback)
