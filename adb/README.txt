@@ -25,7 +25,7 @@ Known issues:
 	The only difference is the table order in FROM clause. first query works but not second because of table 'c' is outerref'ed as c3<5.
 	Try this with  set join_collapse_limit = 1 - you shall see 'c' always show up before its outerref.
 
-2. naming check
+2. naming matching
 
-	current naming check ignores table or alias in most places, assuming table have different column names/alias
+	Current naming matching ignores table or alias in most places, assuming table have different column names/alias. 
 

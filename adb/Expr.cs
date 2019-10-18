@@ -38,7 +38,13 @@ namespace adb
         public void AddTable(TableRef tab) => boundFrom_.Add(boundFrom_.Count, tab);
         public List<TableRef> AllTableRefs() => boundFrom_.Values.ToList();
         public TableRef Table(string alias) => boundFrom_.Values.FirstOrDefault(x => x.alias_.Equals(alias));
-        public int TableIndex(string alias) => boundFrom_.Where(x => x.Value.alias_.Equals(alias))?.First().Key ?? -1;
+        public int TableIndex(string alias)
+        {
+            var pair = boundFrom_.FirstOrDefault(x => x.Value.alias_.Equals(alias));
+            if (default(KeyValuePair<int, TableRef>).Equals(pair))
+                return -1;
+            return pair.Key;
+        }
 
         // column APIs
         //
@@ -134,7 +140,7 @@ namespace adb
                 {
                     if (x is SubqueryExpr sx)
                     {
-                        r += Utils.Tabs(depth + 2) + $"<SubLink> {sx.subqueryid_}\n";
+                        r += Utils.Tabs(depth + 2) + $"<{sx.GetType().Name}> {sx.subqueryid_}\n";
                         Debug.Assert(sx.query_.bindContext_ != null);
                         if (sx.query_.physicPlan_ != null)
                             r += $"{sx.query_.physicPlan_.PrintString(depth + 4)}";
@@ -185,16 +191,24 @@ namespace adb
         // it is a sum of all its children
         //
         public BitArray whichTab_ = new BitArray(256);
+        public BitArray whichTabExternal_ = new BitArray(256);
         internal bool bounded_;
 
         public bool EqualTableRefs(BindContext context, TableRef tableRef)
         {
             Debug.Assert(bounded_);
 
-            // the expression shall access only one table
-            if (whichTab_.OfType<bool>().Count(e => e) != 1)
+            var tabcount = whichTab_.OfType<bool>().Count(e => e);
+
+            // this is a pure external expr. Eg. ?a.a1=?b.b2
+            if (tabcount == 0)
+                return true;
+
+            // the expression (not counting externalref) shall access only one table
+            if (tabcount > 1)
                 return false;
 
+            // make sure it is local?
             int tindex = context.TableIndex(tableRef.alias_);
             if (tindex != -1 && whichTab_.Get(tindex))
                 return true;
@@ -241,6 +255,7 @@ namespace adb
             }
         }
 
+        // TODO: this is kinda redundant, since this check does not save us any time
         public bool HasSubQuery() => VisitEachExprExists(e => e is SubqueryExpr);
         public bool IsConst()
         {
@@ -372,7 +387,10 @@ namespace adb
             Debug.Assert(tabRef_ != null);
             if (tabName_ is null)
                 tabName_ = tabRef_.alias_;
-            whichTab_.Set(context.TableIndex(tabName_), true);
+            if (isOuterRef_)
+                whichTabExternal_.Set(context.TableIndex(tabName_), true);
+            else
+                whichTab_.Set(context.TableIndex(tabName_), true);
             ordinal_ = context.ColumnOrdinal(tabName_, colName_);
             bounded_ = true;
         }
@@ -440,6 +458,7 @@ namespace adb
             r_.Bind(context);
 
             whichTab_ = (l_.whichTab_.Clone() as BitArray).Or(r_.whichTab_);
+            whichTabExternal_ = (l_.whichTabExternal_.Clone() as BitArray).Or(r_.whichTabExternal_);
             bounded_ = true;
         }
 
@@ -537,13 +556,13 @@ namespace adb
         }
     }
 
-    public class CTExpr : Expr
+    public class CteExpr : Expr
     {
         public string tabName_;
         public List<string> colNames_;
         public SQLStatement query_;
 
-        public CTExpr(string tabName, List<string> colNames, SQLStatement query)
+        public CteExpr(string tabName, List<string> colNames, SQLStatement query)
         {
             tabName_ = tabName; colNames_ = colNames; query_ = query;
         }

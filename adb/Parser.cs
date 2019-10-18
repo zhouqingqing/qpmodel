@@ -263,16 +263,16 @@ namespace adb
                 colNames = new List<string>();
                 Array.ForEach(context.column_name(), x => colNames.Add(x.GetText()));
             }
-            return new CTExpr(context.table_name().GetText(), colNames, Visit(context.select_stmt()) as SQLStatement);
+            return new CteExpr(context.table_name().GetText(), colNames, Visit(context.select_stmt()) as SQLStatement);
         }
 
         public override object VisitSelect_stmt([NotNull] SQLiteParser.Select_stmtContext context)
         {
-            List<CTExpr> ctes = null;
+            List<CteExpr> ctes = null;
             if (context.K_WITH() != null)
             {
-                ctes = new List<CTExpr>();
-                Array.ForEach(context.common_table_expression(), x => ctes.Add(VisitCommon_table_expression(x) as CTExpr));
+                ctes = new List<CteExpr>();
+                Array.ForEach(context.common_table_expression(), x => ctes.Add(VisitCommon_table_expression(x) as CteExpr));
             }
 
             var setqs = new List<SelectStmt>();
