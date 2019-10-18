@@ -109,8 +109,8 @@ namespace adb
                         if (ln.filter_ != null)
                             ExprHelper.SubqueryDirectToPhysic(ln.filter_);
                         break;
-                    case LogicCrossJoin lc:
-                        phy = new PhysicCrossJoin(lc,
+                    case LogicJoin lc:
+                        phy = new PhysicNLJoin(lc,
                             lc.children_[0].DirectToPhysical(profiling),
                             lc.children_[1].DirectToPhysical(profiling));
                         break;
@@ -145,10 +145,10 @@ namespace adb
             return root;
         }
 
-        public virtual List<TableRef> EnumTableRefs()
+        public virtual List<TableRef> InclusiveTableRefs()
         {
             List<TableRef> refs = new List<TableRef>();
-            children_.ForEach(x => refs.AddRange(x.EnumTableRefs()));
+            children_.ForEach(x => refs.AddRange(x.InclusiveTableRefs()));
             return refs;
         }
 
@@ -199,11 +199,12 @@ namespace adb
         }
     }
 
-    public class LogicCrossJoin : LogicNode
+    public class LogicJoin : LogicNode
     {
         internal Expr filter_;
 
-        public LogicCrossJoin(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
+        public LogicJoin(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
+        public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
 
         public bool AddFilter(Expr filter)
         {
@@ -211,14 +212,32 @@ namespace adb
                 new LogicAndExpr(filter_, filter);
             return true;
         }
+
+        public List<TableRef> InclusiveTableRefs()
+        {
+            List<TableRef> refs = new List<TableRef>();
+            ForEachNode(x =>
+            {
+                if (x is LogicGetTable gx)
+                    refs.Add(gx.tabref_);
+                else if (x is LogicFromQuery fx)
+                    refs.Add(fx.queryRef_);
+            });
+            return refs;
+        }
         public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
+            // request from child including reqOutput and filter
+            List<Expr> reqFromChild = new List<Expr>(reqOutput);
+            if (filter_ != null)
+                reqFromChild.Add(filter_);
+
             // push to left and right: to which side depends on the TableRef it contains
-            var ltables = children_[0].EnumTableRefs();
-            var rtables = children_[1].EnumTableRefs();
+            var ltables = children_[0].InclusiveTableRefs();
+            var rtables = children_[1].InclusiveTableRefs();
             var lreq = new HashSet<Expr>();
             var rreq = new HashSet<Expr>();
-            foreach (var v in reqOutput)
+            foreach (var v in reqFromChild)
             {
                 var tables = ExprHelper.AllTableRef(v);
 
@@ -250,6 +269,8 @@ namespace adb
 
             // assuming left output first followed with right output
             var childrenout = lout.ToList(); childrenout.AddRange(rout.ToList());
+            if (filter_ != null)
+                filter_ = CloneFixColumnOrdinal(filter_, childrenout);
             output_ = CloneFixColumnOrdinal(reqOutput, childrenout);
             if (removeRedundant)
                 output_ = output_.Distinct().ToList();
@@ -315,7 +336,7 @@ namespace adb
         public override string PrintInlineDetails(int depth) => $"<{queryRef_.alias_}>";
         public LogicFromQuery(FromQueryRef query, LogicNode child) { queryRef_ = query; children_.Add(child); }
 
-        public override List<TableRef> EnumTableRefs() => queryRef_.query_.bindContext_.AllTableRefs();
+        public override List<TableRef> InclusiveTableRefs() => queryRef_.query_.bindContext_.AllTableRefs();
         public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
             var query = queryRef_.query_;
@@ -376,7 +397,7 @@ namespace adb
                 output_ = output_.Distinct().ToList();
             return output_;
         }
-        public override List<TableRef> EnumTableRefs() => new List<TableRef> { tabref_ };
+        public override List<TableRef> InclusiveTableRefs() => new List<TableRef> { tabref_ };
     }
 
     public class LogicGetTable : LogicGet<BaseTableRef>
@@ -412,6 +433,6 @@ namespace adb
     {
         public override string ToString() => string.Join(",", output_);
         public LogicResult(List<Expr> exprs) => output_ = exprs;
-        public override List<TableRef> EnumTableRefs() => null;
+        public override List<TableRef> InclusiveTableRefs() => null;
     }
 }

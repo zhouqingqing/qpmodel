@@ -216,7 +216,7 @@ namespace adb
 
             if (from_.Count >= 2)
             {
-                var join = new LogicCrossJoin(null, null);
+                var join = new LogicJoin(null, null);
                 var children = join.children_;
                 from_.ForEach(x =>
                 {
@@ -225,7 +225,7 @@ namespace adb
                         children[0] = from;
                     else
                         children[1] = (children[1] is null) ? from :
-                                        new LogicCrossJoin(from, children[1]);
+                                        new LogicJoin(from, children[1]);
                 });
                 root = join;
             }
@@ -279,13 +279,46 @@ namespace adb
 
         bool pushdownATableFilter(LogicNode plan, Expr filter)
         {
-            return plan.VisitEachNodeExists(n =>
+            switch (filter.TableRefCount())
             {
-                if (n is LogicGetTable nodeGet &&
-                    filter.EqualTableRefs(bindContext_, nodeGet.tabref_))
-                    return nodeGet.AddFilter(filter);
-                return false;
-            });
+                case 0:
+                    return plan.VisitEachNodeExists(n =>
+                    {
+                        if (n is LogicGetTable nodeGet)
+                            return nodeGet.AddFilter(filter);
+                        return false;
+                    });
+                case 1:
+                    return plan.VisitEachNodeExists(n =>
+                    {
+                        if (n is LogicGetTable nodeGet &&
+                            filter.EqualTableRef(nodeGet.tabref_))
+                            return nodeGet.AddFilter(filter);
+                        return false;
+                    });
+                case 2:
+                    // Consider 
+                    // - filter1: a.a1 = c.c1
+                    // - filter2: a.a2 = b.b2
+                    // - nodeJoin: (A X B) X C
+                    // filter2 can be pushed to A X B but filter1 has to stay on top join for current plan.
+                    // if we consider we can reorder join to (A X C) X B, then filter1 can be pushed down
+                    // but not filter1. Current stage is too early fro this purpose since join reordering
+                    // is happened later. So we only do best efforts here only.
+                    //
+                    return plan.VisitEachNodeExists(n => 
+                    {
+                        if (n is LogicJoin nodeJoin &&
+                            filter.EqualTableRefs(nodeJoin.InclusiveTableRefs()))
+                            return nodeJoin.AddFilter(filter);
+                        return false;
+                    });
+            }
+
+            // what if a.a1+b.b1+c.c3 = 3? This is normal case, and 
+            // let's keep them on top filter. 
+            //
+            return false;
         }
 
         public override LogicNode Optimize()
