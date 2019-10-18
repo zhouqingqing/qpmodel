@@ -1,9 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
-
+using System.Linq;
 using Value = System.Int64;
 
 namespace adb
@@ -12,7 +11,8 @@ namespace adb
     //  - tablerefs, so we can lookup column names
     //  - parent bind context (if it is a subquery)
     // 
-    public class BindContext {
+    public class BindContext
+    {
         // number of subqueries in the whole query
         internal static int globalSubqCounter_;
 
@@ -23,9 +23,10 @@ namespace adb
         internal readonly SQLStatement stmt_;
 
         // parent bind context - non-null for subquery only
-        internal readonly BindContext parent_; 
+        internal readonly BindContext parent_;
 
-        public BindContext(SQLStatement current, BindContext parent) {
+        public BindContext(SQLStatement current, BindContext parent)
+        {
             stmt_ = current;
             parent_ = parent;
             if (parent is null)
@@ -41,9 +42,9 @@ namespace adb
 
         // column APIs
         //
-        TableRef locateByColumnName (string colAlias)
+        TableRef locateByColumnName(string colAlias)
         {
-            var result  = AllTableRefs().FirstOrDefault(x => x.LocateColumn(colAlias) != null);
+            var result = AllTableRefs().FirstOrDefault(x => x.LocateColumn(colAlias) != null);
             if (result != AllTableRefs().LastOrDefault(x => x.LocateColumn(colAlias) != null))
                 throw new SemanticAnalyzeException("ambigous column name");
             return result;
@@ -51,11 +52,12 @@ namespace adb
         public TableRef GetTableRef(string tabAlias, string colAlias)
         {
             if (tabAlias is null)
-                return locateByColumnName(colAlias); 
+                return locateByColumnName(colAlias);
             else
                 return Table(tabAlias);
         }
-        public int ColumnOrdinal(string tabAlias, string colAlias) {
+        public int ColumnOrdinal(string tabAlias, string colAlias)
+        {
             int r = -1;
             var lc = Table(tabAlias).AllColumnsRefs();
             for (int i = 0; i < lc.Count; i++)
@@ -67,7 +69,8 @@ namespace adb
                 }
             }
 
-            if (Table(tabAlias) is BaseTableRef bt) {
+            if (Table(tabAlias) is BaseTableRef bt)
+            {
                 Debug.Assert(r == Catalog.systable_.Column(bt.relname_, colAlias).ordinal_);
             }
 
@@ -77,7 +80,8 @@ namespace adb
         }
     }
 
-    public static class ExprHelper {
+    public static class ExprHelper
+    {
         internal static string tabs(int depth) => new string(' ', depth * 2);
 
         public static Expr AndListToExpr(List<Expr> andlist)
@@ -94,9 +98,11 @@ namespace adb
             }
         }
 
-        public static List<ColExpr> AllColExpr(Expr expr, bool includingParameters) {
+        public static List<ColExpr> AllColExpr(Expr expr, bool includingParameters)
+        {
             var list = new HashSet<ColExpr>();
-            expr.VisitEachExpr(x => {
+            expr.VisitEachExpr(x =>
+            {
                 if (x is ColExpr xc)
                 {
                     if (includingParameters || !xc.isOuterRef_)
@@ -110,7 +116,8 @@ namespace adb
         public static List<TableRef> AllTableRef(Expr expr)
         {
             var list = new HashSet<TableRef>();
-            expr.VisitEachExpr(x => {
+            expr.VisitEachExpr(x =>
+            {
                 if (x is ColExpr xc)
                     list.Add(xc.tabRef_);
             });
@@ -118,7 +125,8 @@ namespace adb
             return list.ToList();
         }
 
-        public static string PrintExprWithSubqueryExpanded(Expr expr, int depth) {
+        public static string PrintExprWithSubqueryExpanded(Expr expr, int depth)
+        {
             string r = "";
             // append the subquery plan align with expr
             if (expr.HasSubQuery())
@@ -181,7 +189,8 @@ namespace adb
         public BitArray whichTab_ = new BitArray(256);
         internal bool bounded_;
 
-        public bool EqualTableRefs(BindContext context, TableRef tableRef) {
+        public bool EqualTableRefs(BindContext context, TableRef tableRef)
+        {
             Debug.Assert(bounded_);
 
             // the expression shall access only one table
@@ -197,13 +206,17 @@ namespace adb
         // this one uses c# reflection
         // Similar to PlanNode.VisitEachNodeExists()
         //
-        public bool VisitEachExprExists(Func<Expr, bool> callback) {
+        public bool VisitEachExprExists(Func<Expr, bool> callback)
+        {
             bool r = callback(this);
 
-            if (!r) {
+            if (!r)
+            {
                 var members = GetType().GetFields();
-                foreach (var v in members) {
-                    if (v.FieldType == typeof(Expr)) {
+                foreach (var v in members)
+                {
+                    if (v.FieldType == typeof(Expr))
+                    {
                         var m = v.GetValue(this) as Expr;
                         if (m.VisitEachExprExists(callback))
                             return true;
@@ -230,9 +243,11 @@ namespace adb
             }
         }
 
-        public bool HasSubQuery() =>  VisitEachExprExists(e => e is SubqueryExpr);
-        public bool IsConst() {
-            return !VisitEachExprExists(e => {
+        public bool HasSubQuery() => VisitEachExprExists(e => e is SubqueryExpr);
+        public bool IsConst()
+        {
+            return !VisitEachExprExists(e =>
+            {
                 // meaning has non-constantable (or we don't want to waste time try 
                 // to figure out if they are constant, say 'select 1' or sin(2))
                 //
@@ -260,7 +275,8 @@ namespace adb
     // Represents "*" or "table.*" - it is not in the tree after Bind(). 
     // To avoid confusion, we implment Expand() instead of Bind().
     //
-    public class SelStar : Expr {
+    public class SelStar : Expr
+    {
         internal readonly string tabAlias_;
 
         public SelStar(string tabAlias) => tabAlias_ = tabAlias;
@@ -274,7 +290,8 @@ namespace adb
             if (tabAlias_ is null)
             {
                 // *
-                context.AllTableRefs().ForEach(x => {
+                context.AllTableRefs().ForEach(x =>
+                {
                     // subquery's shall be bounded already, and only * from basetable 
                     // are not bounded. We don't have to differentitate them, but I 
                     // just try to be strict.
@@ -285,7 +302,8 @@ namespace adb
                         unbounds.AddRange(x.AllColumnsRefs());
                 });
             }
-            else {
+            else
+            {
                 // table.* - you have to find it in current context
                 var x = context.Table(tabAlias_);
                 if (x is FromQueryRef)
@@ -314,7 +332,7 @@ namespace adb
 
         // bound info
         internal TableRef tabRef_;
-        internal bool isOuterRef_;      
+        internal bool isOuterRef_;
         internal int ordinal_;          // which column in children's output
 
         // -- execution section --
@@ -385,10 +403,12 @@ namespace adb
         }
     }
 
-    public class FuncExpr : Expr {
+    public class FuncExpr : Expr
+    {
         readonly string func_;
 
-        public FuncExpr(string func) {
+        public FuncExpr(string func)
+        {
             func_ = func;
         }
 
@@ -415,7 +435,7 @@ namespace adb
         {
             l_ = l; r_ = r; op_ = op;
         }
-		
+
         public override void Bind(BindContext context)
         {
             l_.Bind(context);
@@ -429,7 +449,8 @@ namespace adb
 
         public override Value Exec(ExecContext context, Row input)
         {
-            switch (op_) {
+            switch (op_)
+            {
                 case "+": return l_.Exec(context, input) + r_.Exec(context, input);
                 case "-": return l_.Exec(context, input) - r_.Exec(context, input);
                 case "*": return l_.Exec(context, input) * r_.Exec(context, input);
@@ -438,7 +459,7 @@ namespace adb
                 case ">=": return l_.Exec(context, input) >= r_.Exec(context, input) ? 1 : 0;
                 case "<": return l_.Exec(context, input) < r_.Exec(context, input) ? 1 : 0;
                 case "<=": return l_.Exec(context, input) <= r_.Exec(context, input) ? 1 : 0;
-                case "=": return l_.Exec(context, input) == r_.Exec(context, input) ?1:0;
+                case "=": return l_.Exec(context, input) == r_.Exec(context, input) ? 1 : 0;
                 default:
                     throw new NotImplementedException();
             }
@@ -459,7 +480,8 @@ namespace adb
             return 0;
         }
 
-        internal List<Expr> BreakToList() {
+        internal List<Expr> BreakToList()
+        {
             var andlist = new List<Expr>();
             for (int i = 0; i < 2; i++)
             {
@@ -474,17 +496,18 @@ namespace adb
         }
     }
 
-    public class SubqueryExpr : Expr {
+    public class SubqueryExpr : Expr
+    {
         public SelectStmt query_;
         public int subqueryid_; // bound
 
         public SubqueryExpr(SelectStmt query) { query_ = query; }
         // don't print the subquery here, it shall be printed by up caller layer for pretty format
-        public override string ToString() => $@"@{subqueryid_}";  
+        public override string ToString() => $@"@{subqueryid_}";
 
         public override void Bind(BindContext context)
         {
-        	// subquery id is global, so accumulating at top
+            // subquery id is global, so accumulating at top
             subqueryid_ = ++BindContext.globalSubqCounter_;
 
             // query will use a new query context inside
@@ -501,7 +524,8 @@ namespace adb
         public override Value Exec(ExecContext context, Row input)
         {
             Row r = null;
-            query_.physicPlan_.Exec(context, l => {
+            query_.physicPlan_.Exec(context, l =>
+            {
                 if (r is null)
                     r = l;
                 else
@@ -515,21 +539,25 @@ namespace adb
         }
     }
 
-    public class CTExpr : Expr {
+    public class CTExpr : Expr
+    {
         public string tabName_;
         public List<string> colNames_;
         public SQLStatement query_;
 
-        public CTExpr(string tabName, List<string> colNames, SQLStatement query) {
+        public CTExpr(string tabName, List<string> colNames, SQLStatement query)
+        {
             tabName_ = tabName; colNames_ = colNames; query_ = query;
         }
     }
 
-    public class OrderTerm : Expr {
+    public class OrderTerm : Expr
+    {
         public Expr expr_;
         bool descend_;
 
-        public OrderTerm(Expr expr, bool descend) {
+        public OrderTerm(Expr expr, bool descend)
+        {
             expr_ = expr; descend_ = descend;
         }
     }

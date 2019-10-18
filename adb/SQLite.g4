@@ -28,6 +28,9 @@
  *                https://github.com/bkiers/sqlite-parser
  * Developed by : Bart Kiers, bart@big-o.nl
  */
+ /*
+  * Further modified and simplified by moi
+  */
 grammar SQLite;
 
 parse

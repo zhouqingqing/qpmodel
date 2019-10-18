@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Diagnostics;
+using System.Linq;
 
 namespace adb
 {
@@ -28,7 +28,7 @@ namespace adb
 
         public InsertStmt(BaseTableRef target, List<string> cols, List<Expr> vals, SelectStmt select, string text) : base(text)
         {
-            targetref_  = target; cols_ = null; vals_ = vals; select_ = select;
+            targetref_ = target; cols_ = null; vals_ = vals; select_ = select;
         }
         void bindSelectStmt(BindContext context) => select_?.BindWithContext(context);
         public override BindContext Bind(BindContext parent)
@@ -44,7 +44,8 @@ namespace adb
 
             // use selectstmt's target list is not given
             Utils.Assumes(cols_ is null);
-            if (select_ is null) {
+            if (select_ is null)
+            {
                 if (cols_ is null)
                     cols_ = targetref_.AllColumnsRefs();
                 if (vals_.Count != cols_.Count)
@@ -66,8 +67,8 @@ namespace adb
 
         public override LogicNode CreatePlan()
         {
-            logicPlan_ = select_ is null ? 
-                new LogicInsert(targetref_, new LogicResult(vals_)) : 
+            logicPlan_ = select_ is null ?
+                new LogicInsert(targetref_, new LogicResult(vals_)) :
                 new LogicInsert(targetref_, select_.CreatePlan());
             return logicPlan_;
         }
@@ -101,13 +102,13 @@ namespace adb
             if (cols is null)
                 colrefs = targetref.AllColumnsRefs();
             ExternalTableRef sourcetab = new ExternalTableRef(fileName, targetref, colrefs);
-            SelectStmt select = new SelectStmt(new List<Expr>{ new SelStar(null) }, 
-                            new List<TableRef> {sourcetab}, where, null, null, null, null, null, text);
-            insert_ = new InsertStmt(targetref, cols, null, select, text) {profileOpt_ = profileOpt_};
+            SelectStmt select = new SelectStmt(new List<Expr> { new SelStar(null) },
+                            new List<TableRef> { sourcetab }, where, null, null, null, null, null, text);
+            insert_ = new InsertStmt(targetref, cols, null, select, text) { profileOpt_ = profileOpt_ };
         }
 
-        public override BindContext Bind(BindContext parent)=> insert_.Bind(parent);
-        public override LogicNode CreatePlan() =>insert_.CreatePlan();
+        public override BindContext Bind(BindContext parent) => insert_.Bind(parent);
+        public override LogicNode CreatePlan() => insert_.CreatePlan();
         public override LogicNode Optimize()
         {
             logicPlan_ = insert_.Optimize();

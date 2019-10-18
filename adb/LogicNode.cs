@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Diagnostics;
+using System.Linq;
 
 namespace adb
 {
@@ -10,7 +10,7 @@ namespace adb
         public List<T> children_ = new List<T>();
 
         // print utilities
-        internal string tabs(int depth) => new string(' ', depth * 2);
+        internal string Tabs(int depth) => new string(' ', depth * 2);
         public virtual string PrintOutput(int depth) => null;
         public virtual string PrintInlineDetails(int depth) => null;
         public virtual string PrintMoreDetails(int depth) => null;
@@ -19,7 +19,7 @@ namespace adb
             string r = null;
             if (!(this is PhysicProfiling))
             {
-                r = tabs(depth);
+                r = Tabs(depth);
                 if (depth != 0)
                     r += "-> ";
                 r += this.GetType().Name + " " + PrintInlineDetails(depth);
@@ -27,14 +27,14 @@ namespace adb
                     r += $@"  (rows = {(this as PhysicNode).profile_.nrows_})";
                 r += "\n";
                 var details = PrintMoreDetails(depth);
-                r += tabs(depth + 2) + PrintOutput(depth) + "\n";
+                r += Tabs(depth + 2) + PrintOutput(depth) + "\n";
                 if (details != null)
                 {
                     // remove the last \n in case the details is a subquery
                     var trailing = "\n";
                     if (details[details.Length - 1] == '\n')
                         trailing = "";
-                    r += tabs(depth + 2) + details + trailing;
+                    r += Tabs(depth + 2) + details + trailing;
                 }
 
                 depth += 2;
@@ -44,24 +44,22 @@ namespace adb
             return r;
         }
 
-        // traversal pattern EXISTS pattern
+        // traversal pattern EXISTS
         //  if any visit returns a true, stop recursion. So if you want to
         //  visit all nodes, your callback shall always return false
         //
         public bool VisitEachNodeExists(Func<PlanNode<T>, bool> callback)
         {
-            bool r = callback(this);
+            if (callback(this))
+                return true;
 
-            if (!r)
-            {
-                foreach (var c in children_)
-                    if (c.VisitEachNodeExists(callback))
-                        return true;
-                return false;
-            }
-            return true;
+            foreach (var c in children_)
+                if (c.VisitEachNodeExists(callback))
+                    return true;
+            return false;
         }
 
+        // traversal pattern FOR EACH
         public void ForEachNode(Action<PlanNode<T>> callback)
         {
             callback(this);
@@ -70,7 +68,8 @@ namespace adb
         }
     }
 
-    public class ProfileOption {
+    public class ProfileOption
+    {
         internal bool enabled_ = false;
     }
 
@@ -135,7 +134,8 @@ namespace adb
             return root;
         }
 
-        public virtual List<TableRef> EnumTableRefs() {
+        public virtual List<TableRef> EnumTableRefs()
+        {
             List<TableRef> refs = new List<TableRef>();
             children_.ForEach(x => refs.AddRange(x.EnumTableRefs()));
             return refs;
@@ -147,15 +147,17 @@ namespace adb
         // 3. find mapping from children's output
         //
         public virtual List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true) => null;
-        internal void ClearOutput() {
+        internal void ClearOutput()
+        {
             output_ = new List<Expr>();
             children_.ForEach(x => x.ClearOutput());
         }
 
-        internal Expr CloneFixColumnOrdinal(bool ignoreTable, Expr toclone, List<Expr> source)
+        internal Expr CloneFixColumnOrdinal(Expr toclone, List<Expr> source, bool ignoreTable = true)
         {
             var clone = toclone.Clone();
-            clone.VisitEachExpr(y => {
+            clone.VisitEachExpr(y =>
+            {
                 if (y is ColExpr target)
                 {
                     Predicate<Expr> nameTest;
@@ -178,10 +180,10 @@ namespace adb
         }
 
         // fix each expression by using source's ordinal and make a copy
-        internal List<Expr> CloneFixColumnOrdinal(bool ignoreTable, List<Expr> toclone, List<Expr> source)
+        internal List<Expr> CloneFixColumnOrdinal(List<Expr> toclone, List<Expr> source, bool ignoreTable = true)
         {
             var clone = new List<Expr>();
-            toclone.ForEach(x => clone.Add(CloneFixColumnOrdinal(ignoreTable, x, source)));
+            toclone.ForEach(x => clone.Add(CloneFixColumnOrdinal(x, source, ignoreTable)));
             return clone;
         }
     }
@@ -193,16 +195,17 @@ namespace adb
         public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
             // push to left and right: to which side depends on the TableRef it contains
-            var lrefs = children_[0].EnumTableRefs();
-            var rrefs = children_[1].EnumTableRefs();
+            var ltables = children_[0].EnumTableRefs();
+            var rtables = children_[1].EnumTableRefs();
             var lreq = new HashSet<Expr>();
             var rreq = new HashSet<Expr>();
-            foreach (var v in reqOutput) {
-                var refs = ExprHelper.AllTableRef(v);
+            foreach (var v in reqOutput)
+            {
+                var tables = ExprHelper.AllTableRef(v);
 
-                if (Utils.ListAContainsB(lrefs, refs))
+                if (Utils.ListAContainsB(ltables, tables))
                     lreq.Add(v);
-                else if (Utils.ListAContainsB(rrefs, refs))
+                else if (Utils.ListAContainsB(rtables, tables))
                     rreq.Add(v);
                 else
                 {
@@ -211,9 +214,9 @@ namespace adb
                     var colref = ExprHelper.AllColExpr(v, false);
                     colref.ForEach(x =>
                     {
-                        if (lrefs.Contains(x.tabRef_))
+                        if (ltables.Contains(x.tabRef_))
                             lreq.Add(x);
-                        else if (rrefs.Contains(x.tabRef_))
+                        else if (rtables.Contains(x.tabRef_))
                             rreq.Add(x);
                         else
                             throw new InvalidProgramException("contains invalid tableref");
@@ -224,8 +227,9 @@ namespace adb
             // get left and right child to resolve columns
             var lout = children_[0].ResolveChildrenColumns(lreq.ToList());
             var rout = children_[1].ResolveChildrenColumns(rreq.ToList());
+            // assuming left output first followed with right output
             var childrenout = lout.ToList(); childrenout.AddRange(rout.ToList());
-            output_.AddRange(CloneFixColumnOrdinal(true, reqOutput, childrenout));
+            output_ = CloneFixColumnOrdinal(reqOutput, childrenout);
             if (removeRedundant)
                 output_ = output_.Distinct().ToList();
             return output_;
@@ -248,19 +252,21 @@ namespace adb
             return r;
         }
 
-        public LogicFilter(LogicNode child, Expr filter) {
+        public LogicFilter(LogicNode child, Expr filter)
+        {
             children_.Add(child); filter_ = filter;
         }
 
         public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
+            // request from child including reqOutput and filter
             List<Expr> reqFromChild = new List<Expr>();
             reqOutput.ForEach(x => reqFromChild.AddRange(ExprHelper.AllColExpr(x, false)));
             reqFromChild.AddRange(ExprHelper.AllColExpr(filter_, false));
             var childout = children_[0].ResolveChildrenColumns(reqFromChild);
 
-            filter_ = CloneFixColumnOrdinal(true, filter_, childout);
-            output_.AddRange(CloneFixColumnOrdinal(true, reqOutput, childout));
+            filter_ = CloneFixColumnOrdinal(filter_, childout);
+            output_ = CloneFixColumnOrdinal(reqOutput, childout);
             if (removeRedundant)
                 output_ = output_.Distinct().ToList();
 
@@ -280,7 +286,7 @@ namespace adb
             if (groupby_ != null)
                 r += $"Group by: {string.Join(", ", groupby_)}\n";
             if (having_ != null)
-                r += tabs(depth +2) + $"Filter: {having_}";
+                r += Tabs(depth + 2) + $"Filter: {having_}";
             return r;
         }
 
@@ -303,7 +309,7 @@ namespace adb
         {
             var query = queryRef_.query_;
             var childout = query.logicPlan_.ResolveChildrenColumns(query.selection_);
-            output_.AddRange(CloneFixColumnOrdinal(true, reqOutput, childout));
+            output_ = CloneFixColumnOrdinal(reqOutput, childout);
 
             // finally, consider outerref to this table: if it is not there, add it. We can't
             // simply remove redundant because we have to respect removeRedundant flag
@@ -315,11 +321,12 @@ namespace adb
         }
     }
 
-    public class LogicGet : LogicNode {
-        public TableRef tabref_;
+    public class LogicGet<T> : LogicNode where T : TableRef
+    {
+        public T tabref_;
         public Expr filter_;
 
-        public LogicGet(TableRef tab) => tabref_ = tab;
+        public LogicGet(T tab) => tabref_ = tab;
         public override string ToString() => tabref_.ToString();
         public override string PrintInlineDetails(int depth) => ToString();
         public override string PrintMoreDetails(int depth)
@@ -335,7 +342,7 @@ namespace adb
         }
         public bool AddFilter(Expr filter)
         {
-            filter_ = filter_ is null ? filter : 
+            filter_ = filter_ is null ? filter :
                 new LogicAndExpr(filter_, filter);
             return true;
         }
@@ -357,10 +364,8 @@ namespace adb
             });
 
             if (filter_ != null)
-                filter_ = CloneFixColumnOrdinal(true, filter_, tabref_.AllColumnsRefs());
-
-            output_.AddRange(reqOutput);
-            output_ = CloneFixColumnOrdinal(true, output_, tabref_.AllColumnsRefs());
+                filter_ = CloneFixColumnOrdinal(filter_, tabref_.AllColumnsRefs());
+            output_ = CloneFixColumnOrdinal(reqOutput, tabref_.AllColumnsRefs());
 
             // finally, consider outerref to this table: if it is not there, add it. We can't
             // simply remove redundant because we have to respect removeRedundant flag
@@ -373,25 +378,26 @@ namespace adb
         public override List<TableRef> EnumTableRefs() => new List<TableRef> { tabref_ };
     }
 
-    public class LogicGetTable : LogicGet
+    public class LogicGetTable : LogicGet<BaseTableRef>
     {
         public LogicGetTable(BaseTableRef tab) : base(tab) { }
     }
 
-    public class LogicGetExternal: LogicGet
+    public class LogicGetExternal : LogicGet<ExternalTableRef>
     {
-        public string FileName() => (tabref_ as ExternalTableRef).filename_;
+        public string FileName() => tabref_.filename_;
         public LogicGetExternal(ExternalTableRef tab) : base(tab) { }
     }
 
-    public class LogicInsert : LogicNode {
-        public BaseTableRef tabref_;
-        public LogicInsert(BaseTableRef tab, LogicNode child)
+    public class LogicInsert : LogicNode
+    {
+        public BaseTableRef targetref_;
+        public LogicInsert(BaseTableRef targetref, LogicNode child)
         {
-            tabref_ = tab;
+            targetref_ = targetref;
             children_.Add(child);
         }
-        public override string ToString() => tabref_.ToString();
+        public override string ToString() => targetref_.ToString();
         public override string PrintInlineDetails(int depth) => ToString();
 
         public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
@@ -403,7 +409,7 @@ namespace adb
 
     public class LogicResult : LogicNode
     {
-        public override string ToString()=> string.Join(",", output_);
+        public override string ToString() => string.Join(",", output_);
         public LogicResult(List<Expr> exprs) => output_ = exprs;
         public override List<TableRef> EnumTableRefs() => null;
     }

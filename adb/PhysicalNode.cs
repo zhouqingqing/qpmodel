@@ -6,27 +6,31 @@ using Value = System.Int64;
 
 namespace adb
 {
-    public class Row {
-        readonly public List<Value> values_ = new List<Value>();
+    public class Row
+    {
+        public readonly List<Value> values_ = new List<Value>();
 
         public Row() { }
-        public Row(Row l, Row r) {
+        public Row(Row l, Row r)
+        {
             values_.AddRange(l.values_);
             values_.AddRange(r.values_);
         }
 
-        public override string ToString()=> string.Join(",", values_);
+        public override string ToString() => string.Join(",", values_);
     }
 
-    public class Parameter {
-        readonly public TableRef tabref_;
-        readonly public Row row_;
+    public class Parameter
+    {
+        public readonly TableRef tabref_;   // from which table
+        public readonly Row row_;   // what's the value of parameter
 
         public Parameter(TableRef tabref, Row row) { tabref_ = tabref; row_ = row; }
         public override string ToString() => $"?{tabref_}.{row_}";
     }
 
-    public class ExecContext {
+    public class ExecContext
+    {
         public List<Parameter> params_ = new List<Parameter>();
 
         public void Reset() { params_.Clear(); }
@@ -64,7 +68,8 @@ namespace adb
         // @context is to carray parameters etc, @callback.Row is current row for processing
         public abstract void Exec(ExecContext context, Func<Row, string> callback);
 
-        internal Row ExecProject(ExecContext context, Row input) {
+        internal Row ExecProject(ExecContext context, Row input)
+        {
             Row r = new Row();
             logic_.output_.ForEach(x => r.values_.Add(x.Exec(context, input)));
 
@@ -72,9 +77,10 @@ namespace adb
         }
     }
 
-    public class PhysicGetTable : PhysicNode{
+    public class PhysicGetTable : PhysicNode
+    {
         readonly int nrows_ = 3;
-        public PhysicGetTable(LogicNode logic): base(logic) { }
+        public PhysicGetTable(LogicNode logic) : base(logic) { }
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
@@ -99,13 +105,15 @@ namespace adb
         }
     }
 
-    public class PhysicGetExternal : PhysicNode {
+    public class PhysicGetExternal : PhysicNode
+    {
         public PhysicGetExternal(LogicNode logic) : base(logic) { }
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
             var filename = (logic_ as LogicGetExternal).FileName();
-            Utils.ReadCSVLine(filename, fields=> {
+            Utils.ReadCsvLine(filename, fields =>
+            {
                 Row r = new Row();
                 Array.ForEach(fields, f => r.values_.Add(Int64.Parse(f)));
                 callback(r);
@@ -113,7 +121,8 @@ namespace adb
         }
     }
 
-    public class PhysicCrossJoin : PhysicNode {
+    public class PhysicCrossJoin : PhysicNode
+    {
         public PhysicCrossJoin(LogicCrossJoin logic, PhysicNode l, PhysicNode r) : base(logic)
         {
             children_.Add(l); children_.Add(r);
@@ -135,13 +144,15 @@ namespace adb
         }
     }
 
-    public class PhysicFromQuery : PhysicNode {
+    public class PhysicFromQuery : PhysicNode
+    {
         public PhysicFromQuery(LogicFromQuery logic, PhysicNode l) : base(logic) => children_.Add(l);
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicFromQuery;
-            children_[0].Exec(context, l => {
+            children_[0].Exec(context, l =>
+            {
                 if (logic.queryRef_.outerrefs_.Count != 0)
                     context.AddParam(logic.queryRef_, l);
                 var r = ExecProject(context, l);
@@ -160,7 +171,8 @@ namespace adb
         {
             Expr filter = (logic_ as LogicFilter).filter_;
 
-            children_[0].Exec(context, l => {
+            children_[0].Exec(context, l =>
+            {
                 if (filter is null || filter.Exec(context, l) == 1)
                 {
                     var r = ExecProject(context, l);
@@ -173,18 +185,20 @@ namespace adb
 
     public class PhysicInsert : PhysicNode
     {
-        public PhysicInsert(LogicInsert logic, PhysicNode l): base(logic) => children_.Add(l);
+        public PhysicInsert(LogicInsert logic, PhysicNode l) : base(logic) => children_.Add(l);
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
-            children_[0].Exec(context, l => {
+            children_[0].Exec(context, l =>
+            {
                 Console.WriteLine($"insert {l}");
                 return null;
             });
         }
     }
 
-    public class PhysicResult : PhysicNode {
+    public class PhysicResult : PhysicNode
+    {
         public PhysicResult(LogicResult logic) : base(logic) { }
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
@@ -209,7 +223,8 @@ namespace adb
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
-            children_[0].Exec(context, l => {
+            children_[0].Exec(context, l =>
+            {
                 nrows_++;
                 callback(l);
                 return null;

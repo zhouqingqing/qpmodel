@@ -29,7 +29,8 @@ namespace adb
         public virtual LogicNode Optimize() => logicPlan_;
         public virtual LogicNode CreatePlan() => logicPlan_;
 
-        public List<Row> Exec() {
+        public List<Row> Exec()
+        {
             Bind(null);
             CreatePlan();
             Optimize();
@@ -49,7 +50,8 @@ namespace adb
         SELECT clause
         ORDER BY clause
     */
-    public class SelectStmt : SQLStatement {
+    public class SelectStmt : SQLStatement
+    {
         // this section can show up in setops
         internal readonly List<TableRef> from_;
         internal readonly Expr where_;
@@ -65,7 +67,8 @@ namespace adb
         // details of outerrefs are recorded in referenced TableRef
         internal SelectStmt parent_;
 
-        internal SelectStmt TopStmt() {
+        internal SelectStmt TopStmt()
+        {
             var top = this;
             while (top.parent_ != null)
                 top = top.parent_;
@@ -77,8 +80,8 @@ namespace adb
             // setops ok fields
             List<Expr> selection, List<TableRef> from, Expr where, List<Expr> groupby, Expr having,
             // top query only fields
-            List<CTExpr> ctes, List<SelectStmt> setqs, List<OrderTerm> orders, 
-            string text): base(text)
+            List<CTExpr> ctes, List<SelectStmt> setqs, List<OrderTerm> orders,
+            string text) : base(text)
         {
             selection_ = selection;
             from_ = from;
@@ -93,7 +96,8 @@ namespace adb
 
         void bindFrom(BindContext context)
         {
-            from_.ForEach(x => {
+            from_.ForEach(x =>
+            {
                 switch (x)
                 {
                     case BaseTableRef bref:
@@ -123,20 +127,23 @@ namespace adb
         void bindSelectionList(BindContext context)
         {
             List<SelStar> selstars = new List<SelStar>();
-            selection_.ForEach(x => {
+            selection_.ForEach(x =>
+            {
                 if (x is SelStar xs)
                     selstars.Add(xs);
-				else
-					x.Bind(context);
+                else
+                    x.Bind(context);
             });
 
             // expand * into actual columns
-            selstars.ForEach(x => {
-                selection_.Remove(x); selection_.AddRange(x.Expand(context)); });
+            selstars.ForEach(x =>
+            {
+                selection_.Remove(x); selection_.AddRange(x.Expand(context));
+            });
         }
 
         void bindWhere(BindContext context) => where_?.Bind(context);
-        void bindGroupBy(BindContext context)=> groupby_?.ForEach(x => x.Bind(context));
+        void bindGroupBy(BindContext context) => groupby_?.ForEach(x => x.Bind(context));
         void bindHaving(BindContext context) => having_?.Bind(context);
 
         public override BindContext Bind(BindContext parent)
@@ -148,7 +155,8 @@ namespace adb
             return BindWithContext(context);
         }
 
-        internal BindContext BindWithContext(BindContext context) {
+        internal BindContext BindWithContext(BindContext context)
+        {
             // bind stage is earlier than plan creation
             Debug.Assert(logicPlan_ == null);
 
@@ -248,7 +256,7 @@ namespace adb
             selection_.ForEach(createSubQueryExprPlan);
 
             // resolve the output
-            root.ResolveChildrenColumns(selection_, parent_!=null);
+            root.ResolveChildrenColumns(selection_, parent_ != null);
 
             logicPlan_ = root;
             return root;

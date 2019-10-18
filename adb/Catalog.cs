@@ -5,14 +5,16 @@ using TableColumn = System.Tuple<string, string>;
 
 namespace adb
 {
-    public enum DType {
+    public enum DType
+    {
         Int4,
         Char,
         Datetime,
         Numeric
     }
 
-    public class ColumnType {
+    public class ColumnType
+    {
         public DType type_;
         public int len_;
         public ColumnType(DType type, int len) { type_ = type; len_ = len; }
@@ -40,13 +42,14 @@ namespace adb
         public override string ToString() => $"numeric({len_}, {scale_})";
     }
 
-    public class ColumnDef {
+    public class ColumnDef
+    {
         readonly public string name_;
         readonly public ColumnType type_;
         public int ordinal_;
 
         public ColumnDef(string name, ColumnType type, int ord) { name_ = name; type_ = type; ordinal_ = ord; }
-        public ColumnDef(string name, int ord) : this(name, new IntType(), ord){}
+        public ColumnDef(string name, int ord) : this(name, new IntType(), ord) { }
 
         public override string ToString() => $"{name_} {type_} [{ordinal_}]";
     }
@@ -56,14 +59,16 @@ namespace adb
         public string name_;
         public Dictionary<string, ColumnDef> columns_;
 
-        public TableDef(string tabName, List<ColumnDef> columns) {
+        public TableDef(string tabName, List<ColumnDef> columns)
+        {
             Dictionary<string, ColumnDef> cols = new Dictionary<string, ColumnDef>();
             foreach (var c in columns)
                 cols.Add(c.name_, c);
             name_ = tabName; columns_ = cols;
         }
 
-        public ColumnDef GetColumn(string column) {
+        public ColumnDef GetColumn(string column)
+        {
             columns_.TryGetValue(column, out var value);
             return value;
         }
@@ -74,31 +79,38 @@ namespace adb
     };
 
     // format: tableName:key, list of <ColName: Key, Column definition>
-    class SysTable : SystemTable {
+    class SysTable : SystemTable
+    {
         readonly Dictionary<string, TableDef> records_ = new Dictionary<string, TableDef>();
 
-        public void Add(string tabName, List<ColumnDef> columns) {
-            records_.Add(tabName, 
+        public void Add(string tabName, List<ColumnDef> columns)
+        {
+            records_.Add(tabName,
                 new TableDef(tabName, columns));
         }
 
-        public Dictionary<string, ColumnDef> Table(string tabName) {
+        public Dictionary<string, ColumnDef> Table(string tabName)
+        {
             return records_[tabName].columns_;
         }
-        public ColumnDef Column(string tabName, string colName) {
+        public ColumnDef Column(string tabName, string colName)
+        {
             return Table(tabName)[colName];
         }
     }
 
-    class ColumnStat {
+    class ColumnStat
+    {
         public Int64 n_distinct_;
     }
 
     // format: (tableName, colName):key, column stat
-    class SysStats : SystemTable {
+    class SysStats : SystemTable
+    {
         readonly Dictionary<TableColumn, ColumnStat> records_ = new Dictionary<TableColumn, ColumnStat>();
 
-        public void Add(string tabName, string colName, ColumnStat stat) {
+        public void Add(string tabName, string colName, ColumnStat stat)
+        {
             records_.Add(new TableColumn(tabName, colName), stat);
         }
 
@@ -113,8 +125,9 @@ namespace adb
         // list of system tables
         public static SysTable systable_ = new SysTable();
 
-        static Catalog() {
-            systable_.Add("a", new List<ColumnDef> (){new ColumnDef("a1", 0), new ColumnDef("a2", 1), new ColumnDef("a3", 2), new ColumnDef("a4", 3) });
+        static Catalog()
+        {
+            systable_.Add("a", new List<ColumnDef>() { new ColumnDef("a1", 0), new ColumnDef("a2", 1), new ColumnDef("a3", 2), new ColumnDef("a4", 3) });
             systable_.Add("b", new List<ColumnDef>() { new ColumnDef("b1", 0), new ColumnDef("b2", 1), new ColumnDef("b3", 2), new ColumnDef("b4", 3) });
             systable_.Add("c", new List<ColumnDef>() { new ColumnDef("c1", 0), new ColumnDef("c2", 1), new ColumnDef("c3", 2), new ColumnDef("c4", 3) });
         }

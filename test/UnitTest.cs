@@ -1,11 +1,12 @@
-﻿using System;
+﻿using adb;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using adb;
+using System;
 using System.Collections.Generic;
 
 namespace test
 {
-    public class PlanCompare {
+    public class PlanCompare
+    {
     }
 
     public class TestHelper
@@ -46,8 +47,8 @@ namespace test
         public void TestCSVReader()
         {
             List<string> r = new List<string>();
-            Utils.ReadCSVLine(@"d:\test.csv", 
-                x=> r.Add(string.Join(",", x)));
+            Utils.ReadCsvLine(@"d:\test.csv",
+                x => r.Add(string.Join(",", x)));
             Assert.AreEqual(3, r.Count);
             Assert.AreEqual("1,2,3,4", r[0]);
             Assert.AreEqual("2,2,3,4", r[1]);
@@ -138,7 +139,8 @@ namespace test
     {
         private TestContext testContextInstance;
 
-        internal List<Row> ExecuteSQL(string sql) {
+        internal List<Row> ExecuteSQL(string sql)
+        {
             return TestHelper.ExecuteSQL(sql);
         }
 
@@ -239,7 +241,7 @@ namespace test
             sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = 3)";
             result = ExecuteSQL(sql);
             Assert.AreEqual(1, result.Count);
-            Assert.AreEqual ("2,4", result[0].ToString());
+            Assert.AreEqual("2,4", result[0].ToString());
             sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = 4)";
             result = ExecuteSQL(sql);
             Assert.AreEqual(0, result.Count);
@@ -350,9 +352,10 @@ namespace test
         }
 
         [TestMethod]
-        public void TestExecResult() {
+        public void TestExecResult()
+        {
             string sql = "select 2+6*3+2*6";
-            var result = ExecuteSQL(sql); 
+            var result = ExecuteSQL(sql);
             Assert.AreEqual(1, result.Count);
             Assert.AreEqual(32, result[0].values_[0]);
         }
@@ -391,7 +394,7 @@ namespace test
             var answer = @"LogicGetTable a
                                 Output: a.a1[0],a.a1[0]+a.a2[1]
                                 Filter: a.a2[1]>3";
-            TestHelper.PlanAssertEqual(answer,  plan.PrintString(0));
+            TestHelper.PlanAssertEqual(answer, plan.PrintString(0));
 
             sql = "select a.a2,a3,a.a1+b2 from a,b where a.a1 > 1";
             stmt = RawParser.ParseSqlStatement(sql);

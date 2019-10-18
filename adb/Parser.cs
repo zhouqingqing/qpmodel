@@ -1,24 +1,24 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using Antlr4.Runtime;
+﻿using Antlr4.Runtime;
 using Antlr4.Runtime.Misc;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 
 namespace adb
 {
     // antlr requires user defined exception with this name
     public class RuntimeException : Exception
     {
-        public RuntimeException(string msg) {}
+        public RuntimeException(string msg) { }
     }
 
-    public class SemanticAnalyzeException: Exception
+    public class SemanticAnalyzeException : Exception
     {
         public SemanticAnalyzeException(string msg) { }
     }
 
-    public class SemanticExecutionException: Exception
+    public class SemanticExecutionException : Exception
     {
         public SemanticExecutionException(string msg) { }
     }
@@ -41,7 +41,7 @@ namespace adb
     public abstract class TableRef
     {
         internal string alias_;
-        readonly internal List<ColExpr> outerrefs_ = new List<ColExpr>();
+        internal readonly List<ColExpr> outerrefs_ = new List<ColExpr>();
 
         public override string ToString() => alias_;
         public Expr LocateColumn(string colAlias)
@@ -51,7 +51,8 @@ namespace adb
             //
             Expr r = null;
             var list = AllColumnsRefs();
-            foreach (var v in list) {
+            foreach (var v in list)
+            {
                 if (v.alias_?.Equals(colAlias) ?? false)
                     if (r is null)
                         r = v;
@@ -62,8 +63,10 @@ namespace adb
             return r;
         }
 
-        public List<Expr> AddOuterRefsToOutput(List<Expr> output) {
-            outerrefs_.ForEach(x => {
+        public List<Expr> AddOuterRefsToOutput(List<Expr> output)
+        {
+            outerrefs_.ForEach(x =>
+            {
                 if (!output.Contains(x))
                 {
                     var clone = x.Clone() as ColExpr;
@@ -90,14 +93,15 @@ namespace adb
             alias_ = alias ?? relname_;
         }
 
-        public override string ToString() 
+        public override string ToString()
             => (relname_.Equals(alias_)) ? $"{relname_}" : $"{relname_} as {alias_}";
 
         public override List<Expr> AllColumnsRefs()
         {
             List<Expr> l = new List<Expr>();
             var columns = Catalog.systable_.Table(relname_);
-            foreach (var c in columns) {
+            foreach (var c in columns)
+            {
                 ColumnDef coldef = c.Value;
                 l.Add(new ColExpr(null, relname_, coldef.name_));
             }
@@ -144,7 +148,7 @@ namespace adb
     {
         public override object VisitLiteral_value([NotNull] SQLiteParser.Literal_valueContext context)
             => new LiteralExpr(context);
-        public override object VisitBrackexpr([NotNull] SQLiteParser.BrackexprContext context) 
+        public override object VisitBrackexpr([NotNull] SQLiteParser.BrackexprContext context)
             => Visit(context.expr());
         public override object VisitArithtimesexpr([NotNull] SQLiteParser.ArithtimesexprContext context)
             => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
@@ -225,7 +229,7 @@ namespace adb
             {
                 where = Visit(context.expr(whichexpr++)) as Expr;
             }
-             
+
             // SQLite grammer mixed group by and having expressions, so reserve
             // the last expr for having clause
             //
@@ -242,7 +246,8 @@ namespace adb
             }
 
             Expr having = null;
-            if (havingexpr == 1) {
+            if (havingexpr == 1)
+            {
                 having = Visit(context.expr(whichexpr)) as Expr;
             }
 
@@ -264,7 +269,8 @@ namespace adb
         public override object VisitSelect_stmt([NotNull] SQLiteParser.Select_stmtContext context)
         {
             List<CTExpr> ctes = null;
-            if (context.K_WITH() != null) {
+            if (context.K_WITH() != null)
+            {
                 ctes = new List<CTExpr>();
                 Array.ForEach(context.common_table_expression(), x => ctes.Add(VisitCommon_table_expression(x) as CTExpr));
             }
@@ -277,11 +283,11 @@ namespace adb
             {
                 Debug.Assert(context.K_BY() != null);
                 orders = new List<OrderTerm>();
-                Array.ForEach(context.ordering_term(), x=> orders.Add(VisitOrdering_term(x) as OrderTerm));
+                Array.ForEach(context.ordering_term(), x => orders.Add(VisitOrdering_term(x) as OrderTerm));
             }
 
             // cores_[0] is also expanded to main body
-            return new SelectStmt(setqs[0].selection_, setqs[0].from_, setqs[0].where_, setqs[0].groupby_, setqs[0].having_, 
+            return new SelectStmt(setqs[0].selection_, setqs[0].from_, setqs[0].where_, setqs[0].groupby_, setqs[0].having_,
                                     ctes, setqs, orders, context.GetText());
         }
 
@@ -300,7 +306,8 @@ namespace adb
                 return new IntType();
             else if (type == DType.Datetime)
                 return new DateTimeType();
-            else if (type == DType.Char) {
+            else if (type == DType.Char)
+            {
                 var numbers = context.signed_number();
                 Utils.Checks(numbers.Count() == 1);
                 return new CharType(int.Parse(numbers[0].NUMERIC_LITERAL().GetText()));
@@ -311,7 +318,7 @@ namespace adb
                 Utils.Checks(numbers.Any() && numbers.Count() <= 2);
                 int prec = int.Parse(context.signed_number()[0].NUMERIC_LITERAL().GetText());
                 int scale = 0;
-                if (numbers.Count() >1)
+                if (numbers.Count() > 1)
                     scale = int.Parse(context.signed_number()[1].NUMERIC_LITERAL().GetText());
                 return new NumericType(prec, scale);
             }
@@ -363,7 +370,7 @@ namespace adb
                 r = Visit(context.select_stmt()) as SQLStatement;
             else if (context.create_table_stmt() != null)
                 r = Visit(context.create_table_stmt()) as SQLStatement;
-            else if (context.insert_stmt()!= null)
+            else if (context.insert_stmt() != null)
                 r = Visit(context.insert_stmt()) as SQLStatement;
             else if (context.copy_stmt() != null)
                 r = Visit(context.copy_stmt()) as SQLStatement;
