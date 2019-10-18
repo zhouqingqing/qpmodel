@@ -99,6 +99,8 @@ namespace adb
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             sql = "select b1+b1 from (select b1 from b) a";
+            sql = "select b1+c1 from (select b1 from b) a, (select c1 from c) c where c1>1";
+
 
         doit:
             Console.WriteLine(sql);

@@ -401,6 +401,23 @@ namespace test
                             -> PhysicGetTable b  (rows = 3)
                                 Output: b.b1[0]";
             TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
+            sql = "select b1+c1 from (select b1 from b) a, (select c1 from c) c where c1>1";
+            stmt = RawParser.ParseSqlStatement(sql);
+            stmt.Exec(true); phyplan = stmt.physicPlan_;
+            answer = @"PhysicFilter   (rows = 3)
+                            Output: a.b1[0]+c.c1[1]
+                            Filter: c.c1[1]>1
+                            -> PhysicNLJoin   (rows = 9)
+                                Output: a.b1[0],c.c1[1]
+                                -> PhysicFromQuery <a>  (rows = 3)
+                                    Output: a.b1[0]
+                                    -> PhysicGetTable b  (rows = 3)
+                                        Output: b.b1[0]
+                                -> PhysicFromQuery <c>  (rows = 9)
+                                    Output: c.c1[0]
+                                    -> PhysicGetTable c  (rows = 9)
+                                        Output: c.c1[0]";
+            TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
         }
 
         [TestMethod]
