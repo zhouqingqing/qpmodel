@@ -8,6 +8,8 @@ namespace adb
 {
     public static class Utils
     {
+        internal static string Tabs(int depth) => new string(' ', depth * 2);
+
         // this is shortcut for unhandled conditions - they shall be translated to 
         // related exceptional handling code later
         //

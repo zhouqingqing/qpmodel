@@ -138,7 +138,8 @@ namespace adb
             // expand * into actual columns
             selstars.ForEach(x =>
             {
-                selection_.Remove(x); selection_.AddRange(x.Expand(context));
+                selection_.Remove(x);
+                selection_.AddRange(x.Expand(context));
             });
         }
 
@@ -293,7 +294,7 @@ namespace adb
                 plan = plan.children_[0];
             else
                 filter.filter_ = ExprHelper.AndListToExpr(andlist);
-            // we have to redo the column binding as the top filter might change
+            // we have to redo the column binding as top filter removal might change ordinals underneath
             plan.ClearOutput();
             plan.ResolveChildrenColumns(selection_, parent_ != null);
             logicPlan_ = plan;
