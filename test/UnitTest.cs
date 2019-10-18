@@ -401,16 +401,14 @@ namespace test
             stmt = RawParser.ParseSqlStatement(sql);
             stmt.Exec(true);
             var phyplan = stmt.physicPlan_;
-            answer = @"PhysicFilter   (rows = 3)
+            answer = @"PhysicNLJoin   (rows = 3)
                         Output: a.a2[0],a.a3[1],a.a1[2]+b.b2[3]
                         Filter: a.a1[2]+b.b3[4]>2
-                        -> PhysicCrossJoin   (rows = 3)
-                            Output: a.a2[0],a.a3[1],a.a1[2],b.b2[3],b.b3[4]
-                            -> PhysicGetTable a  (rows = 1)
-                                Output: a.a2[1],a.a3[2],a.a1[0]
-                                Filter: a.a1[0]>1
-                            -> PhysicGetTable b  (rows = 3)
-                                Output: b.b2[1],b.b3[2]";
+                        -> PhysicGetTable a  (rows = 1)
+                            Output: a.a2[1],a.a3[2],a.a1[0]
+                            Filter: a.a1[0]>1
+                        -> PhysicGetTable b  (rows = 3)
+                            Output: b.b2[1],b.b3[2]";
             TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
 
             sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b1 > ((select c2 from c where c.c2=b2)))";
@@ -458,44 +456,42 @@ namespace test
             stmt = RawParser.ParseSqlStatement(sql);
             stmt.Exec(true);
             phyplan = stmt.physicPlan_;
-            answer = @"PhysicFilter   (rows = 3)
-                        Output: a.a1[0]
-                        Filter: a.a1[0]=b.b1[1] and b.b2[2]=c.c2[3]
-                        -> PhysicCrossJoin   (rows = 9)
-                            Output: a.a1[2],b.b1[3],b.b2[4],c.c2[0]
-                            -> PhysicGetTable c  (rows = 3)
-                                Output: c.c2[1],#c.c3[2]
-                            -> PhysicCrossJoin   (rows = 9)
-                                Output: a.a1[2],b.b1[0],b.b2[1]
-                                -> PhysicGetTable b  (rows = 9)
-                                    Output: b.b1[0],b.b2[1]
-                                -> PhysicGetTable a  (rows = 9)
-                                    Output: a.a1[0],#a.a2[1],#a.a3[2]
-                                    Filter: a.a1[0]=@1 and a.a2[1]=@3
-                                    <SubqueryExpr> 1
-                                        -> PhysicFilter   (rows = 9)
-                                            Output: bo.b1[0]
-                                            Filter: bo.b2[1]=?a.a2[1] and bo.b2[1]<5 and bo.b1[0]=@2
-                                            <SubqueryExpr> 2
-                                                -> PhysicGetTable b  (rows = 81)
-                                                    Output: b.b1[0]
-                                                    Filter: b.b3[2]=?a.a3[2] and ?bo.b3[2]=?c.c3[2] and b.b3[2]>1
-                                            -> PhysicFromQuery <bo>  (rows = 243)
-                                                Output: bo.b1[0],bo.b2[1],#bo.b3[2]
-                                                -> PhysicCrossJoin   (rows = 243)
-                                                    Output: b_2.b1[2],b_1.b2[0],b_1.b3[1]
-                                                    -> PhysicGetTable b as b_1  (rows = 81)
-                                                        Output: b_1.b2[1],b_1.b3[2]
-                                                    -> PhysicGetTable b as b_2  (rows = 243)
-                                                        Output: b_2.b1[0]
-                                    <SubqueryExpr> 3
-                                        -> PhysicGetTable b as bo  (rows = 27)
-                                            Output: bo.b2[1],#bo.b3[2]
-                                            Filter: bo.b1[0]=?a.a1[0] and bo.b2[1]=@4 and ?c.c3[2]<5
-                                            <SubqueryExpr> 4
-                                                -> PhysicGetTable b  (rows = 27)
-                                                    Output: b.b2[1]
-                                                    Filter: b.b4[3]=?a.a3[2]+1 and ?bo.b3[2]=?a.a3[2] and b.b3[2]>0";
+            answer = @"PhysicNLJoin   (rows = 3)
+                        Output: a.a1[2]
+                        Filter: a.a1[2]=b.b1[3] and b.b2[4]=c.c2[0]
+                        -> PhysicGetTable c  (rows = 3)
+                            Output: c.c2[1],#c.c3[2]
+                        -> PhysicNLJoin   (rows = 9)
+                            Output: a.a1[2],b.b1[0],b.b2[1]
+                            -> PhysicGetTable b  (rows = 9)
+                                Output: b.b1[0],b.b2[1]
+                            -> PhysicGetTable a  (rows = 9)
+                                Output: a.a1[0],#a.a2[1],#a.a3[2]
+                                Filter: a.a1[0]=@1 and a.a2[1]=@3
+                                <SubqueryExpr> 1
+                                    -> PhysicFilter   (rows = 9)
+                                        Output: bo.b1[0]
+                                        Filter: bo.b2[1]=?a.a2[1] and bo.b2[1]<5 and bo.b1[0]=@2
+                                        <SubqueryExpr> 2
+                                            -> PhysicGetTable b  (rows = 81)
+                                                Output: b.b1[0]
+                                                Filter: b.b3[2]=?a.a3[2] and ?bo.b3[2]=?c.c3[2] and b.b3[2]>1
+                                        -> PhysicFromQuery <bo>  (rows = 243)
+                                            Output: bo.b1[0],bo.b2[1],#bo.b3[2]
+                                            -> PhysicNLJoin   (rows = 243)
+                                                Output: b_2.b1[2],b_1.b2[0],b_1.b3[1]
+                                                -> PhysicGetTable b as b_1  (rows = 81)
+                                                    Output: b_1.b2[1],b_1.b3[2]
+                                                -> PhysicGetTable b as b_2  (rows = 243)
+                                                    Output: b_2.b1[0]
+                                <SubqueryExpr> 3
+                                    -> PhysicGetTable b as bo  (rows = 27)
+                                        Output: bo.b2[1],#bo.b3[2]
+                                        Filter: bo.b1[0]=?a.a1[0] and bo.b2[1]=@4 and ?c.c3[2]<5
+                                        <SubqueryExpr> 4
+                                            -> PhysicGetTable b  (rows = 27)
+                                                Output: b.b2[1]
+                                                Filter: b.b4[3]=?a.a3[2]+1 and ?bo.b3[2]=?a.a3[2] and b.b3[2]>0";
             TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
         }
     }

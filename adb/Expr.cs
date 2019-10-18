@@ -190,29 +190,29 @@ namespace adb
         //      e.g., a.i + b.j > [a.]k => references 2 tables
         // it is a sum of all its children
         //
-        public BitArray whichTab_ = new BitArray(256);
-        public BitArray whichTabExternal_ = new BitArray(256);
+        public List<TableRef> tableRefs_ = new List<TableRef>();
         internal bool bounded_;
 
-        public bool EqualTableRefs(BindContext context, TableRef tableRef)
+        public int TableRefCount()
+        {
+            Debug.Assert(tableRefs_.Distinct().Count() == tableRefs_.Count());
+            return tableRefs_.Count();
+        }
+        public bool EqualTableRef(TableRef tableRef)
         {
             Debug.Assert(bounded_);
+            Debug.Assert(TableRefCount() == 1);
+            return tableRefs_[0].Equals(tableRef);
+        }
 
-            var tabcount = whichTab_.OfType<bool>().Count(e => e);
-
-            // this is a pure external expr. Eg. ?a.a1=?b.b2
-            if (tabcount == 0)
-                return true;
-
-            // the expression (not counting externalref) shall access only one table
-            if (tabcount > 1)
-                return false;
-
-            // make sure it is local?
-            int tindex = context.TableIndex(tableRef.alias_);
-            if (tindex != -1 && whichTab_.Get(tindex))
-                return true;
-            return false;
+        public bool EqualTableRefs(List<TableRef> tableRefs)
+        {
+            Debug.Assert(bounded_);
+            Debug.Assert(TableRefCount() <= tableRefs.Count());
+            foreach (var v in tableRefs_)
+                if (!tableRefs.Contains(v))
+                    return false;
+            return true;
         }
 
         // this one uses c# reflection
@@ -387,10 +387,8 @@ namespace adb
             Debug.Assert(tabRef_ != null);
             if (tabName_ is null)
                 tabName_ = tabRef_.alias_;
-            if (isOuterRef_)
-                whichTabExternal_.Set(context.TableIndex(tabName_), true);
-            else
-                whichTab_.Set(context.TableIndex(tabName_), true);
+            if (!isOuterRef_)
+                tableRefs_.Add(tabRef_);
             ordinal_ = context.ColumnOrdinal(tabName_, colName_);
             bounded_ = true;
         }
@@ -457,8 +455,8 @@ namespace adb
             l_.Bind(context);
             r_.Bind(context);
 
-            whichTab_ = (l_.whichTab_.Clone() as BitArray).Or(r_.whichTab_);
-            whichTabExternal_ = (l_.whichTabExternal_.Clone() as BitArray).Or(r_.whichTabExternal_);
+            tableRefs_.AddRange(l_.tableRefs_); tableRefs_.AddRange(r_.tableRefs_);
+            tableRefs_ = tableRefs_.Distinct().ToList();
             bounded_ = true;
         }
 

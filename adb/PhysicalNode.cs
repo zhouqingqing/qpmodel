@@ -121,22 +121,28 @@ namespace adb
         }
     }
 
-    public class PhysicCrossJoin : PhysicNode
+    public class PhysicNLJoin : PhysicNode
     {
-        public PhysicCrossJoin(LogicCrossJoin logic, PhysicNode l, PhysicNode r) : base(logic)
+        public PhysicNLJoin(LogicJoin logic, PhysicNode l, PhysicNode r) : base(logic)
         {
             children_.Add(l); children_.Add(r);
         }
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
+            var logic = logic_ as LogicJoin;
+            var filter = logic.filter_;
+
             children_[0].Exec(context, l =>
             {
                 children_[1].Exec(context, r =>
                 {
                     Row n = new Row(l, r);
-                    n = ExecProject(context, n);
-                    callback(n);
+                    if (filter is null || filter.Exec(context, n) == 1)
+                    {
+                        n = ExecProject(context, n);
+                        callback(n);
+                    }
                     return null;
                 });
                 return null;
