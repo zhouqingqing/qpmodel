@@ -69,7 +69,7 @@ namespace adb
 
     public class ProfileOption
     {
-        internal bool enabled_ = false;
+        public bool enabled_ = false;
     }
 
     public abstract class LogicNode : PlanNode<LogicNode>
@@ -226,6 +226,8 @@ namespace adb
             // get left and right child to resolve columns
             var lout = children_[0].ResolveChildrenColumns(lreq.ToList());
             var rout = children_[1].ResolveChildrenColumns(rreq.ToList());
+            Debug.Assert(lout.Intersect(rout).Count() == 0);
+
             // assuming left output first followed with right output
             var childrenout = lout.ToList(); childrenout.AddRange(rout.ToList());
             output_ = CloneFixColumnOrdinal(reqOutput, childrenout);

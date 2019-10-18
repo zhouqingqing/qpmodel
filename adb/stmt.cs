@@ -12,7 +12,7 @@ namespace adb
     public abstract class SQLStatement
     {
         // others
-        internal ProfileOption profileOpt_ = new ProfileOption();
+        public ProfileOption profileOpt_ = new ProfileOption();
 
         // bounded context
         internal BindContext bindContext_;
@@ -29,11 +29,15 @@ namespace adb
         public virtual LogicNode Optimize() => logicPlan_;
         public virtual LogicNode CreatePlan() => logicPlan_;
 
-        public List<Row> Exec()
+        public List<Row> Exec(bool enableProfiling = false)
         {
+            if (enableProfiling)
+                profileOpt_.enabled_ = true;
+
             Bind(null);
             CreatePlan();
             Optimize();
+
             var result = new PhysicCollect(physicPlan_);
             result.Exec(new ExecContext(), null);
             return result.rows_;
@@ -52,6 +56,9 @@ namespace adb
     */
     public class SelectStmt : SQLStatement
     {
+        // parse info
+        // ---------------
+        
         // this section can show up in setops
         internal readonly List<TableRef> from_;
         internal readonly Expr where_;
@@ -60,12 +67,17 @@ namespace adb
         internal readonly List<Expr> selection_;
 
         // this section can only show up in top query
-        public readonly List<CTExpr> ctes_;
+        public readonly List<CteExpr> ctes_;
         public readonly List<SelectStmt> setqs_;
         public readonly List<OrderTerm> orders_;
 
+        // optimizer info
+        // ---------------
+
         // details of outerrefs are recorded in referenced TableRef
         internal SelectStmt parent_;
+        // subqueries at my level (children level excluded)
+        List<SelectStmt> subqueries_ = new List<SelectStmt>();
 
         internal SelectStmt TopStmt()
         {
@@ -80,7 +92,7 @@ namespace adb
             // setops ok fields
             List<Expr> selection, List<TableRef> from, Expr where, List<Expr> groupby, Expr having,
             // top query only fields
-            List<CTExpr> ctes, List<SelectStmt> setqs, List<OrderTerm> orders,
+            List<CteExpr> ctes, List<SelectStmt> setqs, List<OrderTerm> orders,
             string text) : base(text)
         {
             selection_ = selection;
@@ -183,6 +195,7 @@ namespace adb
                     from = new LogicGetExternal(eref);
                     break;
                 case FromQueryRef sref:
+                    subqueries_.Add(sref.query_);
                     from = new LogicFromQuery(sref,
                                     sref.query_.CreatePlan());
                     break;
@@ -232,6 +245,7 @@ namespace adb
                 {
                     if (x is SubqueryExpr sx)
                     {
+                        subqueries_.Add(sx.query_);
                         sx.query_.CreatePlan();
                     }
                 });
@@ -300,6 +314,8 @@ namespace adb
             logicPlan_ = plan;
 
         Convert:
+            // optimize for subqueries
+            subqueries_.ForEach(x => x.Optimize());
 
             // convert to physical plan
             physicPlan_ = logicPlan_.DirectToPhysical(profileOpt_);
