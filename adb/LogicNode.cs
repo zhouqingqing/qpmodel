@@ -13,6 +13,18 @@ namespace adb
         public virtual string PrintOutput(int depth) => null;
         public virtual string PrintInlineDetails(int depth) => null;
         public virtual string PrintMoreDetails(int depth) => null;
+        protected string PrintFilter (Expr filter, int depth)
+        {
+            string r = null;
+            if (filter != null)
+            {
+                r = "Filter: " + filter.PrintString(depth);
+                // append the subquery plan align with filter
+                r += ExprHelper.PrintExprWithSubqueryExpanded(filter, depth);
+            }
+            return r;
+        }
+
         public string PrintString(int depth)
         {
             string r = null;
@@ -189,8 +201,16 @@ namespace adb
 
     public class LogicCrossJoin : LogicNode
     {
+        internal Expr filter_;
+
         public LogicCrossJoin(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
 
+        public bool AddFilter(Expr filter)
+        {
+            filter_ = filter_ is null ? filter :
+                new LogicAndExpr(filter_, filter);
+            return true;
+        }
         public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
             // push to left and right: to which side depends on the TableRef it contains
@@ -241,17 +261,7 @@ namespace adb
     {
         internal Expr filter_;
 
-        public override string PrintMoreDetails(int depth)
-        {
-            string r = null;
-            if (filter_ != null)
-            {
-                r += "Filter: " + filter_.PrintString(depth);
-                // append the subquery plan align with filter
-                r += ExprHelper.PrintExprWithSubqueryExpanded(filter_, depth);
-            }
-            return r;
-        }
+        public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
 
         public LogicFilter(LogicNode child, Expr filter)
         {
@@ -287,7 +297,7 @@ namespace adb
             if (groupby_ != null)
                 r += $"Group by: {string.Join(", ", groupby_)}\n";
             if (having_ != null)
-                r += Utils.Tabs(depth + 2) + $"Filter: {having_}";
+                r += Utils.Tabs(depth + 2) + $"{PrintFilter(having_, depth)}";
             return r;
         }
 
@@ -330,17 +340,7 @@ namespace adb
         public LogicGet(T tab) => tabref_ = tab;
         public override string ToString() => tabref_.ToString();
         public override string PrintInlineDetails(int depth) => ToString();
-        public override string PrintMoreDetails(int depth)
-        {
-            string r = null;
-            if (filter_ != null)
-            {
-                r += "Filter: " + filter_.PrintString(depth);
-                // append the subquery plan align with filter
-                r += ExprHelper.PrintExprWithSubqueryExpanded(filter_, depth);
-            }
-            return r;
-        }
+        public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
         public bool AddFilter(Expr filter)
         {
             filter_ = filter_ is null ? filter :
