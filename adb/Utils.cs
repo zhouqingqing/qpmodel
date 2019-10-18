@@ -1,8 +1,8 @@
-﻿using System;
+﻿using Microsoft.VisualBasic.FileIO;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using Microsoft.VisualBasic.FileIO;
 using System.Diagnostics;
+using System.Linq;
 
 namespace adb
 {
@@ -19,7 +19,7 @@ namespace adb
         // a contains b?
         public static bool ListAContainsB<T>(List<T> a, List<T> b) => !b.Except(a).Any();
 
-        public static void ReadCSVLine(string filepath, Action<string[]> action)
+        public static void ReadCsvLine(string filepath, Action<string[]> action)
         {
             using (TextFieldParser parser = new TextFieldParser(filepath))
             {
