@@ -411,6 +411,24 @@ namespace test
                             Output: b.b2[1],b.b3[2]";
             TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
 
+            // FIXME: you can see c1+b1>2 is not pushed down
+            sql = "select a1,b1,c1 from a,b,c where a1+b1+c1>5 and c1+b1>2";
+            stmt = RawParser.ParseSqlStatement(sql);
+            stmt.Exec(true);
+            phyplan = stmt.physicPlan_;
+            answer = @"PhysicNLJoin   (rows = 1)
+                        Output: a.a1[0],b.b1[1],c.c1[2]
+                        Filter: a.a1[0]+b.b1[1]+c.c1[2]>5 and c.c1[2]+b.b1[1]>2
+                        -> PhysicGetTable a  (rows = 3)
+                            Output: a.a1[0]
+                        -> PhysicNLJoin   (rows = 27)
+                            Output: b.b1[1],c.c1[0]
+                            -> PhysicGetTable c  (rows = 9)
+                                Output: c.c1[0]
+                            -> PhysicGetTable b  (rows = 27)
+                                Output: b.b1[0]";
+            TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
+
             sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b1 > ((select c2 from c where c.c2=b2)))";
             stmt = RawParser.ParseSqlStatement(sql);
             stmt.Exec(true);
