@@ -318,9 +318,25 @@ namespace adb
             return false;
         }
 
+        // Things to consider to remove FromQuery:
+        //  1. we can't simply remove the top FromQuery node because we have to redo
+        //     the projection, including ariths and order, etc.
+        //  2. FromQuery in subquery is even more complicated, because far away there
+        //     could be some references of its name and we shall fix them. When we remove
+        //     filter, we redo columnordinal fixing but this does not work for FromQuery
+        //     because naming reference. PostgreSQL actually puts a Result node with a 
+        //     name, so it is similar to FromQuery.
+        //
+        //  In short, we shall only focus on remove the top FromQuery because simplier.
+        //
+        LogicNode removeFromQuery(LogicNode plan) {
+            return plan;
+        }
+
         public override LogicNode Optimize()
         {
             LogicNode plan = logicPlan_;
+
             var filter = plan as LogicFilter;
             if (filter?.filter_ is null)
                 goto Convert;
@@ -338,12 +354,17 @@ namespace adb
                 plan = plan.children_[0];
             else
                 filter.filter_ = ExprHelper.AndListToExpr(andlist);
+
             // we have to redo the column binding as top filter removal might change ordinals underneath
             plan.ClearOutput();
             plan.ResolveChildrenColumns(selection_, parent_ != null);
             logicPlan_ = plan;
 
         Convert:
+            // remove LogicFromQuery node
+            plan = removeFromQuery(plan);
+            logicPlan_ = plan;
+
             // optimize for subqueries
             subqueries_.ForEach(x => x.Optimize());
 

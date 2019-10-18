@@ -216,6 +216,12 @@ namespace test
             Assert.AreEqual("2", result[0].ToString());
             Assert.AreEqual("3", result[1].ToString());
             Assert.AreEqual("4", result[2].ToString());
+            sql = "select b1+c1 from (select b1 from b) a, (select c1 from c) c where c1>1";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(3, result.Count);
+            Assert.AreEqual("2", result[0].ToString());
+            Assert.AreEqual("3", result[1].ToString());
+            Assert.AreEqual("4", result[2].ToString());
         }
 
         [TestMethod]
@@ -382,6 +388,19 @@ namespace test
             result = ExecuteSQL(sql);
             result = ExecuteSQL(sql); Assert.IsNull(result);
             Assert.IsTrue(TestHelper.error_.Contains("SemanticAnalyzeException"));
+        }
+
+        [TestMethod]
+        public void TestFromQueryRemoval()
+        {
+            var sql = "select b1+b1 from (select b1 from b) a";
+            var stmt = RawParser.ParseSqlStatement(sql);
+            stmt.Exec(true); var phyplan = stmt.physicPlan_;
+            var answer = @"PhysicFromQuery <a>  (rows = 3)
+                            Output: a.b1[0]+a.b1[0]
+                            -> PhysicGetTable b  (rows = 3)
+                                Output: b.b1[0]";
+            TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
         }
 
         [TestMethod]

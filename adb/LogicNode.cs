@@ -336,7 +336,12 @@ namespace adb
         public override string PrintInlineDetails(int depth) => $"<{queryRef_.alias_}>";
         public LogicFromQuery(FromQueryRef query, LogicNode child) { queryRef_ = query; children_.Add(child); }
 
-        public override List<TableRef> InclusiveTableRefs() => queryRef_.query_.bindContext_.AllTableRefs();
+        public override List<TableRef> InclusiveTableRefs() {
+            var r = new List<TableRef>();
+            r.Add(queryRef_);
+            r.AddRange(queryRef_.query_.bindContext_.AllTableRefs());
+            return r;
+        }
         public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
             var query = queryRef_.query_;
