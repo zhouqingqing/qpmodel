@@ -40,7 +40,12 @@ namespace adb
 
     public abstract class TableRef
     {
+        // alias is the first name of the reference
+        //  [OK] select b.a1 from a b; 
+        //  [FAIL] select a.a1 from a b;
+        //
         internal string alias_;
+
         internal readonly List<ColExpr> outerrefs_ = new List<ColExpr>();
 
         public override string ToString() => alias_;
@@ -82,7 +87,7 @@ namespace adb
         public abstract List<Expr> AllColumnsRefs();
     }
 
-    // FROM <table>
+    // FROM <table> [alias]
     public class BaseTableRef : TableRef
     {
         public string relname_;
@@ -94,7 +99,7 @@ namespace adb
         }
 
         public override string ToString()
-            => (relname_.Equals(alias_)) ? $"{relname_}" : $"{relname_} as {alias_}";
+            => (relname_.Equals(alias_)) ? $"{alias_}" : $"{relname_} as {alias_}";
 
         public override List<Expr> AllColumnsRefs()
         {
@@ -103,7 +108,7 @@ namespace adb
             foreach (var c in columns)
             {
                 ColumnDef coldef = c.Value;
-                l.Add(new ColExpr(null, relname_, coldef.name_));
+                l.Add(new ColExpr(null, alias_, coldef.name_));
             }
 
             return l;
@@ -129,18 +134,42 @@ namespace adb
         public override List<Expr> AllColumnsRefs() => colrefs_;
     }
 
-    // FROM <subquery>
+    // FROM <subquery> [alias]
     public class FromQueryRef : TableRef
     {
         public SelectStmt query_;
 
+        public override string ToString() => $"SELECT ({alias_})";
         public FromQueryRef(SelectStmt query, [NotNull] string alias)
         {
             query_ = query;
             alias_ = alias;
         }
 
-        public override List<Expr> AllColumnsRefs() => query_.selection_;
+        public override List<Expr> AllColumnsRefs()
+        {
+            // make a coopy of selection list and replace their tabref as this
+            var r = new List<Expr>();
+            query_.selection_.ForEach(x=> {
+                var y = x.Clone();
+                y.VisitEachExpr(z =>
+                {
+                    if (z is ColExpr cz)
+                    {
+                        cz.tabRef_ = this;
+                        cz.tabName_ = this.alias_;
+                    }
+                });
+                r.Add(y);
+            });
+
+            // it is actually a waste to return as many as selection: if selection item is 
+            // without an alias, there is no way outer layer can references it, thus no need
+            // to output them.
+            //
+            Debug.Assert(r.Count() == query_.selection_.Count());
+            return r;
+        }
     }
 
     // antlr visitor pattern parser
