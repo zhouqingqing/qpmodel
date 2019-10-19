@@ -164,7 +164,7 @@ namespace adb
             children_.ForEach(x => x.ClearOutput());
         }
 
-        internal Expr CloneFixColumnOrdinal(Expr toclone, List<Expr> source, bool ignoreTable = true)
+        internal Expr CloneFixColumnOrdinal(Expr toclone, List<Expr> source)
         {
             var clone = toclone.Clone();
             clone.VisitEachExpr(y =>
@@ -172,10 +172,7 @@ namespace adb
                 if (y is ColExpr target)
                 {
                     Predicate<Expr> nameTest;
-                    if (ignoreTable)
-                        nameTest = z => (z as ColExpr)?.colName_.Equals(target.colName_) ?? false;
-                    else
-                        nameTest = z => z.Equals(target);
+                    nameTest = z => z.Equals(target);
 
                     // fix colexpr's ordinal - leave the outerref
                     if (!target.isOuterRef_)
@@ -185,16 +182,18 @@ namespace adb
                     }
                     Debug.Assert(target.ordinal_ != -1);
                 }
+                else {
+                }
             });
 
             return clone;
         }
 
         // fix each expression by using source's ordinal and make a copy
-        internal List<Expr> CloneFixColumnOrdinal(List<Expr> toclone, List<Expr> source, bool ignoreTable = true)
+        internal List<Expr> CloneFixColumnOrdinal(List<Expr> toclone, List<Expr> source)
         {
             var clone = new List<Expr>();
-            toclone.ForEach(x => clone.Add(CloneFixColumnOrdinal(x, source, ignoreTable)));
+            toclone.ForEach(x => clone.Add(CloneFixColumnOrdinal(x, source)));
             return clone;
         }
     }
@@ -203,6 +202,7 @@ namespace adb
     {
         internal Expr filter_;
 
+        public override string ToString() => $"{children_[0]} X {children_[1]}";
         public LogicJoin(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
         public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
 
@@ -345,7 +345,9 @@ namespace adb
         public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
             var query = queryRef_.query_;
-            var childout = query.logicPlan_.ResolveChildrenColumns(query.selection_);
+            query.logicPlan_.ResolveChildrenColumns(query.selection_);
+
+            var childout = queryRef_.AllColumnsRefs();
             output_ = CloneFixColumnOrdinal(reqOutput, childout);
 
             // finally, consider outerref to this table: if it is not there, add it. We can't
