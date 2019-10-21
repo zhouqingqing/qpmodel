@@ -166,23 +166,33 @@ namespace adb
 
         internal Expr CloneFixColumnOrdinal(Expr toclone, List<Expr> source)
         {
+            Predicate<Expr> nameTest;
             var clone = toclone.Clone();
+
+            // first try to match the whole expression
+            if (!(clone is ColExpr))
+            {
+                nameTest = z => z.Equals(clone);
+                int ordinal = source.FindIndex(nameTest);
+                if (ordinal != -1)
+                    return new ExprRef(clone, ordinal);
+            }
+
+            // we have to use each ColExpr and fix its ordinal
             clone.VisitEachExpr(y =>
             {
+                nameTest = z => z.Equals(y);
+
                 if (y is ColExpr target)
                 {
-                    Predicate<Expr> nameTest;
-                    nameTest = z => z.Equals(target);
-
-                    // fix colexpr's ordinal - leave the outerref
-                    if (!target.isOuterRef_)
+                // using source's matching index for ordinal
+                // fix colexpr's ordinal - leave the outerref
+                if (!target.isOuterRef_)
                     {
                         target.ordinal_ = source.FindIndex(nameTest);
                         Debug.Assert(source.FindAll(nameTest).Count == 1);
                     }
                     Debug.Assert(target.ordinal_ != -1);
-                }
-                else {
                 }
             });
 

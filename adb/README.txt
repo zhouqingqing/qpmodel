@@ -25,7 +25,11 @@ Known issues:
 	The only difference is the table order in FROM clause. first query works but not second because of table 'c' is outerref'ed as c3<5.
 	Try this with  set join_collapse_limit = 1 - you shall see 'c' always show up before its outerref.
 
-2. naming matching
+2. object Equal/Hash semantics
 
-	Current naming matching ignores table or alias in most places, assuming table have different column names/alias. 
+   Equal may have different meaning in term of context. Say "a+b" equals "b+a"? For push down purpose, yes, they are. Currently this problem is most obvious
+   with ColumnOrdinalFix expr look up. There are more complicated exmaples like "(a+1)+b" vs. "(b+1) +a".
+   Maybe we shall redefine SemanticEqual() interface to avoid confusion.
+   Hash is important as well whenever we use any indexed container - they will assume Equal/Hash interface, so if we use SemanticEqual(), we can't use any 
+   indexed container.
 
