@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
+using System.Diagnostics;
 
 namespace adb
 {
@@ -166,14 +166,14 @@ namespace adb
 
         internal Expr CloneFixColumnOrdinal(Expr toclone, List<Expr> source)
         {
-            Predicate<Expr> nameTest;
             var clone = toclone.Clone();
 
-            // first try to match the whole expression
+            // first try to match the whole expression - don't do this for ColExpr
+            // because it has no practial benefits.
+            // 
             if (!(clone is ColExpr))
             {
-                nameTest = z => z.Equals(clone);
-                int ordinal = source.FindIndex(nameTest);
+                int ordinal = source.FindIndex(clone.Equals);
                 if (ordinal != -1)
                     return new ExprRef(clone, ordinal);
             }
@@ -181,16 +181,14 @@ namespace adb
             // we have to use each ColExpr and fix its ordinal
             clone.VisitEachExpr(y =>
             {
-                nameTest = z => z.Equals(y);
-
                 if (y is ColExpr target)
                 {
-                // using source's matching index for ordinal
-                // fix colexpr's ordinal - leave the outerref
-                if (!target.isOuterRef_)
+                    // using source's matching index for ordinal
+                    // fix colexpr's ordinal - leave the outerref
+                    if (!target.isOuterRef_)
                     {
-                        target.ordinal_ = source.FindIndex(nameTest);
-                        Debug.Assert(source.FindAll(nameTest).Count == 1);
+                        target.ordinal_ = source.FindIndex(y.Equals);
+                        Debug.Assert(source.FindAll(y.Equals).Count == 1);
                     }
                     Debug.Assert(target.ordinal_ != -1);
                 }
@@ -393,9 +391,12 @@ namespace adb
                 switch (x)
                 {
                     case LiteralExpr lx:
+                        break;
                     case SubqueryExpr sx:
+                        // select ..., sx = (select b1 from b limit 1) from a;
                         break;
                     default:
+						// it can be a single table, or single table computation say "c1+c2+7"
                         Debug.Assert(ExprHelper.AllTableRef(x).Count == 1);
                         Debug.Assert(ExprHelper.AllTableRef(x)[0].Equals(tabref_));
                         break;

@@ -615,6 +615,7 @@ namespace adb
 
         public override string ToString() => $@"({expr_})[{ordinal_}]";
         public ExprRef(Expr expr, int ordinal) {
+            Debug.Assert(!(expr is ColExpr));
             expr_ = expr; ordinal_ = ordinal;
         }
         public override Value Exec(ExecContext context, Row input) => input.values_[ordinal_];
