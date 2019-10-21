@@ -33,3 +33,5 @@ Known issues:
    Hash is important as well whenever we use any indexed container - they will assume Equal/Hash interface, so if we use SemanticEqual(), we can't use any 
    indexed container.
 
+   ExprRef can further cause confusion with Equal semantics because it is essentially a wrapper of an expression and equal semantics shall be applied to the 
+   expressions it represents.
