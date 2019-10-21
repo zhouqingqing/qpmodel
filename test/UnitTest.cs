@@ -486,6 +486,32 @@ namespace test
                                         Filter: c.c2[1]=?b.b2[1]";
             TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
 
+            // b3+c2 as a whole push to the outer join side
+            sql = "select b3+c2 from a,b,c where a1>= (select b1 from b where b1=a1) and a2 >= (select c2 from c where c1=a1);";
+            stmt = RawParser.ParseSqlStatement(sql);
+            stmt.Exec(true);
+            phyplan = stmt.physicPlan_;
+            answer = @"PhysicNLJoin   (rows = 27)
+                        Output: (b.b3[2]+c.c2[1])[1]
+                        -> PhysicGetTable a  (rows = 3)
+                            Output: #a.a1[0]
+                            Filter: a.a1[0]>=@1 and a.a2[1]>=@2
+                            <SubqueryExpr> 1
+                                -> PhysicGetTable b  (rows = 3)
+                                    Output: b.b1[0]
+                                    Filter: b.b1[0]=?a.a1[0]
+                            <SubqueryExpr> 2
+                                -> PhysicGetTable c  (rows = 3)
+                                    Output: c.c2[1]
+                                    Filter: c.c1[0]=?a.a1[0]
+                        -> PhysicNLJoin   (rows = 27)
+                            Output: b.b3[1]+c.c2[0]
+                            -> PhysicGetTable c  (rows = 9)
+                                Output: c.c2[1]
+                            -> PhysicGetTable b  (rows = 27)
+                                Output: b.b3[2]";
+            TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
+
             // key here is bo.b3=a3 show up in 3rd subquery
             sql = @"select a1  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 
                         and bo.b3 = a3 and b3> 1) and b2<3);";

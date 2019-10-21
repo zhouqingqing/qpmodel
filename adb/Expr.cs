@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -279,7 +278,21 @@ namespace adb
         // notice b.a2 and a.a2 are the same column but have differenti ordinal.
         // This means we have to copy ColExpr, so its parents, then everything.
         //
-        public virtual Expr Clone() => (Expr)this.MemberwiseClone();
+        public virtual Expr Clone()
+        {
+            var n = this.MemberwiseClone();
+            Debug.Assert(n.Equals(this));
+            return (Expr)n;
+        }
+
+        public override int GetHashCode() => tableRefs_.GetHashCode();
+        public override bool Equals(object obj)
+        {
+            if (!(obj is Expr)) 
+                return false;
+            var n = obj as Expr;
+            return tableRefs_.Equals(n.tableRefs_);
+        }
         public virtual void Bind(BindContext context) => bounded_ = true;
         public virtual string PrintString(int depth) => ToString();
         public virtual Value Exec(ExecContext context, Row input) => throw new Exception($"{this} subclass shall implment Exec()");
@@ -438,11 +451,20 @@ namespace adb
         public Expr r_;
         public string op_;
 
+        public override int GetHashCode() => l_.GetHashCode() ^ r_.GetHashCode() ^ op_.GetHashCode();
+        public override bool Equals(object obj)
+        {
+            if (obj is BinExpr bo) {
+                return l_.Equals(bo.l_) && r_.Equals(bo.r_) && op_.Equals(bo.op_);
+            }
+            return false;
+        }
         public override Expr Clone()
         {
-            var n = (BinExpr)this.MemberwiseClone();
+            var n = (BinExpr)base.Clone();
             n.l_ = l_.Clone();
             n.r_ = r_.Clone();
+            Debug.Assert(n.Equals(this));
             return n;
         }
         public BinExpr(Expr l, Expr r, string op)
@@ -584,6 +606,18 @@ namespace adb
         public LiteralExpr(SQLiteParser.Literal_valueContext val) => val_ = val;
         public override string ToString() => val_.GetText();
         public override Value Exec(ExecContext context, Row input) => Value.Parse(val_.GetText());
+    }
+
+    // runtime only used to reference an expr as a whole without recomputation
+    public class ExprRef : Expr {
+        Expr expr_;
+        int ordinal_;
+
+        public override string ToString() => $@"({expr_})[{ordinal_}]";
+        public ExprRef(Expr expr, int ordinal) {
+            expr_ = expr; ordinal_ = ordinal;
+        }
+        public override Value Exec(ExecContext context, Row input) => input.values_[ordinal_];
     }
 
 }
