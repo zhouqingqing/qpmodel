@@ -1,6 +1,7 @@
 ﻿using adb;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
+using System.Linq;
 using System.Collections.Generic;
 
 namespace test
@@ -418,6 +419,26 @@ namespace test
                                     -> PhysicGetTable c  (rows = 9)
                                         Output: c.c1[0]";
             TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
+        }
+
+        [TestMethod]
+        public void TestAggregation()
+        {
+            // FIXME: run result is wrong
+            var sql = "select a2/2, min(a1), max(a1)+sum(a1+a2)*2 from a group by a2/2";
+            var stmt = RawParser.ParseSqlStatement(sql);
+            stmt.Exec(true); var phyplan = stmt.physicPlan_;
+            var answer = @"PhysicHashAgg   (rows = 2)
+                            Output: a.a2[0]/2,min(a.a1[1]),max(a.a1[1])+sum(a.a1[1]+a.a2[0])*2
+                            Group by: a.a2[0]/2
+                            -> PhysicGetTable a  (rows = 3)
+                                Output: a.a2[1],a.a1[0]";
+            TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
+            sql = "select (4-a3)/2, sum(a1),sum(a1+a2) from a group by (4-a3)/2;";
+            var result = ExecuteSQL(sql);
+            Assert.AreEqual(2, result.Count);
+            Assert.AreEqual("1,0,1", result[0].ToString());
+            Assert.AreEqual("0,3,8", result[1].ToString());
         }
 
         [TestMethod]

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Diagnostics;
 
@@ -78,6 +79,7 @@ namespace adb
         internal SelectStmt parent_;
         // subqueries at my level (children level excluded)
         List<SelectStmt> subqueries_ = new List<SelectStmt>();
+        bool hasAgg_ = false;
 
         internal SelectStmt TopStmt()
         {
@@ -144,7 +146,11 @@ namespace adb
                 if (x is SelStar xs)
                     selstars.Add(xs);
                 else
+                {
                     x.Bind(context);
+                    if (x is AggFunc)
+                        hasAgg_ = true;
+                }
             });
 
             // expand * into actual columns
@@ -239,19 +245,30 @@ namespace adb
 
         void createSubQueryExprPlan(Expr expr)
         {
-            if (expr.HasSubQuery())
+            expr.VisitEachExpr(x =>
             {
-                expr.VisitEachExpr(x =>
+                if (x is SubqueryExpr sx)
                 {
-                    if (x is SubqueryExpr sx)
-                    {
-                        subqueries_.Add(sx.query_);
-                        sx.query_.CreatePlan();
-                    }
-                });
-            }
+                    Debug.Assert(expr.HasSubQuery());
+                    subqueries_.Add(sx.query_);
+                    sx.query_.CreatePlan();
+                }
+            });
         }
 
+        // select i, min(i/2), 2+min(i)+max(i) from A group by i
+        // => min(i/2), 2+min(i)+max(i)
+        List<Expr> getAggregations() {
+            var r = new List<Expr>();
+            selection_.ForEach(x => {
+                x.VisitEachExpr(y => {
+                    if (y is AggFunc)
+                        r.Add(x);
+                });
+            });
+
+            return r.Distinct().ToList();
+        }
         public override LogicNode CreatePlan()
         {
             LogicNode root = transformFromClause();
@@ -264,8 +281,11 @@ namespace adb
             }
 
             // group by
-            if (groupby_ != null)
-                root = new LogicAgg(root, groupby_, having_);
+            if (hasAgg_ || groupby_ != null)
+            {
+                // TODO: first make sure non-aggfunc are in group by list
+                root = new LogicAgg(root, groupby_, getAggregations(), having_);
+            }
 
             // selection list
             selection_.ForEach(createSubQueryExprPlan);
@@ -298,9 +318,9 @@ namespace adb
                     });
                 default:
                     // Consider 
-                    // - filter1: a.a1 = c.c1
-                    // - filter2: a.a2 = b.b2
-                    // - nodeJoin: (A X B) X C
+                    //  - filter1: a.a1 = c.c1
+                    //  - filter2: a.a2 = b.b2
+                    //  - nodeJoin: (A X B) X C
                     // filter2 can be pushed to A X B but filter1 has to stay on top join for current plan.
                     // if we consider we can reorder join to (A X C) X B, then filter1 can be pushed down
                     // but not filter1. Current stage is too early fro this purpose since join reordering
@@ -314,8 +334,6 @@ namespace adb
                         return false;
                     });
             }
-
-            return false;
         }
 
         // Things to consider to remove FromQuery:

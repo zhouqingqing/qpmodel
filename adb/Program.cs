@@ -100,7 +100,12 @@ namespace adb
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
         sql = "select b3+c2 from a,c,b where (select b1+b2 from b where b1=a1)>4 and (select c2+c3 from c where c1=b1)>6 and c1<1";
             sql = "select b3+c2 from a,b,c where a1>= (select b1 from b where b1=a1) and a2 >= (select c2 from c where c1=a1);";
-            sql = "select b1+b1 from (select b1 from b) a";
+            sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<3);";
+            sql = "select min(a1), max(a1)+sum(a1)*2 from a;";
+            sql = "select a2/2, min(a1), max(a1)+sum(a1)*2 from a group by a2/2";
+            sql = "select a2/2, min(a1), max(a1)+sum(a1)*2 from a, b where a.a1<b.b2 group by a2;";
+            sql = "select (4-a3)/2, sum(a1),sum(a1+a2) from a group by (4-a3)/2;";
+            sql = "select (4-a3)/2, sum(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";// needed!
 
         doit:
             Console.WriteLine(sql);
