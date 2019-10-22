@@ -184,7 +184,12 @@ namespace adb
         public override object VisitArithplusexpr([NotNull] SQLiteParser.ArithplusexprContext context)
             => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
         public override object VisitFuncExpr([NotNull] SQLiteParser.FuncExprContext context)
-            => new FuncExpr(context.function_name().GetText());
+        {
+            List<Expr> args = new List<Expr>();
+            foreach (var v in context.expr())
+                args.Add(Visit(v) as Expr);
+            return FuncExpr.BuildFuncExpr(context.function_name().GetText(), args);
+        }
         public override object VisitColExpr([NotNull] SQLiteParser.ColExprContext context)
             => new ColExpr(context.database_name()?.GetText(),
                 context.table_name()?.GetText(),

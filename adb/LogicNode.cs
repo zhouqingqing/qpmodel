@@ -131,6 +131,9 @@ namespace adb
                     case LogicGetExternal le:
                         phy = new PhysicGetExternal(le);
                         break;
+                    case LogicAgg la:
+                        phy = new PhysicHashAgg(la, la.children_[0].DirectToPhysical(profiling));
+                        break;
                     default:
                         throw new NotImplementedException();
                 }
@@ -257,7 +260,7 @@ namespace adb
                 {
                     // the whole list can't push to the children (Eg. a.a1 + b.b1)
                     // decompose to singleton and push down
-                    var colref = ExprHelper.AllColExpr(v, false);
+                    var colref = ExprHelper.AllColExpr(v);
                     colref.ForEach(x =>
                     {
                         if (ltables.Contains(x.tabRef_))
@@ -301,8 +304,8 @@ namespace adb
         {
             // request from child including reqOutput and filter
             List<Expr> reqFromChild = new List<Expr>();
-            reqOutput.ForEach(x => reqFromChild.AddRange(ExprHelper.AllColExpr(x, false)));
-            reqFromChild.AddRange(ExprHelper.AllColExpr(filter_, false));
+            reqFromChild.AddRange(ExprHelper.AllColExpr(reqOutput));
+            reqFromChild.AddRange(ExprHelper.AllColExpr(filter_));
             var childout = children_[0].ResolveChildrenColumns(reqFromChild);
 
             filter_ = CloneFixColumnOrdinal(filter_, childout);
@@ -316,24 +319,43 @@ namespace adb
 
     public class LogicAgg : LogicNode
     {
-        internal List<Expr> groupby_;
-        internal List<Expr> aggr_;
+        internal List<Expr> keys_;
+        internal List<Expr> aggrs_;
         internal Expr having_;
 
         public override string PrintMoreDetails(int depth)
         {
             string r = null;
-            if (groupby_ != null)
-                r += $"Group by: {string.Join(", ", groupby_)}\n";
+            if (keys_ != null)
+                r += $"Group by: {string.Join(", ", keys_)}\n";
             if (having_ != null)
                 r += Utils.Tabs(depth + 2) + $"{PrintFilter(having_, depth)}";
             return r;
         }
 
-        public LogicAgg(LogicNode child, List<Expr> groupby, Expr having)
+        public LogicAgg(LogicNode child, List<Expr> groupby, List<Expr> aggrs, Expr having)
         {
-            children_.Add(child); groupby_ = groupby; having_ = having;
+            children_.Add(child); keys_ = groupby; aggrs_ = aggrs;  having_ = having;
+            output_ = aggrs_;
         }
+        public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
+        {
+            // request from child including reqOutput and filter
+            List<Expr> reqFromChild = new List<Expr>();
+            reqFromChild.AddRange(ExprHelper.AllColExpr(reqOutput));
+            reqFromChild.AddRange(ExprHelper.AllColExpr(keys_));
+            reqFromChild.AddRange(ExprHelper.AllColExpr(aggrs_));
+            var childout = children_[0].ResolveChildrenColumns(reqFromChild);
+
+            keys_ = CloneFixColumnOrdinal(keys_, childout);
+            aggrs_ = CloneFixColumnOrdinal(aggrs_, childout);
+            output_ = CloneFixColumnOrdinal(reqOutput, childout);
+            if (removeRedundant)
+                output_ = output_.Distinct().ToList();
+
+            return output_;
+        }
+
     }
 
     public class LogicFromQuery : LogicNode
@@ -385,22 +407,39 @@ namespace adb
         }
         public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
+            var aggs = new List<Expr>();
             // it can be an litral, or only uses my tableref
             reqOutput.ForEach(x =>
             {
-                switch (x)
-                {
-                    case LiteralExpr lx:
-                        break;
-                    case SubqueryExpr sx:
-                        // select ..., sx = (select b1 from b limit 1) from a;
-                        break;
-                    default:
-						// it can be a single table, or single table computation say "c1+c2+7"
-                        Debug.Assert(ExprHelper.AllTableRef(x).Count == 1);
-                        Debug.Assert(ExprHelper.AllTableRef(x)[0].Equals(tabref_));
-                        break;
-                }
+                x.VisitEachExpr(y => {
+                    switch (y)
+                    {
+                        case LiteralExpr ly:    // select 2+3, ...
+                        case SubqueryExpr sy:   // select ..., sx = (select b1 from b limit 1) from a;
+                            break;
+                        case AggFunc ay:        // 1+abs(min(a))+max(b)
+                            aggs.Add(x);
+                            break;
+                        default:
+                            // it can be a single table, or single table computation say "c1+c2+7"
+                            y.EqualTableRef(tabref_);
+                            break;
+                    }
+                });
+            });
+
+            // aggs remove functions
+            aggs.ForEach(x=> {
+                reqOutput.Remove(x);
+                bool check = false;
+                x.VisitEachExpr(y => {
+                    if (y is AggFunc ay)
+                    {
+                        check = true;
+                        reqOutput.AddRange(ay.GetNonFuncExprList());
+                    }
+                });
+                Debug.Assert(check);
             });
 
             if (filter_ != null)
@@ -442,6 +481,8 @@ namespace adb
 
         public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
+            // insertion is always the top node 
+            Debug.Assert(!removeRedundant);
             children_[0].ResolveChildrenColumns(reqOutput, removeRedundant);
             return output_;
         }

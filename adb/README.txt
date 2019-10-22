@@ -2,7 +2,7 @@
 ======================================
 1. csv reader so we can load TPCH data
 2. CREATE TABLE/INSERT  to support data loading
-3. tpch data types, sql syntax
+3. tpch data types, sql syntax, null handling
 4. subquery to join conversion
 5. join re-ordering
 6. parallel query/ctes etc

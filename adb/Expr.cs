@@ -101,7 +101,7 @@ namespace adb
             }
         }
 
-        public static List<ColExpr> AllColExpr(Expr expr, bool includingParameters)
+        public static List<ColExpr> AllColExpr(Expr expr, bool includingParameters = false)
         {
             var list = new HashSet<ColExpr>();
             expr.VisitEachExpr(x =>
@@ -114,6 +114,13 @@ namespace adb
             });
 
             return list.ToList();
+        }
+
+        public static List<ColExpr> AllColExpr(List<Expr> exprs, bool includingParameters = false)
+        {
+            var list = new List<ColExpr>();
+            exprs.ForEach(x => list.AddRange(AllColExpr(x, includingParameters)));
+            return list.Distinct().ToList();
         }
 
         public static List<TableRef> AllTableRef(Expr expr)
@@ -156,18 +163,16 @@ namespace adb
         public static void SubqueryDirectToPhysic(Expr expr)
         {
             // append the subquery plan align with expr
-            if (expr.HasSubQuery())
+            expr.VisitEachExpr(x =>
             {
-                expr.VisitEachExpr(x =>
+                if (x is SubqueryExpr sx)
                 {
-                    if (x is SubqueryExpr sx)
-                    {
-                        var query = sx.query_;
-                        ProfileOption poption = query.TopStmt().profileOpt_;
-                        query.physicPlan_ = query.logicPlan_.DirectToPhysical(poption);
-                    }
-                });
-            }
+                    Debug.Assert(expr.HasSubQuery());
+                    var query = sx.query_;
+                    ProfileOption poption = query.TopStmt().profileOpt_;
+                    query.physicPlan_ = query.logicPlan_.DirectToPhysical(poption);
+                }
+            });
         }
     }
 
@@ -250,7 +255,12 @@ namespace adb
                     var m = v.GetValue(this) as Expr;
                     m.VisitEachExpr(callback);
                 }
-                // if container<Expr> we shall also handle
+                else if (v.FieldType == typeof(List<Expr>))
+                {
+                    var m = v.GetValue(this) as List<Expr>;
+                    m.ForEach(x => x.VisitEachExpr(callback));
+                }
+                // no other containers currently handled
             }
         }
 
@@ -432,14 +442,99 @@ namespace adb
 
     public class FuncExpr : Expr
     {
-        readonly string func_;
+        public readonly string funcName_;
+        public readonly List<Expr> args_;
 
-        public FuncExpr(string func)
+        public FuncExpr(string funcName, List<Expr> args)
         {
-            func_ = func;
+            funcName_ = funcName;
+            args_ = args;
         }
 
-        public override string ToString() => func_;
+        public override void Bind(BindContext context)
+        {
+            args_.ForEach(x=> {
+                x.Bind(context);
+                tableRefs_.AddRange(x.tableRefs_);
+            });
+            tableRefs_ = tableRefs_.Distinct().ToList();
+        }
+
+        // sum(min(x)) => x
+        public List<Expr> GetNonFuncExprList() {
+            List<Expr> r = new List<Expr>();
+            args_.ForEach(x => {
+                x.VisitEachExpr(y => {
+                    if (y is FuncExpr yf)
+                        r.AddRange(yf.GetNonFuncExprList());
+                    else
+                        r.Add(y);
+                });
+            });
+
+            return r;
+        }
+        static public FuncExpr BuildFuncExpr(string funcName, List<Expr> args) {
+            FuncExpr r = null;
+            var func = funcName.Trim().ToLower();
+
+            if (func.Equals("sum"))
+            {
+                Utils.Checks(args.Count == 1, "one argument is expected");
+                r = new AggSum(args[0]);
+            }
+            else if (func.Equals("min"))
+            {
+                Utils.Checks(args.Count == 1, "one argument is expected");
+                r = new AggMin(args[0]);
+            }
+            else if (func.Equals("max"))
+            {
+                Utils.Checks(args.Count == 1, "one argument is expected");
+                r = new AggMax(args[0]);
+            }
+            else
+                r = new FuncExpr(funcName, args);
+
+            return r;
+        }
+
+        public override string ToString() => $"{funcName_}({string.Join(",",args_)})";
+    }
+
+    public abstract class AggFunc : FuncExpr {
+        public AggFunc(string func, List<Expr> args) : base(func, args) {}
+
+        public override Value Exec(ExecContext context, Row input)
+        {
+            return 0;
+        }
+        public virtual void Init(ExecContext context, Row input) { }
+        public virtual void Accum(ExecContext context, Value old, Row input) { }
+    }
+
+    public class AggSum : AggFunc {
+        // Exec info
+        Value sum_;
+        public AggSum(Expr arg) : base("sum", new List<Expr> { arg}) { }
+
+        public override void Init(ExecContext context, Row input) => sum_ = args_[0].Exec(context, input);
+        public override void Accum(ExecContext context, Value old, Row input) => sum_ = old + args_[0].Exec(context, input);
+        public override long Exec(ExecContext context, Row input) => sum_;
+    }
+
+    public class AggMin : AggFunc
+    {
+        // Exec info
+        Value min_;
+        public AggMin(Expr arg) : base("min", new List<Expr> { arg }) { }
+    }
+
+    public class AggMax : AggFunc
+    {
+        // Exec info
+        Value max_;
+        public AggMax(Expr arg) : base("max", new List<Expr> { arg }) { }
     }
 
     // we can actually put all binary ops in BinExpr class but we want to keep 

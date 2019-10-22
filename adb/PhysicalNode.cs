@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Diagnostics;
 
@@ -147,6 +148,78 @@ namespace adb
                 });
                 return null;
             });
+        }
+    }
+
+    public class PhysicHashAgg : PhysicNode {
+
+        class KeyList {
+            internal List<Value> keys_ = new List<Value>();
+
+            static internal KeyList ComputeKeys(ExecContext context, LogicAgg agg, Row input) {
+                var list = new KeyList();
+                agg.keys_.ForEach(x => list.keys_.Add(x.Exec(context, input)));
+                return list;
+            }
+
+            public override string ToString() => string.Join(",", keys_);
+            public override int GetHashCode() {
+                int hashcode = 0;
+                keys_.ForEach(x => hashcode ^= x.GetHashCode());
+                return hashcode;
+            }
+            public override bool Equals(object obj)
+            {
+                var keyl = obj as KeyList;
+                Debug.Assert(obj is KeyList);
+                Debug.Assert(keyl.keys_.Count == keys_.Count);
+                return keys_.SequenceEqual(keyl.keys_);
+            }
+        };
+        public PhysicHashAgg(LogicAgg logic, PhysicNode l) : base(logic) => children_.Add(l);
+
+        public override void Exec(ExecContext context, Func<Row, string> callback)
+        {
+            var logic = logic_ as LogicAgg;
+            var hm = new Dictionary<KeyList, Row>();
+
+            children_[0].Exec(context, l =>
+            {
+                var keys = KeyList.ComputeKeys(context, logic, l);
+
+                if (hm.TryGetValue(keys, out Row exist))
+                {
+                    logic.output_.ForEach(x => {
+                        x.VisitEachExpr(y =>
+                        {
+                            if (y is AggFunc ya)
+                            {
+                                var old = exist.values_[logic.output_.IndexOf(x)];
+                                ya.Accum(context, old, l);
+                            }
+                        });
+                    });
+
+                    hm[keys] = ExecProject(context, l);
+                }
+                else
+                {
+                    logic.output_.ForEach(x => {
+                        x.VisitEachExpr(y =>
+                        {
+                            if (y is AggFunc ya)
+                                ya.Init(context, l);
+                        });
+                    });
+
+                    hm.Add(keys, ExecProject(context, l));
+                }
+                return null;
+            });
+
+            // output
+            foreach (var v in hm)
+                callback(v.Value);
         }
     }
 
