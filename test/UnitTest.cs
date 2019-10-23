@@ -432,7 +432,7 @@ namespace test
             var stmt = RawParser.ParseSqlStatement(sql);
             stmt.Exec(true); var phyplan = stmt.physicPlan_;
             var answer = @"PhysicHashAgg   (rows = 2)
-                            Output: 7,{4-a.a3[0]/2}[0]*2+1+{sum(a.a1[1])}[1],{sum(a.a1[1])}[1]+{sum(a.a1[1]+a.a2[2])}[2]*2
+                            Output: 7,{4-a.a3/2}[0]*2+1+{sum(a.a1)}[1],{sum(a.a1)}[1]+{sum(a.a1+a.a2)}[2]*2
                             Group by: 4-a.a3[0]/2
                             -> PhysicGetTable a  (rows = 3)
                                 Output: a.a3[2],a.a1[0],a.a2[1]";
@@ -534,7 +534,7 @@ namespace test
             stmt.Exec(true);
             phyplan = stmt.physicPlan_;
             answer = @"PhysicNLJoin   (rows = 27)
-                        Output: {b.b3[2]+c.c2[1]}[1]
+                        Output: {b.b3+c.c2}[1]
                         -> PhysicGetTable a  (rows = 3)
                             Output: #a.a1[0]
                             Filter: a.a1[0]>=@1 and a.a2[1]>=@2

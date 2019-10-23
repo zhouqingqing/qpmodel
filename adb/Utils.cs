@@ -39,6 +39,22 @@ namespace adb
             return r;
         }
 
+        // a[0]+b[1] => a+b 
+        public static string RemovePositions(string r) {
+            do
+            {
+                int start = r.IndexOf('[');
+                if (start == -1)
+                    break;
+                int end = r.IndexOf(']');
+                Debug.Assert(end != -1);
+                var middle = r.Substring(start + 1, end - start - 1);
+                Debug.Assert(int.TryParse(middle, out int result));
+                r = r.Replace($"[{middle}]", "");
+            } while (r.Length > 0);
+            return r;
+        }
+
         public static void ReadCsvLine(string filepath, Action<string[]> action)
         {
             using (TextFieldParser parser = new TextFieldParser(filepath))
