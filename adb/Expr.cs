@@ -506,23 +506,28 @@ namespace adb
             FuncExpr r = null;
             var func = funcName.Trim().ToLower();
 
-            if (func.Equals("sum"))
+            switch (func)
             {
-                Utils.Checks(args.Count == 1, "one argument is expected");
-                r = new AggSum(args[0]);
+                case "sum":
+                    Utils.Checks(args.Count == 1, "one argument is expected");
+                    r = new AggSum(args[0]);
+                    break;
+                case "min":
+                    Utils.Checks(args.Count == 1, "one argument is expected");
+                    r = new AggMin(args[0]);
+                    break;
+                case "max":
+                    Utils.Checks(args.Count == 1, "one argument is expected");
+                    r = new AggMax(args[0]);
+                    break;
+                case "count":
+                    Utils.Checks(args.Count == 1, "one argument is expected");
+                    r = new AggCount(args[0]);
+                    break;
+                default:
+                    r = new FuncExpr(funcName, args);
+                    break;
             }
-            else if (func.Equals("min"))
-            {
-                Utils.Checks(args.Count == 1, "one argument is expected");
-                r = new AggMin(args[0]);
-            }
-            else if (func.Equals("max"))
-            {
-                Utils.Checks(args.Count == 1, "one argument is expected");
-                r = new AggMax(args[0]);
-            }
-            else
-                r = new FuncExpr(funcName, args);
 
             return r;
         }
@@ -562,6 +567,17 @@ namespace adb
         public override void Init(ExecContext context, Row input) => sum_ = args_[0].Exec(context, input);
         public override void Accum(ExecContext context, Value old, Row input) => sum_ = old + args_[0].Exec(context, input);
         public override long Exec(ExecContext context, Row input) => sum_;
+    }
+
+    public class AggCount : AggFunc
+    {
+        // Exec info
+        internal Value count_;
+        public AggCount(Expr arg) : base("count", new List<Expr> { arg }) { }
+
+        public override void Init(ExecContext context, Row input) => count_ = 1;
+        public override void Accum(ExecContext context, Value old, Row input) => count_ += 1;
+        public override long Exec(ExecContext context, Row input) => count_;
     }
 
     public class AggMin : AggFunc
