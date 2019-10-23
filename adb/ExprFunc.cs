@@ -9,6 +9,7 @@ namespace adb
     {
         public string funcName_;
         public List<Expr> args_;
+        public static int argcnt_;
 
         public FuncExpr(string funcName, List<Expr> args)
         {
@@ -47,27 +48,18 @@ namespace adb
 
             switch (func)
             {
-                case "sum":
-                    Utils.Checks(args.Count == 1, "one argument is expected");
-                    r = new AggSum(args[0]);
-                    break;
-                case "min":
-                    Utils.Checks(args.Count == 1, "one argument is expected");
-                    r = new AggMin(args[0]);
-                    break;
-                case "max":
-                    Utils.Checks(args.Count == 1, "one argument is expected");
-                    r = new AggMax(args[0]);
-                    break;
-                case "count":
-                    Utils.Checks(args.Count == 1, "one argument is expected");
-                    r = new AggCount(args[0]);
-                    break;
+                case "sum": r = new AggSum(args[0]); break;
+                case "min": r = new AggMin(args[0]); break;
+                case "max": r = new AggMax(args[0]); break;
+                case "count": r = new AggCount(args[0]);break;
+                case "avg": r = new AggAvg(args[0]);break;
                 default:
                     r = new FuncExpr(funcName, args);
                     break;
             }
 
+            // verify arguments count
+            Utils.Checks(args.Count == FuncExpr.argcnt_, $"{FuncExpr.argcnt_} argument is expected");
             return r;
         }
 
@@ -98,7 +90,7 @@ namespace adb
 
     public abstract class AggFunc : FuncExpr
     {
-        public AggFunc(string func, List<Expr> args) : base(func, args) { }
+        public AggFunc(string func, List<Expr> args) : base(func, args) { argcnt_ = 1;}
 
         public override Value Exec(ExecContext context, Row input)
         {
@@ -116,7 +108,7 @@ namespace adb
 
         public override void Init(ExecContext context, Row input) => sum_ = args_[0].Exec(context, input);
         public override void Accum(ExecContext context, Value old, Row input) => sum_ = old + args_[0].Exec(context, input);
-        public override long Exec(ExecContext context, Row input) => sum_;
+        public override Value Exec(ExecContext context, Row input) => sum_;
     }
 
     public class AggCount : AggFunc
@@ -127,7 +119,7 @@ namespace adb
 
         public override void Init(ExecContext context, Row input) => count_ = 1;
         public override void Accum(ExecContext context, Value old, Row input) => count_ += 1;
-        public override long Exec(ExecContext context, Row input) => count_;
+        public override Value Exec(ExecContext context, Row input) => count_;
     }
 
     public class AggMin : AggFunc
@@ -141,7 +133,7 @@ namespace adb
             var arg = args_[0].Exec(context, input);
             min_ = old > arg ? arg : old;
         }
-        public override long Exec(ExecContext context, Row input) => min_;
+        public override Value Exec(ExecContext context, Row input) => min_;
     }
 
     public class AggMax : AggFunc
@@ -155,6 +147,27 @@ namespace adb
             var arg = args_[0].Exec(context, input);
             max_ = old > arg ? old : arg;
         }
-        public override long Exec(ExecContext context, Row input) => max_;
+        public override Value Exec(ExecContext context, Row input) => max_;
+    }
+
+    public class AggAvg : AggFunc
+    {
+        // Exec info
+        internal Value sum_;
+        internal Value count_;
+
+        public AggAvg(Expr arg) : base("avg", new List<Expr> { arg }) { }
+
+        public override void Init(ExecContext context, Row input)
+        {
+            sum_ = args_[0].Exec(context, input);
+            count_ = 1;
+        }
+        public override void Accum(ExecContext context, Value old, Row input)
+        {
+            sum_ = old + args_[0].Exec(context, input);
+            count_ += 1;
+        }
+        public override Value Exec(ExecContext context, Row input) => sum_/count_;
     }
 }

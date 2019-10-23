@@ -441,11 +441,11 @@ namespace test
             Assert.AreEqual(2, result.Count);
             Assert.AreEqual("7,3,2", result[0].ToString());
             Assert.AreEqual("7,4,19", result[1].ToString());
-            sql = "select (4-a3)/2,(4-a3)/2*2+1+min(a1), count(a1), max(a1)+sum(a1+a2)*2 from a group by 1;";
+            sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1";
             result = ExecuteSQL(sql);
             Assert.AreEqual(2, result.Count);
-            Assert.AreEqual("1,3,1,2", result[0].ToString());
-            Assert.AreEqual("0,2,2,18", result[1].ToString());
+            Assert.AreEqual("1,3,4,2", result[0].ToString());
+            Assert.AreEqual("0,2,6,18", result[1].ToString());
             sql = "select sum(b1) from b where b3>1000;";
             result = ExecuteSQL(sql);
             Assert.AreEqual(0, result.Count);   // FIXME: shall be a null
