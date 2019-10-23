@@ -87,6 +87,7 @@
   <ItemGroup>
     <Compile Include="Catalog.cs" />
     <Compile Include="Expr.cs" />
+    <Compile Include="ExprFunc.cs" />
     <Compile Include="LogicNode.cs" />
     <Compile Include="Parser.cs" />
     <Compile Include="PhysicalNode.cs" />
