@@ -7,6 +7,11 @@ using Value = System.Int64;
 
 namespace adb
 {
+    public class SemanticExecutionException : Exception
+    {
+        public SemanticExecutionException(string msg) => Console.WriteLine(msg);
+    }
+
     public class Row
     {
         public readonly List<Value> values_ = new List<Value>();

@@ -424,7 +424,11 @@ namespace test
         [TestMethod]
         public void TestAggregation()
         {
-            var sql = "select 7, (4-a3)/2*2+1+sum(a1), sum(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";
+            var sql = "select a1, sum(a1) from a group by a2";
+            var result = ExecuteSQL(sql); Assert.IsNull(result);
+            Assert.IsTrue(TestHelper.error_.Contains("SemanticAnalyzeException"));
+
+            sql = "select 7, (4-a3)/2*2+1+sum(a1), sum(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";
             var stmt = RawParser.ParseSqlStatement(sql);
             stmt.Exec(true); var phyplan = stmt.physicPlan_;
             var answer = @"PhysicHashAgg   (rows = 2)
@@ -433,7 +437,7 @@ namespace test
                             -> PhysicGetTable a  (rows = 3)
                                 Output: a.a3[2],a.a1[0],a.a2[1]";
             TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
-            var result = ExecuteSQL(sql);
+            result = ExecuteSQL(sql);
             Assert.AreEqual(2, result.Count);
             Assert.AreEqual("7,3,2", result[0].ToString());
             Assert.AreEqual("7,4,19", result[1].ToString());
@@ -450,6 +454,12 @@ namespace test
             Assert.AreEqual(2, result.Count);
             Assert.AreEqual("0,1", result[0].ToString());
             Assert.AreEqual("1,2", result[1].ToString());
+            sql = "select a2, sum(a1) from a group by a2";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(3, result.Count);
+            Assert.AreEqual("1,0", result[0].ToString());
+            Assert.AreEqual("2,1", result[1].ToString());
+            Assert.AreEqual("3,2", result[2].ToString());
         }
 
         [TestMethod]
