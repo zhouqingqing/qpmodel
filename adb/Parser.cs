@@ -309,6 +309,7 @@ namespace adb
                 Array.ForEach(context.common_table_expression(), x => ctes.Add(VisitCommon_table_expression(x) as CteExpr));
             }
 
+            // setqs may consists multiple core select statement
             var setqs = new List<SelectStmt>();
             Array.ForEach(context.select_core(), x => setqs.Add(VisitSelect_core(x) as SelectStmt));
 
@@ -320,7 +321,7 @@ namespace adb
                 Array.ForEach(context.ordering_term(), x => orders.Add(VisitOrdering_term(x) as OrderTerm));
             }
 
-            // cores_[0] is also expanded to main body
+            // seqts[0] is also expanded to main body
             return new SelectStmt(setqs[0].selection_, setqs[0].from_, setqs[0].where_, setqs[0].groupby_, setqs[0].having_,
                                     ctes, setqs, orders, context.GetText());
         }

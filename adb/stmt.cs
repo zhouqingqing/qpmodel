@@ -90,6 +90,26 @@ namespace adb
             return top;
         }
 
+        List<Expr> seq2selection(List<Expr> list, List<Expr> selection) {
+            var converted = new List<Expr>();
+            list.ForEach(x =>
+            {
+                if (x is LiteralExpr xl)
+                {
+                    // clone is not necessary but we have some assertions to check
+                    // redundant processing, say same colexpr bound twice, I'd rather
+                    // keep them.
+                    //
+                    int id = int.Parse(xl.val_.GetText());
+                    converted.Add(selection[id - 1].Clone());
+                }
+                else
+                    converted.Add(x);
+            });
+            Debug.Assert(converted.Count == list.Count);
+            return converted;
+        }
+
         public SelectStmt(
             // setops ok fields
             List<Expr> selection, List<TableRef> from, Expr where, List<Expr> groupby, Expr having,
@@ -100,12 +120,14 @@ namespace adb
             selection_ = selection;
             from_ = from;
             where_ = where;
-            groupby_ = groupby;
             having_ = having;
+            if (groupby != null)
+                groupby_ = seq2selection(groupby, selection);
 
             ctes_ = ctes;
             setqs_ = setqs;
             orders_ = orders;
+
         }
 
         void bindFrom(BindContext context)

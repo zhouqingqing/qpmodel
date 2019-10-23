@@ -161,7 +161,8 @@ namespace adb
 
             static internal KeyList ComputeKeys(ExecContext context, LogicAgg agg, Row input) {
                 var list = new KeyList();
-                agg.keys_.ForEach(x => list.keys_.Add(x.Exec(context, input)));
+                if (agg.keys_ != null)
+                    agg.keys_.ForEach(x => list.keys_.Add(x.Exec(context, input)));
                 return list;
             }
 

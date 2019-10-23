@@ -433,16 +433,23 @@ namespace test
                             -> PhysicGetTable a  (rows = 3)
                                 Output: a.a3[2],a.a1[0],a.a2[1]";
             TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
-            sql = "select 7, (4-a3)/2*2+1+sum(a1), sum(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";
             var result = ExecuteSQL(sql);
             Assert.AreEqual(2, result.Count);
             Assert.AreEqual("7,3,2", result[0].ToString());
             Assert.AreEqual("7,4,19", result[1].ToString());
-            sql = "select (4-a3)/2*2+1+min(a1), count(a1), max(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";
+            sql = "select (4-a3)/2,(4-a3)/2*2+1+min(a1), count(a1), max(a1)+sum(a1+a2)*2 from a group by 1;";
             result = ExecuteSQL(sql);
             Assert.AreEqual(2, result.Count);
-            Assert.AreEqual("3,1,2", result[0].ToString());
-            Assert.AreEqual("2,2,18", result[1].ToString());
+            Assert.AreEqual("1,3,1,2", result[0].ToString());
+            Assert.AreEqual("0,2,2,18", result[1].ToString());
+            sql = "select sum(b1) from b where b3>1000;";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(0, result.Count);   // FIXME: shall be a null
+            sql = "select a1, a2  from a where a.a1 = (select sum(b1) from b where b2 = a2 and b3<4);";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(2, result.Count);
+            Assert.AreEqual("0,1", result[0].ToString());
+            Assert.AreEqual("1,2", result[1].ToString());
         }
 
         [TestMethod]

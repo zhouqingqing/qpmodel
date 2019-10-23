@@ -345,9 +345,10 @@ namespace adb
             // request from child including reqOutput and filter
             List<Expr> reqFromChild = new List<Expr>();
             reqFromChild.AddRange(ExprHelper.AllColExpr(reqOutput));
-            reqFromChild.AddRange(ExprHelper.AllColExpr(keys_));
+            if (keys_ != null) reqFromChild.AddRange(ExprHelper.AllColExpr(keys_));
             var childout = children_[0].ResolveChildrenColumns(reqFromChild);
-            keys_ = CloneFixColumnOrdinal(keys_, childout);
+
+            if (keys_ != null) keys_ = CloneFixColumnOrdinal(keys_, childout);
             output_ = CloneFixColumnOrdinal(reqOutput, childout);
             if (removeRedundant)
                 output_ = output_.Distinct().ToList();
@@ -362,9 +363,9 @@ namespace adb
             // =>
             //  output_: <literal>, cos(ref[0]*7)+ref[1],  ref[1]+ref[2]*2
             //
-            var nkeys = keys_.Count;
+            var nkeys = keys_?.Count??0;
             var newoutput = new List<Expr>();
-            output_ = Utils.SearchReplace(output_, keys_);
+            if (keys_ != null) output_ = Utils.SearchReplace(output_, keys_);
             output_.ForEach(x =>
             {
                 x.VisitEachExpr(y =>
