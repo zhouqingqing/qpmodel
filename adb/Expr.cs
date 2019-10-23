@@ -813,7 +813,7 @@ namespace adb
         readonly internal Expr expr_;
         readonly internal int ordinal_;
 
-        public override string ToString() => $@"{{{expr_}}}[{ordinal_}]";
+        public override string ToString() => $@"{{{Utils.RemovePositions(expr_.ToString())}}}[{ordinal_}]";
         public ExprRef(Expr expr, int ordinal) {
             expr_ = expr; ordinal_ = ordinal;
         }
