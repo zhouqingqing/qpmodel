@@ -386,12 +386,13 @@ namespace adb
             // Say invvalid expression means contains colexpr, then the output shall contains
             // no expression consists invalid expression
             //
-            bool validated = true;
+            Expr offending = null;
             newoutput.ForEach(x=>{
                 if (x.VisitEachExprExists(y => y is ColExpr))
-                    validated = false;
+                    offending = x;
             });
-            Debug.Assert(validated);
+            if (offending != null)
+                throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
             output_ = newoutput;
 
             return output_;

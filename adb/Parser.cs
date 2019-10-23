@@ -10,17 +10,12 @@ namespace adb
     // antlr requires user defined exception with this name
     public class RuntimeException : Exception
     {
-        public RuntimeException(string msg) { }
+        public RuntimeException(string msg) => Console.WriteLine(msg);
     }
 
     public class SemanticAnalyzeException : Exception
     {
-        public SemanticAnalyzeException(string msg) { }
-    }
-
-    public class SemanticExecutionException : Exception
-    {
-        public SemanticExecutionException(string msg) { }
+        public SemanticAnalyzeException(string msg) =>Console.WriteLine(msg);
     }
 
     public class RawParser
