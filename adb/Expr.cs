@@ -292,6 +292,9 @@ namespace adb
         {
             var n = this.MemberwiseClone();
             Debug.Assert(n.Equals(this));
+            // tableRefs_ is not actually cloned but it is ok since nobody changes
+            // it after fixed. There are some complications in ColExpr.Bind() though.
+            //
             return (Expr)n;
         }
 
@@ -438,8 +441,16 @@ namespace adb
             Debug.Assert(tabRef_ != null);
             if (tabName_ is null)
                 tabName_ = tabRef_.alias_;
-            if (!isOuterRef_)
+            if (!isOuterRef_) {
+                // group by <1> may reference a select item, and it has bound - I try to avoid this
+                // by clone the item but Expr.Clone() does not clone TableRef_ as it is not change
+                // so let's make a compromise here
+                //
+                Debug.Assert(tableRefs_.Count == 0 
+                    || (tableRefs_.Count == 1 && tabRef_.Equals(tableRefs_[0])));
+                tableRefs_.Clear();
                 tableRefs_.Add(tabRef_);
+            }
             ordinal_ = context.ColumnOrdinal(tabName_, colName_);
             bounded_ = true;
         }
@@ -448,7 +459,12 @@ namespace adb
         public override bool Equals(object obj)
         {
             if (obj is ColExpr co)
-                return co.tabName_.Equals(tabName_) && co.colName_.Equals(colName_);
+            {
+                if (co.tabName_ is null)
+                    return tabName_ is null && co.colName_.Equals(colName_);
+                else
+                    return co.tabName_.Equals(tabName_) && co.colName_.Equals(colName_);
+            }
             return false;
         }
         public override string ToString()
@@ -470,8 +486,8 @@ namespace adb
 
     public class FuncExpr : Expr
     {
-        public readonly string funcName_;
-        public readonly List<Expr> args_;
+        public string funcName_;
+        public List<Expr> args_;
 
         public FuncExpr(string funcName, List<Expr> args)
         {
@@ -532,6 +548,14 @@ namespace adb
             return r;
         }
 
+        public override Expr Clone()
+        {
+            var n = (FuncExpr)base.Clone();
+            var argclone = new List<Expr>();
+            args_.ForEach(x=>argclone.Add(x.Clone()));
+            args_ = argclone;
+            return n;
+        }
         public override int GetHashCode()
         {
             int hashcode = 0;
@@ -644,7 +668,8 @@ namespace adb
             r_.Bind(context);
 
             tableRefs_.AddRange(l_.tableRefs_); tableRefs_.AddRange(r_.tableRefs_);
-            tableRefs_ = tableRefs_.Distinct().ToList();
+            if (tableRefs_.Count>1)
+                tableRefs_ = tableRefs_.Distinct().ToList();
             bounded_ = true;
         }
 

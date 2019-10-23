@@ -38,6 +38,7 @@ namespace adb
             Debug.Assert(r.Count == source.Count);
             return r;
         }
+
         public static void ReadCsvLine(string filepath, Action<string[]> action)
         {
             using (TextFieldParser parser = new TextFieldParser(filepath))
