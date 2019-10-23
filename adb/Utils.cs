@@ -21,6 +21,23 @@ namespace adb
         // a contains b?
         public static bool ListAContainsB<T>(List<T> a, List<T> b) => !b.Except(a).Any();
 
+        // for each element in @source, if there is a matching k in @target of its sub expression, 
+        // replace that element as ExprRef(k, index_of_k_in_target)
+        //
+        public static List<Expr> SearchReplace(List<Expr> source, List<Expr> target) {
+            var r = new List<Expr>();
+            source.ForEach(x =>
+            {
+                for (int i = 0; i < target.Count; i++)
+                {
+                    var e = target[i];
+                    r.Add(x.SearchReplace(e, new ExprRef(e, i)));
+                }
+            });
+
+            Debug.Assert(r.Count == source.Count);
+            return r;
+        }
         public static void ReadCsvLine(string filepath, Action<string[]> action)
         {
             using (TextFieldParser parser = new TextFieldParser(filepath))

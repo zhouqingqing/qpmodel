@@ -320,8 +320,10 @@ namespace adb
     public class LogicAgg : LogicNode
     {
         internal List<Expr> keys_;
-        internal List<Expr> aggrs_;
         internal Expr having_;
+
+        // runtime info: derived from output request
+        internal List<Expr> aggrCore_ = new List<Expr>();
 
         public override string PrintMoreDetails(int depth)
         {
@@ -335,23 +337,61 @@ namespace adb
 
         public LogicAgg(LogicNode child, List<Expr> groupby, List<Expr> aggrs, Expr having)
         {
-            children_.Add(child); keys_ = groupby; aggrs_ = aggrs;  having_ = having;
-            output_ = aggrs_;
+            children_.Add(child); keys_ = groupby; having_ = having;
         }
+
         public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
             // request from child including reqOutput and filter
             List<Expr> reqFromChild = new List<Expr>();
             reqFromChild.AddRange(ExprHelper.AllColExpr(reqOutput));
             reqFromChild.AddRange(ExprHelper.AllColExpr(keys_));
-            reqFromChild.AddRange(ExprHelper.AllColExpr(aggrs_));
             var childout = children_[0].ResolveChildrenColumns(reqFromChild);
-
             keys_ = CloneFixColumnOrdinal(keys_, childout);
-            aggrs_ = CloneFixColumnOrdinal(aggrs_, childout);
             output_ = CloneFixColumnOrdinal(reqOutput, childout);
             if (removeRedundant)
                 output_ = output_.Distinct().ToList();
+
+            // Bound aggrs to output, so when we computed aggrs, we automatically get output
+            // Here is an example:
+            //  output_: <literal>, cos(a1*7)+sum(a1),  sum(a1) + sum(a2+a3)*2
+            //                       |           \       /          |   
+            //                       |            \     /           |   
+            //  keys_:               a1            \   /            |
+            //  aggrCore_:                        sum(a1),      sum(a2+a3)
+            // =>
+            //  output_: <literal>, cos(ref[0]*7)+ref[1],  ref[1]+ref[2]*2
+            //
+            var nkeys = keys_.Count;
+            var newoutput = new List<Expr>();
+            output_ = Utils.SearchReplace(output_, keys_);
+            output_.ForEach(x =>
+            {
+                x.VisitEachExpr(y =>
+                {
+                    if (y is AggFunc ya)
+                    {
+                        // remove the duplicates immediatley to avoid wrong ordinal in ExprRef
+                        if (!aggrCore_.Contains(ya))
+                            aggrCore_.Add(ya);
+                        x = x.SearchReplace(y, new ExprRef(y, nkeys + aggrCore_.IndexOf(y)));
+                    }
+                });
+
+                newoutput.Add(x);
+            });
+            Debug.Assert(aggrCore_.Count == aggrCore_.Distinct().Count());
+
+            // Say invvalid expression means contains colexpr, then the output shall contains
+            // no expression consists invalid expression
+            //
+            bool validated = true;
+            newoutput.ForEach(x=>{
+                if (x.VisitEachExprExists(y => y is ColExpr))
+                    validated = false;
+            });
+            Debug.Assert(validated);
+            output_ = newoutput;
 
             return output_;
         }
