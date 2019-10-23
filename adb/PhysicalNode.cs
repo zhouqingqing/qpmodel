@@ -12,11 +12,14 @@ namespace adb
         public readonly List<Value> values_ = new List<Value>();
 
         public Row() { }
+        public Row(List<Value> values) => values_ = values;
         public Row(Row l, Row r)
         {
             values_.AddRange(l.values_);
             values_.AddRange(r.values_);
         }
+
+        public int ColCount() => values_.Count;
 
         public override string ToString() => string.Join(",", values_);
     }
@@ -178,48 +181,51 @@ namespace adb
         };
         public PhysicHashAgg(LogicAgg logic, PhysicNode l) : base(logic) => children_.Add(l);
 
+        Row AggrCoreToRow(ExecContext context, Row input) {
+            Row r = new Row();
+            (logic_ as LogicAgg).aggrCore_.ForEach(x=> r.values_.Add(x.Exec(context, input)));
+            return r;
+        }
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicAgg;
+            var aggrcore = logic.aggrCore_;
             var hm = new Dictionary<KeyList, Row>();
 
+            // aggregation is working on aggCore targets
             children_[0].Exec(context, l =>
             {
                 var keys = KeyList.ComputeKeys(context, logic, l);
 
                 if (hm.TryGetValue(keys, out Row exist))
                 {
-                    logic.output_.ForEach(x => {
-                        x.VisitEachExpr(y =>
-                        {
-                            if (y is AggFunc ya)
-                            {
-                                var old = exist.values_[logic.output_.IndexOf(x)];
-                                ya.Accum(context, old, l);
-                            }
-                        });
+                    aggrcore.ForEach(x => {
+                        var xa = x as AggFunc;
+                        var old = exist.values_[aggrcore.IndexOf(xa)];
+                        xa.Accum(context, old, l);
                     });
 
-                    hm[keys] = ExecProject(context, l);
+                    hm[keys] = AggrCoreToRow(context, l);
                 }
                 else
                 {
-                    logic.output_.ForEach(x => {
-                        x.VisitEachExpr(y =>
-                        {
-                            if (y is AggFunc ya)
-                                ya.Init(context, l);
-                        });
+                    aggrcore.ForEach(x => {
+                        var xa = x as AggFunc;
+                        xa.Init(context, l);
                     });
 
-                    hm.Add(keys, ExecProject(context, l));
+                    hm.Add(keys, AggrCoreToRow(context, l));
                 }
                 return null;
             });
 
-            // output
+            // stitch keys+aggcore into final output
             foreach (var v in hm)
-                callback(v.Value);
+            {
+                var w = new Row(new Row(v.Key.keys_), v.Value);
+                var newr = ExecProject(context, w);
+                callback(newr);
+            }
         }
     }
 

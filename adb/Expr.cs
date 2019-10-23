@@ -199,8 +199,8 @@ namespace adb
 
         public int TableRefCount()
         {
-            Debug.Assert(tableRefs_.Distinct().Count() == tableRefs_.Count());
-            return tableRefs_.Count();
+            Debug.Assert(tableRefs_.Distinct().Count() == tableRefs_.Count);
+            return tableRefs_.Count;
         }
         public bool EqualTableRef(TableRef tableRef)
         {
@@ -212,7 +212,7 @@ namespace adb
         public bool EqualTableRefs(List<TableRef> tableRefs)
         {
             Debug.Assert(bounded_);
-            Debug.Assert(TableRefCount() <= tableRefs.Count());
+            Debug.Assert(TableRefCount() <= tableRefs.Count);
             foreach (var v in tableRefs_)
                 if (!tableRefs.Contains(v))
                     return false;
@@ -293,6 +293,34 @@ namespace adb
             var n = this.MemberwiseClone();
             Debug.Assert(n.Equals(this));
             return (Expr)n;
+        }
+
+        // In current expression, search and replace @from with @to 
+        public Expr SearchReplace(Expr from, Expr to) {
+            var clone = Clone();
+
+            if (clone.Equals(from))
+                clone = to;
+            var members = clone.GetType().GetFields();
+            foreach (var v in members)
+            {
+                if (v.FieldType == typeof(Expr))
+                {
+                    var m = v.GetValue(this) as Expr;
+                    var n = m.SearchReplace(from, to);
+                    v.SetValue(clone, n);
+                }
+                else if (v.FieldType == typeof(List<Expr>))
+                {
+                    var newl = new List<Expr>();
+                    var m = v.GetValue(this) as List<Expr>;
+                    m.ForEach(x => newl.Add(x.SearchReplace(from, to)));
+                    v.SetValue(clone, newl);
+                }
+                // no other containers currently handled
+            }
+
+            return clone;
         }
 
         public override int GetHashCode() => tableRefs_.GetHashCode();
@@ -499,6 +527,19 @@ namespace adb
             return r;
         }
 
+        public override int GetHashCode()
+        {
+            int hashcode = 0;
+            args_.ForEach(x => hashcode ^= x.GetHashCode());
+            return funcName_.GetHashCode() ^ hashcode;
+        }
+        public override bool Equals(object obj)
+        {
+            if (obj is FuncExpr of) {
+                return funcName_.Equals(of.funcName_) && args_.SequenceEqual(of.args_);
+            }
+            return false;
+        }
         public override string ToString() => $"{funcName_}({string.Join(",",args_)})";
     }
 
@@ -515,7 +556,7 @@ namespace adb
 
     public class AggSum : AggFunc {
         // Exec info
-        Value sum_;
+        internal Value sum_;
         public AggSum(Expr arg) : base("sum", new List<Expr> { arg}) { }
 
         public override void Init(ExecContext context, Row input) => sum_ = args_[0].Exec(context, input);
@@ -528,6 +569,13 @@ namespace adb
         // Exec info
         Value min_;
         public AggMin(Expr arg) : base("min", new List<Expr> { arg }) { }
+        public override void Init(ExecContext context, Row input) => min_ = args_[0].Exec(context, input);
+        public override void Accum(ExecContext context, Value old, Row input)
+        {
+            var arg = args_[0].Exec(context, input);
+            min_ = old > arg ? arg : old;
+        }
+        public override long Exec(ExecContext context, Row input) => min_;
     }
 
     public class AggMax : AggFunc
@@ -535,6 +583,13 @@ namespace adb
         // Exec info
         Value max_;
         public AggMax(Expr arg) : base("max", new List<Expr> { arg }) { }
+        public override void Init(ExecContext context, Row input) => max_ = args_[0].Exec(context, input);
+        public override void Accum(ExecContext context, Value old, Row input)
+        {
+            var arg = args_[0].Exec(context, input);
+            max_ = old > arg ? old : arg;
+        }
+        public override long Exec(ExecContext context, Row input) => max_;
     }
 
     // we can actually put all binary ops in BinExpr class but we want to keep 
@@ -701,14 +756,23 @@ namespace adb
         public LiteralExpr(SQLiteParser.Literal_valueContext val) => val_ = val;
         public override string ToString() => val_.GetText();
         public override Value Exec(ExecContext context, Row input) => Value.Parse(val_.GetText());
+
+        public override int GetHashCode() => val_.GetText().GetHashCode();
+        public override bool Equals(object obj)
+        {
+            if (obj is LiteralExpr lo) {
+                return val_.GetText().Equals(lo.val_.GetText());
+            }
+            return false;
+        }
     }
 
     // runtime only used to reference an expr as a whole without recomputation
     public class ExprRef : Expr {
-        Expr expr_;
-        int ordinal_;
+        readonly internal Expr expr_;
+        readonly internal int ordinal_;
 
-        public override string ToString() => $@"({expr_})[{ordinal_}]";
+        public override string ToString() => $@"{{{expr_}}}[{ordinal_}]";
         public ExprRef(Expr expr, int ordinal) {
             Debug.Assert(!(expr is ColExpr));
             expr_ = expr; ordinal_ = ordinal;

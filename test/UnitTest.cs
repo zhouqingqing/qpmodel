@@ -424,21 +424,20 @@ namespace test
         [TestMethod]
         public void TestAggregation()
         {
-            // FIXME: run result is wrong
-            var sql = "select a2/2, min(a1), max(a1)+sum(a1+a2)*2 from a group by a2/2";
+            var sql = "select 7, (4-a3)/2*2+1+sum(a1), sum(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";
             var stmt = RawParser.ParseSqlStatement(sql);
             stmt.Exec(true); var phyplan = stmt.physicPlan_;
             var answer = @"PhysicHashAgg   (rows = 2)
-                            Output: a.a2[0]/2,min(a.a1[1]),max(a.a1[1])+sum(a.a1[1]+a.a2[0])*2
-                            Group by: a.a2[0]/2
+                            Output: 7,{4-a.a3[0]/2}[0]*2+1+{sum(a.a1[1])}[1],{sum(a.a1[1])}[1]+{sum(a.a1[1]+a.a2[2])}[2]*2
+                            Group by: 4-a.a3[0]/2
                             -> PhysicGetTable a  (rows = 3)
-                                Output: a.a2[1],a.a1[0]";
+                                Output: a.a3[2],a.a1[0],a.a2[1]";
             TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
-            sql = "select (4-a3)/2, sum(a1),sum(a1+a2) from a group by (4-a3)/2;";
+            sql = "select 7, (4-a3)/2*2+1+sum(a1), sum(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";
             var result = ExecuteSQL(sql);
             Assert.AreEqual(2, result.Count);
-            Assert.AreEqual("1,0,1", result[0].ToString());
-            Assert.AreEqual("0,3,8", result[1].ToString());
+            Assert.AreEqual("7,3,2", result[0].ToString());
+            Assert.AreEqual("7,4,19", result[1].ToString());
         }
 
         [TestMethod]
@@ -513,7 +512,7 @@ namespace test
             stmt.Exec(true);
             phyplan = stmt.physicPlan_;
             answer = @"PhysicNLJoin   (rows = 27)
-                        Output: (b.b3[2]+c.c2[1])[1]
+                        Output: {b.b3[2]+c.c2[1]}[1]
                         -> PhysicGetTable a  (rows = 3)
                             Output: #a.a1[0]
                             Filter: a.a1[0]>=@1 and a.a2[1]>=@2
