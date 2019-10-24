@@ -658,17 +658,17 @@ namespace adb
 
     public class LiteralExpr : Expr
     {
-        public SQLiteParser.Literal_valueContext val_;
+        public string val_;
 
-        public LiteralExpr(SQLiteParser.Literal_valueContext val) => val_ = val;
-        public override string ToString() => val_.GetText();
-        public override Value Exec(ExecContext context, Row input) => Value.Parse(val_.GetText());
+        public LiteralExpr(string val) => val_ = val;
+        public override string ToString() => val_;
+        public override Value Exec(ExecContext context, Row input) => Value.Parse(val_);
 
-        public override int GetHashCode() => val_.GetText().GetHashCode();
+        public override int GetHashCode() => val_.GetHashCode();
         public override bool Equals(object obj)
         {
             if (obj is LiteralExpr lo) {
-                return val_.GetText().Equals(lo.val_.GetText());
+                return val_.Equals(lo.val_);
             }
             return false;
         }

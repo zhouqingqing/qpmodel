@@ -116,7 +116,7 @@ namespace adb
             sql = "select b1+c1 from (select b1 from b) a, (select c1 from c) c where c1>1";
             sql = "select a1 from a where a2>2;";
             sql = "select a3/2 from a group by 1;";
-            sql = "select b1+c1 from (select b1 from b) a, (select c1,c2 from c) c where c2-b1>1";
+
 
         doit:
             Console.WriteLine(sql);

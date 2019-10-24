@@ -498,6 +498,10 @@ namespace test
             Assert.AreEqual(2, result.Count);
             Assert.AreEqual("2", result[0].ToString());
             Assert.AreEqual("4", result[1].ToString());
+            sql = "select count(*) from (select b1+c1 from (select b1 from b) a, (select c1,c2 from c) c where c2>1) a;";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual("6", result[0].ToString());
         }
 
         [TestMethod]

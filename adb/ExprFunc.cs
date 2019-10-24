@@ -52,8 +52,13 @@ namespace adb
                 case "sum": r = new AggSum(args[0]); break;
                 case "min": r = new AggMin(args[0]); break;
                 case "max": r = new AggMax(args[0]); break;
-                case "count": r = new AggCount(args[0]);break;
-                case "avg": r = new AggAvg(args[0]);break;
+                case "avg": r = new AggAvg(args[0]); break;
+                case "count":
+                    if (args.Count == 0)
+                        r = new AggCountStar(null);
+                    else
+                        r = new AggCount(args[0]);
+                    break;
                 default:
                     r = new FuncExpr(funcName, args);
                     break;
@@ -117,6 +122,16 @@ namespace adb
         // Exec info
         internal Value count_;
         public AggCount(Expr arg) : base("count", new List<Expr> { arg }) { }
+
+        public override void Init(ExecContext context, Row input) => count_ = 1;
+        public override void Accum(ExecContext context, Value old, Row input) => count_ += 1;
+        public override Value Exec(ExecContext context, Row input) => count_;
+    }
+    public class AggCountStar : AggFunc
+    {
+        // Exec info
+        internal Value count_;
+        public AggCountStar(Expr arg) : base("count(*)", new List<Expr> { new LiteralExpr("0")}) { argcnt_ = 0; }
 
         public override void Init(ExecContext context, Row input) => count_ = 1;
         public override void Accum(ExecContext context, Value old, Row input) => count_ += 1;
