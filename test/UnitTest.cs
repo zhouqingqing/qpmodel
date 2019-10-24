@@ -6,10 +6,6 @@ using System.Collections.Generic;
 
 namespace test
 {
-    public class PlanCompare
-    {
-    }
-
     public class TestHelper
     {
         static internal string error_ = null;
@@ -132,6 +128,17 @@ namespace test
             Assert.AreEqual(2, stmt.ctes_.Count);
             Assert.AreEqual(2, stmt.setqs_.Count);
             Assert.AreEqual(2, stmt.orders_.Count);
+        }
+        [TestMethod]
+        public void TestAlias()
+        {
+            var sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1";
+            var result = TestHelper.ExecuteSQL(sql);
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual("5", result[0].ToString());
+            // failed tests:
+            // alias not handled well: c(b1), a(b1)
+            //                        sql = "select a.b1+c.b1 from (select count(*) as b1 from b) a, (select c1 b1 from c) c where c.b1>1;";
         }
     }
 

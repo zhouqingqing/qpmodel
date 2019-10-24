@@ -221,12 +221,15 @@ namespace adb
             {
                 if (y is ColExpr target)
                 {
+                    Predicate<Expr> nameTest;
+                    nameTest = z => ExprHelper.Equals(target, z) || y.alias_.Equals(z.alias_);
+
                     // using source's matching index for ordinal
                     // fix colexpr's ordinal - leave the outerref
                     if (!target.isOuterRef_)
                     {
-                        target.ordinal_ = source.FindIndex(z => ExprHelper.Equals(y, z));
-                        Debug.Assert(source.FindAll(z => ExprHelper.Equals(y, z)).Count == 1);
+                        target.ordinal_ = source.FindIndex(nameTest);
+                        Debug.Assert(source.FindAll(nameTest).Count == 1);
                     }
                     Debug.Assert(target.ordinal_ != -1);
                 }
