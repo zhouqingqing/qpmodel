@@ -339,7 +339,7 @@ namespace adb
         {
             // request from child including reqOutput and filter
             List<Expr> reqFromChild = new List<Expr>();
-            reqFromChild.AddRange(ExprHelper.AllColExpr(reqOutput));
+            reqFromChild.AddRange(reqOutput);
             reqFromChild.AddRange(ExprHelper.AllColExpr(filter_));
             var childout = children_[0].ResolveChildrenColumns(reqFromChild);
 

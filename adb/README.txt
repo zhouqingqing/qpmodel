@@ -8,6 +8,9 @@
 6. parallel query/ctes etc
 7. [Executor] codegen
 
+Small items:
+1. implement sort
+
 
 Known issues:
 ======================================

@@ -413,21 +413,46 @@ namespace test
             TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
             sql = "select b1+c1 from (select b1 from b) a, (select c1 from c) c where c1>1";
             stmt = RawParser.ParseSqlStatement(sql);
-            stmt.Exec(true); phyplan = stmt.physicPlan_;
+            stmt.Exec(true); phyplan = stmt.physicPlan_;    // FIXME: filter is still there
             answer = @"PhysicFilter   (rows = 3)
-                            Output: a.b1[0]+c.c1[1]
-                            Filter: c.c1[1]>1
-                            -> PhysicNLJoin   (rows = 9)
-                                Output: a.b1[0],c.c1[1]
-                                -> PhysicFromQuery <a>  (rows = 3)
-                                    Output: a.b1[0]
-                                    -> PhysicGetTable b  (rows = 3)
-                                        Output: b.b1[0]
-                                -> PhysicFromQuery <c>  (rows = 9)
-                                    Output: c.c1[0]
-                                    -> PhysicGetTable c  (rows = 9)
-                                        Output: c.c1[0]";
+                        Output: {a.b1+c.c1}[0]
+                        Filter: c.c1[1]>1
+                        -> PhysicNLJoin   (rows = 9)
+                            Output: a.b1[0]+c.c1[1],c.c1[1]
+                            -> PhysicFromQuery <a>  (rows = 3)
+                                Output: a.b1[0]
+                                -> PhysicGetTable b  (rows = 3)
+                                    Output: b.b1[0]
+                            -> PhysicFromQuery <c>  (rows = 9)
+                                Output: c.c1[0]
+                                -> PhysicGetTable c  (rows = 9)
+                                    Output: c.c1[0]";
             TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
+            var result = ExecuteSQL(sql);
+            Assert.AreEqual(3, result.Count);
+            Assert.AreEqual("2", result[0].ToString());
+            Assert.AreEqual("3", result[1].ToString());
+            Assert.AreEqual("4", result[2].ToString());
+            sql = "select b1+c1 from (select b1 from b) a, (select c1,c2 from c) c where c2-b1>1";
+            stmt = RawParser.ParseSqlStatement(sql);
+            stmt.Exec(true); phyplan = stmt.physicPlan_;
+            answer = @"PhysicNLJoin   (rows = 3)
+                        Output: a.b1[0]+c.c1[1]
+                        Filter: c.c2[2]-a.b1[0]>1
+                        -> PhysicFromQuery <a>  (rows = 3)
+                            Output: a.b1[0]
+                            -> PhysicGetTable b  (rows = 3)
+                                Output: b.b1[0]
+                        -> PhysicFromQuery <c>  (rows = 9)
+                            Output: c.c1[0],c.c2[1]
+                            -> PhysicGetTable c  (rows = 9)
+                                Output: c.c1[0],c.c2[1]";
+            TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(3, result.Count);
+            Assert.AreEqual("1", result[0].ToString());
+            Assert.AreEqual("2", result[1].ToString());
+            Assert.AreEqual("3", result[2].ToString());
         }
 
         [TestMethod]
