@@ -671,7 +671,10 @@ namespace adb
         }
     }
 
-    // runtime only used to reference an expr as a whole without recomputation
+    // Runtime only used to reference an expr as a whole without recomputation
+    // the tricky part of this class is that it is a wrapper, but Equal() shall be taken care
+    // so we invent ExprHelper.Equal() for the purpose
+    //
     public class ExprRef : Expr {
         readonly internal Expr expr_;
         readonly internal int ordinal_;
