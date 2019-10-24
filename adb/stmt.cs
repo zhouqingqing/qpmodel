@@ -45,16 +45,6 @@ namespace adb
         }
     }
 
-    /*
-    SQL is implemented as if a query was executed in the following order:
-
-        FROM clause
-        WHERE clause
-        GROUP BY clause
-        HAVING clause
-        SELECT clause
-        ORDER BY clause
-    */
     public class SelectStmt : SQLStatement
     {
         // parse info
@@ -70,7 +60,8 @@ namespace adb
         // this section can only show up in top query
         public readonly List<CteExpr> ctes_;
         public readonly List<SelectStmt> setqs_;
-        public readonly List<OrderTerm> orders_;
+        public readonly List<Expr> orders_;
+        public readonly List<bool> descends_;
 
         // optimizer info
         // ---------------
@@ -126,8 +117,11 @@ namespace adb
 
             ctes_ = ctes;
             setqs_ = setqs;
-            orders_ = orders;
-
+            if (orders != null)
+            {
+                orders_ = seq2selection((from x in orders select x.expr_).ToList(), selection);
+                descends_ = (from x in orders select x.descend_).ToList();
+            }
         }
 
         void bindFrom(BindContext context)
@@ -186,6 +180,7 @@ namespace adb
         void bindWhere(BindContext context) => where_?.Bind(context);
         void bindGroupBy(BindContext context) => groupby_?.ForEach(x => x.Bind(context));
         void bindHaving(BindContext context) => having_?.Bind(context);
+        void bindOrders(BindContext context) => orders_?.ForEach(x => x.Bind(context));
 
         public override BindContext Bind(BindContext parent)
         {
@@ -207,6 +202,7 @@ namespace adb
             bindWhere(context);
             bindGroupBy(context);
             bindHaving(context);
+            bindOrders(context);
 
             return context;
         }
@@ -291,6 +287,17 @@ namespace adb
 
             return r.Distinct().ToList();
         }
+
+        /*
+        SQL is implemented as if a query was executed in the following order:
+
+            FROM clause
+            WHERE clause
+            GROUP BY clause
+            HAVING clause
+            SELECT clause
+            ORDER BY clause
+        */
         public override LogicNode CreatePlan()
         {
             LogicNode root = transformFromClause();
@@ -304,10 +311,11 @@ namespace adb
 
             // group by
             if (hasAgg_ || groupby_ != null)
-            {
-                // TODO: first make sure non-aggfunc are in group by list
                 root = new LogicAgg(root, groupby_, getAggregations(), having_);
-            }
+
+            // order by
+            if (orders_ != null)
+                root = new LogicOrder(root, orders_, descends_);
 
             // selection list
             selection_.ForEach(createSubQueryExprPlan);
@@ -319,11 +327,12 @@ namespace adb
             return root;
         }
 
-        bool pushdownATableFilter(LogicNode plan, Expr filter)
+        bool pushdownFilter(LogicNode plan, Expr filter)
         {
             switch (filter.TableRefCount())
             {
                 case 0:
+                    // say ?b.b1 = ?a.a1
                     return plan.VisitEachNodeExists(n =>
                     {
                         if (n is LogicGetTable nodeGet)
@@ -377,25 +386,33 @@ namespace adb
         {
             LogicNode plan = logicPlan_;
 
-            var filter = plan as LogicFilter;
+            // locate the only filter
+            int cntFilter = 0;
+            cntFilter = plan.FindNode(out LogicNode filterparent, out LogicFilter filter);
+            Debug.Assert(cntFilter <= 1);
             if (filter?.filter_ is null)
                 goto Convert;
 
             // filter push down
-            var topfilter = filter.filter_;
+            var filterexpr = filter.filter_;
             List<Expr> andlist = new List<Expr>();
-            if (topfilter is LogicAndExpr andexpr)
+            if (filterexpr is LogicAndExpr andexpr)
                 andlist = andexpr.BreakToList();
             else
-                andlist.Add(topfilter);
-            andlist.RemoveAll(e => pushdownATableFilter(plan, e));
+                andlist.Add(filterexpr);
+            andlist.RemoveAll(e => pushdownFilter(plan, e));
             if (andlist.Count == 0)
-                // top filter node is not needed
-                plan = plan.children_[0];
+            {
+                if (filterparent is null)
+                    // take it out from the tree
+                    plan = plan.children_[0];
+                else
+                    filterparent.children_[0] = filter.children_[0];
+            }
             else
                 filter.filter_ = ExprHelper.AndListToExpr(andlist);
 
-            // we have to redo the column binding as top filter removal might change ordinals underneath
+            // we have to redo the column binding as filter removal might change ordinals underneath
             plan.ClearOutput();
             plan.ResolveChildrenColumns(selection_, parent_ != null);
             logicPlan_ = plan;

@@ -235,6 +235,33 @@ namespace adb
         }
     }
 
+    public class PhysicOrder : PhysicNode { 
+        public PhysicOrder(LogicOrder logic, PhysicNode l) : base(logic) => children_.Add(l);
+
+        // respect logic.orders_|descends_
+        int compareRow(Row l, Row r) {
+            var logic = logic_ as LogicOrder;
+            var orders = logic.orders_;
+            var descends = logic.descends_;
+            return 0;
+        }
+        public override void Exec(ExecContext context, Func<Row, string> callback)
+        {
+            var logic = logic_ as LogicOrder;
+            var set = new List<Row>();
+            children_[0].Exec(context, l =>
+            {
+                set.Add(l);
+                return null;
+            });
+            set.Sort(compareRow);
+
+            // output sorted set
+            foreach (var v in set)
+                callback(v);
+        }
+    }
+
     public class PhysicFromQuery : PhysicNode
     {
         public PhysicFromQuery(LogicFromQuery logic, PhysicNode l) : base(logic) => children_.Add(l);

@@ -108,7 +108,12 @@ namespace adb
             sql = "select (4-a3)/2*2+1+min(a1), count(a1), max(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";
             sql = "select 1+min(a1), count(a1), max(a1)+sum(a1+a2)*2 from a group by 1;";
             sql = "select a1, a2  from a where a.a1 = (select sum(b1) from b where b2 = a2 and b3<4);";
-            sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1";
+            sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1 order by 1";
+            sql = "select * from a where a1>0 order by a1;";
+            //            sql = "select sum(a1) from a where a1>0 group by a1;";
+            // sql = "select a2, sum(a1) from a where a1>0 group by a2";
+            sql = "select * from a, (select * from b where b2>2) c";
+
 
         doit:
             Console.WriteLine(sql);

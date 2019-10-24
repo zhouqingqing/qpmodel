@@ -174,6 +174,16 @@ namespace adb
                 }
             });
         }
+
+        public static bool Equals(Expr l, Expr r) {
+            if (l is ExprRef le)
+                l = le.expr_;
+            if (r is ExprRef re)
+                r = re.expr_;
+            Debug.Assert(!(l is ExprRef));
+            Debug.Assert(!(r is ExprRef));
+            return l.Equals(r);
+        }
     }
 
     public class Expr
@@ -497,7 +507,7 @@ namespace adb
         public override bool Equals(object obj)
         {
             if (obj is BinExpr bo) {
-                return l_.Equals(bo.l_) && r_.Equals(bo.r_) && op_.Equals(bo.op_);
+                return ExprHelper.Equals(l_, bo.l_) && ExprHelper.Equals(r_, bo.r_) && op_.Equals(bo.op_);
             }
             return false;
         }
@@ -634,8 +644,9 @@ namespace adb
     public class OrderTerm : Expr
     {
         public Expr expr_;
-        bool descend_;
+        public bool descend_;
 
+        public override string ToString() => $"{expr_} {(descend_ ? "[desc]" : "")}";
         public OrderTerm(Expr expr, bool descend)
         {
             expr_ = expr; descend_ = descend;
@@ -667,7 +678,18 @@ namespace adb
 
         public override string ToString() => $@"{{{Utils.RemovePositions(expr_.ToString())}}}[{ordinal_}]";
         public ExprRef(Expr expr, int ordinal) {
+            if (expr is ExprRef ee)
+                expr = ee.expr_;
+            Debug.Assert(!(expr is ExprRef));
             expr_ = expr; ordinal_ = ordinal;
+        }
+
+        public override int GetHashCode() => expr_.GetHashCode();
+        public override bool Equals(object obj)
+        {
+            if (obj is ExprRef or)
+                return expr_.Equals(or.expr_);
+            return false;
         }
         public override Value Exec(ExecContext context, Row input) => input.values_[ordinal_];
     }

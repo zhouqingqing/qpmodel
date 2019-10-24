@@ -28,7 +28,9 @@ Known issues:
 2. object Equal/Hash semantics
 
    Equal may have different meaning in term of context. Say "a+b" equals "b+a"? For push down purpose, yes, they are. Currently this problem is most obvious
-   with ColumnOrdinalFix expr look up. There are more complicated exmaples like "(a+1)+b" vs. "(b+1) +a".
+   with ColumnOrdinalFix expr look up. There are more complicated exmaples like "(a+1)+b" vs. "(b+1) +a" or (select (4-a)/2*2 ... group by (4-a)/2) - if you 
+   simplify maths before figure out selection list show up in group by, you will be in trouble.
+
    Maybe we shall redefine SemanticEqual() interface to avoid confusion.
    Hash is important as well whenever we use any indexed container - they will assume Equal/Hash interface, so if we use SemanticEqual(), we can't use any 
    indexed container.
