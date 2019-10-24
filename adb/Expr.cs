@@ -314,23 +314,26 @@ namespace adb
 
             if (clone.Equals(from))
                 clone = to;
-            var members = clone.GetType().GetFields();
-            foreach (var v in members)
+            else
             {
-                if (v.FieldType == typeof(Expr))
+                var members = clone.GetType().GetFields();
+                foreach (var v in members)
                 {
-                    var m = v.GetValue(this) as Expr;
-                    var n = m.SearchReplace(from, to);
-                    v.SetValue(clone, n);
+                    if (v.FieldType == typeof(Expr))
+                    {
+                        var m = v.GetValue(this) as Expr;
+                        var n = m.SearchReplace(from, to);
+                        v.SetValue(clone, n);
+                    }
+                    else if (v.FieldType == typeof(List<Expr>))
+                    {
+                        var newl = new List<Expr>();
+                        var m = v.GetValue(this) as List<Expr>;
+                        m.ForEach(x => newl.Add(x.SearchReplace(from, to)));
+                        v.SetValue(clone, newl);
+                    }
+                    // no other containers currently handled
                 }
-                else if (v.FieldType == typeof(List<Expr>))
-                {
-                    var newl = new List<Expr>();
-                    var m = v.GetValue(this) as List<Expr>;
-                    m.ForEach(x => newl.Add(x.SearchReplace(from, to)));
-                    v.SetValue(clone, newl);
-                }
-                // no other containers currently handled
             }
 
             return clone;
