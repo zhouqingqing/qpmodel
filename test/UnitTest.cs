@@ -468,6 +468,11 @@ namespace test
             Assert.AreEqual(2, result.Count);
             Assert.AreEqual("2,1", result[0].ToString());
             Assert.AreEqual("3,2", result[1].ToString());
+            sql = "select a3/2*2 from a group by 1;";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(2, result.Count);
+            Assert.AreEqual("2", result[0].ToString());
+            Assert.AreEqual("4", result[1].ToString());
         }
 
         [TestMethod]
