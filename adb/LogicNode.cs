@@ -77,6 +77,38 @@ namespace adb
             foreach (var c in children_)
                 c.ForEachNode(callback);
         }
+
+        public int FindNode<T1, T2>(out T2 parent, out T1 target) where T2: PlanNode<T>
+        {
+            int cnt = 0;
+            T2 p = default(T2); 
+            T1 t = default(T1);
+            ForEachNode(x =>
+            {
+                x.children_.ForEach(y =>
+                {
+                    if (y is T1 yf)
+                    {
+                        cnt++;
+                        t = yf;
+                        p = x as T2;
+                    }
+                });
+            });
+
+            if (cnt == 0)
+            {
+                if (this is T1 yf)
+                {
+                    cnt++;
+                    t = yf;
+                    p = default(T2);
+                }
+            }
+
+            parent = p; target = t;
+            return cnt;
+        }
     }
 
     public class ProfileOption
@@ -134,6 +166,9 @@ namespace adb
                     case LogicAgg la:
                         phy = new PhysicHashAgg(la, la.children_[0].DirectToPhysical(profiling));
                         break;
+                    case LogicOrder lo:
+                        phy = new PhysicOrder(lo, lo.children_[0].DirectToPhysical(profiling));
+                        break;
                     default:
                         throw new NotImplementedException();
                 }
@@ -176,7 +211,7 @@ namespace adb
             // 
             if (!(clone is ColExpr))
             {
-                int ordinal = source.FindIndex(clone.Equals);
+                int ordinal = source.FindIndex(x=>ExprHelper.Equals(clone, x));
                 if (ordinal != -1)
                     return new ExprRef(clone, ordinal);
             }
@@ -190,8 +225,8 @@ namespace adb
                     // fix colexpr's ordinal - leave the outerref
                     if (!target.isOuterRef_)
                     {
-                        target.ordinal_ = source.FindIndex(y.Equals);
-                        Debug.Assert(source.FindAll(y.Equals).Count == 1);
+                        target.ordinal_ = source.FindIndex(z => ExprHelper.Equals(y, z));
+                        Debug.Assert(source.FindAll(z => ExprHelper.Equals(y, z)).Count == 1);
                     }
                     Debug.Assert(target.ordinal_ != -1);
                 }
@@ -224,7 +259,7 @@ namespace adb
             return true;
         }
 
-        public List<TableRef> InclusiveTableRefs()
+        public override List<TableRef> InclusiveTableRefs()
         {
             List<TableRef> refs = new List<TableRef>();
             ForEachNode(x =>
@@ -398,6 +433,38 @@ namespace adb
             return output_;
         }
 
+    }
+
+    public class LogicOrder : LogicNode {
+        internal List<Expr> orders_ = new List<Expr>();
+        internal List<bool> descends_ = new List<bool>();
+        public override string PrintMoreDetails(int depth)
+        {
+            var r = $"Order by: {string.Join(", ", orders_)}\n";
+            return r;
+        }
+
+        public LogicOrder(LogicNode child, List<Expr> orders, List<bool> descends)
+        {
+            children_.Add(child);
+            orders_ = orders;
+            descends_ = descends;
+        }
+
+        public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
+        {
+            // request from child including reqOutput and filter
+            List<Expr> reqFromChild = new List<Expr>();
+            reqFromChild.AddRange(reqOutput);
+            reqFromChild.AddRange(orders_);
+            var childout = children_[0].ResolveChildrenColumns(reqFromChild);
+
+            orders_ = CloneFixColumnOrdinal(orders_, childout);
+            output_ = CloneFixColumnOrdinal(reqOutput, childout);
+            if (removeRedundant)
+                output_ = output_.Distinct().ToList();
+            return output_;
+        }
     }
 
     public class LogicFromQuery : LogicNode

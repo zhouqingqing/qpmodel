@@ -454,12 +454,41 @@ namespace test
             Assert.AreEqual(2, result.Count);
             Assert.AreEqual("0,1", result[0].ToString());
             Assert.AreEqual("1,2", result[1].ToString());
-            sql = "select a2, sum(a1) from a group by a2";
+            sql = "select a2, sum(a1) from a where a1>0 group by a2";
             result = ExecuteSQL(sql);
-            Assert.AreEqual(3, result.Count);
-            Assert.AreEqual("1,0", result[0].ToString());
-            Assert.AreEqual("2,1", result[1].ToString());
-            Assert.AreEqual("3,2", result[2].ToString());
+            Assert.AreEqual(2, result.Count);
+            Assert.AreEqual("2,1", result[0].ToString());
+            Assert.AreEqual("3,2", result[1].ToString());
+        }
+
+        [TestMethod]
+        public void TestSort()
+        {
+            var sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1 order by a3";
+            var result = ExecuteSQL(sql); Assert.IsNull(result);
+            Assert.IsTrue(TestHelper.error_.Contains("SemanticAnalyzeException"));
+
+            sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1 order by 1";
+            var stmt = RawParser.ParseSqlStatement(sql);
+            stmt.Exec(true); var phyplan = stmt.physicPlan_;
+            var answer = @"PhysicOrder   (rows = 2)
+                            Output: {4-a.a3/2}[0],{4-a.a3/2*2+1+min(a.a1)}[1],{avg(a.a4)+count(a.a1)}[2],{max(a.a1)+sum(a.a1+a.a2)*2}[3]
+                            Order by: {4-a.a3/2}[0]
+                            -> PhysicHashAgg   (rows = 2)
+                                Output: {4-a.a3/2}[0],{4-a.a3/2}[0]*2+1+{min(a.a1)}[1],{avg(a.a4)}[2]+{count(a.a1)}[3],{max(a.a1)}[4]+{sum(a.a1+a.a2)}[5]*2
+                                Group by: 4-a.a3[0]/2
+                                -> PhysicGetTable a  (rows = 3)
+                                    Output: a.a3[2],a.a1[0],a.a4[3],a.a2[1]";
+            TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(2, result.Count);
+            Assert.AreEqual("1,3,4,2", result[0].ToString());
+            Assert.AreEqual("0,2,6,18", result[1].ToString());
+            sql = "select * from a where a1>0 order by a1;";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(2, result.Count);
+            Assert.AreEqual("1,2,3,4", result[0].ToString());
+            Assert.AreEqual("2,3,4,5", result[1].ToString());
         }
 
         [TestMethod]
