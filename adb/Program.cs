@@ -113,7 +113,8 @@ namespace adb
             //            sql = "select sum(a1) from a where a1>0 group by a1;";
             // sql = "select a2, sum(a1) from a where a1>0 group by a2";
             sql = "select * from a, (select * from b where b2>2) c";
-
+            sql = "select b1+c1 from (select b1 from b) a, (select c1 from c) c where c1>1";
+            sql = "select a1 from a where a2>1;";
 
         doit:
             Console.WriteLine(sql);
