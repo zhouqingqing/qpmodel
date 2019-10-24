@@ -171,7 +171,7 @@ namespace adb
     class SQLiteVisitor : SQLiteBaseVisitor<object>
     {
         public override object VisitLiteral_value([NotNull] SQLiteParser.Literal_valueContext context)
-            => new LiteralExpr(context);
+            => new LiteralExpr(context.GetText());
         public override object VisitBrackexpr([NotNull] SQLiteParser.BrackexprContext context)
             => Visit(context.expr());
         public override object VisitArithtimesexpr([NotNull] SQLiteParser.ArithtimesexprContext context)
