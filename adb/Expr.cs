@@ -486,7 +486,7 @@ namespace adb
             para += isVisible_ ? "" : "#";
             if (colName_.Equals(alias_))
                 return $@"{para}{tabName_}.{colName_}[{ordinal_}]";
-            return $@"{para}{tabName_}.{colName_} [{alias_}][{ordinal_}]";
+            return $@"{para}{tabName_}.{colName_} (as {alias_})[{ordinal_}]";
         }
         public override Value Exec(ExecContext context, Row input)
         {

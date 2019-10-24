@@ -113,9 +113,11 @@ namespace adb
             //            sql = "select sum(a1) from a where a1>0 group by a1;";
             // sql = "select a2, sum(a1) from a where a1>0 group by a2";
             sql = "select * from a, (select * from b where b2>2) c";
-            sql = "select b1+c1 from (select b1 from b) a, (select c1 from c) c where c1>1";
             sql = "select a1 from a where a2>2;";
             sql = "select a3/2 from a group by 1;";
+            sql = "select a.b1+c.b1 from (select count(*) as b1 from b) a, (select c1 b1 from c) c where c.b1>1;";
+            //sql = "select a.b1+c.b2 from (select count(*) as b1 from b) a, (select c1 b2 from c) c where c.b2>1;";
+            //sql = "select b1+c100 from (select count(b3) as b1 from b) a, (select c1 c100 from c) c where c100>1";
 
 
         doit:
