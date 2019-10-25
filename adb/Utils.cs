@@ -57,16 +57,14 @@ namespace adb
 
         public static void ReadCsvLine(string filepath, Action<string[]> action)
         {
-            using (TextFieldParser parser = new TextFieldParser(filepath))
+            using var parser = new TextFieldParser(filepath);
+            parser.TextFieldType = FieldType.Delimited;
+            parser.SetDelimiters(",");
+            while (!parser.EndOfData)
             {
-                parser.TextFieldType = FieldType.Delimited;
-                parser.SetDelimiters(",");
-                while (!parser.EndOfData)
-                {
-                    //Processing row
-                    string[] fields = parser.ReadFields();
-                    action(fields);
-                }
+                //Processing row
+                string[] fields = parser.ReadFields();
+                action(fields);
             }
         }
     }

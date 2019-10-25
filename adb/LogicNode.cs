@@ -243,6 +243,7 @@ namespace adb
         {
             var clone = new List<Expr>();
             toclone.ForEach(x => clone.Add(CloneFixColumnOrdinal(x, source)));
+            Debug.Assert(clone.Count == toclone.Count);
             return clone;
         }
     }
@@ -562,7 +563,7 @@ namespace adb
         {
             List<int> ordinals = new List<int>();
 
-            // it can be an litral, or only uses my tableref
+            // verify it can be an litral, or only uses my tableref
             reqOutput.ForEach(x =>
             {
                 x.VisitEachExpr(y => {
@@ -585,6 +586,7 @@ namespace adb
             if (filter_ != null)
                 filter_ = CloneFixColumnOrdinal(filter_, tabref_.AllColumnsRefs());
             output_ = CloneFixColumnOrdinal(reqOutput, tabref_.AllColumnsRefs());
+
 
             // finally, consider outerref to this table: if it is not there, add it. We can't
             // simply remove redundant because we have to respect removeRedundant flag
