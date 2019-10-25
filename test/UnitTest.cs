@@ -474,9 +474,10 @@ namespace test
             stmt.Exec(true); var phyplan = stmt.physicPlan_;
             var answer = @"PhysicHashAgg   (rows = 2)
                             Output: 7,{4-a.a3/2}[0]*2+1+{sum(a.a1)}[1],{sum(a.a1)}[1]+{sum(a.a1+a.a2)}[2]*2
-                            Group by: 4-a.a3[0]/2
+                            Agg Core: sum(a.a1[0]), sum(a.a1[0]+a.a2[2])
+                        Group by: 4-a.a3[3]/2
                             -> PhysicGetTable a  (rows = 3)
-                                Output: a.a3[2],a.a1[0],a.a2[1]";
+                                Output: a.a1[0],a.a1[0]+a.a2[1],a.a2[1],a.a3[2]";
             TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
             result = ExecuteSQL(sql);
             Assert.AreEqual(2, result.Count);
@@ -514,9 +515,9 @@ namespace test
         [TestMethod]
         public void TestSort()
         {
-            var sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1 order by a3";
-            var result = ExecuteSQL(sql); Assert.IsNull(result);
-            Assert.IsTrue(TestHelper.error_.Contains("SemanticAnalyzeException"));
+           var sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1 order by a3";
+           var result = ExecuteSQL(sql); Assert.IsNull(result);
+           Assert.IsTrue(TestHelper.error_.Contains("SemanticAnalyzeException"));
 
             sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1 order by 1";
             var stmt = RawParser.ParseSqlStatement(sql);
@@ -526,9 +527,10 @@ namespace test
                             Order by: {4-a.a3/2}[0]
                             -> PhysicHashAgg   (rows = 2)
                                 Output: {4-a.a3/2}[0],{4-a.a3/2}[0]*2+1+{min(a.a1)}[1],{avg(a.a4)}[2]+{count(a.a1)}[3],{max(a.a1)}[4]+{sum(a.a1+a.a2)}[5]*2
-                                Group by: 4-a.a3[0]/2
+                                Agg Core: min(a.a1[1]), avg(a.a4[2]), count(a.a1[1]), max(a.a1[1]), sum(a.a1[1]+a.a2[4])
+                                Group by: {4-a.a3/2}[0]
                                 -> PhysicGetTable a  (rows = 3)
-                                    Output: a.a3[2],a.a1[0],a.a4[3],a.a2[1]";
+                                    Output: 4-a.a3[2]/2,a.a1[0],a.a4[3],a.a1[0]+a.a2[1],a.a2[1],a.a3[2]";
             TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
             result = ExecuteSQL(sql);
             Assert.AreEqual(2, result.Count);
