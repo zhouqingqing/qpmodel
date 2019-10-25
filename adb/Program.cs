@@ -117,10 +117,16 @@ namespace adb
             sql = "select a3/2 from a group by 1;";
             sql = "select a.b1+c.b1 from (select count(*) as b1 from b) a, (select c1 b1 from c) c where c.b1>1;";
             //sql = "select a.b1+c.b2 from (select count(*) as b1 from b) a, (select c1 b2 from c) c where c.b2>1;";
-            //sql = "select b1+c100 from (select count(b3) as b1 from b) a, (select c1 c100 from c) c where c100>1";
+            sql = "select b1+c100 from (select count(b3) as b1 from b) a, (select c1 c100 from c) c where c100>1";
+            sql = "select a1, sum(a1) from a group by a1";
+            sql = "select sum(b1) from b where b3>1000;";
+            sql = "select a1, sum(a1) from a group by a2";
+            sql = "select a3+2 from a group by 1";
+            sql = "select (4 - a3) / 2, (4 - a3) / 2 * 2 + 1 + min(a1) from a group by 1;";
+            sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1 order by 1";
 
 
-        doit:
+            doit:
             Console.WriteLine(sql);
             var a = RawParser.ParseSqlStatement(sql);
 

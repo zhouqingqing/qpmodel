@@ -33,9 +33,9 @@ namespace adb
                 r = Utils.Tabs(depth);
                 if (depth != 0)
                     r += "-> ";
-                r += this.GetType().Name + " " + PrintInlineDetails(depth);
+                r += $"{this.GetType().Name} {PrintInlineDetails(depth)}";
                 if (this is PhysicNode && (this as PhysicNode).profile_ != null)
-                    r += $@"  (rows = {(this as PhysicNode).profile_.nrows_})";
+                    r += $"  (rows = {(this as PhysicNode).profile_.nrows_})";
                 r += "\n";
                 var details = PrintMoreDetails(depth);
                 r += Utils.Tabs(depth + 2) + PrintOutput(depth) + "\n";
@@ -195,7 +195,7 @@ namespace adb
         // 2. compute children's output by requesting reqOutput from them
         // 3. find mapping from children's output
         //
-        public virtual List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true) => null;
+        public virtual List<int> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true) => null;
         internal void ClearOutput()
         {
             output_ = new List<Expr>();
@@ -274,9 +274,10 @@ namespace adb
             });
             return refs;
         }
-        public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
+        public override List<int> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
             // request from child including reqOutput and filter
+            List<int> ordinals = new List<int>();
             List<Expr> reqFromChild = new List<Expr>(reqOutput);
             if (filter_ != null)
                 reqFromChild.Add(filter_);
@@ -312,8 +313,10 @@ namespace adb
             }
 
             // get left and right child to resolve columns
-            var lout = children_[0].ResolveChildrenColumns(lreq.ToList());
-            var rout = children_[1].ResolveChildrenColumns(rreq.ToList());
+            children_[0].ResolveChildrenColumns(lreq.ToList());
+            var lout = children_[0].output_;
+            children_[1].ResolveChildrenColumns(rreq.ToList());
+            var rout = children_[1].output_;
             Debug.Assert(lout.Intersect(rout).Count() == 0);
 
             // assuming left output first followed with right output
@@ -323,7 +326,7 @@ namespace adb
             output_ = CloneFixColumnOrdinal(reqOutput, childrenout);
             if (removeRedundant)
                 output_ = output_.Distinct().ToList();
-            return output_;
+            return ordinals;
         }
     }
 
@@ -338,20 +341,22 @@ namespace adb
             children_.Add(child); filter_ = filter;
         }
 
-        public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
+        public override List<int> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
+            List<int> ordinals = new List<int>();
             // request from child including reqOutput and filter
             List<Expr> reqFromChild = new List<Expr>();
-            reqFromChild.AddRange(reqOutput);
+            reqFromChild.AddRange(ExprHelper.CloneList(reqOutput));
             reqFromChild.AddRange(ExprHelper.AllColExpr(filter_));
-            var childout = children_[0].ResolveChildrenColumns(reqFromChild);
+            children_[0].ResolveChildrenColumns(reqFromChild);
+            var childout = children_[0].output_;
 
             filter_ = CloneFixColumnOrdinal(filter_, childout);
             output_ = CloneFixColumnOrdinal(reqOutput, childout);
             if (removeRedundant)
                 output_ = output_.Distinct().ToList();
 
-            return output_;
+            return ordinals;
         }
     }
 
@@ -366,6 +371,8 @@ namespace adb
         public override string PrintMoreDetails(int depth)
         {
             string r = null;
+            if (aggrCore_ != null)
+                r += $"Agg Core: {string.Join(", ", aggrCore_)}\n";
             if (keys_ != null)
                 r += $"Group by: {string.Join(", ", keys_)}\n";
             if (having_ != null)
@@ -378,13 +385,44 @@ namespace adb
             children_.Add(child); keys_ = groupby; having_ = having;
         }
 
-        public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
+        List<Expr> removeAggFuncFromOutput(List<Expr> reqOutput) {
+            var reqList = ExprHelper.CloneList(reqOutput, new List<Type> {typeof(LiteralExpr)});
+            var aggs = new List<Expr>();
+            reqList.ForEach(x =>
+                x.VisitEachExpr(y =>
+                {
+                    // 1+abs(min(a))+max(b)
+                    if (y is AggFunc ay)
+                        aggs.Add(x);
+                }));
+
+            // aggs remove functions
+            aggs.ForEach(x => {
+                reqList.Remove(x);
+                bool check = false;
+                x.VisitEachExpr(y => {
+                    if (y is AggFunc ay)
+                    {
+                        check = true;
+                        reqList.AddRange(ay.GetNonFuncExprList());
+                    }
+                });
+                Debug.Assert(check);
+            });
+
+            return reqList;
+        }
+
+        public override List<int> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
+            List<int> ordinals = new List<int>();
+            
             // request from child including reqOutput and filter
             List<Expr> reqFromChild = new List<Expr>();
-            reqFromChild.AddRange(ExprHelper.AllColExpr(reqOutput));
+            reqFromChild.AddRange(removeAggFuncFromOutput(reqOutput));
             if (keys_ != null) reqFromChild.AddRange(ExprHelper.AllColExpr(keys_));
-            var childout = children_[0].ResolveChildrenColumns(reqFromChild);
+            children_[0].ResolveChildrenColumns(reqFromChild);
+            var childout = children_[0].output_;
 
             if (keys_ != null) keys_ = CloneFixColumnOrdinal(keys_, childout);
             output_ = CloneFixColumnOrdinal(reqOutput, childout);
@@ -426,14 +464,14 @@ namespace adb
             //
             Expr offending = null;
             newoutput.ForEach(x=>{
-                if (x.VisitEachExprExists(y => y is ColExpr))
+                if (x.VisitEachExprExists(y => y is ColExpr, new List<Type> { typeof(ExprRef)}))
                     offending = x;
             });
             if (offending != null)
                 throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
             output_ = newoutput;
 
-            return output_;
+            return ordinals;
         }
 
     }
@@ -454,19 +492,21 @@ namespace adb
             descends_ = descends;
         }
 
-        public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
+        public override List<int> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
             // request from child including reqOutput and filter
+            List<int> ordinals = new List<int>();
             List<Expr> reqFromChild = new List<Expr>();
-            reqFromChild.AddRange(reqOutput);
+            reqFromChild.AddRange(ExprHelper.CloneList(reqOutput));
             reqFromChild.AddRange(orders_);
-            var childout = children_[0].ResolveChildrenColumns(reqFromChild);
+            children_[0].ResolveChildrenColumns(reqFromChild);
+            var childout = children_[0].output_;
 
             orders_ = CloneFixColumnOrdinal(orders_, childout);
             output_ = CloneFixColumnOrdinal(reqOutput, childout);
             if (removeRedundant)
                 output_ = output_.Distinct().ToList();
-            return output_;
+            return ordinals;
         }
     }
 
@@ -484,8 +524,9 @@ namespace adb
             r.AddRange(queryRef_.query_.bindContext_.AllTableRefs());
             return r;
         }
-        public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
+        public override List<int> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
+            List<int> ordinals = new List<int>();
             var query = queryRef_.query_;
             query.logicPlan_.ResolveChildrenColumns(query.selection_);
 
@@ -498,7 +539,7 @@ namespace adb
             output_ = queryRef_.AddOuterRefsToOutput(output_);
             if (removeRedundant)
                 output_ = output_.Distinct().ToList();
-            return output_;
+            return ordinals;
         }
     }
 
@@ -517,9 +558,10 @@ namespace adb
                 new LogicAndExpr(filter_, filter);
             return true;
         }
-        public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
+        public override List<int> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
-            var aggs = new List<Expr>();
+            List<int> ordinals = new List<int>();
+
             // it can be an litral, or only uses my tableref
             reqOutput.ForEach(x =>
             {
@@ -529,29 +571,15 @@ namespace adb
                         case LiteralExpr ly:    // select 2+3, ...
                         case SubqueryExpr sy:   // select ..., sx = (select b1 from b limit 1) from a;
                             break;
-                        case AggFunc ay:        // 1+abs(min(a))+max(b)
-                            aggs.Add(x);
-                            break;
                         default:
+                            // aggfunc shall never pushed to me
+                            Debug.Assert(!(y is AggFunc));
+
                             // it can be a single table, or single table computation say "c1+c2+7"
                             y.EqualTableRef(tabref_);
                             break;
                     }
                 });
-            });
-
-            // aggs remove functions
-            aggs.ForEach(x=> {
-                reqOutput.Remove(x);
-                bool check = false;
-                x.VisitEachExpr(y => {
-                    if (y is AggFunc ay)
-                    {
-                        check = true;
-                        reqOutput.AddRange(ay.GetNonFuncExprList());
-                    }
-                });
-                Debug.Assert(check);
             });
 
             if (filter_ != null)
@@ -564,7 +592,7 @@ namespace adb
             output_ = tabref_.AddOuterRefsToOutput(output_);
             if (removeRedundant)
                 output_ = output_.Distinct().ToList();
-            return output_;
+            return ordinals;
         }
         public override List<TableRef> InclusiveTableRefs() => new List<TableRef> { tabref_ };
     }
@@ -591,12 +619,13 @@ namespace adb
         public override string ToString() => targetref_.ToString();
         public override string PrintInlineDetails(int depth) => ToString();
 
-        public override List<Expr> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
+        public override List<int> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
         {
+            Debug.Assert(output_.Count == 0);
+
             // insertion is always the top node 
             Debug.Assert(!removeRedundant);
-            children_[0].ResolveChildrenColumns(reqOutput, removeRedundant);
-            return output_;
+            return children_[0].ResolveChildrenColumns(reqOutput, removeRedundant);
         }
     }
 

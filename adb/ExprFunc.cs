@@ -72,9 +72,8 @@ namespace adb
         public override Expr Clone()
         {
             var n = (FuncExpr)base.Clone();
-            var argclone = new List<Expr>();
-            args_.ForEach(x => argclone.Add(x.Clone()));
-            args_ = argclone;
+            args_ = ExprHelper.CloneList(args_);
+            Debug.Assert(Equals(n));
             return n;
         }
         public override int GetHashCode()

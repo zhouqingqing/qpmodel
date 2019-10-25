@@ -87,6 +87,7 @@ namespace adb
 
     public static class ExprHelper
     {
+        // a List<Expr> conditions merge into a LogicAndExpr
         public static Expr AndListToExpr(List<Expr> andlist)
         {
             Debug.Assert(andlist.Count >= 1);
@@ -99,6 +100,33 @@ namespace adb
                     andexpr.l_ = new LogicAndExpr(andexpr.l_, andlist[i]);
                 return andexpr;
             }
+        }
+
+        static bool ListEqual(List<Expr> l, List<Expr> r)
+        {
+            Debug.Assert(l.Count == r.Count);
+            for (int i = 0; i < l.Count; i++)
+                if (!l[i].Equals(r[i]))
+                    return false;
+            return true;
+        }
+
+        public static List<Expr> CloneList(List<Expr> source, List<Type> excludes = null) {
+            var clone = new List<Expr>();
+            if (excludes is null)
+            {
+                source.ForEach(x => clone.Add(x.Clone()));
+                Debug.Assert(ListEqual(clone, source));
+            }
+            else
+            {
+                source.ForEach(x =>
+                {
+                    if (!excludes.Contains(x.GetType()))
+                        clone.Add(x.Clone());
+                });
+            }
+            return clone;
         }
 
         public static List<ColExpr> AllColExpr(Expr expr, bool includingParameters = false)
@@ -230,11 +258,13 @@ namespace adb
         }
 
         // this one uses c# reflection
-        // Similar to PlanNode.VisitEachNodeExists()
+        // It traverse the expression but no deeper than types in exluding list
         //
-        public bool VisitEachExprExists(Func<Expr, bool> callback)
+        public bool VisitEachExprExists(Func<Expr, bool> check, List<Type> excluding = null)
         {
-            bool r = callback(this);
+            if (excluding?.Contains(this.GetType())??false)
+                return false;
+            bool r = check(this);
 
             if (!r)
             {
@@ -244,8 +274,15 @@ namespace adb
                     if (v.FieldType == typeof(Expr))
                     {
                         var m = v.GetValue(this) as Expr;
-                        if (m.VisitEachExprExists(callback))
+                        if (m.VisitEachExprExists(check, excluding))
                             return true;
+                    }
+                    else if (v.FieldType == typeof(List<Expr>))
+                    {
+                        var m = v.GetValue(this) as List<Expr>;
+                        foreach (var n in m)
+                            if (n.VisitEachExprExists(check, excluding))
+                                return true;
                     }
                     // if container<Expr> we shall also handle
                 }
@@ -300,11 +337,10 @@ namespace adb
         //
         public virtual Expr Clone()
         {
-            var n = this.MemberwiseClone();
-            Debug.Assert(n.Equals(this));
-            // tableRefs_ is not actually cloned but it is ok since nobody changes
-            // it after fixed. There are some complications in ColExpr.Bind() though.
-            //
+            var n = (Expr)this.MemberwiseClone();
+            n.tableRefs_ = new List<TableRef>();
+            tableRefs_.ForEach(n.tableRefs_.Add);
+            Debug.Assert(Equals(n));
             return (Expr)n;
         }
 
@@ -312,7 +348,7 @@ namespace adb
         public Expr SearchReplace(Expr from, Expr to) {
             var clone = Clone();
 
-            if (clone.Equals(from))
+            if (ExprHelper.Equals(clone, from))
                 clone = to;
             else
             {
@@ -455,13 +491,7 @@ namespace adb
             if (tabName_ is null)
                 tabName_ = tabRef_.alias_;
             if (!isOuterRef_) {
-                // group by <1> may reference a select item, and it has bound - I try to avoid this
-                // by clone the item but Expr.Clone() does not clone TableRef_ as it is not change
-                // so let's make a compromise here
-                //
-                Debug.Assert(tableRefs_.Count == 0 
-                    || (tableRefs_.Count == 1 && tabRef_.Equals(tableRefs_[0])));
-                tableRefs_.Clear();
+                Debug.Assert(tableRefs_.Count == 0);
                 tableRefs_.Add(tabRef_);
             }
             ordinal_ = context.ColumnOrdinal(tabName_, colName_);
@@ -519,7 +549,7 @@ namespace adb
             var n = (BinExpr)base.Clone();
             n.l_ = l_.Clone();
             n.r_ = r_.Clone();
-            Debug.Assert(n.Equals(this));
+            Debug.Assert(Equals(n));
             return n;
         }
         public BinExpr(Expr l, Expr r, string op)
@@ -532,8 +562,9 @@ namespace adb
             l_.Bind(context);
             r_.Bind(context);
 
-            tableRefs_.AddRange(l_.tableRefs_); tableRefs_.AddRange(r_.tableRefs_);
-            if (tableRefs_.Count>1)
+            tableRefs_.AddRange(l_.tableRefs_); 
+            tableRefs_.AddRange(r_.tableRefs_);
+            if (tableRefs_.Count >1 )
                 tableRefs_ = tableRefs_.Distinct().ToList();
             bounded_ = true;
         }
@@ -613,6 +644,13 @@ namespace adb
             bounded_ = true;
         }
 
+        public override int GetHashCode() => subqueryid_.GetHashCode();
+        public override bool Equals(object obj)
+        {
+            if (obj is SubqueryExpr os)
+                return os.subqueryid_ == subqueryid_;
+            return false;
+        }
 
         public override Value Exec(ExecContext context, Row input)
         {
@@ -679,8 +717,8 @@ namespace adb
     // so we invent ExprHelper.Equal() for the purpose
     //
     public class ExprRef : Expr {
-        readonly internal Expr expr_;
-        readonly internal int ordinal_;
+        public Expr expr_;
+        public int ordinal_;
 
         public override string ToString() => $@"{{{Utils.RemovePositions(expr_.ToString())}}}[{ordinal_}]";
         public ExprRef(Expr expr, int ordinal) {
@@ -696,6 +734,14 @@ namespace adb
             if (obj is ExprRef or)
                 return expr_.Equals(or.expr_);
             return false;
+        }
+
+        public override Expr Clone()
+        {
+            ExprRef clone = (ExprRef)base.Clone();
+            clone.expr_ = expr_.Clone();
+            Debug.Assert(Equals(clone));
+            return clone;
         }
         public override Value Exec(ExecContext context, Row input) => input.values_[ordinal_];
     }
