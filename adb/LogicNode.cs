@@ -375,7 +375,7 @@ namespace adb
             if (aggrCore_ != null)
                 r += $"Agg Core: {string.Join(", ", aggrCore_)}\n";
             if (keys_ != null)
-                r += $"Group by: {string.Join(", ", keys_)}\n";
+                r += Utils.Tabs(depth + 2) + $"Group by: {string.Join(", ", keys_)}\n";
             if (having_ != null)
                 r += Utils.Tabs(depth + 2) + $"{PrintFilter(having_, depth)}";
             return r;
