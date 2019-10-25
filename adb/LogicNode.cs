@@ -136,8 +136,8 @@ namespace adb
                 PhysicNode phy;
                 switch (n)
                 {
-                    case LogicGetTable ln:
-                        phy = new PhysicGetTable(ln);
+                    case LogicScanTable ln:
+                        phy = new PhysicScanTable(ln);
                         if (ln.filter_ != null)
                             ExprHelper.SubqueryDirectToPhysic(ln.filter_);
                         break;
@@ -160,8 +160,8 @@ namespace adb
                     case LogicInsert li:
                         phy = new PhysicInsert(li, li.children_[0].DirectToPhysical(profiling));
                         break;
-                    case LogicGetExternal le:
-                        phy = new PhysicGetExternal(le);
+                    case LogicScanFile le:
+                        phy = new PhysicScanFile(le);
                         break;
                     case LogicAgg la:
                         phy = new PhysicHashAgg(la, la.children_[0].DirectToPhysical(profiling));
@@ -268,7 +268,7 @@ namespace adb
             List<TableRef> refs = new List<TableRef>();
             ForEachNode(x =>
             {
-                if (x is LogicGetTable gx)
+                if (x is LogicScanTable gx)
                     refs.Add(gx.tabref_);
                 else if (x is LogicFromQuery fx)
                     refs.Add(fx.queryRef_);
@@ -559,11 +559,9 @@ namespace adb
                 new LogicAndExpr(filter_, filter);
             return true;
         }
-        public override List<int> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
-        {
-            List<int> ordinals = new List<int>();
 
-            // verify it can be an litral, or only uses my tableref
+        void validateReqOutput(List<Expr> reqOutput)
+        {
             reqOutput.ForEach(x =>
             {
                 x.VisitEachExpr(y => {
@@ -576,21 +574,26 @@ namespace adb
                             // aggfunc shall never pushed to me
                             Debug.Assert(!(y is AggFunc));
 
-                            // it can be a single table, or single table computation say "c1+c2+7"
-                            y.EqualTableRef(tabref_);
+                            // a single table column ref, or combination of them say "c1+c2+7"
+                            Debug.Assert(y.EqualTableRef(tabref_));
                             break;
                     }
                 });
             });
+        }
+        public override List<int> ResolveChildrenColumns(List<Expr> reqOutput, bool removeRedundant = true)
+        {
+            List<int> ordinals = new List<int>();
+            List<Expr> columns = tabref_.AllColumnsRefs();
+
+            // Verify it can be an litral, or only uses my tableref
+            validateReqOutput(reqOutput);
 
             if (filter_ != null)
-                filter_ = CloneFixColumnOrdinal(filter_, tabref_.AllColumnsRefs());
-            output_ = CloneFixColumnOrdinal(reqOutput, tabref_.AllColumnsRefs());
+                filter_ = CloneFixColumnOrdinal(filter_, columns);
+            output_ = CloneFixColumnOrdinal(reqOutput, columns);
 
-
-            // finally, consider outerref to this table: if it is not there, add it. We can't
-            // simply remove redundant because we have to respect removeRedundant flag
-            //
+            // Finally, consider outerrefs to this table: if they are not there, add them
             output_ = tabref_.AddOuterRefsToOutput(output_);
             if (removeRedundant)
                 output_ = output_.Distinct().ToList();
@@ -599,15 +602,15 @@ namespace adb
         public override List<TableRef> InclusiveTableRefs() => new List<TableRef> { tabref_ };
     }
 
-    public class LogicGetTable : LogicGet<BaseTableRef>
+    public class LogicScanTable : LogicGet<BaseTableRef>
     {
-        public LogicGetTable(BaseTableRef tab) : base(tab) { }
+        public LogicScanTable(BaseTableRef tab) : base(tab) { }
     }
 
-    public class LogicGetExternal : LogicGet<ExternalTableRef>
+    public class LogicScanFile : LogicGet<ExternalTableRef>
     {
         public string FileName() => tabref_.filename_;
-        public LogicGetExternal(ExternalTableRef tab) : base(tab) { }
+        public LogicScanFile(ExternalTableRef tab) : base(tab) { }
     }
 
     public class LogicInsert : LogicNode
