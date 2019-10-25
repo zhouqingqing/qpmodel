@@ -86,14 +86,14 @@ namespace adb
         }
     }
 
-    public class PhysicGetTable : PhysicNode
+    public class PhysicScanTable : PhysicNode
     {
         readonly int nrows_ = 3;
-        public PhysicGetTable(LogicNode logic) : base(logic) { }
+        public PhysicScanTable(LogicNode logic) : base(logic) { }
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
-            var logic = logic_ as LogicGetTable;
+            var logic = logic_ as LogicScanTable;
             var filter = logic.filter_;
 
             for (var i = 0; i < nrows_; i++)
@@ -114,13 +114,13 @@ namespace adb
         }
     }
 
-    public class PhysicGetExternal : PhysicNode
+    public class PhysicScanFile : PhysicNode
     {
-        public PhysicGetExternal(LogicNode logic) : base(logic) { }
+        public PhysicScanFile(LogicNode logic) : base(logic) { }
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
-            var filename = (logic_ as LogicGetExternal).FileName();
+            var filename = (logic_ as LogicScanFile).FileName();
             Utils.ReadCsvLine(filename, fields =>
             {
                 Row r = new Row();

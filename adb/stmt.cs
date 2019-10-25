@@ -213,10 +213,10 @@ namespace adb
             switch (tab)
             {
                 case BaseTableRef bref:
-                    from = new LogicGetTable(bref);
+                    from = new LogicScanTable(bref);
                     break;
                 case ExternalTableRef eref:
-                    from = new LogicGetExternal(eref);
+                    from = new LogicScanFile(eref);
                     break;
                 case FromQueryRef sref:
                     subqueries_.Add(sref.query_);
@@ -335,14 +335,14 @@ namespace adb
                     // say ?b.b1 = ?a.a1
                     return plan.VisitEachNodeExists(n =>
                     {
-                        if (n is LogicGetTable nodeGet)
+                        if (n is LogicScanTable nodeGet)
                             return nodeGet.AddFilter(filter);
                         return false;
                     });
                 case 1:
                     return plan.VisitEachNodeExists(n =>
                     {
-                        if (n is LogicGetTable nodeGet &&
+                        if (n is LogicScanTable nodeGet &&
                             filter.EqualTableRef(nodeGet.tabref_))
                             return nodeGet.AddFilter(filter);
                         return false;
