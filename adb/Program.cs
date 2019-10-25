@@ -123,7 +123,6 @@ namespace adb
             sql = "select a1, sum(a1) from a group by a2";
             sql = "select a3+2 from a group by 1";
             sql = "select (4 - a3) / 2, (4 - a3) / 2 * 2 + 1 + min(a1) from a group by 1;";
-            sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1 order by 1";
 
             doit:
             Console.WriteLine(sql);
