@@ -40,3 +40,17 @@ Known issues:
 
    ExprRef can further cause confusion with Equal semantics because it is essentially a wrapper of an expression and equal semantics shall be applied to the 
    expressions it represents.
+
+3. How deep expression shall push down?
+   Get1
+      output: a1, a1+a2
+	  filter: (a1+a2)>10 or (a1+a2)<5 or (a1+a2)=100
+
+   Get2
+      output: a1
+	  filter: a1<2 ((very unlikely) and ((a1+a2)<10 or (a1+a2)=100)
+
+   in Get2, we definitely shall not try to compute a1+a2 with output, but 
+   1) we shall avoid repeated computing a1+a2, so a1+a2 compute once shall happen within filter.
+   2) we shall do a1+a2 computation on demand, meaning only after a1>=2.
+
