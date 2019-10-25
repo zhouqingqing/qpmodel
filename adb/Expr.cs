@@ -202,16 +202,6 @@ namespace adb
                 }
             });
         }
-
-        public static bool Equals(Expr l, Expr r) {
-            if (l is ExprRef le)
-                l = le.expr_;
-            if (r is ExprRef re)
-                r = re.expr_;
-            Debug.Assert(!(l is ExprRef));
-            Debug.Assert(!(r is ExprRef));
-            return l.Equals(r);
-        }
     }
 
     public class Expr
@@ -348,7 +338,7 @@ namespace adb
         public Expr SearchReplace(Expr from, Expr to) {
             var clone = Clone();
 
-            if (ExprHelper.Equals(clone, from))
+            if (clone.Equals(from))
                 clone = to;
             else
             {
@@ -373,6 +363,17 @@ namespace adb
             }
 
             return clone;
+        }
+        protected static bool exprEquals(Expr l, Expr r)
+        {
+            Expr le = l, re = r;
+            if (l is ExprRef lx)
+                le = lx.expr_;
+            if (r is ExprRef rx)
+                re = rx.expr_;
+            Debug.Assert(!(le is ExprRef));
+            Debug.Assert(!(re is ExprRef));
+            return le.Equals(re);
         }
 
         public override int GetHashCode() => tableRefs_.GetHashCode();
@@ -539,8 +540,10 @@ namespace adb
         public override int GetHashCode() => l_.GetHashCode() ^ r_.GetHashCode() ^ op_.GetHashCode();
         public override bool Equals(object obj)
         {
-            if (obj is BinExpr bo) {
-                return ExprHelper.Equals(l_, bo.l_) && ExprHelper.Equals(r_, bo.r_) && op_.Equals(bo.op_);
+            if (obj is ExprRef oe)
+                return this.Equals(oe.expr_);
+            else if (obj is BinExpr bo) {
+                return exprEquals(l_, bo.l_) && exprEquals(r_, bo.r_) && op_.Equals(bo.op_);
             }
             return false;
         }
@@ -717,7 +720,8 @@ namespace adb
     // so we invent ExprHelper.Equal() for the purpose
     //
     public class ExprRef : Expr {
-        public Expr expr_;
+        // expr_ can't be an ExprRef again
+        public Expr expr_;      
         public int ordinal_;
 
         public override string ToString() => $@"{{{Utils.RemovePositions(expr_.ToString())}}}[{ordinal_}]";
@@ -731,9 +735,11 @@ namespace adb
         public override int GetHashCode() => expr_.GetHashCode();
         public override bool Equals(object obj)
         {
+            Debug.Assert(!(expr_ is ExprRef));
             if (obj is ExprRef or)
                 return expr_.Equals(or.expr_);
-            return false;
+            else
+                return (obj is Expr oe) ? expr_.Equals(oe) : false;
         }
 
         public override Expr Clone()

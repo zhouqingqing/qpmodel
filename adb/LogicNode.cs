@@ -211,7 +211,7 @@ namespace adb
             // 
             if (!(clone is ColExpr))
             {
-                int ordinal = source.FindIndex(x=>ExprHelper.Equals(clone, x));
+                int ordinal = source.FindIndex(clone.Equals);
                 if (ordinal != -1)
                     return new ExprRef(clone, ordinal);
             }
@@ -222,7 +222,7 @@ namespace adb
                 if (y is ColExpr target)
                 {
                     Predicate<Expr> nameTest;
-                    nameTest = z => ExprHelper.Equals(target, z) || y.alias_.Equals(z.alias_);
+                    nameTest = z => target.Equals(z) || y.alias_.Equals(z.alias_);
 
                     // using source's matching index for ordinal
                     // fix colexpr's ordinal - leave the outerref
