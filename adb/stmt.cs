@@ -177,11 +177,6 @@ namespace adb
             });
         }
 
-        void bindWhere(BindContext context) => where_?.Bind(context);
-        void bindGroupBy(BindContext context) => groupby_?.ForEach(x => x.Bind(context));
-        void bindHaving(BindContext context) => having_?.Bind(context);
-        void bindOrders(BindContext context) => orders_?.ForEach(x => x.Bind(context));
-
         public override BindContext Bind(BindContext parent)
         {
             BindContext context = new BindContext(this, parent);
@@ -199,10 +194,10 @@ namespace adb
             // from binding shall be the first since it may create new alias
             bindFrom(context);
             bindSelectionList(context);
-            bindWhere(context);
-            bindGroupBy(context);
-            bindHaving(context);
-            bindOrders(context);
+            where_?.Bind(context);
+            groupby_?.ForEach(x => x.Bind(context));
+            having_?.Bind(context);
+            orders_?.ForEach(x => x.Bind(context));
 
             return context;
         }

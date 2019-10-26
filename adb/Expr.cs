@@ -102,7 +102,7 @@ namespace adb
             }
         }
 
-        static bool ListEqual(List<Expr> l, List<Expr> r)
+        static bool listEqual(List<Expr> l, List<Expr> r)
         {
             Debug.Assert(l.Count == r.Count);
             for (int i = 0; i < l.Count; i++)
@@ -116,7 +116,7 @@ namespace adb
             if (excludes is null)
             {
                 source.ForEach(x => clone.Add(x.Clone()));
-                Debug.Assert(ListEqual(clone, source));
+                Debug.Assert(listEqual(clone, source));
             }
             else
             {
@@ -129,7 +129,7 @@ namespace adb
             return clone;
         }
 
-        public static List<ColExpr> AllColExpr(Expr expr, bool includingParameters = false)
+        public static List<ColExpr> RetrieveAllColExpr(Expr expr, bool includingParameters = false)
         {
             var list = new HashSet<ColExpr>();
             expr.VisitEachExpr(x =>
@@ -144,10 +144,10 @@ namespace adb
             return list.ToList();
         }
 
-        public static List<ColExpr> AllColExpr(List<Expr> exprs, bool includingParameters = false)
+        public static List<ColExpr> RetrieveAllColExpr(List<Expr> exprs, bool includingParameters = false)
         {
             var list = new List<ColExpr>();
-            exprs.ForEach(x => list.AddRange(AllColExpr(x, includingParameters)));
+            exprs.ForEach(x => list.AddRange(RetrieveAllColExpr(x, includingParameters)));
             return list.Distinct().ToList();
         }
 
@@ -252,7 +252,7 @@ namespace adb
         //
         public bool VisitEachExprExists(Func<Expr, bool> check, List<Type> excluding = null)
         {
-            if (excluding?.Contains(this.GetType())??false)
+            if (excluding?.Contains(GetType())??false)
                 return false;
             bool r = check(this);
 
@@ -283,22 +283,12 @@ namespace adb
 
         public void VisitEachExpr(Action<Expr> callback)
         {
-            callback(this);
-            var members = GetType().GetFields();
-            foreach (var v in members)
+            Func<T, bool> wrapCallbackAsCheck<T>(Action<T> callback)
             {
-                if (v.FieldType == typeof(Expr))
-                {
-                    var m = v.GetValue(this) as Expr;
-                    m.VisitEachExpr(callback);
-                }
-                else if (v.FieldType == typeof(List<Expr>))
-                {
-                    var m = v.GetValue(this) as List<Expr>;
-                    m.ForEach(x => x.VisitEachExpr(callback));
-                }
-                // no other containers currently handled
+                return a => { callback(a); return false; };
             }
+            Func<Expr, bool> check = wrapCallbackAsCheck(callback);
+            VisitEachExprExists(check);
         }
 
         // TODO: this is kinda redundant, since this check does not save us any time

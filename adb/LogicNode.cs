@@ -300,7 +300,7 @@ namespace adb
                 {
                     // the whole list can't push to the children (Eg. a.a1 + b.b1)
                     // decompose to singleton and push down
-                    var colref = ExprHelper.AllColExpr(v);
+                    var colref = ExprHelper.RetrieveAllColExpr(v);
                     colref.ForEach(x =>
                     {
                         if (ltables.Contains(x.tabRef_))
@@ -348,7 +348,7 @@ namespace adb
             // request from child including reqOutput and filter
             List<Expr> reqFromChild = new List<Expr>();
             reqFromChild.AddRange(ExprHelper.CloneList(reqOutput));
-            reqFromChild.AddRange(ExprHelper.AllColExpr(filter_));
+            reqFromChild.AddRange(ExprHelper.RetrieveAllColExpr(filter_));
             children_[0].ResolveChildrenColumns(reqFromChild);
             var childout = children_[0].output_;
 
@@ -421,7 +421,7 @@ namespace adb
             // request from child including reqOutput and filter
             List<Expr> reqFromChild = new List<Expr>();
             reqFromChild.AddRange(removeAggFuncFromOutput(reqOutput));
-            if (keys_ != null) reqFromChild.AddRange(ExprHelper.AllColExpr(keys_));
+            if (keys_ != null) reqFromChild.AddRange(ExprHelper.RetrieveAllColExpr(keys_));
             children_[0].ResolveChildrenColumns(reqFromChild);
             var childout = children_[0].output_;
 
