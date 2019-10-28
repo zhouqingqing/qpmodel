@@ -168,7 +168,7 @@ namespace test
         }
 
         [TestMethod]
-        public void TestExecCrossJoin()
+        public void TestExecNLJ()
         {
             var sql = "select a.a1 from a, b where a2 > 1";
             var result = ExecuteSQL(sql);
@@ -245,11 +245,19 @@ namespace test
             result = ExecuteSQL(sql); Assert.IsNull(result);
             Assert.IsTrue(TestHelper.error_.Contains("SemanticAnalyzeException"));
 
-            // subquery in FROM clause
+            // subquery in selection
             sql = "select a1,a1,a3,a3, (select b3 from b where b2=2) from a where a1>1";
             result = ExecuteSQL(sql);
             Assert.AreEqual(1, result.Count);
             Assert.AreEqual("2,2,4,4,3", result[0].ToString());
+            sql = "select a1,a1,a3,a3, (select b3 from b where a1=b1 and b2=3) from a where a1>1";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual("2,2,4,4,4", result[0].ToString());
+            sql = "select a1,a1,a3,a3, (select b3 from b where a1=b2 and b2=3) from a where a1>1";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual($"2,2,4,4,{Int64.MaxValue}", result[0].ToString());
 
             // scalar subquery
             sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = 3)";
