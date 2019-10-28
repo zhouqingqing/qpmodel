@@ -20,7 +20,8 @@ namespace adb
 
         public override void Bind(BindContext context)
         {
-            args_.ForEach(x => {
+            args_.ForEach(x =>
+            {
                 x.Bind(context);
                 tableRefs_.AddRange(x.tableRefs_);
             });
@@ -31,8 +32,10 @@ namespace adb
         public List<Expr> GetNonFuncExprList()
         {
             List<Expr> r = new List<Expr>();
-            args_.ForEach(x => {
-                x.VisitEachExpr(y => {
+            args_.ForEach(x =>
+            {
+                x.VisitEachExpr(y =>
+                {
                     if (y is FuncExpr yf)
                         r.AddRange(yf.GetNonFuncExprList());
                     else
@@ -95,7 +98,7 @@ namespace adb
 
     public abstract class AggFunc : FuncExpr
     {
-        public AggFunc(string func, List<Expr> args) : base(func, args) { argcnt_ = 1;}
+        public AggFunc(string func, List<Expr> args) : base(func, args) { argcnt_ = 1; }
 
         public override Value Exec(ExecContext context, Row input)
         {
@@ -130,7 +133,7 @@ namespace adb
     {
         // Exec info
         internal Value count_;
-        public AggCountStar(Expr arg) : base("count(*)", new List<Expr> { new LiteralExpr("0")}) { argcnt_ = 0; }
+        public AggCountStar(Expr arg) : base("count(*)", new List<Expr> { new LiteralExpr("0") }) { argcnt_ = 0; }
 
         public override void Init(ExecContext context, Row input) => count_ = 1;
         public override void Accum(ExecContext context, Value old, Row input) => count_ += 1;
@@ -183,6 +186,6 @@ namespace adb
             sum_ = old + args_[0].Exec(context, input);
             count_ += 1;
         }
-        public override Value Exec(ExecContext context, Row input) => sum_/count_;
+        public override Value Exec(ExecContext context, Row input) => sum_ / count_;
     }
 }

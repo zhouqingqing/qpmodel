@@ -13,7 +13,7 @@ namespace adb
         public virtual string PrintOutput(int depth) => null;
         public virtual string PrintInlineDetails(int depth) => null;
         public virtual string PrintMoreDetails(int depth) => null;
-        protected string PrintFilter (Expr filter, int depth)
+        protected string PrintFilter(Expr filter, int depth)
         {
             string r = null;
             if (filter != null)
@@ -78,10 +78,10 @@ namespace adb
                 c.ForEachNode(callback);
         }
 
-        public int FindNode<T1, T2>(out T2 parent, out T1 target) where T2: PlanNode<T>
+        public int FindNode<T1, T2>(out T2 parent, out T1 target) where T2 : PlanNode<T>
         {
             int cnt = 0;
-            T2 p = default(T2); 
+            T2 p = default(T2);
             T1 t = default(T1);
             ForEachNode(x =>
             {
@@ -386,8 +386,9 @@ namespace adb
             children_.Add(child); keys_ = groupby; having_ = having;
         }
 
-        List<Expr> removeAggFuncFromOutput(List<Expr> reqOutput) {
-            var reqList = ExprHelper.CloneList(reqOutput, new List<Type> {typeof(LiteralExpr)});
+        List<Expr> removeAggFuncFromOutput(List<Expr> reqOutput)
+        {
+            var reqList = ExprHelper.CloneList(reqOutput, new List<Type> { typeof(LiteralExpr) });
             var aggs = new List<Expr>();
             reqList.ForEach(x =>
                 x.VisitEachExpr(y =>
@@ -398,10 +399,12 @@ namespace adb
                 }));
 
             // aggs remove functions
-            aggs.ForEach(x => {
+            aggs.ForEach(x =>
+            {
                 reqList.Remove(x);
                 bool check = false;
-                x.VisitEachExpr(y => {
+                x.VisitEachExpr(y =>
+                {
                     if (y is AggFunc ay)
                     {
                         check = true;
@@ -417,7 +420,7 @@ namespace adb
         public override List<int> ResolveChildrenColumns(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             List<int> ordinals = new List<int>();
-            
+
             // request from child including reqOutput and filter
             List<Expr> reqFromChild = new List<Expr>();
             reqFromChild.AddRange(removeAggFuncFromOutput(reqOutput));
@@ -440,7 +443,7 @@ namespace adb
             // =>
             //  output_: <literal>, cos(ref[0]*7)+ref[1],  ref[1]+ref[2]*2
             //
-            var nkeys = keys_?.Count??0;
+            var nkeys = keys_?.Count ?? 0;
             var newoutput = new List<Expr>();
             if (keys_ != null) output_ = Utils.SearchReplace(output_, keys_);
             output_.ForEach(x =>
@@ -464,8 +467,9 @@ namespace adb
             // no expression consists invalid expression
             //
             Expr offending = null;
-            newoutput.ForEach(x=>{
-                if (x.VisitEachExprExists(y => y is ColExpr, new List<Type> { typeof(ExprRef)}))
+            newoutput.ForEach(x =>
+            {
+                if (x.VisitEachExprExists(y => y is ColExpr, new List<Type> { typeof(ExprRef) }))
                     offending = x;
             });
             if (offending != null)
@@ -477,7 +481,8 @@ namespace adb
 
     }
 
-    public class LogicOrder : LogicNode {
+    public class LogicOrder : LogicNode
+    {
         internal List<Expr> orders_ = new List<Expr>();
         internal List<bool> descends_ = new List<bool>();
         public override string PrintMoreDetails(int depth)
@@ -519,7 +524,8 @@ namespace adb
         public override string PrintInlineDetails(int depth) => $"<{queryRef_.alias_}>";
         public LogicFromQuery(FromQueryRef query, LogicNode child) { queryRef_ = query; children_.Add(child); }
 
-        public override List<TableRef> InclusiveTableRefs() {
+        public override List<TableRef> InclusiveTableRefs()
+        {
             var r = new List<TableRef>();
             r.Add(queryRef_);
             r.AddRange(queryRef_.query_.bindContext_.AllTableRefs());
@@ -564,7 +570,8 @@ namespace adb
         {
             reqOutput.ForEach(x =>
             {
-                x.VisitEachExpr(y => {
+                x.VisitEachExpr(y =>
+                {
                     switch (y)
                     {
                         case LiteralExpr ly:    // select 2+3, ...

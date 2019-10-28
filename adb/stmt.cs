@@ -49,7 +49,7 @@ namespace adb
     {
         // parse info
         // ---------------
-        
+
         // this section can show up in setops
         internal readonly List<TableRef> from_;
         internal readonly Expr where_;
@@ -61,7 +61,7 @@ namespace adb
         public readonly List<CteExpr> ctes_;
         public readonly List<SelectStmt> setqs_;
         public readonly List<Expr> orders_;
-        public readonly List<bool> descends_;
+        public readonly List<bool> descends_;   // order by DESC|ASC
 
         // optimizer info
         // ---------------
@@ -81,7 +81,9 @@ namespace adb
             return top;
         }
 
-        List<Expr> seq2selection(List<Expr> list, List<Expr> selection) {
+        // group|order by 2 => selection_[2-1]
+        List<Expr> seq2selection(List<Expr> list, List<Expr> selection)
+        {
             var converted = new List<Expr>();
             list.ForEach(x =>
             {
@@ -271,10 +273,13 @@ namespace adb
 
         // select i, min(i/2), 2+min(i)+max(i) from A group by i
         // => min(i/2), 2+min(i)+max(i)
-        List<Expr> getAggregations() {
+        List<Expr> getAggregations()
+        {
             var r = new List<Expr>();
-            selection_.ForEach(x => {
-                x.VisitEachExpr(y => {
+            selection_.ForEach(x =>
+            {
+                x.VisitEachExpr(y =>
+                {
                     if (y is AggFunc)
                         r.Add(x);
                 });
@@ -352,7 +357,7 @@ namespace adb
                     // but not filter1. Current stage is too early fro this purpose since join reordering
                     // is happened later. So we only do best efforts here only.
                     //
-                    return plan.VisitEachNodeExists(n => 
+                    return plan.VisitEachNodeExists(n =>
                     {
                         if (n is LogicJoin nodeJoin &&
                             filter.EqualTableRefs(nodeJoin.InclusiveTableRefs()))
@@ -373,7 +378,8 @@ namespace adb
         //
         //  In short, we shall only focus on remove the top FromQuery because simplier.
         //
-        LogicNode removeFromQuery(LogicNode plan) {
+        LogicNode removeFromQuery(LogicNode plan)
+        {
             return plan;
         }
 
@@ -412,7 +418,7 @@ namespace adb
             plan.ResolveChildrenColumns(selection_, parent_ != null);
             logicPlan_ = plan;
 
-        Convert:
+            Convert:
             // remove LogicFromQuery node
             plan = removeFromQuery(plan);
             logicPlan_ = plan;

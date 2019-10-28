@@ -15,7 +15,7 @@ namespace adb
 
     public class SemanticAnalyzeException : Exception
     {
-        public SemanticAnalyzeException(string msg) =>Console.WriteLine(msg);
+        public SemanticAnalyzeException(string msg) => Console.WriteLine(msg);
     }
 
     public class RawParser
@@ -145,7 +145,8 @@ namespace adb
         {
             // make a coopy of selection list and replace their tabref as this
             var r = new List<Expr>();
-            query_.selection_.ForEach(x=> {
+            query_.selection_.ForEach(x =>
+            {
                 var y = x.Clone();
                 y.VisitEachExpr(z =>
                 {

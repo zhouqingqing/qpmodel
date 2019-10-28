@@ -159,12 +159,15 @@ namespace adb
         }
     }
 
-    public class PhysicHashAgg : PhysicNode {
+    public class PhysicHashAgg : PhysicNode
+    {
 
-        class KeyList {
+        class KeyList
+        {
             internal List<Value> keys_ = new List<Value>();
 
-            static internal KeyList ComputeKeys(ExecContext context, LogicAgg agg, Row input) {
+            static internal KeyList ComputeKeys(ExecContext context, LogicAgg agg, Row input)
+            {
                 var list = new KeyList();
                 if (agg.keys_ != null)
                     agg.keys_.ForEach(x => list.keys_.Add(x.Exec(context, input)));
@@ -172,7 +175,8 @@ namespace adb
             }
 
             public override string ToString() => string.Join(",", keys_);
-            public override int GetHashCode() {
+            public override int GetHashCode()
+            {
                 int hashcode = 0;
                 keys_.ForEach(x => hashcode ^= x.GetHashCode());
                 return hashcode;
@@ -187,9 +191,10 @@ namespace adb
         };
         public PhysicHashAgg(LogicAgg logic, PhysicNode l) : base(logic) => children_.Add(l);
 
-        Row AggrCoreToRow(ExecContext context, Row input) {
+        Row AggrCoreToRow(ExecContext context, Row input)
+        {
             Row r = new Row();
-            (logic_ as LogicAgg).aggrCore_.ForEach(x=> r.values_.Add(x.Exec(context, input)));
+            (logic_ as LogicAgg).aggrCore_.ForEach(x => r.values_.Add(x.Exec(context, input)));
             return r;
         }
         public override void Exec(ExecContext context, Func<Row, string> callback)
@@ -205,7 +210,8 @@ namespace adb
 
                 if (hm.TryGetValue(keys, out Row exist))
                 {
-                    aggrcore.ForEach(x => {
+                    aggrcore.ForEach(x =>
+                    {
                         var xa = x as AggFunc;
                         var old = exist.values_[aggrcore.IndexOf(xa)];
                         xa.Accum(context, old, l);
@@ -215,7 +221,8 @@ namespace adb
                 }
                 else
                 {
-                    aggrcore.ForEach(x => {
+                    aggrcore.ForEach(x =>
+                    {
                         var xa = x as AggFunc;
                         xa.Init(context, l);
                     });
@@ -235,11 +242,13 @@ namespace adb
         }
     }
 
-    public class PhysicOrder : PhysicNode { 
+    public class PhysicOrder : PhysicNode
+    {
         public PhysicOrder(LogicOrder logic, PhysicNode l) : base(logic) => children_.Add(l);
 
         // respect logic.orders_|descends_
-        int compareRow(Row l, Row r) {
+        int compareRow(Row l, Row r)
+        {
             var logic = logic_ as LogicOrder;
             var orders = logic.orders_;
             var descends = logic.descends_;

@@ -111,7 +111,8 @@ namespace adb
             return true;
         }
 
-        public static List<Expr> CloneList(List<Expr> source, List<Type> excludes = null) {
+        public static List<Expr> CloneList(List<Expr> source, List<Type> excludes = null)
+        {
             var clone = new List<Expr>();
             if (excludes is null)
             {
@@ -252,7 +253,7 @@ namespace adb
         //
         public bool VisitEachExprExists(Func<Expr, bool> check, List<Type> excluding = null)
         {
-            if (excluding?.Contains(GetType())??false)
+            if (excluding?.Contains(GetType()) ?? false)
                 return false;
             bool r = check(this);
 
@@ -325,7 +326,8 @@ namespace adb
         }
 
         // In current expression, search and replace @from with @to 
-        public Expr SearchReplace(Expr from, Expr to) {
+        public Expr SearchReplace(Expr from, Expr to)
+        {
             var clone = Clone();
 
             if (clone.Equals(from))
@@ -369,7 +371,7 @@ namespace adb
         public override int GetHashCode() => tableRefs_.GetHashCode();
         public override bool Equals(object obj)
         {
-            if (!(obj is Expr)) 
+            if (!(obj is Expr))
                 return false;
             var n = obj as Expr;
             return tableRefs_.Equals(n.tableRefs_);
@@ -451,7 +453,7 @@ namespace adb
 
         public override void Bind(BindContext context)
         {
-            Debug.Assert(tabRef_ is null);
+            Debug.Assert(!bounded_ && tabRef_ is null);
 
             // if table name is not given, search through all tablerefs
             isOuterRef_ = false;
@@ -481,7 +483,8 @@ namespace adb
             Debug.Assert(tabRef_ != null);
             if (tabName_ is null)
                 tabName_ = tabRef_.alias_;
-            if (!isOuterRef_) {
+            if (!isOuterRef_)
+            {
                 Debug.Assert(tableRefs_.Count == 0);
                 tableRefs_.Add(tabRef_);
             }
@@ -532,7 +535,8 @@ namespace adb
         {
             if (obj is ExprRef oe)
                 return this.Equals(oe.expr_);
-            else if (obj is BinExpr bo) {
+            else if (obj is BinExpr bo)
+            {
                 return exprEquals(l_, bo.l_) && exprEquals(r_, bo.r_) && op_.Equals(bo.op_);
             }
             return false;
@@ -552,12 +556,13 @@ namespace adb
 
         public override void Bind(BindContext context)
         {
+            Debug.Assert(!bounded_);
             l_.Bind(context);
             r_.Bind(context);
 
-            tableRefs_.AddRange(l_.tableRefs_); 
+            tableRefs_.AddRange(l_.tableRefs_);
             tableRefs_.AddRange(r_.tableRefs_);
-            if (tableRefs_.Count >1 )
+            if (tableRefs_.Count > 1)
                 tableRefs_ = tableRefs_.Distinct().ToList();
             bounded_ = true;
         }
@@ -624,6 +629,8 @@ namespace adb
 
         public override void Bind(BindContext context)
         {
+            Debug.Assert(!bounded_);
+
             // subquery id is global, so accumulating at top
             subqueryid_ = ++BindContext.globalSubqCounter_;
 
@@ -698,7 +705,8 @@ namespace adb
         public override int GetHashCode() => val_.GetHashCode();
         public override bool Equals(object obj)
         {
-            if (obj is LiteralExpr lo) {
+            if (obj is LiteralExpr lo)
+            {
                 return val_.Equals(lo.val_);
             }
             return false;
@@ -709,13 +717,15 @@ namespace adb
     // the tricky part of this class is that it is a wrapper, but Equal() shall be taken care
     // so we invent ExprHelper.Equal() for the purpose
     //
-    public class ExprRef : Expr {
+    public class ExprRef : Expr
+    {
         // expr_ can't be an ExprRef again
-        public Expr expr_;      
+        public Expr expr_;
         public int ordinal_;
 
         public override string ToString() => $@"{{{Utils.RemovePositions(expr_.ToString())}}}[{ordinal_}]";
-        public ExprRef(Expr expr, int ordinal) {
+        public ExprRef(Expr expr, int ordinal)
+        {
             if (expr is ExprRef ee)
                 expr = ee.expr_;
             Debug.Assert(!(expr is ExprRef));
