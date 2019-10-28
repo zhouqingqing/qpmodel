@@ -24,7 +24,8 @@ namespace adb
         // for each element in @source, if there is a matching k in @target of its sub expression, 
         // replace that element as ExprRef(k, index_of_k_in_target)
         //
-        public static List<Expr> SearchReplace(List<Expr> source, List<Expr> target) {
+        public static List<Expr> SearchReplace(List<Expr> source, List<Expr> target)
+        {
             var r = new List<Expr>();
             source.ForEach(x =>
             {
@@ -40,7 +41,8 @@ namespace adb
         }
 
         // a[0]+b[1] => a+b 
-        public static string RemovePositions(string r) {
+        public static string RemovePositions(string r)
+        {
             do
             {
                 int start = r.IndexOf('[');

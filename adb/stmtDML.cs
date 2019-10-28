@@ -30,7 +30,7 @@ namespace adb
         {
             targetref_ = target; cols_ = null; vals_ = vals; select_ = select;
         }
-        void bindSelectStmt(BindContext context) => select_?.BindWithContext(context);
+
         public override BindContext Bind(BindContext parent)
         {
             BindContext context = new BindContext(this, parent);
@@ -55,7 +55,7 @@ namespace adb
             {
                 if (cols_ is null)
                     cols_ = select_.selection_;
-                bindSelectStmt(context);
+                select_?.BindWithContext(context);
                 // verify selectStmt's selection list is compatible with insert target table's
                 if (select_.selection_.Count != cols_.Count)
                     throw new SemanticAnalyzeException("insert has no equal expressions than target columns");
