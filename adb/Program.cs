@@ -124,8 +124,12 @@ namespace adb
             sql = "select a3+2 from a group by 1";
             sql = "select (4 - a3) / 2, (4 - a3) / 2 * 2 + 1 + min(a1) from a group by 1;";
             sql = "select(4-a3)/2, avg(a4) from a group by 1";
-            sql = "select a1,a1,a3,a3, (select b3 from b where a1=b1 and b2=3) from a where a1>1";
-
+            // -- subquery sections
+//            sql = "select a1,a1,a3,a3, (select b3 from b where a1=b1 and b2=3) from a where a1>1";
+            sql = "select b1, a1,a1,a3,a3 from a where a2> (select b1 from b where b1=a3);"; // ok - semantic error
+            sql = "select a1,a1,a3,a3 from a where a2> (select b1 from b where b1=a1);"; // lost a2>@1
+            sql = "select a1,a1,a3,a3 from a where a2> (select b1 from b where b1=a1 and b2=3);"; // lost a2>@1
+            // bad sql = "select a1,a1,a3,a3 from a where a2> (select b1 from b where b1=a1) or a2<=2;"; 
 
             doit:
             Console.WriteLine(sql);
