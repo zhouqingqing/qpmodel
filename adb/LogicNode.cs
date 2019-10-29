@@ -116,6 +116,11 @@ namespace adb
         public bool enabled_ = false;
     }
 
+    public class OptimizeOption
+    {
+        public bool enable_subquery_to_markjoin = true;
+    }
+
     public abstract class LogicNode : PlanNode<LogicNode>
     {
         public List<Expr> output_ = new List<Expr>();

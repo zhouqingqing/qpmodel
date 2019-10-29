@@ -12,15 +12,16 @@ namespace adb
 {
     public abstract class SQLStatement
     {
-        // others
-        public ProfileOption profileOpt_ = new ProfileOption();
-
         // bounded context
         internal BindContext bindContext_;
 
         // logic and physical plans
         public LogicNode logicPlan_;
         public PhysicNode physicPlan_;
+
+        // others
+        public ProfileOption profileOpt_ = new ProfileOption();
+        public OptimizeOption optimizeOpt_ = new OptimizeOption();
 
         // DEBUG support
         internal readonly string text_;
@@ -258,17 +259,23 @@ namespace adb
             return root;
         }
 
-        void createSubQueryExprPlan(Expr expr)
+        List<SelectStmt> createSubQueryExprPlan(Expr expr)
         {
+            var subplans = new List<SelectStmt>();
             expr.VisitEachExpr(x =>
             {
                 if (x is SubqueryExpr sx)
                 {
                     Debug.Assert(expr.HasSubQuery());
-                    subqueries_.Add(sx.query_);
                     sx.query_.CreatePlan();
+                    subplans.Add(sx.query_);
                 }
             });
+
+            // these subqueries will be removed by mark join conversion
+            if (!optimizeOpt_.enable_subquery_to_markjoin)
+                subqueries_.AddRange(subplans);
+            return subplans.Count > 0 ? subplans : null;
         }
 
         // select i, min(i/2), 2+min(i)+max(i) from A group by i
@@ -318,7 +325,7 @@ namespace adb
                 root = new LogicOrder(root, orders_, descends_);
 
             // selection list
-            selection_.ForEach(createSubQueryExprPlan);
+            selection_.ForEach(x=>createSubQueryExprPlan(x));
 
             // resolve the output
             root.ResolveChildrenColumns(selection_, parent_ != null);
