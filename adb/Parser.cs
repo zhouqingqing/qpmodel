@@ -325,10 +325,11 @@ namespace adb
         public override object VisitType_name([NotNull] SQLiteParser.Type_nameContext context)
         {
             Dictionary<string, DType> nameMap = new Dictionary<string, DType> {
-                {"int", DType.Int4},
+                {"int", DType.Int4}, {"integer", DType.Int4},
                 {"char", DType.Char},
-                {"datetime", DType.Datetime},
-                {"numeric", DType.Numeric},
+                {"varchar", DType.Char},
+                {"datetime", DType.Datetime}, {"date", DType.Datetime},
+                {"numeric", DType.Numeric}, {"decimal", DType.Numeric},
             };
 
             string typename = context.name(0).GetText().Trim().ToLower();

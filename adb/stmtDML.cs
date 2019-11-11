@@ -17,6 +17,12 @@ namespace adb
                 throw new SemanticAnalyzeException("duplicated column name");
         }
         public override string ToString() => $"{tabName_ }: {string.Join(",", cols_)}";
+
+        public override List<Row> Exec(bool enableProfiling = false)
+        {
+            Catalog.systable_.Add(tabName_, cols_);
+            return null;
+        }
     }
 
     public class InsertStmt : SQLStatement

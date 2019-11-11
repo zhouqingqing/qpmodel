@@ -31,7 +31,7 @@ namespace adb
         public virtual LogicNode Optimize() => logicPlan_;
         public virtual LogicNode CreatePlan() => logicPlan_;
 
-        public List<Row> Exec(bool enableProfiling = false)
+        public virtual List<Row> Exec(bool enableProfiling = false)
         {
             if (enableProfiling)
                 profileOpt_.enabled_ = true;
