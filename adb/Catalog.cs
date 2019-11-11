@@ -9,6 +9,7 @@ namespace adb
     {
         Int4,
         Char,
+        VarChar,
         Datetime,
         Numeric
     }
@@ -34,6 +35,11 @@ namespace adb
     {
         public CharType(int len) : base(DType.Char, len) { }
         public override string ToString() => $"char({len_})";
+    }
+    public class VarCharType : ColumnType
+    {
+        public VarCharType(int len) : base(DType.Char, len) { }
+        public override string ToString() => $"varchar({len_})";
     }
     public class NumericType : ColumnType
     {
@@ -125,11 +131,22 @@ namespace adb
         // list of system tables
         public static SysTable systable_ = new SysTable();
 
+        static void createBuildInTestTables()
+        {
+            string[] ddls = {
+                @"create table a (a1 int, a2 int, a3 int, a4 int);",
+                @"create table b (b1 int, b2 int, b3 int, b4 int);",
+                @"create table c (c1 int, c2 int, c3 int, c4 int);",
+            };
+            foreach (var v in ddls) {
+                var stmt = RawParser.ParseSqlStatement(v) as CreateTableStmt;
+                stmt.Exec();
+            }
+        }
         static Catalog()
         {
-            systable_.Add("a", new List<ColumnDef>() { new ColumnDef("a1", 0), new ColumnDef("a2", 1), new ColumnDef("a3", 2), new ColumnDef("a4", 3) });
-            systable_.Add("b", new List<ColumnDef>() { new ColumnDef("b1", 0), new ColumnDef("b2", 1), new ColumnDef("b3", 2), new ColumnDef("b4", 3) });
-            systable_.Add("c", new List<ColumnDef>() { new ColumnDef("c1", 0), new ColumnDef("c2", 1), new ColumnDef("c3", 2), new ColumnDef("c4", 3) });
+            createBuildInTestTables();
+            tpch.CreateTables();
         }
     }
 }
