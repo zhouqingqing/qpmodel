@@ -502,6 +502,8 @@ namespace adb
                 else
                     return co.tabName_.Equals(tabName_) && co.colName_.Equals(colName_);
             }
+            else if (obj is ExprRef oe)
+                return Equals(oe.expr_);
             return false;
         }
         public override string ToString()

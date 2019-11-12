@@ -32,8 +32,9 @@ namespace adb
                 for (int i = 0; i < target.Count; i++)
                 {
                     var e = target[i];
-                    r.Add(x.SearchReplace(e, new ExprRef(e, i)));
+                    x = x.SearchReplace(e, new ExprRef(e, i));
                 }
+                r.Add(x);
             });
 
             Debug.Assert(r.Count == source.Count);
