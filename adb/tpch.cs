@@ -86,5 +86,12 @@ namespace adb
                 stmt.Exec();
             }
         }
+
+        static public void LoadTables() {
+            string filename = @"'C:\Users\q00904479\Desktop\adb\tpch\data\nation.tbl'";
+            var sql = $"copy nation from {filename};";
+            var stmt = RawParser.ParseSqlStatement(sql);
+            stmt.Exec();
+        }
     }
 }

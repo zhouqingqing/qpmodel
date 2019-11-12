@@ -62,7 +62,7 @@ namespace adb
         {
             using var parser = new TextFieldParser(filepath);
             parser.TextFieldType = FieldType.Delimited;
-            parser.SetDelimiters(",");
+            parser.SetDelimiters("|");
             while (!parser.EndOfData)
             {
                 //Processing row
