@@ -2,6 +2,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Linq;
+using System.IO;
 using System.Collections.Generic;
 
 namespace test
@@ -68,9 +69,26 @@ namespace test
             {
                 Assert.IsTrue(e.Message.Contains("SemanticAnalyzeException"));
             }
-            sql = "create table a (a1 int, a2 char(10), a3 datetime, a4 numeric(9,2), a5 numeric(9));";
+            sql = "create table a (a1 int, a2 char(10), a3 datetime, a4 numeric(9,2), a5 numeric(9), a6 double, a7 date, a8 varchar(100));";
             var stmt = RawParser.ParseSqlStatement(sql) as CreateTableStmt;
-            Assert.AreEqual(5, stmt.cols_.Count);
+            Assert.AreEqual(8, stmt.cols_.Count);
+        }
+    }
+
+    [TestClass]
+    public class TpchTest
+    {
+        [TestMethod]
+        public void TestTpch()
+        {
+            var files = Directory.GetFiles(@"../../../tpch");
+            Array.Sort(files);
+            foreach (var v in files)
+            {
+                var sql = File.ReadAllText(v);
+                var stmt = RawParser.ParseSqlStatement(sql);
+                Console.WriteLine(sql);
+            }
         }
     }
 

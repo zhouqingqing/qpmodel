@@ -62,6 +62,7 @@ namespace adb
                     else
                         r = new AggCount(args[0]);
                     break;
+                case "substring": r = new SubstringFunc(args); break;
                 default:
                     r = new FuncExpr(funcName, args);
                     break;
@@ -94,6 +95,14 @@ namespace adb
             return false;
         }
         public override string ToString() => $"{funcName_}({string.Join(",", args_)})";
+    }
+
+    public class SubstringFunc : FuncExpr { 
+        public SubstringFunc(List<Expr> args): base("substring", args){ argcnt_ = 3; }
+        public override Value Exec(ExecContext context, Row input)
+        {
+            return 0;
+        }
     }
 
     public abstract class AggFunc : FuncExpr
