@@ -54,3 +54,11 @@ Known issues:
    1) we shall avoid repeated computing a1+a2, so a1+a2 compute once shall happen within filter.
    2) we shall do a1+a2 computation on demand, meaning only after a1>=2.
 
+4. tpch issues
+	q1/q2/q17~q22: scanner assumes 4 cols;
+	q3/q5/q6/q10/q11/q13/q16: alias issue - xxx as <alias> ... order by <alias>
+	q8/q12/q14: case/when
+	q15: with
+	q4: exists (select *)
+	q7: between
+	q9: like

@@ -26,6 +26,7 @@ namespace adb
                 tableRefs_.AddRange(x.tableRefs_);
             });
             tableRefs_ = tableRefs_.Distinct().ToList();
+            bounded_ = true;
         }
 
         // sum(min(x)) => x
@@ -63,6 +64,7 @@ namespace adb
                         r = new AggCount(args[0]);
                     break;
                 case "substring": r = new SubstringFunc(args); break;
+                case "year": r = new YearFunc(args); break;
                 default:
                     r = new FuncExpr(funcName, args);
                     break;
@@ -99,6 +101,14 @@ namespace adb
 
     public class SubstringFunc : FuncExpr { 
         public SubstringFunc(List<Expr> args): base("substring", args){ argcnt_ = 3; }
+        public override Value Exec(ExecContext context, Row input)
+        {
+            return 0;
+        }
+    }
+    public class YearFunc : FuncExpr
+    {
+        public YearFunc(List<Expr> args) : base("year", args) { argcnt_ = 1; }
         public override Value Exec(ExecContext context, Row input)
         {
             return 0;

@@ -294,6 +294,7 @@ namespace adb
 
         // TODO: this is kinda redundant, since this check does not save us any time
         public bool HasSubQuery() => VisitEachExprExists(e => e is SubqueryExpr);
+        public bool HasAggFunc() => VisitEachExprExists(e => e is AggFunc);
         public bool IsConst()
         {
             return !VisitEachExprExists(e =>

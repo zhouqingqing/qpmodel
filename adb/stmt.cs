@@ -151,6 +151,9 @@ namespace adb
                         // the subquery itself in from clause can be seen as a new table, so register it here
                         context.AddTable(sref);
                         break;
+                    case JoinQueryRef jref:
+                        jref.tables_.ForEach(context.AddTable);
+                        break;
                     default:
                         throw new NotImplementedException();
                 }
@@ -167,7 +170,7 @@ namespace adb
                 else
                 {
                     x.Bind(context);
-                    if (x is AggFunc)
+                    if (x.HasAggFunc())
                         hasAgg_ = true;
                 }
             });
