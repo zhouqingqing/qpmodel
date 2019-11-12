@@ -9,50 +9,75 @@ namespace adb
     class tpch
     {
         static public string[] ddls_ = {
-            @"CREATE TABLE REGION  (
-                regionId    INTEGER NOT NULL PRIMARY KEY,
-                regionName       CHAR(25) NOT NULL);",
-            @"CREATE TABLE NATION  ( 
-	            nationId  	INTEGER NOT NULL PRIMARY KEY,
-	            nationName       CHAR(25) NOT NULL,
-	            regionId  	INTEGER NOT NULL REFERENCES REGION(regionId));",
-            @"CREATE TABLE PART  (
-	            partId     	INTEGER NOT NULL PRIMARY KEY,
-	            partName        	VARCHAR(55) NOT NULL,
-	            partBrand       	CHAR(10) NOT NULL,
-	            partType        	VARCHAR(25) NOT NULL,
-	            partRetailPrice 	DECIMAL(15,2) NOT NULL);",
-            @"CREATE TABLE SUPPLIER (
-                supplierId  INTEGER NOT NULL PRIMARY KEY,
-                supplierName    CHAR(25) NOT NULL,
-                nationId    INTEGER NOT NULL REFERENCES NATION(nationId));",
-            @"CREATE TABLE SUPPLYPART(
-                partId INTEGER NOT NULL REFERENCES PART(partId),
-                supplierId INTEGER NOT NULL REFERENCES SUPPLIER(supplierId),
-                supplyPartCost DECIMAL(15,2)  NOT NULL,
-                PRIMARY KEY(partId, supplierId) );",
-            @"CREATE TABLE CUSTOMER(
-                customerId INTEGER NOT NULL PRIMARY KEY,
-                customerName VARCHAR(25) NOT NULL,
-                nationId    INTEGER NOT NULL REFERENCES NATION(nationId));",
-            @"CREATE TABLE ORDERS(
-                orderId INTEGER NOT NULL PRIMARY KEY,
-                customerId INTEGER NOT NULL REFERENCES CUSTOMER(customerId),
-                orderDate DATE NOT NULL,
-                orderPriority CHAR(15) NOT NULL);",
-            @"CREATE TABLE ORDERLINE(
-                orderId INTEGER NOT NULL REFERENCES ORDERS(orderId),
-                partId INTEGER NOT NULL,
-                supplierId INTEGER NOT NULL,
-                olId INTEGER NOT NULL,
-                olQuantity DECIMAL(15,2) NOT NULL,
-                olDiscount      DECIMAL(15,2) NOT NULL,
-                olReturnFlag    CHAR(1) NOT NULL,
-                olShipDate      DATE NOT NULL,
-	            olCommitDate DATE NOT NULL,
-                olReceiptdate   DATE NOT NULL,
-	            FOREIGN KEY(partId, supplierId) REFERENCES SUPPLYPART(partId, supplierId),
- 	            PRIMARY KEY(orderId, olId));"
+            @"CREATE TABLE region  (
+                r_regionkey  INTEGER not null,
+                r_name       CHAR(25) not null,
+                r_comment    VARCHAR(152));",
+            @"CREATE TABLE nation  ( 
+                n_nationkey  INTEGER not null,
+                n_name       CHAR(25) not null,
+                n_regionkey  INTEGER not null,
+                n_comment    VARCHAR(152));",
+            @"CREATE TABLE part (
+                p_partkey     INTEGER not null,
+                p_name        VARCHAR(55) not null,
+                p_mfgr        CHAR(25) not null,
+                p_brand       CHAR(10) not null,
+                p_type        VARCHAR(25) not null,
+                p_size        INTEGER not null,
+                p_container   CHAR(10) not null,
+                p_retailprice DOUBLE not null,
+                p_comment     VARCHAR(23) not null);",
+            @"CREATE TABLE supplier (
+                s_suppkey     INTEGER not null,
+                s_name        CHAR(25) not null,
+                s_address     VARCHAR(40) not null,
+                s_nationkey   INTEGER not null,
+                s_phone       CHAR(15) not null,
+                s_acctbal     DOUBLE not null,
+                s_comment     VARCHAR(101) not null);",
+            @"CREATE TABLE partsupp(
+                ps_partkey     INTEGER not null,
+                ps_suppkey     INTEGER not null,
+                ps_availqty    INTEGER not null,
+                ps_supplycost  DOUBLE not null,
+                ps_comment     VARCHAR(199) not null);",
+            @"CREATE TABLE customer (
+                c_custkey     INTEGER not null,
+                c_name        VARCHAR(25) not null,
+                c_address     VARCHAR(40) not null,
+                c_nationkey   INTEGER not null,
+                c_phone       CHAR(15) not null,
+                c_acctbal     DOUBLE not null,
+                c_mktsegment  CHAR(10) not null,
+                c_comment     VARCHAR(117) not null);",
+            @"CREATE TABLE orders (
+                o_orderkey       INTEGER not null,
+                o_custkey        INTEGER not null,
+                o_orderstatus    CHAR(1) not null,
+                o_totalprice     DOUBLE not null,
+                o_orderdate      DATE not null,
+                o_orderpriority  CHAR(15) not null,  
+                o_clerk          CHAR(15) not null, 
+                o_shippriority   INTEGER not null,
+                o_comment        VARCHAR(79) not null);",
+            @"CREATE TABLE lineitem(
+                l_orderkey    INTEGER not null,
+                l_partkey     INTEGER not null,
+                l_suppkey     INTEGER not null,
+                l_linenumber  INTEGER not null,
+                l_quantity    DOUBLE PRECISION not null,
+                l_extendedprice  DOUBLE PRECISION not null,
+                l_discount    DOUBLE PRECISION not null,
+                l_tax         DOUBLE PRECISION not null,
+                l_returnflag  CHAR(1) not null,
+                l_linestatus  CHAR(1) not null,
+                l_shipdate    DATE not null,
+                l_commitdate  DATE not null,
+                l_receiptdate DATE not null,
+                l_shipinstruct CHAR(25) not null,
+                l_shipmode     CHAR(10) not null,
+                l_comment      VARCHAR(44) not null);"
         };
 
         static public void CreateTables() {

@@ -326,6 +326,7 @@ namespace adb
         {
             Dictionary<string, DType> nameMap = new Dictionary<string, DType> {
                 {"int", DType.Int4}, {"integer", DType.Int4},
+                {"double", DType.Double},{"double precision", DType.Double},
                 {"char", DType.Char},
                 {"varchar", DType.Char},
                 {"datetime", DType.Datetime}, {"date", DType.Datetime},
@@ -336,6 +337,8 @@ namespace adb
             DType type = nameMap[typename];
             if (type == DType.Int4)
                 return new IntType();
+            else if (type == DType.Double)
+                return new DoubleType();
             else if (type == DType.Datetime)
                 return new DateTimeType();
             else if (type == DType.Char)

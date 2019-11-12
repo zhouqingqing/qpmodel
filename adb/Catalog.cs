@@ -11,6 +11,7 @@ namespace adb
         Char,
         VarChar,
         Datetime,
+        Double,
         Numeric
     }
 
@@ -25,6 +26,11 @@ namespace adb
     {
         public IntType() : base(DType.Int4, 4) { }
         public override string ToString() => $"int";
+    }
+    public class DoubleType : ColumnType
+    {
+        public DoubleType() : base(DType.Double, 8) { }
+        public override string ToString() => $"double";
     }
     public class DateTimeType : ColumnType
     {
