@@ -138,13 +138,12 @@ namespace adb
 
             {
                 var files = Directory.GetFiles(@"../../../tpch");
-                Array.Sort(files);
-                //foreach (var v in files)
-                var v = files[0];
+                
+                foreach (var v in files)
                 {
                     sql = File.ReadAllText(v);
-                    //var stmt = RawParser.ParseSqlStatement(sql);
-                    //Console.WriteLine(stmt.text_);
+                    var stmt = RawParser.ParseSqlStatement(sql);
+                    Console.WriteLine(stmt.text_);
                     //stmt.Exec();
                 }
             }

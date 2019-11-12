@@ -168,6 +168,25 @@ namespace adb
         }
     }
 
+    public class JoinQueryRef : TableRef {
+        public List<TableRef> tables_;
+        public List<string> joinops_;
+
+        public JoinQueryRef(List<TableRef> tables, List<string> joinops) {
+            Debug.Assert(tables.Count == joinops.Count + 1);
+            tables.ForEach(x=>Debug.Assert(!(x is JoinQueryRef)));
+            tables_ = tables;
+            joinops_ = joinops;
+        }
+
+        public override List<Expr> AllColumnsRefs()
+        {
+            List<Expr> r = new List<Expr>();
+            tables_.ForEach(x => r.AddRange(x.AllColumnsRefs()));
+            return r;
+        }
+    }
+
     // antlr visitor pattern parser
     class SQLiteVisitor : SQLiteBaseVisitor<object>
     {
@@ -179,6 +198,10 @@ namespace adb
             => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
         public override object VisitArithplusexpr([NotNull] SQLiteParser.ArithplusexprContext context)
             => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
+        public override object VisitBetweenExpr([NotNull] SQLiteParser.BetweenExprContext context)
+            => new BinExpr((Expr)Visit(context.expr(1)), (Expr)Visit(context.expr(2)), "between");
+        public override object VisitLikeExpr([NotNull] SQLiteParser.LikeExprContext context)
+            => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), "like");
         public override object VisitFuncExpr([NotNull] SQLiteParser.FuncExprContext context)
         {
             List<Expr> args = new List<Expr>();
@@ -200,6 +223,18 @@ namespace adb
             => new SubqueryExpr(Visit(context.select_stmt()) as SelectStmt);
         public override object VisitTable_or_subquery([NotNull] SQLiteParser.Table_or_subqueryContext context)
             => Visit(context);
+
+        public override object VisitJoin_clause([NotNull] SQLiteParser.Join_clauseContext context)
+        {
+            Debug.Assert(!context.IsEmpty);
+            List<TableRef> tabrefs = new List<TableRef>();
+            foreach (var v in context.table_or_subquery())
+                tabrefs.Add(VisitTable_or_subquery(v) as TableRef);
+            List<string> joins = new List<string>();
+            foreach (var v in context.join_operator())
+                joins.Add(v.GetText().ToLower());
+            return new JoinQueryRef(tabrefs, joins);
+        }
         public override object VisitFromSimpleTable([NotNull] SQLiteParser.FromSimpleTableContext context)
             => new BaseTableRef(context.table_name().GetText(), context.table_alias()?.GetText());
         public override object VisitOrdering_term([NotNull] SQLiteParser.Ordering_termContext context)
@@ -246,10 +281,16 @@ namespace adb
                 resultCols.Add(col);
             }
 
+            // table refs
             var resultRels = new List<TableRef>();
             foreach (var r in context.table_or_subquery())
             {
                 var tab = VisitTable_or_subquery(r) as TableRef;
+                resultRels.Add(tab);
+            }
+            if (context.join_clause() != null)
+            {
+                var tab = VisitJoin_clause(context.join_clause()) as TableRef;
                 resultRels.Add(tab);
             }
 
