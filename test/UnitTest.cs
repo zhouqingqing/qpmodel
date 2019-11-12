@@ -276,7 +276,7 @@ namespace test
             sql = "select a1,a1,a3,a3, (select b3 from b where a1=b2 and b2=3) from a where a1>1";
             result = ExecuteSQL(sql);
             Assert.AreEqual(1, result.Count);
-            Assert.AreEqual($"2,2,4,4,{Int64.MaxValue}", result[0].ToString());
+            Assert.AreEqual($"2,2,4,4,{Int32.MaxValue}", result[0].ToString());
 
             // scalar subquery
             sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = 3)";

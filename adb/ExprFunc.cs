@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
-using Value = System.Int64;
+using Value = System.Object;
 
 namespace adb
 {
@@ -134,14 +134,21 @@ namespace adb
         public AggSum(Expr arg) : base("sum", new List<Expr> { arg }) { }
 
         public override void Init(ExecContext context, Row input) => sum_ = args_[0].Exec(context, input);
-        public override void Accum(ExecContext context, Value old, Row input) => sum_ = old + args_[0].Exec(context, input);
+        public override void Accum(ExecContext context, Value old, Row input)
+        {
+            var arg = args_[0].Exec(context, input);
+            Type ltype, rtype; ltype = typeof(int); rtype = typeof(int);
+            dynamic lv = Convert.ChangeType(old, ltype);
+            dynamic rv = Convert.ChangeType(arg, rtype);
+            sum_ = lv + rv;
+        }
         public override Value Exec(ExecContext context, Row input) => sum_;
     }
 
     public class AggCount : AggFunc
     {
         // Exec info
-        internal Value count_;
+        internal long count_;
         public AggCount(Expr arg) : base("count", new List<Expr> { arg }) { }
 
         public override void Init(ExecContext context, Row input) => count_ = 1;
@@ -151,7 +158,7 @@ namespace adb
     public class AggCountStar : AggFunc
     {
         // Exec info
-        internal Value count_;
+        internal long count_;
         public AggCountStar(Expr arg) : base("count(*)", new List<Expr> { new LiteralExpr("0") }) { argcnt_ = 0; }
 
         public override void Init(ExecContext context, Row input) => count_ = 1;
@@ -168,7 +175,11 @@ namespace adb
         public override void Accum(ExecContext context, Value old, Row input)
         {
             var arg = args_[0].Exec(context, input);
-            min_ = old > arg ? arg : old;
+
+            Type ltype, rtype; ltype = typeof(int); rtype = typeof(int);
+            dynamic lv = Convert.ChangeType(old, ltype);
+            dynamic rv = Convert.ChangeType(arg, rtype);
+            min_ = lv > rv ? arg : old;
         }
         public override Value Exec(ExecContext context, Row input) => min_;
     }
@@ -182,7 +193,10 @@ namespace adb
         public override void Accum(ExecContext context, Value old, Row input)
         {
             var arg = args_[0].Exec(context, input);
-            max_ = old > arg ? old : arg;
+            Type ltype, rtype; ltype = typeof(int); rtype = typeof(int);
+            dynamic lv = Convert.ChangeType(old, ltype);
+            dynamic rv = Convert.ChangeType(arg, rtype);
+            max_ = lv > rv ? old : arg;
         }
         public override Value Exec(ExecContext context, Row input) => max_;
     }
@@ -191,7 +205,7 @@ namespace adb
     {
         // Exec info
         internal Value sum_;
-        internal Value count_;
+        internal long count_;
 
         public AggAvg(Expr arg) : base("avg", new List<Expr> { arg }) { }
 
@@ -202,9 +216,18 @@ namespace adb
         }
         public override void Accum(ExecContext context, Value old, Row input)
         {
-            sum_ = old + args_[0].Exec(context, input);
+            var arg = args_[0].Exec(context, input);
+            Type ltype, rtype; ltype = typeof(int); rtype = typeof(int);
+            dynamic lv = Convert.ChangeType(old, ltype);
+            dynamic rv = Convert.ChangeType(arg, rtype);
+            sum_ = lv + rv;
             count_ += 1;
         }
-        public override Value Exec(ExecContext context, Row input) => sum_ / count_;
+        public override Value Exec(ExecContext context, Row input)
+        {
+            Type ltype; ltype = typeof(int);
+            dynamic lv = Convert.ChangeType(sum_, ltype);
+            return lv / count_;
+        }
     }
 }

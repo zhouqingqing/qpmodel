@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using Value = System.Int64;
+using Value = System.Object;
 
 namespace adb
 {
@@ -574,17 +574,23 @@ namespace adb
 
         public override Value Exec(ExecContext context, Row input)
         {
+            Type ltype, rtype;
+            ltype = typeof(int);
+            rtype = typeof(int);
+            dynamic lv = Convert.ChangeType(l_.Exec(context, input), ltype);
+            dynamic rv = Convert.ChangeType(r_.Exec(context, input), rtype);
+
             switch (op_)
             {
-                case "+": return l_.Exec(context, input) + r_.Exec(context, input);
-                case "-": return l_.Exec(context, input) - r_.Exec(context, input);
-                case "*": return l_.Exec(context, input) * r_.Exec(context, input);
-                case "/": return l_.Exec(context, input) / r_.Exec(context, input);
-                case ">": return l_.Exec(context, input) > r_.Exec(context, input) ? 1 : 0;
-                case ">=": return l_.Exec(context, input) >= r_.Exec(context, input) ? 1 : 0;
-                case "<": return l_.Exec(context, input) < r_.Exec(context, input) ? 1 : 0;
-                case "<=": return l_.Exec(context, input) <= r_.Exec(context, input) ? 1 : 0;
-                case "=": return l_.Exec(context, input) == r_.Exec(context, input) ? 1 : 0;
+                case "+": return lv + rv;
+                case "-": return lv - rv;
+                case "*": return lv * rv;
+                case "/": return lv / rv;
+                case ">": return lv > rv ? 1 : 0;
+                case ">=": return lv >= rv ? 1 : 0;
+                case "<": return lv < rv ? 1 : 0;
+                case "<=": return lv <= rv ? 1 : 0;
+                case "=": return lv == rv ? 1 : 0;
                 default:
                     throw new NotImplementedException();
             }
@@ -597,8 +603,8 @@ namespace adb
 
         public override Value Exec(ExecContext context, Row input)
         {
-            Value lv = l_.Exec(context, input);
-            Value rv = r_.Exec(context, input);
+            var lv = (int)l_.Exec(context, input);
+            var rv = (int)r_.Exec(context, input);
 
             if (lv == 1 && rv == 1)
                 return 1;
@@ -668,7 +674,7 @@ namespace adb
             });
 
             if (r is null)
-                return Value.MaxValue;
+                return Int32.MaxValue;
             return r.values_[0];
         }
     }
@@ -703,7 +709,13 @@ namespace adb
 
         public LiteralExpr(string val) => val_ = val;
         public override string ToString() => val_;
-        public override Value Exec(ExecContext context, Row input) => Value.Parse(val_);
+        public override Value Exec(ExecContext context, Row input)
+        {
+            if (Int64.TryParse(val_, out long result))
+                return result;
+            else
+                return val_;
+        }
 
         public override int GetHashCode() => val_.GetHashCode();
         public override bool Equals(object obj)
