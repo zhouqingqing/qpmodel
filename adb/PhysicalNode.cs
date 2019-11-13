@@ -94,14 +94,26 @@ namespace adb
         {
             var logic = logic_ as LogicScanTable;
             var filter = logic.filter_;
+            var tabname = logic.tabref_.relname_.ToLower();
+            string[] faketable = { "a", "b", "c"}; 
+            bool isFaketable = faketable.Contains(tabname);
+            var heap = (logic.tabref_).Table().heap_.GetEnumerator();
 
             for (var i = 0; i < nrows_; i++)
             {
                 Row r = new Row();
-                r.values_.Add(i);
-                r.values_.Add(i + 1);
-                r.values_.Add(i + 2);
-                r.values_.Add(i + 3);
+                if (isFaketable)
+                {
+                    r.values_.Add(i);
+                    r.values_.Add(i + 1);
+                    r.values_.Add(i + 2);
+                    r.values_.Add(i + 3);
+                }
+                else
+                {
+                    heap.MoveNext();
+                    r = heap.Current;
+                }
 
                 if (logic.tabref_.outerrefs_.Count != 0)
                     context.AddParam(logic.tabref_, r);
@@ -124,7 +136,7 @@ namespace adb
             Utils.ReadCsvLine(filename, fields =>
             {
                 Row r = new Row();
-                Array.ForEach(fields, f => r.values_.Add(Int64.Parse(f)));
+                Array.ForEach(fields, f => r.values_.Add(f));
                 callback(r);
             });
         }
@@ -317,7 +329,8 @@ namespace adb
         {
             children_[0].Exec(context, l =>
             {
-                Console.WriteLine($"insert {l}");
+                var table = (logic_ as LogicInsert).targetref_.Table();
+                table.heap_.Add(l);
                 return null;
             });
         }
