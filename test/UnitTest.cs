@@ -133,7 +133,7 @@ namespace test
         [TestMethod]
         public void TestColExpr()
         {
-            ColExpr col = new ColExpr(null, "a", "a1");
+            ColExpr col = new ColExpr(null, "a", "a1", new IntType());
             Assert.AreEqual("a.a1[0]", col.ToString());
         }
 

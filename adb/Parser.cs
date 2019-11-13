@@ -105,7 +105,7 @@ namespace adb
             foreach (var c in columns)
             {
                 ColumnDef coldef = c.Value;
-                l.Add(new ColExpr(null, alias_, coldef.name_));
+                l.Add(new ColExpr(null, alias_, coldef.name_, coldef.type_));
             }
 
             return l;
@@ -214,7 +214,7 @@ namespace adb
         public override object VisitColExpr([NotNull] SQLiteParser.ColExprContext context)
             => new ColExpr(context.database_name()?.GetText(),
                 context.table_name()?.GetText(),
-                context.column_name()?.GetText());
+                context.column_name()?.GetText(), null);
         public override object VisitArithcompexpr([NotNull] SQLiteParser.ArithcompexprContext context)
             => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
         public override object VisitLogicAndExpr([NotNull] SQLiteParser.LogicAndExprContext context)
@@ -367,30 +367,29 @@ namespace adb
 
         public override object VisitType_name([NotNull] SQLiteParser.Type_nameContext context)
         {
-            Dictionary<string, DType> nameMap = new Dictionary<string, DType> {
-                {"int", DType.Int4}, {"integer", DType.Int4},
-                {"double", DType.Double},{"double precision", DType.Double},
-                {"char", DType.Char},
-                {"varchar", DType.Char},
-                {"datetime", DType.Datetime}, {"date", DType.Datetime},
-                {"numeric", DType.Numeric}, {"decimal", DType.Numeric},
+            Dictionary<string, Type> nameMap = new Dictionary<string, Type> {
+                {"int", typeof(int)}, {"integer", typeof(int)},
+                {"double", typeof(double)},{"double precision", typeof(double)},
+                {"char", typeof(string)}, {"varchar", typeof(string)},
+                {"datetime", typeof(DateTime)}, {"date", typeof(DateTime)},
+                {"numeric", typeof(decimal)}, {"decimal", typeof(decimal)},
             };
 
             string typename = context.name(0).GetText().Trim().ToLower();
-            DType type = nameMap[typename];
-            if (type == DType.Int4)
+            Type type = nameMap[typename];
+            if (type == typeof(int))
                 return new IntType();
-            else if (type == DType.Double)
+            else if (type == typeof(double))
                 return new DoubleType();
-            else if (type == DType.Datetime)
+            else if (type == typeof(DateTime))
                 return new DateTimeType();
-            else if (type == DType.Char)
+            else if (type == typeof(string))
             {
                 var numbers = context.signed_number();
                 Utils.Checks(numbers.Count() == 1);
                 return new CharType(int.Parse(numbers[0].NUMERIC_LITERAL().GetText()));
             }
-            else if (type == DType.Numeric)
+            else if (type == typeof(decimal))
             {
                 var numbers = context.signed_number();
                 Utils.Checks(numbers.Any() && numbers.Count() <= 2);

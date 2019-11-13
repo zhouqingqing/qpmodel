@@ -29,6 +29,8 @@ namespace adb
     {
         public readonly BaseTableRef targetref_;
         public List<Expr> cols_;
+
+        // vals_ and select_ are mutual exclusive
         public readonly List<Expr> vals_;
         public readonly SelectStmt select_;
 
@@ -56,6 +58,7 @@ namespace adb
                     cols_ = targetref_.AllColumnsRefs();
                 if (vals_.Count != cols_.Count)
                     throw new SemanticAnalyzeException("insert has no equal expressions than target columns");
+                vals_.ForEach(x => x.Bind(context));
             }
             else
             {
