@@ -71,6 +71,9 @@ namespace adb
         public string name_;
         public Dictionary<string, ColumnDef> columns_;
 
+        // storage
+        public List<Row> heap_ = new List<Row>();
+
         public TableDef(string tabName, List<ColumnDef> columns)
         {
             Dictionary<string, ColumnDef> cols = new Dictionary<string, ColumnDef>();
@@ -100,15 +103,9 @@ namespace adb
             records_.Add(tabName,
                 new TableDef(tabName, columns));
         }
-
-        public Dictionary<string, ColumnDef> Table(string tabName)
-        {
-            return records_[tabName].columns_;
-        }
-        public ColumnDef Column(string tabName, string colName)
-        {
-            return Table(tabName)[colName];
-        }
+        public TableDef Table(string tabName)=> records_[tabName];
+        public Dictionary<string, ColumnDef> TableCols(string tabName)=> records_[tabName].columns_;
+        public ColumnDef Column(string tabName, string colName)=> TableCols(tabName)[colName];
     }
 
     class ColumnStat

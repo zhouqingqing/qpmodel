@@ -93,13 +93,15 @@ namespace adb
             alias_ = alias ?? relname_;
         }
 
+        public TableDef Table() => Catalog.systable_.Table(relname_);
+
         public override string ToString()
             => (relname_.Equals(alias_)) ? $"{alias_}" : $"{relname_} as {alias_}";
 
         public override List<Expr> AllColumnsRefs()
         {
             List<Expr> l = new List<Expr>();
-            var columns = Catalog.systable_.Table(relname_);
+            var columns = Catalog.systable_.TableCols(relname_);
             foreach (var c in columns)
             {
                 ColumnDef coldef = c.Value;

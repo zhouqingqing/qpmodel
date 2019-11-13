@@ -8,6 +8,10 @@ namespace adb
 {
     class tpch
     {
+        static public string[] tabnames_ = { 
+            "region", "nation", "part","supplier",
+            "partsupp", "customer", "orders", "lineitem"
+        };
         static public string[] ddls_ = {
             @"CREATE TABLE region  (
                 r_regionkey  INTEGER not null,
@@ -88,10 +92,14 @@ namespace adb
         }
 
         static public void LoadTables() {
-            string filename = @"'C:\Users\q00904479\Desktop\adb\tpch\data\nation.tbl'";
-            var sql = $"copy nation from {filename};";
-            var stmt = RawParser.ParseSqlStatement(sql);
-            stmt.Exec();
+            string folder = @"C:\Users\q00904479\Desktop\adb\tpch\data";
+            foreach(var v in tabnames_)
+            {
+                string filename = $@"'{folder}\{v}.tbl'";
+                var sql = $"copy {v} from {filename};";
+                var stmt = RawParser.ParseSqlStatement(sql);
+                stmt.Exec();
+            }
         }
     }
 }
