@@ -726,20 +726,27 @@ namespace adb
         {
             str_ = str;
             val_ = str_;
+
             if (str.StartsWith("date'"))
             {
-                Debug.Assert(str.Count(x => x == '\'') == 2);
+                var datestr = Utils.RetrieveQuotedString(str);
+                val_ = (new DateFunc(
+                            new List<Expr> { new LiteralExpr(datestr)})).Exec(null, null);
                 type_ = new DateTimeType();
             }
             else if (str.StartsWith("interval'"))
             {
-                Debug.Assert(str.Count(x => x == '\'') == 2);
-                type_ = new DateTimeType();
+                var datestr = Utils.RetrieveQuotedString(str);
+                Debug.Assert(str.EndsWith("day"));
+                var day = int.Parse(Utils.RemoveStringQuotes(datestr));
+                val_ = new TimeSpan(day, 0, 0, 0);
+                type_ = new TimeSpanType();
             }
             else if (str.Contains("'"))
             {
-                Debug.Assert(str.Count(x => x == '\'') == 2);
-                type_ = new CharType(str.Length);
+                str_ = Utils.RemoveStringQuotes(str_);
+                val_ = str_;
+                type_ = new CharType(str_.Length);
             }
             else if (str.Contains("."))
             {

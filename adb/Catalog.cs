@@ -1,12 +1,11 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Collections.Generic;
 
 using TableColumn = System.Tuple<string, string>;
 
 namespace adb
 {
-    public class DateTime { 
-    }
     public class ColumnType
     {
         public Type type_;
@@ -33,6 +32,11 @@ namespace adb
     {
         public DateTimeType() : base(typeof(DateTime), 8) { }
         public override string ToString() => $"datetime";
+    }
+    public class TimeSpanType : ColumnType
+    {
+        public TimeSpanType() : base(typeof(TimeSpan), 8) {}
+        public override string ToString() => $"interval";
     }
     public class CharType : ColumnType
     {

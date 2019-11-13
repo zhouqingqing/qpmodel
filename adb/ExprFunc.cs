@@ -128,6 +128,19 @@ namespace adb
         }
     }
 
+    public class DateFunc : FuncExpr {
+        public DateFunc(List<Expr> args) : base("date", args)
+        {
+            argcnt_ = 1;
+            type_ = new DateTimeType();
+        }
+        public override Value Exec(ExecContext context, Row input)
+        {
+            var date = DateTime.Parse((string)args_[0].Exec(context, input));
+            return date;
+        }
+    }
+
     public abstract class AggFunc : FuncExpr
     {
         public AggFunc(string func, List<Expr> args) : base(func, args) { argcnt_ = 1;}
