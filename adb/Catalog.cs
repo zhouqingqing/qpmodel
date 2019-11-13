@@ -5,52 +5,49 @@ using TableColumn = System.Tuple<string, string>;
 
 namespace adb
 {
-    public enum DType
-    {
-        Int4,
-        Char,
-        VarChar,
-        Datetime,
-        Double,
-        Numeric
+    public class DateTime { 
     }
-
     public class ColumnType
     {
-        public DType type_;
+        public Type type_;
         public int len_;
-        public ColumnType(DType type, int len) { type_ = type; len_ = len; }
+        public ColumnType(Type type, int len) { type_ = type; len_ = len; }
     }
 
+    public class BoolType : ColumnType
+    {
+        public BoolType() : base(typeof(bool), 1) { }
+        public override string ToString() => $"bool";
+    }
     public class IntType : ColumnType
     {
-        public IntType() : base(DType.Int4, 4) { }
+        public IntType() : base(typeof(int), 4) { }
         public override string ToString() => $"int";
     }
     public class DoubleType : ColumnType
     {
-        public DoubleType() : base(DType.Double, 8) { }
+        public DoubleType() : base(typeof(double), 8) { }
         public override string ToString() => $"double";
     }
     public class DateTimeType : ColumnType
     {
-        public DateTimeType() : base(DType.Datetime, 8) { }
+        public DateTimeType() : base(typeof(DateTime), 8) { }
         public override string ToString() => $"datetime";
     }
     public class CharType : ColumnType
     {
-        public CharType(int len) : base(DType.Char, len) { }
+        public CharType(int len) : base(typeof(string), len) { }
         public override string ToString() => $"char({len_})";
     }
     public class VarCharType : ColumnType
     {
-        public VarCharType(int len) : base(DType.Char, len) { }
+        public VarCharType(int len) : base(typeof(string), len) { }
         public override string ToString() => $"varchar({len_})";
     }
     public class NumericType : ColumnType
     {
         public int scale_;
-        public NumericType(int prec, int scale) : base(DType.Numeric, prec) => scale_ = scale;
+        public NumericType(int prec, int scale) : base(typeof(decimal), prec) => scale_ = scale;
         public override string ToString() => $"numeric({len_}, {scale_})";
     }
 

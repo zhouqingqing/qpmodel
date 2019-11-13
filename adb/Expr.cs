@@ -61,26 +61,28 @@ namespace adb
             else
                 return Table(tabAlias);
         }
-        public int ColumnOrdinal(string tabAlias, string colAlias)
+        public int ColumnOrdinal(string tabAlias, string colAlias, out ColumnType type)
         {
             int r = -1;
             var lc = Table(tabAlias).AllColumnsRefs();
+            type = null;
             for (int i = 0; i < lc.Count; i++)
             {
                 if (lc[i].alias_.Equals(colAlias))
                 {
                     r = i;
+                    type = lc[i].type_;
                     break;
                 }
             }
 
             if (Table(tabAlias) is BaseTableRef bt)
-            {
                 Debug.Assert(r == Catalog.systable_.Column(bt.relname_, colAlias).ordinal_);
-            }
-
             if (r != -1)
+            {
+                Debug.Assert(type != null);
                 return r;
+            }
             throw new SemanticAnalyzeException($"column not exists {tabAlias}.{colAlias}");
         }
     }
@@ -226,6 +228,9 @@ namespace adb
         public List<TableRef> tableRefs_ = new List<TableRef>();
         internal bool bounded_;
 
+        // output type of the expression
+        internal ColumnType type_;
+
         public int TableRefCount()
         {
             Debug.Assert(tableRefs_.Distinct().Count() == tableRefs_.Count);
@@ -368,7 +373,10 @@ namespace adb
             Debug.Assert(!(re is ExprRef));
             return le.Equals(re);
         }
-
+        protected void markBounded() {
+            bounded_ = true;
+            Debug.Assert(type_ != null);
+        }
         public override int GetHashCode() => tableRefs_.GetHashCode();
         public override bool Equals(object obj)
         {
@@ -377,7 +385,7 @@ namespace adb
             var n = obj as Expr;
             return tableRefs_.Equals(n.tableRefs_);
         }
-        public virtual void Bind(BindContext context) => bounded_ = true;
+        public virtual void Bind(BindContext context) => markBounded();
         public virtual string PrintString(int depth) => ToString();
         public virtual Value Exec(ExecContext context, Row input) => throw new Exception($"{this} subclass shall implment Exec()");
     }
@@ -447,9 +455,9 @@ namespace adb
 
         // -- execution section --
 
-        public ColExpr(string dbName, string tabName, string colName)
+        public ColExpr(string dbName, string tabName, string colName, ColumnType type)
         {
-            dbName_ = dbName; tabName_ = tabName; colName_ = colName; alias_ = colName;
+            dbName_ = dbName; tabName_ = tabName; colName_ = colName; alias_ = colName; type_ = type;
         }
 
         public override void Bind(BindContext context)
@@ -489,8 +497,9 @@ namespace adb
                 Debug.Assert(tableRefs_.Count == 0);
                 tableRefs_.Add(tabRef_);
             }
-            ordinal_ = context.ColumnOrdinal(tabName_, colName_);
-            bounded_ = true;
+            ordinal_ = context.ColumnOrdinal(tabName_, colName_, out ColumnType type);
+            type_ = type;
+            markBounded();
         }
 
         public override int GetHashCode() => (tabName_ + colName_).GetHashCode();
@@ -517,6 +526,7 @@ namespace adb
         }
         public override Value Exec(ExecContext context, Row input)
         {
+            Debug.Assert(type_ != null);
             if (isOuterRef_)
                 return context.GetParam(tabRef_, ordinal_);
             else
@@ -563,22 +573,23 @@ namespace adb
             l_.Bind(context);
             r_.Bind(context);
 
+            Debug.Assert(l_.type_ != null && r_.type_ != null);
+            type_ = l_.type_;    // TODO: fixme
+
             tableRefs_.AddRange(l_.tableRefs_);
             tableRefs_.AddRange(r_.tableRefs_);
             if (tableRefs_.Count > 1)
                 tableRefs_ = tableRefs_.Distinct().ToList();
-            bounded_ = true;
+            markBounded();
         }
 
         public override string ToString() => $"{l_}{op_}{r_}";
 
         public override Value Exec(ExecContext context, Row input)
         {
-            Type ltype, rtype;
-            ltype = typeof(int);
-            rtype = typeof(int);
-            dynamic lv = Convert.ChangeType(l_.Exec(context, input), ltype);
-            dynamic rv = Convert.ChangeType(r_.Exec(context, input), rtype);
+            Debug.Assert(type_ != null);
+            dynamic lv = l_.Exec(context, input);
+            dynamic rv = r_.Exec(context, input);
 
             switch (op_)
             {
@@ -599,10 +610,11 @@ namespace adb
 
     public class LogicAndExpr : BinExpr
     {
-        public LogicAndExpr(Expr l, Expr r) : base(l, r, " and ") { }
+        public LogicAndExpr(Expr l, Expr r) : base(l, r, " and ") { type_ = new BoolType(); }
 
         public override Value Exec(ExecContext context, Row input)
         {
+            Debug.Assert(type_ is BoolType);
             var lv = (int)l_.Exec(context, input);
             var rv = (int)r_.Exec(context, input);
 
@@ -650,7 +662,8 @@ namespace adb
             // verify column count after bound because SelStar expansion
             if (query_.selection_.Count != 1)
                 throw new SemanticAnalyzeException("subquery must return only one column");
-            bounded_ = true;
+            type_ = query_.selection_[0].type_;
+            markBounded();
         }
 
         public override int GetHashCode() => subqueryid_.GetHashCode();
@@ -663,6 +676,7 @@ namespace adb
 
         public override Value Exec(ExecContext context, Row input)
         {
+            Debug.Assert(type_ != null);
             Row r = null;
             query_.physicPlan_.Exec(context, l =>
             {
@@ -705,24 +719,61 @@ namespace adb
 
     public class LiteralExpr : Expr
     {
-        public string val_;
+        public string str_;
+        public object val_;
 
-        public LiteralExpr(string val) => val_ = val;
-        public override string ToString() => val_;
+        public LiteralExpr(string str)
+        {
+            str_ = str;
+            val_ = str_;
+            if (str.StartsWith("date'"))
+            {
+                Debug.Assert(str.Count(x => x == '\'') == 2);
+                type_ = new DateTimeType();
+            }
+            else if (str.StartsWith("interval'"))
+            {
+                Debug.Assert(str.Count(x => x == '\'') == 2);
+                type_ = new DateTimeType();
+            }
+            else if (str.Contains("'"))
+            {
+                Debug.Assert(str.Count(x => x == '\'') == 2);
+                type_ = new CharType(str.Length);
+            }
+            else if (str.Contains("."))
+            {
+                if (double.TryParse(str, out double value))
+                {
+                    type_ = new DoubleType();
+                    val_ = value;
+                }
+                else
+                    throw new SemanticAnalyzeException("wrong double precision format");
+            }
+            else {
+                if (int.TryParse(str, out int value))
+                {
+                    type_ = new IntType();
+                    val_ = value;
+                }
+                else
+                    throw new SemanticAnalyzeException("wrong integer format");
+            }
+        }
+        public override string ToString() => str_;
         public override Value Exec(ExecContext context, Row input)
         {
-            if (Int64.TryParse(val_, out long result))
-                return result;
-            else
-                return val_;
+            Debug.Assert(type_ != null);
+            return val_;
         }
 
-        public override int GetHashCode() => val_.GetHashCode();
+        public override int GetHashCode() => str_.GetHashCode();
         public override bool Equals(object obj)
         {
             if (obj is LiteralExpr lo)
             {
-                return val_.Equals(lo.val_);
+                return str_.Equals(lo.str_);
             }
             return false;
         }
@@ -745,6 +796,7 @@ namespace adb
                 expr = ee.expr_;
             Debug.Assert(!(expr is ExprRef));
             expr_ = expr; ordinal_ = ordinal;
+            type_ = expr.type_;
         }
 
         public override int GetHashCode() => expr_.GetHashCode();
@@ -764,7 +816,11 @@ namespace adb
             Debug.Assert(Equals(clone));
             return clone;
         }
-        public override Value Exec(ExecContext context, Row input) => input.values_[ordinal_];
+        public override Value Exec(ExecContext context, Row input)
+        {
+            Debug.Assert(type_ != null);
+            return input.values_[ordinal_];
+        }
     }
 
 }

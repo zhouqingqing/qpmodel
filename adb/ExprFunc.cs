@@ -27,6 +27,7 @@ namespace adb
             });
             tableRefs_ = tableRefs_.Distinct().ToList();
             bounded_ = true;
+            // type is handled by each function
         }
 
         // sum(min(x)) => x
@@ -100,7 +101,16 @@ namespace adb
     }
 
     public class SubstringFunc : FuncExpr { 
-        public SubstringFunc(List<Expr> args): base("substring", args){ argcnt_ = 3; }
+        public SubstringFunc(List<Expr> args): base("substring", args){ 
+            argcnt_ = 3; 
+        }
+
+        public override void Bind(BindContext context)
+        {
+            base.Bind(context);
+            type_ = args_[0].type_;
+            Debug.Assert(type_ is CharType || type_ is VarCharType);
+        }
         public override Value Exec(ExecContext context, Row input)
         {
             return 0;
@@ -108,7 +118,10 @@ namespace adb
     }
     public class YearFunc : FuncExpr
     {
-        public YearFunc(List<Expr> args) : base("year", args) { argcnt_ = 1; }
+        public YearFunc(List<Expr> args) : base("year", args) { 
+            argcnt_ = 1;
+            type_ = new DateTimeType();
+        }
         public override Value Exec(ExecContext context, Row input)
         {
             return 0;
@@ -117,11 +130,16 @@ namespace adb
 
     public abstract class AggFunc : FuncExpr
     {
-        public AggFunc(string func, List<Expr> args) : base(func, args) { argcnt_ = 1; }
+        public AggFunc(string func, List<Expr> args) : base(func, args) { argcnt_ = 1;}
 
         public override Value Exec(ExecContext context, Row input)
         {
             return 0;
+        }
+        public override void Bind(BindContext context)
+        {
+            base.Bind(context);
+            type_ = args_[0].type_;
         }
         public virtual void Init(ExecContext context, Row input) { }
         public virtual void Accum(ExecContext context, Value old, Row input) { }

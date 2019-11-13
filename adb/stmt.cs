@@ -94,7 +94,7 @@ namespace adb
                     // redundant processing, say same colexpr bound twice, I'd rather
                     // keep them.
                     //
-                    int id = int.Parse(xl.val_);
+                    int id = int.Parse(xl.str_);
                     converted.Add(selection[id - 1].Clone());
                 }
                 else
