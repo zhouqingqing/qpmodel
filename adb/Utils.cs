@@ -21,6 +21,20 @@ namespace adb
         // a contains b?
         public static bool ListAContainsB<T>(List<T> a, List<T> b) => !b.Except(a).Any();
 
+        public static string RetrieveQuotedString(string str)
+        {
+            Debug.Assert(str.Count(x => x == '\'') == 2);
+            var quotedstr = str.Substring(str.IndexOf('\''),
+                                        str.LastIndexOf('\'') - str.IndexOf('\'') + 1);
+            return quotedstr;
+        }
+        public static string RemoveStringQuotes(string str)
+        {
+            Debug.Assert(str[0] == '\'' && str[str.Length - 1] == '\'');
+            var dequote = str.Substring(1, str.Length - 2);
+            return dequote;
+        }
+
         // for each element in @source, if there is a matching k in @target of its sub expression, 
         // replace that element as ExprRef(k, index_of_k_in_target)
         //
