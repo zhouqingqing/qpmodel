@@ -135,13 +135,13 @@ namespace adb
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             sql = "select a1,a1,a3,a3 from a where a2> (select b1 from (select * from b) d,c where b1=c1 and b1=a1 and b2=3);"; // lost a2>@1
-            tpch.LoadTables("0001");
+            //tpch.LoadTables("001");
 
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
                 //foreach (var v in files)
-                var v = files[0];
+                var v = files[1];
                 {
                     sql = File.ReadAllText(v);
                     var stmt = RawParser.ParseSqlStatement(sql);
@@ -151,6 +151,7 @@ namespace adb
                     Console.WriteLine(stmt.CreatePlan().PrintString(0));
                 }
             }
+            sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
 
             doit:
             Console.WriteLine(sql);

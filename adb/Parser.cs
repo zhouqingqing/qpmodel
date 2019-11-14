@@ -173,12 +173,15 @@ namespace adb
     public class JoinQueryRef : TableRef {
         public List<TableRef> tables_;
         public List<string> joinops_;
+        public List<Expr> constraints_;
 
-        public JoinQueryRef(List<TableRef> tables, List<string> joinops) {
+        public JoinQueryRef(List<TableRef> tables, List<string> joinops, List<Expr> constraints) {
             Debug.Assert(tables.Count == joinops.Count + 1);
+            Debug.Assert(constraints.Count == joinops.Count);
             tables.ForEach(x=>Debug.Assert(!(x is JoinQueryRef)));
             tables_ = tables;
             joinops_ = joinops;
+            constraints_ = constraints;
         }
 
         public override List<Expr> AllColumnsRefs()
@@ -229,13 +232,16 @@ namespace adb
         public override object VisitJoin_clause([NotNull] SQLiteParser.Join_clauseContext context)
         {
             Debug.Assert(!context.IsEmpty);
-            List<TableRef> tabrefs = new List<TableRef>();
+            var tabrefs = new List<TableRef>();
             foreach (var v in context.table_or_subquery())
                 tabrefs.Add(VisitTable_or_subquery(v) as TableRef);
-            List<string> joins = new List<string>();
+            var joins = new List<string>();
             foreach (var v in context.join_operator())
                 joins.Add(v.GetText().ToLower());
-            return new JoinQueryRef(tabrefs, joins);
+            var constraints = new List<Expr>();
+            foreach (var v in context.join_constraint())
+                constraints.Add(Visit(v.expr()) as Expr);
+            return new JoinQueryRef(tabrefs, joins, constraints);
         }
         public override object VisitFromSimpleTable([NotNull] SQLiteParser.FromSimpleTableContext context)
             => new BaseTableRef(context.table_name().GetText(), context.table_alias()?.GetText());

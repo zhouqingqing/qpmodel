@@ -153,6 +153,7 @@ namespace adb
                         break;
                     case JoinQueryRef jref:
                         jref.tables_.ForEach(context.AddTable);
+                        jref.constraints_.ForEach(x=>x.Bind(context));
                         break;
                     default:
                         throw new NotImplementedException();
@@ -223,6 +224,24 @@ namespace adb
                     subqueries_.Add(sref.query_);
                     from = new LogicFromQuery(sref,
                                     sref.query_.CreatePlan());
+                    break;
+                case JoinQueryRef jref:
+                    LogicJoin subr = new LogicJoin(null, null);
+                    for (int i = 0; i < jref.tables_.Count; i++)
+                    {
+                        LogicNode t = transformOneFrom(jref.tables_[i]);
+                        var children = subr.children_;
+                        if (children[0] is null)
+                            children[0] = t;
+                        else {
+                            if (children[1] is null)
+                                children[1] = t;
+                            else
+                                subr = new LogicJoin(t, subr);
+                            subr.AddFilter(jref.constraints_[i - 1]);
+                        }
+                    }
+                    from = subr;
                     break;
                 default:
                     throw new Exception();

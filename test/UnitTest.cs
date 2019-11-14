@@ -142,7 +142,7 @@ namespace test
         public void TestColExpr()
         {
             ColExpr col = new ColExpr(null, "a", "a1", new IntType());
-            Assert.AreEqual("a.a1[0]", col.ToString());
+            Assert.AreEqual("a.a1", col.ToString());
         }
 
         [TestMethod]
@@ -495,6 +495,66 @@ namespace test
             Assert.AreEqual("1", result[0].ToString());
             Assert.AreEqual("2", result[1].ToString());
             Assert.AreEqual("3", result[2].ToString());
+        }
+
+        [TestMethod]
+        public void TestJoin()
+        {
+            var sql = "select a.a1, b.b1 from a join b on a.a1=b.b1;";
+            var stmt = RawParser.ParseSqlStatement(sql);
+            stmt.Exec(true); var phyplan = stmt.physicPlan_;
+            var answer = @"PhysicHashJoin   (rows = 3)
+                            Output: a.a1[0],b.b1[1]
+                            Filter: a.a1[0]=b.b1[1]
+                            -> PhysicScanTable a  (rows = 3)
+                                Output: a.a1[0]
+                            -> PhysicScanTable b  (rows = 9)
+                                Output: b.b1[0]";
+            TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
+            var result = ExecuteSQL(sql);
+            Assert.AreEqual(3, result.Count);
+            Assert.AreEqual("0,0", result[0].ToString());
+            Assert.AreEqual("1,1", result[1].ToString());
+            Assert.AreEqual("2,2", result[2].ToString());
+            sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2=c.c2;";
+            stmt = RawParser.ParseSqlStatement(sql);
+            stmt.Exec(true); phyplan = stmt.physicPlan_;
+            answer = @"PhysicHashJoin   (rows = 3)
+                        Output: a.a1[1],b.b1[2],a.a2[3],c.c2[0]
+                        Filter: a.a2[3]=c.c2[0]
+                        -> PhysicScanTable c  (rows = 3)
+                            Output: c.c2[1]
+                        -> PhysicHashJoin   (rows = 9)
+                            Output: a.a1[0],b.b1[2],a.a2[1]
+                            Filter: a.a1[0]=b.b1[2]
+                            -> PhysicScanTable a  (rows = 9)
+                                Output: a.a1[0],a.a2[1]
+                            -> PhysicScanTable b  (rows = 27)
+                                Output: b.b1[0]";
+            TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(3, result.Count);
+            Assert.AreEqual("0,0,1,1", result[0].ToString());
+            Assert.AreEqual("1,1,2,2", result[1].ToString());
+            Assert.AreEqual("2,2,3,3", result[2].ToString());
+            sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
+            stmt = RawParser.ParseSqlStatement(sql);
+            stmt.Exec(true); phyplan = stmt.physicPlan_;
+            answer = @"PhysicNLJoin   (rows = 6)
+                        Output: a.a1[2],b.b1[3],a.a2[4],c.c2[0]
+                        Filter: a.a2[4]<c.c3[1]
+                        -> PhysicScanTable c  (rows = 3)
+                            Output: c.c2[1],c.c3[2]
+                        -> PhysicHashJoin   (rows = 9)
+                            Output: a.a1[0],b.b1[2],a.a2[1]
+                            Filter: a.a1[0]=b.b1[2]
+                            -> PhysicScanTable a  (rows = 9)
+                                Output: a.a1[0],a.a2[1]
+                            -> PhysicScanTable b  (rows = 27)
+                                Output: b.b1[0]";
+            TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(6, result.Count);
         }
 
         [TestMethod]

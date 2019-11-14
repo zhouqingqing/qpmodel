@@ -451,7 +451,7 @@ namespace adb
         // bound info
         internal TableRef tabRef_;
         internal bool isOuterRef_;
-        internal int ordinal_;          // which column in children's output
+        internal int ordinal_ = -1;          // which column in children's output
 
         // -- execution section --
 
@@ -521,8 +521,10 @@ namespace adb
             string para = isOuterRef_ ? "?" : "";
             para += isVisible_ ? "" : "#";
             if (colName_.Equals(alias_))
-                return $@"{para}{tabName_}.{colName_}[{ordinal_}]";
-            return $@"{para}{tabName_}.{colName_} (as {alias_})[{ordinal_}]";
+                return ordinal_==-1? $@"{para}{tabName_}.{colName_}":
+                    $@"{para}{tabName_}.{colName_}[{ordinal_}]";
+            return ordinal_ == -1 ? $@"{para}{tabName_}.{colName_} (as {alias_})":
+                $@"{para}{tabName_}.{colName_} (as {alias_})[{ordinal_}]";
         }
         public override Value Exec(ExecContext context, Row input)
         {

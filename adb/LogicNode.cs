@@ -147,9 +147,14 @@ namespace adb
                             ExprHelper.SubqueryDirectToPhysic(ln.filter_);
                         break;
                     case LogicJoin lc:
-                        phy = new PhysicNLJoin(lc,
-                            lc.children_[0].DirectToPhysical(profiling),
-                            lc.children_[1].DirectToPhysical(profiling));
+                        if (lc.FilterHashable())
+                            phy = new PhysicHashJoin(lc,
+                                lc.children_[0].DirectToPhysical(profiling),
+                                lc.children_[1].DirectToPhysical(profiling));
+                        else
+                            phy = new PhysicNLJoin(lc,
+                                lc.children_[0].DirectToPhysical(profiling),
+                                lc.children_[1].DirectToPhysical(profiling));
                         break;
                     case LogicResult lr:
                         phy = new PhysicResult(lr);
@@ -260,6 +265,28 @@ namespace adb
         public override string ToString() => $"{children_[0]} X {children_[1]}";
         public LogicJoin(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
         public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
+
+        public bool FilterHashable()
+        {
+            bool general = false;
+
+            if (general)
+            {
+                var andlist = new List<Expr>();
+                if (filter_ is LogicAndExpr andexpr)
+                    andlist = andexpr.BreakToList();
+                else
+                    andlist.Add(filter_);
+                foreach (var v in andlist)
+                {
+                    if (!(v is BinExpr bv && bv.op_.Equals("=")))
+                        return false;
+                }
+                return true;
+            }
+            else
+                return filter_ is BinExpr bf && bf.op_.Equals("=");
+        }
 
         public bool AddFilter(Expr filter)
         {
