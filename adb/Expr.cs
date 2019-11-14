@@ -737,8 +737,10 @@ namespace adb
             else if (str.StartsWith("interval'"))
             {
                 var datestr = Utils.RetrieveQuotedString(str);
-                Debug.Assert(str.EndsWith("day"));
                 var day = int.Parse(Utils.RemoveStringQuotes(datestr));
+                Debug.Assert(str.EndsWith("day") || str.EndsWith("month"));
+                if (str.EndsWith("month"))
+                    day *= 30;  // FIXME
                 val_ = new TimeSpan(day, 0, 0, 0);
                 type_ = new TimeSpanType();
             }
