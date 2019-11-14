@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace adb
 {
-    class tpch
+    public class tpch
     {
         static public string[] tabnames_ = { 
             "region", "nation", "part","supplier",
@@ -91,8 +91,8 @@ namespace adb
             }
         }
 
-        static public void LoadTables() {
-            string folder = @"C:\Users\q00904479\Desktop\adb\tpch\data";
+        static public void LoadTables(string subfolder) {
+            string folder = $@"C:\Users\q00904479\Desktop\adb\tpch\data\{subfolder}";
             foreach(var v in tabnames_)
             {
                 string filename = $@"'{folder}\{v}.tbl'";
