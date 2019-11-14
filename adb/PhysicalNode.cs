@@ -87,7 +87,7 @@ namespace adb
 
     public class PhysicScanTable : PhysicNode
     {
-        readonly int nrows_ = 3;
+        long nrows_ = 3;
         public PhysicScanTable(LogicNode logic) : base(logic) { }
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
@@ -99,6 +99,8 @@ namespace adb
             bool isFaketable = faketable.Contains(tabname);
             var heap = (logic.tabref_).Table().heap_.GetEnumerator();
 
+            if (!isFaketable)
+                nrows_ = long.MaxValue;
             for (var i = 0; i < nrows_; i++)
             {
                 Row r = new Row();
@@ -111,8 +113,10 @@ namespace adb
                 }
                 else
                 {
-                    heap.MoveNext();
-                    r = heap.Current;
+                    if (heap.MoveNext())
+                        r = heap.Current;
+                    else
+                        break;
                 }
 
                 if (logic.tabref_.outerrefs_.Count != 0)
@@ -132,11 +136,33 @@ namespace adb
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
-            var filename = (logic_ as LogicScanFile).FileName();
+            var logic = logic_ as LogicScanFile;
+            var filename = logic.FileName();
+            var columns = logic.tabref_.baseref_.Table().ColumnsInOrder();
             Utils.ReadCsvLine(filename, fields =>
             {
                 Row r = new Row();
-                Array.ForEach(fields, f => r.values_.Add(f));
+
+                int i = 0;
+                Array.ForEach(fields, f => {
+                    switch (columns[i].type_) {
+                        case IntType i:
+                            r.values_.Add(int.Parse(f));
+                            break;
+                        case DateTimeType d:
+                            r.values_.Add(DateTime.Parse(f));
+                            break;
+                        case DoubleType b:
+                            r.values_.Add(Double.Parse(f));
+                            break;
+                        default:
+                            r.values_.Add(f);
+                            break;
+                    }
+                    i++;
+                });
+                Debug.Assert(r.ColCount() == columns.Count);
+
                 callback(r);
             });
         }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Collections.Generic;
 
 using TableColumn = System.Tuple<string, string>;
@@ -81,6 +82,11 @@ namespace adb
             foreach (var c in columns)
                 cols.Add(c.name_, c);
             name_ = tabName; columns_ = cols;
+        }
+
+        public List<ColumnDef> ColumnsInOrder() {
+            var list = columns_.Values.ToList();
+            return list.OrderBy(x => x.ordinal_).ToList();
         }
 
         public ColumnDef GetColumn(string column)
