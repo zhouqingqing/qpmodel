@@ -81,6 +81,8 @@ namespace adb
             {
                 //Processing row
                 string[] fields = parser.ReadFields();
+                if (fields[fields.Length - 1].Equals(""))
+                    Array.Resize(ref fields, fields.Length - 1);
                 action(fields);
             }
         }
