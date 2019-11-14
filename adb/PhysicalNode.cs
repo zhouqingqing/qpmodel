@@ -197,6 +197,35 @@ namespace adb
         }
     }
 
+    public class PhysicHashJoin : PhysicNode
+    {
+        public PhysicHashJoin(LogicJoin logic, PhysicNode l, PhysicNode r) : base(logic)
+        {
+            children_.Add(l); children_.Add(r);
+        }
+
+        public override void Exec(ExecContext context, Func<Row, string> callback)
+        {
+            var logic = logic_ as LogicJoin;
+            var filter = logic.filter_;
+
+            children_[0].Exec(context, l =>
+            {
+                children_[1].Exec(context, r =>
+                {
+                    Row n = new Row(l, r);
+                    if (filter is null || (int)filter.Exec(context, n) == 1)
+                    {
+                        n = ExecProject(context, n);
+                        callback(n);
+                    }
+                    return null;
+                });
+                return null;
+            });
+        }
+    }
+
     public class PhysicHashAgg : PhysicNode
     {
         class KeyList
