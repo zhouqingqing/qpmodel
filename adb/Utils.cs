@@ -35,6 +35,22 @@ namespace adb
             return dequote;
         }
 
+        public static bool StringLike(string s, string pattern) {
+            bool leftopen = pattern.StartsWith("%");
+            bool rightopen = pattern.EndsWith("%");
+            var core = pattern.Replace("%", "");
+            if (leftopen && rightopen)
+                return s.Contains(core);
+            else if (leftopen)
+                return s.EndsWith(core);
+            else if (rightopen)
+                return s.StartsWith(core);
+            else {
+                Debug.Assert(!leftopen && !rightopen);
+                return s.Equals(core);
+            }
+        }
+
         // for each element in @source, if there is a matching k in @target of its sub expression, 
         // replace that element as ExprRef(k, index_of_k_in_target)
         //
@@ -79,7 +95,7 @@ namespace adb
             parser.SetDelimiters("|");
             while (!parser.EndOfData)
             {
-                //Processing row
+                // Processing row
                 string[] fields = parser.ReadFields();
                 if (fields[fields.Length - 1].Equals(""))
                     Array.Resize(ref fields, fields.Length - 1);

@@ -602,6 +602,7 @@ namespace adb
                 case "<": return lv < rv ? 1 : 0;
                 case "<=": return lv <= rv ? 1 : 0;
                 case "=": return lv == rv ? 1 : 0;
+                case "like": return Utils.StringLike(lv, rv) ? 1 : 0;
                 default:
                     throw new NotImplementedException();
             }

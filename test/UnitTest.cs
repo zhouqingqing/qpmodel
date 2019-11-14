@@ -81,6 +81,7 @@ namespace test
         [TestMethod]
         public void TestTpch()
         {
+            // make sure all queries parsed
             var files = Directory.GetFiles(@"../../../tpch");
             Array.Sort(files);
             foreach (var v in files)
@@ -90,6 +91,13 @@ namespace test
                 Console.WriteLine(sql);
             }
             Assert.AreEqual(22, files.Length);
+
+            // load data
+            tpch.LoadTables("0001");
+
+            // execute queries
+            var result = TestHelper.ExecuteSQL(File.ReadAllText(files[0]));
+            Assert.AreEqual(4, result.Count);
         }
     }
 
