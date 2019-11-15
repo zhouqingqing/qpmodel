@@ -839,6 +839,7 @@ namespace adb
             Debug.Assert(when_.Count == then_.Count);
             Debug.Assert(when_.Count >= 1);
         }
+
         public override void Bind(BindContext context)
         {
             Debug.Assert(!bounded_);
@@ -861,6 +862,17 @@ namespace adb
             markBounded();
         }
 
+        public override Expr Clone()
+        {
+            var n = (CaseExpr)base.Clone();
+            n.eval_ = eval_?.Clone();
+            n.else_ = else_?.Clone();
+            n.when_ = ExprHelper.CloneList(when_);
+            n.then_ = ExprHelper.CloneList(then_);
+            Debug.Assert(Equals(n));
+            return n;
+        }
+
         public override int GetHashCode()
         {
             return (eval_?.GetHashCode()??0xabc) ^ 
@@ -879,7 +891,25 @@ namespace adb
 
         public override object Exec(ExecContext context, Row input)
         {
-            return 0;
+            if (eval_ != null)
+            {
+                var eval = eval_.Exec(context, input);
+                for (int i = 0; i < when_.Count; i++)
+                {
+                    if (eval.Equals(when_[i].Exec(context, input)))
+                        return then_[i].Exec(context, input);
+                }
+            }
+            else {
+                for (int i = 0; i < when_.Count; i++)
+                {
+                    if ((int)when_[i].Exec(context, input) == 1)
+                        return then_[i].Exec(context, input);
+                }
+            }
+            if (else_ != null)
+                return else_.Exec(context, input);
+            return int.MaxValue;
         }
     }
 
