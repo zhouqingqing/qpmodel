@@ -120,6 +120,10 @@ namespace test
             // q7 n1.n_name, n2.n_name matching
             // q8 between parser issue
             // q9,q10,q11 too slow
+            result = TestHelper.ExecuteSQL(File.ReadAllText(files[10]));
+            Assert.AreEqual(0, result.Count);
+            result = TestHelper.ExecuteSQL(File.ReadAllText(files[11]));
+            Assert.AreEqual(2, result.Count);
         }
     }
 

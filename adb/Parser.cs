@@ -231,6 +231,27 @@ namespace adb
                 type = "exists";
             return new SubqueryExpr(Visit(context.select_stmt()) as SelectStmt, type);
         }
+
+        public override object VisitInSubqueryExpr([NotNull] SQLiteParser.InSubqueryExprContext context)
+        {
+            Debug.Assert(context.K_IN() != null);
+            SelectStmt select = null;
+            List<Expr> inlist = null;
+            if (context.select_stmt() != null)
+            {
+                select = Visit(context.select_stmt()) as SelectStmt;
+                return new SubqueryExpr(select, "in");
+            }
+            else
+            {
+                inlist = new List<Expr>();
+                foreach (var v in context.expr())
+                    inlist.Add(Visit(v) as Expr);
+                Expr expr = inlist[0];
+                inlist.RemoveAt(0);
+                return new InListExpr(expr, inlist);
+            }
+        }
         public override object VisitCaseExpr([NotNull] SQLiteParser.CaseExprContext context)
         {
             var exprs = new List<Expr>();

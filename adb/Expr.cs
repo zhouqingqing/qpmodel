@@ -276,6 +276,8 @@ namespace adb
                     else if (v.FieldType == typeof(List<Expr>))
                     {
                         var m = v.GetValue(this) as List<Expr>;
+                        if (m is null)
+                            continue;
                         foreach (var n in m)
                             if (n.VisitEachExprExists(check, excluding))
                                 return true;
@@ -605,7 +607,23 @@ namespace adb
             r_.Bind(context);
 
             Debug.Assert(l_.type_ != null && r_.type_ != null);
-            type_ = l_.type_;    // TODO: fixme
+            switch (op_)
+            {
+                case "+": case "-": 
+                case "*": case "/":
+                    type_ = l_.type_;
+                    break;
+                case ">": case ">=": 
+                case "<": case "<=":
+                case "=": case "<>":
+                case " and ": case "like":
+                case "between":
+                case "in": 
+                    type_ = new IntType();
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
 
             tableRefs_.AddRange(l_.tableRefs_);
             tableRefs_.AddRange(r_.tableRefs_);
@@ -633,7 +651,9 @@ namespace adb
                 case "<": return lv < rv ? 1 : 0;
                 case "<=": return lv <= rv ? 1 : 0;
                 case "=": return lv == rv ? 1 : 0;
+                case "<>": return lv != rv ? 1 : 0;
                 case "like": return Utils.StringLike(lv, rv) ? 1 : 0;
+                case " and ": return lv == 1 && rv == 1 ? 1 : 0;
                 default:
                     throw new NotImplementedException();
             }
@@ -642,18 +662,7 @@ namespace adb
 
     public class LogicAndExpr : BinExpr
     {
-        public LogicAndExpr(Expr l, Expr r) : base(l, r, " and ") { type_ = new BoolType(); }
-
-        public override Value Exec(ExecContext context, Row input)
-        {
-            Debug.Assert(type_ is BoolType);
-            var lv = (int)l_.Exec(context, input);
-            var rv = (int)r_.Exec(context, input);
-
-            if (lv == 1 && rv == 1)
-                return 1;
-            return 0;
-        }
+        public LogicAndExpr(Expr l, Expr r) : base(l, r, " and ") { type_ = new IntType(); }
 
         internal List<Expr> BreakToList()
         {
@@ -673,11 +682,15 @@ namespace adb
 
     public class SubqueryExpr : Expr
     {
-        public string subtype_;    // exists, scalar
+        public string subtype_;    // in, exists, scalar
+
+        // in, exists, scalar 
         public SelectStmt query_;
         public int subqueryid_; // bound
 
-        public SubqueryExpr(SelectStmt query, string subtype) { query_ = query; subtype_ = subtype;}
+        public SubqueryExpr(SelectStmt query, string subtype) {
+            query_ = query; subtype_ = subtype;
+        }
         // don't print the subquery here, it shall be printed by up caller layer for pretty format
         public override string ToString() => $@"@{subqueryid_}";
 
@@ -735,6 +748,49 @@ namespace adb
             else
                 return r?.values_[0] ?? Int32.MaxValue;
         }
+    }
+
+    // In List can be varaibles:
+    //      select* from a where a1 in (1, 2, a2);
+    //
+    public class InListExpr : Expr {
+        public Expr expr_;
+        public List<Expr> inlist_;
+        public InListExpr(Expr expr, List<Expr> inlist) { expr_ = expr;  inlist_ = inlist;}
+
+        public override void Bind(BindContext context)
+        {
+            expr_.Bind(context);
+            inlist_.ForEach(x => x.Bind(context));
+            inlist_.ForEach(x => Debug.Assert(x.type_.Compatible(inlist_[0].type_)));
+            type_ = new IntType();
+
+            tableRefs_.AddRange(expr_.tableRefs_);
+            inlist_.ForEach(x => tableRefs_.AddRange(x.tableRefs_));
+            if (tableRefs_.Count > 1)
+                tableRefs_ = tableRefs_.Distinct().ToList();
+            markBounded();
+        }
+
+        public override int GetHashCode() => Utils.ListHashCode(inlist_);
+        public override bool Equals(object obj)
+        {
+            if (obj is ExprRef or)
+                return Equals(or.expr_);
+            else if (obj is InListExpr co)
+                return exprEquals(inlist_, co.inlist_);
+            return false;
+        }
+
+        public override Value Exec(ExecContext context, Row input)
+        {
+            var v = expr_.Exec(context, input);
+            List<Value> inlist = new List<Value>();
+            inlist_.ForEach(x => { inlist.Add(x.Exec(context, input));});
+            return inlist.Exists(v.Equals)?1:0;
+        }
+
+        public override string ToString() => $"{expr_} in ({string.Join(",", inlist_)})";
     }
 
     public class CteExpr : Expr
@@ -882,7 +938,13 @@ namespace adb
                     throw new SemanticAnalyzeException("wrong integer format");
             }
         }
-        public override string ToString() => str_;
+        public override string ToString()
+        {
+            if (val_ is string)
+                return $"'{val_}'";
+            else
+                return str_;
+        }
         public override Value Exec(ExecContext context, Row input)
         {
             Debug.Assert(type_ != null);
