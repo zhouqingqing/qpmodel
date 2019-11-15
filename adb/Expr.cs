@@ -617,9 +617,10 @@ namespace adb
                 case "<": case "<=":
                 case "=": case "<>":
                 case " and ": case "like":
+                case "notlike":
                 case "between":
                 case "in": 
-                    type_ = new IntType();
+                    type_ = new BoolType();
                     break;
                 default:
                     throw new NotImplementedException();
@@ -646,14 +647,15 @@ namespace adb
                 case "-": return lv - rv;
                 case "*": return lv * rv;
                 case "/": return lv / rv;
-                case ">": return lv > rv ? 1 : 0;
-                case ">=": return lv >= rv ? 1 : 0;
-                case "<": return lv < rv ? 1 : 0;
-                case "<=": return lv <= rv ? 1 : 0;
-                case "=": return lv == rv ? 1 : 0;
-                case "<>": return lv != rv ? 1 : 0;
-                case "like": return Utils.StringLike(lv, rv) ? 1 : 0;
-                case " and ": return lv == 1 && rv == 1 ? 1 : 0;
+                case ">": return lv > rv;
+                case ">=": return lv >= rv;
+                case "<": return lv < rv;
+                case "<=": return lv <= rv;
+                case "=": return lv == rv;
+                case "<>": return lv != rv;
+                case "like": return Utils.StringLike(lv, rv);
+                case "notlike": return !Utils.StringLike(lv, rv);
+                case " and ": return lv && rv;
                 default:
                     throw new NotImplementedException();
             }
@@ -662,7 +664,7 @@ namespace adb
 
     public class LogicAndExpr : BinExpr
     {
-        public LogicAndExpr(Expr l, Expr r) : base(l, r, " and ") { type_ = new IntType(); }
+        public LogicAndExpr(Expr l, Expr r) : base(l, r, " and ") { type_ = new  BoolType(); }
 
         internal List<Expr> BreakToList()
         {
@@ -692,7 +694,12 @@ namespace adb
             query_ = query; subtype_ = subtype;
         }
         // don't print the subquery here, it shall be printed by up caller layer for pretty format
-        public override string ToString() => $@"@{subqueryid_}";
+        public override string ToString()
+        {
+            if (subtype_ != "scalar")
+                return $@"{subtype_} @{subqueryid_}";
+            return $@"@{subqueryid_}";
+        }
 
         public override void Bind(BindContext context)
         {
@@ -706,9 +713,9 @@ namespace adb
             Debug.Assert(query_.parent_ == mycontext.parent_?.stmt_);
 
             // verify column count after bound because SelStar expansion
-            if (subtype_.Equals("exists"))
+            if (subtype_ != "scalar")
             {
-                type_ = new IntType();
+                type_ = new BoolType();
             }
             else
             {
@@ -743,10 +750,10 @@ namespace adb
                 return null;
             });
 
-            if (subtype_.Equals("exists"))
-                return (r != null)?1:0;
+            if (subtype_ == "scalar")
+                return r?.values_[0] ?? int.MaxValue;
             else
-                return r?.values_[0] ?? Int32.MaxValue;
+                return r != null;
         }
     }
 
@@ -763,7 +770,7 @@ namespace adb
             expr_.Bind(context);
             inlist_.ForEach(x => x.Bind(context));
             inlist_.ForEach(x => Debug.Assert(x.type_.Compatible(inlist_[0].type_)));
-            type_ = new IntType();
+            type_ = new BoolType();
 
             tableRefs_.AddRange(expr_.tableRefs_);
             inlist_.ForEach(x => tableRefs_.AddRange(x.tableRefs_));
@@ -787,7 +794,7 @@ namespace adb
             var v = expr_.Exec(context, input);
             List<Value> inlist = new List<Value>();
             inlist_.ForEach(x => { inlist.Add(x.Exec(context, input));});
-            return inlist.Exists(v.Equals)?1:0;
+            return inlist.Exists(v.Equals);
         }
 
         public override string ToString() => $"{expr_} in ({string.Join(",", inlist_)})";
@@ -903,7 +910,7 @@ namespace adb
             else {
                 for (int i = 0; i < when_.Count; i++)
                 {
-                    if ((int)when_[i].Exec(context, input) == 1)
+                    if ((bool)when_[i].Exec(context, input))
                         return then_[i].Exec(context, input);
                 }
             }
