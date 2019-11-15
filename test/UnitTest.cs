@@ -83,7 +83,6 @@ namespace test
         {
             // make sure all queries parsed
             var files = Directory.GetFiles(@"../../../tpch");
-            Array.Sort(files);
             foreach (var v in files)
             {
                 var sql = File.ReadAllText(v);
@@ -92,12 +91,27 @@ namespace test
             }
             Assert.AreEqual(22, files.Length);
 
+            // parse and plan
+            foreach (var v in files)
+            {
+                if (v.Contains("04") || v.Contains("08") || v.Contains("11") || v.Contains("12")
+                || v.Contains("14") || v.Contains("15") || v.Contains("11") || v.Contains("16")
+                || v.Contains("19") || v.Contains("21") || v.Contains("22"))
+                    continue;
+                var sql = File.ReadAllText(v);
+                var stmt = RawParser.ParseSqlStatement(sql);
+                stmt.Bind(null);
+                Console.WriteLine(stmt.CreatePlan().PrintString(0));
+            }
+
             // load data
             tpch.LoadTables("0001");
 
             // execute queries
             var result = TestHelper.ExecuteSQL(File.ReadAllText(files[0]));
             Assert.AreEqual(4, result.Count);
+            result = TestHelper.ExecuteSQL(File.ReadAllText(files[1]));
+            Assert.AreEqual(0, result.Count);
         }
     }
 

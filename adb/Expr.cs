@@ -332,12 +332,20 @@ namespace adb
         }
 
         // In current expression, search and replace @from with @to 
-        public Expr SearchReplace(Expr from, Expr to)
+        public Expr SearchReplace<T>(T from, Expr to)
         {
-            var clone = Clone();
+            Debug.Assert(from != null);
 
-            if (clone.Equals(from))
-                clone = to;
+            var clone = Clone();
+            bool equal = false;
+            if (from is Expr)
+                equal = from.Equals(clone);
+            else if (from is string)
+                equal = from.Equals(clone.alias_);
+            else
+                Debug.Assert(false);
+            if (equal)
+                clone = to.Clone();
             else
             {
                 var members = clone.GetType().GetFields();
@@ -741,9 +749,11 @@ namespace adb
             {
                 var datestr = Utils.RetrieveQuotedString(str);
                 var day = int.Parse(Utils.RemoveStringQuotes(datestr));
-                Debug.Assert(str.EndsWith("day") || str.EndsWith("month"));
+                Debug.Assert(str.EndsWith("day") || str.EndsWith("month") || str.EndsWith("year"));
                 if (str.EndsWith("month"))
                     day *= 30;  // FIXME
+                else if (str.EndsWith("year"))
+                    day *= 365;  // FIXME
                 val_ = new TimeSpan(day, 0, 0, 0);
                 type_ = new TimeSpanType();
             }
