@@ -140,12 +140,13 @@ namespace adb
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                foreach (var v in files)
+                //foreach (var v in files)
+                var v = files[3];
                 {
-                    if (v.Contains("04")||v.Contains("08")||v.Contains("11") || v.Contains("12") 
-                        || v.Contains("14") || v.Contains("15") || v.Contains("11") || v.Contains("16")
-                        || v.Contains("19") || v.Contains("21") || v.Contains("22"))
-                        continue;
+                 //   if (v.Contains("04")||v.Contains("08")||v.Contains("11") || v.Contains("12") 
+                 //       || v.Contains("14") || v.Contains("15") || v.Contains("11") || v.Contains("16")
+                 //       || v.Contains("19") || v.Contains("21") || v.Contains("22"))
+                 //       continue;
                     sql = File.ReadAllText(v);
                     var stmt = RawParser.ParseSqlStatement(sql);
                     Console.WriteLine(v);
@@ -155,6 +156,7 @@ namespace adb
                 }
             }
             //sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
+            //sql = "select a1, a3  from a where a.a1 = (select b1,b2 from b)";
 
             doit:
             Console.WriteLine(sql);

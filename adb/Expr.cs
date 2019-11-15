@@ -652,10 +652,11 @@ namespace adb
 
     public class SubqueryExpr : Expr
     {
+        public string subtype_;    // exists, scalar
         public SelectStmt query_;
         public int subqueryid_; // bound
 
-        public SubqueryExpr(SelectStmt query) { query_ = query; }
+        public SubqueryExpr(SelectStmt query, string subtype) { query_ = query; subtype_ = subtype;}
         // don't print the subquery here, it shall be printed by up caller layer for pretty format
         public override string ToString() => $@"@{subqueryid_}";
 
@@ -671,9 +672,16 @@ namespace adb
             Debug.Assert(query_.parent_ == mycontext.parent_?.stmt_);
 
             // verify column count after bound because SelStar expansion
-            if (query_.selection_.Count != 1)
-                throw new SemanticAnalyzeException("subquery must return only one column");
-            type_ = query_.selection_[0].type_;
+            if (subtype_.Equals("exists"))
+            {
+                type_ = new IntType();
+            }
+            else
+            {
+                if (query_.selection_.Count != 1)
+                    throw new SemanticAnalyzeException("subquery must return only one column");
+                type_ = query_.selection_[0].type_;
+            }
             markBounded();
         }
 
@@ -691,16 +699,20 @@ namespace adb
             Row r = null;
             query_.physicPlan_.Exec(context, l =>
             {
-                if (r is null)
-                    r = l;
-                else
-                    throw new SemanticExecutionException("subquery more than one row returned");
+                // exists check can immediately return after receiving a row
+                var prevr = r; r = l;
+                if (!subtype_.Equals("exists"))
+                {
+                    if (prevr != null)
+                        throw new SemanticExecutionException("subquery more than one row returned");
+                }
                 return null;
             });
 
-            if (r is null)
-                return Int32.MaxValue;
-            return r.values_[0];
+            if (subtype_.Equals("exists"))
+                return (r != null)?1:0;
+            else
+                return r?.values_[0] ?? Int32.MaxValue;
         }
     }
 

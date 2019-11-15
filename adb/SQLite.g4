@@ -314,8 +314,9 @@ expr
                           | expr ( ',' expr )*
                           )? 
                       ')'
-                    | ( database_name '.' )? table_name )				#InExpr
+                    | ( database_name '.' )? table_name )				#InSubqueryExpr
  | ( ( K_NOT )? K_EXISTS )? '(' select_stmt ')'							#SubqueryExpr
+ 
  | K_CASE expr? ( K_WHEN expr K_THEN expr )+ ( K_ELSE expr )? K_END		#CaseExpr
  ;
 
