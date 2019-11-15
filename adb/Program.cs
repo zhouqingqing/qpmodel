@@ -141,7 +141,7 @@ namespace adb
                 var files = Directory.GetFiles(@"../../../tpch");
 
                 //foreach (var v in files)
-                var v = files[3];
+                var v = files[10];
                 {
                  //   if (v.Contains("04")||v.Contains("08")||v.Contains("11") || v.Contains("12") 
                  //       || v.Contains("14") || v.Contains("15") || v.Contains("11") || v.Contains("16")

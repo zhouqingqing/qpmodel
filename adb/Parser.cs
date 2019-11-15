@@ -231,6 +231,40 @@ namespace adb
                 type = "exists";
             return new SubqueryExpr(Visit(context.select_stmt()) as SelectStmt, type);
         }
+        public override object VisitCaseExpr([NotNull] SQLiteParser.CaseExprContext context)
+        {
+            var exprs = new List<Expr>();
+            foreach (var v in context.expr())
+                exprs.Add(Visit(v) as Expr);
+            Expr elsee = null;
+            Expr eval = null;
+            int start = 0, end = exprs.Count - 1;
+            if (context.K_ELSE() != null)
+            {
+                elsee = exprs[end--];
+                if (exprs.Count % 2 == 0)
+                {
+                    eval = exprs[0];
+                    start = 1;
+                }
+            }
+            else
+            {
+                if (exprs.Count % 2 == 1)
+                {
+                    eval = exprs[0];
+                    start = 1;
+                }
+            }
+
+            Debug.Assert(end > start && (end - start) % 2 == 1);
+            var when = new List<Expr>(); var then = new List<Expr>();
+            for (int i = start; i <= end;)
+            {
+                when.Add(exprs[i++]); then.Add(exprs[i++]);
+            }
+            return new CaseExpr(eval, when, then, elsee);
+        }
         public override object VisitTable_or_subquery([NotNull] SQLiteParser.Table_or_subqueryContext context)
             => Visit(context);
 
