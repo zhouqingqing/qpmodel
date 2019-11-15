@@ -379,6 +379,10 @@ namespace adb
             if (hasAgg_ || groupby_ != null)
                 root = new LogicAgg(root, groupby_, getAggregations(), having_);
 
+            // having
+            if (having_ != null)
+                createSubQueryExprPlan(having_);
+
             // order by
             if (orders_ != null)
                 root = new LogicOrder(root, orders_, descends_);
