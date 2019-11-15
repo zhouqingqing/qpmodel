@@ -299,7 +299,7 @@ expr
  | expr op=( '<<' | '>>' | '&' | '|' ) expr					#arithbitexpr
  | expr op=( '<' | '<=' | '>' | '>=' ) expr					#arithcompexpr																		
  | expr op=( '=' | '==' | '!=' | '<>' | K_IS | 'is not' 
-	| K_IN | K_LIKE | K_GLOB | K_MATCH | K_REGEXP ) expr	#arithequalexpr
+	 | K_LIKE | K_GLOB | K_MATCH | K_REGEXP ) expr	#arithequalexpr
  | expr K_NOT? K_IN ( '(' ( select_stmt						
                           | expr ( ',' expr )*
                           )? 
