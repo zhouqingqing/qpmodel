@@ -1,8 +1,9 @@
-﻿using Microsoft.VisualBasic.FileIO;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Microsoft.VisualBasic.FileIO;
+using System.Text.RegularExpressions;
 
 namespace adb
 {
@@ -42,19 +43,8 @@ namespace adb
         }
 
         public static bool StringLike(string s, string pattern) {
-            bool leftopen = pattern.StartsWith("%");
-            bool rightopen = pattern.EndsWith("%");
-            var core = pattern.Replace("%", "");
-            if (leftopen && rightopen)
-                return s.Contains(core);
-            else if (leftopen)
-                return s.EndsWith(core);
-            else if (rightopen)
-                return s.StartsWith(core);
-            else {
-                Debug.Assert(!leftopen && !rightopen);
-                return s.Equals(core);
-            }
+            var regpattern = pattern.Replace("%", ".*");
+            return Regex.IsMatch(s, regpattern);
         }
 
         // for each element in @source, if there is a matching k in @target of its sub expression, 

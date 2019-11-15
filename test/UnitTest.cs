@@ -94,8 +94,7 @@ namespace test
             // parse and plan
             foreach (var v in files)
             {
-                if (v.Contains("04") || v.Contains("08") || v.Contains("11") || v.Contains("12")
-                || v.Contains("14") || v.Contains("15") || v.Contains("11") || v.Contains("16")
+                if (v.Contains("14") || v.Contains("15") || v.Contains("11") || v.Contains("16")
                 || v.Contains("19") || v.Contains("21") || v.Contains("22"))
                     continue;
                 var sql = File.ReadAllText(v);
@@ -124,7 +123,16 @@ namespace test
             Assert.AreEqual(0, result.Count);
             result = TestHelper.ExecuteSQL(File.ReadAllText(files[11]));
             Assert.AreEqual(2, result.Count);
-        }
+            Assert.AreEqual("SHIP,2,10", result[0].ToString());
+            Assert.AreEqual("MAIL,2,5", result[1].ToString());
+            result = TestHelper.ExecuteSQL(File.ReadAllText(files[12]));
+            Assert.AreEqual(2, result.Count);
+            Assert.AreEqual("1,13", result[0].ToString());
+            Assert.AreEqual("2,1", result[1].ToString());
+            result = TestHelper.ExecuteSQL(File.ReadAllText(files[13]));
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual(true, result[0].ToString().Contains("15.23"));
+            }
     }
 
     [TestClass]

@@ -306,13 +306,13 @@ expr
                       ')'
                     | ( database_name '.' )? table_name )				#InSubqueryExpr
  | ( ( K_NOT )? K_EXISTS )? '(' select_stmt ')'							#SubqueryExpr
+ | expr K_NOT? ( K_LIKE | K_GLOB | K_REGEXP | K_MATCH ) 
+		expr ( K_ESCAPE expr )?								#LikeExpr
  | expr K_AND expr											#LogicAndExpr
  | expr K_OR expr											#LogicOrExpr
  | function_name '(' ( K_DISTINCT? expr ( ',' expr )* | '*' )? ')'	#FuncExpr
  | '(' expr ')'												#brackexpr
  | K_CAST '(' expr K_AS type_name ')'						#CastExpr
- | expr K_NOT? ( K_LIKE | K_GLOB | K_REGEXP | K_MATCH ) 
-		expr ( K_ESCAPE expr )?								#LikeExpr
  | expr ( K_ISNULL | K_NOTNULL | K_NOT K_NULL )				#NullExpr
  | expr K_IS K_NOT? expr									#IsExpr
  | expr K_NOT? K_BETWEEN expr K_AND expr					#BetweenExpr

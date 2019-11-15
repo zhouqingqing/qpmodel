@@ -141,7 +141,7 @@ namespace adb
                 var files = Directory.GetFiles(@"../../../tpch");
 
                 //foreach (var v in files)
-                var v = files[12];
+                var v = files[15];
                 {
                  //   if (v.Contains("04")||v.Contains("08")||v.Contains("11") || v.Contains("12") 
                  //       || v.Contains("14") || v.Contains("15") || v.Contains("11") || v.Contains("16")
@@ -150,7 +150,6 @@ namespace adb
                     sql = File.ReadAllText(v);
                     var stmt = RawParser.ParseSqlStatement(sql);
                     Console.WriteLine(v);
-                    //stmt.Exec();
                     stmt.Bind(null);
                     Console.WriteLine(stmt.CreatePlan().PrintString(0));
                 }
