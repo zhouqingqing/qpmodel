@@ -206,7 +206,10 @@ namespace adb
         public override object VisitBetweenExpr([NotNull] SQLiteParser.BetweenExprContext context)
             => new BinExpr((Expr)Visit(context.expr(1)), (Expr)Visit(context.expr(2)), "between");
         public override object VisitLikeExpr([NotNull] SQLiteParser.LikeExprContext context)
-            => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), "like");
+        {
+            var not = context.K_NOT() != null;
+            return new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), not?"notlike":"like");
+        }
         public override object VisitFuncExpr([NotNull] SQLiteParser.FuncExprContext context)
         {
             List<Expr> args = new List<Expr>();
@@ -235,6 +238,7 @@ namespace adb
         public override object VisitInSubqueryExpr([NotNull] SQLiteParser.InSubqueryExprContext context)
         {
             Debug.Assert(context.K_IN() != null);
+
             SelectStmt select = null;
             List<Expr> inlist = null;
             if (context.select_stmt() != null)

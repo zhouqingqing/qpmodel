@@ -114,6 +114,11 @@ namespace test
             //q3 too slow
             result = TestHelper.ExecuteSQL(File.ReadAllText(files[3]));
             Assert.AreEqual(5, result.Count);
+            Assert.AreEqual("1-URGENT,33", result[0].ToString());
+            Assert.AreEqual("2-HIGH,27", result[1].ToString());
+            Assert.AreEqual("5-LOW,38", result[2].ToString());
+            Assert.AreEqual("4-NOT SPECIFIED,37", result[3].ToString());
+            Assert.AreEqual("3-MEDIUM,36", result[4].ToString());
             // q5 too slow
             // q6 between parser issue
             // q7 n1.n_name, n2.n_name matching
@@ -126,9 +131,7 @@ namespace test
             Assert.AreEqual("SHIP,2,10", result[0].ToString());
             Assert.AreEqual("MAIL,2,5", result[1].ToString());
             result = TestHelper.ExecuteSQL(File.ReadAllText(files[12]));
-            Assert.AreEqual(2, result.Count);
-            Assert.AreEqual("1,13", result[0].ToString());
-            Assert.AreEqual("2,1", result[1].ToString());
+            Assert.AreEqual(26, result.Count);
             result = TestHelper.ExecuteSQL(File.ReadAllText(files[13]));
             Assert.AreEqual(1, result.Count);
             Assert.AreEqual(true, result[0].ToString().Contains("15.23"));

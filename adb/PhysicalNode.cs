@@ -121,7 +121,7 @@ namespace adb
 
                 if (logic.tabref_.outerrefs_.Count != 0)
                     context.AddParam(logic.tabref_, r);
-                if (filter is null || (int)filter.Exec(context, r) == 1)
+                if (filter is null || (bool)filter.Exec(context, r))
                 {
                     r = ExecProject(context, r);
                     callback(r);
@@ -185,7 +185,7 @@ namespace adb
                 children_[1].Exec(context, r =>
                 {
                     Row n = new Row(l, r);
-                    if (filter is null || (int)filter.Exec(context, n) == 1)
+                    if (filter is null || (bool)filter.Exec(context, n))
                     {
                         n = ExecProject(context, n);
                         callback(n);
@@ -214,7 +214,7 @@ namespace adb
                 children_[1].Exec(context, r =>
                 {
                     Row n = new Row(l, r);
-                    if (filter is null || (int)filter.Exec(context, n) == 1)
+                    if (filter is null || (bool)filter.Exec(context, n))
                     {
                         n = ExecProject(context, n);
                         callback(n);
@@ -366,7 +366,7 @@ namespace adb
 
             children_[0].Exec(context, l =>
             {
-                if (filter is null || (int)filter.Exec(context, l) == 1)
+                if (filter is null || (bool)filter.Exec(context, l))
                 {
                     var r = ExecProject(context, l);
                     callback(r);

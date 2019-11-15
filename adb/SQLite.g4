@@ -304,8 +304,8 @@ expr
                           | expr ( ',' expr )*
                           )? 
                       ')'
-                    | ( database_name '.' )? table_name )				#InSubqueryExpr
- | ( ( K_NOT )? K_EXISTS )? '(' select_stmt ')'							#SubqueryExpr
+                    | ( database_name '.' )? table_name )	#InSubqueryExpr
+ | ( ( K_NOT )? K_EXISTS )? '(' select_stmt ')'				#SubqueryExpr
  | expr K_NOT? ( K_LIKE | K_GLOB | K_REGEXP | K_MATCH ) 
 		expr ( K_ESCAPE expr )?								#LikeExpr
  | expr K_AND expr											#LogicAndExpr
