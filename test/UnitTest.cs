@@ -112,6 +112,9 @@ namespace test
             Assert.AreEqual(4, result.Count);
             result = TestHelper.ExecuteSQL(File.ReadAllText(files[1]));
             Assert.AreEqual(0, result.Count);
+            //q3 took too long
+            result = TestHelper.ExecuteSQL(File.ReadAllText(files[3]));
+            Assert.AreEqual(5, result.Count);
         }
     }
 

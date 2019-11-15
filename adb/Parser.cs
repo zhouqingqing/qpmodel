@@ -225,7 +225,12 @@ namespace adb
         public override object VisitArithequalexpr([NotNull] SQLiteParser.ArithequalexprContext context)
             => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
         public override object VisitSubqueryExpr([NotNull] SQLiteParser.SubqueryExprContext context)
-            => new SubqueryExpr(Visit(context.select_stmt()) as SelectStmt);
+        {
+            string type = "scalar";
+            if (context.K_EXISTS() != null)
+                type = "exists";
+            return new SubqueryExpr(Visit(context.select_stmt()) as SelectStmt, type);
+        }
         public override object VisitTable_or_subquery([NotNull] SQLiteParser.Table_or_subqueryContext context)
             => Visit(context);
 
