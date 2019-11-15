@@ -742,7 +742,7 @@ namespace adb
             {
                 // exists check can immediately return after receiving a row
                 var prevr = r; r = l;
-                if (!subtype_.Equals("exists"))
+                if (subtype_ == "scalar")
                 {
                     if (prevr != null)
                         throw new SemanticExecutionException("subquery more than one row returned");

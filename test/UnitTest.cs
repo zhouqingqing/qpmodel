@@ -94,8 +94,7 @@ namespace test
             // parse and plan
             foreach (var v in files)
             {
-                if (v.Contains("14") || v.Contains("15") || v.Contains("11") || v.Contains("16")
-                || v.Contains("19") || v.Contains("21") || v.Contains("22"))
+                if (v.Contains("15"))
                     continue;
                 var sql = File.ReadAllText(v);
                 var stmt = RawParser.ParseSqlStatement(sql);
@@ -135,7 +134,14 @@ namespace test
             result = TestHelper.ExecuteSQL(File.ReadAllText(files[13]));
             Assert.AreEqual(1, result.Count);
             Assert.AreEqual(true, result[0].ToString().Contains("15.23"));
-            }
+            // q15 cte
+            // q16 parser
+            // q17 parameter join order
+            // q18 IN-subuqery execution issue
+            // q19 parser
+            // q20 parameter join order
+            // q21 parameter join order
+        }
     }
 
     [TestClass]
