@@ -54,14 +54,14 @@ namespace adb
         // this section can show up in setops
         internal readonly List<TableRef> from_;
         internal readonly Expr where_;
-        internal readonly List<Expr> groupby_;
+        internal List<Expr> groupby_;
         internal readonly Expr having_;
         internal readonly List<Expr> selection_;
 
         // this section can only show up in top query
         public readonly List<CteExpr> ctes_;
         public readonly List<SelectStmt> setqs_;
-        public readonly List<Expr> orders_;
+        public List<Expr> orders_;
         public readonly List<bool> descends_;   // order by DESC|ASC
 
         // optimizer info
@@ -193,10 +193,47 @@ namespace adb
             return BindWithContext(context);
         }
 
+        // for each expr in @list, if expr has references an alias in selection list, 
+        // replace that with the true expression.
+        // example:
+        //      selection_: a1*5 as alias1, a2, b3
+        //      orders_: alias1+b =>  a1*5+b
+        //
+        List<Expr> replaceOutputNameToExpr(List<Expr> list)
+        {
+            List<Expr> selection = selection_;
+
+            if (list is null)
+                return null;
+
+            var newlist = new List<Expr>();
+            foreach (var v in list)
+            {
+                Expr newv = v;
+                foreach (var s in selection)
+                {
+                    if (s.alias_ != null)
+                        newv = newv.SearchReplace(s.alias_, s);
+                }
+                newlist.Add(newv);
+            }
+
+            Debug.Assert(newlist.Count == list.Count);
+            return newlist;
+        }
+
         internal BindContext BindWithContext(BindContext context)
         {
             // bind stage is earlier than plan creation
             Debug.Assert(logicPlan_ == null);
+
+            // rules:
+            //  - groupby/orderby may reference selection list's alias, so let's 
+            //    expand them first
+            //  - from binding shall be the first since it may create new alias
+            //
+            groupby_ = replaceOutputNameToExpr(groupby_);
+            orders_ = replaceOutputNameToExpr(orders_);
 
             // from binding shall be the first since it may create new alias
             bindFrom(context);
