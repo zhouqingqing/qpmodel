@@ -12,6 +12,11 @@ namespace adb
         public Type type_;
         public int len_;
         public ColumnType(Type type, int len) { type_ = type; len_ = len; }
+
+        public bool Compatible(ColumnType type)
+        {
+            return true;
+        }
     }
 
     public class BoolType : ColumnType

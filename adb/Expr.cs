@@ -270,7 +270,7 @@ namespace adb
                     if (v.FieldType == typeof(Expr))
                     {
                         var m = v.GetValue(this) as Expr;
-                        if (m.VisitEachExprExists(check, excluding))
+                        if (m?.VisitEachExprExists(check, excluding)??false)
                             return true;
                     }
                     else if (v.FieldType == typeof(List<Expr>))
@@ -354,7 +354,7 @@ namespace adb
                     if (v.FieldType == typeof(Expr))
                     {
                         var m = v.GetValue(this) as Expr;
-                        var n = m.SearchReplace(from, to);
+                        var n = m?.SearchReplace(from, to);
                         v.SetValue(clone, n);
                     }
                     else if (v.FieldType == typeof(List<Expr>))
@@ -370,8 +370,14 @@ namespace adb
 
             return clone;
         }
+        
         protected static bool exprEquals(Expr l, Expr r)
         {
+            if (l is null && r is null)
+                return true;
+            if (l is null || r is null)
+                return false;
+
             Expr le = l, re = r;
             if (l is ExprRef lx)
                 le = lx.expr_;
@@ -381,6 +387,21 @@ namespace adb
             Debug.Assert(!(re is ExprRef));
             return le.Equals(re);
         }
+        protected static bool exprEquals(List<Expr> l, List<Expr> r)
+        {
+            if (l is null && r is null)
+                return true;
+            if (l is null || r is null)
+                return false;
+            if (l.Count != r.Count)
+                return false;
+
+            for (int i = 0; i < l.Count; i++)
+                if (!exprEquals(l[i], r[i]))
+                    return false;
+            return true;
+        }
+
         protected void markBounded() {
             bounded_ = true;
             Debug.Assert(type_ != null);
@@ -737,6 +758,72 @@ namespace adb
         public OrderTerm(Expr expr, bool descend)
         {
             expr_ = expr; descend_ = descend;
+        }
+    }
+
+    // case <eval>
+    //      when <when0> then <then0>
+    //      when <when1> then <then1>
+    //      else <else>
+    //  end;
+    public class CaseExpr : Expr {
+        public Expr eval_;
+        public List<Expr> when_;
+        public List<Expr> then_;
+        public Expr else_;
+
+        public override string ToString() => $"case with {when_.Count}";
+
+        public CaseExpr(Expr eval, List<Expr> when, List<Expr> then, Expr elsee)
+        {
+            eval_ = eval;   // can be null
+            when_ = when;
+            then_ = then;
+            else_ = elsee;   // can be null
+            Debug.Assert(when_.Count == then_.Count);
+            Debug.Assert(when_.Count >= 1);
+        }
+        public override void Bind(BindContext context)
+        {
+            Debug.Assert(!bounded_);
+            eval_?.Bind(context);
+            when_.ForEach(x=>x.Bind(context));
+            then_.ForEach(x=>x.Bind(context));
+            else_?.Bind(context);
+
+            type_ = else_.type_;
+            then_.ForEach(x => Debug.Assert(x.type_.Compatible(type_)));
+
+            if (eval_ != null)
+                tableRefs_.AddRange(eval_.tableRefs_);
+            if (else_ != null)
+                tableRefs_.AddRange(else_.tableRefs_);
+            when_.ForEach(x => tableRefs_.AddRange(x.tableRefs_));
+            then_.ForEach(x => tableRefs_.AddRange(x.tableRefs_));
+            if (tableRefs_.Count > 1)
+                tableRefs_ = tableRefs_.Distinct().ToList();
+            markBounded();
+        }
+
+        public override int GetHashCode()
+        {
+            return (eval_?.GetHashCode()??0xabc) ^ 
+                    (else_ ?.GetHashCode()??0xbcd) ^ 
+                    Utils.ListHashCode(when_) ^ Utils.ListHashCode(then_);
+        }
+        public override bool Equals(object obj)
+        {
+            if (obj is ExprRef or)
+                return Equals(or.expr_);
+            else if (obj is CaseExpr co)
+                return exprEquals(eval_, co.eval_) && exprEquals(else_, co.else_)
+                    && exprEquals(when_, co.when_) && exprEquals(then_, co.then_);
+            return false;
+        }
+
+        public override object Exec(ExecContext context, Row input)
+        {
+            return 0;
         }
     }
 

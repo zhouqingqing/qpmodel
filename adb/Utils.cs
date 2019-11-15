@@ -20,6 +20,12 @@ namespace adb
 
         // a contains b?
         public static bool ListAContainsB<T>(List<T> a, List<T> b) => !b.Except(a).Any();
+        public static int ListHashCode<T>(List<T> l)
+        {
+            int hash = 0x72344ABC;
+            l.ForEach(x => hash ^= l.GetHashCode());
+            return hash;
+        }
 
         public static string RetrieveQuotedString(string str)
         {
