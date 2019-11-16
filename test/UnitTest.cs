@@ -94,7 +94,7 @@ namespace test
             // parse and plan
             foreach (var v in files)
             {
-                if (v.Contains("15"))
+                if (v.Contains("15") || v.Contains("08") || v.Contains("07"))
                     continue;
                 var sql = File.ReadAllText(v);
                 var stmt = RawParser.ParseSqlStatement(sql);
@@ -137,10 +137,12 @@ namespace test
             // q15 cte
             // q16 parser
             // q17 parameter join order
-            // q18 IN-subuqery execution issue
+            // q18 parser
             // q19 parser
             // q20 parameter join order
             // q21 parameter join order
+            result = TestHelper.ExecuteSQL(File.ReadAllText(files[21]));
+            Assert.AreEqual(7, result.Count);
         }
     }
 
@@ -213,7 +215,7 @@ namespace test
     }
 
     [TestClass]
-    public class OptimizerTest
+    public class GeneralTest
     {
         private TestContext testContextInstance;
 
@@ -265,6 +267,16 @@ namespace test
             Assert.AreEqual("0,3,4", result[6].ToString());
             Assert.AreEqual("1,3,4", result[7].ToString());
             Assert.AreEqual("2,3,4", result[8].ToString());
+        }
+
+        [TestMethod]
+        public void TestExpr()
+        {
+            var sql = "select a2 from a where a1 between 1 and 2;";
+            var result = ExecuteSQL(sql);
+            Assert.AreEqual(2, result.Count);
+            Assert.AreEqual("2", result[0].ToString());
+            Assert.AreEqual("3", result[1].ToString());
         }
 
         [TestMethod]
@@ -421,6 +433,8 @@ namespace test
             Assert.AreEqual(2, result.Count);
             Assert.AreEqual("1", result[0].ToString());
             Assert.AreEqual("2", result[1].ToString());
+
+            // TODO: add not cases
 
             // failed due to fixcolumnordinal can't do expression as a whole (instead it can only do colref)
             //sql = "select b3+c2 from a, b, c where (select b1+b2 from b where b1=a1)>4 and (select c2+c3 from c where c1=b1)>6 and c1<1";

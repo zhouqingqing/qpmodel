@@ -239,7 +239,16 @@ namespace adb
                     if (!target.isOuterRef_)
                     {
                         target.ordinal_ = source.FindIndex(nameTest);
-                        Debug.Assert(source.FindAll(nameTest).Count == 1);
+
+                        // we may hit more than one target, say t2.col1 matching {t1.col1, t2.col1}
+                        // in this case, we shall redo the mapping with table name
+                        //
+                        Debug.Assert (source.FindAll(nameTest).Count >= 1);
+                        if (source.FindAll(nameTest).Count > 1) {
+                            nameTest = z => y.alias_.Equals(z.alias_) && y.tableRefs_[0].Equals(z.tableRefs_[0]);
+                            target.ordinal_ = source.FindIndex(nameTest);
+                            Debug.Assert(source.FindAll(nameTest).Count == 1);
+                        }
                     }
                     Debug.Assert(target.ordinal_ != -1);
                 }

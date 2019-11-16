@@ -618,7 +618,6 @@ namespace adb
                 case "=": case "<>":
                 case " and ": case "like":
                 case "notlike":
-                case "between":
                 case "in": 
                     type_ = new BoolType();
                     break;
@@ -753,6 +752,7 @@ namespace adb
             return r != null;
         }
     }
+
     public class ScalarSubqueryExpr : SubqueryExpr
     {
         public ScalarSubqueryExpr(SelectStmt query) : base(query, "scalar") { }

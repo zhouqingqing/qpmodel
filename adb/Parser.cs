@@ -204,7 +204,11 @@ namespace adb
         public override object VisitArithplusexpr([NotNull] SQLiteParser.ArithplusexprContext context)
             => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
         public override object VisitBetweenExpr([NotNull] SQLiteParser.BetweenExprContext context)
-            => new BinExpr((Expr)Visit(context.expr(1)), (Expr)Visit(context.expr(2)), "between");
+        {
+            var left = new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), ">=");
+            var right = new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(2)), "<=");
+            return new LogicAndExpr(left, right);
+        }
         public override object VisitLikeExpr([NotNull] SQLiteParser.LikeExprContext context)
         {
             var not = context.K_NOT() != null;
