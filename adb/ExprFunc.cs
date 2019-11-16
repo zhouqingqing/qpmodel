@@ -113,7 +113,11 @@ namespace adb
         }
         public override Value Exec(ExecContext context, Row input)
         {
-            return 0;
+            string str = (string)args_[0].Exec(context, input);
+            int start = (int)args_[1].Exec(context, input) - 1;
+            int end = (int)args_[2].Exec(context, input) - 1;
+
+            return str.Substring(start, end - start + 1);
         }
     }
     public class YearFunc : FuncExpr

@@ -48,23 +48,24 @@ namespace adb
                 var files = Directory.GetFiles(@"../../../tpch");
 
                 //foreach (var v in files)
-                var v = files[1];
+                var v = files[7];
                 {
                     //if (v.Contains("15"))
                     //    continue;
                     sql = File.ReadAllText(v);
-                    var stmt = RawParser.ParseSqlStatement(sql);
-                    Console.WriteLine(v);
-                    stmt.Bind(null);
-                    Console.WriteLine(stmt.CreatePlan().PrintString(0));
+            //        var stmt = RawParser.ParseSqlStatement(sql);
+            //        Console.WriteLine(v);
+            //        stmt.Bind(null);
+            //        Console.WriteLine(stmt.CreatePlan().PrintString(0));
                 }
             }
             //sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
             //sql = "select a1, a3  from a where a.a1 = (select b1,b2 from b)";
             //sql = "select a1, a2  from a where a.a1 = (select sum(b1) from b where b2 = a2 and b3<4);";
-            sql = "select a2 from a where a1 in (1,2,3);";
-            sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1);";
-            sql = "select a2 from a where a1 in (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1));";
+            //sql = "select a2 from a where a1 in (1,2,3);";
+            //sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and a3>(select b2 from b where b2=a2);";
+            //sql = "select a2 from a where a1 in (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1));";
+            sql = "select a2 from a where a1 between 1 and 2;";
 
             doit:
             Console.WriteLine(sql);

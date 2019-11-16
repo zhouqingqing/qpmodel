@@ -9,7 +9,15 @@
 7. [Executor] codegen
 
 Small items:
+P1: 
+5. can't push predicate deep enough (q8) - this directly affect usage of hash join
+6. hash join is not real
+
+P2:
 1. implement sort
+2. not in/ not exists etc
+3. subquery expansion bound issue
+4. q22 print subquery twice issue
 
 
 Known issues:
