@@ -402,6 +402,26 @@ namespace test
             Assert.AreEqual("0", result[0].ToString());
             Assert.AreEqual("1", result[1].ToString());
             Assert.AreEqual("2", result[2].ToString());
+
+            // in-list and in-subquery
+            sql = "select a2 from a where a1 in (1,2,3);";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(2, result.Count);
+            Assert.AreEqual("2", result[0].ToString());
+            Assert.AreEqual("3", result[1].ToString());
+            sql = "select a2 from a where a1 in (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1));";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(2, result.Count);
+            Assert.AreEqual("2", result[0].ToString());
+            Assert.AreEqual("3", result[1].ToString());
+
+            // exist-subquery
+            sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1);";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(2, result.Count);
+            Assert.AreEqual("1", result[0].ToString());
+            Assert.AreEqual("2", result[1].ToString());
+
             // failed due to fixcolumnordinal can't do expression as a whole (instead it can only do colref)
             //sql = "select b3+c2 from a, b, c where (select b1+b2 from b where b1=a1)>4 and (select c2+c3 from c where c1=b1)>6 and c1<1";
             //result = ExecuteSQL(sql);
