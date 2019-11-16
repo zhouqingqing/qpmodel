@@ -145,10 +145,6 @@ namespace adb
     {
         public AggFunc(string func, List<Expr> args) : base(func, args) { argcnt_ = 1;}
 
-        public override Value Exec(ExecContext context, Row input)
-        {
-            return 0;
-        }
         public override void Bind(BindContext context)
         {
             base.Bind(context);

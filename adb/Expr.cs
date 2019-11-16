@@ -923,7 +923,7 @@ namespace adb
     public class LiteralExpr : Expr
     {
         public string str_;
-        public object val_;
+        public Value val_;
 
         public LiteralExpr(string str)
         {
@@ -974,6 +974,8 @@ namespace adb
                 else
                     throw new SemanticAnalyzeException("wrong integer format");
             }
+
+            Debug.Assert(val_ != null);
         }
         public override string ToString()
         {
