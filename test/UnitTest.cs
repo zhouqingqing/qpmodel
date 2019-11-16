@@ -733,15 +733,15 @@ namespace test
             answer = @"PhysicScanTable a  (rows = 0)
                         Output: 1
                         Filter: a.a1[0]>@1
-                        <SubqueryExpr> 1
+                        <ScalarSubqueryExpr> 1
                             -> PhysicScanTable b  (rows = 0)
                                 Output: b.b1[0],#b.b2[1]
                                 Filter: b.b2[1]>@2 and b.b1[0]>@3
-                                <SubqueryExpr> 2
+                                <ScalarSubqueryExpr> 2
                                     -> PhysicScanTable c  (rows = 9)
                                         Output: c.c2[1]
                                         Filter: c.c2[1]=?b.b2[1]
-                                <SubqueryExpr> 3
+                                <ScalarSubqueryExpr> 3
                                     -> PhysicScanTable c  (rows = 9)
                                         Output: c.c2[1]
                                         Filter: c.c2[1]=?b.b2[1]";
@@ -757,11 +757,11 @@ namespace test
                         -> PhysicScanTable a  (rows = 3)
                             Output: #a.a1[0]
                             Filter: a.a1[0]>=@1 and a.a2[1]>=@2
-                            <SubqueryExpr> 1
+                            <ScalarSubqueryExpr> 1
                                 -> PhysicScanTable b  (rows = 3)
                                     Output: b.b1[0]
                                     Filter: b.b1[0]=?a.a1[0]
-                            <SubqueryExpr> 2
+                            <ScalarSubqueryExpr> 2
                                 -> PhysicScanTable c  (rows = 3)
                                     Output: c.c2[1]
                                     Filter: c.c1[0]=?a.a1[0]
@@ -782,11 +782,11 @@ namespace test
             answer = @"PhysicScanTable a  (rows = 2)
                         Output: a.a1[0],#a.a2[1],#a.a3[2]
                         Filter: a.a1[0]=@1
-                        <SubqueryExpr> 1
+                        <ScalarSubqueryExpr> 1
                             -> PhysicScanTable b as bo  (rows = 2)
                                 Output: bo.b1[0],#bo.b3[2]
                                 Filter: bo.b2[1]=?a.a2[1] and bo.b1[0]=@2 and bo.b2[1]<3
-                                <SubqueryExpr> 2
+                                <ScalarSubqueryExpr> 2
                                     -> PhysicScanTable b  (rows = 3)
                                         Output: b.b1[0]
                                         Filter: b.b3[2]=?a.a3[2] and ?bo.b3[2]=?a.a3[2] and b.b3[2]>1";
@@ -809,11 +809,11 @@ namespace test
                             -> PhysicScanTable a  (rows = 9)
                                 Output: a.a1[0],#a.a2[1],#a.a3[2]
                                 Filter: a.a1[0]=@1 and a.a2[1]=@3
-                                <SubqueryExpr> 1
+                                <ScalarSubqueryExpr> 1
                                     -> PhysicFilter   (rows = 9)
                                         Output: bo.b1[0]
                                         Filter: bo.b2[1]=?a.a2[1] and bo.b2[1]<5 and bo.b1[0]=@2
-                                        <SubqueryExpr> 2
+                                        <ScalarSubqueryExpr> 2
                                             -> PhysicScanTable b  (rows = 81)
                                                 Output: b.b1[0]
                                                 Filter: b.b3[2]=?a.a3[2] and ?bo.b3[2]=?c.c3[2] and b.b3[2]>1
@@ -825,11 +825,11 @@ namespace test
                                                     Output: b_1.b2[1],b_1.b3[2]
                                                 -> PhysicScanTable b as b_2  (rows = 243)
                                                     Output: b_2.b1[0]
-                                <SubqueryExpr> 3
+                                <ScalarSubqueryExpr> 3
                                     -> PhysicScanTable b as bo  (rows = 27)
                                         Output: bo.b2[1],#bo.b3[2]
                                         Filter: bo.b1[0]=?a.a1[0] and bo.b2[1]=@4 and ?c.c3[2]<5
-                                        <SubqueryExpr> 4
+                                        <ScalarSubqueryExpr> 4
                                             -> PhysicScanTable b  (rows = 27)
                                                 Output: b.b2[1]
                                                 Filter: b.b4[3]=?a.a3[2]+1 and ?bo.b3[2]=?a.a3[2] and b.b3[2]>0";
