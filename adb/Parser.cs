@@ -229,10 +229,9 @@ namespace adb
             => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
         public override object VisitSubqueryExpr([NotNull] SQLiteParser.SubqueryExprContext context)
         {
-            string type = "scalar";
             if (context.K_EXISTS() != null)
-                type = "exists";
-            return new SubqueryExpr(Visit(context.select_stmt()) as SelectStmt, type);
+                return new ExistSubqueryExpr(Visit(context.select_stmt()) as SelectStmt);
+            return new ScalarSubqueryExpr(Visit(context.select_stmt()) as SelectStmt);
         }
 
         public override object VisitInSubqueryExpr([NotNull] SQLiteParser.InSubqueryExprContext context)

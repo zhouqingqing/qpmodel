@@ -757,6 +757,59 @@ namespace adb
         }
     }
 
+    public class ExistSubqueryExpr : SubqueryExpr
+    {
+        public ExistSubqueryExpr(SelectStmt query) : base(query, "exist") { }
+
+        public override void Bind(BindContext context)
+        {
+            base.Bind(context);
+            type_ = new BoolType();
+        }
+
+        public override Value Exec(ExecContext context, Row input)
+        {
+            Debug.Assert(type_ != null);
+            Row r = null;
+            query_.physicPlan_.Exec(context, l =>
+            {
+                // exists check can immediately return after receiving a row
+                r = l;
+                return null;
+            });
+
+            return r != null;
+        }
+    }
+    public class ScalarSubqueryExpr : SubqueryExpr
+    {
+        public ScalarSubqueryExpr(SelectStmt query) : base(query, "scalar") { }
+
+        public override void Bind(BindContext context)
+        {
+            base.Bind(context);
+            if (query_.selection_.Count != 1)
+                throw new SemanticAnalyzeException("subquery must return only one column");
+            type_ = query_.selection_[0].type_;
+        }
+
+        public override Value Exec(ExecContext context, Row input)
+        {
+            Debug.Assert(type_ != null);
+            Row r = null;
+            query_.physicPlan_.Exec(context, l =>
+            {
+                // exists check can immediately return after receiving a row
+                var prevr = r; r = l;
+                if (prevr != null)
+                    throw new SemanticExecutionException("subquery more than one row returned");
+                return null;
+            });
+
+            return r?.values_[0] ?? int.MaxValue;
+        }
+    }
+
     // In List can be varaibles:
     //      select* from a where a1 in (1, 2, a2);
     //
