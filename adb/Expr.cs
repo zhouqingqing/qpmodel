@@ -682,26 +682,20 @@ namespace adb
         }
     }
 
-    public class SubqueryExpr : Expr
+    public abstract class SubqueryExpr : Expr
     {
         public string subtype_;    // in, exists, scalar
 
-        // in, exists, scalar 
         public SelectStmt query_;
-        public int subqueryid_; // bound
+        public int subqueryid_;    // bounded
 
         public SubqueryExpr(SelectStmt query, string subtype) {
             query_ = query; subtype_ = subtype;
         }
         // don't print the subquery here, it shall be printed by up caller layer for pretty format
-        public override string ToString()
-        {
-            if (subtype_ != "scalar")
-                return $@"{subtype_} @{subqueryid_}";
-            return $@"@{subqueryid_}";
-        }
+        public override string ToString() => $@"@{subqueryid_}";
 
-        public override void Bind(BindContext context)
+        protected void bindQuery(BindContext context)
         {
             Debug.Assert(!bounded_);
 
@@ -723,7 +717,6 @@ namespace adb
                     throw new SemanticAnalyzeException("subquery must return only one column");
                 type_ = query_.selection_[0].type_;
             }
-            markBounded();
         }
 
         public override int GetHashCode() => subqueryid_.GetHashCode();
@@ -733,28 +726,6 @@ namespace adb
                 return os.subqueryid_ == subqueryid_;
             return false;
         }
-
-        public override Value Exec(ExecContext context, Row input)
-        {
-            Debug.Assert(type_ != null);
-            Row r = null;
-            query_.physicPlan_.Exec(context, l =>
-            {
-                // exists check can immediately return after receiving a row
-                var prevr = r; r = l;
-                if (subtype_ == "scalar")
-                {
-                    if (prevr != null)
-                        throw new SemanticExecutionException("subquery more than one row returned");
-                }
-                return null;
-            });
-
-            if (subtype_ == "scalar")
-                return r?.values_[0] ?? int.MaxValue;
-            else
-                return r != null;
-        }
     }
 
     public class ExistSubqueryExpr : SubqueryExpr
@@ -763,8 +734,9 @@ namespace adb
 
         public override void Bind(BindContext context)
         {
-            base.Bind(context);
+            bindQuery(context);
             type_ = new BoolType();
+            markBounded();
         }
 
         public override Value Exec(ExecContext context, Row input)
@@ -787,10 +759,11 @@ namespace adb
 
         public override void Bind(BindContext context)
         {
-            base.Bind(context);
+            bindQuery(context);
             if (query_.selection_.Count != 1)
                 throw new SemanticAnalyzeException("subquery must return only one column");
             type_ = query_.selection_[0].type_;
+            markBounded();
         }
 
         public override Value Exec(ExecContext context, Row input)
@@ -807,6 +780,47 @@ namespace adb
             });
 
             return r?.values_[0] ?? int.MaxValue;
+        }
+    }
+
+    public class InSubqueryExpr : SubqueryExpr
+    {
+        public Expr expr_;
+
+        public override string ToString() => $"{expr_} in @{subqueryid_}";
+        public InSubqueryExpr(Expr expr, SelectStmt query) : base(query, "in") { expr_ = expr; }
+
+        public override void Bind(BindContext context)
+        {
+            expr_.Bind(context);
+            bindQuery(context);
+            if (query_.selection_.Count != 1)
+                throw new SemanticAnalyzeException("subquery must return only one column");
+            type_ = new BoolType();
+            markBounded();
+        }
+
+        public override Expr Clone()
+        {
+            var clone = (InSubqueryExpr)base.Clone();
+            clone.expr_ = expr_.Clone();
+            Debug.Assert(Equals(clone));
+            return clone;
+        }
+
+        public override Value Exec(ExecContext context, Row input)
+        {
+            Debug.Assert(type_ != null);
+            var set = new HashSet<Value>();
+            query_.physicPlan_.Exec(context, l =>
+            {
+                // it may have hidden columns but that's after [0]
+                set.Add(l.values_[0]);
+                return null;
+            });
+
+            Value expr = expr_.Exec(context, input);
+            return set.Contains(expr);
         }
     }
 

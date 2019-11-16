@@ -20,37 +20,6 @@ namespace adb
 
             sql = "select 1 from a where a.a1 = (select b1 from b where b.b2 = a2);";
             //sql = "select b1 from b where b.b2 = a.a2";
-            //sql = "select 1 from a where a.a1 > (select b.b1 from b) and a.a2 > (select c3 from c);";
-            //sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b3));";
-            //sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b3) and b.b3 > ((select c2 from c where c.c3=b2)));";
-            //sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > 2);";
-            //sql = "select 1 from a, (select b1,b2 from b) k where k.b1 > 0 and a.a1 = k.b1"; // bug: can't push filter across subuquery
-            //sql = "select a.a1+b.b2 from a, b, c where a3>6 and c2 > 10 and a1=b1 and a2 = c2;";
-            //sql = "select f(g(a1)) from a, b where a.a3 = b.b2 and a.a2>1 group by a.a1, a.a2 having sum(a.a1)>0;";
-            //sql = "select a1 from a, b where a.a1 = b.b1 and a.a2 > (select c1 from c where c.c1=c.c3);";
-            //sql = "select (1+2)*3, 1+f(g(a))+1+2*3, a.i, a.i, i+a.j*2 from a, (select * from b) b where a.i=b.i;";
-            //sql = "select a.a1, a.a1+a.a3, a1+b2 from a, b where a1 = b1 and a2>2";
-            /////////////// sql = "select a.a1 from a, b where a2>2";
-            //sql = "select a.a1 from a where a2>1 and a3>3";
-            //sql = "select a1*2+a2*1+3 from (select a1,a2 from a) b;";
-            sql = "select * from a, (select * from b where b2>2) c;";
-            //sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b3) and b.b3 > ((select c2 from c where c.c3=b2)));";
-            //sql = "select a.a1 from a, b where a2 > 1";
-            sql = "select c.* from a, (select * from b) c";
-
-            //sql = "select * from a, (select * from b) c";
-            //sql = "select b.a1 + a3 from (select a3,a1 from a) b";
-            //sql = "select b.a1 + a2 from (select a1,a2 from a, c) b";
-            //sql = @"with cte1 as (select * from a), cte2 as (select * from b) select a1,a1+a2 from cte1 where a1<6 group by a1, a1+a2  
-            //        union select b2, b3 from cte2 where b2 > 3 group by b1, b1+b2 
-            //        order by 2, 1 desc;";
-            sql = "select a2  from a where a.a1 > (select b1 from b where b4 = a4 and b3<3)";
-            //sql = "select a1,a1,a3,a3 from a where a1>1";
-            //sql = "select a1,a1,a3,a3, (select b2 from b where b2=2) from a where a1>1";
-            //sql = "select 1,  (select b1 from b) from a where a.a1 = 2;";
-            //sql = "select a1+b1 from a, b";
-            //sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b2 > ((select c1 from c where c.c2=b1)))";
-
             // test candiates ---
             //sql = "select a1,a1,a3,a3 from a where a1+a2+a3>3";
             //sql = "select * from a, (select * from b where b2>2) c;";
@@ -64,71 +33,9 @@ namespace adb
             // test3: deep vars
             sql = "select a1  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3 = a3 and b3>1) and b3<3);";
             sql = "select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3 = a3 and b3>1) and b3<4);";
-
-            // test4: deep/ref 2+ outside vars
-            sql = "select a1,a2,a3  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b3<4);";
-            // test4: deep/ref 2+ outside 2+ vars
-            sql = @" select a1,a2,a3  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 2) and b3<5)
-                and a.a2 = (select b2 from b bo where b1 = a1 and b2 >= (select b2 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b3<4);";
-            sql = @"select a1  from a where a.a1 = (select b1 from (select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b2<5)
-                and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b3=a3 and bo.b3 = a3 and b3> 0) and b3<5);";
-            // test5: subquery in selection list
-            //sql = "select a1, (select b1 from b where b2 = a2) from a;";
-            //sql = "select a1  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 2) and b2<4);";
-            sql = @"select a1 from a, b where a1=b1 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
-                and b1 = (select b1 from b where b3 = a3 and bo.b3 = a3 and b3> 1) and b2<5)
-                and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and b3<5);";
-
-        //sql = "select b3+c2 from a, b, c where (select b1+b2 from b where b1=a1)>4 and (select c2+c3 from c where c1=b1)>6 and c1<1";
-        // sql = "create table a (a1 int, a2 char(10), a3 datetime, a4 numeric(9,2), a5 numeric(9));";
-        // sql = "insert into a values(5*2+1, 'string' ,'2019-09-01', 50.2, 50);";
-        // sql = "insert into a select * from b where b1>1;";
-        // string filename = @"'d:\test.csv'"; sql = $"copy a from {filename} where a1>1;";
-        //sql = "insert into a values(1,2*5,3,4);";
-        sql = "select a1, a2  from a where a.a1 = (select b1 from b where b2 = a2 and b3<3);";
             sql = @"select a4  from a where a.a1 = (select b1 from (select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2
                 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b3=a3 and bo.b3 = a3 and b3> 0) and b3<5);";
-            sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b1 > ((select c2 from c where c.c2=b2)))";
-            sql = @"select a1+b3+c2 from c,a, b where a1=b1 and b2=c2 and 
-                    a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
-                                                and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
-                and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
-            //sql = "select a1  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 3) and b2<3);";
-            //sql = "select b3+c2 from a, b, c where (select b1+b2 from b where b1=a1)>4 and (select c2+c3 from c where c1=b1)>6 and c1<1";
-            sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
-                and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
-                and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
-        sql = "select b3+c2 from a,c,b where (select b1+b2 from b where b1=a1)>4 and (select c2+c3 from c where c1=b1)>6 and c1<1";
-            sql = "select b3+c2 from a,b,c where a1>= (select b1 from b where b1=a1) and a2 >= (select c2 from c where c1=a1);";
-            sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<3);";
-            sql = "select min(a1), max(a1)+sum(a1)*2 from a;";
-            sql = " select max(a1), sum(a1+a2), max(a1)+sum(a1+a2)*2 from a;";
-            sql = "select b3+c2 from a,b,c where a1>= (select b1 from b where b1=a1) and a2 >= (select c2 from c where c1=a1);";
-            sql = "select (4-a3)/2*2+1+min(a1), max(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";
-            sql = "select (4-a3)/2*2+1+min(a1), count(a1), max(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";
-            sql = "select 1+min(a1), count(a1), max(a1)+sum(a1+a2)*2 from a group by 1;";
-            sql = "select a1, a2  from a where a.a1 = (select sum(b1) from b where b2 = a2 and b3<4);";
-            sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1 order by 1";
-            sql = "select * from a where a1>0 order by a1;";
-            //            sql = "select sum(a1) from a where a1>0 group by a1;";
-            // sql = "select a2, sum(a1) from a where a1>0 group by a2";
-            sql = "select * from a, (select * from b where b2>2) c";
-            sql = "select a1 from a where a2>2;";
-            sql = "select a3/2 from a group by 1;";
-            sql = "select a.b1+c.b1 from (select count(*) as b1 from b) a, (select c1 b1 from c) c where c.b1>1;";
-            //sql = "select a.b1+c.b2 from (select count(*) as b1 from b) a, (select c1 b2 from c) c where c.b2>1;";
-            sql = "select b1+c100 from (select count(b3) as b1 from b) a, (select c1 c100 from c) c where c100>1";
-            sql = "select a1, sum(a1) from a group by a1";
-            sql = "select sum(b1) from b where b3>1000;";
-            sql = "select a1, sum(a1) from a group by a2";
-            sql = "select a3+2 from a group by 1";
-            sql = "select (4 - a3) / 2, (4 - a3) / 2 * 2 + 1 + min(a1) from a group by 1;";
-            sql = "select(4-a3)/2, avg(a4) from a group by 1";
-            // -- subquery sections
-//            sql = "select a1,a1,a3,a3, (select b3 from b where a1=b1 and b2=3) from a where a1>1";
-            sql = "select b1, a1,a1,a3,a3 from a where a2> (select b1 from b where b1=a3);"; // ok - semantic error
-            sql = "select a1,a1,a3,a3 from a where a2> (select b1 from b where b1=a1);"; // lost a2>@1
             sql = "select a1,a1,a3,a3 from a where a2> (select b1 from b where b1=a1 and b2=3);"; // lost a2>@1
             // bad sql = "select a1,a1,a3,a3 from a where a2> (select b1 from b where b1=a1) or a2<=2;"; 
             sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
@@ -141,12 +48,10 @@ namespace adb
                 var files = Directory.GetFiles(@"../../../tpch");
 
                 //foreach (var v in files)
-                var v = files[19];
+                var v = files[1];
                 {
-                 //   if (v.Contains("04")||v.Contains("08")||v.Contains("11") || v.Contains("12") 
-                 //       || v.Contains("14") || v.Contains("15") || v.Contains("11") || v.Contains("16")
-                 //       || v.Contains("19") || v.Contains("21") || v.Contains("22"))
-                 //       continue;
+                    //if (v.Contains("15"))
+                    //    continue;
                     sql = File.ReadAllText(v);
                     var stmt = RawParser.ParseSqlStatement(sql);
                     Console.WriteLine(v);
@@ -157,6 +62,9 @@ namespace adb
             //sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
             //sql = "select a1, a3  from a where a.a1 = (select b1,b2 from b)";
             //sql = "select a1, a2  from a where a.a1 = (select sum(b1) from b where b2 = a2 and b3<4);";
+            sql = "select a2 from a where a1 in (1,2,3);";
+            sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1);";
+            sql = "select a2 from a where a1 in (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1));";
 
             doit:
             Console.WriteLine(sql);

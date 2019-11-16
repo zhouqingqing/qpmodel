@@ -242,8 +242,9 @@ namespace adb
             List<Expr> inlist = null;
             if (context.select_stmt() != null)
             {
+                Debug.Assert(context.expr().Count() == 1);
                 select = Visit(context.select_stmt()) as SelectStmt;
-                return new SubqueryExpr(select, "in");
+                return new InSubqueryExpr(Visit(context.expr(0)) as Expr, select);
             }
             else
             {
