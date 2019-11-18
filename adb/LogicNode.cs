@@ -559,11 +559,11 @@ namespace adb
 
     public class LogicFromQuery : LogicNode
     {
-        public FromQueryRef queryRef_;
+        public QueryRef queryRef_;
 
         public override string ToString() => $"<{queryRef_.alias_}>";
         public override string PrintInlineDetails(int depth) => $"<{queryRef_.alias_}>";
-        public LogicFromQuery(FromQueryRef query, LogicNode child) { queryRef_ = query; children_.Add(child); }
+        public LogicFromQuery(QueryRef query, LogicNode child) { queryRef_ = query; children_.Add(child); }
 
         public override List<TableRef> InclusiveTableRefs()
         {

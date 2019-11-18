@@ -30,6 +30,7 @@ where
 		from
 			revenue0
 	)
-order by
-	s_suppkey
+--order by
+--	s_suppkey
+
 

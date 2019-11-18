@@ -280,6 +280,24 @@ namespace test
         }
 
         [TestMethod]
+        public void TestCTE()
+        {
+            var sql = @"with cte1 as (select* from a) select * from cte1 where a1>1;";
+            var result = ExecuteSQL(sql);
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual("2,3,4,5", result[0].ToString());
+            sql = @"with cte1 as (select * from a),cte3 as (select * from cte1) select * from cte3 where a1>1";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual("2,3,4,5", result[0].ToString());
+            sql = @"with cte1 as (select b3, max(b2) maxb2 from b where b1<1 group by b3)
+                        select a1, maxb2 from a, cte1 where a.a3=cte1.b3 and a1<2;";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual("0,1", result[0].ToString());
+        }
+
+        [TestMethod]
         public void TestExecSubFrom()
         {
             var sql = "select * from a, (select * from b) c";
