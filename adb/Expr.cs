@@ -445,7 +445,7 @@ namespace adb
                     // are not bounded. We don't have to differentitate them, but I 
                     // just try to be strict.
                     //
-                    if (x is FromQueryRef)
+                    if (x is QueryRef)
                         exprs.AddRange(x.AllColumnsRefs());
                     else
                         unbounds.AddRange(x.AllColumnsRefs());
@@ -455,7 +455,7 @@ namespace adb
             {
                 // table.* - you have to find it in current context
                 var x = context.Table(tabAlias_);
-                if (x is FromQueryRef)
+                if (x is QueryRef)
                     exprs.AddRange(x.AllColumnsRefs());
                 else
                     unbounds.AddRange(x.AllColumnsRefs());
@@ -869,13 +869,14 @@ namespace adb
 
     public class CteExpr : Expr
     {
-        public string tabName_;
-        public List<string> colNames_;
         public SQLStatement query_;
+        public List<string> colNames_;
 
         public CteExpr(string tabName, List<string> colNames, SQLStatement query)
         {
-            tabName_ = tabName; colNames_ = colNames; query_ = query;
+            alias_ = tabName;
+            query_ = query;
+            colNames_ = colNames;
         }
     }
 

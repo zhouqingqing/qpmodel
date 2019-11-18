@@ -115,6 +115,12 @@ namespace adb
             records_.Add(tabName,
                 new TableDef(tabName, columns));
         }
+
+        public TableDef TryTable(string tabName) {
+            if (records_.TryGetValue(tabName, out TableDef value))
+                return value;
+            return null;
+        }
         public TableDef Table(string tabName)=> records_[tabName];
         public Dictionary<string, ColumnDef> TableCols(string tabName)=> records_[tabName].columns_;
         public ColumnDef Column(string tabName, string colName)=> TableCols(tabName)[colName];

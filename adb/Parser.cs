@@ -131,13 +131,11 @@ namespace adb
         public override List<Expr> AllColumnsRefs() => colrefs_;
     }
 
-    // FROM <subquery> [alias]
-    public class FromQueryRef : TableRef
+    public abstract class QueryRef : TableRef
     {
         public SelectStmt query_;
 
-        public override string ToString() => $"SELECT ({alias_})";
-        public FromQueryRef(SelectStmt query, [NotNull] string alias)
+        public QueryRef(SelectStmt query, [NotNull] string alias)
         {
             query_ = query;
             alias_ = alias;
@@ -168,6 +166,20 @@ namespace adb
             Debug.Assert(r.Count() == query_.selection_.Count());
             return r;
         }
+    }
+
+    // FROM <subquery> [alias]
+    public class FromQueryRef : QueryRef
+    {
+        public override string ToString() => $"FROM ({alias_})";
+        public FromQueryRef(SelectStmt query, [NotNull] string alias) : base(query, alias) { }
+    }
+
+    // WITH <alias> AS <query>
+    public class CTEQueryRef : QueryRef
+    {
+        public override string ToString() => $"WITH ({alias_})";
+        public CTEQueryRef(SelectStmt query, [NotNull] string alias) : base(query, alias) { }
     }
 
     public class JoinQueryRef : TableRef {

@@ -47,7 +47,7 @@ namespace adb
             Debug.Assert(logicPlan_ == null);
 
             // verify target table is correct
-            if (Catalog.systable_.Table(targetref_.relname_) is null)
+            if (Catalog.systable_.TryTable(targetref_.relname_) is null)
                 throw new Exception($@"base table {targetref_.alias_} not exists");
 
             // use selectstmt's target list is not given

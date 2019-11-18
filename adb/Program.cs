@@ -42,13 +42,13 @@ namespace adb
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             sql = "select a1,a1,a3,a3 from a where a2> (select b1 from (select * from b) d,c where b1=c1 and b1=a1 and b2=3);"; // lost a2>@1
-            tpch.LoadTables("0001");
+            //tpch.LoadTables("0001");
 
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
                 //foreach (var v in files)
-                var v = files[7];
+                var v = files[14];
                 {
                     //if (v.Contains("15"))
                     //    continue;
@@ -65,7 +65,13 @@ namespace adb
             //sql = "select a2 from a where a1 in (1,2,3);";
             //sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and a3>(select b2 from b where b2=a2);";
             //sql = "select a2 from a where a1 in (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1));";
-            sql = "select a2 from a where a1 between 1 and 2;";
+            //sql = @"with cte1 as (select a1,a2,a3 from a) select * from cte1 where a1>1;";
+            // sql = @"with cte1 as (select* from a), cte2 as (select* from b), cte3 as (select* from cte1 join cte2 on a1 = b1) select* from cte3, cte1 where cte1.a1 = (select max(cte3.b1) from cte3 where cte3.b2 = cte1.a2);";
+            // sql = @"with cte1 as (select * from a),cte3 as (select * from cte1) select * from cte3;";
+            //sql = @"with cte1 as (select * from a),	cte2 as (select * from b),	cte3 as (select * from cte1 join cte2 on a1=b1) select * from cte3;";
+            //sql = @"with cte1 as (select* from a),	cte3 as (select* from cte1) select* from cte3, cte1 where cte1.a1 = (select max(cte3.a1) from cte3 where cte3.a2 = cte1.a2);";
+            //sql = @"select * from a, (select max(b2) from b where b1<1)c where a1<2;";
+            //sql = @"with cte1 as (select b3, max(b2) maxb2 from b where b1<1 group by b3)select a1, maxb2 from a, cte1 where a.a3=cte1.b3 and a1<2;";
 
             doit:
             Console.WriteLine(sql);

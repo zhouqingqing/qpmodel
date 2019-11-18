@@ -52,7 +52,7 @@ namespace adb
         // ---------------
 
         // this section can show up in setops
-        internal readonly List<TableRef> from_;
+        internal List<TableRef> from_;
         internal readonly Expr where_;
         internal List<Expr> groupby_;
         internal readonly Expr having_;
@@ -60,6 +60,7 @@ namespace adb
 
         // this section can only show up in top query
         public readonly List<CteExpr> ctes_;
+        public List<CTEQueryRef> ctefrom_;
         public readonly List<SelectStmt> setqs_;
         public List<Expr> orders_;
         public readonly List<bool> descends_;   // order by DESC|ASC
@@ -129,27 +130,51 @@ namespace adb
 
         void bindFrom(BindContext context)
         {
+            // We enumerate all CTEs on top query
+            if (ctes_ != null) {
+                Debug.Assert(TopStmt() == this);
+                ctefrom_ = new List<CTEQueryRef>();
+                ctes_.ForEach(x=> {
+                    var cte = new CTEQueryRef(x.query_ as SelectStmt, x.alias_);
+                    ctefrom_.Add(cte);
+                });
+            }
+
+            // replace any BaseTableRef that can't find in system to CTE
+            for (int i = 0; i < from_.Count; i++)
+            {
+                var x = from_[i];
+                if (x is BaseTableRef bref &&
+                    Catalog.systable_.TryTable(bref.relname_) is null)
+                {
+                    var topctes = TopStmt().ctefrom_;
+                    var cte = topctes.Find(x => x.alias_.Equals(bref.alias_));
+                    if (cte is null)
+                        throw new Exception($@"table {bref.relname_} not exists");
+                    from_[i] = cte;
+                }
+            }
+
             from_.ForEach(x =>
             {
                 switch (x)
                 {
                     case BaseTableRef bref:
-                        if (Catalog.systable_.Table(bref.relname_) != null)
-                            context.AddTable(bref);
-                        else
-                            throw new Exception($@"base table {bref.relname_} not exists");
+                        Debug.Assert(Catalog.systable_.TryTable(bref.relname_) != null);
+                        context.AddTable(bref);
                         break;
                     case ExternalTableRef eref:
-                        if (Catalog.systable_.Table(eref.baseref_.relname_) != null)
+                        if (Catalog.systable_.TryTable(eref.baseref_.relname_) != null)
                             context.AddTable(eref);
                         else
                             throw new Exception($@"base table {eref.baseref_.relname_} not exists");
                         break;
-                    case FromQueryRef sref:
-                        sref.query_.Bind(context);
+                    case QueryRef qref:
+                        if (qref.query_.bindContext_ is null)
+                            qref.query_.Bind(context);
 
                         // the subquery itself in from clause can be seen as a new table, so register it here
-                        context.AddTable(sref);
+                        context.AddTable(qref);
                         break;
                     case JoinQueryRef jref:
                         jref.tables_.ForEach(context.AddTable);
@@ -257,7 +282,7 @@ namespace adb
                 case ExternalTableRef eref:
                     from = new LogicScanFile(eref);
                     break;
-                case FromQueryRef sref:
+                case QueryRef sref:
                     subqueries_.Add(sref.query_);
                     from = new LogicFromQuery(sref,
                                     sref.query_.CreatePlan());
