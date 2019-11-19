@@ -459,9 +459,14 @@ namespace test
             Assert.AreEqual("1", result[0].ToString());
             Assert.AreEqual("2", result[1].ToString());
 
+            // fail due to parameter dependency order: join shall flip the side
+            sql = "select * from a join b on a1=b1 where a1 < (select a2 from a where a2=b2);";
+            sql = "select * from a join c on a1=c1 where a1 < (select b2 from a join b on a1=b1 where a1 < (select a2 from a where a2=b2) and a3 = c3) x";
+
+
             // TODO: add not cases
 
-            // failed due to fixcolumnordinal can't do expression as a whole (instead it can only do colref)
+            // failed due to fixcolumnordinal can't do expression as a whole (instead it can only do colref) or parameter dependency order
             //sql = "select b3+c2 from a, b, c where (select b1+b2 from b where b1=a1)>4 and (select c2+c3 from c where c1=b1)>6 and c1<1";
             //result = ExecuteSQL(sql);
             //Assert.AreEqual(1, result.Count);
