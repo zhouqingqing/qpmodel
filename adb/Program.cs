@@ -42,13 +42,13 @@ namespace adb
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             sql = "select a1,a1,a3,a3 from a where a2> (select b1 from (select * from b) d,c where b1=c1 and b1=a1 and b2=3);"; // lost a2>@1
-            //tpch.LoadTables("0001");
+            tpch.LoadTables("0001");
 
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
                 //foreach (var v in files)
-                var v = files[14];
+                var v = files[16];
                 {
                     //if (v.Contains("15"))
                     //    continue;
@@ -72,7 +72,9 @@ namespace adb
             //sql = @"with cte1 as (select* from a),	cte3 as (select* from cte1) select* from cte3, cte1 where cte1.a1 = (select max(cte3.a1) from cte3 where cte3.a2 = cte1.a2);";
             //sql = @"select * from a, (select max(b2) from b where b1<1)c where a1<2;";
             //sql = @"with cte1 as (select b3, max(b2) maxb2 from b where b1<1 group by b3)select a1, maxb2 from a, cte1 where a.a3=cte1.b3 and a1<2;";
-            sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1 order by 1";
+            //sql = "select b3+c2 from a, b, c where (select b1+b2 from b where b1=a1)>4 and (select c2+c3 from c where c1=b1)>6 and c1<1";
+            sql = "select * from a join b on a1=b1 where a1 < (select a2 from a where a2=b2);";
+            sql = "select * from a join c on a1=c1 where a1 < (select b2 from a join b on a1=b1 where a1 < (select a2 from a where a2=b2) and a3 = c3) x";
 
             doit:
             Console.WriteLine(sql);
