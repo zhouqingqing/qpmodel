@@ -427,7 +427,7 @@ namespace adb
             selection_.ForEach(x=>createSubQueryExprPlan(x));
 
             // resolve the output
-            root.ResolveChildrenColumns(selection_, parent_ != null);
+            root.ResolveColumnMapping(selection_, parent_ != null);
 
             logicPlan_ = root;
             return root;
@@ -497,44 +497,41 @@ namespace adb
             int cntFilter = 0;
             cntFilter = plan.FindNode(out LogicNode filterparent, out LogicFilter filter);
             Debug.Assert(cntFilter <= 1);
-            if (filter?.filter_ is null)
-                goto Convert;
-
-            // filter push down
-            var filterexpr = filter.filter_;
-            List<Expr> andlist = new List<Expr>();
-            if (filterexpr is LogicAndExpr andexpr)
-                andlist = andexpr.BreakToList();
-            else
-                andlist.Add(filterexpr);
-            andlist.RemoveAll(e => pushdownFilter(plan, e));
-            if (andlist.Count == 0)
+            if (filter?.filter_ != null)
             {
-                if (filterparent is null)
-                    // take it out from the tree
-                    plan = plan.children_[0];
+                // filter push down
+                var filterexpr = filter.filter_;
+                List<Expr> andlist = new List<Expr>();
+                if (filterexpr is LogicAndExpr andexpr)
+                    andlist = andexpr.BreakToList();
                 else
-                    filterparent.children_[0] = filter.children_[0];
+                    andlist.Add(filterexpr);
+                andlist.RemoveAll(e => pushdownFilter(plan, e));
+                if (andlist.Count == 0)
+                {
+                    if (filterparent is null)
+                        // take it out from the tree
+                        plan = plan.children_[0];
+                    else
+                        filterparent.children_[0] = filter.children_[0];
+                }
+                else
+                    filter.filter_ = ExprHelper.AndListToExpr(andlist);
             }
-            else
-                filter.filter_ = ExprHelper.AndListToExpr(andlist);
 
-            // we have to redo the column binding as filter removal might change ordinals underneath
-            plan.ClearOutput();
-            plan.ResolveChildrenColumns(selection_, parent_ != null);
-            logicPlan_ = plan;
-
-            Convert:
             // remove LogicFromQuery node
             plan = removeFromQuery(plan);
-            logicPlan_ = plan;
 
             // optimize for subqueries
             subqueries_.ForEach(x => x.Optimize());
 
             // convert to physical plan
+            logicPlan_ = plan;
             physicPlan_ = logicPlan_.DirectToPhysical(profileOpt_);
             selection_.ForEach(ExprHelper.SubqueryDirectToPhysic);
+
+            // finally we can physically resolve the columns ordinals
+            logicPlan_.ResolveColumnMapping(selection_, parent_ != null);
             return plan;
         }
     }
