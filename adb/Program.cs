@@ -72,6 +72,7 @@ namespace adb
             //sql = @"with cte1 as (select* from a),	cte3 as (select* from cte1) select* from cte3, cte1 where cte1.a1 = (select max(cte3.a1) from cte3 where cte3.a2 = cte1.a2);";
             //sql = @"select * from a, (select max(b2) from b where b1<1)c where a1<2;";
             //sql = @"with cte1 as (select b3, max(b2) maxb2 from b where b1<1 group by b3)select a1, maxb2 from a, cte1 where a.a3=cte1.b3 and a1<2;";
+            sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1 order by 1";
 
             doit:
             Console.WriteLine(sql);
