@@ -128,11 +128,24 @@ namespace adb
             }
         }
 
+        CTEQueryRef wayUpToFindCte(BindContext context, string alias)
+        {
+            var parent = context;
+            do
+            {
+                var topctes = (parent.stmt_ as SelectStmt).ctefrom_;
+                CTEQueryRef cte;
+                if (topctes != null &&
+                    null != (cte = topctes.Find(x => x.alias_.Equals(alias))))
+                    return cte;
+            } while ((parent = parent.parent_) != null);
+            return null;
+        }
+
         void bindFrom(BindContext context)
         {
-            // We enumerate all CTEs on top query
+            // We enumerate all CTEs first
             if (ctes_ != null) {
-                Debug.Assert(TopStmt() == this);
                 ctefrom_ = new List<CTEQueryRef>();
                 ctes_.ForEach(x=> {
                     var cte = new CTEQueryRef(x.query_ as SelectStmt, x.alias_);
@@ -147,11 +160,9 @@ namespace adb
                 if (x is BaseTableRef bref &&
                     Catalog.systable_.TryTable(bref.relname_) is null)
                 {
-                    var topctes = TopStmt().ctefrom_;
-                    var cte = topctes.Find(x => x.alias_.Equals(bref.alias_));
-                    if (cte is null)
+                    from_[i] = wayUpToFindCte(context, bref.alias_);
+                    if (from_[i] is null)
                         throw new Exception($@"table {bref.relname_} not exists");
-                    from_[i] = cte;
                 }
             }
 

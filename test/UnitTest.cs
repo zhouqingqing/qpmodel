@@ -295,6 +295,13 @@ namespace test
             result = ExecuteSQL(sql);
             Assert.AreEqual(1, result.Count);
             Assert.AreEqual("0,1", result[0].ToString());
+            sql = @"with cte1 as (select* from a),	cte2 as (select* from b),
+                    	cte3 as (with cte31 as (select* from c)
+                                select* from cte2 , cte31 where b1 = c1)
+                    select max(cte3.b1) from cte3;";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual("2", result[0].ToString());
         }
 
         [TestMethod]
