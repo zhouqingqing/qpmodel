@@ -205,12 +205,7 @@ namespace adb
         // 2. compute children's output by requesting reqOutput from them
         // 3. find mapping from children's output
         //
-        public virtual List<int> ResolveColumnMapping(in List<Expr> reqOutput, bool removeRedundant = true) => null;
-        internal void ClearOutput()
-        {
-            output_ = new List<Expr>();
-            children_.ForEach(x => x.ClearOutput());
-        }
+        public virtual List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true) => null;
 
         internal Expr CloneFixColumnOrdinal(Expr toclone, List<Expr> source)
         {
@@ -316,7 +311,7 @@ namespace adb
             });
             return refs;
         }
-        public override List<int> ResolveColumnMapping(in List<Expr> reqOutput, bool removeRedundant = true)
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             // request from child including reqOutput and filter
             List<int> ordinals = new List<int>();
@@ -355,9 +350,9 @@ namespace adb
             }
 
             // get left and right child to resolve columns
-            children_[0].ResolveColumnMapping(lreq.ToList());
+            children_[0].ResolveColumnOrdinal(lreq.ToList());
             var lout = children_[0].output_;
-            children_[1].ResolveColumnMapping(rreq.ToList());
+            children_[1].ResolveColumnOrdinal(rreq.ToList());
             var rout = children_[1].output_;
             Debug.Assert(lout.Intersect(rout).Count() == 0);
 
@@ -383,14 +378,14 @@ namespace adb
             children_.Add(child); filter_ = filter;
         }
 
-        public override List<int> ResolveColumnMapping(in List<Expr> reqOutput, bool removeRedundant = true)
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             List<int> ordinals = new List<int>();
             // request from child including reqOutput and filter
             List<Expr> reqFromChild = new List<Expr>();
             reqFromChild.AddRange(ExprHelper.CloneList(reqOutput));
             reqFromChild.AddRange(ExprHelper.RetrieveAllColExpr(filter_));
-            children_[0].ResolveColumnMapping(reqFromChild);
+            children_[0].ResolveColumnOrdinal(reqFromChild);
             var childout = children_[0].output_;
 
             filter_ = CloneFixColumnOrdinal(filter_, childout);
@@ -459,7 +454,7 @@ namespace adb
             return reqList;
         }
 
-        public override List<int> ResolveColumnMapping(in List<Expr> reqOutput, bool removeRedundant = true)
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             List<int> ordinals = new List<int>();
 
@@ -467,7 +462,7 @@ namespace adb
             List<Expr> reqFromChild = new List<Expr>();
             reqFromChild.AddRange(removeAggFuncFromOutput(reqOutput));
             if (keys_ != null) reqFromChild.AddRange(ExprHelper.RetrieveAllColExpr(keys_));
-            children_[0].ResolveColumnMapping(reqFromChild);
+            children_[0].ResolveColumnOrdinal(reqFromChild);
             var childout = children_[0].output_;
 
             if (keys_ != null) keys_ = CloneFixColumnOrdinal(keys_, childout);
@@ -540,14 +535,14 @@ namespace adb
             descends_ = descends;
         }
 
-        public override List<int> ResolveColumnMapping(in List<Expr> reqOutput, bool removeRedundant = true)
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             // request from child including reqOutput and filter
             List<int> ordinals = new List<int>();
             List<Expr> reqFromChild = new List<Expr>();
             reqFromChild.AddRange(ExprHelper.CloneList(reqOutput));
             reqFromChild.AddRange(orders_);
-            children_[0].ResolveColumnMapping(reqFromChild);
+            children_[0].ResolveColumnOrdinal(reqFromChild);
             var childout = children_[0].output_;
 
             orders_ = CloneFixColumnOrdinal(orders_, childout);
@@ -573,11 +568,11 @@ namespace adb
             r.AddRange(queryRef_.query_.bindContext_.AllTableRefs());
             return r;
         }
-        public override List<int> ResolveColumnMapping(in List<Expr> reqOutput, bool removeRedundant = true)
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             List<int> ordinals = new List<int>();
             var query = queryRef_.query_;
-            query.logicPlan_.ResolveColumnMapping(query.selection_);
+            query.logicPlan_.ResolveColumnOrdinal(query.selection_);
 
             var childout = queryRef_.AllColumnsRefs();
             output_ = CloneFixColumnOrdinal(reqOutput, childout);
@@ -630,7 +625,7 @@ namespace adb
                 });
             });
         }
-        public override List<int> ResolveColumnMapping(in List<Expr> reqOutput, bool removeRedundant = true)
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             List<int> ordinals = new List<int>();
             List<Expr> columns = tabref_.AllColumnsRefs();
@@ -673,13 +668,13 @@ namespace adb
         public override string ToString() => targetref_.ToString();
         public override string PrintInlineDetails(int depth) => ToString();
 
-        public override List<int> ResolveColumnMapping(in List<Expr> reqOutput, bool removeRedundant = true)
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             Debug.Assert(output_.Count == 0);
 
             // insertion is always the top node 
             Debug.Assert(!removeRedundant);
-            return children_[0].ResolveColumnMapping(reqOutput, removeRedundant);
+            return children_[0].ResolveColumnOrdinal(reqOutput, removeRedundant);
         }
     }
 

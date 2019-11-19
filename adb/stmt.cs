@@ -427,7 +427,7 @@ namespace adb
             selection_.ForEach(x=>createSubQueryExprPlan(x));
 
             // resolve the output
-            root.ResolveColumnMapping(selection_, parent_ != null);
+            root.ResolveColumnOrdinal(selection_, parent_ != null);
 
             logicPlan_ = root;
             return root;
@@ -531,7 +531,7 @@ namespace adb
             selection_.ForEach(ExprHelper.SubqueryDirectToPhysic);
 
             // finally we can physically resolve the columns ordinals
-            logicPlan_.ResolveColumnMapping(selection_, parent_ != null);
+            logicPlan_.ResolveColumnOrdinal(selection_, parent_ != null);
             return plan;
         }
     }
