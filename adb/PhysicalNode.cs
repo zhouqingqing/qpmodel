@@ -1,7 +1,7 @@
 ﻿using System;
-using System.Linq;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using Value = System.Object;
 
 namespace adb
@@ -87,7 +87,7 @@ namespace adb
 
     public class PhysicScanTable : PhysicNode
     {
-        long nrows_ = 3;
+        private long nrows_ = 3;
         public PhysicScanTable(LogicNode logic) : base(logic) { }
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
@@ -95,7 +95,7 @@ namespace adb
             var logic = logic_ as LogicScanTable;
             var filter = logic.filter_;
             var tabname = logic.tabref_.relname_.ToLower();
-            string[] faketable = { "a", "b", "c"}; 
+            string[] faketable = { "a", "b", "c" };
             bool isFaketable = faketable.Contains(tabname);
             var heap = (logic.tabref_).Table().heap_.GetEnumerator();
 
@@ -144,8 +144,10 @@ namespace adb
                 Row r = new Row();
 
                 int i = 0;
-                Array.ForEach(fields, f => {
-                    switch (columns[i].type_) {
+                Array.ForEach(fields, f =>
+                {
+                    switch (columns[i].type_)
+                    {
                         case IntType i:
                             r.values_.Add(int.Parse(f));
                             break;
@@ -228,7 +230,7 @@ namespace adb
 
     public class PhysicHashAgg : PhysicNode
     {
-        class KeyList
+        private class KeyList
         {
             internal List<Value> keys_ = new List<Value>();
 
@@ -257,7 +259,7 @@ namespace adb
         };
         public PhysicHashAgg(LogicAgg logic, PhysicNode l) : base(logic) => children_.Add(l);
 
-        Row AggrCoreToRow(ExecContext context, Row input)
+        private Row AggrCoreToRow(ExecContext context, Row input)
         {
             Row r = new Row();
             (logic_ as LogicAgg).aggrCore_.ForEach(x => r.values_.Add(x.Exec(context, input)));
@@ -313,7 +315,7 @@ namespace adb
         public PhysicOrder(LogicOrder logic, PhysicNode l) : base(logic) => children_.Add(l);
 
         // respect logic.orders_|descends_
-        int compareRow(Row l, Row r)
+        private int compareRow(Row l, Row r)
         {
             var logic = logic_ as LogicOrder;
             var orders = logic.orders_;

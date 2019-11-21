@@ -282,8 +282,12 @@ namespace test
         [TestMethod]
         public void TestCTE()
         {
-            var sql = @"with cte1 as (select* from a) select * from cte1 where a1>1;";
+            var sql = @"with cte1 as (select* from a) select * from a where a1>1;";
             var result = ExecuteSQL(sql);
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual("2,3,4,5", result[0].ToString());
+            sql = @"with cte1 as (select* from a) select * from cte1 where a1>1;";
+            result = ExecuteSQL(sql);
             Assert.AreEqual(1, result.Count);
             Assert.AreEqual("2,3,4,5", result[0].ToString());
             sql = @"with cte1 as (select * from a),cte3 as (select * from cte1) select * from cte3 where a1>1";
