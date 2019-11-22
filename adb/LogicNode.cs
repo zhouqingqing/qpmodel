@@ -8,6 +8,7 @@ namespace adb
     public abstract class PlanNode<T> where T : PlanNode<T>
     {
         public List<T> children_ = new List<T>();
+        public bool IsLeaf() => children_.Count == 0;
 
         // print utilities
         public virtual string PrintOutput(int depth) => null;
@@ -371,6 +372,7 @@ namespace adb
     {
         internal Expr filter_;
 
+        public override string ToString() => $"{children_[0]} filter: {filter_}";
         public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
 
         public LogicFilter(LogicNode child, Expr filter)
