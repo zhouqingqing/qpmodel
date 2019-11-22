@@ -60,6 +60,8 @@ namespace adb
         internal readonly LogicNode logic_;
         internal PhysicProfiling profile_;
 
+        internal double cost_;
+
         protected PhysicNode(LogicNode logic) => logic_ = logic;
 
         public override string PrintOutput(int depth)
@@ -83,6 +85,8 @@ namespace adb
 
             return r;
         }
+
+        public virtual double Cost() { return 1.0; }
     }
 
     public class PhysicScanTable : PhysicNode
@@ -176,6 +180,7 @@ namespace adb
         {
             children_.Add(l); children_.Add(r);
         }
+        public override string ToString() => $"NLJ({children_[0]},{children_[1]})";
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
@@ -205,6 +210,7 @@ namespace adb
         {
             children_.Add(l); children_.Add(r);
         }
+        public override string ToString() => $"HJ({children_[0]},{children_[1]})";
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {

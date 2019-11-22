@@ -42,7 +42,7 @@ namespace adb
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             sql = "select a1,a1,a3,a3 from a where a2> (select b1 from (select * from b) d,c where b1=c1 and b1=a1 and b2=3);"; // lost a2>@1
-            tpch.LoadTables("0001");
+            //tpch.LoadTables("0001");
 
             {
                 var files = Directory.GetFiles(@"../../../tpch");
@@ -76,6 +76,9 @@ namespace adb
             //sql = "select * from a join b on a1=b1 where a1 < (select a2 from a where a2=b2);";
             //sql = "select * from a join c on a1=c1 where a1 < (select b2 from a join b on a1=b1 where a1 < (select a2 from a where a2=b2) and a3 = c3) x";
             sql = "select * from (select * from (select * from a)b)c;";
+            sql = "select b1 from a,b where b.b2 = a.a2";
+            //sql = "select* from a where a1 > (select max(a2) from a);";
+            sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3";
 
             doit:
             Console.WriteLine(sql);
@@ -89,6 +92,11 @@ namespace adb
             a.profileOpt_.enabled_ = true;
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.PrintString(0));
+            Optimizer.EqueuePlan(rawplan);
+            Console.WriteLine(Optimizer.memo_.Print());
+            Optimizer.SearchOptimal(null);
+            Console.WriteLine(Optimizer.memo_.Print());
+            return;
 
             // -- optimize the plan
             Console.WriteLine("-- optimized plan --");
