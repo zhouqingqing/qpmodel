@@ -9,62 +9,119 @@ namespace adb
     public class Rule
     {
         public static Rule[] ruleset_ = {
+            new JoinCommutativeRule(),
+            new JoinAssociativeRule(),
             new JoinToNLJoin(),
-            new JoinToHashJoin()
+            new JoinToHashJoin(),
+            new Scan2Scan(),
         };
 
-        public virtual bool Appliable(CGroupExpr expr) { return false; }
-        public virtual CGroupExpr Apply(CGroupExpr expr) { return expr;}
+        public virtual bool Appliable(CGroupMember expr) { return false; }
+        public virtual CGroupMember Apply(CGroupMember expr) { return expr;}
 
     }
 
-    public class ImplmentationRule : Rule { }
     public class ExplorationRule : Rule { }
 
-    public class JoinToHashJoin : ImplmentationRule 
-    {
-        public override bool Appliable(CGroupExpr expr)
+    public class JoinCommutativeRule : ExplorationRule {
+        public override bool Appliable(CGroupMember expr)
         {
             LogicJoin join = expr.logic_ as LogicJoin;
             return join != null;
         }
 
-        public override CGroupExpr Apply(CGroupExpr expr)
+        public override CGroupMember Apply(CGroupMember expr)
         {
             LogicJoin join = expr.logic_ as LogicJoin;
-            var hashjoin = new PhysicHashJoin(join, null, null);
-            return new CGroupExpr(hashjoin);
+            var newjoin = new LogicJoin(join.children_[1], join.children_[0]);
+            return new CGroupMember(newjoin);
+        }
+    }
+
+    //  A(BC) => (AB)C
+    //
+    // 1. There are other equvalent forms and we only use above form.
+    // Say (AB)C-> (AC)B which is actually can be transformed via this rule:
+    //     (AB)C -> A(BC) -> (BC)A -> (CB)A -> (BC)A -> (B(CA) -> (CA)B -> (AC)B
+    // 2. There are also left or right association but we only use left association 
+    //    since the right one can be transformed via commuative first.
+    //    (AB)C -> A(BC) ; A(BC) -> (AB)C
+    //
+    public class JoinAssociativeRule : ExplorationRule
+    {
+        public override bool Appliable(CGroupMember expr)
+        {
+            LogicJoin join = expr.logic_ as LogicJoin;
+            if (join != null)
+            {
+                var rightchild = join.children_[1];
+                if ((rightchild as LogicMemoNode).node_ is LogicJoin)
+                    return true;
+            }
+            return false;
+        }
+
+        public override CGroupMember Apply(CGroupMember expr)
+        {
+            LogicJoin join = expr.logic_ as LogicJoin;
+            LogicJoin rightjoin = (join.children_[1] as LogicMemoNode).node_ as LogicJoin;
+            var newjoin = new LogicJoin(
+                new LogicJoin(join.children_[0], rightjoin.children_[0]),
+                rightjoin.children_[1]);
+            return new CGroupMember(newjoin);
+        }
+    }
+
+    public class ImplmentationRule : Rule { }
+
+    public class JoinToHashJoin : ImplmentationRule 
+    {
+        public override bool Appliable(CGroupMember expr)
+        {
+            LogicJoin join = expr.logic_ as LogicJoin;
+            return join != null;
+        }
+
+        public override CGroupMember Apply(CGroupMember expr)
+        {
+            LogicJoin join = expr.logic_ as LogicJoin;
+            var l = new PhysicMemoNode(join.children_[0]);
+            var r = new PhysicMemoNode(join.children_[1]);
+            var hashjoin = new PhysicHashJoin(join, l, r);
+            return new CGroupMember(hashjoin);
         }
     }
 
     public class JoinToNLJoin : ImplmentationRule
     {
-        public override bool Appliable(CGroupExpr expr)
+        public override bool Appliable(CGroupMember expr)
         {
             LogicJoin join = expr.logic_ as LogicJoin;
             return join != null;
         }
 
-        public override CGroupExpr Apply(CGroupExpr expr)
+        public override CGroupMember Apply(CGroupMember expr)
         {
             LogicJoin join = expr.logic_ as LogicJoin;
-            var nlj = new PhysicNLJoin(join, null, null);
-            return new CGroupExpr(nlj);
+            var l = new PhysicMemoNode(join.children_[0]);
+            var r = new PhysicMemoNode(join.children_[1]);
+            var nlj = new PhysicNLJoin(join, l, r);
+            return new CGroupMember(nlj);
         }
     }
 
     public class Scan2Scan : ImplmentationRule {
-        public override bool Appliable(CGroupExpr expr)
+        public override bool Appliable(CGroupMember expr)
         {
             LogicScanTable scan = expr.logic_ as LogicScanTable;
             return scan != null;
         }
 
-        public override CGroupExpr Apply(CGroupExpr expr)
+        public override CGroupMember Apply(CGroupMember expr)
         {
             LogicScanTable scan = expr.logic_ as LogicScanTable;
             var phy = new PhysicScanTable(scan);
-            return new CGroupExpr(phy);
+            return new CGroupMember(phy);
         }
     }
 }

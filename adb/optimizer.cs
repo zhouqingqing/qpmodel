@@ -19,20 +19,55 @@ namespace adb
     public class PhysicProperty : Property { }
 
 
-    public class CGroupExpr{
+    public class CGroupMember{
         public LogicNode logic_;
         public PhysicNode physic_;
 
-        public CGroupExpr(LogicNode node) => logic_ = node;
-        public CGroupExpr(PhysicNode node) => physic_ = node;
+        internal LogicNode logic() {
+            LogicNode logic;
+            if (logic_ != null)
+                logic = logic_;
+            else
+                logic = physic_.logic_;
+            return logic;
+        }
+        internal int MemoSignature() => logic().MemoSignature();
+
+        public CGroupMember(LogicNode node) => logic_ = node;
+        public CGroupMember(PhysicNode node) => physic_ = node;
         public override string ToString()
         {
             if (logic_ != null)
+            {
+                Debug.Assert(physic_ is null);
                 return logic_.ToString();
+            }
             if (physic_ != null)
                 return physic_.ToString();
             Debug.Assert(false);
             return null;
+        }
+
+        // Apply rule to current node and generate a set of new members for each
+        // of the new memberes, find/add itself or its children in the group
+        internal List<CGroupMember> OptimizeMember(Memo memo)
+        {
+            var list = new List<CGroupMember>();
+            foreach (var rule in Rule.ruleset_)
+            {
+                if (rule.Appliable(this))
+                {
+                    var newmember = rule.Apply(this);
+                    var newlogic = newmember.logic();
+                    Optimizer.EqueuePlan(newlogic);
+
+                    list.Add(newmember);
+                    // newmember shall have the same signature as old ones
+                    Debug.Assert(newlogic.MemoSignature() == list[0].MemoSignature());
+                }
+            }
+
+            return list;
         }
     }
 
@@ -49,9 +84,9 @@ namespace adb
     // 2. CGroup shall use logical plan with fixed order
     //    INNERJOIN (A, B) => HJ(A,B), HJ(B,A), NLJ(A,B), NLJ(B,A)
     //
-    // These CGroupExpr are in the same group because their logical plan are the same.
+    // These CGroupMember are in the same group because their logical plan are the same.
     //
-    public class CGroup: LogicNode {
+    public class CMemoGroup {
         // insertion order in memo
         public int memoid_;
 
@@ -59,39 +94,37 @@ namespace adb
         // same signature though different cgroup ok to compute the same as well
         //
         public Signature signature_;
-        public List<CGroupExpr> exprList_ = new List<CGroupExpr>();
+        public List<CGroupMember> exprList_ = new List<CGroupMember>();
 
         public bool explored_ = false;
 
-        public CGroup(int groupid, LogicNode subtree) {
+        // debug info
+        internal Memo memo_;
+
+        public CMemoGroup(Memo memo, int groupid, LogicNode subtree) {
+            Debug.Assert(!(subtree is LogicMemoNode));
+            memo_ = memo;
             memoid_ = groupid;
-            signature_ = subtree.GetHashCode();
-            exprList_.Add(new CGroupExpr(subtree));
+            explored_ = false;
+            signature_ = subtree.MemoSignature();
+            exprList_.Add(new CGroupMember(subtree));
         }
 
         public override string ToString() => $"{{{memoid_}}}";
         public string Print() => string.Join(",", exprList_);
-        public void Optimize(Stack<CGroup> stack, PhysicProperty required) {
+
+        // loop through optimize members of the group
+        public void OptimizeGroup(Memo memo, PhysicProperty required) {
             Console.WriteLine($"opt group {memoid_}");
 
-            Debug.Assert(exprList_.Count == 1);
-            CGroupExpr expr = exprList_[0];
-
-            foreach (var rule in Rule.ruleset_)
+            //for (int i = 0; i < exprList_.Count; i++)
             {
-                if (rule.Appliable(expr))
-                {
-                    var newtree = rule.Apply(expr);
-                    exprList_.Add(newtree);
-                }
-            }
+                CGroupMember expr = exprList_[0];
 
-            var subtree = expr.logic_;
-            foreach (var v in subtree.children_)
-            {
-                var subgroup = v as CGroup;
-                if (!subgroup.explored_)
-                    stack.Push(subgroup);
+                // optimize the member and it shall generate a set of member
+                var memberlist = expr.OptimizeMember(memo);
+                exprList_.AddRange(memberlist);
+                exprList_ = exprList_.Distinct().ToList();
             }
 
             // mark the group explored
@@ -100,23 +133,38 @@ namespace adb
     }
 
     public class Memo {
-        internal CGroup root_;
-        internal Dictionary<Signature, CGroup> cgroups_ = new Dictionary<Signature, CGroup>();
+        internal CMemoGroup root_;
+        internal Dictionary<Signature, CMemoGroup> cgroups_ = new Dictionary<Signature, CMemoGroup>();
 
-        public void SetRootGroup(CGroup root) => root_ = root;
-        public CGroup LookupCGroup(LogicNode subtree) {
-            var signature = subtree.GetHashCode();
-            if (cgroups_.TryGetValue(signature, out CGroup group))
+        internal Stack<CMemoGroup> stack_ = new Stack<CMemoGroup>();
+
+        public void SetRootGroup(CMemoGroup root) => root_ = root;
+        public CMemoGroup LookupCGroup(LogicNode subtree) {
+            if (subtree is LogicMemoNode sl)
+                return sl.group_;
+
+            var signature = subtree.MemoSignature();
+            if (cgroups_.TryGetValue(signature, out CMemoGroup group))
                 return group;
             return null;
         }
 
-        public CGroup InsertCGroup(LogicNode subtree)
+        public CMemoGroup TryInsertCGroup(LogicNode subtree)
         {
-            var signature = subtree.GetHashCode();
+            var group = LookupCGroup(subtree);
+            if (group is null)
+                return InsertCGroup(subtree);
+            return group;
+        }
+
+        public CMemoGroup InsertCGroup(LogicNode subtree)
+        {
+            var signature = subtree.MemoSignature();
             Debug.Assert(LookupCGroup(subtree) is null);
-            var group = new CGroup(cgroups_.Count(), subtree);
+            var group = new CMemoGroup(this, cgroups_.Count(), subtree);
             cgroups_.Add(signature, group);
+
+            stack_.Push(group);
             return group;
         }
 
@@ -140,7 +188,7 @@ namespace adb
     {
         public static Memo memo_ = new Memo();
 
-        public static void EqueuePlan(LogicNode plan) {
+        public static CMemoGroup EqueuePlan(LogicNode plan) {
             // equeue children first
             foreach (var v in plan.children_) {
                 if (v.IsLeaf())
@@ -152,30 +200,29 @@ namespace adb
                     EqueuePlan(v);
             }
 
-            // convert the plan with children node replace by memo cgroup
+            // convert the plan with children replaced by memo cgroup
             var children = new List<LogicNode>();
             foreach (var v in plan.children_)
             {
                 var child = memo_.LookupCGroup(v);
                 Debug.Assert(child != null);
-                children.Add(child);
+                children.Add(new LogicMemoNode(child));
             }
             plan.children_ = children;
-            memo_.SetRootGroup(memo_.InsertCGroup(plan));
+            return memo_.TryInsertCGroup(plan);
         }
 
         public static void SearchOptimal(PhysicProperty required)
         {
-            Stack<CGroup> stack = new Stack<CGroup>();
 
             // push the root into stack
-            stack.Push(memo_.root_);
+            memo_.stack_.Push(memo_.root_);
 
             // loop through the stack until is empty
-            while (stack.Count > 0)
+            while (memo_.stack_.Count > 0)
             {
-                var top = stack.Pop();
-                top.Optimize(stack, required);
+                var top = memo_.stack_.Pop();
+                top.OptimizeGroup(memo_, required);
             }
         }
     }

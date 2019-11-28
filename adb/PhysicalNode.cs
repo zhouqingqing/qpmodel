@@ -89,10 +89,29 @@ namespace adb
         public virtual double Cost() { return 1.0; }
     }
 
+    public class PhysicMemoNode : PhysicNode
+    {
+        public PhysicMemoNode(LogicNode logic) : base(logic) {
+            Debug.Assert(logic is LogicMemoNode);
+        }
+        public override string ToString() => logic_.ToString();
+
+        public override void Exec(ExecContext context, Func<Row, string> callback) => throw new InvalidProgramException("shall not be here");
+        public override int GetHashCode() => (logic_ as LogicMemoNode).group_.memoid_;
+        public override bool Equals(object obj)
+        {
+            if (obj is PhysicMemoNode lo)
+                return (lo.logic_ as LogicMemoNode).MemoSignature() == (logic_ as LogicMemoNode).MemoSignature();
+            return false;
+        }
+    }
+
+
     public class PhysicScanTable : PhysicNode
     {
         private long nrows_ = 3;
         public PhysicScanTable(LogicNode logic) : base(logic) { }
+        public override string ToString() => $"PScan({(logic_ as LogicScanTable).tabref_})";
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
@@ -180,7 +199,7 @@ namespace adb
         {
             children_.Add(l); children_.Add(r);
         }
-        public override string ToString() => $"NLJ({children_[0]},{children_[1]})";
+        public override string ToString() => $"PNLJ({children_[0]},{children_[1]})";
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
@@ -210,7 +229,7 @@ namespace adb
         {
             children_.Add(l); children_.Add(r);
         }
-        public override string ToString() => $"HJ({children_[0]},{children_[1]})";
+        public override string ToString() => $"PHJ({children_[0]},{children_[1]})";
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {

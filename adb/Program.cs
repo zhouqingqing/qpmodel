@@ -92,7 +92,8 @@ namespace adb
             a.profileOpt_.enabled_ = true;
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.PrintString(0));
-            Optimizer.EqueuePlan(rawplan);
+            var root = Optimizer.EqueuePlan(rawplan);
+            Optimizer.memo_.SetRootGroup(root);
             Console.WriteLine(Optimizer.memo_.Print());
             Optimizer.SearchOptimal(null);
             Console.WriteLine(Optimizer.memo_.Print());
