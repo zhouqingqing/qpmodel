@@ -14,6 +14,7 @@ namespace adb
             new JoinToNLJoin(),
             new JoinToHashJoin(),
             new Scan2Scan(),
+            new FIlter2Filter(),
         };
 
         public virtual bool Appliable(CGroupMember expr) { return false; }
@@ -34,7 +35,7 @@ namespace adb
         {
             LogicJoin join = expr.logic_ as LogicJoin;
             var newjoin = new LogicJoin(join.children_[1], join.children_[0]);
-            return new CGroupMember(newjoin);
+            return new CGroupMember(newjoin, expr.group_);
         }
     }
 
@@ -68,7 +69,7 @@ namespace adb
             var newjoin = new LogicJoin(
                 new LogicJoin(join.children_[0], rightjoin.children_[0]),
                 rightjoin.children_[1]);
-            return new CGroupMember(newjoin);
+            return new CGroupMember(newjoin, expr.group_);
         }
     }
 
@@ -88,7 +89,7 @@ namespace adb
             var l = new PhysicMemoNode(join.children_[0]);
             var r = new PhysicMemoNode(join.children_[1]);
             var hashjoin = new PhysicHashJoin(join, l, r);
-            return new CGroupMember(hashjoin);
+            return new CGroupMember(hashjoin, expr.group_);
         }
     }
 
@@ -106,7 +107,7 @@ namespace adb
             var l = new PhysicMemoNode(join.children_[0]);
             var r = new PhysicMemoNode(join.children_[1]);
             var nlj = new PhysicNLJoin(join, l, r);
-            return new CGroupMember(nlj);
+            return new CGroupMember(nlj, expr.group_);
         }
     }
 
@@ -121,7 +122,22 @@ namespace adb
         {
             LogicScanTable scan = expr.logic_ as LogicScanTable;
             var phy = new PhysicScanTable(scan);
-            return new CGroupMember(phy);
+            return new CGroupMember(phy, expr.group_);
+        }
+    }
+
+    public class FIlter2Filter : ImplmentationRule {
+        public override bool Appliable(CGroupMember expr)
+        {
+            var filter = expr.logic_ as LogicFilter;
+            return filter != null;
+        }
+
+        public override CGroupMember Apply(CGroupMember expr)
+        {
+            var filter = expr.logic_ as LogicFilter;
+            var phy = new PhysicFilter(filter, new PhysicMemoNode(filter.children_[0]));
+            return new CGroupMember(phy, expr.group_);
         }
     }
 }
