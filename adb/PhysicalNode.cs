@@ -86,7 +86,7 @@ namespace adb
             return r;
         }
 
-        public virtual double Cost() { return 1.0; }
+        public virtual double Cost() { return 10.0; }
     }
 
     public class PhysicMemoNode : PhysicNode
@@ -104,6 +104,8 @@ namespace adb
                 return (lo.logic_ as LogicMemoNode).MemoSignature() == (logic_ as LogicMemoNode).MemoSignature();
             return false;
         }
+
+        internal double MinCost() => (logic_ as LogicMemoNode).group_.MinCost();
     }
 
 
@@ -111,7 +113,7 @@ namespace adb
     {
         private long nrows_ = 3;
         public PhysicScanTable(LogicNode logic) : base(logic) { }
-        public override string ToString() => $"PScan({(logic_ as LogicScanTable).tabref_})";
+        public override string ToString() => $"PScan({(logic_ as LogicScanTable).tabref_}: {Cost()})";
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
@@ -199,7 +201,7 @@ namespace adb
         {
             children_.Add(l); children_.Add(r);
         }
-        public override string ToString() => $"PNLJ({children_[0]},{children_[1]})";
+        public override string ToString() => $"PNLJ({children_[0]},{children_[1]}: {Cost()})";
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
@@ -220,6 +222,11 @@ namespace adb
                 });
                 return null;
             });
+        }
+
+        public override double Cost()
+        {
+            return (children_[0] as PhysicMemoNode).MinCost() * (children_[1] as PhysicMemoNode).MinCost();
         }
     }
 
@@ -229,7 +236,7 @@ namespace adb
         {
             children_.Add(l); children_.Add(r);
         }
-        public override string ToString() => $"PHJ({children_[0]},{children_[1]})";
+        public override string ToString() => $"PHJ({children_[0]},{children_[1]}: {Cost()})";
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
@@ -250,6 +257,10 @@ namespace adb
                 });
                 return null;
             });
+        }
+        public override double Cost()
+        {
+            return (children_[0] as PhysicMemoNode).MinCost() + (children_[1] as PhysicMemoNode).MinCost();
         }
     }
 
@@ -386,6 +397,8 @@ namespace adb
     public class PhysicFilter : PhysicNode
     {
         public PhysicFilter(LogicFilter logic, PhysicNode l) : base(logic) => children_.Add(l);
+
+        public override string ToString() => $"PFILTER({children_[0]}: {Cost()})";
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {

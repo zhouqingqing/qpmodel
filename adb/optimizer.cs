@@ -23,6 +23,8 @@ namespace adb
         public LogicNode logic_;
         public PhysicNode physic_;
 
+        internal CMemoGroup group_;
+
         internal LogicNode logic() {
             LogicNode logic;
             if (logic_ != null)
@@ -33,8 +35,12 @@ namespace adb
         }
         internal int MemoSignature() => logic().MemoSignature();
 
-        public CGroupMember(LogicNode node) => logic_ = node;
-        public CGroupMember(PhysicNode node) => physic_ = node;
+        public CGroupMember(LogicNode node, CMemoGroup group) {
+            logic_ = node; group_ = group;
+        }
+        public CGroupMember(PhysicNode node, CMemoGroup group) {
+            physic_ = node; group_ = group;
+        }
         public override string ToString()
         {
             if (logic_ != null)
@@ -50,7 +56,7 @@ namespace adb
 
         // Apply rule to current node and generate a set of new members for each
         // of the new memberes, find/add itself or its children in the group
-        internal List<CGroupMember> OptimizeMember(Memo memo)
+        internal List<CGroupMember> Optimize(Memo memo)
         {
             var list = new List<CGroupMember>();
             foreach (var rule in Rule.ruleset_)
@@ -61,9 +67,10 @@ namespace adb
                     var newlogic = newmember.logic();
                     Optimizer.EqueuePlan(newlogic);
 
-                    list.Add(newmember);
+                    if (!group_.exprList_.Contains(newmember))
+                        list.Add(newmember);
                     // newmember shall have the same signature as old ones
-                    Debug.Assert(newlogic.MemoSignature() == list[0].MemoSignature());
+                    Debug.Assert(newlogic.MemoSignature() == group_.exprList_[0].MemoSignature());
                 }
             }
 
@@ -107,28 +114,38 @@ namespace adb
             memoid_ = groupid;
             explored_ = false;
             signature_ = subtree.MemoSignature();
-            exprList_.Add(new CGroupMember(subtree));
+            exprList_.Add(new CGroupMember(subtree, this));
         }
 
         public override string ToString() => $"{{{memoid_}}}";
         public string Print() => string.Join(",", exprList_);
 
         // loop through optimize members of the group
-        public void OptimizeGroup(Memo memo, PhysicProperty required) {
+        public void Optimize(Memo memo, PhysicProperty required) {
             Console.WriteLine($"opt group {memoid_}");
 
             //for (int i = 0; i < exprList_.Count; i++)
             {
-                CGroupMember expr = exprList_[0];
+                CGroupMember member = exprList_[0];
 
                 // optimize the member and it shall generate a set of member
-                var memberlist = expr.OptimizeMember(memo);
+                var memberlist = member.Optimize(memo);
                 exprList_.AddRange(memberlist);
-                exprList_ = exprList_.Distinct().ToList();
             }
 
             // mark the group explored
             explored_ = true;
+        }
+
+        public double MinCost() {
+            double mincost = double.MaxValue;
+            foreach (var v in exprList_) {
+                if (v.physic_ != null && v.physic_.Cost() < mincost)
+                    mincost = v.physic_.Cost();
+            }
+
+            Debug.Assert(mincost != double.MaxValue);
+            return mincost;
         }
     }
 
@@ -214,15 +231,11 @@ namespace adb
 
         public static void SearchOptimal(PhysicProperty required)
         {
-
-            // push the root into stack
-            memo_.stack_.Push(memo_.root_);
-
             // loop through the stack until is empty
             while (memo_.stack_.Count > 0)
             {
-                var top = memo_.stack_.Pop();
-                top.OptimizeGroup(memo_, required);
+                var group = memo_.stack_.Pop();
+                group.Optimize(memo_, required);
             }
         }
     }
