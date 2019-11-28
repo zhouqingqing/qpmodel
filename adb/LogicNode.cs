@@ -194,6 +194,8 @@ namespace adb
             return root;
         }
 
+        public virtual int MemoSignature() => GetHashCode();
+
         public virtual List<TableRef> InclusiveTableRefs()
         {
             List<TableRef> refs = new List<TableRef>();
@@ -263,6 +265,29 @@ namespace adb
         }
     }
 
+    public class LogicMemoNode : LogicNode {
+        public CMemoGroup group_;
+        public LogicNode node_;
+
+        public LogicMemoNode(CMemoGroup group)
+        {
+            group_ = group;
+            node_ = group.exprList_[0].logic_;
+
+            Debug.Assert(group.memo_.LookupCGroup(node_) == group);
+        }
+        public override string ToString() => group_.ToString();
+
+        public override int MemoSignature() => node_.MemoSignature();
+        public override int GetHashCode() => MemoSignature();
+        public override bool Equals(object obj) 
+        {
+            if (obj is LogicMemoNode lo)
+                return lo.MemoSignature() == MemoSignature();
+            return false;
+        }
+    }
+
     public class LogicJoin : LogicNode
     {
         internal Expr filter_;
@@ -270,6 +295,9 @@ namespace adb
         public override string ToString() => $"{children_[0]} X {children_[1]}";
         public LogicJoin(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
         public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
+        public override int MemoSignature() {
+            return children_[0].MemoSignature() ^ children_[1].MemoSignature();
+        }
 
         public bool FilterHashable()
         {
