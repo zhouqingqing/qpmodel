@@ -201,8 +201,27 @@ namespace adb
             return group;
         }
 
+        void validateMemo() {
+            // all groups are different
+            Debug.Assert(cgroups_.Distinct().Count() == cgroups_.Count);
+            foreach (var v in cgroups_)
+            {
+                CMemoGroup g = v.Value;
+
+                // no duplicated members in the list
+                Debug.Assert(g.exprList_.Distinct().Count() == g.exprList_.Count);
+
+                for (int i = 0; i < g.exprList_.Count; i++) {
+                    // all members within a group are logically equavalent
+                    Debug.Assert(g.exprList_[0].MemoSignature() == g.exprList_[i].MemoSignature());
+                }
+            }
+        }
+
         public string Print() {
             var str = "Memo:\n";
+
+            validateMemo();
 
             // output by memo insertion order to read easier
             var list = cgroups_.OrderBy(x => x.Value.memoid_).ToList();
