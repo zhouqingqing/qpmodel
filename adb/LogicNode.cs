@@ -116,7 +116,7 @@ namespace adb
         }
         public override bool Equals(object obj)
         {
-            if (obj is LogicNode lo)
+            if (obj is PlanNode<T> lo)
             {
                 if (lo.GetType() != GetType())
                     return false;
