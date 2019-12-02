@@ -846,13 +846,13 @@ namespace adb
             markBounded();
         }
 
-        public override int GetHashCode() => Utils.ListHashCode(inlist_);
+        public override int GetHashCode() => expr_.GetHashCode() ^ Utils.ListHashCode(inlist_);
         public override bool Equals(object obj)
         {
             if (obj is ExprRef or)
                 return Equals(or.expr_);
             else if (obj is InListExpr co)
-                return exprEquals(inlist_, co.inlist_);
+                return expr_.Equals(co.expr_) && exprEquals(inlist_, co.inlist_);
             return false;
         }
 

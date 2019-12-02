@@ -24,7 +24,7 @@ namespace adb
         public static int ListHashCode<T>(List<T> l)
         {
             int hash = 0x72344ABC;
-            l.ForEach(x => hash ^= l.GetHashCode());
+            l.ForEach(x => hash ^= x.GetHashCode());
             return hash;
         }
 
