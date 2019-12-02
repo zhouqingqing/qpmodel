@@ -489,7 +489,7 @@ namespace adb
             return plan;
         }
 
-        public override LogicNode Optimize()
+        LogicNode FilterPushDown()
         {
             LogicNode plan = logicPlan_;
 
@@ -518,6 +518,16 @@ namespace adb
                 else
                     filter.filter_ = ExprHelper.AndListToExpr(andlist);
             }
+
+            return plan;
+        }
+
+        public override LogicNode Optimize()
+        {
+            LogicNode plan = logicPlan_;
+
+            // apply subsitituation rules
+            plan = FilterPushDown();
 
             // remove LogicFromQuery node
             plan = removeFromQuery(plan);
