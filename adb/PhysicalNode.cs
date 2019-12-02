@@ -414,6 +414,20 @@ namespace adb
                 return null;
             });
         }
+        public override int GetHashCode()
+        {
+            Expr filter = (logic_ as LogicFilter).filter_;
+            return base.GetHashCode() ^ (filter?.GetHashCode() ?? 0);
+        }
+        public override bool Equals(object obj)
+        {
+            Expr filter = (logic_ as LogicFilter).filter_;
+            if (obj is PhysicFilter lo)
+            {
+                return base.Equals(lo) && (filter?.Equals((lo.logic_ as LogicFilter)?.filter_) ?? true);
+            }
+            return false;
+        }
     }
 
     public class PhysicInsert : PhysicNode

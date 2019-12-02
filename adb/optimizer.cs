@@ -35,12 +35,8 @@ namespace adb
         }
         internal int MemoSignature() => logic().MemoSignature();
 
-        public CGroupMember(LogicNode node, CMemoGroup group) {
-            logic_ = node; group_ = group;
-        }
-        public CGroupMember(PhysicNode node, CMemoGroup group) {
-            physic_ = node; group_ = group;
-        }
+        public CGroupMember(LogicNode node, CMemoGroup group) {logic_ = node; group_ = group;}
+        public CGroupMember(PhysicNode node, CMemoGroup group) {physic_ = node; group_ = group;}
         public override string ToString()
         {
             if (logic_ != null)
@@ -52,6 +48,26 @@ namespace adb
                 return physic_.ToString();
             Debug.Assert(false);
             return null;
+        }
+
+        public override int GetHashCode() {
+            if (logic_ != null)
+                return logic_.GetHashCode();
+            if (physic_ != null)
+                return physic_.GetHashCode();
+            throw new InvalidProgramException();
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is CGroupMember co) {
+                if (logic_ != null)
+                    return logic_.Equals(co.logic_);
+                if (physic_ != null)
+                    return physic_.Equals(co.physic_);
+                throw new InvalidProgramException();
+            }
+            return false;
         }
 
         // Apply rule to current node and generate a set of new members for each
@@ -124,9 +140,9 @@ namespace adb
         public void Optimize(Memo memo, PhysicProperty required) {
             Console.WriteLine($"opt group {memoid_}");
 
-            //for (int i = 0; i < exprList_.Count; i++)
+            for (int i = 0; i < exprList_.Count; i++)
             {
-                CGroupMember member = exprList_[0];
+                CGroupMember member = exprList_[i];
 
                 // optimize the member and it shall generate a set of member
                 var memberlist = member.Optimize(memo);
@@ -206,23 +222,20 @@ namespace adb
         public static Memo memo_ = new Memo();
 
         public static CMemoGroup EqueuePlan(LogicNode plan) {
-            // equeue children first
+            // bottom up equeue all nodes
             foreach (var v in plan.children_) {
                 if (v.IsLeaf())
-                {
-                    if (memo_.LookupCGroup(v) is null)
-                        memo_.InsertCGroup(v);
-                }
+                    memo_.TryInsertCGroup(v);
                 else
                     EqueuePlan(v);
             }
 
-            // convert the plan with children replaced by memo cgroup
+            // now all children in the memo, convert the plan with children 
+            // replaced by memo cgroup
             var children = new List<LogicNode>();
             foreach (var v in plan.children_)
             {
                 var child = memo_.LookupCGroup(v);
-                Debug.Assert(child != null);
                 children.Add(new LogicMemoNode(child));
             }
             plan.children_ = children;

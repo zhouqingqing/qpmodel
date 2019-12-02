@@ -110,6 +110,25 @@ namespace adb
             parent = p; target = t;
             return cnt;
         }
+        public override int GetHashCode()
+        {
+            return GetType().GetHashCode() ^ Utils.ListHashCode(children_);
+        }
+        public override bool Equals(object obj)
+        {
+            if (obj is LogicNode lo)
+            {
+                if (lo.GetType() != GetType())
+                    return false;
+                for (int i = 0; i < children_.Count; i++)
+                {
+                    if (!lo.children_[i].Equals(children_[i]))
+                        return false;
+                }
+                return true;
+            }
+            return false;
+        }
     }
 
     public class ProfileOption
@@ -263,6 +282,7 @@ namespace adb
             Debug.Assert(clone.Count == toclone.Count);
             return clone;
         }
+
     }
 
     public class LogicMemoNode : LogicNode {
@@ -271,6 +291,7 @@ namespace adb
 
         public LogicMemoNode(CMemoGroup group)
         {
+            Debug.Assert(group != null);
             group_ = group;
             node_ = group.exprList_[0].logic_;
 
@@ -297,6 +318,18 @@ namespace adb
         public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
         public override int MemoSignature() {
             return children_[0].MemoSignature() ^ children_[1].MemoSignature();
+        }
+
+        public override int GetHashCode()
+        {
+            return base.GetHashCode() ^ (filter_?.GetHashCode() ?? 0);
+        }
+        public override bool Equals(object obj)
+        {
+            if (obj is LogicJoin lo) {
+                return base.Equals(lo) && (filter_?.Equals(lo.filter_) ?? true);
+            }
+            return false;
         }
 
         public bool FilterHashable()
@@ -402,6 +435,19 @@ namespace adb
 
         public override string ToString() => $"{children_[0]} filter: {filter_}";
         public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
+
+        public override int GetHashCode()
+        {
+            return base.GetHashCode() ^ filter_.GetHashCode();
+        }
+        public override bool Equals(object obj)
+        {
+            if (obj is LogicFilter lo)
+            {
+                return base.Equals(lo) && filter_.Equals(lo.filter_);
+            }
+            return false;
+        }
 
         public LogicFilter(LogicNode child, Expr filter)
         {
@@ -626,6 +672,19 @@ namespace adb
         public override string ToString() => tabref_.ToString();
         public override string PrintInlineDetails(int depth) => ToString();
         public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
+        public override int GetHashCode()
+        {
+            return base.GetHashCode() ^ (filter_?.GetHashCode()??0) ^ tabref_.GetHashCode();
+        }
+        public override bool Equals(object obj)
+        {
+            if (obj is LogicGet<T> lo)
+            {
+                return base.Equals(lo) && (filter_?.Equals(lo.filter_)??true) && tabref_.Equals(lo.tabref_);
+            }
+            return false;
+        }
+
         public bool AddFilter(Expr filter)
         {
             filter_ = filter_ is null ? filter :
