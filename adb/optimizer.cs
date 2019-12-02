@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
 
-using Signature = System.Int32;
+using LogicSignature = System.Int32;
 
 namespace adb
 {
@@ -33,7 +33,7 @@ namespace adb
                 logic = physic_.logic_;
             return logic;
         }
-        internal int MemoSignature() => logic().MemoSignature();
+        internal int MemoSignature() => logic().MemoLogicSign();
 
         public CGroupMember(LogicNode node, CMemoGroup group) {logic_ = node; group_ = group;}
         public CGroupMember(PhysicNode node, CMemoGroup group) {physic_ = node; group_ = group;}
@@ -86,7 +86,7 @@ namespace adb
                     if (!list.Contains(newmember))
                         list.Add(newmember);
                     // newmember shall have the same signature as old ones
-                    Debug.Assert(newlogic.MemoSignature() == list[0].MemoSignature());
+                    Debug.Assert(newlogic.MemoLogicSign() == list[0].MemoSignature());
                 }
             }
 
@@ -116,7 +116,7 @@ namespace adb
         // signature represents a cgroup, all expression in the cgroup shall compute the
         // same signature though different cgroup ok to compute the same as well
         //
-        public Signature signature_;
+        public LogicSignature logicSign_;
         public List<CGroupMember> exprList_ = new List<CGroupMember>();
 
         public bool explored_ = false;
@@ -129,7 +129,7 @@ namespace adb
             memo_ = memo;
             memoid_ = groupid;
             explored_ = false;
-            signature_ = subtree.MemoSignature();
+            logicSign_ = subtree.MemoLogicSign();
             exprList_.Add(new CGroupMember(subtree, this));
         }
 
@@ -197,7 +197,7 @@ namespace adb
             minmember.physic_.children_ = children;
 
             PhysicNode phy = minmember.physic_;
-            if (Optimizer.profile_.enabled_)
+            if (Optimizer.stmt_.profileOpt_.enabled_)
                 phy = new PhysicProfiling(minmember.physic_);
             return phy;
         }
@@ -205,7 +205,7 @@ namespace adb
 
     public class Memo {
         public CMemoGroup rootgroup_;
-        public Dictionary<Signature, CMemoGroup> cgroups_ = new Dictionary<Signature, CMemoGroup>();
+        public Dictionary<LogicSignature, CMemoGroup> cgroups_ = new Dictionary<LogicSignature, CMemoGroup>();
 
         public Stack<CMemoGroup> stack_ = new Stack<CMemoGroup>();
 
@@ -213,7 +213,7 @@ namespace adb
             if (subtree is LogicMemoNode sl)
                 return sl.group_;
 
-            var signature = subtree.MemoSignature();
+            var signature = subtree.MemoLogicSign();
             if (cgroups_.TryGetValue(signature, out CMemoGroup group))
                 return group;
             return null;
@@ -229,7 +229,7 @@ namespace adb
 
         public CMemoGroup InsertCGroup(LogicNode subtree)
         {
-            var signature = subtree.MemoSignature();
+            var signature = subtree.MemoLogicSign();
             Debug.Assert(LookupCGroup(subtree) is null);
             var group = new CMemoGroup(this, cgroups_.Count(), subtree);
             cgroups_.Add(signature, group);
@@ -297,7 +297,7 @@ namespace adb
     public static class Optimizer
     {
         public static Memo memo_ = new Memo();
-        public static ProfileOption profile_;
+        public static SQLStatement stmt_;
 
         public static CMemoGroup EnquePlan(LogicNode plan) {
             // bottom up equeue all nodes
@@ -320,10 +320,15 @@ namespace adb
             return memo_.TryInsertCGroup(plan);
         }
 
-        public static void EnqueRootPlan(LogicNode rootplan, ProfileOption profile)
+        public static void EnqueRootPlan(SQLStatement stmt)
         {
-            profile_ = profile;
-            memo_.rootgroup_ = EnquePlan(rootplan);
+            // call once
+            Debug.Assert(memo_.rootgroup_ is null);
+            stmt_ = stmt;
+
+            // the statment shall already have plan generated
+            var logicroot = stmt.logicPlan_;
+            memo_.rootgroup_ = EnquePlan(logicroot);
         }
 
         public static void SearchOptimal(PhysicProperty required)

@@ -4,23 +4,32 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+// TODO:
+//  - branch and bound prouning
+//  - enforcer: by test Join2MJ and indexing
+//  - expression: say subquery. sql = "select* from a where a3 > (select max(a2) from a);";
+//  - aggregation/ctes: by generate multiple memo
+//  - derive stats: so far we just blindly assign some values
+//
+// TODO:
+//  - expr base class: otherwise, we have duplicates on Equal()/GetHashCode()/Clone() etc
+//
 namespace adb
 {
     public class Rule
     {
         public static Rule[] ruleset_ = {
-            new JoinCommutativeRule(),
             new JoinAssociativeRule(),
+            new JoinCommutativeRule(),
             new JoinToNLJoin(),
             new JoinToHashJoin(),
             new Scan2Scan(),
-            new FIlter2Filter(),
+            new Filter2Filter(),
             new JoinCommutativeRule(),  // intentionally add a duplicated rule
         };
 
-        public virtual bool Appliable(CGroupMember expr) { return false; }
-        public virtual CGroupMember Apply(CGroupMember expr) { return expr;}
-
+        public virtual bool Appliable(CGroupMember expr) => false;
+        public virtual CGroupMember Apply(CGroupMember expr) =>  null;
     }
 
     public class ExplorationRule : Rule { }
@@ -28,8 +37,7 @@ namespace adb
     public class JoinCommutativeRule : ExplorationRule {
         public override bool Appliable(CGroupMember expr)
         {
-            LogicJoin join = expr.logic_ as LogicJoin;
-            return join != null;
+            return expr.logic_ is LogicJoin;
         }
 
         public override CGroupMember Apply(CGroupMember expr)
@@ -44,7 +52,7 @@ namespace adb
     //
     // 1. There are other equvalent forms and we only use above form.
     // Say (AB)C-> (AC)B which is actually can be transformed via this rule:
-    //     (AB)C -> A(BC) -> (BC)A -> (CB)A -> (BC)A -> (B(CA) -> (CA)B -> (AC)B
+    //     (AB)C -> C(AB) -> (CA)B -> (AC)B
     // 2. There are also left or right association but we only use left association 
     //    since the right one can be transformed via commuative first.
     //    (AB)C -> A(BC) ; A(BC) -> (AB)C
@@ -127,7 +135,7 @@ namespace adb
         }
     }
 
-    public class FIlter2Filter : ImplmentationRule {
+    public class Filter2Filter : ImplmentationRule {
         public override bool Appliable(CGroupMember expr)
         {
             var filter = expr.logic_ as LogicFilter;

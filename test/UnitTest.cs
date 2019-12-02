@@ -156,7 +156,7 @@ namespace test
             var a = RawParser.ParseSqlStatement(sql);
             a.Bind(null);
             var rawplan = a.CreatePlan();
-            Optimizer.EnqueRootPlan(rawplan, new ProfileOption());
+            Optimizer.EnqueRootPlan(a);
             var memo = Optimizer.memo_;
             Console.WriteLine(Optimizer.memo_.Print());
             Optimizer.SearchOptimal(null);
