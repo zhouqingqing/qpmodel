@@ -74,7 +74,7 @@ namespace adb
         // of the new memberes, find/add itself or its children in the group
         internal List<CGroupMember> Optimize(Memo memo)
         {
-            var list = new List<CGroupMember>();
+            var list = group_.exprList_;
             foreach (var rule in Rule.ruleset_)
             {
                 if (rule.Appliable(this))
@@ -83,10 +83,10 @@ namespace adb
                     var newlogic = newmember.logic();
                     Optimizer.EqueuePlan(newlogic);
 
-                    if (!group_.exprList_.Contains(newmember))
+                    if (!list.Contains(newmember))
                         list.Add(newmember);
                     // newmember shall have the same signature as old ones
-                    Debug.Assert(newlogic.MemoSignature() == group_.exprList_[0].MemoSignature());
+                    Debug.Assert(newlogic.MemoSignature() == list[0].MemoSignature());
                 }
             }
 
@@ -133,8 +133,24 @@ namespace adb
             exprList_.Add(new CGroupMember(subtree, this));
         }
 
+        public void CountMembers(out int clogic, out int cphysic) {
+            clogic = 0; cphysic = 0;
+            foreach (var v in exprList_) {
+                if (v.logic_ != null)
+                    clogic++;
+                else
+                    cphysic++;
+            }
+        }
+
         public override string ToString() => $"{{{memoid_}}}";
-        public string Print() => string.Join(",", exprList_);
+        public string Print()
+        {
+            CountMembers(out int clogics, out int cphysics);
+            var str = $"{clogics}, {cphysics}: ";
+            str += string.Join(",", exprList_);
+            return str;
+        }
 
         // loop through optimize members of the group
         public void Optimize(Memo memo, PhysicProperty required) {
@@ -145,8 +161,7 @@ namespace adb
                 CGroupMember member = exprList_[i];
 
                 // optimize the member and it shall generate a set of member
-                var memberlist = member.Optimize(memo);
-                exprList_.AddRange(memberlist);
+                member.Optimize(memo);
             }
 
             // mark the group explored
@@ -220,6 +235,7 @@ namespace adb
 
         public string Print() {
             var str = "Memo:\n";
+            int tlogics = 0, tphysics = 0;
 
             validateMemo();
 
@@ -229,8 +245,13 @@ namespace adb
                 var group = v.Value;
                 if (group == root_)
                     str += "*";
+                group.CountMembers(out int clogics, out int cphysics);
+                tlogics += clogics; tphysics += cphysics;
                 str += $"{group}:\t{group.Print()}\n";
             }
+
+            str += "---------------------------\n";
+            str += $"Summary: {tlogics},{tphysics}";
             return str;
         }
 

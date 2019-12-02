@@ -15,6 +15,7 @@ namespace adb
             new JoinToHashJoin(),
             new Scan2Scan(),
             new FIlter2Filter(),
+            new JoinCommutativeRule(),  // intentionally add a duplicated rule
         };
 
         public virtual bool Appliable(CGroupMember expr) { return false; }
