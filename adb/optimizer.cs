@@ -81,7 +81,7 @@ namespace adb
                 {
                     var newmember = rule.Apply(this);
                     var newlogic = newmember.logic();
-                    Optimizer.EqueuePlan(newlogic);
+                    Optimizer.EnquePlan(newlogic);
 
                     if (!list.Contains(newmember))
                         list.Add(newmember);
@@ -196,17 +196,19 @@ namespace adb
             }
             minmember.physic_.children_ = children;
 
-            return minmember.physic_;
+            PhysicNode phy = minmember.physic_;
+            if (Optimizer.profile_.enabled_)
+                phy = new PhysicProfiling(minmember.physic_);
+            return phy;
         }
     }
 
     public class Memo {
-        internal CMemoGroup root_;
-        internal Dictionary<Signature, CMemoGroup> cgroups_ = new Dictionary<Signature, CMemoGroup>();
+        public CMemoGroup rootgroup_;
+        public Dictionary<Signature, CMemoGroup> cgroups_ = new Dictionary<Signature, CMemoGroup>();
 
-        internal Stack<CMemoGroup> stack_ = new Stack<CMemoGroup>();
+        public Stack<CMemoGroup> stack_ = new Stack<CMemoGroup>();
 
-        public void SetRootGroup(CMemoGroup root) => root_ = root;
         public CMemoGroup LookupCGroup(LogicNode subtree) {
             if (subtree is LogicMemoNode sl)
                 return sl.group_;
@@ -236,6 +238,21 @@ namespace adb
             return group;
         }
 
+        public void CalcStats(out int tlogics, out int tphysics)
+        {
+            tlogics = 0; tphysics = 0;
+
+            validateMemo();
+
+            // output by memo insertion order to read easier
+            foreach (var v in cgroups_)
+            {
+                var group = v.Value;
+                group.CountMembers(out int clogics, out int cphysics);
+                tlogics += clogics; tphysics += cphysics;
+            }
+        }
+
         void validateMemo() {
             // all groups are different
             Debug.Assert(cgroups_.Distinct().Count() == cgroups_.Count);
@@ -263,7 +280,7 @@ namespace adb
             var list = cgroups_.OrderBy(x => x.Value.memoid_).ToList();
             foreach (var v in list) {
                 var group = v.Value;
-                if (group == root_)
+                if (group == rootgroup_)
                     str += "*";
                 group.CountMembers(out int clogics, out int cphysics);
                 tlogics += clogics; tphysics += cphysics;
@@ -280,14 +297,15 @@ namespace adb
     public static class Optimizer
     {
         public static Memo memo_ = new Memo();
+        public static ProfileOption profile_;
 
-        public static CMemoGroup EqueuePlan(LogicNode plan) {
+        public static CMemoGroup EnquePlan(LogicNode plan) {
             // bottom up equeue all nodes
             foreach (var v in plan.children_) {
                 if (v.IsLeaf())
                     memo_.TryInsertCGroup(v);
                 else
-                    EqueuePlan(v);
+                    EnquePlan(v);
             }
 
             // now all children in the memo, convert the plan with children 
@@ -302,6 +320,12 @@ namespace adb
             return memo_.TryInsertCGroup(plan);
         }
 
+        public static void EnqueRootPlan(LogicNode rootplan, ProfileOption profile)
+        {
+            profile_ = profile;
+            memo_.rootgroup_ = EnquePlan(rootplan);
+        }
+
         public static void SearchOptimal(PhysicProperty required)
         {
             // loop through the stack until is empty
@@ -312,12 +336,6 @@ namespace adb
             }
         }
 
-        public static PhysicNode RetrieveOptimalPlan() {
-            // retrieve the root
-            var phyroot = memo_.root_.MinToPhysicPlan();
-            Console.WriteLine(phyroot.PrintString(0));
-
-            return phyroot;
-        }
+        public static PhysicNode RetrieveOptimalPlan() => memo_.rootgroup_.MinToPhysicPlan();
     }
 }

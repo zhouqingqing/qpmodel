@@ -679,9 +679,7 @@ namespace adb
         public override bool Equals(object obj)
         {
             if (obj is LogicGet<T> lo)
-            {
                 return base.Equals(lo) && (filter_?.Equals(lo.filter_)??true) && tabref_.Equals(lo.tabref_);
-            }
             return false;
         }
 
