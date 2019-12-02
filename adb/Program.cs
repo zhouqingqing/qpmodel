@@ -79,6 +79,7 @@ namespace adb
             sql = "select b1 from a,b where b.b2 = a.a2";
             //sql = "select* from a where a1 > (select max(a2) from a);";
             sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3";
+            sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
 
             doit:
             Console.WriteLine(sql);
@@ -97,6 +98,7 @@ namespace adb
             Console.WriteLine(Optimizer.memo_.Print());
             Optimizer.SearchOptimal(null);
             Console.WriteLine(Optimizer.memo_.Print());
+            Optimizer.RetrieveOptimalPlan();
             return;
 
             // -- optimize the plan

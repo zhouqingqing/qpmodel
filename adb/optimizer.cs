@@ -168,15 +168,35 @@ namespace adb
             explored_ = true;
         }
 
-        public double MinCost() {
+        public double MinCost() =>  MinCostMember().physic_.Cost();
+        public CGroupMember MinCostMember() {
+            CGroupMember minmember = null;
             double mincost = double.MaxValue;
-            foreach (var v in exprList_) {
+            foreach (var v in exprList_)
+            {
                 if (v.physic_ != null && v.physic_.Cost() < mincost)
+                {
                     mincost = v.physic_.Cost();
+                    minmember = v;
+                }
             }
 
-            Debug.Assert(mincost != double.MaxValue);
-            return mincost;
+            Debug.Assert(minmember.physic_ != null);
+            return minmember;
+        }
+
+        public PhysicNode MinToPhysicPlan()
+        {
+            CGroupMember minmember = MinCostMember();
+            var children = new List<PhysicNode>();
+            foreach (var v in minmember.physic_.children_)
+            {
+                var g = (v as PhysicMemoNode).Group();
+                children.Add(g.MinToPhysicPlan());
+            }
+            minmember.physic_.children_ = children;
+
+            return minmember.physic_;
         }
     }
 
@@ -290,6 +310,14 @@ namespace adb
                 var group = memo_.stack_.Pop();
                 group.Optimize(memo_, required);
             }
+        }
+
+        public static PhysicNode RetrieveOptimalPlan() {
+            // retrieve the root
+            var phyroot = memo_.root_.MinToPhysicPlan();
+            Console.WriteLine(phyroot.PrintString(0));
+
+            return phyroot;
         }
     }
 }
