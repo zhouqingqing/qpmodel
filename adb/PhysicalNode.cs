@@ -101,7 +101,7 @@ namespace adb
         public override bool Equals(object obj)
         {
             if (obj is PhysicMemoNode lo)
-                return (lo.logic_ as LogicMemoNode).MemoSignature() == (logic_ as LogicMemoNode).MemoSignature();
+                return (lo.logic_ as LogicMemoNode).MemoLogicSign() == (logic_ as LogicMemoNode).MemoLogicSign();
             return false;
         }
 

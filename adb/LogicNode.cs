@@ -213,7 +213,7 @@ namespace adb
             return root;
         }
 
-        public virtual int MemoSignature() => GetHashCode();
+        public virtual int MemoLogicSign() => GetHashCode();
 
         public virtual List<TableRef> InclusiveTableRefs()
         {
@@ -299,12 +299,12 @@ namespace adb
         }
         public override string ToString() => group_.ToString();
 
-        public override int MemoSignature() => node_.MemoSignature();
-        public override int GetHashCode() => MemoSignature();
+        public override int MemoLogicSign() => node_.MemoLogicSign();
+        public override int GetHashCode() => MemoLogicSign();
         public override bool Equals(object obj) 
         {
             if (obj is LogicMemoNode lo)
-                return lo.MemoSignature() == MemoSignature();
+                return lo.MemoLogicSign() == MemoLogicSign();
             return false;
         }
     }
@@ -316,8 +316,8 @@ namespace adb
         public override string ToString() => $"{children_[0]} X {children_[1]}";
         public LogicJoin(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
         public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
-        public override int MemoSignature() {
-            return children_[0].MemoSignature() ^ children_[1].MemoSignature();
+        public override int MemoLogicSign() {
+            return children_[0].MemoLogicSign() ^ children_[1].MemoLogicSign();
         }
 
         public override int GetHashCode()

@@ -73,13 +73,13 @@ namespace adb
             //sql = @"select * from a, (select max(b2) from b where b1<1)c where a1<2;";
             //sql = @"with cte1 as (select b3, max(b2) maxb2 from b where b1<1 group by b3)select a1, maxb2 from a, cte1 where a.a3=cte1.b3 and a1<2;";
             //sql = "select b3+c2 from a, b, c where (select b1+b2 from b where b1=a1)>4 and (select c2+c3 from c where c1=b1)>6 and c1<1";
-            sql = "select * from a join b on a1=b1 where a1 < (select a2 from a where a2=b2);";
+            //sql = "select * from a join b on a1=b1 where a1 < (select a2 from a where a2=b2);";
             //sql = "select * from a join c on a1=c1 where a1 < (select b2 from a join b on a1=b1 where a1 < (select a2 from a where a2=b2) and a3 = c3) x";
             //sql = "select * from (select * from (select * from a)b)c;";
             //sql = "select b1 from a,b where b.b2 = a.a2";
-            //sql = "select* from a where a1 > (select max(a2) from a);";
-            //sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3";
-            sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
+            sql = "select* from a where a3 > (select max(a2) from a);";
+            sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3";
+            //sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
 
             doit:
             Console.WriteLine(sql);
@@ -93,25 +93,31 @@ namespace adb
             a.profileOpt_.enabled_ = true;
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.PrintString(0));
-            Optimizer.EnqueRootPlan(rawplan, a.profileOpt_);
-            Console.WriteLine(Optimizer.memo_.Print());
-            Optimizer.SearchOptimal(null);
-            Console.WriteLine(Optimizer.memo_.Print());
-            var phyplan = Optimizer.RetrieveOptimalPlan();
-            Console.WriteLine(phyplan.PrintString(0));
-            goto exec;
 
-            // -- optimize the plan
-            Console.WriteLine("-- optimized plan --");
-            var optplan = a.Optimize();
-            Console.WriteLine(optplan.PrintString(0));
+            bool useMemo = true;
+            PhysicNode phyplan = null;
+            if (useMemo)
+            {
+                Optimizer.EnqueRootPlan(a);
+                Console.WriteLine(Optimizer.memo_.Print());
+                Optimizer.SearchOptimal(null);
+                Console.WriteLine(Optimizer.memo_.Print());
+                phyplan = Optimizer.RetrieveOptimalPlan();
+                Console.WriteLine(phyplan.PrintString(0));
+            }
+            else
+            {
+                // -- optimize the plan
+                Console.WriteLine("-- optimized plan --");
+                var optplan = a.Optimize();
+                Console.WriteLine(optplan.PrintString(0));
 
-            // -- physical plan
-            Console.WriteLine("-- physical plan --");
-            phyplan = a.physicPlan_;
-            Console.WriteLine(phyplan.PrintString(0));
+                // -- physical plan
+                Console.WriteLine("-- physical plan --");
+                phyplan = a.physicPlan_;
+                Console.WriteLine(phyplan.PrintString(0));
+            }
 
-            exec:
             Console.WriteLine("-- profiling plan --");
             var final = new PhysicCollect(phyplan);
             final.Open();
