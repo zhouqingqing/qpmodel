@@ -106,6 +106,7 @@ namespace adb
         }
 
         internal double MinCost() => (logic_ as LogicMemoNode).group_.MinCost();
+        internal CMemoGroup Group() => (logic_ as LogicMemoNode).group_;
     }
 
 
