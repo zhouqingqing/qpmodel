@@ -81,7 +81,7 @@ namespace adb
                 {
                     var newmember = rule.Apply(this);
                     var newlogic = newmember.logic();
-                    Optimizer.EnquePlan(newlogic);
+                    memo.EnquePlan(newlogic);
 
                     if (!list.Contains(newmember))
                         list.Add(newmember);
@@ -253,6 +253,29 @@ namespace adb
             }
         }
 
+        public CMemoGroup EnquePlan(LogicNode plan)
+        {
+            // bottom up equeue all nodes
+            foreach (var v in plan.children_)
+            {
+                if (v.IsLeaf())
+                    TryInsertCGroup(v);
+                else
+                    EnquePlan(v);
+            }
+
+            // now all children in the memo, convert the plan with children 
+            // replaced by memo cgroup
+            var children = new List<LogicNode>();
+            foreach (var v in plan.children_)
+            {
+                var child = LookupCGroup(v);
+                children.Add(new LogicMemoNode(child));
+            }
+            plan.children_ = children;
+            return TryInsertCGroup(plan);
+        }
+
         void validateMemo() {
             // all groups are different
             Debug.Assert(cgroups_.Distinct().Count() == cgroups_.Count);
@@ -296,51 +319,52 @@ namespace adb
 
     public static class Optimizer
     {
-        public static Memo memo_ = new Memo();
+        public static List<Memo> memoset_ = new List<Memo>();
         public static SQLStatement stmt_;
 
-        public static CMemoGroup EnquePlan(LogicNode plan) {
-            // bottom up equeue all nodes
-            foreach (var v in plan.children_) {
-                if (v.IsLeaf())
-                    memo_.TryInsertCGroup(v);
-                else
-                    EnquePlan(v);
-            }
-
-            // now all children in the memo, convert the plan with children 
-            // replaced by memo cgroup
-            var children = new List<LogicNode>();
-            foreach (var v in plan.children_)
-            {
-                var child = memo_.LookupCGroup(v);
-                children.Add(new LogicMemoNode(child));
-            }
-            plan.children_ = children;
-            return memo_.TryInsertCGroup(plan);
+        public static CMemoGroup EnquePlan(Memo memo, LogicNode plan) {
+            return memo.EnquePlan(plan);
         }
 
         public static void EnqueRootPlan(SQLStatement stmt)
         {
-            // call once
-            Debug.Assert(memo_.rootgroup_ is null);
             stmt_ = stmt;
+
+            // call once
+            Debug.Assert(memoset_.Count == 0);
+            var memo = new Memo();
+            memoset_.Add(memo);
 
             // the statment shall already have plan generated
             var logicroot = stmt.logicPlan_;
-            memo_.rootgroup_ = EnquePlan(logicroot);
+            memo.rootgroup_ = EnquePlan(memo, logicroot);
+
+            // otpimize the subqueries
+            var subqueries = (stmt_ as SelectStmt).subqueries_;
+            foreach (var v in subqueries) {
+                var submemo = new Memo();
+                var subroot = v.logicPlan_;
+                submemo.rootgroup_ = EnquePlan(submemo, subroot);
+            }
         }
 
         public static void SearchOptimal(PhysicProperty required)
         {
             // loop through the stack until is empty
-            while (memo_.stack_.Count > 0)
+            foreach (var memo in memoset_)
             {
-                var group = memo_.stack_.Pop();
-                group.Optimize(memo_, required);
+                while (memo.stack_.Count > 0)
+                {
+                    var group = memo.stack_.Pop();
+                    group.Optimize(memo, required);
+                }
             }
         }
 
-        public static PhysicNode RetrieveOptimalPlan() => memo_.rootgroup_.MinToPhysicPlan();
+        public static PhysicNode RetrieveOptimalPlan()
+        {
+            var rootmemo = memoset_[0];
+            return rootmemo.rootgroup_.MinToPhysicPlan();
+        }
     }
 }

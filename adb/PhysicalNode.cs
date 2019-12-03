@@ -295,6 +295,7 @@ namespace adb
             }
         };
         public PhysicHashAgg(LogicAgg logic, PhysicNode l) : base(logic) => children_.Add(l);
+        public override string ToString() => $"PHAgg({(logic_ as LogicAgg)}: {Cost()})";
 
         private Row AggrCoreToRow(ExecContext context, Row input)
         {

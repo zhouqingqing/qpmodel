@@ -78,7 +78,7 @@ namespace adb
             //sql = "select * from (select * from (select * from a)b)c;";
             //sql = "select b1 from a,b where b.b2 = a.a2";
             sql = "select* from a where a3 > (select max(a2) from a);";
-            sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3";
+            //sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3";
             //sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
 
             doit:
@@ -99,9 +99,10 @@ namespace adb
             if (useMemo)
             {
                 Optimizer.EnqueRootPlan(a);
-                Console.WriteLine(Optimizer.memo_.Print());
+                var memo = Optimizer.memoset_[0];
+                Console.WriteLine(memo.Print());
                 Optimizer.SearchOptimal(null);
-                Console.WriteLine(Optimizer.memo_.Print());
+                Console.WriteLine(memo.Print());
                 phyplan = Optimizer.RetrieveOptimalPlan();
                 Console.WriteLine(phyplan.PrintString(0));
             }

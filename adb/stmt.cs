@@ -71,7 +71,7 @@ namespace adb
         // details of outerrefs are recorded in referenced TableRef
         internal SelectStmt parent_;
         // subqueries at my level (children level excluded)
-        List<SelectStmt> subqueries_ = new List<SelectStmt>();
+        internal List<SelectStmt> subqueries_ = new List<SelectStmt>();
         bool hasAgg_ = false;
 
         internal SelectStmt TopStmt()
