@@ -157,10 +157,10 @@ namespace test
             a.Bind(null);
             var rawplan = a.CreatePlan();
             Optimizer.EnqueRootPlan(a);
-            var memo = Optimizer.memo_;
-            Console.WriteLine(Optimizer.memo_.Print());
+            var memo = Optimizer.memoset_[0];
+            Console.WriteLine(memo.Print());
             Optimizer.SearchOptimal(null);
-            Console.WriteLine(Optimizer.memo_.Print());
+            Console.WriteLine(memo.Print());
             memo.CalcStats(out int tlogics, out int tphysics);
             Assert.AreEqual(16, memo.cgroups_.Count);
             Assert.AreEqual(49, tlogics); Assert.AreEqual(93, tphysics);

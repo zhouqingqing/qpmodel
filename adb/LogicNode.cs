@@ -480,6 +480,7 @@ namespace adb
 
         // runtime info: derived from output request
         internal List<Expr> aggrCore_ = new List<Expr>();
+        public override string ToString() => $"Agg({children_[0]})";
 
         public override string PrintMoreDetails(int depth)
         {
