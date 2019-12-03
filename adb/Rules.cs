@@ -4,16 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-// TODO:
-//  - branch and bound prouning
-//  - enforcer: by test Join2MJ and indexing
-//  - expression: say subquery. sql = "select* from a where a3 > (select max(a2) from a);";
-//  - aggregation/ctes: by generate multiple memo
-//  - derive stats: so far we just blindly assign some values
-//
-// TODO:
-//  - expr base class: otherwise, we have duplicates on Equal()/GetHashCode()/Clone() etc
-//
 namespace adb
 {
     public class Rule
@@ -21,7 +11,7 @@ namespace adb
         public static Rule[] ruleset_ = {
             new JoinAssociativeRule(),
             new JoinCommutativeRule(),
-            new JoinToNLJoin(),
+            new Join2NLJoin(),
             new JoinToHashJoin(),
             new Scan2Scan(),
             new Filter2Filter(),
@@ -103,7 +93,7 @@ namespace adb
         }
     }
 
-    public class JoinToNLJoin : ImplmentationRule
+    public class Join2NLJoin : ImplmentationRule
     {
         public override bool Appliable(CGroupMember expr)
         {
