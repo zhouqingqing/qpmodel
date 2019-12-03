@@ -167,7 +167,7 @@ namespace adb
                             ExprHelper.SubqueryDirectToPhysic(ln.filter_);
                         break;
                     case LogicJoin lc:
-                        if (lc.FilterHashable())
+                        if (ExprHelper.FilterHashable(lc.filter_))
                             phy = new PhysicHashJoin(lc,
                                 lc.children_[0].DirectToPhysical(profiling),
                                 lc.children_[1].DirectToPhysical(profiling));
@@ -330,28 +330,6 @@ namespace adb
                 return base.Equals(lo) && (filter_?.Equals(lo.filter_) ?? true);
             }
             return false;
-        }
-
-        public bool FilterHashable()
-        {
-            bool general = false;
-
-            if (general)
-            {
-                var andlist = new List<Expr>();
-                if (filter_ is LogicAndExpr andexpr)
-                    andlist = andexpr.BreakToList();
-                else
-                    andlist.Add(filter_);
-                foreach (var v in andlist)
-                {
-                    if (!(v is BinExpr bv && bv.op_.Equals("=")))
-                        return false;
-                }
-                return true;
-            }
-            else
-                return filter_ is BinExpr bf && bf.op_.Equals("=");
         }
 
         public bool AddFilter(Expr filter)

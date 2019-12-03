@@ -152,30 +152,51 @@ namespace test
         [TestMethod]
         public void TestMemo()
         {
-            var sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
-            var a = RawParser.ParseSqlStatement(sql);
-            a.Bind(null);
-            var rawplan = a.CreatePlan();
-            Optimizer.EnqueRootPlan(a);
-            var memo = Optimizer.memoset_[0];
-            Console.WriteLine(memo.Print());
-            Optimizer.SearchOptimal(null);
-            Console.WriteLine(memo.Print());
-            memo.CalcStats(out int tlogics, out int tphysics);
-            Assert.AreEqual(16, memo.cgroups_.Count);
-            Assert.AreEqual(49, tlogics); Assert.AreEqual(93, tphysics);
-            var phyplan = Optimizer.RetrieveOptimalPlan();
+            {
+                var sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
+                var a = RawParser.ParseSqlStatement(sql); a.Bind(null);
+                var rawplan = a.CreatePlan();
+                Optimizer.EnqueRootPlan(a);
+                var memo = Optimizer.memoset_[0];
+                Console.WriteLine(memo.Print());
+                Optimizer.SearchOptimal(null);
+                Console.WriteLine(memo.Print());
+                memo.CalcStats(out int tlogics, out int tphysics);
+                Assert.AreEqual(16, memo.cgroups_.Count);
+                Assert.AreEqual(49, tlogics); Assert.AreEqual(93, tphysics);
+                var phyplan = Optimizer.RetrieveOptimalPlan();
 
-            var final = new PhysicCollect(phyplan);
-            final.Open();
-            final.Exec(new ExecContext(), null);
-            final.Close();
-            var result = final.rows_;
-            Console.WriteLine(phyplan.PrintString(0));
-            Assert.AreEqual(3, result.Count);
-            Assert.AreEqual("0", result[0].ToString());
-            Assert.AreEqual("1", result[1].ToString());
-            Assert.AreEqual("2", result[2].ToString());
+                var final = new PhysicCollect(phyplan);
+                final.Open();
+                final.Exec(new ExecContext(), null);
+                final.Close();
+                var result = final.rows_;
+                Console.WriteLine(phyplan.PrintString(0));
+                Assert.AreEqual(3, result.Count);
+                Assert.AreEqual("0", result[0].ToString());
+                Assert.AreEqual("1", result[1].ToString());
+                Assert.AreEqual("2", result[2].ToString());
+            }
+
+            {
+                var sql = "select * from a join b on a1=b1 where a1 < (select a2 from a where a2=b2);";
+                var a = RawParser.ParseSqlStatement(sql); a.Bind(null);
+                var rawplan = a.CreatePlan();
+                Optimizer.EnqueRootPlan(a);
+                var memo = Optimizer.memoset_[0];
+                Console.WriteLine(memo.Print());
+                Optimizer.SearchOptimal(null);
+                Console.WriteLine(memo.Print());
+                var phyplan = Optimizer.RetrieveOptimalPlan();
+
+                var final = new PhysicCollect(phyplan);
+                final.Open();
+                final.Exec(new ExecContext(), null);
+                final.Close();
+                var result = final.rows_;
+                Console.WriteLine(phyplan.PrintString(0));
+                Assert.AreEqual(3, result.Count);
+            }
         }
     }
 

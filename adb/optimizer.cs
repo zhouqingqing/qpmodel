@@ -7,6 +7,16 @@ using System.Diagnostics;
 
 using LogicSignature = System.Int32;
 
+// TODO:
+//  - branch and bound prouning
+//  - enforcer: by test Join2MJ and indexing
+//  - aggregation/ctes: by generate multiple memo
+//  - derive stats: so far we just blindly assign some values
+//
+// TODO:
+//  - expr base class: otherwise, we have duplicates on Equal()/GetHashCode()/Clone() etc
+//
+
 namespace adb
 {
     public class JoinOrderResolver
@@ -331,13 +341,13 @@ namespace adb
             stmt_ = stmt;
 
             // call once
-            Debug.Assert(memoset_.Count == 0);
-            var memo = new Memo();
-            memoset_.Add(memo);
+            memoset_.Clear();
+            var rootmemo = new Memo();
+            memoset_.Add(rootmemo);
 
             // the statment shall already have plan generated
             var logicroot = stmt.logicPlan_;
-            memo.rootgroup_ = EnquePlan(memo, logicroot);
+            rootmemo.rootgroup_ = EnquePlan(rootmemo, logicroot);
 
             // otpimize the subqueries
             var subqueries = (stmt_ as SelectStmt).subqueries_;
@@ -345,6 +355,7 @@ namespace adb
                 var submemo = new Memo();
                 var subroot = v.logicPlan_;
                 submemo.rootgroup_ = EnquePlan(submemo, subroot);
+                memoset_.Add(submemo);
             }
         }
 
@@ -363,8 +374,15 @@ namespace adb
 
         public static PhysicNode RetrieveOptimalPlan()
         {
-            var rootmemo = memoset_[0];
-            return rootmemo.rootgroup_.MinToPhysicPlan();
+            var subqueries = (stmt_ as SelectStmt).subqueries_;
+            for (int i = 1; i < memoset_.Count; i++)
+            {
+                Debug.Assert(subqueries[i - 1].physicPlan_ is null);
+                var subphyplan = memoset_[i].rootgroup_.MinToPhysicPlan();
+                subqueries[i - 1].physicPlan_ = subphyplan;
+            }
+            stmt_.physicPlan_ = memoset_[0].rootgroup_.MinToPhysicPlan();
+            return stmt_.physicPlan_;
         }
     }
 }
