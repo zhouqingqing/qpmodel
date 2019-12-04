@@ -94,7 +94,7 @@ namespace adb
             if (obj is FuncExpr of)
                 return funcName_.Equals(of.funcName_) && args_.SequenceEqual(of.args_);
             else if (obj is ExprRef oe)
-                return Equals(oe.expr_);
+                return Equals(oe.expr_());
             return false;
         }
         public override string ToString() => $"{funcName_}({string.Join(",", args_)})";

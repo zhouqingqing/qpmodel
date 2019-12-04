@@ -123,7 +123,7 @@ namespace adb
             setqs_ = setqs;
             if (orders != null)
             {
-                orders_ = seq2selection((from x in orders select x.expr_).ToList(), selection);
+                orders_ = seq2selection((from x in orders select x.children_[0]).ToList(), selection);
                 descends_ = (from x in orders select x.descend_).ToList();
             }
         }

@@ -80,6 +80,7 @@ namespace adb
             //sql = "select* from a where a3 > (select max(a2) from a);";
             //sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3";
             //sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
+            sql = "select 7, (4-a3)/2*2+1+sum(a1), sum(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";
 
             doit:
             Console.WriteLine(sql);
