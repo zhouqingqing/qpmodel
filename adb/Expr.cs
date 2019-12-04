@@ -99,7 +99,7 @@ namespace adb
             {
                 var andexpr = new LogicAndExpr(andlist[0], andlist[1]);
                 for (int i = 2; i < andlist.Count; i++)
-                    andexpr.l_ = new LogicAndExpr(andexpr.l_, andlist[i]);
+                    andexpr.children_[0] = new LogicAndExpr(andexpr.l_(), andlist[i]);
                 return andexpr;
             }
         }
@@ -241,6 +241,8 @@ namespace adb
         //
         internal string alias_;
 
+        public List<Expr> children_ = new List<Expr>();
+
         // we require some columns for query processing but user may not want 
         // them in the final output, so they are marked as invisible.
         // This includes:
@@ -297,7 +299,7 @@ namespace adb
                     if (v.FieldType == typeof(Expr))
                     {
                         var m = v.GetValue(this) as Expr;
-                        if (m?.VisitEachExprExists(check, excluding)??false)
+                        if (m.VisitEachExprExists(check, excluding))
                             return true;
                     }
                     else if (v.FieldType == typeof(List<Expr>))
@@ -306,7 +308,7 @@ namespace adb
                         if (m is null)
                             continue;
                         foreach (var n in m)
-                            if (n.VisitEachExprExists(check, excluding))
+                            if (n?.VisitEachExprExists(check, excluding)??false)
                                 return true;
                     }
                     // if container<Expr> we shall also handle
@@ -354,6 +356,7 @@ namespace adb
         public virtual Expr Clone()
         {
             var n = (Expr)this.MemberwiseClone();
+            n.children_ = ExprHelper.CloneList(children_);
             n.tableRefs_ = new List<TableRef>();
             tableRefs_.ForEach(n.tableRefs_.Add);
             Debug.Assert(Equals(n));
@@ -409,9 +412,9 @@ namespace adb
 
             Expr le = l, re = r;
             if (l is ExprRef lx)
-                le = lx.expr_;
+                le = lx.expr_();
             if (r is ExprRef rx)
-                re = rx.expr_;
+                re = rx.expr_();
             Debug.Assert(!(le is ExprRef));
             Debug.Assert(!(re is ExprRef));
             return le.Equals(re);
@@ -516,6 +519,7 @@ namespace adb
         public ColExpr(string dbName, string tabName, string colName, ColumnType type)
         {
             dbName_ = dbName; tabName_ = tabName; colName_ = colName; alias_ = colName; type_ = type;
+            Debug.Assert(Clone().Equals(this));
         }
 
         public override void Bind(BindContext context)
@@ -571,7 +575,7 @@ namespace adb
                     return co.tabName_.Equals(tabName_) && co.colName_.Equals(colName_);
             }
             else if (obj is ExprRef oe)
-                return Equals(oe.expr_);
+                return Equals(oe.children_[0]);
             return false;
         }
         public override string ToString()
@@ -599,46 +603,43 @@ namespace adb
     //
     public class BinExpr : Expr
     {
-        public Expr l_;
-        public Expr r_;
         public string op_;
 
-        public override int GetHashCode() => l_.GetHashCode() ^ r_.GetHashCode() ^ op_.GetHashCode();
+        internal Expr l_() => children_[0];
+        internal Expr r_() => children_[1];
+        public override int GetHashCode() => l_().GetHashCode() ^ r_().GetHashCode() ^ op_.GetHashCode();
         public override bool Equals(object obj)
         {
             if (obj is ExprRef oe)
-                return this.Equals(oe.expr_);
+                return this.Equals(oe.children_[0]);
             else if (obj is BinExpr bo)
             {
-                return exprEquals(l_, bo.l_) && exprEquals(r_, bo.r_) && op_.Equals(bo.op_);
+                return exprEquals(l_(), bo.l_()) && exprEquals(r_(), bo.r_()) && op_.Equals(bo.op_);
             }
             return false;
         }
-        public override Expr Clone()
-        {
-            var n = (BinExpr)base.Clone();
-            n.l_ = l_.Clone();
-            n.r_ = r_.Clone();
-            Debug.Assert(Equals(n));
-            return n;
-        }
         public BinExpr(Expr l, Expr r, string op)
         {
-            l_ = l; r_ = r; op_ = op;
+            children_.Add(l);
+            children_.Add(r);
+            op_ = op;
+            Debug.Assert(l_() == l);
+            Debug.Assert(r_() == r);
+            Debug.Assert(Clone().Equals(this));
         }
 
         public override void Bind(BindContext context)
         {
             Debug.Assert(!bounded_);
-            l_.Bind(context);
-            r_.Bind(context);
+            l_().Bind(context);
+            r_().Bind(context);
 
-            Debug.Assert(l_.type_ != null && r_.type_ != null);
+            Debug.Assert(l_().type_ != null && r_().type_ != null);
             switch (op_)
             {
                 case "+": case "-": 
                 case "*": case "/":
-                    type_ = l_.type_;
+                    type_ = l_().type_;
                     break;
                 case ">": case ">=": 
                 case "<": case "<=":
@@ -652,20 +653,20 @@ namespace adb
                     throw new NotImplementedException();
             }
 
-            tableRefs_.AddRange(l_.tableRefs_);
-            tableRefs_.AddRange(r_.tableRefs_);
+            tableRefs_.AddRange(l_().tableRefs_);
+            tableRefs_.AddRange(r_().tableRefs_);
             if (tableRefs_.Count > 1)
                 tableRefs_ = tableRefs_.Distinct().ToList();
             markBounded();
         }
 
-        public override string ToString() => $"{l_}{op_}{r_}";
+        public override string ToString() => $"{l_()}{op_}{r_()}";
 
         public override Value Exec(ExecContext context, Row input)
         {
             Debug.Assert(type_ != null);
-            dynamic lv = l_.Exec(context, input);
-            dynamic rv = r_.Exec(context, input);
+            dynamic lv = l_().Exec(context, input);
+            dynamic rv = r_().Exec(context, input);
 
             switch (op_)
             {
@@ -690,14 +691,16 @@ namespace adb
 
     public class LogicAndExpr : BinExpr
     {
-        public LogicAndExpr(Expr l, Expr r) : base(l, r, " and ") { type_ = new  BoolType(); }
+        public LogicAndExpr(Expr l, Expr r) : base(l, r, " and ") { 
+            type_ = new  BoolType(); Debug.Assert(Clone().Equals(this));
+        }
 
         internal List<Expr> BreakToList()
         {
             var andlist = new List<Expr>();
             for (int i = 0; i < 2; i++)
             {
-                Expr e = i == 0 ? l_ : r_;
+                Expr e = i == 0 ? l_() : r_();
                 if (e is LogicAndExpr ea)
                     andlist.AddRange(ea.BreakToList());
                 else
@@ -812,27 +815,20 @@ namespace adb
 
     public class InSubqueryExpr : SubqueryExpr
     {
-        public Expr expr_;
+        // children_[0] is the expr of in-query
+        internal Expr expr_() => children_[0];
 
-        public override string ToString() => $"{expr_} in @{subqueryid_}";
-        public InSubqueryExpr(Expr expr, SelectStmt query) : base(query, "in") { expr_ = expr; }
+        public override string ToString() => $"{expr_()} in @{subqueryid_}";
+        public InSubqueryExpr(Expr expr, SelectStmt query) : base(query, "in") { children_.Add(expr); }
 
         public override void Bind(BindContext context)
         {
-            expr_.Bind(context);
+            expr_().Bind(context);
             bindQuery(context);
             if (query_.selection_.Count != 1)
                 throw new SemanticAnalyzeException("subquery must return only one column");
             type_ = new BoolType();
             markBounded();
-        }
-
-        public override Expr Clone()
-        {
-            var clone = (InSubqueryExpr)base.Clone();
-            clone.expr_ = expr_.Clone();
-            Debug.Assert(Equals(clone));
-            return clone;
         }
 
         public override Value Exec(ExecContext context, Row input)
@@ -846,7 +842,7 @@ namespace adb
                 return null;
             });
 
-            Value expr = expr_.Exec(context, input);
+            Value expr = expr_().Exec(context, input);
             return set.Contains(expr);
         }
     }
@@ -855,43 +851,47 @@ namespace adb
     //      select* from a where a1 in (1, 2, a2);
     //
     public class InListExpr : Expr {
-        public Expr expr_;
-        public List<Expr> inlist_;
-        public InListExpr(Expr expr, List<Expr> inlist) { expr_ = expr;  inlist_ = inlist;}
+        internal Expr expr_() => children_[0];
+        internal List<Expr> inlist_() => children_.GetRange(1, children_.Count - 1);
+        public InListExpr(Expr expr, List<Expr> inlist) { children_.Add(expr);  children_.AddRange(inlist); Debug.Assert(Clone().Equals(this));
+        }
 
         public override void Bind(BindContext context)
         {
-            expr_.Bind(context);
-            inlist_.ForEach(x => x.Bind(context));
-            inlist_.ForEach(x => Debug.Assert(x.type_.Compatible(inlist_[0].type_)));
+            expr_().Bind(context);
+            inlist_().ForEach(x => x.Bind(context));
+            inlist_().ForEach(x => Debug.Assert(x.type_.Compatible(inlist_()[0].type_)));
             type_ = new BoolType();
 
-            tableRefs_.AddRange(expr_.tableRefs_);
-            inlist_.ForEach(x => tableRefs_.AddRange(x.tableRefs_));
+            tableRefs_.AddRange(expr_().tableRefs_);
+            inlist_().ForEach(x => tableRefs_.AddRange(x.tableRefs_));
             if (tableRefs_.Count > 1)
                 tableRefs_ = tableRefs_.Distinct().ToList();
             markBounded();
         }
 
-        public override int GetHashCode() => expr_.GetHashCode() ^ Utils.ListHashCode(inlist_);
+        public override int GetHashCode()
+        {
+            return expr_().GetHashCode() ^ Utils.ListHashCode(inlist_());
+        }
         public override bool Equals(object obj)
         {
             if (obj is ExprRef or)
-                return Equals(or.expr_);
+                return Equals(or.expr_());
             else if (obj is InListExpr co)
-                return expr_.Equals(co.expr_) && exprEquals(inlist_, co.inlist_);
+                return expr_().Equals(co.expr_()) && exprEquals(inlist_(), co.inlist_());
             return false;
         }
 
         public override Value Exec(ExecContext context, Row input)
         {
-            var v = expr_.Exec(context, input);
+            var v = expr_().Exec(context, input);
             List<Value> inlist = new List<Value>();
-            inlist_.ForEach(x => { inlist.Add(x.Exec(context, input));});
+            inlist_().ForEach(x => { inlist.Add(x.Exec(context, input));});
             return inlist.Exists(v.Equals);
         }
 
-        public override string ToString() => $"{expr_} in ({string.Join(",", inlist_)})";
+        public override string ToString() => $"{expr_()} in ({string.Join(",", inlist_())})";
     }
 
     public class CteExpr : Expr
@@ -909,13 +909,12 @@ namespace adb
 
     public class OrderTerm : Expr
     {
-        public Expr expr_;
         public bool descend_;
 
-        public override string ToString() => $"{expr_} {(descend_ ? "[desc]" : "")}";
+        public override string ToString() => $"{children_[0]} {(descend_ ? "[desc]" : "")}";
         public OrderTerm(Expr expr, bool descend)
         {
-            expr_ = expr; descend_ = descend;
+            children_.Add(expr); descend_ = descend;
         }
     }
 
@@ -925,92 +924,97 @@ namespace adb
     //      else <else>
     //  end;
     public class CaseExpr : Expr {
-        public Expr eval_;
-        public List<Expr> when_;
-        public List<Expr> then_;
-        public Expr else_;
+        public int nEval_ = 0;
+        public int nWhen_;
+        public int nElse_ = 0;
 
-        public override string ToString() => $"case with {when_.Count}";
+        public override string ToString() => $"case with {when_().Count}";
 
+        internal Expr eval_() => nEval_ != 0 ? children_[0]:null;
+        internal List<Expr> when_() => children_.GetRange(nEval_, nWhen_);
+        internal List<Expr> then_() => children_.GetRange(nEval_ + nWhen_, nWhen_);
+        internal Expr else_() => nElse_ != 0?children_[nEval_ + nWhen_+ nWhen_]:null;
         public CaseExpr(Expr eval, List<Expr> when, List<Expr> then, Expr elsee)
         {
-            eval_ = eval;   // can be null
-            when_ = when;
-            then_ = then;
-            else_ = elsee;   // can be null
-            Debug.Assert(when_.Count == then_.Count);
-            Debug.Assert(when_.Count >= 1);
+            if (eval != null)
+            {
+                nEval_  = 1;
+                children_.Add(eval);   // can be null
+            }
+            nWhen_ = when.Count;
+            children_.AddRange(when);
+            children_.AddRange(then);
+
+            if (elsee != null)
+            {
+                nElse_ = 1;
+                children_.Add(elsee);   // can be null
+            }
+            Debug.Assert(when_().Count == then_().Count);
+            Debug.Assert(when_().Count >= 1);
+            Debug.Assert(eval_() == eval);
+            Debug.Assert(else_() == elsee);
+            Debug.Assert(Clone().Equals(this));
         }
 
         public override void Bind(BindContext context)
         {
             Debug.Assert(!bounded_);
-            eval_?.Bind(context);
-            when_.ForEach(x=>x.Bind(context));
-            then_.ForEach(x=>x.Bind(context));
-            else_?.Bind(context);
+            eval_()?.Bind(context);
+            when_().ForEach(x=>x.Bind(context));
+            then_().ForEach(x=>x.Bind(context));
+            else_()?.Bind(context);
 
-            type_ = else_.type_;
-            then_.ForEach(x => Debug.Assert(x.type_.Compatible(type_)));
+            type_ = else_().type_;
+            then_().ForEach(x => Debug.Assert(x.type_.Compatible(type_)));
 
-            if (eval_ != null)
-                tableRefs_.AddRange(eval_.tableRefs_);
-            if (else_ != null)
-                tableRefs_.AddRange(else_.tableRefs_);
-            when_.ForEach(x => tableRefs_.AddRange(x.tableRefs_));
-            then_.ForEach(x => tableRefs_.AddRange(x.tableRefs_));
+            if (eval_() != null)
+                tableRefs_.AddRange(eval_().tableRefs_);
+            if (else_() != null)
+                tableRefs_.AddRange(else_().tableRefs_);
+            when_().ForEach(x => tableRefs_.AddRange(x.tableRefs_));
+            then_().ForEach(x => tableRefs_.AddRange(x.tableRefs_));
             if (tableRefs_.Count > 1)
                 tableRefs_ = tableRefs_.Distinct().ToList();
             markBounded();
         }
 
-        public override Expr Clone()
-        {
-            var n = (CaseExpr)base.Clone();
-            n.eval_ = eval_?.Clone();
-            n.else_ = else_?.Clone();
-            n.when_ = ExprHelper.CloneList(when_);
-            n.then_ = ExprHelper.CloneList(then_);
-            Debug.Assert(Equals(n));
-            return n;
-        }
-
         public override int GetHashCode()
         {
-            return (eval_?.GetHashCode()??0xabc) ^ 
-                    (else_ ?.GetHashCode()??0xbcd) ^ 
-                    Utils.ListHashCode(when_) ^ Utils.ListHashCode(then_);
+            return (eval_()?.GetHashCode()??0xabc) ^ 
+                    (else_() ?.GetHashCode()??0xbcd) ^ 
+                    Utils.ListHashCode(when_()) ^ Utils.ListHashCode(then_());
         }
         public override bool Equals(object obj)
         {
             if (obj is ExprRef or)
-                return Equals(or.expr_);
+                return Equals(or.children_[0]);
             else if (obj is CaseExpr co)
-                return exprEquals(eval_, co.eval_) && exprEquals(else_, co.else_)
-                    && exprEquals(when_, co.when_) && exprEquals(then_, co.then_);
+                return exprEquals(eval_(), co.eval_()) && exprEquals(else_(), co.else_())
+                    && exprEquals(when_(), co.when_()) && exprEquals(then_(), co.then_());
             return false;
         }
 
         public override object Exec(ExecContext context, Row input)
         {
-            if (eval_ != null)
+            if (eval_() != null)
             {
-                var eval = eval_.Exec(context, input);
-                for (int i = 0; i < when_.Count; i++)
+                var eval = eval_().Exec(context, input);
+                for (int i = 0; i < when_().Count; i++)
                 {
-                    if (eval.Equals(when_[i].Exec(context, input)))
-                        return then_[i].Exec(context, input);
+                    if (eval.Equals(when_()[i].Exec(context, input)))
+                        return then_()[i].Exec(context, input);
                 }
             }
             else {
-                for (int i = 0; i < when_.Count; i++)
+                for (int i = 0; i < when_().Count; i++)
                 {
-                    if ((bool)when_[i].Exec(context, input))
-                        return then_[i].Exec(context, input);
+                    if ((bool)when_()[i].Exec(context, input))
+                        return then_()[i].Exec(context, input);
                 }
             }
-            if (else_ != null)
-                return else_.Exec(context, input);
+            if (else_() != null)
+                return else_().Exec(context, input);
             return int.MaxValue;
         }
     }
@@ -1102,37 +1106,30 @@ namespace adb
     //
     public class ExprRef : Expr
     {
-        // expr_ can't be an ExprRef again
-        public Expr expr_;
+        // children_[0] can't be an ExprRef again
+        internal Expr expr_() => children_[0];
         public int ordinal_;
 
-        public override string ToString() => $@"{{{Utils.RemovePositions(expr_.ToString())}}}[{ordinal_}]";
+        public override string ToString() => $@"{{{Utils.RemovePositions(expr_().ToString())}}}[{ordinal_}]";
         public ExprRef(Expr expr, int ordinal)
         {
             if (expr is ExprRef ee)
-                expr = ee.expr_;
+                expr = ee.expr_();
             Debug.Assert(!(expr is ExprRef));
-            expr_ = expr; ordinal_ = ordinal;
+            children_.Add(expr); ordinal_ = ordinal;
             type_ = expr.type_;
         }
 
-        public override int GetHashCode() => expr_.GetHashCode();
+        public override int GetHashCode() => expr_().GetHashCode();
         public override bool Equals(object obj)
         {
-            Debug.Assert(!(expr_ is ExprRef));
+            Debug.Assert(!(expr_() is ExprRef));
             if (obj is ExprRef or)
-                return expr_.Equals(or.expr_);
+                return expr_().Equals(or.expr_());
             else
-                return (obj is Expr oe) ? expr_.Equals(oe) : false;
+                return (obj is Expr oe) ? expr_().Equals(oe) : false;
         }
 
-        public override Expr Clone()
-        {
-            ExprRef clone = (ExprRef)base.Clone();
-            clone.expr_ = expr_.Clone();
-            Debug.Assert(Equals(clone));
-            return clone;
-        }
         public override Value Exec(ExecContext context, Row input)
         {
             Debug.Assert(type_ != null);
