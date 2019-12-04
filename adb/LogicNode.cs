@@ -313,11 +313,13 @@ namespace adb
     {
         internal Expr filter_;
 
-        public override string ToString() => $"{children_[0]} X {children_[1]}";
+        internal LogicNode l_() => children_[0];
+        internal LogicNode r_() => children_[1];
+        public override string ToString() => $"{l_()} X {r_()}";
         public LogicJoin(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
         public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
         public override int MemoLogicSign() {
-            return children_[0].MemoLogicSign() ^ children_[1].MemoLogicSign();
+            return l_().MemoLogicSign() ^ r_().MemoLogicSign();
         }
 
         public override int GetHashCode()
@@ -360,8 +362,8 @@ namespace adb
                 reqFromChild.Add(filter_);
 
             // push to left and right: to which side depends on the TableRef it contains
-            var ltables = children_[0].InclusiveTableRefs();
-            var rtables = children_[1].InclusiveTableRefs();
+            var ltables = l_().InclusiveTableRefs();
+            var rtables = r_().InclusiveTableRefs();
             var lreq = new HashSet<Expr>();
             var rreq = new HashSet<Expr>();
             foreach (var v in reqFromChild)
@@ -390,10 +392,10 @@ namespace adb
             }
 
             // get left and right child to resolve columns
-            children_[0].ResolveColumnOrdinal(lreq.ToList());
-            var lout = children_[0].output_;
-            children_[1].ResolveColumnOrdinal(rreq.ToList());
-            var rout = children_[1].output_;
+            l_().ResolveColumnOrdinal(lreq.ToList());
+            var lout = l_().output_;
+            r_().ResolveColumnOrdinal(rreq.ToList());
+            var rout = r_().output_;
             Debug.Assert(lout.Intersect(rout).Count() == 0);
 
             // assuming left output first followed with right output

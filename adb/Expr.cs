@@ -241,7 +241,8 @@ namespace adb
         //
         internal string alias_;
 
-        public List<Expr> children_ = new List<Expr>();
+        // subclass shall only use children_[] to contain the expressions used
+        internal List<Expr> children_ = new List<Expr>();
 
         // we require some columns for query processing but user may not want 
         // them in the final output, so they are marked as invisible.
@@ -254,7 +255,7 @@ namespace adb
         //      e.g., a.i + b.j > [a.]k => references 2 tables
         // it is a sum of all its children
         //
-        public List<TableRef> tableRefs_ = new List<TableRef>();
+        internal List<TableRef> tableRefs_ = new List<TableRef>();
         internal bool bounded_;
 
         // output type of the expression
@@ -282,9 +283,6 @@ namespace adb
             return true;
         }
 
-        // this one uses c# reflection
-        // It traverse the expression but no deeper than types in exluding list
-        //
         public bool VisitEachExprExists(Func<Expr, bool> check, List<Type> excluding = null)
         {
             if (excluding?.Contains(GetType()) ?? false)
@@ -293,25 +291,10 @@ namespace adb
 
             if (!r)
             {
-                var members = GetType().GetFields();
-                foreach (var v in members)
+                foreach (var v in children_)
                 {
-                    if (v.FieldType == typeof(Expr))
-                    {
-                        var m = v.GetValue(this) as Expr;
-                        if (m.VisitEachExprExists(check, excluding))
-                            return true;
-                    }
-                    else if (v.FieldType == typeof(List<Expr>))
-                    {
-                        var m = v.GetValue(this) as List<Expr>;
-                        if (m is null)
-                            continue;
-                        foreach (var n in m)
-                            if (n?.VisitEachExprExists(check, excluding)??false)
-                                return true;
-                    }
-                    // if container<Expr> we shall also handle
+                    if (v.VisitEachExprExists(check, excluding))
+                        return true;
                 }
                 return false;
             }
@@ -380,29 +363,14 @@ namespace adb
                 clone = to.Clone();
             else
             {
-                var members = clone.GetType().GetFields();
-                foreach (var v in members)
-                {
-                    if (v.FieldType == typeof(Expr))
-                    {
-                        var m = v.GetValue(this) as Expr;
-                        var n = m?.SearchReplace(from, to);
-                        v.SetValue(clone, n);
-                    }
-                    else if (v.FieldType == typeof(List<Expr>))
-                    {
-                        var newl = new List<Expr>();
-                        var m = v.GetValue(this) as List<Expr>;
-                        m.ForEach(x => newl.Add(x.SearchReplace(from, to)));
-                        v.SetValue(clone, newl);
-                    }
-                    // no other containers currently handled
-                }
+                var newl = new List<Expr>();
+                clone.children_.ForEach(x => newl.Add(x.SearchReplace(from, to)));
+                clone.children_ = newl;
             }
 
             return clone;
         }
-        
+
         protected static bool exprEquals(Expr l, Expr r)
         {
             if (l is null && r is null)
@@ -435,8 +403,8 @@ namespace adb
         }
 
         protected void markBounded() {
+            Debug.Assert(!bounded_);
             bounded_ = true;
-            Debug.Assert(type_ != null);
         }
         public override int GetHashCode() => tableRefs_.GetHashCode();
         public override bool Equals(object obj)
@@ -446,7 +414,18 @@ namespace adb
             var n = obj as Expr;
             return tableRefs_.Equals(n.tableRefs_);
         }
-        public virtual void Bind(BindContext context) => markBounded();
+        public virtual void Bind(BindContext context)
+        {
+            children_.ForEach(x=> {
+                x.Bind(context);
+                tableRefs_.AddRange(x.tableRefs_);
+            });
+            if (tableRefs_.Count > 1)
+                tableRefs_ = tableRefs_.Distinct().ToList();
+
+            markBounded();
+        }
+
         public virtual string PrintString(int depth) => ToString();
         public virtual Value Exec(ExecContext context, Row input) => throw new Exception($"{this} subclass shall implment Exec()");
     }
@@ -524,7 +503,7 @@ namespace adb
 
         public override void Bind(BindContext context)
         {
-            Debug.Assert(!bounded_ && tabRef_ is null);
+            Debug.Assert(tabRef_ is null);
 
             // if table name is not given, search through all tablerefs
             isOuterRef_ = false;
@@ -603,7 +582,7 @@ namespace adb
     //
     public class BinExpr : Expr
     {
-        public string op_;
+        internal string op_;
 
         internal Expr l_() => children_[0];
         internal Expr r_() => children_[1];
@@ -630,10 +609,9 @@ namespace adb
 
         public override void Bind(BindContext context)
         {
-            Debug.Assert(!bounded_);
-            l_().Bind(context);
-            r_().Bind(context);
+            base.Bind(context);
 
+            // derive return type
             Debug.Assert(l_().type_ != null && r_().type_ != null);
             switch (op_)
             {
@@ -652,19 +630,12 @@ namespace adb
                 default:
                     throw new NotImplementedException();
             }
-
-            tableRefs_.AddRange(l_().tableRefs_);
-            tableRefs_.AddRange(r_().tableRefs_);
-            if (tableRefs_.Count > 1)
-                tableRefs_ = tableRefs_.Distinct().ToList();
-            markBounded();
         }
 
         public override string ToString() => $"{l_()}{op_}{r_()}";
 
         public override Value Exec(ExecContext context, Row input)
         {
-            Debug.Assert(type_ != null);
             dynamic lv = l_().Exec(context, input);
             dynamic rv = r_().Exec(context, input);
 
@@ -713,10 +684,10 @@ namespace adb
 
     public abstract class SubqueryExpr : Expr
     {
-        public string subtype_;    // in, exists, scalar
+        internal string subtype_;    // in, exists, scalar
 
-        public SelectStmt query_;
-        public int subqueryid_;    // bounded
+        internal SelectStmt query_;
+        internal int subqueryid_;    // bounded
 
         public SubqueryExpr(SelectStmt query, string subtype) {
             query_ = query; subtype_ = subtype;
@@ -726,8 +697,6 @@ namespace adb
 
         protected void bindQuery(BindContext context)
         {
-            Debug.Assert(!bounded_);
-
             // subquery id is global, so accumulating at top
             subqueryid_ = ++BindContext.globalSubqCounter_;
 
@@ -853,21 +822,10 @@ namespace adb
     public class InListExpr : Expr {
         internal Expr expr_() => children_[0];
         internal List<Expr> inlist_() => children_.GetRange(1, children_.Count - 1);
-        public InListExpr(Expr expr, List<Expr> inlist) { children_.Add(expr);  children_.AddRange(inlist); Debug.Assert(Clone().Equals(this));
-        }
-
-        public override void Bind(BindContext context)
-        {
-            expr_().Bind(context);
-            inlist_().ForEach(x => x.Bind(context));
-            inlist_().ForEach(x => Debug.Assert(x.type_.Compatible(inlist_()[0].type_)));
+        public InListExpr(Expr expr, List<Expr> inlist) { 
+            children_.Add(expr);  children_.AddRange(inlist);
             type_ = new BoolType();
-
-            tableRefs_.AddRange(expr_().tableRefs_);
-            inlist_().ForEach(x => tableRefs_.AddRange(x.tableRefs_));
-            if (tableRefs_.Count > 1)
-                tableRefs_ = tableRefs_.Distinct().ToList();
-            markBounded();
+            Debug.Assert(Clone().Equals(this));
         }
 
         public override int GetHashCode()
@@ -896,8 +854,8 @@ namespace adb
 
     public class CteExpr : Expr
     {
-        public SQLStatement query_;
-        public List<string> colNames_;
+        internal SQLStatement query_;
+        internal List<string> colNames_;
 
         public CteExpr(string tabName, List<string> colNames, SQLStatement query)
         {
@@ -909,7 +867,7 @@ namespace adb
 
     public class OrderTerm : Expr
     {
-        public bool descend_;
+        internal bool descend_;
 
         public override string ToString() => $"{children_[0]} {(descend_ ? "[desc]" : "")}";
         public OrderTerm(Expr expr, bool descend)
@@ -924,9 +882,9 @@ namespace adb
     //      else <else>
     //  end;
     public class CaseExpr : Expr {
-        public int nEval_ = 0;
-        public int nWhen_;
-        public int nElse_ = 0;
+        internal int nEval_ = 0;
+        internal int nWhen_;
+        internal int nElse_ = 0;
 
         public override string ToString() => $"case with {when_().Count}";
 
@@ -959,36 +917,19 @@ namespace adb
 
         public override void Bind(BindContext context)
         {
-            Debug.Assert(!bounded_);
-            eval_()?.Bind(context);
-            when_().ForEach(x=>x.Bind(context));
-            then_().ForEach(x=>x.Bind(context));
-            else_()?.Bind(context);
-
-            type_ = else_().type_;
-            then_().ForEach(x => Debug.Assert(x.type_.Compatible(type_)));
-
-            if (eval_() != null)
-                tableRefs_.AddRange(eval_().tableRefs_);
+            base.Bind(context);
+            type_ = then_()[0].type_;
             if (else_() != null)
-                tableRefs_.AddRange(else_().tableRefs_);
-            when_().ForEach(x => tableRefs_.AddRange(x.tableRefs_));
-            then_().ForEach(x => tableRefs_.AddRange(x.tableRefs_));
-            if (tableRefs_.Count > 1)
-                tableRefs_ = tableRefs_.Distinct().ToList();
-            markBounded();
+                Debug.Assert(type_.Compatible(else_().type_));
         }
 
-        public override int GetHashCode()
-        {
-            return (eval_()?.GetHashCode()??0xabc) ^ 
-                    (else_() ?.GetHashCode()??0xbcd) ^ 
-                    Utils.ListHashCode(when_()) ^ Utils.ListHashCode(then_());
-        }
+
+        public override int GetHashCode()=> base.GetHashCode();
+
         public override bool Equals(object obj)
         {
             if (obj is ExprRef or)
-                return Equals(or.children_[0]);
+                return Equals(or.expr_());
             else if (obj is CaseExpr co)
                 return exprEquals(eval_(), co.eval_()) && exprEquals(else_(), co.else_())
                     && exprEquals(when_(), co.when_()) && exprEquals(then_(), co.then_());
@@ -1021,8 +962,8 @@ namespace adb
 
     public class LiteralExpr : Expr
     {
-        public string str_;
-        public Value val_;
+        internal string str_;
+        internal Value val_;
 
         public LiteralExpr(string str)
         {
@@ -1074,6 +1015,7 @@ namespace adb
                     throw new SemanticAnalyzeException("wrong integer format");
             }
 
+            Debug.Assert(type_ != null);
             Debug.Assert(val_ != null);
         }
         public override string ToString()
@@ -1108,7 +1050,7 @@ namespace adb
     {
         // children_[0] can't be an ExprRef again
         internal Expr expr_() => children_[0];
-        public int ordinal_;
+        internal int ordinal_;
 
         public override string ToString() => $@"{{{Utils.RemovePositions(expr_().ToString())}}}[{ordinal_}]";
         public ExprRef(Expr expr, int ordinal)
@@ -1136,5 +1078,4 @@ namespace adb
             return input.values_[ordinal_];
         }
     }
-
 }

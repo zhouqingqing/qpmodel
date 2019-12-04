@@ -8,33 +8,21 @@ namespace adb
 {
     public class FuncExpr : Expr
     {
-        public string funcName_;
-        public List<Expr> args_;
-        public static int argcnt_;
+        internal string funcName_;
+        internal static int argcnt_;
 
+        internal List<Expr> args_() => children_;
         public FuncExpr(string funcName, List<Expr> args)
         {
             funcName_ = funcName;
-            args_ = args;
-        }
-
-        public override void Bind(BindContext context)
-        {
-            args_.ForEach(x =>
-            {
-                x.Bind(context);
-                tableRefs_.AddRange(x.tableRefs_);
-            });
-            tableRefs_ = tableRefs_.Distinct().ToList();
-            bounded_ = true;
-            // type is handled by each function
+            children_.AddRange(args);
         }
 
         // sum(min(x)) => x
         public List<Expr> GetNonFuncExprList()
         {
             List<Expr> r = new List<Expr>();
-            args_.ForEach(x =>
+            args_().ForEach(x =>
             {
                 x.VisitEachExpr(y =>
                 {
@@ -76,28 +64,21 @@ namespace adb
             return r;
         }
 
-        public override Expr Clone()
-        {
-            var n = (FuncExpr)base.Clone();
-            args_ = ExprHelper.CloneList(args_);
-            Debug.Assert(Equals(n));
-            return n;
-        }
         public override int GetHashCode()
         {
             int hashcode = 0;
-            args_.ForEach(x => hashcode ^= x.GetHashCode());
+            args_().ForEach(x => hashcode ^= x.GetHashCode());
             return funcName_.GetHashCode() ^ hashcode;
         }
         public override bool Equals(object obj)
         {
             if (obj is FuncExpr of)
-                return funcName_.Equals(of.funcName_) && args_.SequenceEqual(of.args_);
+                return funcName_.Equals(of.funcName_) && args_().SequenceEqual(of.args_());
             else if (obj is ExprRef oe)
                 return Equals(oe.expr_());
             return false;
         }
-        public override string ToString() => $"{funcName_}({string.Join(",", args_)})";
+        public override string ToString() => $"{funcName_}({string.Join(",", args_())})";
     }
 
     public class SubstringFunc : FuncExpr { 
@@ -108,14 +89,14 @@ namespace adb
         public override void Bind(BindContext context)
         {
             base.Bind(context);
-            type_ = args_[0].type_;
+            type_ = args_()[0].type_;
             Debug.Assert(type_ is CharType || type_ is VarCharType);
         }
         public override Value Exec(ExecContext context, Row input)
         {
-            string str = (string)args_[0].Exec(context, input);
-            int start = (int)args_[1].Exec(context, input) - 1;
-            int end = (int)args_[2].Exec(context, input) - 1;
+            string str = (string)args_()[0].Exec(context, input);
+            int start = (int)args_()[1].Exec(context, input) - 1;
+            int end = (int)args_()[2].Exec(context, input) - 1;
 
             return str.Substring(start, end - start + 1);
         }
@@ -140,7 +121,7 @@ namespace adb
         }
         public override Value Exec(ExecContext context, Row input)
         {
-            var date = DateTime.Parse((string)args_[0].Exec(context, input));
+            var date = DateTime.Parse((string)args_()[0].Exec(context, input));
             return date;
         }
     }
@@ -152,7 +133,7 @@ namespace adb
         public override void Bind(BindContext context)
         {
             base.Bind(context);
-            type_ = args_[0].type_;
+            type_ = args_()[0].type_;
         }
         public virtual void Init(ExecContext context, Row input) { }
         public virtual void Accum(ExecContext context, Value old, Row input) { }
@@ -164,10 +145,10 @@ namespace adb
         internal Value sum_;
         public AggSum(Expr arg) : base("sum", new List<Expr> { arg }) { }
 
-        public override void Init(ExecContext context, Row input) => sum_ = args_[0].Exec(context, input);
+        public override void Init(ExecContext context, Row input) => sum_ = args_()[0].Exec(context, input);
         public override void Accum(ExecContext context, Value old, Row input)
         {
-            var arg = args_[0].Exec(context, input);
+            var arg = args_()[0].Exec(context, input);
             Type ltype, rtype; ltype = typeof(int); rtype = typeof(int);
             dynamic lv = Convert.ChangeType(old, ltype);
             dynamic rv = Convert.ChangeType(arg, rtype);
@@ -202,10 +183,10 @@ namespace adb
         // Exec info
         Value min_;
         public AggMin(Expr arg) : base("min", new List<Expr> { arg }) { }
-        public override void Init(ExecContext context, Row input) => min_ = args_[0].Exec(context, input);
+        public override void Init(ExecContext context, Row input) => min_ = args_()[0].Exec(context, input);
         public override void Accum(ExecContext context, Value old, Row input)
         {
-            var arg = args_[0].Exec(context, input);
+            var arg = args_()[0].Exec(context, input);
 
             Type ltype, rtype; ltype = typeof(int); rtype = typeof(int);
             dynamic lv = Convert.ChangeType(old, ltype);
@@ -220,10 +201,10 @@ namespace adb
         // Exec info
         Value max_;
         public AggMax(Expr arg) : base("max", new List<Expr> { arg }) { }
-        public override void Init(ExecContext context, Row input) => max_ = args_[0].Exec(context, input);
+        public override void Init(ExecContext context, Row input) => max_ = args_()[0].Exec(context, input);
         public override void Accum(ExecContext context, Value old, Row input)
         {
-            var arg = args_[0].Exec(context, input);
+            var arg = args_()[0].Exec(context, input);
             Type ltype, rtype; ltype = typeof(int); rtype = typeof(int);
             dynamic lv = Convert.ChangeType(old, ltype);
             dynamic rv = Convert.ChangeType(arg, rtype);
@@ -235,19 +216,19 @@ namespace adb
     public class AggAvg : AggFunc
     {
         // Exec info
-        internal Value sum_;
-        internal long count_;
+        Value sum_;
+        long count_;
 
         public AggAvg(Expr arg) : base("avg", new List<Expr> { arg }) { }
 
         public override void Init(ExecContext context, Row input)
         {
-            sum_ = args_[0].Exec(context, input);
+            sum_ = args_()[0].Exec(context, input);
             count_ = 1;
         }
         public override void Accum(ExecContext context, Value old, Row input)
         {
-            var arg = args_[0].Exec(context, input);
+            var arg = args_()[0].Exec(context, input);
             Type ltype, rtype; ltype = typeof(int); rtype = typeof(int);
             dynamic lv = Convert.ChangeType(old, ltype);
             dynamic rv = Convert.ChangeType(arg, rtype);

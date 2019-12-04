@@ -81,6 +81,7 @@ namespace adb
             //sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3";
             //sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
             sql = "select 7, (4-a3)/2*2+1+sum(a1), sum(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";
+            sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1 order by 1";
 
             doit:
             Console.WriteLine(sql);
@@ -95,7 +96,7 @@ namespace adb
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.PrintString(0));
 
-            bool useMemo = true;
+            bool useMemo = false;
             PhysicNode phyplan = null;
             if (useMemo)
             {
