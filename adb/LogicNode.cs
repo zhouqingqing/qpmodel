@@ -167,14 +167,24 @@ namespace adb
                             ExprHelper.SubqueryDirectToPhysic(ln.filter_);
                         break;
                     case LogicJoin lc:
-                        if (ExprHelper.FilterHashable(lc.filter_))
-                            phy = new PhysicHashJoin(lc,
-                                lc.children_[0].DirectToPhysical(profiling),
-                                lc.children_[1].DirectToPhysical(profiling));
-                        else
-                            phy = new PhysicNLJoin(lc,
-                                lc.children_[0].DirectToPhysical(profiling),
-                                lc.children_[1].DirectToPhysical(profiling));
+                        switch (lc)
+                        {
+                            case LogicDependentJoin ldj:
+                                phy = new PhysicDependentJoin(ldj,
+                                    ldj.l_().DirectToPhysical(profiling),
+                                    ldj.r_().DirectToPhysical(profiling));
+                                break;
+                            default:
+                                if (ExprHelper.FilterHashable(lc.filter_))
+                                    phy = new PhysicHashJoin(lc,
+                                        lc.l_().DirectToPhysical(profiling),
+                                        lc.r_().DirectToPhysical(profiling));
+                                else
+                                    phy = new PhysicNLJoin(lc,
+                                        lc.l_().DirectToPhysical(profiling),
+                                        lc.r_().DirectToPhysical(profiling));
+                                break;
+                        }
                         break;
                     case LogicResult lr:
                         phy = new PhysicResult(lr);
@@ -262,7 +272,9 @@ namespace adb
                         //
                         Debug.Assert (source.FindAll(nameTest).Count >= 1);
                         if (source.FindAll(nameTest).Count > 1) {
-                            nameTest = z => y.alias_.Equals(z.alias_) && y.tableRefs_[0].Equals(z.tableRefs_[0]);
+                            nameTest = z => z is ColExpr 
+                                    && target.alias_.Equals(z.alias_) 
+                                    && target.tabRef_.Equals((z as ColExpr).tabRef_);
                             target.ordinal_ = source.FindIndex(nameTest);
                             Debug.Assert(source.FindAll(nameTest).Count == 1);
                         }
@@ -407,6 +419,11 @@ namespace adb
                 output_ = output_.Distinct().ToList();
             return ordinals;
         }
+    }
+
+    public class LogicSemiJoin : LogicJoin {
+        public override string ToString() => $"{l_()} _X {r_()}";
+        public LogicSemiJoin(LogicNode l, LogicNode r) : base(l, r) { }
     }
 
     public class LogicFilter : LogicNode

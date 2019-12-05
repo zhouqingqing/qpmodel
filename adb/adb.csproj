@@ -97,6 +97,7 @@
     <Compile Include="Rules.cs" />
     <Compile Include="stmt.cs" />
     <Compile Include="stmtDML.cs" />
+    <Compile Include="subquery.cs" />
     <Compile Include="tpch.cs" />
     <Compile Include="Utils.cs" />
   </ItemGroup>

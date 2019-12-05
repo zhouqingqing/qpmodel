@@ -489,14 +489,13 @@ namespace adb
             return plan;
         }
 
-        LogicNode FilterPushDown()
+        LogicNode FilterPushDown(LogicNode plan)
         {
-            LogicNode plan = logicPlan_;
-
             // locate the only filter
             int cntFilter = 0;
             cntFilter = plan.FindNode(out LogicNode filterparent, out LogicFilter filter);
             Debug.Assert(cntFilter <= 1);
+
             if (filter?.filter_ != null)
             {
                 // filter push down
@@ -522,12 +521,58 @@ namespace adb
             return plan;
         }
 
+        // expands EXISTS filter to dependent-semi-join
+        //
+        //  LogicNode_A
+        //     Filter: @1
+        //     <ExistSubqueryExpr> 1
+        //          -> LogicNode_B
+        //             Filter: b.b1[0]=?a.a1[0]
+        // =>
+        //    DJoin
+        //      Filter:  b.b1[0]=a.a1[0]
+        //      LogicNode_A
+        //      LogicNode_B
+        //
+        // further convert DJoin to semi-join here is by decorrelate process
+        //
+        LogicNode existsToDJoin(LogicScanTable plan, ExistSubqueryExpr exists) {
+            // correlated filter
+            var corfilter = (exists.query_.logicPlan_ as LogicFilter).filter_;
+
+            // remove filter
+            plan.filter_ = null;
+
+            var djoin = new LogicDependentSemiJoin(plan,
+                                exists.query_.logicPlan_.children_[0]);
+            djoin.AddFilter(corfilter);
+            return djoin;
+        }
+
+        LogicNode subqueryToDJoin(LogicNode plan)
+        {
+            if (plan is LogicScanTable sp) {
+                var filter = sp.filter_;
+                if (filter is ExistSubqueryExpr ef) {
+                    subqueries_.Remove(ef.query_);
+                    return existsToDJoin(sp, ef);
+                }
+            }
+            return plan;
+        }
+
         public override LogicNode Optimize()
         {
             LogicNode plan = logicPlan_;
 
             // apply subsitituation rules
-            plan = FilterPushDown();
+            plan = FilterPushDown(plan);
+            Console.WriteLine(plan.PrintString(0));
+
+            // decorrelate subqureis 
+            if (subqueries_.Count > 0)
+                plan = subqueryToDJoin(plan);
+            Console.WriteLine(plan.PrintString(0));
 
             // remove LogicFromQuery node
             plan = removeFromQuery(plan);
