@@ -86,7 +86,8 @@ namespace adb
             //sql = "select a2 from a where a1 in (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1));";
             //sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b1 > ((select c2 from c where c.c2=b2)))";
             sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1);";
-            sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and a1>1;";
+            //sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and a2>1;";
+            //sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and a2>1 and not exists (select * from a b where b.a2+7=a.a1+b.a1);";
 
 
             doit:

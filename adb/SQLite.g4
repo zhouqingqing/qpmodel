@@ -1,4 +1,4 @@
-/*
+ /*
  * The MIT License (MIT)
  *
  * Copyright (c) 2014 by Bart Kiers
@@ -305,7 +305,7 @@ expr
                           )? 
                       ')'
                     | ( database_name '.' )? table_name )	#InSubqueryExpr
- | ( ( K_NOT )? K_EXISTS )? '(' select_stmt ')'				#SubqueryExpr
+ | (K_EXISTS )? '(' select_stmt ')'							#SubqueryExpr
  | expr K_NOT? ( K_LIKE | K_GLOB | K_REGEXP | K_MATCH ) 
 		expr ( K_ESCAPE expr )?								#LikeExpr
  | expr K_AND expr											#LogicAndExpr

@@ -250,6 +250,20 @@ namespace adb
             return new ScalarSubqueryExpr(Visit(context.select_stmt()) as SelectStmt);
         }
 
+        public override object VisitUnaryexpr([NotNull] SQLiteParser.UnaryexprContext context)
+        {
+            bool hasNot = (context.unary_operator().K_NOT() != null);
+            var expr = Visit(context.expr()) as Expr;
+            if (expr is ExistSubqueryExpr ee)
+            {
+                // ExistsSubquery needs to get hasNot together for easier processing
+                ee.hasNot_ = hasNot;
+                return ee;
+            }
+            else
+                return new UnaryExpr(expr, hasNot);
+        }
+
         public override object VisitInSubqueryExpr([NotNull] SQLiteParser.InSubqueryExprContext context)
         {
             Debug.Assert(context.K_IN() != null);

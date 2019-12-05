@@ -524,38 +524,50 @@ namespace adb
         // expands EXISTS filter to dependent-semi-join
         //
         //  LogicNode_A
-        //     Filter: @1
+        //     Filter: @1 ...<others>
         //     <ExistSubqueryExpr> 1
         //          -> LogicNode_B
         //             Filter: b.b1[0]=?a.a1[0]
         // =>
         //    DJoin
-        //      Filter:  b.b1[0]=a.a1[0]
+        //      Filter:  (b.b1[0]=a.a1[0]) as marker ... <others> 
         //      LogicNode_A
         //      LogicNode_B
         //
         // further convert DJoin to semi-join here is by decorrelate process
         //
-        LogicNode existsToDJoin(LogicScanTable plan, ExistSubqueryExpr exists) {
+        LogicNode existsToMarkJoin(LogicScanTable plan, ExistSubqueryExpr exists) {
             // correlated filter
             var corfilter = (exists.query_.logicPlan_ as LogicFilter).filter_;
 
             // remove filter
             plan.filter_ = null;
 
-            var djoin = new LogicDependentSemiJoin(plan,
+            LogicMarkJoin djoin;
+            if (exists.hasNot_)
+                djoin = new LogicMarkAntiSemiJoin(plan,
+                                exists.query_.logicPlan_.children_[0]);
+            else
+                djoin = new LogicMarkSemiJoin(plan,
                                 exists.query_.logicPlan_.children_[0]);
             djoin.AddFilter(corfilter);
             return djoin;
         }
 
-        LogicNode subqueryToDJoin(LogicNode plan)
+        LogicNode subqueryToMarkJoin(LogicNode plan)
         {
             if (plan is LogicScanTable sp) {
                 var filter = sp.filter_;
-                if (filter is ExistSubqueryExpr ef) {
+                var exitslist = ExprHelper.RetrieveAllType<ExistSubqueryExpr>(filter);
+                if (exitslist.Count == 0)
+                    return plan;
+                
+                if (!filter.Equals(exitslist[0]))
+                    return plan;
+
+                foreach (var ef in exitslist) {
                     subqueries_.Remove(ef.query_);
-                    return existsToDJoin(sp, ef);
+                    return existsToMarkJoin(sp, ef);
                 }
             }
             return plan;
@@ -571,7 +583,7 @@ namespace adb
 
             // decorrelate subqureis 
             if (subqueries_.Count > 0)
-                plan = subqueryToDJoin(plan);
+                plan = subqueryToMarkJoin(plan);
             Console.WriteLine(plan.PrintString(0));
 
             // remove LogicFromQuery node

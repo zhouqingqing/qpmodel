@@ -19,8 +19,12 @@ namespace adb
         public Row(List<Value> values) => values_ = values;
         public Row(Row l, Row r)
         {
-            values_.AddRange(l.values_);
-            values_.AddRange(r.values_);
+            // for semi/anti-semi joins, one of them may be null
+            Debug.Assert(l!=null || r!=null);
+            if (l != null)
+                values_.AddRange(l.values_);
+            if (r != null)
+                values_.AddRange(r.values_);
         }
 
         public int ColCount() => values_.Count;
