@@ -174,6 +174,20 @@ namespace adb
             return list.ToList();
         }
 
+        public static List<T> RetrieveAllType<T>(Expr expr)
+        {
+            var list = new List<T>();
+            expr.VisitEachExpr(x =>
+            {
+                if (x is T xc)
+                {
+                    list.Add(xc);
+                }
+            });
+
+            return list;
+        }
+
         public static List<ColExpr> RetrieveAllColExpr(List<Expr> exprs, bool includingParameters = false)
         {
             var list = new List<ColExpr>();
@@ -600,6 +614,17 @@ namespace adb
         {
             children_.Add(expr); descend_ = descend;
         }
+    }
+
+    public class UnaryExpr : Expr {
+        internal bool hasNot_;
+
+        internal Expr expr_() => children_[0];
+        public UnaryExpr(Expr expr, bool hasNot) {
+            hasNot_ = hasNot;
+            children_.Add(expr);
+        }
+        public override string ToString() => $"{(hasNot_?"not ":"")}{expr_()}";
     }
 
     public class LiteralExpr : Expr

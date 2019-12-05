@@ -169,8 +169,8 @@ namespace adb
                     case LogicJoin lc:
                         switch (lc)
                         {
-                            case LogicDependentJoin ldj:
-                                phy = new PhysicDependentJoin(ldj,
+                            case LogicMarkJoin ldj:
+                                phy = new PhysicMarkJoin(ldj,
                                     ldj.l_().DirectToPhysical(profiling),
                                     ldj.r_().DirectToPhysical(profiling));
                                 break;

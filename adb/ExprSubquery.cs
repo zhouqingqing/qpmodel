@@ -55,6 +55,7 @@ namespace adb
 
     public class ExistSubqueryExpr : SubqueryExpr
     {
+        internal bool hasNot_ = false;
         public ExistSubqueryExpr(SelectStmt query) : base(query, "exist") { }
 
         public override void Bind(BindContext context)
