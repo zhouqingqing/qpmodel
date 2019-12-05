@@ -242,4 +242,203 @@ namespace adb
             return lv / count_;
         }
     }
+
+    // case <eval>
+    //      when <when0> then <then0>
+    //      when <when1> then <then1>
+    //      else <else>
+    //  end;
+    public class CaseExpr : Expr
+    {
+        internal int nEval_ = 0;
+        internal int nWhen_;
+        internal int nElse_ = 0;
+
+        public override string ToString() => $"case with {when_().Count}";
+
+        internal Expr eval_() => nEval_ != 0 ? children_[0] : null;
+        internal List<Expr> when_() => children_.GetRange(nEval_, nWhen_);
+        internal List<Expr> then_() => children_.GetRange(nEval_ + nWhen_, nWhen_);
+        internal Expr else_() => nElse_ != 0 ? children_[nEval_ + nWhen_ + nWhen_] : null;
+        public CaseExpr(Expr eval, List<Expr> when, List<Expr> then, Expr elsee)
+        {
+            if (eval != null)
+            {
+                nEval_ = 1;
+                children_.Add(eval);   // can be null
+            }
+            nWhen_ = when.Count;
+            children_.AddRange(when);
+            children_.AddRange(then);
+
+            if (elsee != null)
+            {
+                nElse_ = 1;
+                children_.Add(elsee);   // can be null
+            }
+            Debug.Assert(when_().Count == then_().Count);
+            Debug.Assert(when_().Count >= 1);
+            Debug.Assert(eval_() == eval);
+            Debug.Assert(else_() == elsee);
+            Debug.Assert(Clone().Equals(this));
+        }
+
+        public override void Bind(BindContext context)
+        {
+            base.Bind(context);
+            type_ = then_()[0].type_;
+            if (else_() != null)
+                Debug.Assert(type_.Compatible(else_().type_));
+        }
+
+
+        public override int GetHashCode() => base.GetHashCode();
+
+        public override bool Equals(object obj)
+        {
+            if (obj is ExprRef or)
+                return Equals(or.expr_());
+            else if (obj is CaseExpr co)
+                return exprEquals(eval_(), co.eval_()) && exprEquals(else_(), co.else_())
+                    && exprEquals(when_(), co.when_()) && exprEquals(then_(), co.then_());
+            return false;
+        }
+
+        public override object Exec(ExecContext context, Row input)
+        {
+            if (eval_() != null)
+            {
+                var eval = eval_().Exec(context, input);
+                for (int i = 0; i < when_().Count; i++)
+                {
+                    if (eval.Equals(when_()[i].Exec(context, input)))
+                        return then_()[i].Exec(context, input);
+                }
+            }
+            else
+            {
+                for (int i = 0; i < when_().Count; i++)
+                {
+                    if ((bool)when_()[i].Exec(context, input))
+                        return then_()[i].Exec(context, input);
+                }
+            }
+            if (else_() != null)
+                return else_().Exec(context, input);
+            return int.MaxValue;
+        }
+    }
+
+    // we can actually put all binary ops in BinExpr class but we want to keep 
+    // some special ones (say AND/OR) so we can coding easier
+    //
+    public class BinExpr : Expr
+    {
+        internal string op_;
+
+        internal Expr l_() => children_[0];
+        internal Expr r_() => children_[1];
+        public override int GetHashCode() => l_().GetHashCode() ^ r_().GetHashCode() ^ op_.GetHashCode();
+        public override bool Equals(object obj)
+        {
+            if (obj is ExprRef oe)
+                return this.Equals(oe.children_[0]);
+            else if (obj is BinExpr bo)
+            {
+                return exprEquals(l_(), bo.l_()) && exprEquals(r_(), bo.r_()) && op_.Equals(bo.op_);
+            }
+            return false;
+        }
+        public BinExpr(Expr l, Expr r, string op)
+        {
+            children_.Add(l);
+            children_.Add(r);
+            op_ = op;
+            Debug.Assert(l_() == l);
+            Debug.Assert(r_() == r);
+            Debug.Assert(Clone().Equals(this));
+        }
+
+        public override void Bind(BindContext context)
+        {
+            base.Bind(context);
+
+            // derive return type
+            Debug.Assert(l_().type_ != null && r_().type_ != null);
+            switch (op_)
+            {
+                case "+":
+                case "-":
+                case "*":
+                case "/":
+                    type_ = l_().type_;
+                    break;
+                case ">":
+                case ">=":
+                case "<":
+                case "<=":
+                case "=":
+                case "<>":
+                case " and ":
+                case "like":
+                case "notlike":
+                case "in":
+                    type_ = new BoolType();
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+
+        public override string ToString() => $"{l_()}{op_}{r_()}";
+
+        public override Value Exec(ExecContext context, Row input)
+        {
+            dynamic lv = l_().Exec(context, input);
+            dynamic rv = r_().Exec(context, input);
+
+            switch (op_)
+            {
+                case "+": return lv + rv;
+                case "-": return lv - rv;
+                case "*": return lv * rv;
+                case "/": return lv / rv;
+                case ">": return lv > rv;
+                case ">=": return lv >= rv;
+                case "<": return lv < rv;
+                case "<=": return lv <= rv;
+                case "=": return lv == rv;
+                case "<>": return lv != rv;
+                case "like": return Utils.StringLike(lv, rv);
+                case "notlike": return !Utils.StringLike(lv, rv);
+                case " and ": return lv && rv;
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+    }
+
+    public class LogicAndExpr : BinExpr
+    {
+        public LogicAndExpr(Expr l, Expr r) : base(l, r, " and ")
+        {
+            type_ = new BoolType(); Debug.Assert(Clone().Equals(this));
+        }
+
+        internal List<Expr> BreakToList()
+        {
+            var andlist = new List<Expr>();
+            for (int i = 0; i < 2; i++)
+            {
+                Expr e = i == 0 ? l_() : r_();
+                if (e is LogicAndExpr ea)
+                    andlist.AddRange(ea.BreakToList());
+                else
+                    andlist.Add(e);
+            }
+
+            return andlist;
+        }
+    }
+
 }
