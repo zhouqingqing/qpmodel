@@ -8,7 +8,9 @@ using System.Diagnostics;
 
 namespace adb
 {
-    // mark join is a join form with an extra boolean column ("mark") indicating join predicate results
+    // mark join is a join form with an extra boolean column ("mark") indicating join 
+    // predicate results (true|false|null)
+    //
     public class LogicMarkJoin : LogicJoin {
         public override string ToString() => $"{l_()} dX {r_()}";
         public LogicMarkJoin(LogicNode l, LogicNode r) : base(l, r) { }
@@ -20,7 +22,7 @@ namespace adb
     }
     public class LogicMarkAntiSemiJoin : LogicMarkJoin
     {
-        public override string ToString() => $"{l_()} d_X {r_()}";
+        public override string ToString() => $"{l_()} d^_X {r_()}";
         public LogicMarkAntiSemiJoin(LogicNode l, LogicNode r) : base(l, r) { }
     }
 

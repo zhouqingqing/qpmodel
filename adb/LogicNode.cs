@@ -10,6 +10,11 @@ namespace adb
         public List<T> children_ = new List<T>();
         public bool IsLeaf() => children_.Count == 0;
 
+        // shortcut for conventional names
+        public T child_() { Debug.Assert(children_.Count == 1); return children_[0]; }
+        public T l_() { Debug.Assert(children_.Count == 2); return children_[0]; }
+        public T r_() { Debug.Assert(children_.Count == 2); return children_[1]; }
+
         // print utilities
         public virtual string PrintOutput(int depth) => null;
         public virtual string PrintInlineDetails(int depth) => null;
@@ -171,18 +176,18 @@ namespace adb
                         {
                             case LogicMarkJoin ldj:
                                 phy = new PhysicMarkJoin(ldj,
-                                    ldj.l_().DirectToPhysical(profiling),
-                                    ldj.r_().DirectToPhysical(profiling));
+                                    n.l_().DirectToPhysical(profiling),
+                                    n.r_().DirectToPhysical(profiling));
                                 break;
                             default:
                                 if (ExprHelper.FilterHashable(lc.filter_))
                                     phy = new PhysicHashJoin(lc,
-                                        lc.l_().DirectToPhysical(profiling),
-                                        lc.r_().DirectToPhysical(profiling));
+                                        n.l_().DirectToPhysical(profiling),
+                                        n.r_().DirectToPhysical(profiling));
                                 else
                                     phy = new PhysicNLJoin(lc,
-                                        lc.l_().DirectToPhysical(profiling),
-                                        lc.r_().DirectToPhysical(profiling));
+                                        n.l_().DirectToPhysical(profiling),
+                                        n.r_().DirectToPhysical(profiling));
                                 break;
                         }
                         break;
@@ -190,24 +195,24 @@ namespace adb
                         phy = new PhysicResult(lr);
                         break;
                     case LogicFromQuery ls:
-                        phy = new PhysicFromQuery(ls, ls.children_[0].DirectToPhysical(profiling));
+                        phy = new PhysicFromQuery(ls, n.child_().DirectToPhysical(profiling));
                         break;
                     case LogicFilter lf:
-                        phy = new PhysicFilter(lf, lf.children_[0].DirectToPhysical(profiling));
+                        phy = new PhysicFilter(lf, n.child_().DirectToPhysical(profiling));
                         if (lf.filter_ != null)
                             ExprHelper.SubqueryDirectToPhysic(lf.filter_);
                         break;
                     case LogicInsert li:
-                        phy = new PhysicInsert(li, li.children_[0].DirectToPhysical(profiling));
+                        phy = new PhysicInsert(li, n.child_().DirectToPhysical(profiling));
                         break;
                     case LogicScanFile le:
                         phy = new PhysicScanFile(le);
                         break;
                     case LogicAgg la:
-                        phy = new PhysicHashAgg(la, la.children_[0].DirectToPhysical(profiling));
+                        phy = new PhysicHashAgg(la, n.child_().DirectToPhysical(profiling));
                         break;
                     case LogicOrder lo:
-                        phy = new PhysicOrder(lo, lo.children_[0].DirectToPhysical(profiling));
+                        phy = new PhysicOrder(lo, n.child_().DirectToPhysical(profiling));
                         break;
                     default:
                         throw new NotImplementedException();
@@ -325,8 +330,6 @@ namespace adb
     {
         internal Expr filter_;
 
-        internal LogicNode l_() => children_[0];
-        internal LogicNode r_() => children_[1];
         public override string ToString() => $"{l_()} X {r_()}";
         public LogicJoin(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
         public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
@@ -424,6 +427,11 @@ namespace adb
     public class LogicSemiJoin : LogicJoin {
         public override string ToString() => $"{l_()} _X {r_()}";
         public LogicSemiJoin(LogicNode l, LogicNode r) : base(l, r) { }
+    }
+    public class LogicAntiSemiJoin : LogicJoin
+    {
+        public override string ToString() => $"{l_()} ^_X {r_()}";
+        public LogicAntiSemiJoin(LogicNode l, LogicNode r) : base(l, r) { }
     }
 
     public class LogicFilter : LogicNode
