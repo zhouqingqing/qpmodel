@@ -241,6 +241,8 @@ namespace adb
             => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
         public override object VisitLogicAndExpr([NotNull] SQLiteParser.LogicAndExprContext context)
             => new LogicAndExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)));
+        public override object VisitLogicOrExpr([NotNull] SQLiteParser.LogicOrExprContext context)
+            => new LogicOrExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)));
         public override object VisitArithequalexpr([NotNull] SQLiteParser.ArithequalexprContext context)
             => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
         public override object VisitSubqueryExpr([NotNull] SQLiteParser.SubqueryExprContext context)
