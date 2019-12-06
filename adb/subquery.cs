@@ -47,10 +47,11 @@ namespace adb
         //
         LogicNode existsToMarkJoin(LogicScanTable plan, ExistSubqueryExpr exists)
         {
-            // correlated filter
-            var corfilter = (exists.query_.logicPlan_ as LogicFilter).filter_;
+            // mark join filter
+            var mjfilter = (exists.query_.logicPlan_ as LogicFilter).filter_;
 
-            // remove filter
+            // nullify plan filter: the rest is push to top filter
+            var planfilter = plan.filter_;
             plan.filter_ = null;
 
             // make a mark join
@@ -61,10 +62,11 @@ namespace adb
             else
                 djoin = new LogicMarkSemiJoin(plan,
                                 exists.query_.logicPlan_.children_[0]);
-            djoin.AddFilter(corfilter);
+            djoin.AddFilter(mjfilter);
 
             // make a filter on top of the mark join
             Expr topfilter = new ExprRef(new MarkerExpr(), 0);
+            topfilter = planfilter.SearchReplace(exists, topfilter);
             LogicFilter top = new LogicFilter(djoin, topfilter);
             return top;
         }
@@ -76,9 +78,6 @@ namespace adb
                 var filter = sp.filter_;
                 var exitslist = ExprHelper.RetrieveAllType<ExistSubqueryExpr>(filter);
                 if (exitslist.Count == 0)
-                    return plan;
-
-                if (!filter.Equals(exitslist[0]))
                     return plan;
 
                 foreach (var ef in exitslist)
@@ -147,9 +146,9 @@ namespace adb
                         {
                             foundOneMatch = true;
 
-                            n = ExecProject(context, n);
                             // there is at least one match, mark true
-                            n = new Row(semi?true:false, n, null);
+                            n = ExecProject(context, n);
+                            n.values_[0] = semi ? true : false;
                             callback(n);
                         }
                     }
@@ -160,7 +159,7 @@ namespace adb
                 if (!foundOneMatch)
                 {
                     Row n = ExecProject(context, l);
-                    n = new Row(semi ? false : true, n, null);
+                    n.values_[0] = semi ? false : true;
                     callback(n);
                 }
                 return null;

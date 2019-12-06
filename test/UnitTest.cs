@@ -127,8 +127,8 @@ namespace test
             Assert.AreEqual(0, result.Count);
             result = TestHelper.ExecuteSQL(File.ReadAllText(files[11]));
             Assert.AreEqual(2, result.Count);
-            Assert.AreEqual("SHIP,2,10", result[0].ToString());
-            Assert.AreEqual("MAIL,2,5", result[1].ToString());
+            Assert.AreEqual("SHIP,5,10", result[0].ToString());
+            Assert.AreEqual("MAIL,5,5", result[1].ToString());
             result = TestHelper.ExecuteSQL(File.ReadAllText(files[12]));
             Assert.AreEqual(26, result.Count);
             result = TestHelper.ExecuteSQL(File.ReadAllText(files[13]));
@@ -142,7 +142,7 @@ namespace test
             // q20 parameter join order
             // q21 parameter join order
             result = TestHelper.ExecuteSQL(File.ReadAllText(files[21]));
-            Assert.AreEqual(7, result.Count);
+            Assert.AreEqual(25, result.Count);
         }
     }
 
@@ -520,6 +520,15 @@ namespace test
             result = ExecuteSQL(sql);
             Assert.AreEqual(1, result.Count);
             Assert.AreEqual("3", result[0].ToString());
+            sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and a2>2;";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(0, result.Count);
+            sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2;";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual(3, result.Count);
+            Assert.AreEqual("1", result[0].ToString());
+            Assert.AreEqual("2", result[1].ToString());
+            Assert.AreEqual("3", result[2].ToString());
 
             // fail due to parameter dependency order: join shall flip the side
             sql = "select * from a join b on a1=b1 where a1 < (select a2 from a where a2=b2);";

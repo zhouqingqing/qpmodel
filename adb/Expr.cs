@@ -634,7 +634,7 @@ namespace adb
             {
                 var datestr = Utils.RetrieveQuotedString(str);
                 val_ = (new DateFunc(
-                            new List<Expr> { new LiteralExpr(datestr)})).Exec(null, null);
+                            new List<Expr> { new LiteralExpr(datestr) })).Exec(null, null);
                 type_ = new DateTimeType();
             }
             else if (str.StartsWith("interval'"))
@@ -665,7 +665,13 @@ namespace adb
                 else
                     throw new SemanticAnalyzeException("wrong double precision format");
             }
-            else {
+            else if (str.Equals("true") || str.Equals("false"))
+            {
+                val_ = bool.Parse(str);
+                type_ = new BoolType();
+            }
+            else
+            {
                 if (int.TryParse(str, out int value))
                 {
                     type_ = new IntType();

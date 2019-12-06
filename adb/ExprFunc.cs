@@ -380,6 +380,7 @@ namespace adb
                 case "=":
                 case "<>":
                 case " and ":
+                case " or ":
                 case "like":
                 case "notlike":
                 case "in":
@@ -412,20 +413,25 @@ namespace adb
                 case "like": return Utils.StringLike(lv, rv);
                 case "notlike": return !Utils.StringLike(lv, rv);
                 case " and ": return lv && rv;
+                case " or ": return lv || rv;
                 default:
                     throw new NotImplementedException();
             }
         }
     }
 
-    public class LogicAndExpr : BinExpr
+    public class LogicAndOrExpr : BinExpr
     {
-        public LogicAndExpr(Expr l, Expr r) : base(l, r, " and ")
+        public LogicAndOrExpr(Expr l, Expr r, string op) : base(l, r, op)
         {
+            Debug.Assert(op.Equals(" and ") || op.Equals(" or "));
             type_ = new BoolType(); Debug.Assert(Clone().Equals(this));
         }
-
-        internal List<Expr> BreakToList()
+    }
+    public class LogicAndExpr : BinExpr
+    {
+        public LogicAndExpr(Expr l, Expr r) : base(l, r, " and ") { }
+        public List<Expr> BreakToList()
         {
             var andlist = new List<Expr>();
             for (int i = 0; i < 2; i++)
@@ -440,5 +446,8 @@ namespace adb
             return andlist;
         }
     }
-
+    public class LogicOrExpr : BinExpr
+    {
+        public LogicOrExpr(Expr l, Expr r) : base(l, r, " or ") { }
+    }
 }

@@ -527,12 +527,12 @@ namespace adb
 
             // apply subsitituation rules
             plan = FilterPushDown(plan);
-            Console.WriteLine(plan.PrintString(0));
+            //Console.WriteLine(plan.PrintString(0));
 
             // decorrelate subqureis 
             if (subqueries_.Count > 0)
                 plan = subqueryToMarkJoin(plan);
-            Console.WriteLine(plan.PrintString(0));
+            //Console.WriteLine(plan.PrintString(0));
 
             // remove LogicFromQuery node
             plan = removeFromQuery(plan);

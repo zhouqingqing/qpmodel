@@ -42,21 +42,15 @@ namespace adb
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             sql = "select a1,a1,a3,a3 from a where a2> (select b1 from (select * from b) d,c where b1=c1 and b1=a1 and b2=3);"; // lost a2>@1
-            //tpch.LoadTables("0001");
+            tpch.LoadTables("0001");
 
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                //foreach (var v in files)
-                var v = files[16];
+                var v = files[21];
                 {
-                    //if (v.Contains("15"))
-                    //    continue;
                     sql = File.ReadAllText(v);
-            //        var stmt = RawParser.ParseSqlStatement(sql);
-            //        Console.WriteLine(v);
-            //        stmt.Bind(null);
-            //        Console.WriteLine(stmt.CreatePlan().PrintString(0));
+                    goto doit;
                 }
             }
             //sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
@@ -86,7 +80,7 @@ namespace adb
             //sql = "select a2 from a where a1 in (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1));";
             //sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b1 > ((select c2 from c where c.c2=b2)))";
             sql = "select a2 from a where not exists (select * from a b where b.a3>=a.a1+b.a1+1);";
-            //sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and a2>1;";
+            sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2;";
             //sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and a2>1 and not exists (select * from a b where b.a2+7=a.a1+b.a1);";
 
             doit:
