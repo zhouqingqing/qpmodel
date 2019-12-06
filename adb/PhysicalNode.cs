@@ -212,19 +212,36 @@ namespace adb
         {
             var logic = logic_ as LogicJoin;
             var filter = logic.filter_;
+            bool semi = (logic_ is LogicSemiJoin);
+            bool antisemi = (logic_ is LogicAntiSemiJoin);
 
             children_[0].Exec(context, l =>
             {
+                bool foundOneMatch = false;
                 children_[1].Exec(context, r =>
                 {
-                    Row n = new Row(l, r);
-                    if (filter is null || (bool)filter.Exec(context, n))
+                    if (!semi || !foundOneMatch)
                     {
-                        n = ExecProject(context, n);
-                        callback(n);
+                        Row n = new Row(l, r);
+                        if (filter is null || (bool)filter.Exec(context, n))
+                        {
+                            foundOneMatch = true;
+                            if (!antisemi)
+                            {
+                                n = ExecProject(context, n);
+                                callback(n);
+                            }
+                        }
                     }
                     return null;
                 });
+
+                if (antisemi && !foundOneMatch)
+                {
+                    Row n = new Row(l, null);
+                    n = ExecProject(context, n);
+                    callback(n);
+                }
                 return null;
             });
         }
@@ -247,22 +264,40 @@ namespace adb
         {
             var logic = logic_ as LogicJoin;
             var filter = logic.filter_;
+            bool semi = (logic_ is LogicSemiJoin);
+            bool antisemi = (logic_ is LogicAntiSemiJoin);
 
             children_[0].Exec(context, l =>
             {
+                bool foundOneMatch = false;
                 children_[1].Exec(context, r =>
                 {
-                    Row n = new Row(l, r);
-                    if (filter is null || (bool)filter.Exec(context, n))
+                    if (!semi || !foundOneMatch)
                     {
-                        n = ExecProject(context, n);
-                        callback(n);
+                        Row n = new Row(l, r);
+                        if (filter is null || (bool)filter.Exec(context, n))
+                        {
+                            foundOneMatch = true;
+                            if (!antisemi)
+                            {
+                                n = ExecProject(context, n);
+                                callback(n);
+                            }
+                        }
                     }
                     return null;
                 });
+
+                if (antisemi && !foundOneMatch)
+                {
+                    Row n = new Row(l, null);
+                    n = ExecProject(context, n);
+                    callback(n);
+                }
                 return null;
             });
         }
+
         public override double Cost()
         {
             return (children_[0] as PhysicMemoNode).MinCost() + (children_[1] as PhysicMemoNode).MinCost();
