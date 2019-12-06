@@ -11,13 +11,16 @@ namespace adb
 {
     public class MarkerExpr : Expr
     {
-        public MarkerExpr()
-        {
+        public MarkerExpr() {
+            Debug.Assert(Equals(Clone()));
+            type_ = new BoolType();
         }
 
+        // it is always the first column of the output
         public override Value Exec(ExecContext context, Row input)
         {
-            return true;
+            Value r = input.values_[0];
+            return r;
         }
 
         public override string ToString() => $"#marker";
@@ -25,18 +28,20 @@ namespace adb
 
     public partial class SelectStmt : SQLStatement
     {
-        // expands EXISTS filter to dependent-semi-join
+        // expands EXISTS filter to mark join
         //
         //  LogicNode_A
-        //     Filter: @1 ...<others>
+        //     Filter: @1 AND|OR <others>
         //     <ExistSubqueryExpr> 1
         //          -> LogicNode_B
         //             Filter: b.b1[0]=?a.a1[0]
         // =>
-        //    DJoin
-        //      Filter:  (b.b1[0]=a.a1[0]) as marker ... <others> 
-        //      LogicNode_A
-        //      LogicNode_B
+        //    Filter
+        //      Filter: marker AND|OR <others>
+        //      MarkJoin
+        //         Filter:  (b.b1[0]=a.a1[0]) as marker 
+        //         LogicNode_A
+        //         LogicNode_B
         //
         // further convert DJoin to semi-join here is by decorrelate process
         //
@@ -48,6 +53,7 @@ namespace adb
             // remove filter
             plan.filter_ = null;
 
+            // make a mark join
             LogicMarkJoin djoin;
             if (exists.hasNot_)
                 djoin = new LogicMarkAntiSemiJoin(plan,
@@ -56,7 +62,11 @@ namespace adb
                 djoin = new LogicMarkSemiJoin(plan,
                                 exists.query_.logicPlan_.children_[0]);
             djoin.AddFilter(corfilter);
-            return djoin;
+
+            // make a filter on top of the mark join
+            Expr topfilter = new ExprRef(new MarkerExpr(), 0);
+            LogicFilter top = new LogicFilter(djoin, topfilter);
+            return top;
         }
 
         LogicNode subqueryToMarkJoin(LogicNode plan)
@@ -81,9 +91,9 @@ namespace adb
         }
     }
 
-        // mark join is like semi-join form with an extra boolean column ("mark") indicating join 
-        // predicate results (true|false|null)
-        //
+    // mark join is like semi-join form with an extra boolean column ("mark") indicating join 
+    // predicate results (true|false|null)
+    //
     public class LogicMarkJoin : LogicJoin 
     {
         public override string ToString() => $"{l_()} dX {r_()}";
@@ -92,7 +102,7 @@ namespace adb
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             var list = base.ResolveColumnOrdinal(reqOutput, removeRedundant);
-            //output_.Add(new MarkerExpr());
+            output_.Insert(0, new MarkerExpr());
             return list;
         }
     }
@@ -114,7 +124,7 @@ namespace adb
         {
             children_.Add(l); children_.Add(r);
         }
-        public override string ToString() => $"PDepJ({children_[0]},{children_[1]}: {Cost()})";
+        public override string ToString() => $"P#JOIN({children_[0]},{children_[1]}: {Cost()})";
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
@@ -130,26 +140,27 @@ namespace adb
                 bool foundOneMatch = false;
                 children_[1].Exec(context, r =>
                 {
-                    if (!semi || !foundOneMatch)
+                    if (!foundOneMatch)
                     {
                         Row n = new Row(l, r);
                         if ((bool)filter.Exec(context, n))
                         {
                             foundOneMatch = true;
-                            if (!antisemi)
-                            {
-                                n = ExecProject(context, n);
-                                callback(n);
-                            }
+
+                            n = ExecProject(context, n);
+                            // there is at least one match, mark true
+                            n = new Row(semi?true:false, n, null);
+                            callback(n);
                         }
                     }
                     return null;
                 });
 
-                if (antisemi && !foundOneMatch)
+                // if there is no match, mark false
+                if (!foundOneMatch)
                 {
-                    Row n = new Row(l, null);
-                    n = ExecProject(context, n);
+                    Row n = ExecProject(context, l);
+                    n = new Row(semi ? false : true, n, null);
                     callback(n);
                 }
                 return null;
