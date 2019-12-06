@@ -131,22 +131,13 @@ namespace adb
                 return filter is BinExpr bf && bf.op_.Equals("=");
         }
 
-        static bool listEqual(List<Expr> l, List<Expr> r)
-        {
-            Debug.Assert(l.Count == r.Count);
-            for (int i = 0; i < l.Count; i++)
-                if (!l[i].Equals(r[i]))
-                    return false;
-            return true;
-        }
-
         public static List<Expr> CloneList(List<Expr> source, List<Type> excludes = null)
         {
             var clone = new List<Expr>();
             if (excludes is null)
             {
                 source.ForEach(x => clone.Add(x.Clone()));
-                Debug.Assert(listEqual(clone, source));
+                Debug.Assert(clone.SequenceEqual(source));
             }
             else
             {
@@ -353,12 +344,12 @@ namespace adb
         //
         public virtual Expr Clone()
         {
-            var n = (Expr)this.MemberwiseClone();
+            Expr n = (Expr)MemberwiseClone();
             n.children_ = ExprHelper.CloneList(children_);
             n.tableRefs_ = new List<TableRef>();
             tableRefs_.ForEach(n.tableRefs_.Add);
             Debug.Assert(Equals(n));
-            return (Expr)n;
+            return n;
         }
 
         // In current expression, search and replace @from with @to 
@@ -421,14 +412,16 @@ namespace adb
             Debug.Assert(!bounded_);
             bounded_ = true;
         }
-        public override int GetHashCode() => tableRefs_.GetHashCode();
+        public override int GetHashCode() => Utils.ListHashCode(tableRefs_) ^ Utils.ListHashCode(children_);
         public override bool Equals(object obj)
         {
             if (!(obj is Expr))
                 return false;
             var n = obj as Expr;
-            return tableRefs_.Equals(n.tableRefs_);
+            return tableRefs_.SequenceEqual(n.tableRefs_) &&
+                children_.SequenceEqual(n.children_);
         }
+
         public virtual void Bind(BindContext context)
         {
             children_.ForEach(x=> {

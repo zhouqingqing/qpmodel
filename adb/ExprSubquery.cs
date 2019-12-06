@@ -76,7 +76,8 @@ namespace adb
                 return null;
             });
 
-            return r != null;
+            bool exists = r != null;
+            return hasNot_? !exists: exists;
         }
     }
 
