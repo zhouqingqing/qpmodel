@@ -72,6 +72,7 @@ namespace adb
         internal SelectStmt parent_;
         // subqueries at my level (children level excluded)
         internal List<SelectStmt> subqueries_ = new List<SelectStmt>();
+        internal Dictionary<SelectStmt, LogicFromQuery> fromqueries_ = new Dictionary<SelectStmt, LogicFromQuery>();
         bool hasAgg_ = false;
 
         internal SelectStmt TopStmt()
@@ -294,9 +295,10 @@ namespace adb
                     from = new LogicScanFile(eref);
                     break;
                 case QueryRef sref:
+                    var plan = sref.query_.CreatePlan();
+                    from = new LogicFromQuery(sref, plan);
                     subqueries_.Add(sref.query_);
-                    from = new LogicFromQuery(sref,
-                                    sref.query_.CreatePlan());
+                    fromqueries_.Add(sref.query_, from as LogicFromQuery);
                     break;
                 case JoinQueryRef jref:
                     LogicJoin subr = new LogicJoin(null, null);
@@ -367,9 +369,7 @@ namespace adb
                 }
             });
 
-            // these subqueries will be removed by mark join conversion
-            if (!optimizeOpt_.enable_subquery_to_markjoin)
-                subqueries_.AddRange(subplans);
+            subqueries_.AddRange(subplans);
             return subplans.Count > 0 ? subplans : null;
         }
 
@@ -530,15 +530,22 @@ namespace adb
             //Console.WriteLine(plan.PrintString(0));
 
             // decorrelate subqureis 
-            if (subqueries_.Count > 0)
+            if (optimizeOpt_.enable_subquery_to_markjoin_ && subqueries_.Count > 0)
                 plan = subqueryToMarkJoin(plan);
             //Console.WriteLine(plan.PrintString(0));
 
             // remove LogicFromQuery node
             plan = removeFromQuery(plan);
 
-            // optimize for subqueries
+            // optimize for subqueries 
+            //  fromquery needs some special handling to link the new plan
             subqueries_.ForEach(x => x.Optimize());
+            foreach (var x in fromqueries_) {
+                var stmt = x.Key;
+                var newplan = subqueries_.Find(stmt.Equals);
+                if (newplan != null)
+                    x.Value.children_[0] = newplan.logicPlan_;
+            }
 
             // convert to physical plan
             logicPlan_ = plan;

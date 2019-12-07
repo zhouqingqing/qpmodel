@@ -50,7 +50,7 @@ namespace adb
                 var v = files[21];
                 {
                     sql = File.ReadAllText(v);
-                    goto doit;
+                    //goto doit;
                 }
             }
             //sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
@@ -82,6 +82,7 @@ namespace adb
             sql = "select a2 from a where not exists (select * from a b where b.a3>=a.a1+b.a1+1);";
             sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2;";
             //sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and a2>1 and not exists (select * from a b where b.a2+7=a.a1+b.a1);";
+            sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
 
             doit:
             Console.WriteLine(sql);

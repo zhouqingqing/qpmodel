@@ -16,11 +16,10 @@ namespace adb
             type_ = new BoolType();
         }
 
-        // it is always the first column of the output
         public override Value Exec(ExecContext context, Row input)
         {
-            Value r = input.values_[0];
-            return r;
+            // its values is fed by mark join so non input related
+            return null;
         }
 
         public override string ToString() => $"#marker";
@@ -37,9 +36,9 @@ namespace adb
         //             Filter: b.b1[0]=?a.a1[0]
         // =>
         //    Filter
-        //      Filter: marker AND|OR <others>
+        //      Filter: #marker AND|OR <others>
         //      MarkJoin
-        //         Filter:  (b.b1[0]=a.a1[0]) as marker 
+        //         Filter:  (b.b1[0]=a.a1[0]) as #marker 
         //         LogicNode_A
         //         LogicNode_B
         //
@@ -123,7 +122,10 @@ namespace adb
         {
             children_.Add(l); children_.Add(r);
         }
-        public override string ToString() => $"P#JOIN({children_[0]},{children_[1]}: {Cost()})";
+        public override string ToString() => $"P#JOIN({l_()},{r_()}: {Cost()})";
+
+        // always the first column
+        void fixMarkerValue(Row r, Value value) => r.values_[0] = value;
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
@@ -134,10 +136,10 @@ namespace adb
 
             Debug.Assert(filter != null);
 
-            children_[0].Exec(context, l =>
+            l_().Exec(context, l =>
             {
                 bool foundOneMatch = false;
-                children_[1].Exec(context, r =>
+                r_().Exec(context, r =>
                 {
                     if (!foundOneMatch)
                     {
@@ -148,7 +150,7 @@ namespace adb
 
                             // there is at least one match, mark true
                             n = ExecProject(context, n);
-                            n.values_[0] = semi ? true : false;
+                            fixMarkerValue(n, semi ? true : false);
                             callback(n);
                         }
                     }
@@ -159,7 +161,7 @@ namespace adb
                 if (!foundOneMatch)
                 {
                     Row n = ExecProject(context, l);
-                    n.values_[0] = semi ? false : true;
+                    fixMarkerValue(n, semi ? false: true);
                     callback(n);
                 }
                 return null;
@@ -168,7 +170,7 @@ namespace adb
 
         public override double Cost()
         {
-            return (children_[0] as PhysicMemoNode).MinCost() * (children_[1] as PhysicMemoNode).MinCost();
+            return (l_() as PhysicMemoNode).MinCost() * (r_() as PhysicMemoNode).MinCost();
         }
     }
 }
