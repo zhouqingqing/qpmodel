@@ -431,6 +431,9 @@ namespace adb
     public class LogicAndExpr : BinExpr
     {
         public LogicAndExpr(Expr l, Expr r) : base(l, r, " and ") { }
+
+        // a AND (b OR c) AND d => [a, b OR c, d]
+        //
         public List<Expr> BreakToList()
         {
             var andlist = new List<Expr>();

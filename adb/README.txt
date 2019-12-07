@@ -64,3 +64,21 @@ Known issues:
 
 4. tpch issues
    see unittest.
+
+5. double filter:
+PhysicHashAgg   (rows = 2)
+    Output: {b.a2/2}[0],{count(*)(0)}[1]
+    Agg Core: count(*)(0)
+    Group by: {b.a2/2}[0]
+    -> PhysicFromQuery <b>  (rows = 3)
+        Output: b.a2[0]/2,0,b.a2[0]
+        -> PhysicFilter   (rows = 3)
+            Output: a.a2[1]
+            Filter: ********************** {#marker}[0] or a.a2[1]>2 and {#marker}[0] or a.a2[1]>2
+            -> PhysicMarkJoin   (rows = 3)
+                Output: #marker,a.a2[0]
+                Filter: b.a3[2]>=?a.a1[0]+b.a1[3]+1
+                -> PhysicScanTable a  (rows = 3)
+                    Output: a.a2[1],#a.a1[0]
+                -> PhysicScanTable a as b  (rows = 9)
+                    Output: b.a3[2],b.a1[0]
