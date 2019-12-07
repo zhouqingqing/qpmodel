@@ -81,8 +81,10 @@ namespace adb
             //sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b1 > ((select c2 from c where c.c2=b2)))";
             sql = "select a2 from a where not exists (select * from a b where b.a3>=a.a1+b.a1+1);";
             sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2;";
-            //sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and a2>1 and not exists (select * from a b where b.a2+7=a.a1+b.a1);";
-            sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
+            sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and a2>1 and not exists (select * from a b where b.a2+7=a.a1+b.a1);";
+
+            //sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
+            // MEMO sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
 
             doit:
             Console.WriteLine(sql);

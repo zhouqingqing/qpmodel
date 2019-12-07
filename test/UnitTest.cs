@@ -41,6 +41,19 @@ namespace test
             for (int i = 0; i < lw.Length; i++)
                 Assert.AreEqual(lw[i], rw[i]);
         }
+
+        public static int CountStringOccurrences(string text, string pattern)
+        {
+            // Loop through all instances of the string 'text'.
+            int count = 0;
+            int i = 0;
+            while ((i = text.IndexOf(pattern, i)) != -1)
+            {
+                i += pattern.Length;
+                count++;
+            }
+            return count;
+        }
     }
 
     [TestClass]
@@ -218,20 +231,25 @@ namespace test
             Assert.AreEqual(true, phyplan.Contains("PhysicMarkJoin"));
             Assert.AreEqual("1;2", string.Join(";", result));
             sql = "select a2 from a where not exists (select * from a b where b.a3>=a.a1+b.a1+1);";
-            result = ExecuteSQL(sql);
+            result = ExecuteSQL(sql, out phyplan);
             Assert.AreEqual(true, phyplan.Contains("PhysicMarkJoin"));
             Assert.AreEqual("3", string.Join(";", result));
             sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and a2>2;";
-            result = ExecuteSQL(sql);
+            result = ExecuteSQL(sql, out phyplan);
             Assert.AreEqual(0, result.Count);
             sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2;";
-            result = ExecuteSQL(sql);
+            result = ExecuteSQL(sql, out phyplan);
             Assert.AreEqual(true, phyplan.Contains("PhysicMarkJoin"));
             Assert.AreEqual("1;2;3", string.Join(";", result));
             sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
-            result = ExecuteSQL(sql);
+            result = ExecuteSQL(sql, out phyplan);
             Assert.AreEqual(true, phyplan.Contains("PhysicMarkJoin"));
             Assert.AreEqual("0,1;1,2", string.Join(";", result));
+            // multiple subquery - FIXME: shall be two mark join
+            sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and a2>1 and not exists (select * from a b where b.a2+7=a.a1+b.a1);";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "PhysicMarkJoin"));
+            Assert.AreEqual("2", string.Join(";", result));
         }
 
         [TestMethod]
