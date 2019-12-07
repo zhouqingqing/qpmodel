@@ -5,6 +5,17 @@ using System.Diagnostics;
 
 namespace adb
 {
+    public class ProfileOption
+    {
+        public bool enabled_ = false;
+    }
+
+    public class OptimizeOption
+    {
+        public bool enable_subquery_to_markjoin_ = true;
+        public bool use_memo_ = true;
+    }
+
     public abstract class PlanNode<T> where T : PlanNode<T>
     {
         public List<T> children_ = new List<T>();
@@ -136,19 +147,9 @@ namespace adb
         }
     }
 
-    public class ProfileOption
-    {
-        public bool enabled_ = false;
-    }
-
-    public class OptimizeOption
-    {
-        public bool enable_subquery_to_markjoin_ = true;
-        public bool use_memo_ = true;
-    }
-
     public abstract class LogicNode : PlanNode<LogicNode>
     {
+        public Expr filter_ = null;
         public List<Expr> output_ = new List<Expr>();
 
         public override string PrintOutput(int depth)
@@ -313,6 +314,7 @@ namespace adb
             group_ = group;
             node_ = group.exprList_[0].logic_;
 
+            Debug.Assert(filter_ is null);
             Debug.Assert(group.memo_.LookupCGroup(node_) == group);
         }
         public override string ToString() => group_.ToString();
@@ -329,8 +331,6 @@ namespace adb
 
     public class LogicJoin : LogicNode
     {
-        internal Expr filter_;
-
         public override string ToString() => $"{l_()} X {r_()}";
         public LogicJoin(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
         public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
@@ -437,8 +437,6 @@ namespace adb
 
     public class LogicFilter : LogicNode
     {
-        internal Expr filter_;
-
         public override string ToString() => $"{children_[0]} filter: {filter_}";
         public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
 
@@ -673,7 +671,6 @@ namespace adb
     public class LogicGet<T> : LogicNode where T : TableRef
     {
         public T tabref_;
-        public Expr filter_;
 
         public LogicGet(T tab) => tabref_ = tab;
         public override string ToString() => tabref_.ToString();
