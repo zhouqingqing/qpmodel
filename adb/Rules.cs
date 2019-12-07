@@ -35,6 +35,7 @@ namespace adb
         {
             LogicJoin join = expr.logic_ as LogicJoin;
             var newjoin = new LogicJoin(join.children_[1], join.children_[0]);
+            newjoin.AddFilter(join.filter_);
             return new CGroupMember(newjoin, expr.group_);
         }
     }

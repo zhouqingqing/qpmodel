@@ -152,6 +152,8 @@ namespace adb
         public Expr filter_ = null;
         public List<Expr> output_ = new List<Expr>();
 
+        public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
+
         public override string PrintOutput(int depth)
         {
             string r = "Output: " + string.Join(",", output_);
@@ -333,9 +335,8 @@ namespace adb
     {
         public override string ToString() => $"{l_()} X {r_()}";
         public LogicJoin(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
-        public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
         public override int MemoLogicSign() {
-            return l_().MemoLogicSign() ^ r_().MemoLogicSign();
+            return l_().MemoLogicSign() ^ r_().MemoLogicSign() ^ (filter_?.GetHashCode() ?? 0);
         }
 
         public override int GetHashCode()
@@ -438,7 +439,6 @@ namespace adb
     public class LogicFilter : LogicNode
     {
         public override string ToString() => $"{children_[0]} filter: {filter_}";
-        public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
 
         public override int GetHashCode()
         {
@@ -675,7 +675,6 @@ namespace adb
         public LogicGet(T tab) => tabref_ = tab;
         public override string ToString() => tabref_.ToString();
         public override string PrintInlineDetails(int depth) => ToString();
-        public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
         public override int GetHashCode()
         {
             return base.GetHashCode() ^ (filter_?.GetHashCode()??0) ^ tabref_.GetHashCode();

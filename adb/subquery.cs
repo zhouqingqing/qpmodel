@@ -27,54 +27,54 @@ namespace adb
 
     public partial class SelectStmt : SQLStatement
     {
-        // expands EXISTS filter to mark join
+        // expands [NOT] EXISTS filter to mark join
         //
         //  LogicNode_A
-        //     Filter: @1 AND|OR <others>
+        //     Filter: @1 AND|OR <others1>
         //     <ExistSubqueryExpr> 1
         //          -> LogicNode_B
-        //             Filter: b.b1[0]=?a.a1[0]
+        //             Filter: b.b1[0]=?a.a1[0] AND|OR <others2>
         // =>
         //    Filter
-        //      Filter: #marker AND|OR <others>
+        //      Filter: #marker AND|OR <others1>
         //      MarkJoin
-        //         Filter:  (b.b1[0]=a.a1[0]) as #marker 
+        //         Filter:  (b.b1[0]=a.a1[0]) AND|OR <others2> as #marker 
         //         LogicNode_A
         //         LogicNode_B
         //
         // further convert DJoin to semi-join here is by decorrelate process
         //
-        LogicNode existsToMarkJoin(LogicScanTable plan, ExistSubqueryExpr exists)
+        LogicNode existsToMarkJoin(LogicNode nodeA, ExistSubqueryExpr existExpr)
         {
-            // mark join filter
-            var mjfilter = (exists.query_.logicPlan_ as LogicFilter).filter_;
+            // nodeB contains the join filter
+            var nodeB = existExpr.query_.logicPlan_;
+            var nodeBFilter = nodeB.filter_;
+            nodeB.filter_ = new LiteralExpr("true"); 
 
-            // nullify plan filter: the rest is push to top filter
-            var planfilter = plan.filter_;
-            plan.filter_ = null;
+            // nullify nodeA's filter: the rest is push to top filter
+            var nodeAFilter = nodeA.filter_;
+            nodeA.filter_ = new LiteralExpr("true");
 
             // make a mark join
-            LogicMarkJoin djoin;
-            if (exists.hasNot_)
-                djoin = new LogicMarkAntiSemiJoin(plan,
-                                exists.query_.logicPlan_.children_[0]);
+            LogicMarkJoin markjoin;
+            if (existExpr.hasNot_)
+                markjoin = new LogicMarkAntiSemiJoin(nodeA, nodeB);
             else
-                djoin = new LogicMarkSemiJoin(plan,
-                                exists.query_.logicPlan_.children_[0]);
-            djoin.AddFilter(mjfilter);
+                markjoin = new LogicMarkSemiJoin(nodeA, nodeB);
+            markjoin.AddFilter(nodeBFilter);
 
             // make a filter on top of the mark join
             Expr topfilter = new ExprRef(new MarkerExpr(), 0);
-            topfilter = planfilter.SearchReplace(exists, topfilter);
-            LogicFilter top = new LogicFilter(djoin, topfilter);
-            return top;
+            topfilter = nodeAFilter.SearchReplace(existExpr, topfilter);
+            LogicFilter Filter = new LogicFilter(markjoin, topfilter);
+            return Filter;
         }
 
         LogicNode subqueryToMarkJoin(LogicNode plan)
         {
-            if (plan is LogicScanTable sp)
+            var filter = plan.filter_;
+            if (filter != null)
             {
-                var filter = sp.filter_;
                 var exitslist = ExprHelper.RetrieveAllType<ExistSubqueryExpr>(filter);
                 if (exitslist.Count == 0)
                     return plan;
@@ -82,9 +82,10 @@ namespace adb
                 foreach (var ef in exitslist)
                 {
                     subqueries_.Remove(ef.query_);
-                    return existsToMarkJoin(sp, ef);
+                    return existsToMarkJoin(plan, ef);
                 }
             }
+
             return plan;
         }
     }
