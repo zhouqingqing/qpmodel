@@ -85,6 +85,8 @@ namespace adb
 
             //sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
             // MEMO sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
+            //sql = "select count(*) from (select * from (select * from a where a1 > 1) b) c;";
+            sql = "select count(*) from (select * from a where a1 > 1) b;";
 
             doit:
             Console.WriteLine(sql);

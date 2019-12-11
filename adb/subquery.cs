@@ -46,14 +46,29 @@ namespace adb
         //
         LogicNode existsToMarkJoin(LogicNode nodeA, ExistSubqueryExpr existExpr)
         {
+            void NullifyFilter (LogicNode node)
+            {
+                node.filter_ = null;
+                if (node is LogicFilter)
+                    node.filter_ = new LiteralExpr("true");
+            }
+
+            var nodeAIsOnMarkJoin = 
+                nodeA is LogicFilter && nodeA.child_() is LogicMarkJoin;
+
             // nodeB contains the join filter
             var nodeB = existExpr.query_.logicPlan_;
             var nodeBFilter = nodeB.filter_;
-            nodeB.filter_ = new LiteralExpr("true"); 
+            NullifyFilter(nodeB);
 
-            // nullify nodeA's filter: the rest is push to top filter
+            // nullify nodeA's filter: the rest is push to top filter. However,
+            // if nodeA is a Filter|MarkJoin, keep its mark filter.
+            var markerFilter = new ExprRef(new MarkerExpr(), 0);
             var nodeAFilter = nodeA.filter_;
-            nodeA.filter_ = new LiteralExpr("true");
+            if (nodeAIsOnMarkJoin)
+                nodeA.filter_ = markerFilter;
+            else
+                NullifyFilter(nodeA);
 
             // make a mark join
             LogicMarkJoin markjoin;
@@ -64,8 +79,11 @@ namespace adb
             markjoin.AddFilter(nodeBFilter);
 
             // make a filter on top of the mark join
-            Expr topfilter = new ExprRef(new MarkerExpr(), 0);
-            topfilter = nodeAFilter.SearchReplace(existExpr, topfilter);
+            Expr topfilter;
+            if (nodeAIsOnMarkJoin)
+                topfilter = nodeAFilter.SearchReplace(existExpr, new LiteralExpr("true"));
+            else
+                topfilter = nodeAFilter.SearchReplace(existExpr, markerFilter);
             LogicFilter Filter = new LogicFilter(markjoin, topfilter);
             return Filter;
         }
@@ -82,7 +100,7 @@ namespace adb
                 foreach (var ef in exitslist)
                 {
                     subqueries_.Remove(ef.query_);
-                    return existsToMarkJoin(plan, ef);
+                    plan = existsToMarkJoin(plan, ef);
                 }
             }
 

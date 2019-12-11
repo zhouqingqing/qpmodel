@@ -496,6 +496,11 @@ namespace adb
             cntFilter = plan.FindNode(out LogicNode filterparent, out LogicFilter filter);
             Debug.Assert(cntFilter <= 1);
 
+            // we shall ignore FromQuery as it will be optimized by subquery optimization
+            // and this will cause double predicate push down (a1>1 && a1 > 1)
+            if (filterparent is LogicFromQuery)
+                return plan;
+
             if (filter?.filter_ != null)
             {
                 // filter push down
@@ -532,7 +537,7 @@ namespace adb
             // decorrelate subqureis 
             if (optimizeOpt_.enable_subquery_to_markjoin_ && subqueries_.Count > 0)
                 plan = subqueryToMarkJoin(plan);
-            //Console.WriteLine(plan.PrintString(0));
+            Console.WriteLine(plan.PrintString(0));
 
             // remove LogicFromQuery node
             plan = removeFromQuery(plan);
