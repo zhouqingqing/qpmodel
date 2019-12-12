@@ -46,20 +46,13 @@ namespace adb
         //
         LogicNode existsToMarkJoin(LogicNode nodeA, ExistSubqueryExpr existExpr)
         {
-            void NullifyFilter (LogicNode node)
-            {
-                node.filter_ = null;
-                if (node is LogicFilter)
-                    node.filter_ = new LiteralExpr("true");
-            }
-
             var nodeAIsOnMarkJoin = 
                 nodeA is LogicFilter && nodeA.child_() is LogicMarkJoin;
 
             // nodeB contains the join filter
             var nodeB = existExpr.query_.logicPlan_;
             var nodeBFilter = nodeB.filter_;
-            NullifyFilter(nodeB);
+            FilterHelper.NullifyFilter(nodeB);
 
             // nullify nodeA's filter: the rest is push to top filter. However,
             // if nodeA is a Filter|MarkJoin, keep its mark filter.
@@ -68,7 +61,7 @@ namespace adb
             if (nodeAIsOnMarkJoin)
                 nodeA.filter_ = markerFilter;
             else
-                NullifyFilter(nodeA);
+                FilterHelper.NullifyFilter(nodeA);
 
             // make a mark join
             LogicMarkJoin markjoin;
@@ -88,19 +81,105 @@ namespace adb
             return Filter;
         }
 
+        // expands scalar subquery filter to mark join
+        //
+        //  LogicNode_A
+        //     Filter: a.a2 = @1 AND|OR <others1>
+        //     <ExistSubqueryExpr> 1
+        //          -> LogicNode_B
+        //             Output: singleValueExpr
+        //             Filter: b.b1[0]=?a.a1[0] AND|OR <others2>
+        // =>
+        //  LogicFilter
+        //      Filter: (#marker AND a.a2 = singleValueExpr) AND|OR <others1>
+        //      MarkJoin
+        //          Outpu: singleValueExpr
+        //          Filter:  (b.b1[0]=a.a1[0]) AND|OR <others2>
+        //          LogicNode_A
+        //          LogicNode_B
+        //
+        LogicNode scalarToMarkJoin(LogicNode nodeA, ScalarSubqueryExpr scalarExpr)
+        {
+            var nodeAIsOnMarkJoin =
+                nodeA is LogicFilter && nodeA.child_() is LogicMarkJoin;
+
+            // FIXME: temp disable it
+            if (nodeAIsOnMarkJoin)
+                return nodeA;
+
+            // nodeB contains the join filter
+            var nodeB = scalarExpr.query_.logicPlan_;
+            var nodeBFilter = nodeB.filter_;
+
+            // some plan may hide the correlation filter deep, say:
+            // Filter: a.a1[0] =@1
+            //   < ScalarSubqueryExpr > 1
+            //      ->PhysicHashAgg(rows = 2)
+            //            -> PhysicFilter(rows = 2)
+            //               Filter: b.b2[1]=?a.a2[1] ...
+            // Let's ignore this case for now
+            //
+            if (nodeBFilter is null)
+                return nodeA;
+
+            Debug.Assert(nodeB.output_.Count == 1);
+            var singleValueExpr = nodeB.output_[0];
+            // hack: we have to differentiate ExprRef and Expr here, otherwise, old binding is wrong
+            if (singleValueExpr is ExprRef se)
+                singleValueExpr = se.expr_();
+            FilterHelper.NullifyFilter(nodeB);
+
+            // nullify nodeA's filter: the rest is push to top filter. However,
+            // if nodeA is a Filter|MarkJoin, keep its mark filter.
+            var markerFilter = new ExprRef(new MarkerExpr(), 0);
+            var nodeAFilter = nodeA.filter_;
+            if (nodeAIsOnMarkJoin)
+                nodeA.filter_ = markerFilter;
+            else
+                FilterHelper.NullifyFilter(nodeA);
+
+            // make a mark join
+            var markjoin = new LogicSingleMarkJoin(nodeA, nodeB);
+            markjoin.AddFilter(nodeBFilter);
+
+            // make a filter on top of the mark join
+            Expr topfilter;
+            if (nodeAIsOnMarkJoin)
+                topfilter = nodeAFilter.SearchReplace(scalarExpr, new LiteralExpr($"{int.MinValue}"));
+            else
+            {
+                topfilter = FilterHelper.AddAndFilter(markerFilter, nodeAFilter);
+                topfilter = topfilter.SearchReplace(scalarExpr, singleValueExpr);
+            }
+            LogicFilter Filter = new LogicFilter(markjoin, topfilter);
+            return Filter;
+        }
+
         LogicNode subqueryToMarkJoin(LogicNode plan)
         {
             var filter = plan.filter_;
             if (filter != null)
             {
-                var exitslist = ExprHelper.RetrieveAllType<ExistSubqueryExpr>(filter);
-                if (exitslist.Count == 0)
-                    return plan;
-
-                foreach (var ef in exitslist)
+                foreach (var ef in ExprHelper.RetrieveAllType<ExistSubqueryExpr>(filter))
                 {
-                    subqueries_.Remove(ef.query_);
-                    plan = existsToMarkJoin(plan, ef);
+                    if (ef.IsCorrelated())
+                    {
+                        var oldplan = plan;
+                        plan = existsToMarkJoin(plan, ef);
+                        //if (oldplan != plan)
+                        //    subqueries_.Remove(ef.query_);
+                    }
+                }
+                foreach (var ef in ExprHelper.RetrieveAllType<ScalarSubqueryExpr>(filter))
+                {
+                    if (ef.IsCorrelated())
+                    {
+                        var oldplan = plan;
+                        plan = scalarToMarkJoin(plan, ef);
+                        // FIXME: can't remove subquery for now since a subquery might nested within it not unnested
+                        //if (oldplan != plan)
+                        //    subqueries_.Remove(ef.query_);
+                    }
                 }
             }
 
@@ -113,7 +192,7 @@ namespace adb
     //
     public class LogicMarkJoin : LogicJoin 
     {
-        public override string ToString() => $"{l_()} dX {r_()}";
+        public override string ToString() => $"{l_()} markX {r_()}";
         public LogicMarkJoin(LogicNode l, LogicNode r) : base(l, r) { }
 
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
@@ -126,13 +205,19 @@ namespace adb
     
     public class LogicMarkSemiJoin : LogicMarkJoin
     {
-        public override string ToString() => $"{l_()} d_X {r_()}";
+        public override string ToString() => $"{l_()} markSemiX {r_()}";
         public LogicMarkSemiJoin(LogicNode l, LogicNode r) : base(l, r) { }
     }
     public class LogicMarkAntiSemiJoin : LogicMarkJoin
     {
-        public override string ToString() => $"{l_()} d^_X {r_()}";
+        public override string ToString() => $"{l_()} markAntisemiX {r_()}";
         public LogicMarkAntiSemiJoin(LogicNode l, LogicNode r) : base(l, r) { }
+    }
+
+    public class LogicSingleMarkJoin : LogicMarkJoin
+    {
+        public override string ToString() => $"{l_()} singlemarkX {r_()}";
+        public LogicSingleMarkJoin(LogicNode l, LogicNode r) : base(l, r) { }
     }
 
     public class PhysicMarkJoin : PhysicNode
@@ -141,7 +226,7 @@ namespace adb
         {
             children_.Add(l); children_.Add(r);
         }
-        public override string ToString() => $"P#JOIN({l_()},{r_()}: {Cost()})";
+        public override string ToString() => $"PMarkJOIN({l_()},{r_()}: {Cost()})";
 
         // always the first column
         void fixMarkerValue(Row r, Value value) => r.values_[0] = value;
@@ -192,4 +277,119 @@ namespace adb
             return (l_() as PhysicMemoNode).MinCost() * (r_() as PhysicMemoNode).MinCost();
         }
     }
+
+    public class PhysicSingleMarkJoin : PhysicNode
+    {
+        public PhysicSingleMarkJoin(LogicMarkJoin logic, PhysicNode l, PhysicNode r) : base(logic)
+        {
+            children_.Add(l); children_.Add(r);
+        }
+        public override string ToString() => $"PSingleMarkJOIN({l_()},{r_()}: {Cost()})";
+
+        // always the first column
+        void fixMarkerValue(Row r, Value value) => r.values_[0] = value;
+
+        public override void Exec(ExecContext context, Func<Row, string> callback)
+        {
+            var logic = logic_ as LogicMarkJoin;
+            var filter = logic.filter_;
+            Debug.Assert(logic is LogicSingleMarkJoin);
+
+            Debug.Assert(filter != null);
+
+            l_().Exec(context, l =>
+            {
+                bool foundOneMatch = false;
+                r_().Exec(context, r =>
+                {
+                    Row n = new Row(l, r);
+                    if ((bool)filter.Exec(context, n))
+                    {
+                        if (foundOneMatch)
+                            throw new SemanticExecutionException("more than one row matched");
+                        foundOneMatch = true;
+
+                        // there is at least one match, mark true
+                        n = ExecProject(context, n);
+                        fixMarkerValue(n, true);
+                        callback(n);
+                    }
+                    return null;
+                });
+
+                // if there is no match, mark false
+                if (!foundOneMatch)
+                {
+                    var nNulls = r_().logic_.output_.Count;
+                    Row n = new Row(l, new Row(nNulls));
+                    n = ExecProject(context, n);
+                    fixMarkerValue(n, false);
+                    callback(n);
+                }
+                return null;
+            });
+        }
+
+        public override double Cost()
+        {
+            return (l_() as PhysicMemoNode).MinCost() * (r_() as PhysicMemoNode).MinCost();
+        }
+    }
+
+    // Single join acts like outer join with an execption that no more than one row matching allowed
+    public class LogicSingleJoin : LogicJoin
+    {
+        public override string ToString() => $"{l_()} singleX {r_()}";
+        public LogicSingleJoin(LogicNode l, LogicNode r) : base(l, r) { }
+    }
+
+    public class PhysicSingleJoin : PhysicNode
+    {
+        public PhysicSingleJoin(LogicSingleJoin logic, PhysicNode l, PhysicNode r) : base(logic)
+        {
+            children_.Add(l); children_.Add(r);
+        }
+        public override string ToString() => $"PSingleJOIN({l_()},{r_()}: {Cost()})";
+
+        public override void Exec(ExecContext context, Func<Row, string> callback)
+        {
+            var logic = logic_ as LogicSingleJoin;
+            var filter = logic.filter_;
+
+            Debug.Assert(filter != null);
+
+            l_().Exec(context, l =>
+            {
+                bool foundOneMatch = false;
+                r_().Exec(context, r =>
+                {
+                    Row n = new Row(l, r);
+                    if ((bool)filter.Exec(context, n))
+                    {
+                        if (foundOneMatch)
+                            throw new SemanticExecutionException("more than one row matched");
+                        foundOneMatch = true;
+
+                        n = ExecProject(context, n);
+                        callback(n);
+                    }
+                    return null;
+                });
+
+                // if there is no match, mark false
+                if (!foundOneMatch)
+                {
+                    Row n = ExecProject(context, l);
+                    callback(n);
+                }
+                return null;
+            });
+        }
+
+        public override double Cost()
+        {
+            return (l_() as PhysicMemoNode).MinCost() * (r_() as PhysicMemoNode).MinCost();
+        }
+    }
+
 }

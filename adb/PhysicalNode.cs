@@ -18,14 +18,11 @@ namespace adb
         public Row() { }
         public Row(List<Value> values) => values_ = values;
 
-        public Row(Value marker, Row l, Row r)
-        {
-            values_.Add(marker);
-            Debug.Assert(l != null || r != null);
-            if (l != null)
-                values_.AddRange(l.values_);
-            if (r != null)
-                values_.AddRange(r.values_);
+        // used by outer joins
+        public Row(int nNulls) {
+            Debug.Assert(nNulls > 0);
+            for (int i = 0; i < nNulls; i++)
+                values_.Add(null);
         }
         public Row(Row l, Row r)
         {
@@ -513,11 +510,11 @@ namespace adb
     {
         internal Int64 nrows_;
 
-        public PhysicProfiling(PhysicNode l) : base(null)
+        public PhysicProfiling(PhysicNode l) : base(l.logic_)
         {
             children_.Add(l);
             l.profile_ = this;
-            Debug.Assert(this.profile_ is null);
+            Debug.Assert(profile_ is null);
         }
 
         public override void Exec(ExecContext context, Func<Row, string> callback)

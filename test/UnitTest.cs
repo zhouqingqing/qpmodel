@@ -12,13 +12,15 @@ namespace test
         static internal string error_ = null;
         static internal List<Row> ExecuteSQL(string sql) => ExecuteSQL(sql, out _);
 
-        static internal List<Row> ExecuteSQL(string sql, out string physicplan)
+        static internal List<Row> ExecuteSQL(string sql, out string physicplan, OptimizeOption option = null)
         {
             try
             {
                 error_ = null;
 
                 var stmt = RawParser.ParseSqlStatement(sql);
+                if (option != null)
+                    stmt.optimizeOpt_ = option;
                 var result = stmt.Exec(true);
                 physicplan = stmt.physicPlan_.PrintString(0);
                 return result;
@@ -228,28 +230,76 @@ namespace test
             var phyplan = "";
             var sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1);";
             var result = ExecuteSQL(sql, out phyplan);
-            Assert.AreEqual(true, phyplan.Contains("PhysicMarkJoin"));
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "PhysicMarkJoin"));
             Assert.AreEqual("1;2", string.Join(";", result));
+            sql = "select a2 from a where exists (select * from a);";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual(0, TestHelper.CountStringOccurrences(phyplan, "PhysicMarkJoin"));
+            Assert.AreEqual("1;2;3", string.Join(";", result));
             sql = "select a2 from a where not exists (select * from a b where b.a3>=a.a1+b.a1+1);";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.AreEqual(true, phyplan.Contains("PhysicMarkJoin"));
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "PhysicMarkJoin"));
             Assert.AreEqual("3", string.Join(";", result));
             sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and a2>2;";
             result = ExecuteSQL(sql, out phyplan);
             Assert.AreEqual(0, result.Count);
             sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2;";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.AreEqual(true, phyplan.Contains("PhysicMarkJoin"));
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "PhysicMarkJoin"));
             Assert.AreEqual("1;2;3", string.Join(";", result));
             sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.AreEqual(true, phyplan.Contains("PhysicMarkJoin"));
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "PhysicMarkJoin"));
             Assert.AreEqual("0,1;1,2", string.Join(";", result));
             // multiple subquery - FIXME: shall be two mark join
-            sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and a2>1 and not exists (select * from a b where b.a2+7=a.a1+b.a1);";
+            sql = @"select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1)
+                     and a2>1 and not exists (select * from a b where b.a2+7=a.a1+b.a1);";
             result = ExecuteSQL(sql, out phyplan);
             Assert.AreEqual(2, TestHelper.CountStringOccurrences(phyplan, "PhysicMarkJoin"));
             Assert.AreEqual("2", string.Join(";", result));
+        }
+
+        [TestMethod]
+        public void TestScalarSubquery()
+        {
+            var phyplan = "";
+            var sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2);";
+            var result = ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "PhysicSingleMarkJoin"));
+            Assert.AreEqual("0,2;1,3;2,4", string.Join(";", result));
+            sql = "select a1, a3  from a where a.a2 = (select b1*2 from b where b2 = a2);";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "PhysicSingleMarkJoin"));
+            Assert.AreEqual("1,3", string.Join(";", result));
+            sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<3);";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "PhysicSingleMarkJoin"));
+            Assert.AreEqual("0,2", string.Join(";", result));
+            sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) and a2>1;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "PhysicSingleMarkJoin"));
+            Assert.AreEqual("1,3", string.Join(";", result));
+            sql = @"select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) 
+                    and b.b1 > (select c2 / 2 from c where c.c3 = 3);";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "PhysicSingleMarkJoin"));
+            Assert.AreEqual("2", string.Join(";", result));
+            sql = @"select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) 
+                    and b.b1 > (select c2 / 2 from c where c.c3 = b3);";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "PhysicSingleMarkJoin"));
+            Assert.AreEqual("2", string.Join(";", result));
+            sql = @"select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 
+                    and b1 = (select b1 from b where b3 = a3 and b3>1) and b2<3);";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "PhysicSingleMarkJoin"));
+            Assert.AreEqual("0;1", string.Join(";", result));
+            sql = "select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 or b1 = (select b1 from b where b2 = 2*a1 and b3>1) and b2<3);";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "PhysicSingleMarkJoin"));
+            Assert.AreEqual("0;1;2", string.Join(";", result));
+
+            //  OR condition failed sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) or a2>1;";
         }
 
         [TestMethod]
@@ -462,6 +512,9 @@ namespace test
             // failed tests:
             // alias not handled well: c(b1), a(b1)
             //                        sql = "select a.b1+c.b1 from (select count(*) as b1 from b) a, (select c1 b1 from c) c where c.b1>1;";
+            // sql = "select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) and b.b1 > (select c2 / 2 from c where c.c2 = b2);";
+            //  if you change second c.c2=b2 => c.c3=b3 then no problem, I think we confused them somewhere
+
         }
     }
 
@@ -807,6 +860,7 @@ namespace test
         [TestMethod]
         public void TestPushdown()
         {
+            OptimizeOption option = new OptimizeOption();
             var sql = "select a.a2,a3,a.a1+b2 from a,b where a.a1 > 1 and a1+b3>2";
             var result = ExecuteSQL(sql, out string phyplan);
             var answer = @"PhysicNLJoin   (rows = 3)
@@ -836,7 +890,8 @@ namespace test
             TestHelper.PlanAssertEqual(answer, phyplan);
 
             sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b1 > ((select c2 from c where c.c2=b2)))";
-            result = ExecuteSQL(sql, out phyplan);
+            option.enable_subquery_to_markjoin_ = false;
+            result = TestHelper.ExecuteSQL(sql, out phyplan, option);
             answer = @"PhysicScanTable a  (rows = 0)
                         Output: 1
                         Filter: a.a1[0]>@1
@@ -852,6 +907,30 @@ namespace test
                                     -> PhysicScanTable c  (rows = 9)
                                         Output: c.c2[1]
                                         Filter: c.c2[1]=?b.b2[1]";
+            TestHelper.PlanAssertEqual(answer, phyplan);
+            result = ExecuteSQL(sql, out phyplan);
+            answer = @"PhysicScanTable a  (rows = 0)
+                        Output: 1
+                        Filter: a.a1[0]>@1
+                        <ScalarSubqueryExpr> 1
+                            -> PhysicFilter   (rows = 0)
+                                Output: b.b1[1]
+                                Filter: {#marker}[0] and b.b2[2]>c.c2[3] and b.b1[1]>@3
+                                <ScalarSubqueryExpr> 3
+                                    -> PhysicScanTable c  (rows = 9)
+                                        Output: c.c2[1]
+                                        Filter: c.c2[1]=?b.b2[1]
+                                -> PhysicSingleMarkJoin   (rows = 9)
+                                    Output: #marker,b.b1[0],b.b2[1],c.c2[2]
+                                    Filter: c.c2[2]=?b.b2[1]
+                                    -> PhysicScanTable b  (rows = 9)
+                                        Output: b.b1[0],b.b2[1]
+                                    -> PhysicFilter   (rows = 27)
+                                        Output: c.c2[0]
+                                        Filter: true
+                                        -> PhysicScanTable c  (rows = 27)
+                                            Output: c.c2[1]
+                                            Filter: true";
             TestHelper.PlanAssertEqual(answer, phyplan);
 
             // b3+c2 as a whole push to the outer join side
@@ -881,7 +960,8 @@ namespace test
             // key here is bo.b3=a3 show up in 3rd subquery
             sql = @"select a1  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 
                         and bo.b3 = a3 and b3> 1) and b2<3);";
-            result = ExecuteSQL(sql, out phyplan);
+            option.enable_subquery_to_markjoin_ = false;
+            result = TestHelper.ExecuteSQL(sql, out phyplan, option);
             answer = @"PhysicScanTable a  (rows = 2)
                         Output: a.a1[0],#a.a2[1],#a.a3[2]
                         Filter: a.a1[0]=@1
@@ -893,11 +973,35 @@ namespace test
                                     -> PhysicScanTable b  (rows = 3)
                                         Output: b.b1[0]
                                         Filter: b.b3[2]=?a.a3[2] and ?bo.b3[2]=?a.a3[2] and b.b3[2]>1";
+            Assert.AreEqual("0;1", string.Join(";", result));
             TestHelper.PlanAssertEqual(answer, phyplan);
+            result = ExecuteSQL(sql, out phyplan);
+            answer = @"PhysicFilter   (rows = 2)
+                        Output: a.a1[1]
+                        Filter: {#marker}[0] and a.a1[1]=bo.b1[2]
+                        -> PhysicSingleMarkJoin   (rows = 3)
+                            Output: #marker,a.a1[0],bo.b1[3]
+                            Filter: bo.b2[4]=?a.a2[1] and bo.b1[3]=@2 and bo.b2[4]<3
+                            <ScalarSubqueryExpr> 2
+                                -> PhysicScanTable b
+                                    Output: b.b1[0]
+                                    Filter: b.b3[2]=?a.a3[2] and ?bo.b3[2]=?a.a3[2] and b.b3[2]>1
+                            -> PhysicScanTable a  (rows = 3)
+                                Output: a.a1[0],#a.a2[1],#a.a3[2]
+                            -> PhysicFilter   (rows = 9)
+                                Output: bo.b1[0],bo.b2[1]
+                                Filter: true
+                                -> PhysicScanTable b as bo  (rows = 9)
+                                    Output: bo.b1[0],bo.b2[1],#bo.b3[2]
+                                    Filter: true";
+                                Assert.AreEqual("0;1", string.Join(";", result));
+            TestHelper.PlanAssertEqual(answer, phyplan);
+
             sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
-            result = ExecuteSQL(sql, out phyplan);
+            option.enable_subquery_to_markjoin_ = false;
+            result = TestHelper.ExecuteSQL(sql, out phyplan, option);
             answer = @"PhysicNLJoin   (rows = 3)
                         Output: a.a1[2]
                         Filter: a.a1[2]=b.b1[3] and b.b2[4]=c.c2[0]
@@ -934,6 +1038,62 @@ namespace test
                                             -> PhysicScanTable b  (rows = 27)
                                                 Output: b.b2[1]
                                                 Filter: b.b4[3]=?a.a3[2]+1 and ?bo.b3[2]=?a.a3[2] and b.b3[2]>0";
+            Assert.AreEqual("0;1;2", string.Join(";", result));
+            TestHelper.PlanAssertEqual(answer, phyplan);
+            // run again with subquery expansion enabled
+            result = ExecuteSQL(sql, out phyplan);
+            answer = @"PhysicNLJoin   (rows = 3)
+                        Output: a.a1[2]
+                        Filter: a.a1[2]=b.b1[3] and b.b2[4]=c.c2[0]
+                        -> PhysicScanTable c  (rows = 3)
+                            Output: c.c2[1],#c.c3[2]
+                        -> PhysicNLJoin   (rows = 9)
+                            Output: a.a1[2],b.b1[0],b.b2[1]
+                            -> PhysicScanTable b  (rows = 9)
+                                Output: b.b1[0],b.b2[1]
+                            -> PhysicScanTable a  (rows = 9)
+                                Output: a.a1[0],#a.a2[1],#a.a3[2]
+                                Filter: a.a1[0]=@1 and a.a2[1]=@3
+                                <ScalarSubqueryExpr> 1
+                                    -> PhysicFilter   (rows = 9)
+                                        Output: bo.b1[1]
+                                        Filter: {#marker}[0] and bo.b2[2]=?a.a2[1] and bo.b2[2]<5 and bo.b1[1]=b.b1[3]
+                                        -> PhysicSingleMarkJoin   (rows = 243)
+                                            Output: #marker,bo.b1[0],bo.b2[1],b.b1[2]
+                                            Filter: b.b3[3]=?a.a3[2] and ?bo.b3[2]=?c.c3[2] and b.b3[3]>1
+                                            -> PhysicFilter   (rows = 243)
+                                                Output: bo.b1[0],bo.b2[1]
+                                                Filter: true
+                                                -> PhysicFromQuery <bo>  (rows = 243)
+                                                    Output: bo.b1[0],bo.b2[1],#bo.b3[2]
+                                                    -> PhysicNLJoin   (rows = 243)
+                                                        Output: b_2.b1[2],b_1.b2[0],b_1.b3[1]
+                                                        -> PhysicScanTable b as b_1  (rows = 81)
+                                                            Output: b_1.b2[1],b_1.b3[2]
+                                                        -> PhysicScanTable b as b_2  (rows = 243)
+                                                            Output: b_2.b1[0]
+                                            -> PhysicFilter   (rows = 729)
+                                                Output: b.b1[0],b.b3[1]
+                                                Filter: true
+                                                -> PhysicScanTable b  (rows = 729)
+                                                    Output: b.b1[0],b.b3[2]
+                                                    Filter: true
+                                <ScalarSubqueryExpr> 3
+                                    -> PhysicFilter   (rows = 27)
+                                        Output: bo.b2[1]
+                                        Filter: {#marker}[0] and bo.b1[2]=?a.a1[0] and bo.b2[1]=b.b2[3] and ?c.c3[2]<5
+                                        -> PhysicSingleMarkJoin   (rows = 81)
+                                            Output: #marker,bo.b2[0],bo.b1[1],b.b2[3]
+                                            Filter: b.b4[4]=?a.a3[2]+1 and ?bo.b3[2]=?a.a3[2] and b.b3[5]>0
+                                            -> PhysicScanTable b as bo  (rows = 81)
+                                                Output: bo.b2[1],bo.b1[0],#bo.b3[2]
+                                            -> PhysicFilter   (rows = 243)
+                                                Output: b.b2[0],b.b4[1],b.b3[2]
+                                                Filter: true
+                                                -> PhysicScanTable b  (rows = 243)
+                                                    Output: b.b2[1],b.b4[3],b.b3[2]
+                                                    Filter: true";
+            Assert.AreEqual("0;1;2", string.Join(";", result));
             TestHelper.PlanAssertEqual(answer, phyplan);
         }
     }

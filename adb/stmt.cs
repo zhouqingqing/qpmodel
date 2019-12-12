@@ -73,7 +73,9 @@ namespace adb
         // subqueries at my level (children level excluded)
         internal List<SelectStmt> subqueries_ = new List<SelectStmt>();
         internal Dictionary<SelectStmt, LogicFromQuery> fromqueries_ = new Dictionary<SelectStmt, LogicFromQuery>();
-        bool hasAgg_ = false;
+        internal bool isCorrelated = false;
+        internal bool hasAgg_ = false;
+        internal bool bounded_ = false;
 
         internal SelectStmt TopStmt()
         {
@@ -227,7 +229,9 @@ namespace adb
             parent_ = parent?.stmt_ as SelectStmt;
             bindContext_ = context;
 
-            return BindWithContext(context);
+            var ret = BindWithContext(context);
+            bounded_ = true;
+            return ret;
         }
 
         // for each expr in @list, if expr has references an alias in selection list, 
@@ -544,7 +548,10 @@ namespace adb
 
             // optimize for subqueries 
             //  fromquery needs some special handling to link the new plan
-            subqueries_.ForEach(x => x.Optimize());
+            subqueries_.ForEach(x => {
+                x.optimizeOpt_ = optimizeOpt_;
+                x.Optimize();
+            });
             foreach (var x in fromqueries_) {
                 var stmt = x.Key;
                 var newplan = subqueries_.Find(stmt.Equals);

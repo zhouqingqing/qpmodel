@@ -44,6 +44,11 @@ namespace adb
             }
         }
 
+        public bool IsCorrelated() {
+            Debug.Assert(bounded_);
+            return query_.isCorrelated;
+        }
+
         public override int GetHashCode() => subqueryid_.GetHashCode();
         public override bool Equals(object obj)
         {
