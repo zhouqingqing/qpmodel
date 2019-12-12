@@ -178,8 +178,18 @@ namespace adb
                     case LogicJoin lc:
                         switch (lc)
                         {
+                            case LogicSingleMarkJoin lsjm:
+                                phy = new PhysicSingleMarkJoin(lsjm,
+                                    n.l_().DirectToPhysical(profiling),
+                                    n.r_().DirectToPhysical(profiling));
+                                break;
                             case LogicMarkJoin ldj:
                                 phy = new PhysicMarkJoin(ldj,
+                                    n.l_().DirectToPhysical(profiling),
+                                    n.r_().DirectToPhysical(profiling));
+                                break;
+                            case LogicSingleJoin lsj:
+                                phy = new PhysicSingleJoin(lsj,
                                     n.l_().DirectToPhysical(profiling),
                                     n.r_().DirectToPhysical(profiling));
                                 break;
@@ -353,8 +363,7 @@ namespace adb
 
         public bool AddFilter(Expr filter)
         {
-            filter_ = filter_ is null ? filter :
-                new LogicAndExpr(filter_, filter);
+            filter_ = FilterHelper.AddAndFilter(filter_, filter);
             return true;
         }
 
@@ -688,8 +697,7 @@ namespace adb
 
         public bool AddFilter(Expr filter)
         {
-            filter_ = filter_ is null ? filter :
-                new LogicAndExpr(filter_, filter);
+            filter_ = FilterHelper.AddAndFilter(filter_, filter);
             return true;
         }
 

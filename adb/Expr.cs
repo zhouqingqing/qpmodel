@@ -240,6 +240,21 @@ namespace adb
         }
     }
 
+    public static class FilterHelper {
+        
+        // a > 3 or c > 1, b > 5 =>  (a > 3 or c > 1) and (b > 5)
+        public static Expr AddAndFilter(Expr filter, Expr newcond) {
+            if (filter is null)
+                return newcond.Clone();
+            return new LogicAndExpr(filter, newcond.Clone());
+        }
+        public static void NullifyFilter(LogicNode node)
+        {
+            node.filter_ = null;
+            if (node is LogicFilter)
+                node.filter_ = new LiteralExpr("true");
+        }
+    }
     public class Expr
     {
         // Expression in selection list can have an alias
@@ -530,6 +545,7 @@ namespace adb
                         // we are actually switch the context to parent, whichTab_ is not right ...
                         isOuterRef_ = true;
                         tabRef_.outerrefs_.Add(this);
+                        (context.stmt_ as SelectStmt).isCorrelated = true;
                         context = parent;
                         break;
                     }
