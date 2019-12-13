@@ -304,7 +304,7 @@ namespace adb
             return false;
         }
 
-        public override object Exec(ExecContext context, Row input)
+        public override Value Exec(ExecContext context, Row input)
         {
             if (eval_() != null)
             {
@@ -325,7 +325,7 @@ namespace adb
             }
             if (else_() != null)
                 return else_().Exec(context, input);
-            return int.MaxValue;
+            return null;
         }
     }
 
