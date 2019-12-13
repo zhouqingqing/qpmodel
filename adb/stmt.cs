@@ -507,21 +507,35 @@ namespace adb
 
             if (filter?.filter_ != null)
             {
-                // filter push down
-                var filterexpr = filter.filter_;
                 List<Expr> andlist = new List<Expr>();
-                if (filterexpr is LogicAndExpr andexpr)
-                    andlist = andexpr.BreakToList();
+                var filterexpr = filter.filter_;
+
+                // if it is a constant true filer, remove it
+                var isConst = FilterHelper.FilterIsConst(filterexpr, out bool trueOrFalse);
+                if (isConst) {
+                    if (!trueOrFalse)
+                        andlist.Add(new LiteralExpr("false"));
+                    else
+                        Debug.Assert(andlist.Count == 0);
+                }
                 else
-                    andlist.Add(filterexpr);
-                andlist.RemoveAll(e => pushdownFilter(plan, e));
+                {
+                    // filter push down
+                    if (filterexpr is LogicAndExpr andexpr)
+                        andlist = andexpr.BreakToList();
+                    else
+                        andlist.Add(filterexpr);
+                    andlist.RemoveAll(e => pushdownFilter(plan, e));
+                }
+
+                // stich the new plan
                 if (andlist.Count == 0)
                 {
                     if (filterparent is null)
                         // take it out from the tree
-                        plan = plan.children_[0];
+                        plan = plan.child_();
                     else
-                        filterparent.children_[0] = filter.children_[0];
+                        filterparent.children_[0] = filter.child_();
                 }
                 else
                     filter.filter_ = ExprHelper.AndListToExpr(andlist);

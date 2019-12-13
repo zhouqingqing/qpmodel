@@ -929,8 +929,7 @@ namespace test
                                         Output: c.c2[0]
                                         Filter: true
                                         -> PhysicScanTable c  (rows = 27)
-                                            Output: c.c2[1]
-                                            Filter: true";
+                                            Output: c.c2[1]";
             TestHelper.PlanAssertEqual(answer, phyplan);
 
             // b3+c2 as a whole push to the outer join side
@@ -992,8 +991,7 @@ namespace test
                                 Output: bo.b1[0],bo.b2[1]
                                 Filter: true
                                 -> PhysicScanTable b as bo  (rows = 9)
-                                    Output: bo.b1[0],bo.b2[1],#bo.b3[2]
-                                    Filter: true";
+                                    Output: bo.b1[0],bo.b2[1],#bo.b3[2]";
                                 Assert.AreEqual("0;1", string.Join(";", result));
             TestHelper.PlanAssertEqual(answer, phyplan);
 
@@ -1077,7 +1075,6 @@ namespace test
                                                 Filter: true
                                                 -> PhysicScanTable b  (rows = 729)
                                                     Output: b.b1[0],b.b3[2]
-                                                    Filter: true
                                 <ScalarSubqueryExpr> 3
                                     -> PhysicFilter   (rows = 27)
                                         Output: bo.b2[1]
@@ -1091,8 +1088,7 @@ namespace test
                                                 Output: b.b2[0],b.b4[1],b.b3[2]
                                                 Filter: true
                                                 -> PhysicScanTable b  (rows = 243)
-                                                    Output: b.b2[1],b.b4[3],b.b3[2]
-                                                    Filter: true";
+                                                    Output: b.b2[1],b.b4[3],b.b3[2]";
             Assert.AreEqual("0;1;2", string.Join(";", result));
             TestHelper.PlanAssertEqual(answer, phyplan);
         }

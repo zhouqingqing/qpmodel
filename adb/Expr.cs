@@ -254,6 +254,17 @@ namespace adb
             if (node is LogicFilter)
                 node.filter_ = new LiteralExpr("true");
         }
+
+        public static bool FilterIsConst(Expr filter, out bool trueOrfalse)
+        {
+            trueOrfalse = false;
+            if (filter.TryEvalConst(out Value value)) {
+                Debug.Assert(value is bool);
+                trueOrfalse = (bool)value;
+                return true;
+            }
+            return false;
+        }
     }
     public class Expr
     {
@@ -342,9 +353,18 @@ namespace adb
                 // meaning has non-constantable (or we don't want to waste time try 
                 // to figure out if they are constant, say 'select 1' or sin(2))
                 //
-                bool nonconst = e is ColExpr || e is FuncExpr || e is SubqueryExpr;
+                bool nonconst = e is ColExpr || e is SubqueryExpr;
                 return nonconst;
             });
+        }
+
+        public bool TryEvalConst(out Value value)
+        {
+            value = null;
+            if (!IsConst())
+                return false;
+            value = Exec(null, null);
+            return true;
         }
 
         // APIs children may implment
