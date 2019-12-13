@@ -41,6 +41,7 @@ namespace adb
         //
         internal string alias_;
 
+		// list of correlated colexpr needs this table
         internal readonly List<ColExpr> outerrefs_ = new List<ColExpr>();
 
         public override string ToString() => alias_;
@@ -65,6 +66,7 @@ namespace adb
 
         public List<Expr> AddOuterRefsToOutput(List<Expr> output)
         {
+	        // for outerrefs, if it is not found in output list, add them there and mark invisible
             outerrefs_.ForEach(x =>
             {
                 if (!output.Contains(x))

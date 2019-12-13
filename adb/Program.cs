@@ -47,10 +47,10 @@ namespace adb
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[21];
+                var v = files[16];
                 {
                     sql = File.ReadAllText(v);
-                    //goto doit;
+                    goto doit;
                 }
             }
             //sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
@@ -86,7 +86,6 @@ namespace adb
             //sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
             // MEMO sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
             //sql = "select count(*) from (select * from (select * from a where a1 > 1) b) c;";
-            sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2);";
             sql = "select a1, a3  from a where a.a2 = (select b1*2 from b where b2 = a2);";
             sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) and a2>1;";
             // FAILED sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) or a2>1;";
@@ -100,6 +99,7 @@ namespace adb
             //sql = "select a1, a2  from a where a.a1 = (select sum(b1) from b where b2 = a2 and b3<4);";
             //sql = "select a1, (select b1 from b where b2 = a2) from a;";
             //sql = "select b3+c2 from a,b,c where a1>= (select b1 from b where b1=a1) and a2 >= (select c2 from c where c1=a1);";
+            sql = "select count(a1) from a where 3>2 or 2<5";
 
             doit:
             Console.WriteLine(sql);

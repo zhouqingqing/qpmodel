@@ -80,51 +80,56 @@ namespace adb
         {
             if (callback(this))
                 return true;
-
-            foreach (var c in children_)
-                if (c.VisitEachNodeExists(callback))
-                    return true;
-            return false;
+            else
+            {
+                foreach (var c in children_)
+                    if (c.VisitEachNodeExists(callback))
+                        return true;
+                return false;
+            }
         }
 
         // traversal pattern FOR EACH
-        public void ForEachNode(Action<PlanNode<T>> callback)
+        public void TraversEachNode(Action<PlanNode<T>> callback)
         {
             callback(this);
             foreach (var c in children_)
-                c.ForEachNode(callback);
+                c.TraversEachNode(callback);
         }
 
-        public int FindNode<T1, T2>(out T2 parent, out T1 target) where T2 : PlanNode<T>
+        // lookup all T1 types in the tree and return the parent-target relationship
+        public int FindNodeTyped<T1>(List<T> parents, List<int> childIndex, List<T1> targets) where T1 : PlanNode<T>
         {
-            int cnt = 0;
-            T2 p = default(T2);
-            T1 t = default(T1);
-            ForEachNode(x =>
+            if (this is T1 yf)
             {
-                x.children_.ForEach(y =>
-                {
-                    if (y is T1 yf)
-                    {
-                        cnt++;
-                        t = yf;
-                        p = x as T2;
-                    }
-                });
-            });
-
-            if (cnt == 0)
-            {
-                if (this is T1 yf)
-                {
-                    cnt++;
-                    t = yf;
-                    p = default(T2);
-                }
+                parents.Add(null);
+                childIndex.Add(-1);
+                targets.Add(yf);
             }
 
-            parent = p; target = t;
-            return cnt;
+            TraversEachNode(x =>
+            {
+                for (int i = 0; i < x.children_.Count; i++)
+                {
+                    var y = x.children_[i];
+                    if (y is T1 yf)
+                    {
+                        parents.Add(x as T);
+                        childIndex.Add(i);
+                        targets.Add(yf);
+                    }
+                }
+            });
+
+            Debug.Assert(parents.Count == targets.Count);
+            return parents.Count;
+        }
+
+        public int CountNodeTyped<T1>() where T1 : PlanNode<T> {
+            var parents = new List<T>();
+            var indexes = new List<int>();
+            var targets = new List<T1>();
+            return FindNodeTyped<T1>(parents, indexes, targets);
         }
         public override int GetHashCode()
         {
@@ -165,7 +170,7 @@ namespace adb
         public PhysicNode DirectToPhysical(ProfileOption profiling)
         {
             PhysicNode root = null;
-            ForEachNode(n =>
+            TraversEachNode(n =>
             {
                 PhysicNode phy;
                 switch (n)
@@ -370,7 +375,7 @@ namespace adb
         public override List<TableRef> InclusiveTableRefs()
         {
             List<TableRef> refs = new List<TableRef>();
-            ForEachNode(x =>
+            TraversEachNode(x =>
             {
                 if (x is LogicScanTable gx)
                     refs.Add(gx.tabref_);

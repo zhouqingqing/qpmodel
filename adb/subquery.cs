@@ -157,28 +157,38 @@ namespace adb
 
         LogicNode subqueryToMarkJoin(LogicNode plan)
         {
-            var filter = plan.filter_;
-            if (filter != null)
+            // before the filter push down, there shall be at most one filter
+            // except for from query. 
+            var parents = new List<LogicNode>();
+            var indexes = new List<int>();
+            var filters = new List<LogicFilter>();
+            var cntFilter = plan.FindNodeTyped(parents, indexes, filters);
+            Debug.Assert(cntFilter <= 1 || plan.CountNodeTyped<LogicFromQuery>() > 0);
+
             {
-                foreach (var ef in ExprHelper.RetrieveAllType<ExistSubqueryExpr>(filter))
+                var filter = plan.filter_;
+                if (filter != null)
                 {
-                    if (ef.IsCorrelated())
+                    foreach (var ef in ExprHelper.RetrieveAllType<ExistSubqueryExpr>(filter))
                     {
-                        var oldplan = plan;
-                        plan = existsToMarkJoin(plan, ef);
-                        //if (oldplan != plan)
-                        //    subqueries_.Remove(ef.query_);
+                        if (ef.IsCorrelated())
+                        {
+                            var oldplan = plan;
+                            plan = existsToMarkJoin(plan, ef);
+                            //if (oldplan != plan)
+                            //    subqueries_.Remove(ef.query_);
+                        }
                     }
-                }
-                foreach (var ef in ExprHelper.RetrieveAllType<ScalarSubqueryExpr>(filter))
-                {
-                    if (ef.IsCorrelated())
+                    foreach (var ef in ExprHelper.RetrieveAllType<ScalarSubqueryExpr>(filter))
                     {
-                        var oldplan = plan;
-                        plan = scalarToMarkJoin(plan, ef);
-                        // FIXME: can't remove subquery for now since a subquery might nested within it not unnested
-                        //if (oldplan != plan)
-                        //    subqueries_.Remove(ef.query_);
+                        if (ef.IsCorrelated())
+                        {
+                            var oldplan = plan;
+                            plan = scalarToMarkJoin(plan, ef);
+                            // FIXME: can't remove subquery for now since a subquery might nested within it not unnested
+                            //if (oldplan != plan)
+                            //    subqueries_.Remove(ef.query_);
+                        }
                     }
                 }
             }
