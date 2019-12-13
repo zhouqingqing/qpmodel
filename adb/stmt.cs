@@ -495,50 +495,66 @@ namespace adb
 
         LogicNode FilterPushDown(LogicNode plan)
         {
-            // locate the only filter
-            int cntFilter = 0;
-            cntFilter = plan.FindNode(out LogicNode filterparent, out LogicFilter filter);
-            Debug.Assert(cntFilter <= 1);
+            // locate the all filters
+            var parents = new List<LogicNode>();
+            var indexes = new List<int>();
+            var filters = new List<LogicFilter>();
+            var cntFilter = plan.FindNodeTyped(parents, indexes, filters);
 
-            // we shall ignore FromQuery as it will be optimized by subquery optimization
-            // and this will cause double predicate push down (a1>1 && a1 > 1)
-            if (filterparent is LogicFromQuery)
-                return plan;
-
-            if (filter?.filter_ != null)
+            for (int i = 0; i < cntFilter; i++)
             {
-                List<Expr> andlist = new List<Expr>();
-                var filterexpr = filter.filter_;
+                var parent = parents[i];
+                var filter = filters[i];
+                var index = indexes[i];
 
-                // if it is a constant true filer, remove it
-                var isConst = FilterHelper.FilterIsConst(filterexpr, out bool trueOrFalse);
-                if (isConst) {
-                    if (!trueOrFalse)
-                        andlist.Add(new LiteralExpr("false"));
-                    else
-                        Debug.Assert(andlist.Count == 0);
-                }
-                else
-                {
-                    // filter push down
-                    if (filterexpr is LogicAndExpr andexpr)
-                        andlist = andexpr.BreakToList();
-                    else
-                        andlist.Add(filterexpr);
-                    andlist.RemoveAll(e => pushdownFilter(plan, e));
-                }
+                var filterOnMarkJoin = filter.child_() is LogicMarkJoin;
+                if (filterOnMarkJoin)
+                    continue;
 
-                // stich the new plan
-                if (andlist.Count == 0)
+                // we shall ignore FromQuery as it will be optimized by subquery optimization
+                // and this will cause double predicate push down (a1>1 && a1 > 1)
+                if (parent is LogicFromQuery)
+                    return plan;
+
+                if (filter?.filter_ != null)
                 {
-                    if (filterparent is null)
-                        // take it out from the tree
-                        plan = plan.child_();
+                    List<Expr> andlist = new List<Expr>();
+                    var filterexpr = filter.filter_;
+
+                    // if it is a constant true filer, remove it. If a false filter, we leave 
+                    // it there - shall we try hard to stop query early? Nope, it is no deserved
+                    // to poke around for this corner case.
+                    //
+                    var isConst = FilterHelper.FilterIsConst(filterexpr, out bool trueOrFalse);
+                    if (isConst)
+                    {
+                        if (!trueOrFalse)
+                            andlist.Add(new LiteralExpr("false"));
+                        else
+                            Debug.Assert(andlist.Count == 0);
+                    }
                     else
-                        filterparent.children_[0] = filter.child_();
+                    {
+                        // filter push down
+                        if (filterexpr is LogicAndExpr andexpr)
+                            andlist = andexpr.BreakToList();
+                        else
+                            andlist.Add(filterexpr);
+                        andlist.RemoveAll(e => pushdownFilter(plan, e));
+                    }
+
+                    // stich the new plan
+                    if (andlist.Count == 0)
+                    {
+                        if (parent is null)
+                            // take it out from the tree
+                            plan = plan.child_();
+                        else
+                            parent.children_[index] = filter.child_();
+                    }
+                    else
+                        filter.filter_ = ExprHelper.AndListToExpr(andlist);
                 }
-                else
-                    filter.filter_ = ExprHelper.AndListToExpr(andlist);
             }
 
             return plan;
@@ -548,14 +564,16 @@ namespace adb
         {
             LogicNode plan = logicPlan_;
 
-            // apply subsitituation rules
-            plan = FilterPushDown(plan);
-            //Console.WriteLine(plan.PrintString(0));
-
-            // decorrelate subqureis 
+            // decorrelate subqureis - we do it before filter push down because we 
+            // have more normalized plan shape before push down. And we may generate
+            // some unnecessary filter to clean up.
+            //
             if (optimizeOpt_.enable_subquery_to_markjoin_ && subqueries_.Count > 0)
                 plan = subqueryToMarkJoin(plan);
-            Console.WriteLine(plan.PrintString(0));
+            // Console.WriteLine(plan.PrintString(0));
+
+            // push down filters
+            plan = FilterPushDown(plan);
 
             // remove LogicFromQuery node
             plan = removeFromQuery(plan);

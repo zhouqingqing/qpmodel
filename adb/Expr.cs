@@ -251,6 +251,9 @@ namespace adb
         public static void NullifyFilter(LogicNode node)
         {
             node.filter_ = null;
+            // we have to keep the LogicFilter in various cases for easier handling 
+            // and we leave the vacuum job to filter push down
+            //
             if (node is LogicFilter)
                 node.filter_ = new LiteralExpr("true");
         }

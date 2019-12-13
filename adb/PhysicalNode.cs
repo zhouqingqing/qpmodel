@@ -222,10 +222,10 @@ namespace adb
             bool semi = (logic_ is LogicSemiJoin);
             bool antisemi = (logic_ is LogicAntiSemiJoin);
 
-            children_[0].Exec(context, l =>
+            l_().Exec(context, l =>
             {
                 bool foundOneMatch = false;
-                children_[1].Exec(context, r =>
+                r_().Exec(context, r =>
                 {
                     if (!semi || !foundOneMatch)
                     {
@@ -255,7 +255,7 @@ namespace adb
 
         public override double Cost()
         {
-            return (children_[0] as PhysicMemoNode).MinCost() * (children_[1] as PhysicMemoNode).MinCost();
+            return (l_() as PhysicMemoNode).MinCost() * (r_() as PhysicMemoNode).MinCost();
         }
     }
 
@@ -274,10 +274,10 @@ namespace adb
             bool semi = (logic_ is LogicSemiJoin);
             bool antisemi = (logic_ is LogicAntiSemiJoin);
 
-            children_[0].Exec(context, l =>
+            l_().Exec(context, l =>
             {
                 bool foundOneMatch = false;
-                children_[1].Exec(context, r =>
+                r_().Exec(context, r =>
                 {
                     if (!semi || !foundOneMatch)
                     {
@@ -307,7 +307,7 @@ namespace adb
 
         public override double Cost()
         {
-            return (children_[0] as PhysicMemoNode).MinCost() + (children_[1] as PhysicMemoNode).MinCost();
+            return (l_() as PhysicMemoNode).MinCost() + (r_() as PhysicMemoNode).MinCost();
         }
     }
 
@@ -356,7 +356,7 @@ namespace adb
             var hm = new Dictionary<KeyList, Row>();
 
             // aggregation is working on aggCore targets
-            children_[0].Exec(context, l =>
+            child_().Exec(context, l =>
             {
                 var keys = KeyList.ComputeKeys(context, logic, l);
 
@@ -410,7 +410,7 @@ namespace adb
         {
             var logic = logic_ as LogicOrder;
             var set = new List<Row>();
-            children_[0].Exec(context, l =>
+            child_().Exec(context, l =>
             {
                 set.Add(l);
                 return null;
@@ -430,7 +430,7 @@ namespace adb
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicFromQuery;
-            children_[0].Exec(context, l =>
+            child_().Exec(context, l =>
             {
                 if (logic.queryRef_.outerrefs_.Count != 0)
                     context.AddParam(logic.queryRef_, l);
@@ -452,7 +452,7 @@ namespace adb
         {
             Expr filter = (logic_ as LogicFilter).filter_;
 
-            children_[0].Exec(context, l =>
+            child_().Exec(context, l =>
             {
                 if (filter is null || (bool)filter.Exec(context, l))
                 {
@@ -484,7 +484,7 @@ namespace adb
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
-            children_[0].Exec(context, l =>
+            child_().Exec(context, l =>
             {
                 var table = (logic_ as LogicInsert).targetref_.Table();
                 table.heap_.Add(l);
@@ -499,9 +499,7 @@ namespace adb
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
-            Row r = new Row();
-            logic_.output_.ForEach(
-                            x => r.values_.Add(x.Exec(context, null)));
+            Row r = ExecProject(context, null);
             callback(r);
         }
     }
@@ -519,7 +517,7 @@ namespace adb
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
-            children_[0].Exec(context, l =>
+            child_().Exec(context, l =>
             {
                 nrows_++;
                 callback(l);
@@ -536,7 +534,7 @@ namespace adb
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
             context.Reset();
-            children_[0].Exec(context, r =>
+            child_().Exec(context, r =>
             {
                 Row newr = new Row();
                 var child = (children_[0] is PhysicProfiling) ?
