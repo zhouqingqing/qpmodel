@@ -785,6 +785,28 @@ namespace test
             TestHelper.PlanAssertEqual(answer, phyplan);
             result = ExecuteSQL(sql);
             Assert.AreEqual(6, result.Count);
+
+            // hash join 
+            sql = "select count(*) from a join b on a1 = b1;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "PhysicHashJoin"));
+            Assert.AreEqual("3", string.Join(";", result));
+            sql = "select count(*) from a join b on a1 = b1 and a2 = b2;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "PhysicNLJoin")); // FIXME
+            Assert.AreEqual("3", string.Join(";", result));
+            sql = "select * from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where ab.a1=cd.c1";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual(3, TestHelper.CountStringOccurrences(phyplan, "PhysicHashJoin"));
+            Assert.AreEqual(3, result.Count);
+            sql = "select * from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where a1+b1=c1+d1";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual(3, TestHelper.CountStringOccurrences(phyplan, "PhysicHashJoin"));
+            Assert.AreEqual(3, result.Count);
+
+            // FAILED
+            sql = "select * from (select * from a join b on a1=b1) ab join (select * from c join d on c1=d1) cd on a1+b1=c1+d1"; // FIXME
+            sql = "select * from (select * from a join b on a1=b1) ab join (select * from c join d on c1=d1) cd on a1+b1=c1 and a2+b2=d2;";
         }
 
         [TestMethod]

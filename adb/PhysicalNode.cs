@@ -132,7 +132,7 @@ namespace adb
             var logic = logic_ as LogicScanTable;
             var filter = logic.filter_;
             var tabname = logic.tabref_.relname_.ToLower();
-            string[] faketable = { "a", "b", "c" };
+            string[] faketable = { "a", "b", "c", "d"};
             bool isFaketable = faketable.Contains(tabname);
             var heap = (logic.tabref_).Table().heap_.GetEnumerator();
 
