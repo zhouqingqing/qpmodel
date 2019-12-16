@@ -183,7 +183,7 @@ namespace test
                 Console.WriteLine(memo.Print());
                 memo.CalcStats(out int tlogics, out int tphysics);
                 Assert.AreEqual(16, memo.cgroups_.Count);
-                Assert.AreEqual(49, tlogics); Assert.AreEqual(93, tphysics);
+                Assert.AreEqual(49, tlogics); Assert.AreEqual(49, tphysics);
                 var phyplan = Optimizer.RetrieveOptimalPlan();
 
                 var final = new PhysicCollect(phyplan);
@@ -656,6 +656,9 @@ namespace test
             var result = ExecuteSQL(sql);
             Assert.AreEqual(1, result.Count);
             Assert.AreEqual(32, result[0].values_[0]);
+            sql = "select substring('abc', 1, 2);";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual("ab", string.Join(";", result));
         }
 
         [TestMethod]
@@ -743,7 +746,7 @@ namespace test
                             Filter: a.a1[0]=b.b1[1]
                             -> PhysicScanTable a  (rows = 3)
                                 Output: a.a1[0]
-                            -> PhysicScanTable b  (rows = 9)
+                            -> PhysicScanTable b  (rows = 3)
                                 Output: b.b1[0]";
             TestHelper.PlanAssertEqual(answer, phyplan);
             result = ExecuteSQL(sql);
@@ -755,12 +758,12 @@ namespace test
                         Filter: a.a2[3]=c.c2[0]
                         -> PhysicScanTable c  (rows = 3)
                             Output: c.c2[1]
-                        -> PhysicHashJoin   (rows = 9)
+                        -> PhysicHashJoin   (rows = 3)
                             Output: a.a1[0],b.b1[2],a.a2[1]
                             Filter: a.a1[0]=b.b1[2]
-                            -> PhysicScanTable a  (rows = 9)
+                            -> PhysicScanTable a  (rows = 3)
                                 Output: a.a1[0],a.a2[1]
-                            -> PhysicScanTable b  (rows = 27)
+                            -> PhysicScanTable b  (rows = 3)
                                 Output: b.b1[0]";
             TestHelper.PlanAssertEqual(answer, phyplan);
             result = ExecuteSQL(sql);
@@ -780,7 +783,7 @@ namespace test
                             Filter: a.a1[0]=b.b1[2]
                             -> PhysicScanTable a  (rows = 9)
                                 Output: a.a1[0],a.a2[1]
-                            -> PhysicScanTable b  (rows = 27)
+                            -> PhysicScanTable b  (rows = 9)
                                 Output: b.b1[0]";
             TestHelper.PlanAssertEqual(answer, phyplan);
             result = ExecuteSQL(sql);
