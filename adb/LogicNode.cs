@@ -377,15 +377,11 @@ namespace adb
         public bool FilterHashable()
         {
             Expr filter = filter_;
-            bool general = false;
+            bool general = false;   // FIXME
 
             if (general)
             {
-                var andlist = new List<Expr>();
-                if (filter is LogicAndExpr andexpr)
-                    andlist = andexpr.BreakToList();
-                else
-                    andlist.Add(filter);
+                var andlist = FilterHelper.FilterToAndList(filter);
                 foreach (var v in andlist)
                 {
                     if (!(v is BinExpr bv && bv.op_.Equals("=")))

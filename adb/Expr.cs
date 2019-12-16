@@ -241,6 +241,19 @@ namespace adb
             }
             return false;
         }
+
+        // a>5 => [a > 5]
+        // a>5 AND c>7 => [a>5, c>7]
+        public static List<Expr> FilterToAndList(Expr filter)
+        {
+            var andlist = new List<Expr>();
+            if (filter is LogicAndExpr andexpr)
+                andlist = andexpr.BreakToList();
+            else
+                andlist.Add(filter);
+
+            return andlist;
+        }
     }
     public class Expr
     {

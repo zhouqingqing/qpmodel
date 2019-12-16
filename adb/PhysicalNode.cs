@@ -259,47 +259,137 @@ namespace adb
         }
     }
 
+    internal class KeyList
+    {
+        internal List<Value> keys_ = new List<Value>();
+
+        static internal KeyList ComputeKeys(ExecContext context, List<Expr> keys, Row input)
+        {
+            var list = new KeyList();
+            if (keys != null)
+                keys.ForEach(x => list.keys_.Add(x.Exec(context, input)));
+            return list;
+        }
+
+        public override string ToString() => string.Join(",", keys_);
+        public override int GetHashCode()
+        {
+            int hashcode = 0;
+            keys_.ForEach(x => hashcode ^= x.GetHashCode());
+            return hashcode;
+        }
+        public override bool Equals(object obj)
+        {
+            var keyl = obj as KeyList;
+            Debug.Assert(obj is KeyList);
+            Debug.Assert(keyl.keys_.Count == keys_.Count);
+            return keys_.SequenceEqual(keyl.keys_);
+        }
+    };
+
     public class PhysicHashJoin : PhysicNode
     {
+        // ab join cd on c1+d1=a1-b1 and a1+b1=c2+d2;
+        //    leftKey_:  a1-b1, a1+b1
+        //    rightKey_: c1+d1, c2+d2
+        //
+        internal List<Expr> leftKeys_ = new List<Expr>();
+        internal List<Expr> rightKeys_ = new List<Expr>();
+
         public PhysicHashJoin(LogicJoin logic, PhysicNode l, PhysicNode r) : base(logic)
         {
             children_.Add(l); children_.Add(r);
         }
         public override string ToString() => $"PHJ({children_[0]},{children_[1]}: {Cost()})";
 
+        void getOneKeyList(BinExpr fb) {
+            Debug.Assert(fb.op_ == "=");
+            var ltabrefs = l_().logic_.InclusiveTableRefs();
+            var rtabrefs = r_().logic_.InclusiveTableRefs();
+            var lkeyrefs = fb.l_().tableRefs_;
+            var rkeyrefs = fb.r_().tableRefs_;
+            if (ltabrefs.Any(lkeyrefs.Contains))
+            {
+                leftKeys_.Add(fb.l_());
+                rightKeys_.Add(fb.r_());
+            }
+            else
+            {
+                // switch side
+                Debug.Assert(rtabrefs.Any(lkeyrefs.Contains));
+                leftKeys_.Add(fb.r_());
+                rightKeys_.Add(fb.l_());
+            }
+        }
+
+        void getKeyList()
+        {
+            var filter = (logic_ as LogicJoin).filter_;
+
+            Debug.Assert(filter != null);
+            var andlist = FilterHelper.FilterToAndList(filter);
+            foreach (var v in andlist)
+            {
+                Debug.Assert(v is BinExpr);
+                getOneKeyList(v as BinExpr);
+            }
+        }
+
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicJoin;
-            var filter = logic.filter_;
+            var hm = new Dictionary<KeyList, List<Row>>();
             bool semi = (logic_ is LogicSemiJoin);
             bool antisemi = (logic_ is LogicAntiSemiJoin);
 
-            l_().Exec(context, l =>
-            {
-                bool foundOneMatch = false;
-                r_().Exec(context, r =>
-                {
-                    if (!semi || !foundOneMatch)
-                    {
-                        Row n = new Row(l, r);
-                        if (filter is null || (bool)filter.Exec(context, n))
-                        {
-                            foundOneMatch = true;
-                            if (!antisemi)
-                            {
-                                n = ExecProject(context, n);
-                                callback(n);
-                            }
-                        }
-                    }
-                    return null;
-                });
+            // get the left side and right side key list
+            getKeyList();
 
-                if (antisemi && !foundOneMatch)
+            // build hash table with left side 
+            l_().Exec(context, l => {
+                var keys = KeyList.ComputeKeys(context, leftKeys_, l);
+
+                if (hm.TryGetValue(keys, out List<Row> exist))
                 {
-                    Row n = new Row(l, null);
-                    n = ExecProject(context, n);
-                    callback(n);
+                    exist.Add(l);
+                }
+                else
+                {
+                    List<Row> rows = new List<Row>();
+                    rows.Add(l);
+                    hm.Add(keys, rows);
+                }
+                return null;
+            });
+
+            // right side probes the hash table
+            r_().Exec(context, r =>
+            {
+                Row fakel = new Row(l_().logic_.output_.Count);
+                Row n = new Row(fakel, r);
+                var keys = KeyList.ComputeKeys(context, rightKeys_, n);
+                bool foundOneMatch = false;
+
+                if (hm.TryGetValue(keys, out List<Row> exist))
+                {
+                    foundOneMatch = true;
+                    foreach (var v in exist)
+                    {
+                        n = ExecProject(context, new Row(v, r));
+                        callback(n);
+                        if (semi)
+                            break;
+                    }
+                }
+                else
+                {
+                    // no match
+                    if (antisemi && !foundOneMatch)
+                    {
+                        n = new Row(null, r);
+                        n = ExecProject(context, n);
+                        callback(n);
+                    }
                 }
                 return null;
             });
@@ -313,33 +403,6 @@ namespace adb
 
     public class PhysicHashAgg : PhysicNode
     {
-        private class KeyList
-        {
-            internal List<Value> keys_ = new List<Value>();
-
-            static internal KeyList ComputeKeys(ExecContext context, LogicAgg agg, Row input)
-            {
-                var list = new KeyList();
-                if (agg.keys_ != null)
-                    agg.keys_.ForEach(x => list.keys_.Add(x.Exec(context, input)));
-                return list;
-            }
-
-            public override string ToString() => string.Join(",", keys_);
-            public override int GetHashCode()
-            {
-                int hashcode = 0;
-                keys_.ForEach(x => hashcode ^= x.GetHashCode());
-                return hashcode;
-            }
-            public override bool Equals(object obj)
-            {
-                var keyl = obj as KeyList;
-                Debug.Assert(obj is KeyList);
-                Debug.Assert(keyl.keys_.Count == keys_.Count);
-                return keys_.SequenceEqual(keyl.keys_);
-            }
-        };
         public PhysicHashAgg(LogicAgg logic, PhysicNode l) : base(logic) => children_.Add(l);
         public override string ToString() => $"PHAgg({(logic_ as LogicAgg)}: {Cost()})";
 
@@ -358,7 +421,7 @@ namespace adb
             // aggregation is working on aggCore targets
             child_().Exec(context, l =>
             {
-                var keys = KeyList.ComputeKeys(context, logic, l);
+                var keys = KeyList.ComputeKeys(context, logic.keys_, l);
 
                 if (hm.TryGetValue(keys, out Row exist))
                 {

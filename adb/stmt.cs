@@ -458,13 +458,14 @@ namespace adb
                         return false;
                     });
                 default:
+                    // Join filter pushdown may depends on join order.
                     // Consider 
-                    //  - filter1: a.a1 = c.c1
-                    //  - filter2: a.a2 = b.b2
-                    //  - nodeJoin: (A X B) X C
+                    //    - filter1: a.a1 = c.c1
+                    //    - filter2: a.a2 = b.b2
+                    //    - nodeJoin: (A X B) X C
                     // filter2 can be pushed to A X B but filter1 has to stay on top join for current plan.
                     // if we consider we can reorder join to (A X C) X B, then filter1 can be pushed down
-                    // but not filter1. Current stage is too early fro this purpose since join reordering
+                    // but not filter2. Current stage is too early for this purpose since join reordering
                     // is happened later. So we only do best efforts here only.
                     //
                     return plan.VisitEachNodeExists(n =>
@@ -536,10 +537,7 @@ namespace adb
                     else
                     {
                         // filter push down
-                        if (filterexpr is LogicAndExpr andexpr)
-                            andlist = andexpr.BreakToList();
-                        else
-                            andlist.Add(filterexpr);
+                        andlist = FilterHelper.FilterToAndList(filterexpr);
                         andlist.RemoveAll(e => pushdownFilter(plan, e));
                     }
 
