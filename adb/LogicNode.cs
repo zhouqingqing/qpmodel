@@ -199,7 +199,7 @@ namespace adb
                                     n.r_().DirectToPhysical(profiling));
                                 break;
                             default:
-                                if (ExprHelper.FilterHashable(lc.filter_))
+                                if (lc.FilterHashable())
                                     phy = new PhysicHashJoin(lc,
                                         n.l_().DirectToPhysical(profiling),
                                         n.r_().DirectToPhysical(profiling));
@@ -364,6 +364,37 @@ namespace adb
                 return base.Equals(lo) && (filter_?.Equals(lo.filter_) ?? true);
             }
             return false;
+        }
+
+        // forms to consider:
+        //   a.i = b.j
+        //   a.i = b.j and b.l = a.k
+        //   (a.i, a.k) = (b.j, b.l)
+        //   a.i + b.i = c.i-2*d.i if left side contained a,b and right side c,d
+        // but not:
+        //   a.i = c.i-2*d.i-b.i if left side contained a,b and right side c,d (we can add later)
+        //
+        public bool FilterHashable()
+        {
+            Expr filter = filter_;
+            bool general = false;
+
+            if (general)
+            {
+                var andlist = new List<Expr>();
+                if (filter is LogicAndExpr andexpr)
+                    andlist = andexpr.BreakToList();
+                else
+                    andlist.Add(filter);
+                foreach (var v in andlist)
+                {
+                    if (!(v is BinExpr bv && bv.op_.Equals("=")))
+                        return false;
+                }
+                return true;
+            }
+            else
+                return filter is BinExpr bf && bf.op_.Equals("=");
         }
 
         public bool AddFilter(Expr filter)

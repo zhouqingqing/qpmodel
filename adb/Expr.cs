@@ -104,33 +104,6 @@ namespace adb
             }
         }
 
-        // forms to consider:
-        //   a.i = b.j
-        //   a.i = b.j and b.l = a.k
-        //   (a.i, a.k) = (b.j, b.l)
-        //
-        public static bool FilterHashable(Expr filter)
-        {
-            bool general = false;
-
-            if (general)
-            {
-                var andlist = new List<Expr>();
-                if (filter is LogicAndExpr andexpr)
-                    andlist = andexpr.BreakToList();
-                else
-                    andlist.Add(filter);
-                foreach (var v in andlist)
-                {
-                    if (!(v is BinExpr bv && bv.op_.Equals("=")))
-                        return false;
-                }
-                return true;
-            }
-            else
-                return filter is BinExpr bf && bf.op_.Equals("=");
-        }
-
         public static List<Expr> CloneList(List<Expr> source, List<Type> excludes = null)
         {
             var clone = new List<Expr>();

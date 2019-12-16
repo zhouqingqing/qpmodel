@@ -158,6 +158,7 @@ namespace adb
                 @"create table a (a1 int, a2 int, a3 int, a4 int);",
                 @"create table b (b1 int, b2 int, b3 int, b4 int);",
                 @"create table c (c1 int, c2 int, c3 int, c4 int);",
+                @"create table d (d1 int, d2 int, d3 int, d4 int);",
             };
             foreach (var v in ddls) {
                 var stmt = RawParser.ParseSqlStatement(v) as CreateTableStmt;
