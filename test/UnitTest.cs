@@ -5,6 +5,9 @@ using System.Linq;
 using System.IO;
 using System.Collections.Generic;
 
+// failed tests:
+// sql = "select 5+5 as a1 from a where a1 > 2;";
+
 namespace test
 {
     public class TestHelper
@@ -156,9 +159,7 @@ namespace test
             result = TestHelper.ExecuteSQL(File.ReadAllText(files[10]));
             Assert.AreEqual(0, result.Count);
             result = TestHelper.ExecuteSQL(File.ReadAllText(files[11]));
-            Assert.AreEqual(2, result.Count);
-            Assert.AreEqual("SHIP,5,10", result[0].ToString());
-            Assert.AreEqual("MAIL,5,5", result[1].ToString());
+            Assert.AreEqual("SHIP,5,10;MAIL,5,5", string.Join(";", result));
             result = TestHelper.ExecuteSQL(File.ReadAllText(files[12]));
             Assert.AreEqual(26, result.Count);
             result = TestHelper.ExecuteSQL(File.ReadAllText(files[13]));
@@ -517,8 +518,14 @@ namespace test
         {
             var sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1";
             var result = TestHelper.ExecuteSQL(sql);
-            Assert.AreEqual(1, result.Count);
-            Assert.AreEqual("5", result[0].ToString());
+            Assert.AreEqual("5", string.Join(";", result));
+            sql = "select 5 as a6 from a where a6 > 2;";    // a6 is an output alias
+            result = TestHelper.ExecuteSQL(sql); Assert.IsNull(result);
+            Assert.IsTrue(TestHelper.error_.Contains("SemanticAnalyzeException"));
+            sql = "select* from(select 5 as a6 from a where a1 > 1)b where a6 > 1;";
+            result = TestHelper.ExecuteSQL(sql);
+            Assert.AreEqual("5", string.Join(";", result));
+
             // failed tests:
             // alias not handled well: c(b1), a(b1)
             //                        sql = "select a.b1+c.b1 from (select count(*) as b1 from b) a, (select c1 b1 from c) c where c.b1>1;";
@@ -632,22 +639,22 @@ namespace test
             Assert.AreEqual(3, result.Count);
             sql = "select a1 from a where a2>1;";
             result = ExecuteSQL(sql);
-            Assert.AreEqual(2, result.Count);
+            Assert.AreEqual("1;2", string.Join(";", result));
             sql = "select a.a1 from a where a2 > 1 and a3> 3;";
             result = ExecuteSQL(sql);
-            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual("2", string.Join(";", result));
+            sql = "select a.a1 from a where a2 > 1 or a3> 3;";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual("1;2", string.Join(";", result));
             sql = "select a.a1 from a where a2 > 1 and a3> 3;";
             result = ExecuteSQL("select a1 from a where a2>2");
-            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual("2", string.Join(";", result));
             sql = "select a1,a1,a3,a3 from a where a1>1;";
             result = ExecuteSQL(sql);
-            Assert.AreEqual(1, result.Count);
-            Assert.AreEqual("2,2,4,4", result[0].ToString());
+            Assert.AreEqual("2,2,4,4", string.Join(";", result));
             sql = "select a1,a1,a4,a4 from a where a1+a2>2;";
             result = ExecuteSQL(sql);
-            Assert.AreEqual(2, result.Count);
-            Assert.AreEqual("1,1,4,4", result[0].ToString());
-            Assert.AreEqual("2,2,5,5", result[1].ToString());
+            Assert.AreEqual("1,1,4,4;2,2,5,5", string.Join(";", result));
             sql = "select a1,a1,a3,a3 from a where a1+a2+a3>2;";
             result = ExecuteSQL(sql);
             Assert.AreEqual(3, result.Count);

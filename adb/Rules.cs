@@ -16,6 +16,7 @@ namespace adb
             new Scan2Scan(),
             new Filter2Filter(),
             new Agg2HashAgg(),
+            new Order2Sort(),
             new JoinCommutativeRule(),  // intentionally add a duplicated rule
         };
 
@@ -154,6 +155,21 @@ namespace adb
         {
             var agg = expr.logic_ as LogicAgg;
             var phy = new PhysicHashAgg(agg, new PhysicMemoNode(agg.children_[0]));
+            return new CGroupMember(phy, expr.group_);
+        }
+    }
+    public class Order2Sort : ImplmentationRule
+    {
+        public override bool Appliable(CGroupMember expr)
+        {
+            var order = expr.logic_ as LogicOrder;
+            return order != null;
+        }
+
+        public override CGroupMember Apply(CGroupMember expr)
+        {
+            var order = expr.logic_ as LogicOrder;
+            var phy = new PhysicOrder(order, new PhysicMemoNode(order.children_[0]));
             return new CGroupMember(phy, expr.group_);
         }
     }

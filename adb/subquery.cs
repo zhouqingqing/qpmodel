@@ -14,6 +14,7 @@ namespace adb
         public MarkerExpr() {
             Debug.Assert(Equals(Clone()));
             type_ = new BoolType();
+            bounded_ = true;
         }
 
         public override Value Exec(ExecContext context, Row input)

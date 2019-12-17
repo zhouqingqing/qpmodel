@@ -432,6 +432,14 @@ namespace adb
     {
         public LogicAndExpr(Expr l, Expr r) : base(l, r, " and ") { }
 
+        public static LogicAndExpr MakeExpr(Expr l, Expr r)
+        {
+            var and = new LogicAndExpr(l, r);
+            and.AggregateTableRefs();
+            and.bounded_ = true;
+            return and;
+        }
+
         // a AND (b OR c) AND d => [a, b OR c, d]
         //
         public List<Expr> BreakToList()
@@ -449,6 +457,7 @@ namespace adb
             return andlist;
         }
     }
+
     public class LogicOrExpr : BinExpr
     {
         public LogicOrExpr(Expr l, Expr r) : base(l, r, " or ") { }

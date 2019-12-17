@@ -160,6 +160,8 @@ namespace adb
         }
 
 		// TODO: what about expr.tableRefs_?
+        //  They shall be equal but our implmentation sometimes get them inconsistent
+        //  for example, xc.tabRef_ can contain outerrefs but tableRefs_ does not.
         public static List<TableRef> AllTableRef(Expr expr)
         {
             var list = new HashSet<TableRef>();
@@ -219,7 +221,7 @@ namespace adb
         public static Expr AddAndFilter(Expr filter, Expr newcond) {
             if (filter is null)
                 return newcond.Clone();
-            return new LogicAndExpr(filter, newcond.Clone());
+            return LogicAndExpr.MakeExpr(filter, newcond.Clone());
         }
         public static void NullifyFilter(LogicNode node)
         {
@@ -284,6 +286,7 @@ namespace adb
 
         public int TableRefCount()
         {
+        	Debug.Assert(bounded_);
             Debug.Assert(tableRefs_.Distinct().Count() == tableRefs_.Count);
             return tableRefs_.Count;
         }
@@ -447,14 +450,22 @@ namespace adb
                 children_.SequenceEqual(n.children_);
         }
 
-        public virtual void Bind(BindContext context)
-        {
+		public void AggregateTableRefs ()
+		{
             children_.ForEach(x=> {
-                x.Bind(context);
+                Debug.Assert (x.bounded_);
                 tableRefs_.AddRange(x.tableRefs_);
             });
             if (tableRefs_.Count > 1)
                 tableRefs_ = tableRefs_.Distinct().ToList();
+		}
+
+        public virtual void Bind(BindContext context)
+        {
+            children_.ForEach(x=> {
+                x.Bind(context);
+            });
+			AggregateTableRefs ();
 
             markBounded();
         }
@@ -561,7 +572,7 @@ namespace adb
                     }
                 }
                 if (tabRef_ is null)
-                    throw new Exception($"can't bind column '{colName_}' to table");
+                    throw new SemanticAnalyzeException($"can't bind column '{colName_}' to table");
             }
 
             Debug.Assert(tabRef_ != null);
@@ -752,6 +763,7 @@ namespace adb
             Debug.Assert(!(expr is ExprRef));
             children_.Add(expr); ordinal_ = ordinal;
             type_ = expr.type_;
+            bounded_ = expr.bounded_;
         }
 
         public override int GetHashCode() => expr_().GetHashCode();
@@ -764,6 +776,7 @@ namespace adb
                 return (obj is Expr oe) ? expr_().Equals(oe) : false;
         }
 
+        public override void Bind(BindContext context) => throw new SemanticExecutionException("ExprRef inherits its expr's bounded_ status");
         public override Value Exec(ExecContext context, Row input)
         {
             Debug.Assert(type_ != null);
