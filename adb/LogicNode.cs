@@ -181,32 +181,44 @@ namespace adb
                             ExprHelper.SubqueryDirectToPhysic(ln.filter_);
                         break;
                     case LogicJoin lc:
+                        var l = n.l_();
+                        var r = n.r_();
                         switch (lc)
                         {
-                            case LogicSingleMarkJoin lsjm:
-                                phy = new PhysicSingleMarkJoin(lsjm,
-                                    n.l_().DirectToPhysical(profiling),
-                                    n.r_().DirectToPhysical(profiling));
+                            case LogicSingleMarkJoin lsmj:
+                                phy = new PhysicSingleMarkJoin(lsmj,
+                                    l.DirectToPhysical(profiling),
+                                    r.DirectToPhysical(profiling));
                                 break;
-                            case LogicMarkJoin ldj:
-                                phy = new PhysicMarkJoin(ldj,
-                                    n.l_().DirectToPhysical(profiling),
-                                    n.r_().DirectToPhysical(profiling));
+                            case LogicMarkJoin lmj:
+                                phy = new PhysicMarkJoin(lmj,
+                                    l.DirectToPhysical(profiling),
+                                    r.DirectToPhysical(profiling));
                                 break;
                             case LogicSingleJoin lsj:
                                 phy = new PhysicSingleJoin(lsj,
-                                    n.l_().DirectToPhysical(profiling),
-                                    n.r_().DirectToPhysical(profiling));
+                                    l.DirectToPhysical(profiling),
+                                    r.DirectToPhysical(profiling));
                                 break;
                             default:
-                                if (lc.FilterHashable())
+                                bool lhasouter = TableRef.HasOuterRefs(l.InclusiveTableRefs());
+                                bool rhasouter = TableRef.HasOuterRefs(r.InclusiveTableRefs());
+
+                                // if left side has outerrefs, we needs NLJ to drive the parameter
+                                // pass to right side, so we can't use HJ in this case.
+                                if (lc.FilterHashable() && !lhasouter)
                                     phy = new PhysicHashJoin(lc,
-                                        n.l_().DirectToPhysical(profiling),
-                                        n.r_().DirectToPhysical(profiling));
+                                        l.DirectToPhysical(profiling),
+                                        r.DirectToPhysical(profiling));
                                 else
+                                {
+                                    // it is ok right side reference left side's variable but not 
+                                    // the other direction. In this case, we shall flip the side.
+                                    //
                                     phy = new PhysicNLJoin(lc,
-                                        n.l_().DirectToPhysical(profiling),
-                                        n.r_().DirectToPhysical(profiling));
+                                        l.DirectToPhysical(profiling),
+                                        r.DirectToPhysical(profiling));
+                                }
                                 break;
                         }
                         break;

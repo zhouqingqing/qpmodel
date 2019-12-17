@@ -42,15 +42,15 @@ namespace adb
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             sql = "select a1,a1,a3,a3 from a where a2> (select b1 from (select * from b) d,c where b1=c1 and b1=a1 and b2=3);"; // lost a2>@1
-            //tpch.LoadTables("0001");
+            tpch.LoadTables("0001");
 
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[2];
+                var v = files[20];
                 {
                     sql = File.ReadAllText(v);
-                    //goto doit;
+                    goto doit;
                 }
             }
             //sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
@@ -102,9 +102,12 @@ namespace adb
             sql = "select count(*) from a join b on a1 = b1;";
             //sql = "select * from (select * from a join b on a1=b1) ab join (select * from c join d on c1=d1) cd on ab.a1=cd.c1";
             //sql = "select * from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where a1+b1=c1+d1";
-            sql = "select count(a1) from a, b, c where a.a1=b.b1 and b.b2 = c.c2;";
-            sql = "select * from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where ab.a1=cd.c1";
-
+            //sql = "select * from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where ab.a1=cd.c1";
+            sql = "select a1,b1,c1 from a,b,c where a1+b1+c1>5 and c1+b1>2";
+            sql = "select * from a where a1>1;";
+            sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
+                and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
+                and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
 
             doit:
             Console.WriteLine(sql);
@@ -116,7 +119,7 @@ namespace adb
 
             // -- generate an initial plan
             a.profileOpt_.enabled_ = true;
-            a.optimizeOpt_.enable_subquery_to_markjoin_ = true;
+            a.optimizeOpt_.enable_subquery_to_markjoin_ = false;
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.PrintString(0));
 

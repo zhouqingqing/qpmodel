@@ -320,6 +320,8 @@ namespace adb
                 leftKeys_.Add(fb.r_());
                 rightKeys_.Add(fb.l_());
             }
+
+            Debug.Assert(leftKeys_.Count == rightKeys_.Count);
         }
 
         void getKeyList()
@@ -335,15 +337,20 @@ namespace adb
             }
         }
 
+        public override void Open()
+        {
+            // get the left side and right side key list
+            Debug.Assert(leftKeys_.Count == 0);
+            getKeyList();
+            base.Open();
+        }
+
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicJoin;
             var hm = new Dictionary<KeyList, List<Row>>();
             bool semi = (logic_ is LogicSemiJoin);
             bool antisemi = (logic_ is LogicAntiSemiJoin);
-
-            // get the left side and right side key list
-            getKeyList();
 
             // build hash table with left side 
             l_().Exec(context, l => {

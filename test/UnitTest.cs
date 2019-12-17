@@ -126,11 +126,14 @@ namespace test
             tpch.LoadTables("0001");
 
             // execute queries
+            string phyplan = "";
             var result = TestHelper.ExecuteSQL(File.ReadAllText(files[0]));
             Assert.AreEqual(4, result.Count);
             result = TestHelper.ExecuteSQL(File.ReadAllText(files[1]));
             Assert.AreEqual(0, result.Count);
-            //q3 too slow
+            result = TestHelper.ExecuteSQL(File.ReadAllText(files[2]), out phyplan);
+            Assert.AreEqual(2, TestHelper.CountStringOccurrences(phyplan, "PhysicHashJoin"));
+            Assert.AreEqual(8, result.Count);
             result = TestHelper.ExecuteSQL(File.ReadAllText(files[3]));
             Assert.AreEqual(5, result.Count);
             Assert.AreEqual("1-URGENT,33", result[0].ToString());
@@ -138,11 +141,18 @@ namespace test
             Assert.AreEqual("5-LOW,38", result[2].ToString());
             Assert.AreEqual("4-NOT SPECIFIED,37", result[3].ToString());
             Assert.AreEqual("3-MEDIUM,36", result[4].ToString());
-            // q5 too slow
+            result = TestHelper.ExecuteSQL(File.ReadAllText(files[4]));
+            Assert.AreEqual(0, result.Count);
             // q6 between parser issue
             // q7 n1.n_name, n2.n_name matching
             // q8 between parser issue
-            // q9,q10,q11 too slow
+            result = TestHelper.ExecuteSQL(File.ReadAllText(files[8]));
+            Assert.AreEqual(9, result.Count);
+            Assert.AreEqual("MOROCCO,0,1687299;KENYA,0,577213;PERU,0,564370;UNITED STATES,0,274484;IRAQ,0,179599;"+
+                             "UNITED KINGDOM,0,2309469;IRAN,0,183369;ETHIOPIA,0,160941;ARGENTINA,0,121664", 
+                string.Join(";", result));
+            result = TestHelper.ExecuteSQL(File.ReadAllText(files[9]));
+            Assert.AreEqual(43, result.Count);
             result = TestHelper.ExecuteSQL(File.ReadAllText(files[10]));
             Assert.AreEqual(0, result.Count);
             result = TestHelper.ExecuteSQL(File.ReadAllText(files[11]));
@@ -796,7 +806,8 @@ namespace test
             Assert.AreEqual("3", string.Join(";", result));
             sql = "select count(*) from a join b on a1 = b1 and a2 = b2;";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "PhysicNLJoin")); // FIXME
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "PhysicNLJoin")); // FIXME - because we only process one predicate
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "Filter: a.a1[1]=b.b1[3] and a.a2[2]=b.b2[4]"));
             Assert.AreEqual("3", string.Join(";", result));
             sql = "select * from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where ab.a1=cd.c1";
             result = ExecuteSQL(sql, out phyplan);
@@ -806,6 +817,17 @@ namespace test
             result = ExecuteSQL(sql, out phyplan);
             Assert.AreEqual(3, TestHelper.CountStringOccurrences(phyplan, "PhysicHashJoin"));
             Assert.AreEqual(3, result.Count);
+
+            // FIXME: becuase join order prevents push down - comparing below 2 cases
+            sql = "select * from a, b, c where a1 = b1 and b2 = c2;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual(2, TestHelper.CountStringOccurrences(phyplan, "PhysicHashJoin"));
+            Assert.AreEqual("0,1,2,3,0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5,2,3,4,5", string.Join(";", result));
+            sql = "select * from a, b, c where a1 = b1 and a1 = c1;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual(0, TestHelper.CountStringOccurrences(phyplan, "PhysicHashJoin"));
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "Filter: a.a1[0]=b.b1[4] and a.a1[0]=c.c1[8]"));
+            Assert.AreEqual("0,1,2,3,0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5,2,3,4,5", string.Join(";", result));
 
             // FAILED
             sql = "select * from (select * from a join b on a1=b1) ab join (select * from c join d on c1=d1) cd on a1+b1=c1+d1"; // FIXME
@@ -897,15 +919,17 @@ namespace test
             result = ExecuteSQL(sql, out phyplan);
             answer = @"PhysicNLJoin   (rows = 1)
                         Output: a.a1[0],b.b1[1],c.c1[2]
-                        Filter: a.a1[0]+b.b1[1]+c.c1[2]>5 and c.c1[2]+b.b1[1]>2
+                        Filter: a.a1[0]+b.b1[1]+c.c1[2]>5
                         -> PhysicScanTable a  (rows = 3)
                             Output: a.a1[0]
-                        -> PhysicNLJoin   (rows = 27)
+                        -> PhysicNLJoin   (rows = 9)
                             Output: b.b1[1],c.c1[0]
+                            Filter: c.c1[0]+b.b1[1]>2
                             -> PhysicScanTable c  (rows = 9)
                                 Output: c.c1[0]
                             -> PhysicScanTable b  (rows = 27)
                                 Output: b.b1[0]";
+            Assert.AreEqual("2,2,2", string.Join(";", result));
             TestHelper.PlanAssertEqual(answer, phyplan);
 
             sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b1 > ((select c2 from c where c.c2=b2)))";
@@ -1019,38 +1043,39 @@ namespace test
             result = TestHelper.ExecuteSQL(sql, out phyplan, option);
             answer = @"PhysicNLJoin   (rows = 3)
                         Output: a.a1[2]
-                        Filter: a.a1[2]=b.b1[3] and b.b2[4]=c.c2[0]
+                        Filter: b.b2[3]=c.c2[0]
                         -> PhysicScanTable c  (rows = 3)
                             Output: c.c2[1],#c.c3[2]
-                        -> PhysicNLJoin   (rows = 9)
-                            Output: a.a1[2],b.b1[0],b.b2[1]
+                        -> PhysicHashJoin   (rows = 3)
+                            Output: a.a1[2],b.b2[0]
+                            Filter: a.a1[2]=b.b1[1]
                             -> PhysicScanTable b  (rows = 9)
-                                Output: b.b1[0],b.b2[1]
-                            -> PhysicScanTable a  (rows = 9)
+                                Output: b.b2[1],b.b1[0]
+                            -> PhysicScanTable a  (rows = 3)
                                 Output: a.a1[0],#a.a2[1],#a.a3[2]
                                 Filter: a.a1[0]=@1 and a.a2[1]=@3
                                 <ScalarSubqueryExpr> 1
-                                    -> PhysicFilter   (rows = 9)
+                                    -> PhysicFilter   (rows = 3)
                                         Output: bo.b1[0]
                                         Filter: bo.b2[1]=?a.a2[1] and bo.b2[1]<5 and bo.b1[0]=@2
                                         <ScalarSubqueryExpr> 2
-                                            -> PhysicScanTable b  (rows = 81)
+                                            -> PhysicScanTable b  (rows = 27)
                                                 Output: b.b1[0]
                                                 Filter: b.b3[2]=?a.a3[2] and ?bo.b3[2]=?c.c3[2] and b.b3[2]>1
-                                        -> PhysicFromQuery <bo>  (rows = 243)
+                                        -> PhysicFromQuery <bo>  (rows = 81)
                                             Output: bo.b1[0],bo.b2[1],#bo.b3[2]
-                                            -> PhysicNLJoin   (rows = 243)
+                                            -> PhysicNLJoin   (rows = 81)
                                                 Output: b_2.b1[2],b_1.b2[0],b_1.b3[1]
-                                                -> PhysicScanTable b as b_1  (rows = 81)
+                                                -> PhysicScanTable b as b_1  (rows = 27)
                                                     Output: b_1.b2[1],b_1.b3[2]
-                                                -> PhysicScanTable b as b_2  (rows = 243)
+                                                -> PhysicScanTable b as b_2  (rows = 81)
                                                     Output: b_2.b1[0]
                                 <ScalarSubqueryExpr> 3
-                                    -> PhysicScanTable b as bo  (rows = 27)
+                                    -> PhysicScanTable b as bo  (rows = 9)
                                         Output: bo.b2[1],#bo.b3[2]
                                         Filter: bo.b1[0]=?a.a1[0] and bo.b2[1]=@4 and ?c.c3[2]<5
                                         <ScalarSubqueryExpr> 4
-                                            -> PhysicScanTable b  (rows = 27)
+                                            -> PhysicScanTable b  (rows = 9)
                                                 Output: b.b2[1]
                                                 Filter: b.b4[3]=?a.a3[2]+1 and ?bo.b3[2]=?a.a3[2] and b.b3[2]>0";
             Assert.AreEqual("0;1;2", string.Join(";", result));
