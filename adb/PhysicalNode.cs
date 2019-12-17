@@ -308,7 +308,7 @@ namespace adb
             var rtabrefs = r_().logic_.InclusiveTableRefs();
             var lkeyrefs = fb.l_().tableRefs_;
             var rkeyrefs = fb.r_().tableRefs_;
-            if (ltabrefs.Any(lkeyrefs.Contains))
+            if (Utils.ListAContainsB(ltabrefs, lkeyrefs))
             {
                 leftKeys_.Add(fb.l_());
                 rightKeys_.Add(fb.r_());
@@ -316,7 +316,7 @@ namespace adb
             else
             {
                 // switch side
-                Debug.Assert(rtabrefs.Any(lkeyrefs.Contains));
+                Debug.Assert(Utils.ListAContainsB(rtabrefs, lkeyrefs));
                 leftKeys_.Add(fb.r_());
                 rightKeys_.Add(fb.l_());
             }

@@ -50,7 +50,7 @@ namespace adb
                 var v = files[2];
                 {
                     sql = File.ReadAllText(v);
-                   // goto doit;
+                    //goto doit;
                 }
             }
             //sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
@@ -102,7 +102,9 @@ namespace adb
             sql = "select count(*) from a join b on a1 = b1;";
             //sql = "select * from (select * from a join b on a1=b1) ab join (select * from c join d on c1=d1) cd on ab.a1=cd.c1";
             //sql = "select * from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where a1+b1=c1+d1";
-            sql = "select count(a1) from a, b, c where a.a1=b.b1 and a.a2 = c.c2;";
+            sql = "select count(a1) from a, b, c where a.a1=b.b1 and b.b2 = c.c2;";
+            sql = "select * from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where ab.a1=cd.c1";
+
 
             doit:
             Console.WriteLine(sql);
@@ -114,7 +116,7 @@ namespace adb
 
             // -- generate an initial plan
             a.profileOpt_.enabled_ = true;
-//            a.optimizeOpt_.enable_subquery_to_markjoin_ = false;
+            a.optimizeOpt_.enable_subquery_to_markjoin_ = true;
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.PrintString(0));
 

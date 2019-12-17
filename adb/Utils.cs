@@ -21,6 +21,7 @@ namespace adb
 
         // a contains b?
         public static bool ListAContainsB<T>(List<T> a, List<T> b) => !b.Except(a).Any();
+        public static bool ListAEqualsB<T>(List<T> a, List<T> b) => ListAContainsB(a, b) && ListAContainsB(b, a);
         public static int ListHashCode<T>(List<T> l)
         {
             int hash = 0x72344ABC;
