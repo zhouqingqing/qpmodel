@@ -81,6 +81,14 @@ namespace adb
             return output;
         }
 
+        public static bool HasOuterRefs(List<TableRef> tables) {
+            foreach (var v in tables)
+            {
+                if (v.outerrefs_.Count > 0)
+                    return true;
+            }
+            return false;
+        }
         public abstract List<Expr> AllColumnsRefs();
     }
 

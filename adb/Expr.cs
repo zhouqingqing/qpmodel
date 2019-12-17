@@ -297,13 +297,11 @@ namespace adb
         public bool TableRefsContainedBy(List<TableRef> tableRefs)
         {
             Debug.Assert(bounded_);
-            Debug.Assert(TableRefCount() <= tableRefs.Count);
             return Utils.ListAContainsB(tableRefs, tableRefs_);
         }
         public bool TableRefsEquals(List<TableRef> tableRefs)
         {
             Debug.Assert(bounded_);
-            Debug.Assert(TableRefCount() <= tableRefs.Count);
             return Utils.ListAEqualsB(tableRefs, tableRefs_);
         }
 

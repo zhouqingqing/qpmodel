@@ -41,7 +41,9 @@ namespace adb
             Optimize();
 
             var result = new PhysicCollect(physicPlan_);
+            result.Open();
             result.Exec(new ExecContext(), null);
+            result.Close();
             return result.rows_;
         }
     }
@@ -472,9 +474,22 @@ namespace adb
                     {
                         if (n is LogicJoin nodeJoin)
                         {
-                            var nodejoinRefs = nodeJoin.InclusiveTableRefs();
-                            if (filter.TableRefsContainedBy(nodejoinRefs))
-                                return nodeJoin.AddFilter(filter);
+                            var nodejoinIncl = nodeJoin.InclusiveTableRefs();
+
+                            // if this node contains tables needed by the filter, we know we can at least push 
+                            // the filter down to this node. But we want to push deeper. However, the recursion
+                            // is in-order, which means the parent node gets visited first. So we have to change
+                            // the recursion here to get children try the push down first: if can't push there,
+                            // current node will the the stop; otherwise, recursion can stop.
+                            //
+                            if (filter.TableRefsContainedBy(nodejoinIncl))
+                            {
+                                if (!pushdownFilter(nodeJoin.l_(), filter) &&
+                                    !pushdownFilter(nodeJoin.r_(), filter))
+                                    return nodeJoin.AddFilter(filter);
+                                else
+                                    return true;
+                            }
                         }
                         return false;
                     });
