@@ -294,14 +294,17 @@ namespace adb
             return tableRefs_[0].Equals(tableRef);
         }
 
-        public bool EqualTableRefs(List<TableRef> tableRefs)
+        public bool TableRefsContainedBy(List<TableRef> tableRefs)
         {
             Debug.Assert(bounded_);
             Debug.Assert(TableRefCount() <= tableRefs.Count);
-            foreach (var v in tableRefs_)
-                if (!tableRefs.Contains(v))
-                    return false;
-            return true;
+            return Utils.ListAContainsB(tableRefs, tableRefs_);
+        }
+        public bool TableRefsEquals(List<TableRef> tableRefs)
+        {
+            Debug.Assert(bounded_);
+            Debug.Assert(TableRefCount() <= tableRefs.Count);
+            return Utils.ListAEqualsB(tableRefs, tableRefs_);
         }
 
         public bool VisitEachExprExists(Func<Expr, bool> check, List<Type> excluding = null)

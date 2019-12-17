@@ -470,9 +470,12 @@ namespace adb
                     //
                     return plan.VisitEachNodeExists(n =>
                     {
-                        if (n is LogicJoin nodeJoin &&
-                            filter.EqualTableRefs(nodeJoin.InclusiveTableRefs()))
-                            return nodeJoin.AddFilter(filter);
+                        if (n is LogicJoin nodeJoin)
+                        {
+                            var nodejoinRefs = nodeJoin.InclusiveTableRefs();
+                            if (filter.TableRefsContainedBy(nodejoinRefs))
+                                return nodeJoin.AddFilter(filter);
+                        }
                         return false;
                     });
             }
