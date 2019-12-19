@@ -241,7 +241,7 @@ namespace adb
 
             PhysicNode phy = minmember.physic_;
             phy.logic_ = RetrieveLogicTree(phy.logic_);
-            if (Optimizer.stmt_.profileOpt_.enabled_)
+            if (Optimizer.topstmt_.profileOpt_.enabled_)
                 phy = new PhysicProfiling(phy);
             return phy;
         }
@@ -338,7 +338,7 @@ namespace adb
         }
 
         public string Print() {
-            var str = "Memo:\n";
+            var str = "\nMemo:\n";
             int tlogics = 0, tphysics = 0;
 
             validateMemo();
@@ -364,65 +364,75 @@ namespace adb
     public static class Optimizer
     {
         public static List<Memo> memoset_ = new List<Memo>();
-        public static SQLStatement stmt_;
+        public static SQLStatement topstmt_;
+        public static int copyoutCounter_ = 0;
+
+        public static void InitRootPlan(SQLStatement stmt)
+        {
+            // call once
+            topstmt_ = stmt;
+            memoset_.Clear();
+        }
 
         public static void OptimizeRootPlan(SQLStatement stmt, PhysicProperty required)
         {
-            stmt_ = stmt;
-
-            // call once
-            memoset_.Clear();
-            var rootmemo = new Memo();
-            memoset_.Add(rootmemo);
+            // each statement sitting in a new memo
+            var memo = new Memo();
+            memoset_.Add(memo);
 
             // the statment shall already have plan generated
             var logicroot = stmt.logicPlan_;
-            rootmemo.rootgroup_ = rootmemo.EnquePlan(logicroot);
+            memo.rootgroup_ = memo.EnquePlan(logicroot);
 
             // enqueue the subqueries: fromquery are excluded because different from 
             // other subqueries (IN, EXISTS etc), the subtree of it is actually connected 
             // in the same memo.
             //
-            var subqueries = (stmt_ as SelectStmt).SubqueriesExcludeFromQuery();
-            foreach (var v in subqueries) {
-                var submemo = new Memo();
-                var subroot = v.logicPlan_;
-                submemo.rootgroup_ = submemo.EnquePlan(subroot);
-                memoset_.Add(submemo);
-            }
+            var subqueries = (stmt as SelectStmt).SubqueriesExcludeFromQuery();
+            foreach (var v in subqueries)
+                Optimizer.OptimizeRootPlan(v, required);
 
             // loop through the stack, optimize each one until empty
             //
-            foreach (var memo in memoset_)
+            while (memo.stack_.Count > 0)
             {
-                while (memo.stack_.Count > 0)
-                {
-                    var group = memo.stack_.Pop();
-                    group.OptimizeGroup(memo, required);
-                }
+                var group = memo.stack_.Pop();
+                group.OptimizeGroup(memo, required);
             }
+        }
+
+        public static PhysicNode CopyOutOnePlan(SQLStatement stmt, Memo memo)
+        {
+            var selectstmt = stmt as SelectStmt;
+
+            // retrieve the lowest cost plan
+            Debug.Assert(stmt.physicPlan_ is null);
+            stmt.physicPlan_ = memo.rootgroup_.CopyOutMinLogicPhysicPlan();
+
+            // finally let's fix the output
+            stmt.logicPlan_.ResolveColumnOrdinal(selectstmt.selection_, selectstmt.parent_ != null);
+            return stmt.physicPlan_;
+        }
+
+        public static PhysicNode CopyOutOptimalPlan(SQLStatement stmt)
+        {
+            var phyplan = CopyOutOnePlan(stmt, memoset_[copyoutCounter_++]);
+            var subqueries = (stmt as SelectStmt).SubqueriesExcludeFromQuery();
+            foreach (var v in subqueries)
+                CopyOutOptimalPlan(v);
+            return phyplan;
         }
 
         public static PhysicNode CopyOutOptimalPlan()
         {
-            var selectstmt = stmt_ as SelectStmt;
-            var subqueries = selectstmt.subqueries_;
-            for (int i = 1; i < memoset_.Count; i++)
-            {
-                var subphyplan = memoset_[i].rootgroup_.CopyOutMinLogicPhysicPlan();
-                SelectStmt subq = subqueries[i - 1];
+            copyoutCounter_ = 0;
+            return CopyOutOptimalPlan(topstmt_);
+        }
 
-                Debug.Assert(subq.physicPlan_ is null);
-                subq.physicPlan_ = subphyplan;
-                subq.physicPlan_.logic_ = subphyplan.logic_;
-                subq.logicPlan_.ResolveColumnOrdinal(subq.selection_, subq.parent_ != null);
-            }
-            Debug.Assert(stmt_.physicPlan_ is null);
-            stmt_.physicPlan_ = memoset_[0].rootgroup_.CopyOutMinLogicPhysicPlan();
-
-            // finally let's fix the output
-            stmt_.logicPlan_.ResolveColumnOrdinal(selectstmt.selection_, selectstmt.parent_ != null);
-            return stmt_.physicPlan_;
+        public static string PrintMemo() {
+            string str = "";
+            memoset_.ForEach(x => str += x.Print());
+            return str;
         }
     }
 }
