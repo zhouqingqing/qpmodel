@@ -218,10 +218,10 @@ namespace adb
     public static class FilterHelper {
         
         // a > 3 or c > 1, b > 5 =>  (a > 3 or c > 1) and (b > 5)
-        public static Expr AddAndFilter(Expr filter, Expr newcond) {
-            if (filter is null)
+        public static Expr AddAndFilter(Expr basefilter, Expr newcond) {
+            if (basefilter is null)
                 return newcond.Clone();
-            return LogicAndExpr.MakeExpr(filter, newcond.Clone());
+            return LogicAndExpr.MakeExpr(basefilter, newcond.Clone());
         }
         public static void NullifyFilter(LogicNode node)
         {

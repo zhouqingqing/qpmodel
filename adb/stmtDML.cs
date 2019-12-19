@@ -82,7 +82,7 @@ namespace adb
             return logicPlan_;
         }
 
-        public override LogicNode Optimize()
+        public override LogicNode PhaseOneOptimize()
         {
             // convert to physical plan
             physicPlan_ = logicPlan_.DirectToPhysical(profileOpt_);
@@ -118,9 +118,9 @@ namespace adb
 
         public override BindContext Bind(BindContext parent) => insert_.Bind(parent);
         public override LogicNode CreatePlan() => insert_.CreatePlan();
-        public override LogicNode Optimize()
+        public override LogicNode PhaseOneOptimize()
         {
-            logicPlan_ = insert_.Optimize();
+            logicPlan_ = insert_.PhaseOneOptimize();
             physicPlan_ = insert_.physicPlan_;
             return logicPlan_;
         }

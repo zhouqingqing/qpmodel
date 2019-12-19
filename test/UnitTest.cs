@@ -183,48 +183,66 @@ namespace test
         [TestMethod]
         public void TestMemo()
         {
-            {
-                var sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
-                var a = RawParser.ParseSqlStatement(sql); a.Bind(null);
-                var rawplan = a.CreatePlan();
-                Optimizer.EnqueRootPlan(a);
-                var memo = Optimizer.memoset_[0];
-                Console.WriteLine(memo.Print());
-                Optimizer.SearchOptimal(null);
-                Console.WriteLine(memo.Print());
-                memo.CalcStats(out int tlogics, out int tphysics);
-                Assert.AreEqual(16, memo.cgroups_.Count);
-                Assert.AreEqual(49, tlogics); Assert.AreEqual(49, tphysics);
-                var phyplan = Optimizer.RetrieveOptimalPlan();
+            OptimizeOption option = new OptimizeOption();
+            option.use_memo_ = true;
 
-                var final = new PhysicCollect(phyplan);
-                final.Open();
-                final.Exec(new ExecContext(), null);
-                final.Close();
-                var result = final.rows_;
-                Console.WriteLine(phyplan.PrintString(0));
-                Assert.AreEqual("0;1;2", string.Join(";", result));
-            }
+            var sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
+            var result = TestHelper.ExecuteSQL(sql, out _, option);
+            var memo = Optimizer.memoset_[0];
+            memo.CalcStats(out int tlogics, out int tphysics);
+            Assert.AreEqual(10, memo.cgroups_.Count);
+            Assert.AreEqual(19, tlogics); Assert.AreEqual(25, tphysics);
+            Assert.AreEqual("0;1;2", string.Join(";", result));
 
-            {
-                var sql = "select * from a join b on a1=b1 where a1 < (select a2 from a where a2=b2);";
-                var a = RawParser.ParseSqlStatement(sql); a.Bind(null);
-                var rawplan = a.CreatePlan();
-                Optimizer.EnqueRootPlan(a);
-                var memo = Optimizer.memoset_[0];
-                Console.WriteLine(memo.Print());
-                Optimizer.SearchOptimal(null);
-                Console.WriteLine(memo.Print());
-                var phyplan = Optimizer.RetrieveOptimalPlan();
+            sql = "select * from b join a on a1=b1 where a1 < (select a2 from a where a2=b2);";
+            option.enable_subquery_to_markjoin_ = false; // FIXME: they shall work together
+            result = TestHelper.ExecuteSQL(sql, out _, option);
+            Assert.AreEqual("0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5", string.Join(";", result));
+            option.enable_subquery_to_markjoin_ = true;
 
-                var final = new PhysicCollect(phyplan);
-                final.Open();
-                final.Exec(new ExecContext(), null);
-                final.Close();
-                var result = final.rows_;
-                Console.WriteLine(phyplan.PrintString(0));
-                Assert.AreEqual(3, result.Count);
-            }
+            sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3 and c.c1 = a.a1";
+            result = TestHelper.ExecuteSQL(sql, out _, option);
+            memo = Optimizer.memoset_[0];
+            memo.CalcStats(out tlogics, out tphysics);
+            Assert.AreEqual(8, memo.cgroups_.Count);
+            Assert.AreEqual(16, tlogics); Assert.AreEqual(22, tphysics);
+            Assert.AreEqual("0;1;2", string.Join(";", result));
+
+            sql = "select b1 from a,c,b where b.b2 = a.a2 and b.b3=c.c3 and c.c1 = a.a1";   // FIXME: different #plans
+            result = TestHelper.ExecuteSQL(sql, out _, option);
+            memo = Optimizer.memoset_[0];
+            memo.CalcStats(out tlogics, out tphysics);
+            Assert.AreEqual(8, memo.cgroups_.Count);
+            Assert.AreEqual(18, tlogics); Assert.AreEqual(22, tphysics);
+            Assert.AreEqual("0;1;2", string.Join(";", result));
+
+            sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3";
+            result = TestHelper.ExecuteSQL(sql, out _, option);
+            memo = Optimizer.memoset_[0];
+            memo.CalcStats(out tlogics, out tphysics);
+            Assert.AreEqual(7, memo.cgroups_.Count);
+            Assert.AreEqual(12, tlogics); Assert.AreEqual(16, tphysics);
+            Assert.AreEqual("0;1;2", string.Join(";", result));
+
+            sql = "select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1";
+            result = TestHelper.ExecuteSQL(sql, out _, option);
+            memo = Optimizer.memoset_[0];
+            memo.CalcStats(out tlogics, out tphysics);
+            Assert.AreEqual(10, memo.cgroups_.Count);
+            Assert.AreEqual(19, tlogics); Assert.AreEqual(25, tphysics);
+            Assert.AreEqual("0;1;2", string.Join(";", result));
+
+            sql = "select count(b1) from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1";
+            result = TestHelper.ExecuteSQL(sql, out _, option);
+            Assert.AreEqual("3", string.Join(";", result));
+
+            sql = "select count(*) from a where a1 in (select b2 from b where b1 > 0) and a2 in (select b3 from b where b1 > 0);";
+            result = TestHelper.ExecuteSQL(sql, out _, option);
+            Assert.AreEqual("1", string.Join(";", result));
+
+            sql = "select count(*) from (select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1) v;";
+            result = TestHelper.ExecuteSQL(sql, out _, option);
+            Assert.AreEqual("3", string.Join(";", result));
         }
     }
 
