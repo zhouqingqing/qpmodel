@@ -68,10 +68,10 @@ namespace adb
 
     public abstract class PhysicNode : PlanNode<PhysicNode>
     {
-        internal readonly LogicNode logic_;
+        internal LogicNode logic_;
         internal PhysicProfiling profile_;
 
-        internal double cost_;
+        internal double cost_ = double.NaN;
 
         protected PhysicNode(LogicNode logic) => logic_ = logic;
 
@@ -97,7 +97,11 @@ namespace adb
             return r;
         }
 
-        public virtual double Cost() { return 10.0; }
+        public virtual double Cost() {
+            if (double.IsNaN(cost_))
+                cost_ = 10.0;
+            return cost_;
+        }
     }
 
     public class PhysicMemoNode : PhysicNode
@@ -116,8 +120,13 @@ namespace adb
             return false;
         }
 
-        internal double MinCost() => (logic_ as LogicMemoNode).group_.MinCost();
+        internal double MinCost() => (logic_ as LogicMemoNode).group_.MinCostOfGroup();
         internal CMemoGroup Group() => (logic_ as LogicMemoNode).group_;
+        public override string PrintMoreDetails(int depth)
+        {
+            // we want to see what's underneath
+            return $"{{{logic_.PrintMoreDetails (depth + 1)}}}";
+        }
     }
 
 
@@ -255,7 +264,9 @@ namespace adb
 
         public override double Cost()
         {
-            return (l_() as PhysicMemoNode).MinCost() * (r_() as PhysicMemoNode).MinCost();
+            if (double.IsNaN(cost_))
+                cost_ = (l_() as PhysicMemoNode).MinCost() * (r_() as PhysicMemoNode).MinCost();
+            return cost_;
         }
     }
 
@@ -298,6 +309,7 @@ namespace adb
 
         public PhysicHashJoin(LogicJoin logic, PhysicNode l, PhysicNode r) : base(logic)
         {
+            Debug.Assert(logic.filter_ != null);
             children_.Add(l); children_.Add(r);
         }
         public override string ToString() => $"PHJ({children_[0]},{children_[1]}: {Cost()})";
@@ -404,7 +416,9 @@ namespace adb
 
         public override double Cost()
         {
-            return (l_() as PhysicMemoNode).MinCost() + (r_() as PhysicMemoNode).MinCost();
+            if (double.IsNaN(cost_))
+                cost_ = (l_() as PhysicMemoNode).MinCost()*2 + (r_() as PhysicMemoNode).MinCost();
+            return cost_;
         }
     }
 
@@ -495,6 +509,8 @@ namespace adb
 
     public class PhysicFromQuery : PhysicNode
     {
+        public override string ToString() => $"PFrom({(logic_ as LogicFromQuery)}: {Cost()})";
+
         public PhysicFromQuery(LogicFromQuery logic, PhysicNode l) : base(logic) => children_.Add(l);
 
         public override void Exec(ExecContext context, Func<Row, string> callback)

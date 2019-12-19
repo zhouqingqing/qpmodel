@@ -420,6 +420,14 @@ namespace adb
         }
     }
 
+    public class BinCmpExpr : BinExpr {
+        public BinCmpExpr(Expr l, Expr r, string op) : base(l, r, op)
+        {
+            Debug.Assert(new List<string>(){ "=", ">", ">=", "!=", "<", "<="}.Contains(op));
+            type_ = new BoolType(); Debug.Assert(Clone().Equals(this));
+        }
+    }
+
     public class LogicAndOrExpr : BinExpr
     {
         public LogicAndOrExpr(Expr l, Expr r, string op) : base(l, r, op)

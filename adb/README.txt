@@ -10,8 +10,8 @@
 
 Small items:
 P1: 
-5. can't push predicate deep enough (q8) - this directly affect usage of hash join
-6. hash join is not real
+1. push down depends on join shape 
+2. join side dependency (subquery)
 
 P2:
 1. implement sort

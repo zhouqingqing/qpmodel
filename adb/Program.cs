@@ -50,7 +50,7 @@ namespace adb
                 var v = files[4];
                 {
                     sql = File.ReadAllText(v);
-                    goto doit;
+                    //goto doit;
                 }
             }
             //sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
@@ -110,7 +110,15 @@ namespace adb
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             sql = "select 5 as a6 from a where a6 > 2;";
             sql = "select* from(select 5 as a6 from a where a1 > 1)b where a6 > 1;";
-            sql = "select * from a, b, c where a1 = b1 and a1 = c1;";
+            sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
+            //sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3;";
+            //sql = "select * from a join b on a1=b1 where a1 < (select a2 from a where a2=b2);";
+            sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3 and c.c1 = a.a1";
+            sql = "select b1 from a,c,b where b.b2 = a.a2 and b.b3=c.c3 and c.c1 = a.a1";   // FIXME: different #plans
+            sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3";
+            sql = "select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1";
+            sql = "select count(*) from a where a1 in (select b2 from b where b1 > 0) and a2 in (select b3 from b where b1 > 0);";
+            sql = "select count(*) from (select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1) v;";
 
 
             doit:
@@ -127,23 +135,22 @@ namespace adb
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.PrintString(0));
 
-            bool useMemo = true;
+            a.optimizeOpt_.use_memo_ = true;
             PhysicNode phyplan = null;
-            if (useMemo)
+            if (a.optimizeOpt_.use_memo_)
             {
-                Optimizer.EnqueRootPlan(a);
+                var optplan = a.PhaseOneOptimize();
+                Optimizer.OptimizeRootPlan(a, null);
                 var memo = Optimizer.memoset_[0];
                 Console.WriteLine(memo.Print());
-                Optimizer.SearchOptimal(null);
-                Console.WriteLine(memo.Print());
-                phyplan = Optimizer.RetrieveOptimalPlan();
+                phyplan = Optimizer.CopyOutOptimalPlan();
                 Console.WriteLine(phyplan.PrintString(0));
             }
             else
             {
                 // -- optimize the plan
                 Console.WriteLine("-- optimized plan --");
-                var optplan = a.Optimize();
+                var optplan = a.PhaseOneOptimize();
                 Console.WriteLine(optplan.PrintString(0));
 
                 // -- physical plan

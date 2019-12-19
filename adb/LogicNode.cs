@@ -13,7 +13,7 @@ namespace adb
     public class OptimizeOption
     {
         public bool enable_subquery_to_markjoin_ = true;
-        public bool use_memo_ = true;
+        public bool use_memo_ = false;
     }
 
     public abstract class PlanNode<T> where T : PlanNode<T>
@@ -55,7 +55,11 @@ namespace adb
                     r += $"  (rows = {(this as PhysicNode).profile_.nrows_})";
                 r += "\n";
                 var details = PrintMoreDetails(depth);
-                r += Utils.Tabs(depth + 2) + PrintOutput(depth) + "\n";
+
+                // output of current node
+                var output = PrintOutput(depth);
+                if (output != null)
+                    r += Utils.Tabs(depth + 2) + output + "\n";
                 if (details != null)
                 {
                     // remove the last \n in case the details is a subquery
@@ -161,9 +165,13 @@ namespace adb
 
         public override string PrintOutput(int depth)
         {
-            string r = "Output: " + string.Join(",", output_);
-            output_.ForEach(x => r += ExprHelper.PrintExprWithSubqueryExpanded(x, depth));
-            return r;
+            if (output_.Count != 0)
+            {
+                string r = "Output: " + string.Join(",", output_);
+                output_.ForEach(x => r += ExprHelper.PrintExprWithSubqueryExpanded(x, depth));
+                return r;
+            }
+            return null;
         }
 
         // This is an honest translation from logic to physical plan
@@ -336,6 +344,16 @@ namespace adb
     public class LogicMemoNode : LogicNode {
         public CMemoGroup group_;
         public LogicNode node_;
+        public LogicNode logicNode()
+        {
+            Debug.Assert(!(node_ is LogicMemoNode));
+            return node_;
+        }
+        public T logicNode<T>() where T :LogicNode
+        {
+            Debug.Assert(!(node_ is LogicMemoNode));
+            return node_ as T;
+        }
 
         public LogicMemoNode(CMemoGroup group)
         {
@@ -344,6 +362,7 @@ namespace adb
             node_ = group.exprList_[0].logic_;
 
             Debug.Assert(filter_ is null);
+            Debug.Assert(children_.Count == 0);
             Debug.Assert(group.memo_.LookupCGroup(node_) == group);
         }
         public override string ToString() => group_.ToString();
@@ -356,14 +375,38 @@ namespace adb
                 return lo.MemoLogicSign() == MemoLogicSign();
             return false;
         }
+
+        public override string PrintMoreDetails(int depth)
+        {
+            // we want to see what's underneath
+            return $"{{{node_.PrintString(depth + 1)}}}";
+        }
     }
 
     public class LogicJoin : LogicNode
     {
         public override string ToString() => $"{l_()} X {r_()}";
         public LogicJoin(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
+        public LogicJoin(LogicNode l, LogicNode r, Expr filter): this(l, r) 
+        { 
+            //Debug.Assert(filter != null);
+            filter_ = filter; 
+        }
+
         public override int MemoLogicSign() {
-            return l_().MemoLogicSign() ^ r_().MemoLogicSign() ^ (filter_?.GetHashCode() ?? 0);
+            var filterhash = 0;
+            if (filter_ != null) {
+                // consider the case:
+                //   A X (B X C on f3) on f1 AND f2
+                // is equal to commutative transformation
+                //   (A X B on f1) X C on f3 AND f2
+                // The filter signature generation has to be able to accomomdate this difference.
+                //
+                var andlist = FilterHelper.FilterToAndList(filter_);
+                filterhash = Utils.ListHashCode(andlist);
+                //filterhash = filter_.GetHashCode();
+            }
+            return l_().MemoLogicSign() ^ r_().MemoLogicSign() ^ filterhash;
         }
 
         public override int GetHashCode()
@@ -537,7 +580,7 @@ namespace adb
 
         // runtime info: derived from output request
         internal List<Expr> aggrCore_ = new List<Expr>();
-        public override string ToString() => $"Agg({children_[0]})";
+        public override string ToString() => $"Agg({child_()})";
 
         public override string PrintMoreDetails(int depth)
         {
@@ -691,7 +734,7 @@ namespace adb
     {
         public QueryRef queryRef_;
 
-        public override string ToString() => $"<{queryRef_.alias_}>";
+        public override string ToString() => $"<{queryRef_.alias_}>({child_()})";
         public override string PrintInlineDetails(int depth) => $"<{queryRef_.alias_}>";
         public LogicFromQuery(QueryRef query, LogicNode child) { queryRef_ = query; children_.Add(child); }
 

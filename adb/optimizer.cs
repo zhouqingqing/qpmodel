@@ -39,6 +39,7 @@ namespace adb
                 logic = logic_;
             else
                 logic = physic_.logic_;
+            Debug.Assert(!(logic is LogicMemoNode));
             return logic;
         }
         internal int MemoSignature() => logic().MemoLogicSign();
@@ -78,9 +79,9 @@ namespace adb
             return false;
         }
 
-        // Apply rule to current node and generate a set of new members for each
+        // Apply rule to current members and generate a set of new members for each
         // of the new memberes, find/add itself or its children in the group
-        internal List<CGroupMember> Optimize(Memo memo)
+        internal List<CGroupMember> OptimizeMember(Memo memo)
         {
             var list = group_.exprList_;
             foreach (var rule in Rule.ruleset_)
@@ -94,6 +95,11 @@ namespace adb
                     if (!list.Contains(newmember))
                         list.Add(newmember);
                     // newmember shall have the same signature as old ones
+                    if (newlogic.MemoLogicSign() != list[0].MemoSignature())
+                    {
+                        Console.WriteLine(newlogic.PrintString(0));
+                        Console.WriteLine(list[0].logic().PrintString(0));
+                    }
                     Debug.Assert(newlogic.MemoLogicSign() == list[0].MemoSignature());
                 }
             }
@@ -141,6 +147,26 @@ namespace adb
             exprList_.Add(new CGroupMember(subtree, this));
         }
 
+        // {1} X {2} -> Scan(A) X Scan(B)
+        public LogicNode RetrieveLogicTree(LogicNode logic)
+        {
+            if (logic.children_.Count > 0)
+            {
+                var children = new List<LogicNode>();
+                foreach (var v in logic.children_)
+                {
+                    var c = v;
+                    if (v is LogicMemoNode lv)
+                        c = lv.group_.RetrieveLogicTree(lv.logicNode());
+                    children.Add(c);
+                }
+                logic.children_ = children;
+            }
+
+            Debug.Assert(!(logic is LogicMemoNode));
+            return logic;
+        }
+
         public void CountMembers(out int clogic, out int cphysic) {
             clogic = 0; cphysic = 0;
             foreach (var v in exprList_) {
@@ -155,13 +181,13 @@ namespace adb
         public string Print()
         {
             CountMembers(out int clogics, out int cphysics);
-            var str = $"{clogics}, {cphysics}: ";
+            var str = $"{clogics}, {cphysics}, [{logicSign_}]: ";
             str += string.Join(",", exprList_);
             return str;
         }
 
         // loop through optimize members of the group
-        public void Optimize(Memo memo, PhysicProperty required) {
+        public void OptimizeGroup(Memo memo, PhysicProperty required) {
             Console.WriteLine($"opt group {memoid_}");
 
             for (int i = 0; i < exprList_.Count; i++)
@@ -169,22 +195,23 @@ namespace adb
                 CGroupMember member = exprList_[i];
 
                 // optimize the member and it shall generate a set of member
-                member.Optimize(memo);
+                member.OptimizeMember(memo);
             }
 
             // mark the group explored
             explored_ = true;
         }
 
-        public double MinCost() =>  MinCostMember().physic_.Cost();
+        public double MinCostOfGroup() =>  MinCostMember().physic_.Cost();
         public CGroupMember MinCostMember() {
             CGroupMember minmember = null;
             double mincost = double.MaxValue;
             foreach (var v in exprList_)
             {
-                if (v.physic_ != null && v.physic_.Cost() < mincost)
+                var physic = v.physic_;
+                if (physic != null && physic.Cost() < mincost)
                 {
-                    mincost = v.physic_.Cost();
+                    mincost = physic.Cost();
                     minmember = v;
                 }
             }
@@ -193,20 +220,29 @@ namespace adb
             return minmember;
         }
 
-        public PhysicNode MinToPhysicPlan()
+        public PhysicNode CopyOutMinLogicPhysicPlan()
         {
             CGroupMember minmember = MinCostMember();
-            var children = new List<PhysicNode>();
-            foreach (var v in minmember.physic_.children_)
+            if (minmember.physic_.children_.Count > 0)
             {
-                var g = (v as PhysicMemoNode).Group();
-                children.Add(g.MinToPhysicPlan());
+                var phychildren = new List<PhysicNode>();
+                var logchildren = new List<LogicNode>();
+                foreach (var v in minmember.physic_.children_)
+                {
+                    // children shall be min cost
+                    var g = (v as PhysicMemoNode).Group();
+                    var phychild = g.CopyOutMinLogicPhysicPlan();
+                    phychildren.Add(phychild);
+                    logchildren.Add(phychild.logic_);
+                }
+                minmember.physic_.children_ = phychildren;
+                minmember.physic_.logic_.children_ = logchildren;
             }
-            minmember.physic_.children_ = children;
 
             PhysicNode phy = minmember.physic_;
+            phy.logic_ = RetrieveLogicTree(phy.logic_);
             if (Optimizer.stmt_.profileOpt_.enabled_)
-                phy = new PhysicProfiling(minmember.physic_);
+                phy = new PhysicProfiling(phy);
             return phy;
         }
     }
@@ -294,7 +330,7 @@ namespace adb
                 // no duplicated members in the list
                 Debug.Assert(g.exprList_.Distinct().Count() == g.exprList_.Count);
 
-                for (int i = 0; i < g.exprList_.Count; i++) {
+                for (int i = 1; i < g.exprList_.Count; i++) {
                     // all members within a group are logically equavalent
                     Debug.Assert(g.exprList_[0].MemoSignature() == g.exprList_[i].MemoSignature());
                 }
@@ -330,11 +366,7 @@ namespace adb
         public static List<Memo> memoset_ = new List<Memo>();
         public static SQLStatement stmt_;
 
-        public static CMemoGroup EnquePlan(Memo memo, LogicNode plan) {
-            return memo.EnquePlan(plan);
-        }
-
-        public static void EnqueRootPlan(SQLStatement stmt)
+        public static void OptimizeRootPlan(SQLStatement stmt, PhysicProperty required)
         {
             stmt_ = stmt;
 
@@ -345,41 +377,51 @@ namespace adb
 
             // the statment shall already have plan generated
             var logicroot = stmt.logicPlan_;
-            rootmemo.rootgroup_ = EnquePlan(rootmemo, logicroot);
+            rootmemo.rootgroup_ = rootmemo.EnquePlan(logicroot);
 
-            // otpimize the subqueries
-            var subqueries = (stmt_ as SelectStmt).subqueries_;
+            // enqueue the subqueries: fromquery are excluded because different from 
+            // other subqueries (IN, EXISTS etc), the subtree of it is actually connected 
+            // in the same memo.
+            //
+            var subqueries = (stmt_ as SelectStmt).SubqueriesExcludeFromQuery();
             foreach (var v in subqueries) {
                 var submemo = new Memo();
                 var subroot = v.logicPlan_;
-                submemo.rootgroup_ = EnquePlan(submemo, subroot);
+                submemo.rootgroup_ = submemo.EnquePlan(subroot);
                 memoset_.Add(submemo);
             }
-        }
 
-        public static void SearchOptimal(PhysicProperty required)
-        {
-            // loop through the stack until is empty
+            // loop through the stack, optimize each one until empty
+            //
             foreach (var memo in memoset_)
             {
                 while (memo.stack_.Count > 0)
                 {
                     var group = memo.stack_.Pop();
-                    group.Optimize(memo, required);
+                    group.OptimizeGroup(memo, required);
                 }
             }
         }
 
-        public static PhysicNode RetrieveOptimalPlan()
+        public static PhysicNode CopyOutOptimalPlan()
         {
-            var subqueries = (stmt_ as SelectStmt).subqueries_;
+            var selectstmt = stmt_ as SelectStmt;
+            var subqueries = selectstmt.subqueries_;
             for (int i = 1; i < memoset_.Count; i++)
             {
-                Debug.Assert(subqueries[i - 1].physicPlan_ is null);
-                var subphyplan = memoset_[i].rootgroup_.MinToPhysicPlan();
-                subqueries[i - 1].physicPlan_ = subphyplan;
+                var subphyplan = memoset_[i].rootgroup_.CopyOutMinLogicPhysicPlan();
+                SelectStmt subq = subqueries[i - 1];
+
+                Debug.Assert(subq.physicPlan_ is null);
+                subq.physicPlan_ = subphyplan;
+                subq.physicPlan_.logic_ = subphyplan.logic_;
+                subq.logicPlan_.ResolveColumnOrdinal(subq.selection_, subq.parent_ != null);
             }
-            stmt_.physicPlan_ = memoset_[0].rootgroup_.MinToPhysicPlan();
+            Debug.Assert(stmt_.physicPlan_ is null);
+            stmt_.physicPlan_ = memoset_[0].rootgroup_.CopyOutMinLogicPhysicPlan();
+
+            // finally let's fix the output
+            stmt_.logicPlan_.ResolveColumnOrdinal(selectstmt.selection_, selectstmt.parent_ != null);
             return stmt_.physicPlan_;
         }
     }

@@ -28,7 +28,7 @@ namespace adb
 
         protected SQLStatement(string text) => text_ = text;
         public virtual BindContext Bind(BindContext parent) => null;
-        public virtual LogicNode Optimize() => logicPlan_;
+        public virtual LogicNode PhaseOneOptimize() => logicPlan_;
         public virtual LogicNode CreatePlan() => logicPlan_;
 
         public virtual List<Row> Exec(bool enableProfiling = false)
@@ -38,7 +38,13 @@ namespace adb
 
             Bind(null);
             CreatePlan();
-            Optimize();
+            PhaseOneOptimize();
+
+            if (optimizeOpt_.use_memo_)
+            {
+                Optimizer.OptimizeRootPlan(this, null);
+                physicPlan_ = Optimizer.CopyOutOptimalPlan();
+            }
 
             var result = new PhysicCollect(physicPlan_);
             result.Open();
@@ -576,7 +582,20 @@ namespace adb
             return plan;
         }
 
-        public override LogicNode Optimize()
+        public List<SelectStmt> SubqueriesExcludeFromQuery()
+        {
+            List<SelectStmt> ret = new List<SelectStmt>();
+            foreach (var x in subqueries_)
+            {
+                bool findit = fromqueries_.TryGetValue(x, out _);
+                if (!findit)
+                    ret.Add(x);
+            }
+
+            return ret;
+        }
+
+        public override LogicNode PhaseOneOptimize()
         {
             LogicNode plan = logicPlan_;
 
@@ -598,7 +617,7 @@ namespace adb
             //  fromquery needs some special handling to link the new plan
             subqueries_.ForEach(x => {
                 x.optimizeOpt_ = optimizeOpt_;
-                x.Optimize();
+                x.PhaseOneOptimize();
             });
             foreach (var x in fromqueries_) {
                 var stmt = x.Key;
@@ -608,12 +627,16 @@ namespace adb
             }
 
             // convert to physical plan
-            logicPlan_ = plan;
-            physicPlan_ = logicPlan_.DirectToPhysical(profileOpt_);
-            selection_.ForEach(ExprHelper.SubqueryDirectToPhysic);
+            if (!optimizeOpt_.use_memo_)
+            {
+                logicPlan_ = plan;
+                physicPlan_ = logicPlan_.DirectToPhysical(profileOpt_);
+                selection_.ForEach(ExprHelper.SubqueryDirectToPhysic);
 
-            // finally we can physically resolve the columns ordinals
-            logicPlan_.ResolveColumnOrdinal(selection_, parent_ != null);
+                // finally we can physically resolve the columns ordinals
+                logicPlan_.ResolveColumnOrdinal(selection_, parent_ != null);
+            }
+
             return plan;
         }
     }

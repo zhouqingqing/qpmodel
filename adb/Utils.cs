@@ -24,7 +24,8 @@ namespace adb
         public static bool ListAEqualsB<T>(List<T> a, List<T> b) => ListAContainsB(a, b) && ListAContainsB(b, a);
         public static int ListHashCode<T>(List<T> l)
         {
-            int hash = 0x72344ABC;
+            //int hash = 0x72344ABC;
+            int hash = 0;
             l.ForEach(x => hash ^= x.GetHashCode());
             return hash;
         }
