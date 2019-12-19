@@ -336,8 +336,6 @@ namespace adb
     {
         internal string op_;
 
-        internal Expr l_() => children_[0];
-        internal Expr r_() => children_[1];
         public override int GetHashCode() => l_().GetHashCode() ^ r_().GetHashCode() ^ op_.GetHashCode();
         public override bool Equals(object obj)
         {

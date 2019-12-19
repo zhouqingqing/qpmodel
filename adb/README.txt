@@ -10,8 +10,7 @@
 
 Small items:
 P1: 
-1. push down depends on join shape 
-2. join side dependency (subquery)
+1. join side dependency (subquery)
 
 P2:
 1. implement sort

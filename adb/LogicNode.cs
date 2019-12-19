@@ -12,7 +12,12 @@ namespace adb
 
     public class OptimizeOption
     {
+        // rewrite controls
         public bool enable_subquery_to_markjoin_ = true;
+        public bool enable_hashjoin_ = true;
+        public bool enable_nljoin_ = true;
+        
+        // optimizer controls
         public bool use_memo_ = false;
     }
 
@@ -269,10 +274,19 @@ namespace adb
 
         public virtual int MemoLogicSign() => GetHashCode();
 
-        public virtual List<TableRef> InclusiveTableRefs()
+        public List<TableRef> InclusiveTableRefs()
         {
             List<TableRef> refs = new List<TableRef>();
-            children_.ForEach(x => refs.AddRange(x.InclusiveTableRefs()));
+            TraversEachNode(x =>
+            {
+                if (x is LogicScanTable gx)
+                    refs.Add(gx.tabref_);
+                else if (x is LogicFromQuery fx)
+                {
+                    refs.Add(fx.queryRef_);
+                    refs.AddRange(fx.queryRef_.query_.bindContext_.AllTableRefs());
+                }
+            });
             return refs;
         }
 
@@ -341,37 +355,33 @@ namespace adb
 
     }
 
-    public class LogicMemoNode : LogicNode {
+    // LogicMemoRef wrap a CMemoGroup as a LogicNode (so CMemoGroup can be used in plan tree)
+    //
+    public class LogicMemoRef : LogicNode {
         public CMemoGroup group_;
-        public LogicNode node_;
-        public LogicNode logicNode()
-        {
-            Debug.Assert(!(node_ is LogicMemoNode));
-            return node_;
-        }
-        public T logicNode<T>() where T :LogicNode
-        {
-            Debug.Assert(!(node_ is LogicMemoNode));
-            return node_ as T;
-        }
 
-        public LogicMemoNode(CMemoGroup group)
+        public LogicNode Deref() => child_();
+        public T Deref<T>() where T: LogicNode => (T)Deref();
+
+        public LogicMemoRef(CMemoGroup group)
         {
             Debug.Assert(group != null);
+            var child = group.exprList_[0].logic_;
+
+            children_.Add(child);
             group_ = group;
-            node_ = group.exprList_[0].logic_;
 
             Debug.Assert(filter_ is null);
-            Debug.Assert(children_.Count == 0);
-            Debug.Assert(group.memo_.LookupCGroup(node_) == group);
+            Debug.Assert(!(Deref() is LogicMemoRef));
+            Debug.Assert(group.memo_.LookupCGroup(Deref()) == group);
         }
         public override string ToString() => group_.ToString();
 
-        public override int MemoLogicSign() => node_.MemoLogicSign();
+        public override int MemoLogicSign() => Deref().MemoLogicSign();
         public override int GetHashCode() => MemoLogicSign();
         public override bool Equals(object obj) 
         {
-            if (obj is LogicMemoNode lo)
+            if (obj is LogicMemoRef lo)
                 return lo.MemoLogicSign() == MemoLogicSign();
             return false;
         }
@@ -379,7 +389,7 @@ namespace adb
         public override string PrintMoreDetails(int depth)
         {
             // we want to see what's underneath
-            return $"{{{node_.PrintString(depth + 1)}}}";
+            return $"{{{Deref().PrintString(depth + 1)}}}";
         }
     }
 
@@ -442,6 +452,17 @@ namespace adb
         // but not:
         //   a.i = c.i-2*d.i-b.i if left side contained a,b and right side c,d (we can add later)
         //
+        bool OneFilterHashable(Expr filter)
+        {
+            if (filter is BinExpr bf && bf.op_.Equals("="))
+            {
+                var ltabrefs = bf.l_().tableRefs_;
+                var rtabrefs = bf.r_().tableRefs_;
+                // TODO: a.i+b.i=0 => a.i=-b.i
+                return ltabrefs.Count > 0 && rtabrefs.Count > 0;
+            }
+            return false;
+        }
         public bool FilterHashable()
         {
             Expr filter = filter_;
@@ -452,13 +473,13 @@ namespace adb
                 var andlist = FilterHelper.FilterToAndList(filter);
                 foreach (var v in andlist)
                 {
-                    if (!(v is BinExpr bv && bv.op_.Equals("=")))
+                    if (OneFilterHashable(v))
                         return false;
                 }
                 return true;
             }
             else
-                return filter is BinExpr bf && bf.op_.Equals("=");
+                return OneFilterHashable (filter);
         }
 
         public bool AddFilter(Expr filter)
@@ -467,18 +488,6 @@ namespace adb
             return true;
         }
 
-        public override List<TableRef> InclusiveTableRefs()
-        {
-            List<TableRef> refs = new List<TableRef>();
-            TraversEachNode(x =>
-            {
-                if (x is LogicScanTable gx)
-                    refs.Add(gx.tabref_);
-                else if (x is LogicFromQuery fx)
-                    refs.Add(fx.queryRef_);
-            });
-            return refs;
-        }
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             // request from child including reqOutput and filter
@@ -741,13 +750,6 @@ namespace adb
         public override string PrintInlineDetails(int depth) => $"<{queryRef_.alias_}>";
         public LogicFromQuery(QueryRef query, LogicNode child) { queryRef_ = query; children_.Add(child); }
 
-        public override List<TableRef> InclusiveTableRefs()
-        {
-            var r = new List<TableRef>();
-            r.Add(queryRef_);
-            r.AddRange(queryRef_.query_.bindContext_.AllTableRefs());
-            return r;
-        }
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             List<int> ordinals = new List<int>();
@@ -831,7 +833,6 @@ namespace adb
                 output_ = output_.Distinct().ToList();
             return ordinals;
         }
-        public override List<TableRef> InclusiveTableRefs() => new List<TableRef> { tabref_ };
     }
 
     public class LogicScanTable : LogicGet<BaseTableRef>
@@ -870,6 +871,5 @@ namespace adb
     {
         public override string ToString() => string.Join(",", output_);
         public LogicResult(List<Expr> exprs) => output_ = exprs;
-        public override List<TableRef> InclusiveTableRefs() => null;
     }
 }
