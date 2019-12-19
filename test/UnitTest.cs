@@ -183,6 +183,7 @@ namespace test
         [TestMethod]
         public void TestMemo()
         {
+            string phyplan = "";
             OptimizeOption option = new OptimizeOption();
             option.use_memo_ = true;
 
@@ -190,8 +191,8 @@ namespace test
             var result = TestHelper.ExecuteSQL(sql, out _, option);
             var memo = Optimizer.memoset_[0];
             memo.CalcStats(out int tlogics, out int tphysics);
-            Assert.AreEqual(10, memo.cgroups_.Count);
-            Assert.AreEqual(19, tlogics); Assert.AreEqual(25, tphysics);
+            Assert.AreEqual(9, memo.cgroups_.Count);
+            Assert.AreEqual(18, tlogics); Assert.AreEqual(24, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
 
             sql = "select * from b join a on a1=b1 where a1 < (select a2 from a where a2=b2);";
@@ -204,32 +205,32 @@ namespace test
             result = TestHelper.ExecuteSQL(sql, out _, option);
             memo = Optimizer.memoset_[0];
             memo.CalcStats(out tlogics, out tphysics);
-            Assert.AreEqual(8, memo.cgroups_.Count);
-            Assert.AreEqual(16, tlogics); Assert.AreEqual(22, tphysics);
+            Assert.AreEqual(7, memo.cgroups_.Count);
+            Assert.AreEqual(15, tlogics); Assert.AreEqual(21, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
 
             sql = "select b1 from a,c,b where b.b2 = a.a2 and b.b3=c.c3 and c.c1 = a.a1";   // FIXME: different #plans
             result = TestHelper.ExecuteSQL(sql, out _, option);
             memo = Optimizer.memoset_[0];
             memo.CalcStats(out tlogics, out tphysics);
-            Assert.AreEqual(8, memo.cgroups_.Count);
-            Assert.AreEqual(18, tlogics); Assert.AreEqual(22, tphysics);
+            Assert.AreEqual(7, memo.cgroups_.Count);
+            Assert.AreEqual(17, tlogics); Assert.AreEqual(21, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
 
             sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3";
             result = TestHelper.ExecuteSQL(sql, out _, option);
             memo = Optimizer.memoset_[0];
             memo.CalcStats(out tlogics, out tphysics);
-            Assert.AreEqual(7, memo.cgroups_.Count);
-            Assert.AreEqual(12, tlogics); Assert.AreEqual(16, tphysics);
+            Assert.AreEqual(6, memo.cgroups_.Count);
+            Assert.AreEqual(11, tlogics); Assert.AreEqual(15, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
 
             sql = "select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1";
             result = TestHelper.ExecuteSQL(sql, out _, option);
             memo = Optimizer.memoset_[0];
             memo.CalcStats(out tlogics, out tphysics);
-            Assert.AreEqual(10, memo.cgroups_.Count);
-            Assert.AreEqual(19, tlogics); Assert.AreEqual(25, tphysics);
+            Assert.AreEqual(9, memo.cgroups_.Count);
+            Assert.AreEqual(18, tlogics); Assert.AreEqual(24, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
 
             sql = "select count(b1) from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1";
@@ -237,12 +238,37 @@ namespace test
             Assert.AreEqual("3", string.Join(";", result));
 
             sql = "select count(*) from a where a1 in (select b2 from b where b1 > 0) and a2 in (select b3 from b where b1 > 0);";
-            result = TestHelper.ExecuteSQL(sql, out _, option);
+            result = TestHelper.ExecuteSQL(sql, out phyplan, option);
+            Assert.AreEqual(0, TestHelper.CountStringOccurrences(phyplan, "PhysicFilter"));
             Assert.AreEqual("1", string.Join(";", result));
 
-            sql = "select count(*) from (select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1) v;";
-            result = TestHelper.ExecuteSQL(sql, out _, option);
-            Assert.AreEqual("3", string.Join(";", result));
+            sql = "select count(*) from (select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1 and a1>0) v;";
+            result = TestHelper.ExecuteSQL(sql, out phyplan, option);
+            Assert.AreEqual(0, TestHelper.CountStringOccurrences(phyplan, "PhysicFilter"));
+            Assert.AreEqual("2", string.Join(";", result));
+
+            sql = "select a2 from a where a.a3 > (select min(b1*2) from b where b.b2 >= (select c2-1 from c where c.c2=b2) and b.b3 > ((select c2 from c where c.c2=b2)));"; 
+            result = TestHelper.ExecuteSQL(sql, out phyplan, option);
+            var answer = @"PhysicScanTable a  (rows = 3)
+                            Output: a.a2[1]
+                            Filter: a.a3[2]>@1
+                            <ScalarSubqueryExpr> 1
+                                -> PhysicHashAgg   (rows = 3)
+                                    Output: {min(b.b1*2)}[0]
+                                    Agg Core: min(b.b1[1]*2)
+                                    -> PhysicScanTable b  (rows = 9)
+                                        Output: b.b1[0]*2,b.b1[0],2,#b.b2[1]
+                                        Filter: b.b2[1]>=@2 and b.b3[2]>@3
+                                        <ScalarSubqueryExpr> 2
+                                            -> PhysicScanTable c  (rows = 9)
+                                                Output: c.c2[1]-1
+                                                Filter: c.c2[1]=?b.b2[1]
+                                        <ScalarSubqueryExpr> 3
+                                            -> PhysicScanTable c  (rows = 9)
+                                                Output: c.c2[1]
+                                                Filter: c.c2[1]=?b.b2[1]";
+            Assert.AreEqual("1;2;3", string.Join(";", result));
+            TestHelper.PlanAssertEqual(answer, phyplan);
         }
     }
 

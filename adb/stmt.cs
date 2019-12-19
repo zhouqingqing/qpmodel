@@ -42,6 +42,7 @@ namespace adb
 
             if (optimizeOpt_.use_memo_)
             {
+                Optimizer.InitRootPlan(this);
                 Optimizer.OptimizeRootPlan(this, null);
                 physicPlan_ = Optimizer.CopyOutOptimalPlan();
             }
@@ -594,21 +595,20 @@ namespace adb
 
         public override LogicNode PhaseOneOptimize()
         {
-            LogicNode plan = logicPlan_;
+            LogicNode logic = logicPlan_;
 
             // decorrelate subqureis - we do it before filter push down because we 
             // have more normalized plan shape before push down. And we may generate
             // some unnecessary filter to clean up.
             //
             if (optimizeOpt_.enable_subquery_to_markjoin_ && subqueries_.Count > 0)
-                plan = subqueryToMarkJoin(plan);
-            // Console.WriteLine(plan.PrintString(0));
+                logic = subqueryToMarkJoin(logic);
 
             // push down filters
-            plan = FilterPushDown(plan);
+            logic = FilterPushDown(logic);
 
             // remove LogicFromQuery node
-            plan = removeFromQuery(plan);
+            logic = removeFromQuery(logic);
 
             // optimize for subqueries 
             //  fromquery needs some special handling to link the new plan
@@ -622,11 +622,12 @@ namespace adb
                 if (newplan != null)
                     x.Value.children_[0] = newplan.logicPlan_;
             }
+            logicPlan_ = logic;
 
             // convert to physical plan
+            Debug.Assert(physicPlan_ is null);
             if (!optimizeOpt_.use_memo_)
             {
-                logicPlan_ = plan;
                 physicPlan_ = logicPlan_.DirectToPhysical(profileOpt_);
                 selection_.ForEach(ExprHelper.SubqueryDirectToPhysic);
 
@@ -634,7 +635,7 @@ namespace adb
                 logicPlan_.ResolveColumnOrdinal(selection_, parent_ != null);
             }
 
-            return plan;
+            return logic;
         }
     }
 }
