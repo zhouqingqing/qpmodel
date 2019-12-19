@@ -438,9 +438,6 @@ namespace adb
             // selection list
             selection_.ForEach(x=>createSubQueryExprPlan(x));
 
-            // resolve the output
-            root.ResolveColumnOrdinal(selection_, parent_ != null);
-
             logicPlan_ = root;
             return root;
         }
