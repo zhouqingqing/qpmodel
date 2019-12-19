@@ -89,13 +89,14 @@
     <Compile Include="Expr.cs" />
     <Compile Include="ExprFunc.cs" />
     <Compile Include="ExprSubquery.cs" />
+    <Compile Include="RulesImpl.cs" />
     <Compile Include="LogicNode.cs" />
     <Compile Include="optimizer.cs" />
     <Compile Include="Parser.cs" />
     <Compile Include="PhysicalNode.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Rules.cs" />
+    <Compile Include="RulesTrans.cs" />
     <Compile Include="stmt.cs" />
     <Compile Include="stmtDML.cs" />
     <Compile Include="subquery.cs" />

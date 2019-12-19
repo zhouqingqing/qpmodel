@@ -284,6 +284,13 @@ namespace adb
         // output type of the expression
         internal ColumnType type_;
 
+        public bool IsLeaf() => children_.Count == 0;
+
+        // shortcut for conventional names
+        public Expr child_() { Debug.Assert(children_.Count == 1); return children_[0]; }
+        public Expr l_() { Debug.Assert(children_.Count == 2); return children_[0]; }
+        public Expr r_() { Debug.Assert(children_.Count == 2); return children_[1]; }
+
         public int TableRefCount()
         {
         	Debug.Assert(bounded_);
@@ -548,6 +555,7 @@ namespace adb
         public override void Bind(BindContext context)
         {
             Debug.Assert(tabRef_ is null);
+            Debug.Assert(IsLeaf());
 
             // if table name is not given, search through all tablerefs
             isOuterRef_ = false;
@@ -753,7 +761,7 @@ namespace adb
     public class ExprRef : Expr
     {
         // children_[0] can't be an ExprRef again
-        internal Expr expr_() => children_[0];
+        internal Expr expr_() => child_();
         internal int ordinal_;
 
         public override string ToString() => $@"{{{Utils.RemovePositions(expr_().ToString())}}}[{ordinal_}]";

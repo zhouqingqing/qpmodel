@@ -282,7 +282,7 @@ namespace adb
 
         public override double Cost()
         {
-            return (l_() as PhysicMemoNode).MinCost() * (r_() as PhysicMemoNode).MinCost();
+            return (l_() as PhysicMemoRef).MinCost() * (r_() as PhysicMemoRef).MinCost();
         }
     }
 
@@ -340,7 +340,7 @@ namespace adb
 
         public override double Cost()
         {
-            return (l_() as PhysicMemoNode).MinCost() * (r_() as PhysicMemoNode).MinCost();
+            return (l_() as PhysicMemoRef).MinCost() * (r_() as PhysicMemoRef).MinCost();
         }
     }
 
@@ -396,7 +396,7 @@ namespace adb
 
         public override double Cost()
         {
-            return (l_() as PhysicMemoNode).MinCost() * (r_() as PhysicMemoNode).MinCost();
+            return (l_() as PhysicMemoRef).MinCost() * (r_() as PhysicMemoRef).MinCost();
         }
     }
 

@@ -119,8 +119,11 @@ namespace adb
             sql = "select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1";
             sql = "select count(*) from a where a1 in (select b2 from b where b1 > 0) and a2 in (select b3 from b where b1 > 0);";
             sql = "select count(*) from (select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1 and a1>0) v;";
-            //sql = "select 1 from a where a.a3 > (select b1*2 from b where b.b2 >= (select c1 from c where c.c2=b2) and b.b3 > ((select c2+1 from c where c.c2=b2)))";
-            sql = "select a2 from a where a.a3 > (select min(b1*2) from b where b.b2 >= (select c2-1 from c where c.c2=b2) and b.b3 > ((select c2 from c where c.c2=b2)));";
+            sql = "select a.a1,b.a1,c.a1, a.a1+b.a1+c.a1 from a, a b, a c where a.a1=5-b.a1-c.a1;";
+            //sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3 and c.c1 = a.a1";
+            //sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
+            //sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
+
 
             doit:
             Console.WriteLine(sql);
@@ -147,6 +150,7 @@ namespace adb
                 Console.WriteLine(Optimizer.PrintMemo());
                 phyplan = Optimizer.CopyOutOptimalPlan();
                 Console.WriteLine(phyplan.PrintString(0));
+                Optimizer.PrintMemo();
             }
             else
             {

@@ -269,6 +269,20 @@ namespace test
                                                 Filter: c.c2[1]=?b.b2[1]";
             Assert.AreEqual("1;2;3", string.Join(";", result));
             TestHelper.PlanAssertEqual(answer, phyplan);
+
+            sql = "select count(*) from a, b,c,d where a1+b1+c1+d1=1;";
+            result = TestHelper.ExecuteSQL(sql, out phyplan, option);
+            Assert.AreEqual(0, TestHelper.CountStringOccurrences(phyplan, "HashJoin"));
+            Assert.AreEqual("4", string.Join(";", result));
+
+            // FIXME: a.a1+b.a1=5-c.a1, a.a1+b.a1+c.a1=5
+            sql = "select a.a1,b.a1,c.a1, a.a1+b.a1+c.a1 from a, a b, a c where a.a1=5-b.a1-c.a1;";
+            result = TestHelper.ExecuteSQL(sql, out phyplan, option);
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "a.a1[0]=5-b.a1[1]-c.a1[2]"));
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "HashJoin"));
+            Assert.AreEqual("2,2,1,5;2,1,2,5;1,2,2,5", string.Join(";", result));
+
+            Assert.IsTrue(option.use_memo_);
         }
     }
 

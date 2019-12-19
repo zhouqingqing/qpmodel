@@ -73,7 +73,14 @@ namespace adb
 
         internal double cost_ = double.NaN;
 
-        protected PhysicNode(LogicNode logic) => logic_ = logic;
+        protected PhysicNode(LogicNode logic)
+        {
+            // logic node shall not be null unless it is PhysicCollect
+            Debug.Assert(logic is null == this is PhysicCollect);
+            // logic node shall not memoref unless it is physical memoref
+            Debug.Assert(logic is LogicMemoRef == this is PhysicMemoRef);
+            logic_ = logic;
+        }
 
         public override string PrintOutput(int depth)
         {
@@ -104,28 +111,30 @@ namespace adb
         }
     }
 
-    public class PhysicMemoNode : PhysicNode
+    // PhysicMemoRef wrap a LogicMemoRef as a physical node (so LogicMemoRef can be 
+    // used in physical tree). Actually we only need LogicMemoRef's memo group.
+    //
+    public class PhysicMemoRef : PhysicNode
     {
-        public PhysicMemoNode(LogicNode logic) : base(logic) {
-            Debug.Assert(logic is LogicMemoNode);
-        }
-        public override string ToString() => logic_.ToString();
+        public PhysicMemoRef(LogicNode logic) : base(logic) { Debug.Assert(logic is LogicMemoRef); }
+        public override string ToString() => Logic().ToString();
 
-        public override void Exec(ExecContext context, Func<Row, string> callback) => throw new InvalidProgramException("shall not be here");
-        public override int GetHashCode() => (logic_ as LogicMemoNode).group_.memoid_;
+        public override void Exec(ExecContext context, Func<Row, string> callback) => throw new InvalidProgramException("not executable");
+        public override int GetHashCode() => Group().memoid_;
         public override bool Equals(object obj)
         {
-            if (obj is PhysicMemoNode lo)
-                return (lo.logic_ as LogicMemoNode).MemoLogicSign() == (logic_ as LogicMemoNode).MemoLogicSign();
+            if (obj is PhysicMemoRef lo)
+                return Logic().MemoLogicSign() == (lo.logic_ as LogicMemoRef).MemoLogicSign();
             return false;
         }
 
-        internal double MinCost() => (logic_ as LogicMemoNode).group_.MinCostOfGroup();
-        internal CMemoGroup Group() => (logic_ as LogicMemoNode).group_;
+        public LogicMemoRef Logic() => logic_ as LogicMemoRef;
+        internal CMemoGroup Group() => Logic().group_;
+        internal double MinCost() => Group().FindMinCostOfGroup();
         public override string PrintMoreDetails(int depth)
         {
             // we want to see what's underneath
-            return $"{{{logic_.PrintMoreDetails (depth + 1)}}}";
+            return $"{{{Logic().PrintMoreDetails (depth + 1)}}}";
         }
     }
 
@@ -266,7 +275,7 @@ namespace adb
         public override double Cost()
         {
             if (double.IsNaN(cost_))
-                cost_ = (l_() as PhysicMemoNode).MinCost() * (r_() as PhysicMemoNode).MinCost();
+                cost_ = (l_() as PhysicMemoRef).MinCost() * (r_() as PhysicMemoRef).MinCost();
             return cost_;
         }
     }
@@ -419,7 +428,7 @@ namespace adb
         public override double Cost()
         {
             if (double.IsNaN(cost_))
-                cost_ = (l_() as PhysicMemoNode).MinCost()*2 + (r_() as PhysicMemoNode).MinCost();
+                cost_ = (l_() as PhysicMemoRef).MinCost()*2 + (r_() as PhysicMemoRef).MinCost();
             return cost_;
         }
     }
@@ -618,7 +627,7 @@ namespace adb
     {
         public readonly List<Row> rows_ = new List<Row>();
 
-        public PhysicCollect(PhysicNode child) : base(null) => children_.Add(child);
+        public PhysicCollect(PhysicNode child): base(null) => children_.Add(child);
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
             context.Reset();

@@ -33,19 +33,52 @@ namespace adb
 
         internal CMemoGroup group_;
 
-        internal LogicNode logic() {
+        internal LogicNode Logic() {
             LogicNode logic;
             if (logic_ != null)
                 logic = logic_;
             else
                 logic = physic_.logic_;
-            Debug.Assert(!(logic is LogicMemoNode));
+            Debug.Assert(!(logic is LogicMemoRef));
             return logic;
         }
-        internal int MemoSignature() => logic().MemoLogicSign();
+        internal int MemoSignature() => Logic().MemoLogicSign();
 
-        public CGroupMember(LogicNode node, CMemoGroup group) {logic_ = node; group_ = group;}
-        public CGroupMember(PhysicNode node, CMemoGroup group) {physic_ = node; group_ = group;}
+        public CGroupMember(LogicNode node, CMemoGroup group) {
+            logic_ = node; group_ = group;
+            Debug.Assert(!(Logic() is LogicMemoRef));
+        }
+        public CGroupMember(PhysicNode node, CMemoGroup group) 
+        {
+            physic_ = node; group_ = group;
+            Debug.Assert(!(Logic() is LogicMemoRef));
+        }
+
+        public void ValidateMember(bool optimizationDone) {
+            Debug.Assert(Logic() != null);
+
+            // TODO: copy out destroy the memo so we can't apply checks here
+            bool beforeCopyOut = Optimizer.copyoutCounter_ == 0;
+            if (beforeCopyOut)
+            {
+                // the node itself is a non-memo node
+                Debug.Assert(!(Logic() is LogicMemoRef));
+
+                // all its children shall be memo nodes and can be deref'ed to non-memo node
+                Logic().children_.ForEach(x => Debug.Assert(
+                            x is LogicMemoRef xl && !(xl.Deref() is LogicMemoRef)));
+
+                if (physic_ != null) {
+                    // the physical node itself is non-memo node
+                    Debug.Assert(!(physic_ is PhysicMemoRef));
+
+                    // all its children shall be memo nodes and can be deref'ed to non-memo node
+                    physic_.children_.ForEach(x => Debug.Assert(
+                        x is PhysicMemoRef xp && !(xp.Logic().Deref() is LogicMemoRef)));
+                }
+            }
+        }
+
         public override string ToString()
         {
             if (logic_ != null)
@@ -89,7 +122,7 @@ namespace adb
                 if (rule.Appliable(this))
                 {
                     var newmember = rule.Apply(this);
-                    var newlogic = newmember.logic();
+                    var newlogic = newmember.Logic();
                     memo.EnquePlan(newlogic);
 
                     if (!list.Contains(newmember))
@@ -98,11 +131,12 @@ namespace adb
                     if (newlogic.MemoLogicSign() != list[0].MemoSignature())
                     {
                         Console.WriteLine(newlogic.PrintString(0));
-                        Console.WriteLine(list[0].logic().PrintString(0));
+                        Console.WriteLine(list[0].Logic().PrintString(0));
                     }
                     Debug.Assert(newlogic.MemoLogicSign() == list[0].MemoSignature());
                 }
             }
+
 
             return list;
         }
@@ -139,12 +173,27 @@ namespace adb
         internal Memo memo_;
 
         public CMemoGroup(Memo memo, int groupid, LogicNode subtree) {
-            Debug.Assert(!(subtree is LogicMemoNode));
+            Debug.Assert(!(subtree is LogicMemoRef));
             memo_ = memo;
             memoid_ = groupid;
             explored_ = false;
             logicSign_ = subtree.MemoLogicSign();
             exprList_.Add(new CGroupMember(subtree, this));
+        }
+
+        public void ValidateGroup(bool optimizationDone)
+        {
+            // no duplicated members in the list
+            Debug.Assert(exprList_.Distinct().Count() == exprList_.Count);
+            Debug.Assert(!optimizationDone || explored_);
+
+            for (int i = 1; i < exprList_.Count; i++)
+            {
+                // all members within a group are logically equavalent
+                var member = exprList_[i];
+                member.ValidateMember(optimizationDone);
+                Debug.Assert(exprList_[0].MemoSignature() == member.MemoSignature());
+            }
         }
 
         // {1} X {2} -> Scan(A) X Scan(B)
@@ -156,14 +205,14 @@ namespace adb
                 foreach (var v in logic.children_)
                 {
                     var c = v;
-                    if (v is LogicMemoNode lv)
-                        c = lv.group_.RetrieveLogicTree(lv.logicNode());
+                    if (v is LogicMemoRef lv)
+                        c = lv.group_.RetrieveLogicTree(lv.Deref());
                     children.Add(c);
                 }
                 logic.children_ = children;
             }
 
-            Debug.Assert(!(logic is LogicMemoNode));
+            Debug.Assert(!(logic is LogicMemoRef));
             return logic;
         }
 
@@ -177,7 +226,7 @@ namespace adb
             }
         }
 
-        public override string ToString() => $"{{{memoid_}}}";
+        public override string ToString() => $"{memoid_}";
         public string Print()
         {
             CountMembers(out int clogics, out int cphysics);
@@ -202,8 +251,8 @@ namespace adb
             explored_ = true;
         }
 
-        public double MinCostOfGroup() =>  MinCostMember().physic_.Cost();
-        public CGroupMember MinCostMember() {
+        public double FindMinCostOfGroup() =>  FindMinCostMember().physic_.Cost();
+        public CGroupMember FindMinCostMember() {
             CGroupMember minmember = null;
             double mincost = double.MaxValue;
             foreach (var v in exprList_)
@@ -222,7 +271,7 @@ namespace adb
 
         public PhysicNode CopyOutMinLogicPhysicPlan()
         {
-            CGroupMember minmember = MinCostMember();
+            CGroupMember minmember = FindMinCostMember();
             if (minmember.physic_.children_.Count > 0)
             {
                 var phychildren = new List<PhysicNode>();
@@ -230,7 +279,7 @@ namespace adb
                 foreach (var v in minmember.physic_.children_)
                 {
                     // children shall be min cost
-                    var g = (v as PhysicMemoNode).Group();
+                    var g = (v as PhysicMemoRef).Group();
                     var phychild = g.CopyOutMinLogicPhysicPlan();
                     phychildren.Add(phychild);
                     logchildren.Add(phychild.logic_);
@@ -254,7 +303,7 @@ namespace adb
         public Stack<CMemoGroup> stack_ = new Stack<CMemoGroup>();
 
         public CMemoGroup LookupCGroup(LogicNode subtree) {
-            if (subtree is LogicMemoNode sl)
+            if (subtree is LogicMemoRef sl)
                 return sl.group_;
 
             var signature = subtree.MemoLogicSign();
@@ -286,8 +335,6 @@ namespace adb
         {
             tlogics = 0; tphysics = 0;
 
-            validateMemo();
-
             // output by memo insertion order to read easier
             foreach (var v in cgroups_)
             {
@@ -299,6 +346,10 @@ namespace adb
 
         public CMemoGroup EnquePlan(LogicNode plan)
         {
+            // if might be already a memo node
+            if (plan is LogicMemoRef lp)
+                return lp.group_;
+
             // bottom up equeue all nodes
             foreach (var v in plan.children_)
             {
@@ -314,34 +365,25 @@ namespace adb
             foreach (var v in plan.children_)
             {
                 var child = LookupCGroup(v);
-                children.Add(new LogicMemoNode(child));
+                children.Add(new LogicMemoRef(child));
             }
             plan.children_ = children;
             return TryInsertCGroup(plan);
         }
 
-        void validateMemo() {
+        public void ValidateMemo(bool optimizationDone= false) {
             // all groups are different
             Debug.Assert(cgroups_.Distinct().Count() == cgroups_.Count);
             foreach (var v in cgroups_)
             {
                 CMemoGroup g = v.Value;
-
-                // no duplicated members in the list
-                Debug.Assert(g.exprList_.Distinct().Count() == g.exprList_.Count);
-
-                for (int i = 1; i < g.exprList_.Count; i++) {
-                    // all members within a group are logically equavalent
-                    Debug.Assert(g.exprList_[0].MemoSignature() == g.exprList_[i].MemoSignature());
-                }
+                g.ValidateGroup(optimizationDone);
             }
         }
 
         public string Print() {
             var str = "\nMemo:\n";
             int tlogics = 0, tphysics = 0;
-
-            validateMemo();
 
             // output by memo insertion order to read easier
             var list = cgroups_.OrderBy(x => x.Value.memoid_).ToList();
@@ -399,6 +441,7 @@ namespace adb
                 var group = memo.stack_.Pop();
                 group.OptimizeGroup(memo, required);
             }
+            memo.ValidateMemo();
         }
 
         public static PhysicNode CopyOutOnePlan(SQLStatement stmt, Memo memo)
