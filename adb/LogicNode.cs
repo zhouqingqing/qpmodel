@@ -383,13 +383,26 @@ namespace adb
         }
     }
 
+    enum JoinType {
+        // ANSI SQL specified join types can show in SQL statement
+        InnerJoin,
+        LeftJoin,
+        RightJoin,
+        FullJoin,
+        CrossJoin
+            ,
+        // these are used by subquery expansion or optimizations (say PK/FK join)
+        SemiJoin,
+        AntiSemiJoin,
+    };
+
     public class LogicJoin : LogicNode
     {
-        public override string ToString() => $"{l_()} X {r_()}";
+        internal JoinType type_ = JoinType.InnerJoin;
+        public override string ToString() => $"({l_()} {type_} {r_()})";
         public LogicJoin(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
         public LogicJoin(LogicNode l, LogicNode r, Expr filter): this(l, r) 
         { 
-            //Debug.Assert(filter != null);
             filter_ = filter; 
         }
 
@@ -520,16 +533,6 @@ namespace adb
                 output_ = output_.Distinct().ToList();
             return ordinals;
         }
-    }
-
-    public class LogicSemiJoin : LogicJoin {
-        public override string ToString() => $"{l_()} _X {r_()}";
-        public LogicSemiJoin(LogicNode l, LogicNode r) : base(l, r) { }
-    }
-    public class LogicAntiSemiJoin : LogicJoin
-    {
-        public override string ToString() => $"{l_()} ^_X {r_()}";
-        public LogicAntiSemiJoin(LogicNode l, LogicNode r) : base(l, r) { }
     }
 
     public class LogicFilter : LogicNode

@@ -31,15 +31,13 @@ namespace adb
     public class JoinCommutativeRule : ExplorationRule {
         public override bool Appliable(CGroupMember expr)
         {
-            return expr.logic_ is LogicJoin;
+            return expr.logic_ is LogicJoin lj && lj.type_ == JoinType.InnerJoin;
         }
 
         public override CGroupMember Apply(CGroupMember expr)
         {
             LogicJoin join = expr.logic_ as LogicJoin;
-            var newjoin = new LogicJoin(join.children_[1], join.children_[0]);
-            if (join.filter_ != null)
-                newjoin.AddFilter(join.filter_);
+            var newjoin = new LogicJoin(join.children_[1], join.children_[0], join.filter_);
             return new CGroupMember(newjoin, expr.group_);
         }
     }
