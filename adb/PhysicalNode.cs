@@ -227,9 +227,10 @@ namespace adb
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicJoin;
+            var type = logic.type_;
             var filter = logic.filter_;
-            bool semi = (logic_ is LogicSemiJoin);
-            bool antisemi = (logic_ is LogicAntiSemiJoin);
+            bool semi = type == JoinType.SemiJoin;
+            bool antisemi = type == JoinType.AntiSemiJoin;
 
             l_().Exec(context, l =>
             {
@@ -360,9 +361,10 @@ namespace adb
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicJoin;
+            var type = logic.type_;
             var hm = new Dictionary<KeyList, List<Row>>();
-            bool semi = (logic_ is LogicSemiJoin);
-            bool antisemi = (logic_ is LogicAntiSemiJoin);
+            bool semi = type == JoinType.SemiJoin;
+            bool antisemi = type == JoinType.AntiSemiJoin;
 
             // build hash table with left side 
             l_().Exec(context, l => {
