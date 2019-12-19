@@ -306,7 +306,7 @@ namespace adb
                     nameTest = z => target.Equals(z) || y.alias_.Equals(z.alias_);
 
                     // using source's matching index for ordinal
-                    // fix colexpr's ordinal - leave the outerref
+                    // fix colexpr's ordinal - leave the outerref as it is already handled in ColExpr.Bind()
                     if (!target.isOuterRef_)
                     {
                         target.ordinal_ = source.FindIndex(nameTest);

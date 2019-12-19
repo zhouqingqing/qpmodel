@@ -119,7 +119,7 @@ namespace adb
             sql = "select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1";
             sql = "select count(*) from a where a1 in (select b2 from b where b1 > 0) and a2 in (select b3 from b where b1 > 0);";
             sql = "select count(*) from (select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1) v;";
-
+            sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b1 > ((select c2 from c where c.c2=b2)))";
 
             doit:
             Console.WriteLine(sql);
@@ -131,11 +131,11 @@ namespace adb
 
             // -- generate an initial plan
             a.profileOpt_.enabled_ = true;
-            a.optimizeOpt_.enable_subquery_to_markjoin_ = false;
+            a.optimizeOpt_.enable_subquery_to_markjoin_ = true;
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.PrintString(0));
 
-            a.optimizeOpt_.use_memo_ = true;
+            a.optimizeOpt_.use_memo_ = false;
             PhysicNode phyplan = null;
             if (a.optimizeOpt_.use_memo_)
             {

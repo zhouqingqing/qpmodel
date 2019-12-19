@@ -583,6 +583,7 @@ namespace adb
                 Debug.Assert(tableRefs_.Count == 0);
                 tableRefs_.Add(tabRef_);
             }
+            // FIXME: we shall not decide ordinal_ so early but if not, hard to handle outerref
             ordinal_ = context.ColumnOrdinal(tabName_, colName_, out ColumnType type);
             type_ = type;
             markBounded();

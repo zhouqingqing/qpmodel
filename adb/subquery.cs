@@ -123,11 +123,8 @@ namespace adb
             if (nodeBFilter is null)
                 return nodeA;
 
-            Debug.Assert(nodeB.output_.Count == 1);
-            var singleValueExpr = nodeB.output_[0];
-            // hack: we have to differentiate ExprRef and Expr here, otherwise, old binding is wrong
-            if (singleValueExpr is ExprRef se)
-                singleValueExpr = se.expr_();
+            Debug.Assert(scalarExpr.query_.selection_.Count == 1);
+            var singleValueExpr = scalarExpr.query_.selection_[0];
             FilterHelper.NullifyFilter(nodeB);
 
             // nullify nodeA's filter: the rest is push to top filter. However,
