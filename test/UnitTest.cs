@@ -167,7 +167,7 @@ namespace test
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[11]), out _, option);
                 Assert.AreEqual("SHIP,5,10;MAIL,5,5", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[12]), out _, option);
-                Assert.AreEqual(26, result.Count);
+                Assert.AreEqual(100, result.Count);
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[13]), out _, option);
                 Assert.AreEqual(1, result.Count);
                 Assert.AreEqual(true, result[0].ToString().Contains("15.23"));
@@ -288,6 +288,12 @@ namespace test
             Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "a.a1[0]=5-b.a1[1]-c.a1[2]"));
             Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "HashJoin"));
             Assert.AreEqual("2,2,1,5;2,1,2,5;1,2,2,5", string.Join(";", result));
+
+            sql = "select a.* from a join b on a1=b1 or a3=b3 join c on a2=c2;";
+            result = TestHelper.ExecuteSQL(sql, out phyplan, option);
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "NLJoin"));
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "HashJoin"));
+            Assert.AreEqual("0,1,2,3;1,2,3,4;2,3,4,5", string.Join(";", result));
 
             Assert.IsTrue(option.use_memo_);
         }

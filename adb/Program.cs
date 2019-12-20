@@ -63,6 +63,7 @@ namespace adb
             //sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3 and c.c1 = a.a1";
             //sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
             //sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
+            sql = "select a.* from a join b on a1=b1 or a3=b3 join c on a2=c2;";
 
 
             doit:
@@ -79,7 +80,7 @@ namespace adb
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.PrintString(0));
 
-            a.optimizeOpt_.use_memo_ = true;
+            a.optimizeOpt_.use_memo_ = false;
             PhysicNode phyplan = null;
             if (a.optimizeOpt_.use_memo_)
             {
