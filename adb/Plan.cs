@@ -224,11 +224,18 @@ namespace adb
                         fromqueries_.Add(sref.query_, from as LogicFromQuery);
                         break;
                     case JoinQueryRef jref:
-                        LogicJoin subr = new LogicJoin(null, null);
+                        // We will form join group on all tables and put a filter on top
+                        // of the joins as a normalized form for later processing.
+                        //
+                        //      from a join b on a1=b1 or a3=b3 join c on a2=c2;
+                        //   => from a , b, c where  (a1=b1 or a3=b3) and a2=c2;
+                        //
+                        LogicJoin subjoin = new LogicJoin(null, null);
+                        Expr filterexpr = null;
                         for (int i = 0; i < jref.tables_.Count; i++)
                         {
                             LogicNode t = transformOneFrom(jref.tables_[i]);
-                            var children = subr.children_;
+                            var children = subjoin.children_;
                             if (children[0] is null)
                                 children[0] = t;
                             else
@@ -236,11 +243,12 @@ namespace adb
                                 if (children[1] is null)
                                     children[1] = t;
                                 else
-                                    subr = new LogicJoin(t, subr);
-                                subr.AddFilter(jref.constraints_[i - 1]);
+                                    subjoin = new LogicJoin(t, subjoin);
+                                filterexpr = FilterHelper.AddAndFilter(filterexpr, jref.constraints_[i - 1]);
                             }
                         }
-                        from = subr;
+                        Debug.Assert(filterexpr != null);
+                        from = new LogicFilter(subjoin, filterexpr);
                         break;
                     default:
                         throw new Exception();
