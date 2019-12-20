@@ -647,8 +647,9 @@ namespace adb
     public class OrderTerm : Expr
     {
         internal bool descend_;
+        internal Expr orderby_() => children_[0];
 
-        public override string ToString() => $"{children_[0]} {(descend_ ? "[desc]" : "")}";
+        public override string ToString() => $"{orderby_()} {(descend_ ? "[desc]" : "")}";
         public OrderTerm(Expr expr, bool descend)
         {
             children_.Add(expr); descend_ = descend;

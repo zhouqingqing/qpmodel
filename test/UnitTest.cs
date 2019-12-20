@@ -130,50 +130,57 @@ namespace test
 
             // execute queries
             string phyplan = "";
-            var result = TestHelper.ExecuteSQL(File.ReadAllText(files[0]));
-            Assert.AreEqual(4, result.Count);
-            result = TestHelper.ExecuteSQL(File.ReadAllText(files[1]));
-            Assert.AreEqual(0, result.Count);
-            result = TestHelper.ExecuteSQL(File.ReadAllText(files[2]), out phyplan);
-            Assert.AreEqual(2, TestHelper.CountStringOccurrences(phyplan, "PhysicHashJoin"));
-            Assert.AreEqual(8, result.Count);
-            result = TestHelper.ExecuteSQL(File.ReadAllText(files[3]));
-            Assert.AreEqual(5, result.Count);
-            Assert.AreEqual("1-URGENT,33", result[0].ToString());
-            Assert.AreEqual("2-HIGH,27", result[1].ToString());
-            Assert.AreEqual("5-LOW,38", result[2].ToString());
-            Assert.AreEqual("4-NOT SPECIFIED,37", result[3].ToString());
-            Assert.AreEqual("3-MEDIUM,36", result[4].ToString());
-            result = TestHelper.ExecuteSQL(File.ReadAllText(files[4]));
-            Assert.AreEqual(0, result.Count);
-            // q6 between parser issue
-            // q7 n1.n_name, n2.n_name matching
-            // q8 between parser issue
-            result = TestHelper.ExecuteSQL(File.ReadAllText(files[8]));
-            Assert.AreEqual(9, result.Count);
-            Assert.AreEqual("MOROCCO,0,1687299;KENYA,0,577213;PERU,0,564370;UNITED STATES,0,274484;IRAQ,0,179599;"+
-                             "UNITED KINGDOM,0,2309469;IRAN,0,183369;ETHIOPIA,0,160941;ARGENTINA,0,121664", 
-                string.Join(";", result));
-            result = TestHelper.ExecuteSQL(File.ReadAllText(files[9]));
-            Assert.AreEqual(43, result.Count);
-            result = TestHelper.ExecuteSQL(File.ReadAllText(files[10]));
-            Assert.AreEqual(0, result.Count);
-            result = TestHelper.ExecuteSQL(File.ReadAllText(files[11]));
-            Assert.AreEqual("SHIP,5,10;MAIL,5,5", string.Join(";", result));
-            result = TestHelper.ExecuteSQL(File.ReadAllText(files[12]));
-            Assert.AreEqual(26, result.Count);
-            result = TestHelper.ExecuteSQL(File.ReadAllText(files[13]));
-            Assert.AreEqual(1, result.Count);
-            Assert.AreEqual(true, result[0].ToString().Contains("15.23"));
-            // q15 cte
-            // q16 parser
-            // q17 parameter join order
-            // q18 parser
-            // q19 parser
-            // q20 parameter join order
-            // q21 parameter join order
-            result = TestHelper.ExecuteSQL(File.ReadAllText(files[21]));
-            Assert.AreEqual(7, result.Count);
+            OptimizeOption option = new OptimizeOption();
+
+            for (int i = 0; i < 2; i++)
+            {
+                option.use_memo_ = i == 0;
+
+                var result = TestHelper.ExecuteSQL(File.ReadAllText(files[0]), out _, option);
+                Assert.AreEqual(4, result.Count);
+                result = TestHelper.ExecuteSQL(File.ReadAllText(files[1]), out _); // memo
+                Assert.AreEqual(0, result.Count);
+                result = TestHelper.ExecuteSQL(File.ReadAllText(files[2]), out phyplan, option);
+                Assert.AreEqual(2, TestHelper.CountStringOccurrences(phyplan, "PhysicHashJoin"));
+                Assert.AreEqual(8, result.Count);
+                result = TestHelper.ExecuteSQL(File.ReadAllText(files[3]), out _, option);
+                Assert.AreEqual(5, result.Count);
+                Assert.AreEqual("1-URGENT,33", result[0].ToString());
+                Assert.AreEqual("2-HIGH,27", result[1].ToString());
+                Assert.AreEqual("5-LOW,38", result[2].ToString());
+                Assert.AreEqual("4-NOT SPECIFIED,37", result[3].ToString());
+                Assert.AreEqual("3-MEDIUM,36", result[4].ToString());
+                result = TestHelper.ExecuteSQL(File.ReadAllText(files[4]));
+                Assert.AreEqual(0, result.Count);
+                // q6 between parser issue
+                // q7 n1.n_name, n2.n_name matching
+                // q8 between parser issue
+                result = TestHelper.ExecuteSQL(File.ReadAllText(files[8])); // memo
+                Assert.AreEqual(9, result.Count);
+                Assert.AreEqual("MOROCCO,0,1687299;KENYA,0,577213;PERU,0,564370;UNITED STATES,0,274484;IRAQ,0,179599;" +
+                                 "UNITED KINGDOM,0,2309469;IRAN,0,183369;ETHIOPIA,0,160941;ARGENTINA,0,121664",
+                    string.Join(";", result));
+                result = TestHelper.ExecuteSQL(File.ReadAllText(files[9]), out _, option);
+                Assert.AreEqual(43, result.Count);
+                result = TestHelper.ExecuteSQL(File.ReadAllText(files[10]), out _, option);
+                Assert.AreEqual(0, result.Count);
+                result = TestHelper.ExecuteSQL(File.ReadAllText(files[11]), out _, option);
+                Assert.AreEqual("SHIP,5,10;MAIL,5,5", string.Join(";", result));
+                result = TestHelper.ExecuteSQL(File.ReadAllText(files[12]), out _, option);
+                Assert.AreEqual(26, result.Count);
+                result = TestHelper.ExecuteSQL(File.ReadAllText(files[13]), out _, option);
+                Assert.AreEqual(1, result.Count);
+                Assert.AreEqual(true, result[0].ToString().Contains("15.23"));
+                // q15 cte
+                // q16 parser
+                // q17 parameter join order
+                // q18 parser
+                // q19 parser
+                // q20 parameter join order
+                // q21 parameter join order
+                result = TestHelper.ExecuteSQL(File.ReadAllText(files[21])); // wrong plan
+                Assert.AreEqual(7, result.Count);
+            }
         }
     }
 

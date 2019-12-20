@@ -11,6 +11,7 @@
 Small items:
 P1: 
 1. join side dependency (subquery)
+2. between ...
 
 P2:
 1. implement sort
