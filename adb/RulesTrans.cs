@@ -122,7 +122,7 @@ namespace adb
             var acfilter = exactFilter(fullfilter,
                 new List<LogicNode>(){a_bc.l_(), bc.r_() });
             var abcfilter = exactFilter(fullfilter,
-                new List<LogicNode>(){a_bc.l_(), bc});
+                new List<LogicNode>(){a_bc});
 
             var topfilter = bcfilter;
             if (acfilter != null)

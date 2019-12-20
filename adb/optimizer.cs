@@ -130,13 +130,14 @@ namespace adb
                     // newmember shall have the same signature as old ones
                     if (newlogic.MemoLogicSign() != list[0].MemoSignature())
                     {
-                        Console.WriteLine(newlogic.PrintString(0));
+                        Console.WriteLine("********* list[0]");
                         Console.WriteLine(list[0].Logic().PrintString(0));
+                        Console.WriteLine("********* newlogic");
+                        Console.WriteLine(newlogic.PrintString(0));
                     }
                     Debug.Assert(newlogic.MemoLogicSign() == list[0].MemoSignature());
                 }
             }
-
 
             return list;
         }

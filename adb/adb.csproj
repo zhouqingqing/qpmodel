@@ -89,6 +89,7 @@
     <Compile Include="Expr.cs" />
     <Compile Include="ExprFunc.cs" />
     <Compile Include="ExprSubquery.cs" />
+    <Compile Include="Plan.cs" />
     <Compile Include="RulesImpl.cs" />
     <Compile Include="LogicNode.cs" />
     <Compile Include="optimizer.cs" />

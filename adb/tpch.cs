@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.IO;
 
 namespace adb
 {
@@ -92,7 +93,8 @@ namespace adb
         }
 
         static public void LoadTables(string subfolder) {
-            string folder = $@"C:\Users\q00904479\Desktop\adb\tpch\data\{subfolder}";
+            string curdir = Directory.GetCurrentDirectory();
+            string folder = $@"{curdir}\..\..\..\tpch\data\{subfolder}";
             foreach(var v in tabnames_)
             {
                 string filename = $@"'{folder}\{v}.tbl'";
