@@ -54,6 +54,7 @@ namespace adb
                     break;
                 case "substring": r = new SubstringFunc(args); break;
                 case "year": r = new YearFunc(args); break;
+                case "repeat": r = new RepeatFunc(args); break;
                 default:
                     r = new FuncExpr(funcName, args);
                     break;
@@ -99,6 +100,28 @@ namespace adb
             int end = (int)args_()[2].Exec(context, input) - 1;
 
             return str.Substring(start, end - start + 1);
+        }
+    }
+
+    public class RepeatFunc : FuncExpr {
+        public RepeatFunc(List<Expr> args) : base("repeat", args)
+        {
+            argcnt_ = 2;
+        }
+
+        public override void Bind(BindContext context)
+        {
+            base.Bind(context);
+            type_ = args_()[0].type_;
+            Debug.Assert(type_ is CharType || type_ is VarCharType);
+        }
+
+        public override Value Exec(ExecContext context, Row input)
+        {
+            string str = (string)args_()[0].Exec(context, input);
+            int times = (int)args_()[1].Exec(context, input);
+
+            return string.Join("", Enumerable.Repeat(str, times));
         }
     }
     public class YearFunc : FuncExpr

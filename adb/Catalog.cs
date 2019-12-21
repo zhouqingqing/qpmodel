@@ -126,24 +126,25 @@ namespace adb
         public ColumnDef Column(string tabName, string colName)=> TableCols(tabName)[colName];
     }
 
-    class ColumnStat
-    {
-        public Int64 n_distinct_;
-    }
-
     // format: (tableName, colName):key, column stat
-    class SysStats : SystemTable
+    partial class SysStats : SystemTable
     {
         readonly Dictionary<TableColumn, ColumnStat> records_ = new Dictionary<TableColumn, ColumnStat>();
 
-        public void Add(string tabName, string colName, ColumnStat stat)
+        public void AddOrUpdate(string tabName, string colName, ColumnStat stat)
         {
-            records_.Add(new TableColumn(tabName, colName), stat);
+            var tabcol = new TableColumn(tabName, colName);
+            if (GetColumnStat(tabName, colName) is null)
+                records_.Add(tabcol, stat);
+            else
+                records_[tabcol] = stat;
         }
 
-        public ColumnStat Column(string tabName, string colName)
+        public ColumnStat GetColumnStat(string tabName, string colName)
         {
-            return records_[new TableColumn(tabName, colName)];
+            if (records_.TryGetValue(new TableColumn(tabName, colName), out ColumnStat value))
+                return value;
+            return null;
         }
     }
 
@@ -151,6 +152,7 @@ namespace adb
     {
         // list of system tables
         public static SysTable systable_ = new SysTable();
+        public static SysStats sysstat_ = new SysStats();
 
         static void createBuildInTestTables()
         {
