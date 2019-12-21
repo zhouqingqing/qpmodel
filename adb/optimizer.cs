@@ -11,9 +11,6 @@ using LogicSignature = System.Int32;
 //  - aggregation/ctes: by generate multiple memo
 //  - derive stats: so far we just blindly assign some values
 //
-// TODO:
-//  - expr base class: otherwise, we have duplicates on Equal()/GetHashCode()/Clone() etc
-//
 
 namespace adb
 {
@@ -26,7 +23,9 @@ namespace adb
     // ordering, distribution
     public class PhysicProperty : Property { }
 
-
+    // CGroupMember is a member of CMemoGroup, all these memebers are logically
+    // equvalent but different logical/physical implementations
+    //
     public class CGroupMember{
         public LogicNode logic_;
         public PhysicNode physic_;
@@ -143,9 +142,13 @@ namespace adb
         }
     }
 
-    // A cgroup represents equvalent logical and physical transformations of the same expr
+    // A CMemoGroup represents equvalent logical and physical transformations of the same expr.
+    // To identify a group, we use a LogicSignature and equalvalent plans shall have the same
+    // signature. How to generate it? Though there are physical/logical plans, finally the 
+    // problem boiled down to logic plan signature generation since physical can always use 
+    // its logic to compute signature.
     // 
-    // 1. CGroup must consider attributes.
+    // 1. Signature must consider attributes.
     // Consider the following query:
     //   select * from A where a1 > (select max(a2) from A);
     //
@@ -153,9 +156,12 @@ namespace adb
     // same, so they can share the same cgroup. However, if one is with a filter, then they
     // are in different cgroup.
     //
-    // 2. CGroup shall use logical plan with fixed order
-    //    INNERJOIN (A, B) => HJ(A,B), HJ(B,A), NLJ(A,B), NLJ(B,A)
+    // 2. Signature might compute children in a order insensitive way:
+    //    INNERJOIN (A, B) => HJ(A,B), NLJ(A,B)
+    //    INNERJOIN (B, A) => HJ(B,A), NLJ(B,A)
     //
+    // Is there any compute children in a order sensitive way?
+    //    
     // These CGroupMember are in the same group because their logical plan are the same.
     //
     public class CMemoGroup {

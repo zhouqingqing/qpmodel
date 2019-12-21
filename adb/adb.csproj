@@ -92,17 +92,17 @@
     <Compile Include="Plan.cs" />
     <Compile Include="RulesImpl.cs" />
     <Compile Include="LogicNode.cs" />
-    <Compile Include="optimizer.cs" />
+    <Compile Include="Optimizer.cs" />
     <Compile Include="Parser.cs" />
     <Compile Include="PhysicalNode.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RulesTrans.cs" />
     <Compile Include="Statis.cs" />
-    <Compile Include="stmt.cs" />
-    <Compile Include="stmtDML.cs" />
-    <Compile Include="subquery.cs" />
-    <Compile Include="tpch.cs" />
+    <Compile Include="Stmt.cs" />
+    <Compile Include="StmtDML.cs" />
+    <Compile Include="Subquery.cs" />
+    <Compile Include="Tpch.cs" />
     <Compile Include="Utils.cs" />
   </ItemGroup>
   <ItemGroup>

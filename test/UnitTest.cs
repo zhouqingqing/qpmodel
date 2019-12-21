@@ -68,7 +68,7 @@ namespace test
         public void TestCSVReader()
         {
             List<string> r = new List<string>();
-            Utils.ReadCsvLine(@"d:\test.csv",
+            Utils.ReadCsvLine(@"../../../data/test.tbl",
                 x => r.Add(string.Join(",", x)));
             Assert.AreEqual(3, r.Count);
             Assert.AreEqual("1,2,3,4", r[0]);
@@ -133,7 +133,7 @@ namespace test
             }
 
             // load data
-            tpch.LoadTables("0001");
+            Tpch.LoadTables("0001");
 
             // execute queries
             string phyplan = "";
@@ -453,7 +453,7 @@ namespace test
             sql = "select a1,a1,a3,a3, (select b3 from b where a1=b2 and b2=3) from a where a1>1";
             result = ExecuteSQL(sql);
             Assert.AreEqual(1, result.Count);
-            Assert.AreEqual($"2,2,4,4,{Int32.MaxValue}", result[0].ToString());
+            Assert.AreEqual($"2,2,4,4,", result[0].ToString());
 
             // scalar subquery
             sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = 3)";
