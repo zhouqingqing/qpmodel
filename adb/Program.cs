@@ -43,11 +43,12 @@ namespace adb
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             sql = "select a1,a1,a3,a3 from a where a2> (select b1 from (select * from b) d,c where b1=c1 and b1=a1 and b2=3);"; // lost a2>@1
             tpch.LoadTables("0001");
+            tpch.AnalyzeTables();
 
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[12];
+                var v = files[9];
                 {
                     sql = File.ReadAllText(v);
                     goto doit;
@@ -64,6 +65,7 @@ namespace adb
             //sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
             //sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
             sql = "select a.* from a join b on a1=b1 or a3=b3 join c on a2=c2;";
+            sql = "analyze a;";
 
 
             doit:
@@ -75,12 +77,13 @@ namespace adb
             a.Bind(null);
 
             // -- generate an initial plan
+            ExplainOption.costoff_ = false;
             a.profileOpt_.enabled_ = true;
             a.optimizeOpt_.enable_subquery_to_markjoin_ = false;
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.PrintString(0));
 
-            a.optimizeOpt_.use_memo_ = false;
+            a.optimizeOpt_.use_memo_ = true;
             PhysicNode phyplan = null;
             if (a.optimizeOpt_.use_memo_)
             {

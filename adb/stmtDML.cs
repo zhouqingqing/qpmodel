@@ -25,6 +25,42 @@ namespace adb
         }
     }
 
+    public class AnalyzeStmt : SQLStatement {
+        public readonly BaseTableRef targetref_;
+        public readonly SelectStmt select_;
+
+        public AnalyzeStmt(BaseTableRef target, string text) : base(text)
+        {
+            // SELECT statement is used so later optimizations can be kicked in easier
+            targetref_ = target;
+            select_ = RawParser.ParseSqlStatement($"select * from {target.relname_}") as SelectStmt;
+        }
+
+        public override BindContext Bind(BindContext parent)
+        {
+            return select_.Bind(parent);
+        }
+
+        // It is modeled as a sampling scan with 
+        public override LogicNode CreatePlan()
+        {
+            // disable memo optimization for it
+            optimizeOpt_.use_memo_ = false;
+
+            logicPlan_ = new LogicAnalyze(select_.CreatePlan());
+            return logicPlan_;
+        }
+
+        public override LogicNode PhaseOneOptimize()
+        {
+            var scan = select_.PhaseOneOptimize();
+            logicPlan_ = new LogicAnalyze(scan);
+            // convert to physical plan
+            physicPlan_ = logicPlan_.DirectToPhysical(profileOpt_);
+            return logicPlan_;
+        }
+    }
+
     public class InsertStmt : SQLStatement
     {
         public readonly BaseTableRef targetref_;

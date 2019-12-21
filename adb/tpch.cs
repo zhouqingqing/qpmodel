@@ -103,5 +103,15 @@ namespace adb
                 stmt.Exec();
             }
         }
+
+        static public void AnalyzeTables()
+        {
+            foreach (var v in tabnames_)
+            {
+                var sql = $"analyze {v};";
+                var stmt = RawParser.ParseSqlStatement(sql);
+                stmt.Exec();
+            }
+        }
     }
 }

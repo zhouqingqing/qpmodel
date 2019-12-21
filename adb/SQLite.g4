@@ -87,7 +87,7 @@ alter_table_stmt
  ;
 
 analyze_stmt
- : K_ANALYZE ( database_name | table_or_index_name | database_name '.' table_or_index_name )?
+ : K_ANALYZE table_name?
  ;
 
 attach_stmt
