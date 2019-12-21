@@ -23,6 +23,10 @@ namespace adb
         public bool use_memo_ = false;
     }
 
+    public static class ExplainOption {
+        public static bool costoff_ = true;
+    }
+
     public abstract class PlanNode<T> where T : PlanNode<T>
     {
         public List<T> children_ = new List<T>();
@@ -57,9 +61,16 @@ namespace adb
                 r = Utils.Tabs(depth);
                 if (depth != 0)
                     r += "-> ";
+
+                // output line of <nodeName> : <Estimation> <Actual>
                 r += $"{this.GetType().Name} {PrintInlineDetails(depth)}";
-                if (this is PhysicNode && (this as PhysicNode).profile_ != null)
-                    r += $"  (rows = {(this as PhysicNode).profile_.nrows_})";
+                var phynode = this as PhysicNode;
+                if (phynode != null && phynode.profile_ != null)
+                {
+                    if (!ExplainOption.costoff_)
+                        r += $" (rows={phynode.logic_.EstCardinality()})";
+                    r += $" (actual rows = {phynode.profile_.nrows_})";
+                }
                 r += "\n";
                 var details = PrintMoreDetails(depth);
 

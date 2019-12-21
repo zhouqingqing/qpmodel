@@ -82,12 +82,7 @@ namespace adb
             logic_ = logic;
         }
 
-        public override string PrintOutput(int depth)
-        {
-            var r = "Output: " + string.Join(",", logic_.output_);
-            logic_.output_.ForEach(x => r += ExprHelper.PrintExprWithSubqueryExpanded(x, depth));
-            return r;
-        }
+        public override string PrintOutput(int depth) => logic_.PrintOutput(depth);
         public override string PrintInlineDetails(int depth) => logic_.PrintInlineDetails(depth);
         public override string PrintMoreDetails(int depth) => logic_.PrintMoreDetails(depth);
 
@@ -141,7 +136,7 @@ namespace adb
 
     public class PhysicScanTable : PhysicNode
     {
-        private long nrows_ = 3;
+        public static readonly long n_fake_rows_ = 3;
         public PhysicScanTable(LogicNode logic) : base(logic) { }
         public override string ToString() => $"PScan({(logic_ as LogicScanTable).tabref_}: {Cost()})";
 
@@ -154,9 +149,10 @@ namespace adb
             bool isFaketable = faketable.Contains(tabname);
             var heap = (logic.tabref_).Table().heap_.GetEnumerator();
 
+            var looprows = n_fake_rows_;
             if (!isFaketable)
-                nrows_ = long.MaxValue;
-            for (var i = 0; i < nrows_; i++)
+                looprows = long.MaxValue;
+            for (var i = 0; i < looprows; i++)
             {
                 Row r = new Row();
                 if (isFaketable)
@@ -182,6 +178,12 @@ namespace adb
                     callback(r);
                 }
             }
+        }
+
+        public override double Cost()
+        {
+            var logic = (logic_) as LogicScanTable;
+            return logic.EstCardinality() * 1;
         }
     }
 
@@ -275,7 +277,8 @@ namespace adb
         public override double Cost()
         {
             if (double.IsNaN(cost_))
-                cost_ = (l_() as PhysicMemoRef).MinCost() * (r_() as PhysicMemoRef).MinCost();
+                cost_ = ((l_() as PhysicMemoRef).Logic().EstCardinality() + 10) * 
+                    ((r_() as PhysicMemoRef).Logic().EstCardinality() + 10);
             return cost_;
         }
     }
@@ -428,7 +431,8 @@ namespace adb
         public override double Cost()
         {
             if (double.IsNaN(cost_))
-                cost_ = (l_() as PhysicMemoRef).MinCost()*2 + (r_() as PhysicMemoRef).MinCost();
+                cost_ = (l_() as PhysicMemoRef).Logic().EstCardinality() * 2 
+                    + (r_() as PhysicMemoRef).Logic().EstCardinality();
             return cost_;
         }
     }

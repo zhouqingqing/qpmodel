@@ -7,6 +7,9 @@ namespace adb
 {
     public abstract class LogicNode : PlanNode<LogicNode>
     {
+        // TODO: we can consider normalize all node specific expressions into List<Expr> 
+        // so processing can be generalized - similar to Expr.children_[]
+        //
         public Expr filter_ = null;
         public List<Expr> output_ = new List<Expr>();
 
@@ -102,6 +105,9 @@ namespace adb
                     case LogicOrder lo:
                         phy = new PhysicOrder(lo, n.child_().DirectToPhysical(profiling));
                         break;
+                    case LogicAnalyze lan:
+                        phy = new PhysicAnalyze(lan, n.child_().DirectToPhysical(profiling));
+                        break;
                     default:
                         throw new NotImplementedException();
                 }
@@ -115,8 +121,6 @@ namespace adb
 
             return root;
         }
-
-        public virtual int MemoLogicSign() => GetHashCode();
 
         public List<TableRef> InclusiveTableRefs()
         {
@@ -133,13 +137,6 @@ namespace adb
             });
             return refs;
         }
-
-        // resolve mapping from children output
-        // 1. you shall first compute the reqOutput by accouting parent's reqOutput and your filter etc
-        // 2. compute children's output by requesting reqOutput from them
-        // 3. find mapping from children's output
-        //
-        public virtual List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true) => null;
 
         internal Expr CloneFixColumnOrdinal(Expr toclone, List<Expr> source)
         {
@@ -197,6 +194,20 @@ namespace adb
             return clone;
         }
 
+        public virtual int MemoLogicSign() => GetHashCode();
+
+        // resolve mapping from children output
+        // 1. you shall first compute the reqOutput by accouting parent's reqOutput and your filter etc
+        // 2. compute children's output by requesting reqOutput from them
+        // 3. find mapping from children's output
+        //
+        public virtual List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true) => null;
+
+        public virtual long EstCardinality() {
+            long card = 1;
+            children_.ForEach(x => card = Math.Max(x.EstCardinality(), card));
+            return card;
+        }
     }
 
     // LogicMemoRef wrap a CMemoGroup as a LogicNode (so CMemoGroup can be used in plan tree)
@@ -620,10 +631,7 @@ namespace adb
         public LogicGet(T tab) => tabref_ = tab;
         public override string ToString() => tabref_.ToString();
         public override string PrintInlineDetails(int depth) => ToString();
-        public override int GetHashCode()
-        {
-            return base.GetHashCode() ^ (filter_?.GetHashCode()??0) ^ tabref_.GetHashCode();
-        }
+        public override int GetHashCode() => base.GetHashCode() ^ (filter_?.GetHashCode()??0) ^ tabref_.GetHashCode();
         public override bool Equals(object obj)
         {
             if (obj is LogicGet<T> lo)
@@ -659,6 +667,7 @@ namespace adb
                 });
             });
         }
+
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             List<int> ordinals = new List<int>();
@@ -682,6 +691,10 @@ namespace adb
     public class LogicScanTable : LogicGet<BaseTableRef>
     {
         public LogicScanTable(BaseTableRef tab) : base(tab) { }
+        public override long EstCardinality()
+        {
+            return Math.Max(PhysicScanTable.n_fake_rows_, Catalog.sysstat_.NumberOfRows(tabref_.relname_));
+        }
     }
 
     public class LogicScanFile : LogicGet<ExternalTableRef>

@@ -12,6 +12,7 @@ Small items:
 P1: 
 1. join side dependency (subquery)
 2. between ...
+3. eval const first: sql = @"select repeat('ab', 3) from a;";
 
 P2:
 1. implement sort

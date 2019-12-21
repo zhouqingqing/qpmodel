@@ -524,6 +524,12 @@ namespace adb
             return new CreateTableStmt(context.table_name().GetText(), cols, context.GetText());
         }
 
+        public override object VisitAnalyze_stmt([NotNull] SQLiteParser.Analyze_stmtContext context)
+        {
+            var tabref = new BaseTableRef(context.table_name().GetText());
+            return new AnalyzeStmt(tabref, context.GetText());
+        }
+
         public override object VisitInsert_stmt([NotNull] SQLiteParser.Insert_stmtContext context)
         {
             var tabref = new BaseTableRef(context.table_name().GetText());
@@ -563,6 +569,8 @@ namespace adb
                 r = Visit(context.insert_stmt()) as SQLStatement;
             else if (context.copy_stmt() != null)
                 r = Visit(context.copy_stmt()) as SQLStatement;
+            else if (context.analyze_stmt() != null)
+                r = Visit(context.analyze_stmt()) as SQLStatement;
 
             if (r is null)
                 throw new NotImplementedException();
