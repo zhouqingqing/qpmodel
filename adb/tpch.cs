@@ -7,7 +7,7 @@ using System.IO;
 
 namespace adb
 {
-    public class tpch
+    public class Tpch
     {
         static public string[] tabnames_ = { 
             "region", "nation", "part","supplier",
