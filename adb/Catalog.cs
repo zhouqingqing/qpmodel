@@ -170,7 +170,7 @@ namespace adb
         static Catalog()
         {
             createBuildInTestTables();
-            tpch.CreateTables();
+            Tpch.CreateTables();
         }
     }
 }

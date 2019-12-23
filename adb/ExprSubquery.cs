@@ -112,7 +112,7 @@ namespace adb
                 return null;
             });
 
-            return r?.values_[0] ?? int.MaxValue;
+            return r?.values_[0] ?? null;
         }
     }
 

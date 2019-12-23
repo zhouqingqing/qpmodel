@@ -68,7 +68,7 @@ namespace adb
                 if (phynode != null && phynode.profile_ != null)
                 {
                     if (!ExplainOption.costoff_)
-                        r += $" (rows={phynode.logic_.EstCardinality()})";
+                        r += $" (cost = {phynode.Cost()}, rows={phynode.logic_.EstCardinality()})";
                     r += $" (actual rows = {phynode.profile_.nrows_})";
                 }
                 r += "\n";
@@ -96,19 +96,19 @@ namespace adb
 
         // traversal pattern EXISTS
         //  if any visit returns a true, stop recursion. So if you want to
-        //  visit all nodes, your callback shall always return false
-        //
+        //  visit all nodes regardless, use TraverseEachNode(). 
+        // 
         public bool VisitEachNodeExists(Func<PlanNode<T>, bool> callback)
         {
-            if (callback(this))
-                return true;
-            else
+            bool exists = callback(this);
+            if (!exists)
             {
                 foreach (var c in children_)
                     if (c.VisitEachNodeExists(callback))
                         return true;
-                return false;
             }
+
+            return exists;
         }
 
         // traversal pattern FOR EACH
