@@ -245,17 +245,19 @@ namespace adb
             return plan;
         }
 
+        public bool SubqueryIsFromQuery(SelectStmt subquery)
+        {
+            return (fromQueries_.TryGetValue(subquery, out _));
+        }
+
         public List<SelectStmt> Subqueries(bool excludeFromQuery = false)
         {
             List<SelectStmt> ret = new List<SelectStmt>();
             if (excludeFromQuery)
             {
                 foreach (var x in subQueries_)
-                {
-                    bool findit = fromQueries_.TryGetValue(x, out _);
-                    if (!findit)
+                    if (!SubqueryIsFromQuery(x))
                         ret.Add(x);
-                }
             }
             else
                 ret = subQueries_;

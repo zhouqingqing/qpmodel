@@ -202,6 +202,7 @@ namespace adb
     {
         public override string ToString() => $"{l_()} markX {r_()}";
         public LogicMarkJoin(LogicNode l, LogicNode r) : base(l, r) { }
+        public LogicMarkJoin(LogicNode l, LogicNode r, Expr f) : base(l, r, f) { }
 
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
@@ -215,17 +216,20 @@ namespace adb
     {
         public override string ToString() => $"{l_()} markSemiX {r_()}";
         public LogicMarkSemiJoin(LogicNode l, LogicNode r) : base(l, r) { }
+        public LogicMarkSemiJoin(LogicNode l, LogicNode r, Expr f) : base(l, r, f) { }
     }
     public class LogicMarkAntiSemiJoin : LogicMarkJoin
     {
         public override string ToString() => $"{l_()} markAntisemiX {r_()}";
         public LogicMarkAntiSemiJoin(LogicNode l, LogicNode r) : base(l, r) { }
+        public LogicMarkAntiSemiJoin(LogicNode l, LogicNode r, Expr f) : base(l, r, f) { }
     }
 
     public class LogicSingleMarkJoin : LogicMarkJoin
     {
         public override string ToString() => $"{l_()} singlemarkX {r_()}";
         public LogicSingleMarkJoin(LogicNode l, LogicNode r) : base(l, r) { }
+        public LogicSingleMarkJoin(LogicNode l, LogicNode r, Expr f ) : base(l, r, f) { }
     }
 
     public class PhysicMarkJoin : PhysicNode
@@ -256,7 +260,7 @@ namespace adb
                     if (!foundOneMatch)
                     {
                         Row n = new Row(l, r);
-                        if ((bool)filter.Exec(context, n))
+                        if (filter.Exec(context, n) is true)
                         {
                             foundOneMatch = true;
 
@@ -282,7 +286,9 @@ namespace adb
 
         public override double Cost()
         {
-            return (l_() as PhysicMemoRef).MinCost() * (r_() as PhysicMemoRef).MinCost();
+            if (double.IsNaN(cost_))
+                cost_ = (l_() as PhysicMemoRef).MinCost() * (r_() as PhysicMemoRef).MinCost();
+            return cost_;
         }
     }
 
@@ -311,7 +317,7 @@ namespace adb
                 r_().Exec(context, r =>
                 {
                     Row n = new Row(l, r);
-                    if ((bool)filter.Exec(context, n))
+                    if (filter.Exec(context, n) is true)
                     {
                         if (foundOneMatch)
                             throw new SemanticExecutionException("more than one row matched");
@@ -349,6 +355,7 @@ namespace adb
     {
         public override string ToString() => $"{l_()} singleX {r_()}";
         public LogicSingleJoin(LogicNode l, LogicNode r) : base(l, r) { }
+        public LogicSingleJoin(LogicNode l, LogicNode r, Expr f) : base(l, r, f) { }
     }
 
     public class PhysicSingleJoin : PhysicNode
@@ -372,7 +379,7 @@ namespace adb
                 r_().Exec(context, r =>
                 {
                     Row n = new Row(l, r);
-                    if ((bool)filter.Exec(context, n))
+                    if (filter.Exec(context, n) is true)
                     {
                         if (foundOneMatch)
                             throw new SemanticExecutionException("more than one row matched");

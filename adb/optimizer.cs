@@ -427,23 +427,30 @@ namespace adb
             memoset_.Clear();
         }
 
-        public static void OptimizeRootPlan(SQLStatement stmt, PhysicProperty required)
+        public static void OptimizeRootPlan(SQLStatement stmt, PhysicProperty required, bool enqueueit = true)
         {
+            var select = stmt as SelectStmt;
+
             // each statement sitting in a new memo
             var memo = new Memo();
-            memoset_.Add(memo);
+            if (enqueueit) {
+                memoset_.Add(memo);
 
-            // the statment shall already have plan generated
-            var logicroot = stmt.logicPlan_;
-            memo.rootgroup_ = memo.EnquePlan(logicroot);
+                // the statment shall already have plan generated
+                var logicroot = select.logicPlan_;
+                memo.rootgroup_ = memo.EnquePlan(logicroot);
+            }
 
             // enqueue the subqueries: fromquery are excluded because different from 
             // other subqueries (IN, EXISTS etc), the subtree of it is actually connected 
             // in the same memo.
             //
-            var subqueries = (stmt as SelectStmt).Subqueries(excludeFromQuery: true);
+            var subqueries = select.Subqueries();
             foreach (var v in subqueries)
-                Optimizer.OptimizeRootPlan(v, required);
+            {
+                enqueueit = !select.SubqueryIsFromQuery(v);
+                Optimizer.OptimizeRootPlan(v, required, enqueueit);
+            }
 
             // loop through the stack, optimize each one until empty
             //
@@ -457,7 +464,7 @@ namespace adb
 
         public static PhysicNode CopyOutOnePlan(SQLStatement stmt, Memo memo)
         {
-            var selectstmt = stmt as SelectStmt;
+            var select = stmt as SelectStmt;
 
             // retrieve the lowest cost plan
             Debug.Assert(stmt.physicPlan_ is null);
@@ -468,7 +475,7 @@ namespace adb
             // but we shall reconnect the logic node back to the Select Stmt level as needed
             // by column ordinal resolution. Physical node however is not needed.
             //
-            foreach (var v in selectstmt.fromQueries_) {
+            foreach (var v in select.fromQueries_) {
                 var fromQuery = (v.Key as SelectStmt);
                 var generatedPlan = (v.Value as LogicFromQuery).child_();
 
@@ -477,16 +484,19 @@ namespace adb
             }
 
             // finally let's fix the output
-            stmt.logicPlan_.ResolveColumnOrdinal(selectstmt.selection_, selectstmt.parent_ != null);
+            stmt.logicPlan_.ResolveColumnOrdinal(select.selection_, select.parent_ != null);
             return stmt.physicPlan_;
         }
 
-        public static PhysicNode CopyOutOptimalPlan(SQLStatement stmt)
+        public static PhysicNode CopyOutOptimalPlan(SQLStatement stmt, bool dequeueit = true)
         {
-            var phyplan = CopyOutOnePlan(stmt, memoset_[copyoutCounter_++]);
-            var subqueries = (stmt as SelectStmt).Subqueries(excludeFromQuery: true);
+            var select = stmt as SelectStmt;
+            PhysicNode phyplan = null;
+            if (dequeueit)
+                phyplan = CopyOutOnePlan(stmt, memoset_[copyoutCounter_++]);
+            var subqueries = select.Subqueries();
             foreach (var v in subqueries)
-                CopyOutOptimalPlan(v);
+                CopyOutOptimalPlan(v, !select.SubqueryIsFromQuery(v));
             return phyplan;
         }
 
