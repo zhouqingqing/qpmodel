@@ -342,7 +342,7 @@ namespace adb
             {
                 for (int i = 0; i < when_().Count; i++)
                 {
-                    if ((bool)when_()[i].Exec(context, input))
+                    if (when_()[i].Exec(context, input) is true)
                         return then_()[i].Exec(context, input);
                 }
             }
@@ -419,6 +419,9 @@ namespace adb
             dynamic lv = l_().Exec(context, input);
             dynamic rv = r_().Exec(context, input);
 
+            if (lv is null || rv is null)
+                return null;
+
             switch (op_)
             {
                 case "+": return lv + rv;
@@ -434,7 +437,7 @@ namespace adb
                 case "like": return Utils.StringLike(lv, rv);
                 case "notlike": return !Utils.StringLike(lv, rv);
                 case " and ": return lv && rv;
-                case " or ": return lv || rv;
+                case " or ": // null handling is different - handled by itself
                 default:
                     throw new NotImplementedException();
             }
@@ -490,5 +493,15 @@ namespace adb
     public class LogicOrExpr : BinExpr
     {
         public LogicOrExpr(Expr l, Expr r) : base(l, r, " or ") { }
+
+        public override Value Exec(ExecContext context, Row input)
+        {
+            dynamic lv = l_().Exec(context, input);
+            dynamic rv = r_().Exec(context, input);
+
+            if (lv is null) lv = false;
+            if (rv is null) rv = false;
+            return lv || rv;
+        }
     }
 }

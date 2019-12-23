@@ -172,7 +172,7 @@ namespace adb
 
                 if (logic.tabref_.outerrefs_.Count != 0)
                     context.AddParam(logic.tabref_, r);
-                if (filter is null || (bool)filter.Exec(context, r))
+                if (filter is null || filter.Exec(context, r) is true)
                 {
                     r = ExecProject(context, r);
                     callback(r);
@@ -251,7 +251,7 @@ namespace adb
                     if (!semi || !foundOneMatch)
                     {
                         Row n = new Row(l, r);
-                        if (filter is null || (bool)filter.Exec(context, n))
+                        if (filter is null || filter.Exec(context, n) is true)
                         {
                             foundOneMatch = true;
                             if (!antisemi)
@@ -555,7 +555,7 @@ namespace adb
 
             child_().Exec(context, l =>
             {
-                if (filter is null || (bool)filter.Exec(context, l))
+                if (filter is null || filter.Exec(context, l) is true)
                 {
                     var r = ExecProject(context, l);
                     callback(r);

@@ -153,6 +153,7 @@ namespace test
             for (int i = 0; i < 2; i++)
             {
                 option.use_memo_ = i == 0;
+                option.enable_subquery_to_markjoin_ = true;
 
                 var result = TestHelper.ExecuteSQL(File.ReadAllText(files[0]), out _, option);
                 Assert.AreEqual(4, result.Count);
@@ -192,7 +193,7 @@ namespace test
                 // q19 parser
                 // q20 parameter join order
                 // q21 parameter join order
-                result = TestHelper.ExecuteSQL(File.ReadAllText(files[21])); // from query handling
+                result = TestHelper.ExecuteSQL(File.ReadAllText(files[21]), out _, option); 
                 Assert.AreEqual(7, result.Count);
             }
         }
@@ -207,6 +208,7 @@ namespace test
             string phyplan = "";
             OptimizeOption option = new OptimizeOption();
             option.use_memo_ = true;
+            option.enable_subquery_to_markjoin_ = true;
 
             var sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
             var result = TestHelper.ExecuteSQL(sql, out _, option);

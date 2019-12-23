@@ -87,7 +87,7 @@ namespace adb
             // -- generate an initial plan
             ExplainOption.costoff_ = false;
             a.profileOpt_.enabled_ = true;
-            a.optimizeOpt_.enable_subquery_to_markjoin_ = false;
+            a.optimizeOpt_.enable_subquery_to_markjoin_ = true;
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.PrintString(0));
 

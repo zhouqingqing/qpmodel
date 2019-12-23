@@ -39,8 +39,23 @@ namespace adb
             LogicJoin log = expr.logic_ as LogicJoin;
             var l = new PhysicMemoRef(log.l_());
             var r = new PhysicMemoRef(log.r_());
-            var nlj = new PhysicNLJoin(log, l, r);
-            return new CGroupMember(nlj, expr.group_);
+            PhysicNode phy = null;
+            switch (log)
+            {
+                case LogicSingleMarkJoin lsmj:
+                    phy = new PhysicSingleMarkJoin(lsmj, l, r);
+                    break;
+                case LogicMarkJoin lmj:
+                    phy = new PhysicMarkJoin(lmj, l, r);
+                    break;
+                case LogicSingleJoin lsj:
+                    phy = new PhysicSingleJoin(lsj, l, r);
+                    break;
+                default:
+                    phy = new PhysicNLJoin(log, l, r);
+                    break;
+            }
+            return new CGroupMember(phy, expr.group_);
         }
     }
 

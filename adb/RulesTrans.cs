@@ -37,7 +37,30 @@ namespace adb
         public override CGroupMember Apply(CGroupMember expr)
         {
             LogicJoin join = expr.logic_ as LogicJoin;
-            var newjoin = new LogicJoin(join.r_(), join.l_(), join.filter_);
+            var l = join.l_(); var r = join.r_(); var f = join.filter_;
+            LogicJoin newjoin = null;
+            switch (join)
+            {
+                case LogicSingleMarkJoin lsmj:
+                    newjoin = new LogicSingleMarkJoin(r, l, f);
+                    break;
+                case LogicMarkSemiJoin lsm:
+                    newjoin = new LogicMarkSemiJoin(r, l, f);
+                    break;
+                case LogicMarkAntiSemiJoin lsam:
+                    newjoin = new LogicMarkAntiSemiJoin(r, l, f);
+                    break;
+                case LogicMarkJoin lmj:
+                    newjoin = new LogicMarkJoin(r, l, f);
+                    break;
+                case LogicSingleJoin lsj:
+                    newjoin = new LogicSingleJoin(r,l,f);
+                    break;
+                default:
+                    newjoin = new LogicJoin(r,l,f);
+                    break;
+            }
+
             return new CGroupMember(newjoin, expr.group_);
         }
     }

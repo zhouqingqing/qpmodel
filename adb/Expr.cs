@@ -238,7 +238,7 @@ namespace adb
             trueOrfalse = false;
             if (filter.TryEvalConst(out Value value)) {
                 Debug.Assert(value is bool);
-                trueOrfalse = (bool)value;
+                trueOrfalse = value is true;
                 return true;
             }
             return false;
