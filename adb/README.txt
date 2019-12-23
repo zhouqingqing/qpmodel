@@ -13,22 +13,13 @@ P1:
 1. join side dependency (subquery)
 2. between ...
 3. eval const first: sql = @"select repeat('ab', 3) from a;";
-4.
-               select
-                        n_name as nation
-                from
-                        lineitem,
-                        partsupp,
-                        orders,
-                        nation
-                where
-                        ps_partkey = l_partkey
-                        and o_orderkey = l_orderkey
+
 P2:
 1. implement sort
 2. not in/ not exists etc
 3. subquery expansion bound issue
 4. q22 print subquery twice issue
+5. select * as nation from ... parse error
 
 
 Known issues:

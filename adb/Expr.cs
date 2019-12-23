@@ -256,7 +256,48 @@ namespace adb
 
             return andlist;
         }
+
+        // Join filter pushdown may depends on join order.
+        // Consider 
+        //    - filter1: a.a1 = c.c1
+        //    - filter2: a.a2 = b.b2
+        //    - nodeJoin: (A X B) X C
+        // filter2 can be pushed to A X B but filter1 has to stay on top join for current plan.
+        // if we consider we can reorder join to (A X C) X B, then filter1 can be pushed down
+        // but not filter2. Current stage is too early for this purpose since join reordering
+        // is happened later. So we only do best efforts here only.
+        //
+        public static bool PushJoinFilter(LogicNode plan, Expr filter)
+        {
+            // the filter shall be a join filter
+            Debug.Assert(filter.TableRefCount() >= 2);
+
+            return plan.VisitEachNodeExists(n =>
+            {
+                if (n is LogicJoin nodeJoin)
+                {
+                    var nodejoinIncl = nodeJoin.InclusiveTableRefs();
+
+                    // if this node contains tables needed by the filter, we know we can at least push 
+                    // the filter down to this node. But we want to push deeper. However, the recursion
+                    // is in-order, which means the parent node gets visited first. So we have to change
+                    // the recursion here to get children try the push down first: if can't push there,
+                    // current node will the the stop; otherwise, recursion can stop.
+                    //
+                    if (filter.TableRefsContainedBy(nodejoinIncl))
+                    {
+                        if (!PushJoinFilter(nodeJoin.l_(), filter) &&
+                            !PushJoinFilter(nodeJoin.r_(), filter))
+                            return nodeJoin.AddFilter(filter);
+                        else
+                            return true;
+                    }
+                }
+                return false;
+            });
+        }
     }
+
     public class Expr
     {
         // Expression in selection list can have an alias

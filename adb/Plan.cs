@@ -190,7 +190,7 @@ namespace adb
                 }
             });
 
-            subqueries_.AddRange(subplans);
+            subQueries_.AddRange(subplans);
             return subplans.Count > 0 ? subplans : null;
         }
 
@@ -231,8 +231,8 @@ namespace adb
                     case QueryRef sref:
                         var plan = sref.query_.CreatePlan();
                         from = new LogicFromQuery(sref, plan);
-                        subqueries_.Add(sref.query_);
-                        fromqueries_.Add(sref.query_, from as LogicFromQuery);
+                        subQueries_.Add(sref.query_);
+                        fromQueries_.Add(sref.query_, from as LogicFromQuery);
                         break;
                     case JoinQueryRef jref:
                         // We will form join group on all tables and put a filter on top

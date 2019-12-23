@@ -48,10 +48,10 @@ namespace adb
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[9];
+                var v = files[21];
                 {
                     sql = File.ReadAllText(v);
-                    //goto doit;
+                    goto doit;
                 }
             }
             //sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
@@ -64,10 +64,17 @@ namespace adb
             //sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3 and c.c1 = a.a1";
             //sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
             //sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
-            sql = "select a.* from a join b on a1=b1 or a3=b3 join c on a2=c2;";
-            sql = "analyze a;";
-            sql = "select a1,a1,a3,a3, (select b3 from b where a1=b2 and b2=3) from a where a1>1";
-
+            //sql = "analyze a;";
+            //sql = "select a1,a1,a3,a3, (select b3 from b where a1=b2 and b2=3) from a where a1>1";
+            sql = @" select * from lineitem, partsupp, orders, nation where ps_partkey = l_partkey and o_orderkey = l_orderkey";
+            //sql = "select a.* from a join b on a1=b1 or a3=b3 join c on a2=c2 join d on a4=2*d3;";
+            sql = @"		select * from (select l_orderkey, o_orderkey from lineitem, orders where l_orderkey=o_orderkey) a;";
+            sql = "select count(*) from (select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1 and a1>0) v;";
+            sql = "select count(*) from (select l_orderkey from lineitem, orders where orders.o_orderkey=lineitem.l_orderkey) v;";
+            //sql = "select count(*) from (select b2 from a,b where b.b2 = a.a2) v;";
+            //sql = "select count(*) from (select o_orderkey from b, orders  where b1=o_orderkey) v;"; // ok
+            //sql = "select count(*) from (select l_orderkey from lineitem, b  where b1=l_orderkey) v;"; // bad
+            //sql = "select count(*) from (select o_orderkey from lineitem, orders  where l_orderkey=o_orderkey) v;"; // bad
 
         doit:
             Console.WriteLine(sql);
@@ -85,6 +92,7 @@ namespace adb
             Console.WriteLine(rawplan.PrintString(0));
 
             a.optimizeOpt_.use_memo_ = true;
+            ExplainOption.costoff_ = !a.optimizeOpt_.use_memo_;
             PhysicNode phyplan = null;
             if (a.optimizeOpt_.use_memo_)
             {

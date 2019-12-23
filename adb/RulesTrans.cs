@@ -50,9 +50,9 @@ namespace adb
     // 2. There are also left or right association but we only use left association 
     //    since the right one can be transformed via commuative first.
     //    (AB)C -> A(BC) ; A(BC) -> (AB)C
-    // 3. Join filter shall be considered:
-    //      A JOIN (B JOIN C [on bcfilter]) [on abfilter [AND acfilter]]
-    //  =>  (A JOIN B [on abfilter]) JOIN C [on bcfilter [AND acfilter]]
+    // 3. Join filter shall be is handled by first pull up all join filters 
+    //    then push them back to the new join plan.
+    //  
     //  we do not generate catersian join unless input is catersian.
     //
     public class JoinAssociativeRule : ExplorationRule
@@ -80,7 +80,6 @@ namespace adb
                 if (Utils.ListAEqualsB(ABCtabrefs, predicateRefs))
                 {
                     ret = FilterHelper.AddAndFilter(ret, predicate);
-                    Console.WriteLine(predicate);
                 }
             }
 
@@ -114,25 +113,24 @@ namespace adb
         public override CGroupMember Apply(CGroupMember expr)
         {
             LogicJoin a_bc = expr.logic_ as LogicJoin;
-            Expr fullfilter = a_bc.filter_;
             LogicJoin bc = (a_bc.r_() as LogicMemoRef).Deref<LogicJoin>();
             Expr bcfilter = bc.filter_;
-            var abfilter = exactFilter(fullfilter,
-                new List<LogicNode>(){a_bc.l_(), bc.l_()});
-            var acfilter = exactFilter(fullfilter,
-                new List<LogicNode>(){a_bc.l_(), bc.r_() });
-            var abcfilter = exactFilter(fullfilter,
-                new List<LogicNode>(){a_bc});
-
-            var topfilter = bcfilter;
-            if (acfilter != null)
-                topfilter = FilterHelper.AddAndFilter(topfilter, acfilter);
-            if (abcfilter != null)
-                topfilter = FilterHelper.AddAndFilter(topfilter, abcfilter);
-
             var ab_c = new LogicJoin(
-                new LogicJoin(a_bc.l_(), bc.l_(), abfilter),
-                bc.children_[1], topfilter);
+                new LogicJoin(a_bc.l_(), bc.l_()),
+                bc.children_[1]);
+
+            // pull up all join filters and re-push them back
+            Expr allfilters = bcfilter;
+            if (a_bc.filter_ != null)
+                allfilters = FilterHelper.AddAndFilter(allfilters, a_bc.filter_);
+            if (allfilters != null)
+            {
+                var andlist = FilterHelper.FilterToAndList(allfilters);
+                andlist.RemoveAll(e => FilterHelper.PushJoinFilter(ab_c, e));
+                if (andlist.Count > 0)
+                    ab_c.filter_ = ExprHelper.AndListToExpr(andlist);
+            }
+
             return new CGroupMember(ab_c, expr.group_);
         }
     }
