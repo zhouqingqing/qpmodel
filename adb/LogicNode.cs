@@ -240,12 +240,6 @@ namespace adb
                 return lo.MemoLogicSign() == MemoLogicSign();
             return false;
         }
-
-        public override string PrintMoreDetails(int depth)
-        {
-            // we want to see what's underneath
-            return $"{{{Deref().PrintString(depth + 1)}}}";
-        }
     }
 
     enum JoinType {

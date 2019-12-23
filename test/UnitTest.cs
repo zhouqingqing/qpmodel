@@ -47,6 +47,16 @@ namespace test
                 Assert.AreEqual(lw[i], rw[i]);
         }
 
+        // a;c;b == b;a;c
+        static public void ResultAreEqualNoOrder(string l, string r) 
+        {
+            char[] splitters = { ';' };
+            var lw = l.Split(splitters, StringSplitOptions.RemoveEmptyEntries);
+            var rw = r.Split(splitters, StringSplitOptions.RemoveEmptyEntries);
+            Assert.AreEqual(lw.Length, rw.Length);
+            Assert.IsTrue(lw.OrderBy(x => x).SequenceEqual(rw.OrderBy(x => x)));
+        }
+
         public static int CountStringOccurrences(string text, string pattern)
         {
             // Loop through all instances of the string 'text'.
@@ -146,26 +156,22 @@ namespace test
 
                 var result = TestHelper.ExecuteSQL(File.ReadAllText(files[0]), out _, option);
                 Assert.AreEqual(4, result.Count);
-                result = TestHelper.ExecuteSQL(File.ReadAllText(files[1]), out _); // memo
+                result = TestHelper.ExecuteSQL(File.ReadAllText(files[1]), out _, option);
                 Assert.AreEqual(0, result.Count);
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[2]), out phyplan, option);
                 Assert.AreEqual(2, TestHelper.CountStringOccurrences(phyplan, "PhysicHashJoin"));
                 Assert.AreEqual(8, result.Count);
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[3]), out _, option);
                 Assert.AreEqual(5, result.Count);
-                Assert.AreEqual("1-URGENT,33", result[0].ToString());
-                Assert.AreEqual("2-HIGH,27", result[1].ToString());
-                Assert.AreEqual("5-LOW,38", result[2].ToString());
-                Assert.AreEqual("4-NOT SPECIFIED,37", result[3].ToString());
-                Assert.AreEqual("3-MEDIUM,36", result[4].ToString());
+                Assert.AreEqual("1-URGENT,33;2-HIGH,27;5-LOW,38;4-NOT SPECIFIED,37;3-MEDIUM,36", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[4]));
                 Assert.AreEqual(0, result.Count);
                 // q6 between parser issue
                 // q7 n1.n_name, n2.n_name matching
                 // q8 between parser issue
-                result = TestHelper.ExecuteSQL(File.ReadAllText(files[8])); // memo
+                result = TestHelper.ExecuteSQL(File.ReadAllText(files[8]), out _, option); // from query handling
                 Assert.AreEqual(9, result.Count);
-                Assert.AreEqual("MOROCCO,0,1687299;KENYA,0,577213;PERU,0,564370;UNITED STATES,0,274484;IRAQ,0,179599;" +
+                TestHelper.ResultAreEqualNoOrder("MOROCCO,0,1687299;KENYA,0,577213;PERU,0,564370;UNITED STATES,0,274484;IRAQ,0,179599;" +
                                  "UNITED KINGDOM,0,2309469;IRAN,0,183369;ETHIOPIA,0,160941;ARGENTINA,0,121664",
                     string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[9]), out _, option);
@@ -186,7 +192,7 @@ namespace test
                 // q19 parser
                 // q20 parameter join order
                 // q21 parameter join order
-                result = TestHelper.ExecuteSQL(File.ReadAllText(files[21])); // wrong plan
+                result = TestHelper.ExecuteSQL(File.ReadAllText(files[21])); // from query handling
                 Assert.AreEqual(7, result.Count);
             }
         }
@@ -302,6 +308,14 @@ namespace test
             Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "NLJoin"));
             Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "HashJoin"));
             Assert.AreEqual("0,1,2,3;1,2,3,4;2,3,4,5", string.Join(";", result));
+
+            sql = "select a.* from a join b on a1=b1 or a3=b3 join c on a2=c2 join d on a4=2*d3;";
+            result = TestHelper.ExecuteSQL(sql, out phyplan, option);
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "NLJoin"));
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "Filter: a.a1[0]=b.b1[4] or a.a3[2]=b.b3[5]"));
+            Assert.AreEqual(2, TestHelper.CountStringOccurrences(phyplan, "HashJoin"));
+            Assert.AreEqual("1,2,3,4", string.Join(";", result));
+
 
             Assert.IsTrue(option.use_memo_);
         }

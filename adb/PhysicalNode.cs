@@ -609,6 +609,8 @@ namespace adb
     {
         internal Int64 nrows_;
 
+        public override string ToString() => $"{child_()}";
+
         public PhysicProfiling(PhysicNode l) : base(l.logic_)
         {
             children_.Add(l);

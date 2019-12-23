@@ -80,8 +80,8 @@ namespace adb
         // details of outerrefs are recorded in referenced TableRef
         internal SelectStmt parent_;
         // subqueries at my level (children level excluded)
-        internal List<SelectStmt> subqueries_ = new List<SelectStmt>();
-        internal Dictionary<SelectStmt, LogicFromQuery> fromqueries_ = new Dictionary<SelectStmt, LogicFromQuery>();
+        internal List<SelectStmt> subQueries_ = new List<SelectStmt>();
+        internal Dictionary<SelectStmt, LogicFromQuery> fromQueries_ = new Dictionary<SelectStmt, LogicFromQuery>();
         internal bool isCorrelated = false;
         internal bool hasAgg_ = false;
         internal bool bounded_ = false;
@@ -161,39 +161,7 @@ namespace adb
                         return false;
                     });
                 default:
-                    // Join filter pushdown may depends on join order.
-                    // Consider 
-                    //    - filter1: a.a1 = c.c1
-                    //    - filter2: a.a2 = b.b2
-                    //    - nodeJoin: (A X B) X C
-                    // filter2 can be pushed to A X B but filter1 has to stay on top join for current plan.
-                    // if we consider we can reorder join to (A X C) X B, then filter1 can be pushed down
-                    // but not filter2. Current stage is too early for this purpose since join reordering
-                    // is happened later. So we only do best efforts here only.
-                    //
-                    return plan.VisitEachNodeExists(n =>
-                    {
-                        if (n is LogicJoin nodeJoin)
-                        {
-                            var nodejoinIncl = nodeJoin.InclusiveTableRefs();
-
-                            // if this node contains tables needed by the filter, we know we can at least push 
-                            // the filter down to this node. But we want to push deeper. However, the recursion
-                            // is in-order, which means the parent node gets visited first. So we have to change
-                            // the recursion here to get children try the push down first: if can't push there,
-                            // current node will the the stop; otherwise, recursion can stop.
-                            //
-                            if (filter.TableRefsContainedBy(nodejoinIncl))
-                            {
-                                if (!pushdownFilter(nodeJoin.l_(), filter) &&
-                                    !pushdownFilter(nodeJoin.r_(), filter))
-                                    return nodeJoin.AddFilter(filter);
-                                else
-                                    return true;
-                            }
-                        }
-                        return false;
-                    });
+					return FilterHelper.PushJoinFilter (plan, filter);
             }
         }
 
@@ -277,15 +245,20 @@ namespace adb
             return plan;
         }
 
-        public List<SelectStmt> SubqueriesExcludeFromQuery()
+        public List<SelectStmt> Subqueries(bool excludeFromQuery = false)
         {
             List<SelectStmt> ret = new List<SelectStmt>();
-            foreach (var x in subqueries_)
+            if (excludeFromQuery)
             {
-                bool findit = fromqueries_.TryGetValue(x, out _);
-                if (!findit)
-                    ret.Add(x);
+                foreach (var x in subQueries_)
+                {
+                    bool findit = fromQueries_.TryGetValue(x, out _);
+                    if (!findit)
+                        ret.Add(x);
+                }
             }
+            else
+                ret = subQueries_;
 
             return ret;
         }
@@ -298,7 +271,7 @@ namespace adb
             // have more normalized plan shape before push down. And we may generate
             // some unnecessary filter to clean up.
             //
-            if (optimizeOpt_.enable_subquery_to_markjoin_ && subqueries_.Count > 0)
+            if (optimizeOpt_.enable_subquery_to_markjoin_ && subQueries_.Count > 0)
                 logic = subqueryToMarkJoin(logic);
 
             // push down filters
@@ -309,15 +282,16 @@ namespace adb
 
             // optimize for subqueries 
             //  fromquery needs some special handling to link the new plan
-            subqueries_.ForEach(x => {
+            subQueries_.ForEach(x => {
                 x.optimizeOpt_ = optimizeOpt_;
                 x.PhaseOneOptimize();
             });
-            foreach (var x in fromqueries_) {
-                var stmt = x.Key;
-                var newplan = subqueries_.Find(stmt.Equals);
+            foreach (var x in fromQueries_) {
+                var stmt = x.Key as SelectStmt;
+                var fromQuery = x.Value as LogicFromQuery;
+                var newplan = subQueries_.Find(stmt.Equals);
                 if (newplan != null)
-                    x.Value.children_[0] = newplan.logicPlan_;
+                    fromQuery.children_[0] = newplan.logicPlan_;
             }
             logicPlan_ = logic;
 

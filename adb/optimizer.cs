@@ -175,6 +175,7 @@ namespace adb
         public List<CGroupMember> exprList_ = new List<CGroupMember>();
 
         public bool explored_ = false;
+        public CGroupMember minMember_;
 
         // debug info
         internal Memo memo_;
@@ -260,7 +261,7 @@ namespace adb
 
         public double FindMinCostOfGroup() =>  FindMinCostMember().physic_.Cost();
         public CGroupMember FindMinCostMember() {
-            CGroupMember minmember = null;
+            CGroupMember min = null;
             double mincost = double.MaxValue;
             foreach (var v in exprList_)
             {
@@ -268,12 +269,13 @@ namespace adb
                 if (physic != null && physic.Cost() < mincost)
                 {
                     mincost = physic.Cost();
-                    minmember = v;
+                    min = v;
                 }
             }
 
-            Debug.Assert(minmember.physic_ != null);
-            return minmember;
+            Debug.Assert(min.physic_ != null);
+            minMember_ = min;
+            return min;
         }
 
         public PhysicNode CopyOutMinLogicPhysicPlan()
@@ -297,6 +299,8 @@ namespace adb
 
             PhysicNode phy = minmember.physic_;
             phy.logic_ = RetrieveLogicTree(phy.logic_);
+            Debug.Assert(!(phy is PhysicMemoRef));
+            Debug.Assert(!(phy.logic_ is LogicMemoRef));
             if (Optimizer.topstmt_.profileOpt_.enabled_)
                 phy = new PhysicProfiling(phy);
             return phy;
@@ -437,7 +441,7 @@ namespace adb
             // other subqueries (IN, EXISTS etc), the subtree of it is actually connected 
             // in the same memo.
             //
-            var subqueries = (stmt as SelectStmt).SubqueriesExcludeFromQuery();
+            var subqueries = (stmt as SelectStmt).Subqueries(excludeFromQuery: true);
             foreach (var v in subqueries)
                 Optimizer.OptimizeRootPlan(v, required);
 
@@ -458,6 +462,19 @@ namespace adb
             // retrieve the lowest cost plan
             Debug.Assert(stmt.physicPlan_ is null);
             stmt.physicPlan_ = memo.rootgroup_.CopyOutMinLogicPhysicPlan();
+            stmt.logicPlan_ = stmt.physicPlan_.logic_;
+
+            // fix fromQueries - the fromQueries are optimized as part of LogicNode tree
+            // but we shall reconnect the logic node back to the Select Stmt level as needed
+            // by column ordinal resolution. Physical node however is not needed.
+            //
+            foreach (var v in selectstmt.fromQueries_) {
+                var fromQuery = (v.Key as SelectStmt);
+                var generatedPlan = (v.Value as LogicFromQuery).child_();
+
+                fromQuery.logicPlan_ = generatedPlan;
+                Debug.Assert(fromQuery.physicPlan_ is null);
+            }
 
             // finally let's fix the output
             stmt.logicPlan_.ResolveColumnOrdinal(selectstmt.selection_, selectstmt.parent_ != null);
@@ -467,7 +484,7 @@ namespace adb
         public static PhysicNode CopyOutOptimalPlan(SQLStatement stmt)
         {
             var phyplan = CopyOutOnePlan(stmt, memoset_[copyoutCounter_++]);
-            var subqueries = (stmt as SelectStmt).SubqueriesExcludeFromQuery();
+            var subqueries = (stmt as SelectStmt).Subqueries(excludeFromQuery: true);
             foreach (var v in subqueries)
                 CopyOutOptimalPlan(v);
             return phyplan;
