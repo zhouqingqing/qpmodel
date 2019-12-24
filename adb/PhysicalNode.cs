@@ -40,11 +40,12 @@ namespace adb
             for (int i = 0; i < ColCount(); i++) {
                 dynamic l = values_[i];
                 dynamic r = rrow.values_[i];
-                if (l < r)
+                var c = l.CompareTo(r);
+                if (c < 0)
                     return -1;
-                else if (l == r)
+                else if (c==0)
                     continue;
-                else if (l > r)
+                else if (c > 0)
                     return 1;
             }
             return 0;
@@ -518,7 +519,8 @@ namespace adb
             var logic = logic_ as LogicOrder;
             var orders = logic.orders_;
             var descends = logic.descends_;
-            return 0;
+
+            return l.CompareTo(r);
         }
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
