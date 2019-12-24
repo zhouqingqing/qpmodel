@@ -346,7 +346,9 @@ namespace adb
 
         public override double Cost()
         {
-            return (l_() as PhysicMemoRef).MinCost() * (r_() as PhysicMemoRef).MinCost();
+            if (double.IsNaN(cost_))
+                cost_ = (l_() as PhysicMemoRef).MinCost() * (r_() as PhysicMemoRef).MinCost();
+            return cost_;
         }
     }
 
@@ -403,7 +405,9 @@ namespace adb
 
         public override double Cost()
         {
-            return (l_() as PhysicMemoRef).MinCost() * (r_() as PhysicMemoRef).MinCost();
+            if (double.IsNaN(cost_))
+                cost_ = (l_() as PhysicMemoRef).MinCost() * (r_() as PhysicMemoRef).MinCost();
+            return cost_;
         }
     }
 

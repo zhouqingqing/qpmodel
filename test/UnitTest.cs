@@ -158,11 +158,11 @@ namespace test
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[1]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[2]), out phyplan, option);
-                Assert.AreEqual(2, TestHelper.CountStringOccurrences(phyplan, "PhysicHashJoin"));
+                Assert.AreEqual(2, TestHelper.CountStringOccurrences(phyplan, "PhysicHashJoin")); // no nljoin
                 Assert.AreEqual(8, result.Count);
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[3]), out _, option);
                 Assert.AreEqual(5, result.Count);
-                Assert.AreEqual("1-URGENT,33;2-HIGH,27;5-LOW,38;4-NOT SPECIFIED,37;3-MEDIUM,36", string.Join(";", result));
+                Assert.AreEqual("1-URGENT,33;2-HIGH,27;3-MEDIUM,36;4-NOT SPECIFIED,37;5-LOW,38", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[4]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[5]), out _, option);
@@ -173,15 +173,15 @@ namespace test
                 Assert.AreEqual("0,0", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[8]), out _, option);
                 Assert.AreEqual(9, result.Count);
-                TestHelper.ResultAreEqualNoOrder("MOROCCO,0,1687299;KENYA,0,577213;PERU,0,564370;UNITED STATES,0,274484;IRAQ,0,179599;" +
-                                 "UNITED KINGDOM,0,2309469;IRAN,0,183369;ETHIOPIA,0,160941;ARGENTINA,0,121664",
+                Assert.AreEqual("ARGENTINA,0,121664;ETHIOPIA,0,160941;IRAN,0,183369;IRAQ,0,179599;KENYA,0,577213;"+
+                    "MOROCCO,0,1687299;PERU,0,564370;UNITED KINGDOM,0,2309469;UNITED STATES,0,274484",
                     string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[9]), out _, option);
                 Assert.AreEqual(43, result.Count);
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[10]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[11]), out _, option);
-                Assert.AreEqual("SHIP,5,10;MAIL,5,5", string.Join(";", result));
+                Assert.AreEqual("MAIL,5,5;SHIP,5,10", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[12]), out _, option);
                 Assert.AreEqual(100, result.Count);
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[13]), out _, option);
@@ -998,7 +998,7 @@ namespace test
                                     Output: 4-a.a3[2]/2,a.a1[0],a.a4[3],a.a1[0]+a.a2[1],a.a2[1],a.a3[2]";
             TestHelper.PlanAssertEqual(answer, phyplan);
             result = ExecuteSQL(sql);
-            Assert.AreEqual("1,3,4,2;0,2,6,18", string.Join(";", result));
+            Assert.AreEqual("0,2,6,18;1,3,4,2", string.Join(";", result));
             sql = "select * from a where a1>0 order by a1;";
             result = ExecuteSQL(sql);
             Assert.AreEqual("1,2,3,4;2,3,4,5", string.Join(";", result));

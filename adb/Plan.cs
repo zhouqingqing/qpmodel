@@ -143,7 +143,13 @@ namespace adb
                 }
             });
 
+            // verify the parent-child relationship
             Debug.Assert(parents.Count == targets.Count);
+            for (int i = 0; i < parents.Count; i++)
+            {
+                var parent = parents[i];
+                Debug.Assert(parent is null || parent.children_[childIndex[i]] == targets[i]);
+            }
             return parents.Count;
         }
 
