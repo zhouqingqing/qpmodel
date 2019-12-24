@@ -48,7 +48,7 @@ namespace adb
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[15];
+                var v = files[6];
                 {
                     sql = File.ReadAllText(v);
                     goto doit;
@@ -75,6 +75,7 @@ namespace adb
             //sql = "select count(*) from (select o_orderkey from b, orders  where b1=o_orderkey) v;"; // ok
             //sql = "select count(*) from (select l_orderkey from lineitem, b  where b1=l_orderkey) v;"; // bad
             //sql = "select count(*) from (select o_orderkey from lineitem, orders  where l_orderkey=o_orderkey) v;"; // bad
+            sql = "create index aa1 on a(a1);";
 
         doit:
             Console.WriteLine(sql);
