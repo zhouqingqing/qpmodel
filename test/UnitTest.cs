@@ -215,7 +215,7 @@ namespace test
             var memo = Optimizer.memoset_[0];
             memo.CalcStats(out int tlogics, out int tphysics);
             Assert.AreEqual(9, memo.cgroups_.Count);
-            Assert.AreEqual(18, tlogics); Assert.AreEqual(24, tphysics);
+            Assert.AreEqual(18, tlogics); Assert.AreEqual(26, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
 
             sql = "select * from b join a on a1=b1 where a1 < (select a2 from a where a2=b2);";
@@ -229,7 +229,7 @@ namespace test
             memo = Optimizer.memoset_[0];
             memo.CalcStats(out tlogics, out tphysics);
             Assert.AreEqual(7, memo.cgroups_.Count);
-            Assert.AreEqual(15, tlogics); Assert.AreEqual(21, tphysics);
+            Assert.AreEqual(15, tlogics); Assert.AreEqual(27, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
 
             sql = "select b1 from a,c,b where b.b2 = a.a2 and b.b3=c.c3 and c.c1 = a.a1";   // FIXME: different #plans
@@ -237,7 +237,7 @@ namespace test
             memo = Optimizer.memoset_[0];
             memo.CalcStats(out tlogics, out tphysics);
             Assert.AreEqual(7, memo.cgroups_.Count);
-            Assert.AreEqual(17, tlogics); Assert.AreEqual(21, tphysics);
+            Assert.AreEqual(17, tlogics); Assert.AreEqual(27, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
 
             sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3";
@@ -245,7 +245,7 @@ namespace test
             memo = Optimizer.memoset_[0];
             memo.CalcStats(out tlogics, out tphysics);
             Assert.AreEqual(6, memo.cgroups_.Count);
-            Assert.AreEqual(11, tlogics); Assert.AreEqual(15, tphysics);
+            Assert.AreEqual(11, tlogics); Assert.AreEqual(17, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
 
             sql = "select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1";
@@ -253,7 +253,7 @@ namespace test
             memo = Optimizer.memoset_[0];
             memo.CalcStats(out tlogics, out tphysics);
             Assert.AreEqual(9, memo.cgroups_.Count);
-            Assert.AreEqual(18, tlogics); Assert.AreEqual(24, tphysics);
+            Assert.AreEqual(18, tlogics); Assert.AreEqual(26, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
 
             sql = "select count(b1) from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1";
@@ -908,7 +908,7 @@ namespace test
             Assert.AreEqual("3", string.Join(";", result));
             sql = "select count(*) from a join b on a1 = b1 and a2 = b2;";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "PhysicNLJoin")); // FIXME - because we only process one predicate
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "HashJoin"));
             Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "Filter: a.a1[1]=b.b1[3] and a.a2[2]=b.b2[4]"));
             Assert.AreEqual("3", string.Join(";", result));
             sql = "select * from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where ab.a1=cd.c1";
@@ -927,7 +927,7 @@ namespace test
             Assert.AreEqual("0,1,2,3,0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5,2,3,4,5", string.Join(";", result));
             sql = "select * from a, b, c where a1 = b1 and a1 = c1;";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.AreEqual(0, TestHelper.CountStringOccurrences(phyplan, "PhysicHashJoin"));
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "HashJoin"));
             Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "Filter: a.a1[0]=b.b1[4] and a.a1[0]=c.c1[8]"));
             Assert.AreEqual("0,1,2,3,0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5,2,3,4,5", string.Join(";", result));
 
