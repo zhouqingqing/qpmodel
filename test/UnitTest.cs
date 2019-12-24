@@ -108,6 +108,14 @@ namespace test
         }
 
         [TestMethod]
+        public void TestCreateIndex()
+        {
+            var sql = "create index aa1 on a(a1);";
+            var stmt = RawParser.ParseSqlStatement(sql) as CreateIndexStmt;
+            stmt.Exec(true);
+        }
+
+        [TestMethod]
         public void TestAnalyze()
         {
             var sql = "analyze a;";
@@ -128,20 +136,10 @@ namespace test
             {
                 var sql = File.ReadAllText(v);
                 var stmt = RawParser.ParseSqlStatement(sql);
-                Console.WriteLine(sql);
-            }
-            Assert.AreEqual(22, files.Length);
-
-            // parse and plan
-            foreach (var v in files)
-            {
-                if (v.Contains("15") || v.Contains("08") || v.Contains("07"))
-                    continue;
-                var sql = File.ReadAllText(v);
-                var stmt = RawParser.ParseSqlStatement(sql);
                 stmt.Bind(null);
                 Console.WriteLine(stmt.CreatePlan().PrintString(0));
             }
+            Assert.AreEqual(22, files.Length);
 
             // load data
             Tpch.LoadTables("0001");
@@ -158,7 +156,7 @@ namespace test
                 var result = TestHelper.ExecuteSQL(File.ReadAllText(files[0]), out _, option);
                 Assert.AreEqual(4, result.Count);
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[1]), out _, option);
-                Assert.AreEqual(0, result.Count);
+                Assert.AreEqual("", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[2]), out phyplan, option);
                 Assert.AreEqual(2, TestHelper.CountStringOccurrences(phyplan, "PhysicHashJoin"));
                 Assert.AreEqual(8, result.Count);
@@ -166,10 +164,11 @@ namespace test
                 Assert.AreEqual(5, result.Count);
                 Assert.AreEqual("1-URGENT,33;2-HIGH,27;5-LOW,38;4-NOT SPECIFIED,37;3-MEDIUM,36", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[4]), out _, option);
-                Assert.AreEqual(0, result.Count);
+                Assert.AreEqual("", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[5]), out _, option);
                 Assert.AreEqual("48091", string.Join(";", result));
-                // q7 n1.n_name, n2.n_name matching
+                result = TestHelper.ExecuteSQL(File.ReadAllText(files[6]), out _, option);
+                Assert.AreEqual("", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[7]), out _, option);
                 Assert.AreEqual("0,0", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[8]), out _, option);
@@ -180,7 +179,7 @@ namespace test
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[9]), out _, option);
                 Assert.AreEqual(43, result.Count);
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[10]), out _, option);
-                Assert.AreEqual(0, result.Count);
+                Assert.AreEqual("", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[11]), out _, option);
                 Assert.AreEqual("SHIP,5,10;MAIL,5,5", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[12]), out _, option);
@@ -195,7 +194,7 @@ namespace test
                 //Assert.AreEqual(0, result.Count);
                 // q18 join filter push down
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[18]), out _, option);
-                Assert.AreEqual(0, result.Count);
+                Assert.AreEqual("", string.Join(";", result));
                 // q20 parameter join order
                 // q21 parameter join order
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[21]), out _, option); 

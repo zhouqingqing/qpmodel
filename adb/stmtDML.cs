@@ -25,6 +25,7 @@ namespace adb
         }
     }
 
+ 
     public class AnalyzeStmt : SQLStatement {
         public readonly BaseTableRef targetref_;
         public readonly SelectStmt select_;
@@ -41,7 +42,7 @@ namespace adb
             return select_.Bind(parent);
         }
 
-        // It is modeled as a sampling scan with 
+        // It is modeled as a sampling scan
         public override LogicNode CreatePlan()
         {
             // disable memo optimization for it

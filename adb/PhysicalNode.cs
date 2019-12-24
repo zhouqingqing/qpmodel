@@ -11,7 +11,7 @@ namespace adb
         public SemanticExecutionException(string msg) => Console.WriteLine(msg);
     }
 
-    public class Row
+    public class Row: IComparable
     {
         public readonly List<Value> values_ = new List<Value>();
 
@@ -34,6 +34,21 @@ namespace adb
                 values_.AddRange(r.values_);
         }
 
+        public int CompareTo(object obj) {
+            Debug.Assert(!(obj is null));
+            var rrow = obj as Row;
+            for (int i = 0; i < ColCount(); i++) {
+                dynamic l = values_[i];
+                dynamic r = rrow.values_[i];
+                if (l < r)
+                    return -1;
+                else if (l == r)
+                    continue;
+                else if (l > r)
+                    return 1;
+            }
+            return 0;
+        }
         public int ColCount() => values_.Count;
 
         public override string ToString() => string.Join(",", values_);

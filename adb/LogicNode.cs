@@ -108,6 +108,9 @@ namespace adb
                     case LogicAnalyze lan:
                         phy = new PhysicAnalyze(lan, n.child_().DirectToPhysical(profiling));
                         break;
+                    case LogicIndex lindex:
+                        phy = new PhysicIndex(lindex, n.child_().DirectToPhysical(profiling));
+                        break;
                     default:
                         throw new NotImplementedException();
                 }

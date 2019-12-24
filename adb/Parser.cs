@@ -530,6 +530,24 @@ namespace adb
             return new AnalyzeStmt(tabref, context.GetText());
         }
 
+        /*create_index_stmt
+ : K_CREATE K_UNIQUE? K_INDEX ( K_IF K_NOT K_EXISTS )?
+   ( database_name '.' )? index_name K_ON table_name '(' indexed_column ( ',' indexed_column )* ')'
+   ( K_WHERE expr )?*/
+        public override object VisitCreate_index_stmt([NotNull] SQLiteParser.Create_index_stmtContext context)
+        {
+            bool unique = context.K_UNIQUE() is null ? false : true;
+            string indexname = context.index_name().GetText();
+            var tableref = new BaseTableRef(context.table_name().GetText());
+            var where = context.K_WHERE() is null ? null : (Expr)Visit(context.expr());
+            var columns = new List<string>();
+            foreach (var v in context.indexed_column())
+                columns.Add(v.GetText());
+
+            Debug.Assert(columns.Count >= 1);
+            return new CreateIndexStmt(indexname, tableref, unique, columns, where, context.GetText());
+        }
+
         public override object VisitInsert_stmt([NotNull] SQLiteParser.Insert_stmtContext context)
         {
             var tabref = new BaseTableRef(context.table_name().GetText());
@@ -571,6 +589,8 @@ namespace adb
                 r = Visit(context.copy_stmt()) as SQLStatement;
             else if (context.analyze_stmt() != null)
                 r = Visit(context.analyze_stmt()) as SQLStatement;
+            else if (context.create_index_stmt() != null)
+                r = Visit(context.create_index_stmt()) as SQLStatement;
 
             if (r is null)
                 throw new NotImplementedException();
