@@ -315,20 +315,13 @@ namespace adb
         public bool FilterHashable()
         {
             Expr filter = filter_;
-            bool general = false;   // FIXME
-
-            if (general)
+            var andlist = FilterHelper.FilterToAndList(filter);
+            foreach (var v in andlist)
             {
-                var andlist = FilterHelper.FilterToAndList(filter);
-                foreach (var v in andlist)
-                {
-                    if (OneFilterHashable(v))
-                        return false;
-                }
-                return true;
+                if (!OneFilterHashable(v))
+                    return false;
             }
-            else
-                return OneFilterHashable (filter);
+            return andlist.Count >= 1;
         }
 
         public bool AddFilter(Expr filter)
