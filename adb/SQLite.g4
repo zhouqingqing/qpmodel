@@ -298,6 +298,7 @@ expr
  | expr op=( PLUS | MINUS ) expr							#arithplusexpr
  | expr op=( '<<' | '>>' | '&' | '|' ) expr					#arithbitexpr
  | expr op=( '<' | '<=' | '>' | '>=' ) expr					#arithcompexpr																		
+ | expr K_NOT? K_BETWEEN '(' expr ',' expr ')'				#BetweenExpr
  | expr op=( '=' | '==' | '!=' | '<>' | K_IS | 'is not' 
 	 | K_LIKE | K_GLOB | K_MATCH | K_REGEXP ) expr	#arithequalexpr
  | expr K_NOT? K_IN ( '(' ( select_stmt						
@@ -315,8 +316,6 @@ expr
  | K_CAST '(' expr K_AS type_name ')'						#CastExpr
  | expr ( K_ISNULL | K_NOTNULL | K_NOT K_NULL )				#NullExpr
  | expr K_IS K_NOT? expr									#IsExpr
- | expr K_NOT? K_BETWEEN expr K_AND expr					#BetweenExpr
- 
  | K_CASE expr? ( K_WHEN expr K_THEN expr )+ ( K_ELSE expr )? K_END		#CaseExpr
  ;
 
