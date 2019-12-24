@@ -165,12 +165,14 @@ namespace test
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[3]), out _, option);
                 Assert.AreEqual(5, result.Count);
                 Assert.AreEqual("1-URGENT,33;2-HIGH,27;5-LOW,38;4-NOT SPECIFIED,37;3-MEDIUM,36", string.Join(";", result));
-                result = TestHelper.ExecuteSQL(File.ReadAllText(files[4]));
+                result = TestHelper.ExecuteSQL(File.ReadAllText(files[4]), out _, option);
                 Assert.AreEqual(0, result.Count);
-                // q6 between parser issue
+                result = TestHelper.ExecuteSQL(File.ReadAllText(files[5]), out _, option);
+                Assert.AreEqual("48091", string.Join(";", result));
                 // q7 n1.n_name, n2.n_name matching
-                // q8 between parser issue
-                result = TestHelper.ExecuteSQL(File.ReadAllText(files[8]), out _, option); // from query handling
+                result = TestHelper.ExecuteSQL(File.ReadAllText(files[7]), out _, option);
+                Assert.AreEqual("0,0", string.Join(";", result));
+                result = TestHelper.ExecuteSQL(File.ReadAllText(files[8]), out _, option);
                 Assert.AreEqual(9, result.Count);
                 TestHelper.ResultAreEqualNoOrder("MOROCCO,0,1687299;KENYA,0,577213;PERU,0,564370;UNITED STATES,0,274484;IRAQ,0,179599;" +
                                  "UNITED KINGDOM,0,2309469;IRAN,0,183369;ETHIOPIA,0,160941;ARGENTINA,0,121664",
@@ -187,10 +189,13 @@ namespace test
                 Assert.AreEqual(1, result.Count);
                 Assert.AreEqual(true, result[0].ToString().Contains("15.23"));
                 // q15 cte
-                // q16 parser
+                // q16 binding error
                 // q17 parameter join order
-                // q18 parser
-                // q19 parser
+                //result = TestHelper.ExecuteSQL(File.ReadAllText(files[16]), out _, option);
+                //Assert.AreEqual(0, result.Count);
+                // q18 join filter push down
+                result = TestHelper.ExecuteSQL(File.ReadAllText(files[18]), out _, option);
+                Assert.AreEqual(0, result.Count);
                 // q20 parameter join order
                 // q21 parameter join order
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[21]), out _, option); 
@@ -675,7 +680,7 @@ namespace test
         public void TestExpr()
         {
             string phyplan;
-            var sql = "select a2 from a where a1 between 1 and 2;";
+            var sql = "select a2 from a where a1 between (1 , 2);";
             var result = ExecuteSQL(sql);
             Assert.AreEqual("2;3", string.Join(";", result));
 

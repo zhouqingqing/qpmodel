@@ -48,7 +48,7 @@ namespace adb
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[8];
+                var v = files[15];
                 {
                     sql = File.ReadAllText(v);
                     goto doit;
