@@ -52,9 +52,10 @@ namespace adb
                     else
                         r = new AggCount(args[0]);
                     break;
-                case "substring": r = new SubstringFunc(args); break;
+                case "substr": case "substring": r = new SubstringFunc(args); break;
                 case "year": r = new YearFunc(args); break;
                 case "repeat": r = new RepeatFunc(args); break;
+                case "round": r = new RoundFunc(args); break;
                 default:
                     r = new FuncExpr(funcName, args);
                     break;
@@ -122,6 +123,27 @@ namespace adb
             int times = (int)args_()[1].Exec(context, input);
 
             return string.Join("", Enumerable.Repeat(str, times));
+        }
+    }
+    public class RoundFunc : FuncExpr
+    {
+        public RoundFunc(List<Expr> args) : base("round", args)
+        {
+            argcnt_ = 2;
+        }
+
+        public override void Bind(BindContext context)
+        {
+            base.Bind(context);
+            type_ = args_()[0].type_;
+        }
+
+        public override Value Exec(ExecContext context, Row input)
+        {
+            dynamic number = args_()[0].Exec(context, input);
+            int decimals = (int)args_()[1].Exec(context, input);
+
+            return Math.Round(number, decimals);
         }
     }
     public class YearFunc : FuncExpr

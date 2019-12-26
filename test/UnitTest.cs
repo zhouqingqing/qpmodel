@@ -21,7 +21,7 @@ namespace test
             {
                 error_ = null;
 
-                var stmt = RawParser.ParseSqlStatement(sql);
+                var stmt = RawParser.ParseSingleSqlStatement(sql);
                 if (option != null)
                     stmt.optimizeOpt_ = option;
                 var result = stmt.Exec(true);
@@ -96,14 +96,14 @@ namespace test
             var sql = "create table a (a1 int, a2 char(10), a3 datetime, a4 numeric(9,2), a4 numeric(9));";
             try
             {
-                var l = RawParser.ParseSqlStatement(sql) as CreateTableStmt;
+                var l = RawParser.ParseSqlStatements(sql);
             }
             catch (Exception e)
             {
                 Assert.IsTrue(e.Message.Contains("SemanticAnalyzeException"));
             }
             sql = "create table a (a1 int, a2 char(10), a3 datetime, a4 numeric(9,2), a5 numeric(9), a6 double, a7 date, a8 varchar(100));";
-            var stmt = RawParser.ParseSqlStatement(sql) as CreateTableStmt;
+            var stmt = RawParser.ParseSingleSqlStatement(sql) as CreateTableStmt;
             Assert.AreEqual(8, stmt.cols_.Count);
         }
 
@@ -111,7 +111,7 @@ namespace test
         public void TestCreateIndex()
         {
             var sql = "create index aa1 on a(a1);";
-            var stmt = RawParser.ParseSqlStatement(sql) as CreateIndexStmt;
+            var stmt = RawParser.ParseSqlStatements(sql);
             stmt.Exec(true);
         }
 
@@ -119,7 +119,7 @@ namespace test
         public void TestAnalyze()
         {
             var sql = "analyze a;";
-            var stmt = RawParser.ParseSqlStatement(sql) as AnalyzeStmt;
+            var stmt = RawParser.ParseSqlStatements(sql);
             stmt.Exec(true);
         }
     }
@@ -135,7 +135,7 @@ namespace test
             foreach (var v in files)
             {
                 var sql = File.ReadAllText(v);
-                var stmt = RawParser.ParseSqlStatement(sql);
+                var stmt = RawParser.ParseSingleSqlStatement(sql);
                 stmt.Bind(null);
                 Console.WriteLine(stmt.CreatePlan().PrintString(0));
             }
@@ -200,6 +200,25 @@ namespace test
                 // q21 parameter join order
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[21]), out _, option); 
                 Assert.AreEqual(7, result.Count);
+            }
+        }
+    }
+
+    [TestClass]
+    public class TpcdsTest
+    {
+        [TestMethod]
+        public void TestTpcds()
+        {
+            var files = Directory.GetFiles(@"../../../tpcds");
+
+            // make sure all queries parsed
+            foreach (var v in files)
+            {
+                var sql = File.ReadAllText(v);
+                var stmt = RawParser.ParseSqlStatements(sql);
+                stmt.Bind(null);
+                //Console.WriteLine(stmt.CreatePlan().PrintString(0));
             }
         }
     }
@@ -565,7 +584,7 @@ namespace test
         public void TestInsert()
         {
             var sql = "insert into a values(1+2*3, 'something' ,'2019-09-01', 50.2, 50);";
-            var stmt = RawParser.ParseSqlStatement(sql) as InsertStmt;
+            var stmt = RawParser.ParseSingleSqlStatement(sql) as InsertStmt;
             Assert.AreEqual(5, stmt.vals_.Count);
             sql = "insert into a values(1+2,2*3,3,4);";
             var result = TestHelper.ExecuteSQL(sql);
@@ -580,7 +599,7 @@ namespace test
         {
             string filename = @"'..\..\..\data\test.tbl'";
             var sql = $"copy a from {filename};";
-            var stmt = RawParser.ParseSqlStatement(sql) as CopyStmt;
+            var stmt = RawParser.ParseSingleSqlStatement(sql) as CopyStmt;
             Assert.AreEqual(filename, stmt.fileName_);
             sql = $"copy a from {filename} where a1 >1;";
             var result = TestHelper.ExecuteSQL(sql);
@@ -608,7 +627,7 @@ namespace test
             var sql = "with cte1 as (select * from a), cte2 as (select * from b) select a1,a1+a2 from cte1 where a1<6 group by a1, a1+a2 " +
                                 "union select b2, b3 from cte2 where b2 > 3 group by b1, b1+b2 " +
                                 "order by 2, 1 desc";
-            var stmt = RawParser.ParseSqlStatement(sql) as SelectStmt;
+            var stmt = RawParser.ParseSingleSqlStatement(sql) as SelectStmt;
             Assert.AreEqual(2, stmt.ctes_.Count);
             Assert.AreEqual(2, stmt.setqs_.Count);
             Assert.AreEqual(2, stmt.orders_.Count);
@@ -805,7 +824,7 @@ namespace test
         public void TestFromQueryRemoval()
         {
             var sql = "select b1+b1 from (select b1 from b) a";
-            var stmt = RawParser.ParseSqlStatement(sql);
+            var stmt = RawParser.ParseSingleSqlStatement(sql);
             stmt.Exec(true); var phyplan = stmt.physicPlan_;
             var answer = @"PhysicFromQuery <a>  (actual rows = 3)
                             Output: a.b1[0]+a.b1[0]
@@ -813,7 +832,7 @@ namespace test
                                 Output: b.b1[0]";
             TestHelper.PlanAssertEqual(answer, phyplan.PrintString(0));
             sql = "select b1+c1 from (select b1 from b) a, (select c1 from c) c where c1>1";
-            stmt = RawParser.ParseSqlStatement(sql);
+            stmt = RawParser.ParseSingleSqlStatement(sql);
             stmt.Exec(true); phyplan = stmt.physicPlan_;    // FIXME: filter is still there
             answer = @"PhysicFilter   (actual rows = 3)
                         Output: {a.b1+c.c1}[0]
@@ -835,7 +854,7 @@ namespace test
             Assert.AreEqual("3", result[1].ToString());
             Assert.AreEqual("4", result[2].ToString());
             sql = "select b1+c1 from (select b1 from b) a, (select c1,c2 from c) c where c2-b1>1";
-            stmt = RawParser.ParseSqlStatement(sql);
+            stmt = RawParser.ParseSingleSqlStatement(sql);
             stmt.Exec(true); phyplan = stmt.physicPlan_;
             answer = @"PhysicNLJoin   (actual rows = 3)
                         Output: a.b1[0]+c.c1[1]

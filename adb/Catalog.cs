@@ -61,6 +61,11 @@ namespace adb
         public override string ToString() => $"numeric({len_}, {scale_})";
     }
 
+    public class NullType : ColumnType {
+        public NullType() : base(typeof(bool), 1) { }
+        public override string ToString() => "null";
+    }
+
     public class ColumnDef
     {
         readonly public string name_;
@@ -162,15 +167,17 @@ namespace adb
                 @"create table c (c1 int, c2 int, c3 int, c4 int);",
                 @"create table d (d1 int, d2 int, d3 int, d4 int);",
             };
-            foreach (var v in ddls) {
-                var stmt = RawParser.ParseSqlStatement(v) as CreateTableStmt;
-                stmt.Exec();
-            }
+            var stmt = RawParser.ParseSqlStatements(string.Join("", ddls));
+            stmt.Exec();
         }
         static Catalog()
         {
+            // be careful: any exception happened here will be swallowed without throw any exception
             createBuildInTestTables();
             Tpch.CreateTables();
+
+            // customer table is dup named with tpch, so we can't load tpcds for now
+            // Tpcds.CreateTables();
         }
     }
 }

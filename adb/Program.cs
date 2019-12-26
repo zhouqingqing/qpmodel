@@ -48,7 +48,7 @@ namespace adb
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[15];
+                var v = files[5];
                 {
                     sql = File.ReadAllText(v);
                     goto doit;
@@ -84,7 +84,7 @@ namespace adb
 
         doit:
             Console.WriteLine(sql);
-            var a = RawParser.ParseSqlStatement(sql);
+            var a = RawParser.ParseSingleSqlStatement(sql);
 
             // -- Semantic analysis:
             //  - bind the query
