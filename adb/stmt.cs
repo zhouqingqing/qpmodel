@@ -55,6 +55,27 @@ namespace adb
         }
     }
 
+    public class StatementList: SQLStatement
+    {
+        public List<SQLStatement> list_ = new List<SQLStatement>();
+
+        public StatementList(List<SQLStatement> list, string text) : base(text)
+        {
+            list_ = list;
+        }
+
+        public override List<Row> Exec(bool enableProfiling = false)
+        {
+            var result = new List<Row>();
+            foreach (var v in list_)
+            {
+                v.optimizeOpt_ = optimizeOpt_;
+                result = v.Exec(enableProfiling);
+            }
+            return result;
+        }
+    }
+
     public partial class SelectStmt : SQLStatement
     {
         // parse info

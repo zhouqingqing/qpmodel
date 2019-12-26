@@ -758,6 +758,11 @@ namespace adb
                 val_ = bool.Parse(str);
                 type_ = new BoolType();
             }
+            else if (str.Equals("null"))
+            {
+                val_ = null;
+                type_ = new NullType();
+            }
             else
             {
                 if (int.TryParse(str, out int value))
@@ -770,7 +775,7 @@ namespace adb
             }
 
             Debug.Assert(type_ != null);
-            Debug.Assert(val_ != null);
+            Debug.Assert(val_ != null || type_ is NullType);
         }
         public override string ToString()
         {

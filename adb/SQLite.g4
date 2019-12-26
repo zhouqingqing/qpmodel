@@ -299,6 +299,7 @@ expr
  | expr op=( '<<' | '>>' | '&' | '|' ) expr					#arithbitexpr
  | expr op=( '<' | '<=' | '>' | '>=' ) expr					#arithcompexpr																		
  | expr K_NOT? K_BETWEEN '(' expr ',' expr ')'				#BetweenExpr
+ | expr K_NOT? K_BETWEEN expr K_AND expr                     #BetweenExpr
  | expr op=( '=' | '==' | '!=' | '<>' | K_IS | 'is not' 
 	 |'not like' | K_LIKE | K_GLOB | K_MATCH | K_REGEXP ) expr	#BoolEqualexpr
  | expr K_NOT? K_IN ( '(' ( select_stmt						
@@ -339,13 +340,11 @@ raise_function
 indexed_column
  : column_name ( K_COLLATE collation_name )? ( K_ASC | K_DESC )?
  ;
-
+ 
 table_constraint
- : ( K_CONSTRAINT name )?
-   ( ( K_PRIMARY K_KEY | K_UNIQUE ) '(' indexed_column ( ',' indexed_column )* ')' conflict_clause
-   | K_CHECK '(' expr ')'
-   | K_FOREIGN K_KEY '(' column_name ( ',' column_name )* ')' foreign_key_clause
-   )
+: ( K_PRIMARY K_KEY | K_UNIQUE )  '(' indexed_column ( ',' indexed_column )* ')' conflict_clause    #PrimaryKeyConstraint
+   | K_CHECK '(' expr ')'                                                                       #CheckConstraint
+   | K_FOREIGN K_KEY '(' column_name ( ',' column_name )* ')' foreign_key_clause                #ForeignKeyConstraint
  ;
 
 with_clause
@@ -613,7 +612,7 @@ new_table_name
  ;
 
 column_name 
- : any_name
+ : non_key_name
  ;
 
 collation_name 
@@ -654,6 +653,10 @@ table_alias
 
 transaction_name
  : any_name
+ ;
+
+non_key_name
+ : IDENTIFIER
  ;
 
 any_name

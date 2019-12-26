@@ -87,7 +87,7 @@ namespace adb
 
         static public void CreateTables() {
             foreach (var v in ddls_) {
-                var stmt = RawParser.ParseSqlStatement(v) as CreateTableStmt;
+                var stmt = RawParser.ParseSqlStatements(v);
                 stmt.Exec();
             }
         }
@@ -99,7 +99,7 @@ namespace adb
             {
                 string filename = $@"'{folder}\{v}.tbl'";
                 var sql = $"copy {v} from {filename};";
-                var stmt = RawParser.ParseSqlStatement(sql);
+                var stmt = RawParser.ParseSqlStatements(sql);
                 stmt.Exec();
             }
         }
@@ -109,9 +109,29 @@ namespace adb
             foreach (var v in tabnames_)
             {
                 var sql = $"analyze {v};";
-                var stmt = RawParser.ParseSqlStatement(sql);
+                var stmt = RawParser.ParseSqlStatements(sql);
                 stmt.Exec();
             }
+        }
+    }
+
+    public class Tpcds {
+        static public void CreateTables()
+        {
+            string curdir = Directory.GetCurrentDirectory();
+            string folder = $@"{curdir}\..\..\..\tpcds";
+            string filename = $@"{folder}\tpcds.sql";
+            var sql = File.ReadAllText(filename);
+            var stmt = RawParser.ParseSqlStatements(sql);
+            stmt.Exec();
+        }
+
+        static public void LoadTables(string subfolder)
+        {
+        }
+
+        static public void AnalyzeTables()
+        {
         }
     }
 }

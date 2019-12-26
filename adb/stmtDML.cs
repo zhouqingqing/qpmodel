@@ -5,6 +5,13 @@ using System.Linq;
 
 namespace adb
 {
+    public abstract class TableConstraint { 
+    }
+
+    public class PrimaryKeyConstraint : TableConstraint {
+        public PrimaryKeyConstraint() { }
+    }
+
     public class CreateTableStmt : SQLStatement
     {
         public readonly string tabName_;
@@ -34,7 +41,7 @@ namespace adb
         {
             // SELECT statement is used so later optimizations can be kicked in easier
             targetref_ = target;
-            select_ = RawParser.ParseSqlStatement($"select * from {target.relname_}") as SelectStmt;
+            select_ = RawParser.ParseSingleSqlStatement($"select * from {target.relname_}") as SelectStmt;
         }
 
         public override BindContext Bind(BindContext parent)

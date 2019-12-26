@@ -16,7 +16,7 @@ namespace adb
         public CreateIndexStmt(string indexname, BaseTableRef target, bool unique, List<string> columns, Expr where, string text) : base(text)
         {
             targetref_ = target;
-            select_ = RawParser.ParseSqlStatement($"select  {string.Join(",", columns)} from {target.relname_}") as SelectStmt;
+            select_ = RawParser.ParseSingleSqlStatement($"select  {string.Join(",", columns)} from {target.relname_}") as SelectStmt;
         }
         public override BindContext Bind(BindContext parent)
         {

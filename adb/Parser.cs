@@ -20,17 +20,22 @@ namespace adb
 
     public class RawParser
     {
-        public static SQLStatement ParseSqlStatement(string sql)
+        // sqlbatch can also be a single sql statement - however, it won't allow you to 
+        // directly retrieve phyplan_ etc without go through list
+        //
+        public static StatementList ParseSqlStatements(string sqlbatch)
         {
-            AntlrInputStream inputStream = new AntlrInputStream(sql);
+            AntlrInputStream inputStream = new AntlrInputStream(sqlbatch);
             SQLiteLexer sqlLexer = new SQLiteLexer(inputStream);
             CommonTokenStream commonTokenStream = new CommonTokenStream(sqlLexer);
             SQLiteParser sqlParser = new SQLiteParser(commonTokenStream);
             SQLiteVisitor visitor = new SQLiteVisitor();
 
-            SQLiteParser.Sql_stmtContext stmtCxt = sqlParser.sql_stmt();
-            return visitor.VisitSql_stmt(stmtCxt) as SQLStatement;
+            SQLiteParser.Sql_stmt_listContext stmtCxt = sqlParser.sql_stmt_list();
+            return visitor.VisitSql_stmt_list(stmtCxt) as StatementList;
         }
+
+        public static SQLStatement ParseSingleSqlStatement(string sql) => ParseSqlStatements(sql).list_[0];
     }
 
     public abstract class TableRef
@@ -375,9 +380,11 @@ namespace adb
         public override object VisitFromSelectStmt([NotNull] SQLiteParser.FromSelectStmtContext context)
         {
             var query = Visit(context.select_stmt()) as SelectStmt;
-            if (context.table_alias() is null)
-                throw new Exception("subquery in FROM shall have an alias");
-            return new FromQueryRef(query, context.table_alias().GetText());
+            // ANSI requires subquery in FROM shall have an alias - let's relaxed it 
+            var alias = "unknown";
+            if (context.table_alias() != null)
+                alias = context.table_alias().GetText();
+            return new FromQueryRef(query, alias);
         }
 
         public override object VisitSelect_core([NotNull] SQLiteParser.Select_coreContext context)
@@ -478,7 +485,7 @@ namespace adb
                 {"int", typeof(int)}, {"integer", typeof(int)},
                 {"double", typeof(double)},{"double precision", typeof(double)},
                 {"char", typeof(string)}, {"varchar", typeof(string)},
-                {"datetime", typeof(DateTime)}, {"date", typeof(DateTime)},
+                {"datetime", typeof(DateTime)}, {"date", typeof(DateTime)},{"time", typeof(DateTime)},
                 {"numeric", typeof(decimal)}, {"decimal", typeof(decimal)},
             };
 
@@ -511,11 +518,23 @@ namespace adb
         }
         public override object VisitColumn_def([NotNull] SQLiteParser.Column_defContext context)
             => new ColumnDef(context.column_name().GetText(), VisitType_name(context.type_name()) as ColumnType, 0);
+
+        public override object VisitPrimaryKeyConstraint([NotNull] SQLiteParser.PrimaryKeyConstraintContext context)
+        {
+            if (context.K_PRIMARY() != null) {
+                Debug.Assert(context.K_KEY() != null);
+            }
+            return new PrimaryKeyConstraint();
+        }
+
         public override object VisitCreate_table_stmt([NotNull] SQLiteParser.Create_table_stmtContext context)
         {
             var cols = new List<ColumnDef>();
             foreach (var v in context.column_def())
                 cols.Add(VisitColumn_def(v) as ColumnDef);
+            var cons = new List<TableConstraint>();
+            foreach (var v in context.table_constraint())
+                cons.Add(VisitTable_constraint(v) as TableConstraint);
             return new CreateTableStmt(context.table_name().GetText(), cols, context.GetText());
         }
 
@@ -525,10 +544,6 @@ namespace adb
             return new AnalyzeStmt(tabref, context.GetText());
         }
 
-        /*create_index_stmt
- : K_CREATE K_UNIQUE? K_INDEX ( K_IF K_NOT K_EXISTS )?
-   ( database_name '.' )? index_name K_ON table_name '(' indexed_column ( ',' indexed_column )* ')'
-   ( K_WHERE expr )?*/
         public override object VisitCreate_index_stmt([NotNull] SQLiteParser.Create_index_stmtContext context)
         {
             bool unique = context.K_UNIQUE() is null ? false : true;
@@ -590,6 +605,18 @@ namespace adb
             if (r is null)
                 throw new NotImplementedException();
             return r;
+        }
+
+        public override object VisitSql_stmt_list([NotNull] SQLiteParser.Sql_stmt_listContext context)
+        {
+            List<SQLStatement> list = new List<SQLStatement>();
+            foreach (var v in context.sql_stmt())
+            {
+                var stmt = Visit(v) as SQLStatement;
+                list.Add(stmt);
+            }
+
+            return new StatementList(list, context.GetText());
         }
     }
 }
