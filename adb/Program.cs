@@ -48,10 +48,10 @@ namespace adb
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[3];
+                var v = files[15];
                 {
                     sql = File.ReadAllText(v);
-                    //goto doit;
+                    goto doit;
                 }
             }
             //sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
@@ -77,6 +77,10 @@ namespace adb
             //sql = "select count(*) from (select o_orderkey from lineitem, orders  where l_orderkey=o_orderkey) v;"; // bad
             sql = "create index aa1 on a(a1);";
             sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2);";
+            //sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
+            sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
+            //sql = "select count(*) from (select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1 and a1>0) v;";
+            //sql = "select a2 from a where a.a3 > (select min(b1*2) from b where b.b2 >= (select c2-1 from c where c.c2=b2) and b.b3 > ((select c2 from c where c.c2=b2)));";
 
         doit:
             Console.WriteLine(sql);
@@ -98,12 +102,13 @@ namespace adb
             PhysicNode phyplan = null;
             if (a.optimizeOpt_.use_memo_)
             {
+                Console.WriteLine("***************** optimized plan *************");
                 var optplan = a.PhaseOneOptimize();
-                Console.WriteLine("*****************");
                 Optimizer.InitRootPlan(a);
                 Optimizer.OptimizeRootPlan(a, null);
                 Console.WriteLine(Optimizer.PrintMemo());
                 phyplan = Optimizer.CopyOutOptimalPlan();
+                Console.WriteLine("***************** Memo plan *************");
                 Console.WriteLine(phyplan.PrintString(0));
                 Optimizer.PrintMemo();
             }

@@ -403,7 +403,7 @@ namespace adb
                 case " and ":
                 case " or ":
                 case "like":
-                case "notlike":
+                case "not like":
                 case "in":
                     type_ = new BoolType();
                     break;
@@ -435,7 +435,7 @@ namespace adb
                 case "=": return lv == rv;
                 case "<>": return lv != rv;
                 case "like": return Utils.StringLike(lv, rv);
-                case "notlike": return !Utils.StringLike(lv, rv);
+                case "not like": return !Utils.StringLike(lv, rv);
                 case " and ": return lv && rv;
                 case " or ": // null handling is different - handled by itself
                 default:

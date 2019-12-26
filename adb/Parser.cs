@@ -231,11 +231,6 @@ namespace adb
             var right = new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(2)), "<=");
             return new LogicAndExpr(left, right);
         }
-        public override object VisitLikeExpr([NotNull] SQLiteParser.LikeExprContext context)
-        {
-            var not = context.K_NOT() != null;
-            return new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), not?"notlike":"like");
-        }
         public override object VisitFuncExpr([NotNull] SQLiteParser.FuncExprContext context)
         {
             List<Expr> args = new List<Expr>();
@@ -253,7 +248,7 @@ namespace adb
             => new LogicAndExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)));
         public override object VisitLogicOrExpr([NotNull] SQLiteParser.LogicOrExprContext context)
             => new LogicOrExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)));
-        public override object VisitArithequalexpr([NotNull] SQLiteParser.ArithequalexprContext context)
+        public override object VisitBoolEqualexpr([NotNull] SQLiteParser.BoolEqualexprContext context)
             => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
         public override object VisitSubqueryExpr([NotNull] SQLiteParser.SubqueryExprContext context)
         {
