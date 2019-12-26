@@ -188,7 +188,8 @@ namespace test
                 Assert.AreEqual(1, result.Count);
                 Assert.AreEqual(true, result[0].ToString().Contains("15.23"));
                 // q15 cte
-                // q16 binding error
+                result = TestHelper.ExecuteSQL(File.ReadAllText(files[15]), out _, option);
+                Assert.AreEqual("", string.Join(";", result));
                 // q17 parameter join order
                 //result = TestHelper.ExecuteSQL(File.ReadAllText(files[16]), out _, option);
                 //Assert.AreEqual(0, result.Count);

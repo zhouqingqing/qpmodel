@@ -300,15 +300,13 @@ expr
  | expr op=( '<' | '<=' | '>' | '>=' ) expr					#arithcompexpr																		
  | expr K_NOT? K_BETWEEN '(' expr ',' expr ')'				#BetweenExpr
  | expr op=( '=' | '==' | '!=' | '<>' | K_IS | 'is not' 
-	 | K_LIKE | K_GLOB | K_MATCH | K_REGEXP ) expr	#arithequalexpr
+	 |'not like' | K_LIKE | K_GLOB | K_MATCH | K_REGEXP ) expr	#BoolEqualexpr
  | expr K_NOT? K_IN ( '(' ( select_stmt						
                           | expr ( ',' expr )*
                           )? 
                       ')'
                     | ( database_name '.' )? table_name )	#InSubqueryExpr
  | (K_EXISTS )? '(' select_stmt ')'							#SubqueryExpr
- | expr K_NOT? ( K_LIKE | K_GLOB | K_REGEXP | K_MATCH ) 
-		expr ( K_ESCAPE expr )?								#LikeExpr
  | expr K_AND expr											#LogicAndExpr
  | expr K_OR expr											#LogicOrExpr
  | function_name '(' ( K_DISTINCT? expr ( ',' expr )* | '*' )? ')'	#FuncExpr
