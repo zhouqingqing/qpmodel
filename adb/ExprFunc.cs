@@ -526,4 +526,29 @@ namespace adb
             return lv || rv;
         }
     }
+
+    public class CastExpr : Expr {
+        public override string ToString() => $"cast({child_()} to {type_})";
+        public CastExpr(Expr child, ColumnType coltype) { children_.Add(child); type_ = coltype; }
+        public override Value Exec(ExecContext context, Row input)
+        {
+            Value to = null;
+            dynamic from = child_().Exec(context, input);
+            switch (from) {
+                case string vs:
+                    switch (type_) {
+                        case DateTimeType td:
+                            to = DateTime.Parse(from);
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
+                default:
+                    to = from;
+                    break;
+            }
+            return to;
+        }
+    }
 }

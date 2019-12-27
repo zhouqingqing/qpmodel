@@ -255,7 +255,10 @@ namespace adb
             => new LogicOrExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)));
         public override object VisitBoolEqualexpr([NotNull] SQLiteParser.BoolEqualexprContext context)
             => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
-        public override object VisitSubqueryExpr([NotNull] SQLiteParser.SubqueryExprContext context)
+
+        public override object VisitCastExpr([NotNull] SQLiteParser.CastExprContext context)
+            => new CastExpr((Expr)Visit(context.expr()), (ColumnType)Visit(context.type_name()));
+            public override object VisitSubqueryExpr([NotNull] SQLiteParser.SubqueryExprContext context)
         {
             if (context.K_EXISTS() != null)
                 return new ExistSubqueryExpr(Visit(context.select_stmt()) as SelectStmt);

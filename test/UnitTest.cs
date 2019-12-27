@@ -657,6 +657,18 @@ namespace test
     }
 
     [TestClass]
+    public class FunctionTest
+    {
+        [TestMethod]
+        public void TestCast()
+        {
+            var sql = "select cast('2001-01-3' as date) + interval '30' day;";
+            var result = TestHelper.ExecuteSQL(sql);
+            Assert.AreEqual("2/2/2001 12:00:00 AM", string.Join(";", result));
+        }
+    }
+
+    [TestClass]
     public class CreatePlanTest
     {
         [TestMethod]
