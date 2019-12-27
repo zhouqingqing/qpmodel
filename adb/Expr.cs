@@ -230,7 +230,7 @@ namespace adb
             // and we leave the vacuum job to filter push down
             //
             if (node is LogicFilter)
-                node.filter_ = new LiteralExpr("true");
+                node.filter_ = new LiteralExpr("true", new BoolType());
         }
 
         public static bool FilterIsConst(Expr filter, out bool trueOrfalse)
@@ -717,70 +717,76 @@ namespace adb
         internal string str_;
         internal Value val_;
 
-        public LiteralExpr(string str)
+        public LiteralExpr(string str, ColumnType type)
         {
             str_ = str;
-            val_ = str_;
+            type_ = type;
 
-            if (str.StartsWith("date'"))
+            switch (type)
             {
-                var datestr = Utils.RetrieveQuotedString(str);
-                val_ = (new DateFunc(
-                            new List<Expr> { new LiteralExpr(datestr) })).Exec(null, null);
-                type_ = new DateTimeType();
+                case IntType it:
+                    if (int.TryParse(str, out int value))
+                        val_ = value;
+                    else
+                        throw new SemanticAnalyzeException("wrong integer format");
+                    break;
+                case DoubleType dt:
+                    if (double.TryParse(str, out double valued))
+                        val_ = valued;
+                    else
+                        throw new SemanticAnalyzeException("wrong double precision format");
+                    break;
+                case DateTimeType dtt:
+                    var datestr = Utils.RemoveStringQuotes(str);
+                    if (DateTime.TryParse(datestr, out DateTime valuedt))
+                        val_ = valuedt;
+                    else
+                        throw new SemanticAnalyzeException("wrong datetime format");
+                    break;
+                case CharType ct:
+                case VarCharType vt:
+                    str_ = Utils.RemoveStringQuotes(str_);
+                    val_ = str_;
+                    break;
+                case BoolType bt:
+                    val_ = bool.Parse(str);
+                    break;
+                case AnyType at:
+                    val_ = null;
+                    break;
+                default:
+                    break;
             }
-            else if (str.StartsWith("interval'"))
-            {
-                var datestr = Utils.RetrieveQuotedString(str);
-                var day = int.Parse(Utils.RemoveStringQuotes(datestr));
-                Debug.Assert(str.EndsWith("day") || str.EndsWith("month") || str.EndsWith("year"));
-                if (str.EndsWith("month"))
-                    day *= 30;  // FIXME
-                else if (str.EndsWith("year"))
-                    day *= 365;  // FIXME
-                val_ = new TimeSpan(day, 0, 0, 0);
-                type_ = new TimeSpanType();
-            }
-            else if (str.Contains("'"))
-            {
-                str_ = Utils.RemoveStringQuotes(str_);
-                val_ = str_;
-                type_ = new CharType(str_.Length);
-            }
-            else if (str.Contains("."))
-            {
-                if (double.TryParse(str, out double value))
-                {
-                    type_ = new DoubleType();
-                    val_ = value;
-                }
-                else
-                    throw new SemanticAnalyzeException("wrong double precision format");
-            }
-            else if (str.Equals("true") || str.Equals("false"))
-            {
-                val_ = bool.Parse(str);
-                type_ = new BoolType();
-            }
-            else if (str.Equals("null"))
-            {
-                val_ = null;
-                type_ = new AnyType();
-            }
-            else
-            {
-                if (int.TryParse(str, out int value))
-                {
-                    type_ = new IntType();
-                    val_ = value;
-                }
-                else
-                    throw new SemanticAnalyzeException("wrong integer format");
-            }
-
+            
             Debug.Assert(type_ != null);
             Debug.Assert(val_ != null || type_ is AnyType);
         }
+
+        public LiteralExpr(string interval, string unit)
+        {
+            int day = 0;
+            interval = Utils.RemoveStringQuotes(interval);
+            if (int.TryParse(interval, out int value))
+                day = value;
+            else
+                throw new SemanticAnalyzeException("wrong interval format");
+            convertToDateTime(day, unit);
+        }
+
+        void convertToDateTime(int interval, string unit)
+        {
+            str_ = interval + unit;
+            type_ = new DateTimeType();
+
+            Debug.Assert(unit.Contains("day") || unit.Contains("month") || unit.Contains("year"));
+            int day = interval;
+            if (unit.Contains("month"))
+                day *= 30;  // FIXME
+            else if (unit.Contains("year"))
+                day *= 365;  // FIXME
+            val_ = new TimeSpan(day, 0, 0, 0);
+        }
+
         public override string ToString()
         {
             if (val_ is string)

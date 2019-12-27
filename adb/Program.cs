@@ -48,10 +48,10 @@ namespace adb
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[3];
+                var v = files[4];
                 {
                     sql = File.ReadAllText(v);
-                    //goto doit;
+                    goto doit;
                 }
             }
             //sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
@@ -82,8 +82,9 @@ namespace adb
             //sql = "select count(*) from (select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1 and a1>0) v;";
             //sql = "select a2 from a where a.a3 > (select min(b1*2) from b where b.b2 >= (select c2-1 from c where c.c2=b2) and b.b3 > ((select c2 from c where c.c2=b2)));";
             sql = @"select repeat('ab', 3) from a;";
+            sql = "select cast('2001-01-3' as date) + 30 days;";
             sql = "select cast('2001-01-3' as date) + interval '30' day;";
-
+            sql = "select date '2001-02-01' - date '2000-01-01';";
         doit:
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);

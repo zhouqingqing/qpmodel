@@ -423,16 +423,22 @@ signed_number
  : ( '+' | '-' )? NUMERIC_LITERAL
  ;
 
+// FIXME: can't use day|month|year for some reason
+date_unit_single
+: any_name
+;
+
+date_unit_plural
+: ( 'days' | 'months' | 'years' )
+;
+
 literal_value
- : NUMERIC_LITERAL
- | K_DATE STRING_LITERAL
- | K_INTERVAL STRING_LITERAL any_name
- | STRING_LITERAL
- | BLOB_LITERAL
- | K_NULL
- | K_CURRENT_TIME
- | K_CURRENT_DATE
- | K_CURRENT_TIMESTAMP
+: NUMERIC_LITERAL  (date_unit_plural)?          #NumericOrDateLiteral
+ | K_DATE STRING_LITERAL                        #DateStringLiteral
+ | K_INTERVAL STRING_LITERAL date_unit_single   #IntervalLiteral
+ | STRING_LITERAL                               #StringLiteral
+ | K_NULL                                       #NullLiteral
+ | ( K_CURRENT_TIME | K_CURRENT_DATE | K_CURRENT_TIMESTAMP)  #CurrentTimeLiteral
  ;
 
 unary_operator
@@ -840,6 +846,10 @@ BIND_PARAMETER
 
 STRING_LITERAL
  : '\'' ( ~'\'' | '\'\'' )* '\''
+ ;
+
+ DATE_LITERAL
+ : NUMERIC_LITERAL K_DATE
  ;
 
 BLOB_LITERAL

@@ -222,8 +222,29 @@ namespace adb
     // antlr visitor pattern parser
     class SQLiteVisitor : SQLiteBaseVisitor<object>
     {
-        public override object VisitLiteral_value([NotNull] SQLiteParser.Literal_valueContext context)
-            => new LiteralExpr(context.GetText());
+        public override object VisitDateStringLiteral([NotNull] SQLiteParser.DateStringLiteralContext context)
+            => new LiteralExpr(context.STRING_LITERAL().GetText(), new DateTimeType());
+        public override object VisitIntervalLiteral([NotNull] SQLiteParser.IntervalLiteralContext context)
+            => new LiteralExpr(context.STRING_LITERAL().GetText(), context.date_unit_single().GetText());
+        public override object VisitNumericOrDateLiteral([NotNull] SQLiteParser.NumericOrDateLiteralContext context)
+        {
+            if (context.date_unit_plural() != null)
+                return new LiteralExpr($"'{context.NUMERIC_LITERAL().GetText()}'", context.date_unit_plural().GetText());
+            else
+            {
+                Debug.Assert(context.NUMERIC_LITERAL() != null);
+                if (context.NUMERIC_LITERAL().GetText().Contains("."))
+                    return new LiteralExpr(context.NUMERIC_LITERAL().GetText(), new DoubleType());
+                else
+                    return new LiteralExpr(context.NUMERIC_LITERAL().GetText(), new IntType());
+            }
+        }
+        public override object VisitCurrentTimeLiteral([NotNull] SQLiteParser.CurrentTimeLiteralContext context)
+           =>  throw new NotImplementedException();
+        public override object VisitStringLiteral([NotNull] SQLiteParser.StringLiteralContext context)
+            => new LiteralExpr(context.GetText(), new CharType(context.GetText().Length));
+        public override object VisitNullLiteral([NotNull] SQLiteParser.NullLiteralContext context)
+                => new LiteralExpr("null", new AnyType());
         public override object VisitBrackexpr([NotNull] SQLiteParser.BrackexprContext context)
             => Visit(context.expr());
         public override object VisitArithtimesexpr([NotNull] SQLiteParser.ArithtimesexprContext context)
