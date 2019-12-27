@@ -382,8 +382,12 @@ table_or_subquery
    | K_NOT K_INDEXED )?															#fromSimpleTable
  | '(' ( table_or_subquery ( ',' table_or_subquery )*
        | join_clause )
-   ')' ( K_AS? table_alias )?													#fromJoinTable
- | '(' select_stmt ')' ( K_AS? table_alias )?									#fromSelectStmt
+   ')' ( K_AS? table_alias_with_columns )?										#fromJoinTable
+ | '(' select_stmt ')' ( K_AS? table_alias_with_columns )?						#fromSelectStmt
+ ;
+
+table_alias_with_columns
+ : table_alias ( '(' column_name ( ',' column_name )* ')' )?
  ;
 
 join_clause

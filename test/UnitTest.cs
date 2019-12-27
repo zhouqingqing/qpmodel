@@ -469,6 +469,44 @@ namespace test
                         Output: a.a1[0],a.a2[1],a.a3[2],a.a4[3]
                         Filter: a.a1[0]>1";  // observing no double push down
             TestHelper.PlanAssertEqual(answer, phyplan);
+
+            sql = "select b1, b2 from (select a3, a4 from a) b(b2);";
+            result = ExecuteSQL(sql); Assert.IsNull(result); Assert.IsTrue(TestHelper.error_.Contains("SemanticAnalyzeException"));
+            sql = "select b2 from (select a3, a4 from a) b(b2,b3,b4);";
+            result = ExecuteSQL(sql); Assert.IsNull(result); Assert.IsTrue(TestHelper.error_.Contains("SemanticAnalyzeException"));
+            sql = "select sum(a12) from (select a1*a2 a12 from a);";
+            result = ExecuteSQL(sql); Assert.AreEqual("8", string.Join(";", result));
+            sql = "select sum(a12) from (select a1*a2 a12 from a) b;";
+            result = ExecuteSQL(sql); Assert.AreEqual("8", string.Join(";", result));
+            sql = "select a4 from (select a3, a4 from a) b(a4);"; 
+            result = ExecuteSQL(sql); Assert.AreEqual("2;3;4", string.Join(";", result));
+            sql = "select c.d1 from (select sum(a12) from (select a1*a2 a12 from a) b) c(d1);";
+            result = ExecuteSQL(sql); Assert.AreEqual("8", string.Join(";", result));
+            sql = "select sum(e1) from (select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1)) d(e1);";
+            result = ExecuteSQL(sql); Assert.AreEqual("8", string.Join(";", result));
+            sql = "select e1 from (select * from (select sum(a12) from (select a1*a2 as a12, a1, a2 from a) b) c(d1)) d(e1);";
+            result = ExecuteSQL(sql); Assert.AreEqual("8", string.Join(";", result));
+            sql = "select e1 from (select e1 from (select sum(a12) from (select a1*a2 a12 from a) b) c(e1)) d;";
+            result = ExecuteSQL(sql); Assert.AreEqual("8", string.Join(";", result));
+            sql = "select e1 from(select d1 from (select sum(ab12) from (select a1* b2 ab12 from a join b on a1= b1) b) c(d1)) d(e1);";
+            result = ExecuteSQL(sql); Assert.AreEqual("8", string.Join(";", result));
+            sql = " select a1, sum(a12) from (select a1, a1*a2 a12 from a) b where a1 >= (select c1 from c where c1=a1) group by a1;";
+            result = ExecuteSQL(sql); Assert.AreEqual("0,0;1,2;2,6", string.Join(";", result));
+            sql = "select a1, sum(a12) as a2 from (select a1, a1*a2 a12 from a) b where a1 >= (select c1 from c where c1=a12) group by a1;";
+            result = ExecuteSQL(sql); Assert.AreEqual("0,0", string.Join(";", result));
+            sql = @"SELECT e1 
+                        FROM   (SELECT d1 
+                                FROM   (SELECT Sum(ab12) 
+                                        FROM   (SELECT e1 * b2 ab12 
+                                                FROM   (SELECT e1 
+                                                        FROM   (SELECT d1 
+                                                                FROM   (SELECT Sum(ab12) 
+                                                                        FROM   (SELECT a1 * b2 ab12 FROM  a  JOIN b ON a1 = b1) b) 
+                                                                       c(d1)) 
+                                                               d(e1)) a JOIN b ON e1 = 8*b1) b) c(d1)) d(e1); ";
+            result = ExecuteSQL(sql); Assert.AreEqual("16", string.Join(";", result));
+
+            // FIXME: if we turn memo on, we have problems resolving columns
         }
 
         [TestMethod]
@@ -637,9 +675,15 @@ namespace test
         [TestMethod]
         public void TestAlias()
         {
-            var sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1";
-            var result = TestHelper.ExecuteSQL(sql);
-            Assert.AreEqual("5", string.Join(";", result));
+            var sql = "select a1 from(select b1 as a1 from b) c;";
+            var result = TestHelper.ExecuteSQL(sql); Assert.AreEqual("0;1;2", string.Join(";", result));
+            sql = "select b1 from(select b1 as a1 from b) c;";
+            result = TestHelper.ExecuteSQL(sql); Assert.IsNull(result); Assert.IsTrue(TestHelper.error_.Contains("SemanticAnalyzeException"));
+            sql = "select b1 from(select b1 as a1 from b) c(b1);";
+            result = TestHelper.ExecuteSQL(sql); Assert.AreEqual("0;1;2", string.Join(";", result));
+
+            sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1";
+            result = TestHelper.ExecuteSQL(sql); Assert.AreEqual("5", string.Join(";", result));
             sql = "select 5 as a6 from a where a6 > 2;";    // a6 is an output alias
             result = TestHelper.ExecuteSQL(sql); Assert.IsNull(result);
             Assert.IsTrue(TestHelper.error_.Contains("SemanticAnalyzeException"));
@@ -647,12 +691,12 @@ namespace test
             result = TestHelper.ExecuteSQL(sql);
             Assert.AreEqual("5", string.Join(";", result));
 
-            // failed tests:
-            // alias not handled well: c(b1), a(b1)
-            //                        sql = "select a.b1+c.b1 from (select count(*) as b1 from b) a, (select c1 b1 from c) c where c.b1>1;";
-            // sql = "select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) and b.b1 > (select c2 / 2 from c where c.c2 = b2);";
-            //  if you change second c.c2=b2 => c.c3=b3 then no problem, I think we confused them somewhere
-
+            sql = "select a.b1+c.b1 from (select count(*) as b1 from b) a, (select c1 b1 from c) c where c.b1>1;";
+            result = TestHelper.ExecuteSQL(sql); Assert.AreEqual("5", string.Join(";", result));
+            sql = "select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) and b.b1 > (select c2 / 2 from c where c.c2 = b2);";
+            result = TestHelper.ExecuteSQL(sql); Assert.AreEqual("2", string.Join(";", result));
+            sql = "select b1 from b where  b.b2 > (select c2 / 2 from c where c.c3 = b3) and b.b1 > (select c2 / 2 from c where c.c3 = b3);";
+            result = TestHelper.ExecuteSQL(sql); Assert.AreEqual("2", string.Join(";", result));
         }
     }
 

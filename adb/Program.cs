@@ -18,32 +18,14 @@ namespace adb
         {
             string sql = "";
 
-            sql = "select 1 from a where a.a1 = (select b1 from b where b.b2 = a2);";
-            //sql = "select b1 from b where b.b2 = a.a2";
-            // test candiates ---
-            //sql = "select a1,a1,a3,a3 from a where a1+a2+a3>3";
-            //sql = "select * from a, (select * from b where b2>2) c;";
-
-            // test1: simple case
-            sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<3);";
-            //goto doit;
-            sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4);"; // not working, because a2 is actually b2
-            // test2: 2+ variables
-            sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b1 = a1 and b3<5);";
-            // test3: deep vars
-            sql = "select a1  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3 = a3 and b3>1) and b3<3);";
-            sql = "select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3 = a3 and b3>1) and b3<4);";
-            sql = @"select a4  from a where a.a1 = (select b1 from (select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2
-                and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b2<5)
-                and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b3=a3 and bo.b3 = a3 and b3> 0) and b3<5);";
             sql = "select a1,a1,a3,a3 from a where a2> (select b1 from b where b1=a1 and b2=3);"; // lost a2>@1
             // bad sql = "select a1,a1,a3,a3 from a where a2> (select b1 from b where b1=a1) or a2<=2;"; 
             sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             sql = "select a1,a1,a3,a3 from a where a2> (select b1 from (select * from b) d,c where b1=c1 and b1=a1 and b2=3);"; // lost a2>@1
-            Tpch.LoadTables("001");
-            Tpch.AnalyzeTables();
+            //Tpch.LoadTables("001");
+            //Tpch.AnalyzeTables();
 
             {
                 var files = Directory.GetFiles(@"../../../tpch");
@@ -51,13 +33,10 @@ namespace adb
                 var v = files[3];
                 {
                     sql = File.ReadAllText(v);
-                    goto doit;
+                    //goto doit;
                 }
             }
             //sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
-            //sql = "select a1, a3  from a where a.a1 = (select b1,b2 from b)";
-            //sql = "select a1, a2  from a where a.a1 = (select sum(b1) from b where b2 = a2 and b3<4);";
-            //sql = "select b3+c2 from a, b, c where (select b1+b2 from b where b1=a1)>4 and (select c2+c3 from c where c1=b1)>6 and c1<1";
             sql = "select * from a join b on a1=b1 where a1 < (select a2 from a where a2=b2);";
             //sql = "select * from a join c on a1=c1 where a1 < (select b2 from a join b on a1=b1 where a1 < (select a2 from a where a2=b2) and a3 = c3) x";
             sql = "select a.a1,b.a1,c.a1, a.a1+b.a1+c.a1 from a, a b, a c where a.a1=5-b.a1-c.a1;";
@@ -65,23 +44,18 @@ namespace adb
             //sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
             //sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
             //sql = "analyze a;";
-            //sql = "select a1,a1,a3,a3, (select b3 from b where a1=b2 and b2=3) from a where a1>1";
-            sql = @" select * from lineitem, partsupp, orders, nation where ps_partkey = l_partkey and o_orderkey = l_orderkey";
-            //sql = "select a.* from a join b on a1=b1 or a3=b3 join c on a2=c2 join d on a4=2*d3;";
-            sql = @"		select * from (select l_orderkey, o_orderkey from lineitem, orders where l_orderkey=o_orderkey) a;";
-            sql = "select count(*) from (select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1 and a1>0) v;";
-            sql = "select count(*) from (select l_orderkey from lineitem, orders where orders.o_orderkey=lineitem.l_orderkey) v;";
-            //sql = "select count(*) from (select b2 from a,b where b.b2 = a.a2) v;";
-            //sql = "select count(*) from (select o_orderkey from b, orders  where b1=o_orderkey) v;"; // ok
-            //sql = "select count(*) from (select l_orderkey from lineitem, b  where b1=l_orderkey) v;"; // bad
-            //sql = "select count(*) from (select o_orderkey from lineitem, orders  where l_orderkey=o_orderkey) v;"; // bad
-            sql = "create index aa1 on a(a1);";
-            sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2);";
-            //sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
-            sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
-            //sql = "select count(*) from (select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1 and a1>0) v;";
-            //sql = "select a2 from a where a.a3 > (select min(b1*2) from b where b.b2 >= (select c2-1 from c where c.c2=b2) and b.b3 > ((select c2 from c where c.c2=b2)));";
-            sql = @"select repeat('ab', 3) from a;";
+            sql = "select b2 from (select a3, a4 from a) b(b2);";
+            sql = "select sum(a12) from (select a1*a2 a12 from a) b;";
+            sql = "select d1 from (select sum(a12) from (select a1*a2 a12 from a) b) c(d1);";
+            sql = "select e1 from (select d1 from (select sum(a12) from (select a1*a2 a12 from a) b) c(d1)) d(e1);";
+            sql = "select e1 from (select * from (select sum(a12) from (select a1*a2 a12 from a) b) c(d1)) d(e1);";
+            sql = "select e1 from(select d1 from (select sum(ab12) from (select a1* b2 ab12 from a join b on a1= b1) b) c(d1)) d(e1);";
+            sql = "select e1 from (select e1 from (select sum(a12) from (select a1*a2 a12 from a) b) c(e1)) d;";
+            sql = "select e1 from (select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1)) d(e1);";
+            sql = "select a1, sum(a12) as a2 from (select a1, a1*a2 a12 from a) b where a1 >= (select c1 from c where c1=a12) group by a1;";
+            sql = "select b2 from (select a3, a4 from a) b(b2);";
+            sql = "select * from (select a1, a1*a2 a12 from a) b where a1 >= (select c1 from c where c1=a12) ;";
+
 
         doit:
             Console.WriteLine(sql);
@@ -99,7 +73,7 @@ namespace adb
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.PrintString(0));
 
-            a.optimizeOpt_.use_memo_ = true;
+            a.optimizeOpt_.use_memo_ = false;
             ExplainOption.costoff_ = !a.optimizeOpt_.use_memo_;
             PhysicNode phyplan = null;
             if (a.optimizeOpt_.use_memo_)

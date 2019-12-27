@@ -200,6 +200,19 @@ namespace adb
         LogicNode removeFromQuery(LogicNode plan)
         {
             return plan;
+            if (plan is LogicFromQuery)
+            {
+                Debug.Assert(plan.filter_ is null);
+                plan = plan.child_();
+            }
+            else {
+                List<LogicNode> children = new List<LogicNode>();
+                foreach (var v in plan.children_)
+                    children.Add(removeFromQuery(v));
+                plan.children_ = children;
+            }
+
+            return plan;
         }
 
         LogicNode FilterPushDown(LogicNode plan)
@@ -290,6 +303,9 @@ namespace adb
         {
             LogicNode logic = logicPlan_;
 
+            // remove LogicFromQuery node
+            logic = removeFromQuery(logic);
+
             // decorrelate subqureis - we do it before filter push down because we 
             // have more normalized plan shape before push down. And we may generate
             // some unnecessary filter to clean up.
@@ -299,9 +315,6 @@ namespace adb
 
             // push down filters
             logic = FilterPushDown(logic);
-
-            // remove LogicFromQuery node
-            logic = removeFromQuery(logic);
 
             // optimize for subqueries 
             //  fromquery needs some special handling to link the new plan
