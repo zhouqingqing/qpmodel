@@ -10,14 +10,15 @@ namespace adb
 {
     public abstract class SubqueryExpr : Expr
     {
-        internal string subtype_;    // in, exists, scalar
+        internal string subqtype_;    // in, exists, scalar
 
         internal SelectStmt query_;
         internal int subqueryid_;    // bounded
 
-        public SubqueryExpr(SelectStmt query, string subtype)
+        public SubqueryExpr(SelectStmt query, string subqtype)
         {
-            query_ = query; subtype_ = subtype;
+            Debug.Assert(new List<string>(){"scalar", "in", "exist"}.Contains(subqtype));
+            query_ = query; subqtype_ = subqtype;
         }
         // don't print the subquery here, it shall be printed by up caller layer for pretty format
         public override string ToString() => $@"@{subqueryid_}";
@@ -32,7 +33,7 @@ namespace adb
             Debug.Assert(query_.parent_ == mycontext.parent_?.stmt_);
 
             // verify column count after bound because SelStar expansion
-            if (subtype_ != "scalar")
+            if (subqtype_ != "scalar")
             {
                 type_ = new BoolType();
             }

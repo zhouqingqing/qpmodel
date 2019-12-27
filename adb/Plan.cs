@@ -354,6 +354,7 @@ namespace adb
             parent_ = parent?.stmt_ as SelectStmt;
             bindContext_ = context;
 
+            Debug.Assert(!bounded_);
             var ret = BindWithContext(context);
             bounded_ = true;
             return ret;
@@ -444,9 +445,8 @@ namespace adb
                 }
             }
 
-            from_.ForEach(x =>
-            {
-                switch (x)
+            void bindTableRef(TableRef table) {
+                switch (table)
                 {
                     case BaseTableRef bref:
                         Debug.Assert(Catalog.systable_.TryTable(bref.relname_) != null);
@@ -466,13 +466,14 @@ namespace adb
                         context.AddTable(qref);
                         break;
                     case JoinQueryRef jref:
-                        jref.tables_.ForEach(context.AddTable);
+                        jref.tables_.ForEach(bindTableRef);
                         jref.constraints_.ForEach(x => x.Bind(context));
                         break;
                     default:
                         throw new NotImplementedException();
                 }
-            });
+            }
+            from_.ForEach(bindTableRef);
         }
 
         // for each expr in @list, if expr has references an alias in selection list, 

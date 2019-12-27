@@ -49,7 +49,7 @@ namespace adb
 		// list of correlated colexpr needs this table
         internal readonly List<ColExpr> outerrefs_ = new List<ColExpr>();
 
-        public override string ToString() => alias_;
+        public override string ToString() => $"{alias_}";
         public Expr LocateColumn(string colAlias)
         {
             // TODO: the logic here only uses alias, but not table. Need polish 
@@ -160,6 +160,8 @@ namespace adb
         {
             // make a coopy of selection list and replace their tabref as this
             var r = new List<Expr>();
+
+            Debug.Assert(query_.bounded_);
             query_.selection_.ForEach(x =>
             {
                 var y = x.Clone();
@@ -183,11 +185,55 @@ namespace adb
         }
     }
 
-    // FROM <subquery> [alias]
+    // FROM <subquery> [alias] [colalias]
+    // 
+    //  There are some difference with PostgreSQL's handling:
+    //  1.  test=# select a4 from (select a3, a4 from a) b(a4);
+    //      ERROR:  column reference "a4" is ambiguous
+    //    We only look at b(a4), so we are good with this query
+    //  2.  PostgreSQL requires a table alias but we don't
+    //
     public class FromQueryRef : QueryRef
     {
+        List<string> colAlias_;
+
         public override string ToString() => $"FROM ({alias_})";
-        public FromQueryRef(SelectStmt query, [NotNull] string alias) : base(query, alias) { }
+        public FromQueryRef(SelectStmt query, [NotNull] string alias, List<string> colAlias) : base(query, alias) { 
+            colAlias_ = colAlias;
+        }
+
+        public override List<Expr> AllColumnsRefs()
+        {
+            if (colAlias_.Count == 0)
+                return base.AllColumnsRefs();
+            else
+            {
+                // column alias count shall be no more than the selection columns
+                if (colAlias_.Count > query_.selection_.Count)
+                    throw new SemanticAnalyzeException($"more renamed columns than the output columns");
+
+                var r = new List<Expr>();
+                for (int i = 0; i < colAlias_.Count; i++) {
+                    var alias = colAlias_[i];
+                    var x = query_.selection_[i];
+                    var y = x.Clone();
+                    y.VisitEachExpr(z =>
+                    {
+                        if (z is ColExpr cz)
+                        {
+                            cz.tabRef_ = this;
+                            cz.tabName_ = this.alias_;
+                        }
+                    });
+
+                    y.alias_ = alias;
+                    r.Add(y);
+                }
+
+                Debug.Assert(r.Count == colAlias_.Count);
+                return r;
+            }
+        }
     }
 
     // WITH <alias> AS <query>
@@ -381,10 +427,19 @@ namespace adb
         {
             var query = Visit(context.select_stmt()) as SelectStmt;
             // ANSI requires subquery in FROM shall have an alias - let's relaxed it 
-            var alias = "unknown";
-            if (context.table_alias() != null)
-                alias = context.table_alias().GetText();
-            return new FromQueryRef(query, alias);
+            var alias = "anonymous";
+            List<string> colalias = new List<string>();
+            var aliascolumns = context.table_alias_with_columns();
+            if (aliascolumns != null)
+            {
+                alias = aliascolumns.table_alias().GetText();
+                if (aliascolumns.column_name() != null)
+                {
+                    foreach (var v in aliascolumns.column_name())
+                        colalias.Add(v.GetText());
+                }
+            }
+            return new FromQueryRef(query, alias, colalias);
         }
 
         public override object VisitSelect_core([NotNull] SQLiteParser.Select_coreContext context)
