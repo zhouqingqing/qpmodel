@@ -765,7 +765,7 @@ namespace adb
             else if (str.Equals("null"))
             {
                 val_ = null;
-                type_ = new NullType();
+                type_ = new AnyType();
             }
             else
             {
@@ -779,7 +779,7 @@ namespace adb
             }
 
             Debug.Assert(type_ != null);
-            Debug.Assert(val_ != null || type_ is NullType);
+            Debug.Assert(val_ != null || type_ is AnyType);
         }
         public override string ToString()
         {

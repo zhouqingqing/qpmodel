@@ -61,9 +61,9 @@ namespace adb
         public override string ToString() => $"numeric({len_}, {scale_})";
     }
 
-    public class NullType : ColumnType {
-        public NullType() : base(typeof(bool), 1) { }
-        public override string ToString() => "null";
+    public class AnyType : ColumnType {
+        public AnyType() : base(typeof(object), 8) { }
+        public override string ToString() => "anytype";
     }
 
     public class ColumnDef

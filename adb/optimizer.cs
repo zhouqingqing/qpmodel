@@ -362,23 +362,21 @@ namespace adb
                 return lp.group_;
 
             // bottom up equeue all nodes
-            foreach (var v in plan.children_)
+            if (!plan.IsLeaf())
             {
-                if (v.IsLeaf())
-                    TryInsertCGroup(v);
-                else
+                foreach (var v in plan.children_)
                     EnquePlan(v);
-            }
 
-            // now all children in the memo, convert the plan with children 
-            // replaced by memo cgroup
-            var children = new List<LogicNode>();
-            foreach (var v in plan.children_)
-            {
-                var child = LookupCGroup(v);
-                children.Add(new LogicMemoRef(child));
+                // now all children in the memo, convert the plan with children 
+                // replaced by memo cgroup
+                var children = new List<LogicNode>();
+                foreach (var v in plan.children_)
+                {
+                    var child = LookupCGroup(v);
+                    children.Add(new LogicMemoRef(child));
+                }
+                plan.children_ = children;
             }
-            plan.children_ = children;
             return TryInsertCGroup(plan);
         }
 
