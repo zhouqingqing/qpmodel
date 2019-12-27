@@ -665,6 +665,9 @@ namespace test
             var sql = "select cast('2001-01-3' as date) + interval '30' day;";
             var result = TestHelper.ExecuteSQL(sql);
             Assert.AreEqual("2/2/2001 12:00:00 AM", string.Join(";", result));
+            sql = "select cast('2001-01-3' as date) + 30 days;";
+            result = TestHelper.ExecuteSQL(sql);
+            Assert.AreEqual("2/2/2001 12:00:00 AM", string.Join(";", result));
         }
     }
 

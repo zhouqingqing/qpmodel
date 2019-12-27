@@ -216,7 +216,7 @@ namespace adb
     {
         // Exec info
         internal long count_;
-        public AggCountStar(Expr arg) : base("count(*)", new List<Expr> { new LiteralExpr("0") }) { argcnt_ = 0; }
+        public AggCountStar(Expr arg) : base("count(*)", new List<Expr> { new LiteralExpr("0", new IntType()) }) { argcnt_ = 0; }
 
         public override void Init(ExecContext context, Row input) => count_ = 1;
         public override void Accum(ExecContext context, Value old, Row input) => count_ += 1;

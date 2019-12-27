@@ -75,7 +75,7 @@ namespace adb
             // make a filter on top of the mark join
             Expr topfilter;
             if (nodeAIsOnMarkJoin)
-                topfilter = nodeAFilter.SearchReplace(existExpr, new LiteralExpr("true"));
+                topfilter = nodeAFilter.SearchReplace(existExpr, new LiteralExpr("true", new BoolType()));
             else
                 topfilter = nodeAFilter.SearchReplace(existExpr, markerFilter);
             LogicFilter Filter = new LogicFilter(markjoin, topfilter);
@@ -143,7 +143,7 @@ namespace adb
             // make a filter on top of the mark join
             Expr topfilter;
             if (nodeAIsOnMarkJoin)
-                topfilter = nodeAFilter.SearchReplace(scalarExpr, new LiteralExpr($"{int.MinValue}"));
+                topfilter = nodeAFilter.SearchReplace(scalarExpr, new LiteralExpr($"{int.MinValue}", new IntType()));
             else
             {
                 topfilter = FilterHelper.AddAndFilter(markerFilter, nodeAFilter);

@@ -238,7 +238,7 @@ namespace adb
                     if (isConst)
                     {
                         if (!trueOrFalse)
-                            andlist.Add(new LiteralExpr("false"));
+                            andlist.Add(new LiteralExpr("false", new BoolType()));
                         else
                             Debug.Assert(andlist.Count == 0);
                     }
