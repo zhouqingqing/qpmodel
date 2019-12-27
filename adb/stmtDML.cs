@@ -16,12 +16,14 @@ namespace adb
     {
         public readonly string tabName_;
         public readonly List<ColumnDef> cols_;
-        public CreateTableStmt(string tabName, List<ColumnDef> cols, string text) : base(text)
+        public readonly List<TableConstraint> cons_;
+        public CreateTableStmt(string tabName, List<ColumnDef> cols, List<TableConstraint> cons, string text) : base(text)
         {
             tabName_ = tabName; cols_ = cols;
             int ord = 0; cols_.ForEach(x => x.ordinal_ = ord++);
             if (cols.GroupBy(x => x.name_).Count() < cols.Count)
                 throw new SemanticAnalyzeException("duplicated column name");
+            cons_ = cons;
         }
         public override string ToString() => $"{tabName_ }: {string.Join(",", cols_)}";
 

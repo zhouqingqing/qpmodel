@@ -9,7 +9,7 @@ using LogicSignature = System.Int32;
 //  - branch and bound prouning
 //  - enforcer: by test Join2MJ and indexing
 //  - aggregation/ctes: by generate multiple memo
-//  - derive stats: so far we just blindly assign some values
+//  - more precise row count: we don't consider filter
 //
 
 namespace adb

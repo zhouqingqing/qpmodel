@@ -102,9 +102,11 @@ namespace test
             {
                 Assert.IsTrue(e.Message.Contains("SemanticAnalyzeException"));
             }
-            sql = "create table a (a1 int, a2 char(10), a3 datetime, a4 numeric(9,2), a5 numeric(9), a6 double, a7 date, a8 varchar(100));";
+            sql = "create table a (a1 int, a2 char(10), a3 datetime, a4 numeric(9,2), " +
+                "a5 numeric(9), a6 double, a7 date, a8 varchar(100), primary key (a1));";
             var stmt = RawParser.ParseSingleSqlStatement(sql) as CreateTableStmt;
             Assert.AreEqual(8, stmt.cols_.Count);
+            Assert.AreEqual(1, stmt.cons_.Count);
         }
 
         [TestMethod]
@@ -654,6 +656,18 @@ namespace test
         }
     }
 
+    [TestClass]
+    public class CreatePlanTest
+    {
+        [TestMethod]
+        public void TestConst()
+        {
+            var sql = "select repeat('ab', 2) from a;";
+            var result = TestHelper.ExecuteSQL(sql);
+            Assert.AreEqual("abab;abab;abab", string.Join(";", result));
+        }
+    }
+    
     [TestClass]
     public class GeneralTest
     {

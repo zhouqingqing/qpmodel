@@ -655,12 +655,16 @@ namespace adb
         public override string ToString()
         {
             string para = isOuterRef_ ? "?" : "";
+            bool showTableName = ExplainOption.show_tablename_;
+            if (para != "")
+                showTableName = true;
+            string tablename = showTableName ? tabName_+"." : "";
             para += isVisible_ ? "" : "#";
             if (colName_.Equals(alias_))
-                return ordinal_==-1? $@"{para}{tabName_}.{colName_}":
-                    $@"{para}{tabName_}.{colName_}[{ordinal_}]";
-            return ordinal_ == -1 ? $@"{para}{tabName_}.{colName_} (as {alias_})":
-                $@"{para}{tabName_}.{colName_} (as {alias_})[{ordinal_}]";
+                return ordinal_==-1? $@"{para}{tablename}{colName_}":
+                    $@"{para}{tablename}{colName_}[{ordinal_}]";
+            return ordinal_ == -1 ? $@"{para}{tablename}{colName_} (as {alias_})":
+                $@"{para}{tablename}{colName_} (as {alias_})[{ordinal_}]";
         }
         public override Value Exec(ExecContext context, Row input)
         {

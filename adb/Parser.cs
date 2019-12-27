@@ -535,7 +535,7 @@ namespace adb
             var cons = new List<TableConstraint>();
             foreach (var v in context.table_constraint())
                 cons.Add(VisitTable_constraint(v) as TableConstraint);
-            return new CreateTableStmt(context.table_name().GetText(), cols, context.GetText());
+            return new CreateTableStmt(context.table_name().GetText(), cols, cons, context.GetText());
         }
 
         public override object VisitAnalyze_stmt([NotNull] SQLiteParser.Analyze_stmtContext context)
