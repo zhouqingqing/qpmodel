@@ -1,10 +1,6 @@
 ﻿TODO items:
 ======================================
-1. csv reader so we can load TPCH data
-2. CREATE TABLE/INSERT  to support data loading
 3. tpch data types, sql syntax, null handling
-4. subquery to join conversion
-5. join re-ordering
 6. parallel query/ctes etc
 7. [Executor] codegen
 
@@ -12,13 +8,11 @@ Small items:
 P1: 
 1. join side dependency (subquery)
 2. between ...
-3. eval const first: sql = @"select repeat('ab', 3) from a;";
 
 P2:
 1. implement sort
 2. not in/ not exists etc
 3. subquery expansion bound issue
-4. q22 print subquery twice issue
 5. select * as nation from ... parse error
 
 

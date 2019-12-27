@@ -24,6 +24,7 @@ namespace adb
     }
 
     public static class ExplainOption {
+        public static bool show_tablename_ = true;
         public static bool costoff_ = true;
     }
 
@@ -183,7 +184,8 @@ namespace adb
 
     public partial class SelectStmt : SQLStatement
     {
-        List<SelectStmt> createSubQueryExprPlan(Expr expr)
+        // locate subqueries in given expr
+        List<SelectStmt> subQueryExprCreatePlan(Expr expr)
         {
             var subplans = new List<SelectStmt>();
             expr.VisitEachExpr(x =>
@@ -202,7 +204,7 @@ namespace adb
 
         // select i, min(i/2), 2+min(i)+max(i) from A group by i
         // => min(i/2), 2+min(i)+max(i)
-        List<Expr> getAggregations()
+        List<Expr> getAggFuncFromSelection()
         {
             var r = new List<Expr>();
             selection_.ForEach(x =>
@@ -315,24 +317,32 @@ namespace adb
             // transform where clause
             if (where_ != null)
             {
-                createSubQueryExprPlan(where_);
+                subQueryExprCreatePlan(where_);
                 root = new LogicFilter(root, where_);
             }
 
             // group by
             if (hasAgg_ || groupby_ != null)
-                root = new LogicAgg(root, groupby_, getAggregations(), having_);
+                root = new LogicAgg(root, groupby_, getAggFuncFromSelection(), having_);
 
             // having
             if (having_ != null)
-                createSubQueryExprPlan(having_);
+                subQueryExprCreatePlan(having_);
 
             // order by
             if (orders_ != null)
                 root = new LogicOrder(root, orders_, descends_);
 
             // selection list
-            selection_.ForEach(x => createSubQueryExprPlan(x));
+            selection_.ForEach(x => subQueryExprCreatePlan(x));
+
+            // let's make sure the plan is in good shape
+            //  - there is no filter except filter node (ok to be multiple)
+            root.TraversEachNode(x => {
+                var log = x as LogicNode;
+                if (!(x is LogicFilter))
+                    Debug.Assert(log.filter_ is null);
+            });
 
             logicPlan_ = root;
             return root;

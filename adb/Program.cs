@@ -42,13 +42,13 @@ namespace adb
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             sql = "select a1,a1,a3,a3 from a where a2> (select b1 from (select * from b) d,c where b1=c1 and b1=a1 and b2=3);"; // lost a2>@1
-            Tpch.LoadTables("0001");
+            Tpch.LoadTables("001");
             Tpch.AnalyzeTables();
 
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[5];
+                var v = files[3];
                 {
                     sql = File.ReadAllText(v);
                     goto doit;
@@ -81,6 +81,7 @@ namespace adb
             sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
             //sql = "select count(*) from (select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1 and a1>0) v;";
             //sql = "select a2 from a where a.a3 > (select min(b1*2) from b where b.b2 >= (select c2-1 from c where c.c2=b2) and b.b3 > ((select c2 from c where c.c2=b2)));";
+            sql = @"select repeat('ab', 3) from a;";
 
         doit:
             Console.WriteLine(sql);
@@ -92,6 +93,7 @@ namespace adb
 
             // -- generate an initial plan
             ExplainOption.costoff_ = false;
+            ExplainOption.show_tablename_ = false;
             a.profileOpt_.enabled_ = true;
             a.optimizeOpt_.enable_subquery_to_markjoin_ = true;
             var rawplan = a.CreatePlan();

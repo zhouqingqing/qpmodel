@@ -650,8 +650,12 @@ namespace adb
                             // aggfunc shall never pushed to me
                             Debug.Assert(!(y is AggFunc));
 
-                            // a single table column ref, or combination of them say "c1+c2+7"
-                            Debug.Assert(y.EqualTableRef(tabref_));
+                            // TODO: we shall pull const evaluation eariler
+                            if (!y.IsConst())
+                            {
+                                // a single table column ref, or combination of them say "c1+c2+7"
+                                Debug.Assert(y.EqualTableRef(tabref_));
+                            }
                             break;
                     }
                 });
