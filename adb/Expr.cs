@@ -51,7 +51,7 @@ namespace adb
         {
             var result = AllTableRefs().FirstOrDefault(x => x.LocateColumn(colAlias) != null);
             if (result != AllTableRefs().LastOrDefault(x => x.LocateColumn(colAlias) != null))
-                throw new SemanticAnalyzeException("ambigous column name");
+                throw new SemanticAnalyzeException($"ambigous column name: {colAlias}");
             return result;
         }
         public TableRef GetTableRef(string tabAlias, string colAlias)
@@ -312,6 +312,7 @@ namespace adb
         // them in the final output, so they are marked as invisible.
         // This includes:
         // 1. subquery's outerref 
+        // 2. system generated syscolumns (say sysrid_ for indexing)
         //
         internal bool isVisible_ = true;
 
@@ -331,6 +332,8 @@ namespace adb
         public Expr child_() { Debug.Assert(children_.Count == 1); return children_[0]; }
         public Expr l_() { Debug.Assert(children_.Count == 2); return children_[0]; }
         public Expr r_() { Debug.Assert(children_.Count == 2); return children_[1]; }
+
+        protected string aliasStr() => alias_ != null ? $"(as {alias_})" : null;
 
         public int TableRefCount()
         {
