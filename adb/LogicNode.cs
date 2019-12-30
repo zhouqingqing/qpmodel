@@ -161,7 +161,7 @@ namespace adb
                 if (y is ColExpr target)
                 {
                     Predicate<Expr> nameTest;
-                    nameTest = z => target.Equals(z) || y.alias_.Equals(z.alias_);
+                    nameTest = z => target.Equals(z) || y.outputName_.Equals(z.outputName_);
 
                     // using source's matching index for ordinal
                     // fix colexpr's ordinal - leave the outerref as it is already handled in ColExpr.Bind()
@@ -175,7 +175,7 @@ namespace adb
                         Debug.Assert (source.FindAll(nameTest).Count >= 1);
                         if (source.FindAll(nameTest).Count > 1) {
                             nameTest = z => z is ColExpr 
-                                    && target.alias_.Equals(z.alias_) 
+                                    && target.outputName_.Equals(z.outputName_) 
                                     && target.tabRef_.Equals((z as ColExpr).tabRef_);
                             target.ordinal_ = source.FindIndex(nameTest);
                             Debug.Assert(source.FindAll(nameTest).Count == 1);

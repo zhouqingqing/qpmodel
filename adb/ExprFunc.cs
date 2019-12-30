@@ -434,7 +434,7 @@ namespace adb
             }
         }
 
-        public override string ToString() => $"{l_()}{op_}{r_()}{aliasStr()}";
+        public override string ToString() => $"{l_()}{op_}{r_()}{outputName()}";
 
         public override Value Exec(ExecContext context, Row input)
         {

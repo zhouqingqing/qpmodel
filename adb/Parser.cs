@@ -59,7 +59,7 @@ namespace adb
             var list = AllColumnsRefs();
             foreach (var v in list)
             {
-                if (v.alias_?.Equals(colAlias) ?? false)
+                if (v.outputName_?.Equals(colAlias) ?? false)
                     if (r is null)
                         r = v;
                     else
@@ -195,26 +195,26 @@ namespace adb
     //
     public class FromQueryRef : QueryRef
     {
-        List<string> colAlias_;
+        List<string> colOutputNames_;
 
         public override string ToString() => $"FROM ({alias_})";
-        public FromQueryRef(SelectStmt query, [NotNull] string alias, List<string> colAlias) : base(query, alias) { 
-            colAlias_ = colAlias;
+        public FromQueryRef(SelectStmt query, [NotNull] string alias, List<string> colOutputNames) : base(query, alias) { 
+            colOutputNames_ = colOutputNames;
         }
 
         public override List<Expr> AllColumnsRefs()
         {
-            if (colAlias_.Count == 0)
+            if (colOutputNames_.Count == 0)
                 return base.AllColumnsRefs();
             else
             {
                 // column alias count shall be no more than the selection columns
-                if (colAlias_.Count > query_.selection_.Count)
+                if (colOutputNames_.Count > query_.selection_.Count)
                     throw new SemanticAnalyzeException($"more renamed columns than the output columns");
 
                 var r = new List<Expr>();
-                for (int i = 0; i < colAlias_.Count; i++) {
-                    var alias = colAlias_[i];
+                for (int i = 0; i < colOutputNames_.Count; i++) {
+                    var outName = colOutputNames_[i];
                     var x = query_.selection_[i];
                     var y = x.Clone();
                     y.VisitEachExpr(z =>
@@ -226,11 +226,11 @@ namespace adb
                         }
                     });
 
-                    y.alias_ = alias;
+                    y.outputName_ = outName;
                     r.Add(y);
                 }
 
-                Debug.Assert(r.Count == colAlias_.Count);
+                Debug.Assert(r.Count == colOutputNames_.Count);
                 return r;
             }
         }
@@ -443,7 +443,7 @@ namespace adb
                 r = new SelStar(context.table_name()?.GetText());
             }
 
-            r.alias_ = alias;
+            r.outputName_ = alias;
             return r;
         }
 
