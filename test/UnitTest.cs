@@ -673,7 +673,7 @@ namespace test
             Assert.AreEqual(2, stmt.orders_.Count);
         }
         [TestMethod]
-        public void TestAlias()
+        public void TestOutputName()
         {
             var sql = "select a1 from(select b1 as a1 from b) c;";
             var result = TestHelper.ExecuteSQL(sql); Assert.AreEqual("0;1;2", string.Join(";", result));
@@ -684,7 +684,7 @@ namespace test
 
             sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1";
             result = TestHelper.ExecuteSQL(sql); Assert.AreEqual("5", string.Join(";", result));
-            sql = "select 5 as a6 from a where a6 > 2;";    // a6 is an output alias
+            sql = "select 5 as a6 from a where a6 > 2;";    // a6 is an output name
             result = TestHelper.ExecuteSQL(sql); Assert.IsNull(result);
             Assert.IsTrue(TestHelper.error_.Contains("SemanticAnalyzeException"));
             sql = "select* from(select 5 as a6 from a where a1 > 1)b where a6 > 1;";

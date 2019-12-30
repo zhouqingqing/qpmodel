@@ -68,7 +68,7 @@ namespace adb
             type = null;
             for (int i = 0; i < lc.Count; i++)
             {
-                if (lc[i].alias_.Equals(colAlias))
+                if (lc[i].outputName_.Equals(colAlias))
                 {
                     r = i;
                     type = lc[i].type_;
@@ -300,10 +300,18 @@ namespace adb
 
     public class Expr
     {
-        // Expression in selection list can have an alias
-        // e.g, a.i+b.i as total
+        // Expression in selection list can have an output name 
+        // e.g, a.i+b.i [[as] total]
         //
-        internal string alias_;
+        // Rules to use output name:
+        //    1. Used in print the column value
+        //    2. Used in subquery as seen by parent query
+        //    3. If output name is not given: if column is a simple column, use column's name. 
+        //       Otherwise, we will generate one for print purpose or parent query can't refer
+        //       it except for select * case.
+        //    4. Output name can be refered by ORDER BY|GROUP BY but not WHERE|HAVING.
+        //
+        internal string outputName_;
 
         // subclass shall only use children_[] to contain the expressions used
         internal List<Expr> children_ = new List<Expr>();
@@ -333,7 +341,7 @@ namespace adb
         public Expr l_() { Debug.Assert(children_.Count == 2); return children_[0]; }
         public Expr r_() { Debug.Assert(children_.Count == 2); return children_[1]; }
 
-        protected string aliasStr() => alias_ != null ? $"(as {alias_})" : null;
+        protected string outputName() => outputName_ != null ? $"(as {outputName_})" : null;
 
         public int TableRefCount()
         {
@@ -441,7 +449,7 @@ namespace adb
             if (from is Expr)
                 equal = from.Equals(clone);
             else if (from is string)
-                equal = from.Equals(clone.alias_);
+                equal = from.Equals(clone.outputName_);
             else
                 Debug.Assert(false);
             if (equal)
@@ -592,7 +600,7 @@ namespace adb
 
         public ColExpr(string dbName, string tabName, string colName, ColumnType type)
         {
-            dbName_ = dbName; tabName_ = tabName; colName_ = colName; alias_ = colName; type_ = type;
+            dbName_ = dbName; tabName_ = tabName; colName_ = colName; outputName_ = colName; type_ = type;
             Debug.Assert(Clone().Equals(this));
         }
 
@@ -663,11 +671,11 @@ namespace adb
                 showTableName = true;
             string tablename = showTableName ? tabName_+"." : "";
             para += isVisible_ ? "" : "#";
-            if (colName_.Equals(alias_))
+            if (colName_.Equals(outputName_))
                 return ordinal_==-1? $@"{para}{tablename}{colName_}":
                     $@"{para}{tablename}{colName_}[{ordinal_}]";
-            return ordinal_ == -1 ? $@"{para}{tablename}{colName_} (as {alias_})":
-                $@"{para}{tablename}{colName_} (as {alias_})[{ordinal_}]";
+            return ordinal_ == -1 ? $@"{para}{tablename}{colName_} (as {outputName_})":
+                $@"{para}{tablename}{colName_} (as {outputName_})[{ordinal_}]";
         }
         public override Value Exec(ExecContext context, Row input)
         {
@@ -681,12 +689,13 @@ namespace adb
 
     public class CteExpr : Expr
     {
+        internal string cteName_;
         internal SQLStatement query_;
         internal List<string> colNames_;
 
-        public CteExpr(string tabName, List<string> colNames, SQLStatement query)
+        public CteExpr(string cteName, List<string> colNames, SQLStatement query)
         {
-            alias_ = tabName;
+            cteName_ = cteName;
             query_ = query;
             colNames_ = colNames;
         }

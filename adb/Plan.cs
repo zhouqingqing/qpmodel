@@ -427,7 +427,7 @@ namespace adb
             {
                 ctefrom_ = new List<CTEQueryRef>();
                 ctes_.ForEach(x => {
-                    var cte = new CTEQueryRef(x.query_ as SelectStmt, x.alias_);
+                    var cte = new CTEQueryRef(x.query_ as SelectStmt, x.cteName_);
                     ctefrom_.Add(cte);
                 });
             }
@@ -495,8 +495,8 @@ namespace adb
                 Expr newv = v;
                 foreach (var s in selection)
                 {
-                    if (s.alias_ != null)
-                        newv = newv.SearchReplace(s.alias_, s);
+                    if (s.outputName_ != null)
+                        newv = newv.SearchReplace(s.outputName_, s);
                 }
                 newlist.Add(newv);
             }
