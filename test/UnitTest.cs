@@ -697,6 +697,14 @@ namespace test
             result = TestHelper.ExecuteSQL(sql); Assert.AreEqual("2", string.Join(";", result));
             sql = "select b1 from b where  b.b2 > (select c2 / 2 from c where c.c3 = b3) and b.b1 > (select c2 / 2 from c where c.c3 = b3);";
             result = TestHelper.ExecuteSQL(sql); Assert.AreEqual("2", string.Join(";", result));
+            sql = "select a1*a2 a12, a1 a3 from a;";
+            result = TestHelper.ExecuteSQL(sql); Assert.AreEqual("0,0;2,1;6,2", string.Join(";", result));
+            sql = "select * from (select a1*a2 a12, a1 a3 from a) b;";
+            result = TestHelper.ExecuteSQL(sql); Assert.AreEqual("0,0;2,1;6,2", string.Join(";", result));
+            sql = "select * from (select a1*a2 a12, a1 a2 from a) b(a12, a3);";
+            result = TestHelper.ExecuteSQL(sql); Assert.AreEqual("0,0;2,1;6,2", string.Join(";", result));
+            sql = "select count(*)+1 from (select b1+c1 from (select b1 from b) a, (select c1,c2 from c) c(c1,c3) where c3>1) a;";
+            result = TestHelper.ExecuteSQL(sql); Assert.AreEqual("7", string.Join(";", result));
         }
     }
 

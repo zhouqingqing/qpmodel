@@ -186,32 +186,23 @@ namespace adb
             }
         }
 
-        // Things to consider to remove FromQuery:
-        //  1. we can't simply remove the top FromQuery node because we have to redo
-        //     the projection, including ariths and order, etc.
-        //  2. FromQuery in subquery is even more complicated, because far away there
-        //     could be some references of its name and we shall fix them. When we remove
-        //     filter, we redo columnordinal fixing but this does not work for FromQuery
-        //     because naming reference. PostgreSQL actually puts a Result node with a 
-        //     name, so it is similar to FromQuery.
+        // To remove FromQuery, we essentially remove all references to the related 
+        // FromQueryRef, which shall include selection (ColExpr, Aggs, Orders etc),
+        // filters and any constructs may references a TableRef (say subquery outerref).
         //
-        //  In short, we shall only focus on remove the top FromQuery because simplier.
+        // If we remove FromQuery before binding, we can do it on SQL text level but 
+        // it is considered very early and error proning. We can do it after binding
+        // then we need to find out all references to the FromQuery and replace them
+        // with underlying non-from TableRefs.
+        //
+        // FromQuery in subquery is even more complicated, because far away there
+        // could be some references of its name and we shall fix them. When we remove
+        // filter, we redo columnordinal fixing but this does not work for FromQuery
+        // because naming reference. PostgreSQL actually puts a Result node with a 
+        // name, so it is similar to FromQuery.
         //
         LogicNode removeFromQuery(LogicNode plan)
         {
-            return plan;
-            if (plan is LogicFromQuery)
-            {
-                Debug.Assert(plan.filter_ is null);
-                plan = plan.child_();
-            }
-            else {
-                List<LogicNode> children = new List<LogicNode>();
-                foreach (var v in plan.children_)
-                    children.Add(removeFromQuery(v));
-                plan.children_ = children;
-            }
-
             return plan;
         }
 
