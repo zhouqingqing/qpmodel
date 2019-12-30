@@ -65,13 +65,9 @@ namespace adb
             sql = "select * from (select e1 from (select a12 from (select a1*a2 a12 from a) b) c(e1)) d;";
             sql = "select * from (select a1, a1*a2 a12 from a) b where a1 >= (select c1 from c where c1=a12);";
             sql = "select e1 from(select d1 as e1 from (select sum(ab12) from (select a1* b2 ab12 from a join b on a1= b1) b) c(d1)) d(e1);";
-            sql = "select * from (select a1*a2 a12, a1 as a2 from a) b(a12, a3);";
-            sql = "select * from (select a1*a2 a12, a1 from a) b(a12, a3);"; // ok
-            sql = "select * from (select a1*a2 a12, a1 a3 from a) b(a12, a3);"; // not ok
-            sql = "select * from (select a1*a2 a12, a1 a3 from a) b;"; // not ok
-            sql = "select a1*a2 a12, a1 a3 from a;"; // not ok
-            sql = @"with cte1 as (select* from a) select * from cte1 where a1>1;";
-
+            sql = "select c3 from (select sum(a2) from (select a1*a2 a12, a1 as a2 from a) b(a2, a3)) c(c3);";
+            // sql = "select count(*)+1 from (select b1+c1 from (select b1 from b) a, (select c1,c2 from c) c ) a;";
+            //sql = @"with cte1 as (select* from a) select * from cte1 where a1>1;";
 
         doit:
             Console.WriteLine(sql);
