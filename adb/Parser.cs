@@ -197,6 +197,15 @@ namespace adb
     {
         List<string> colOutputNames_;
 
+        // select b1+b1 from (select b1*2 from b) a (b1)
+        //    mapping_: (b1, b.b1*2)
+        // select b1+b1 from (select b1*2 as b1 from b) a
+        //    mapping_: (b1, b.b1*2)
+        //  This also means a ColRef outside ('b1') may have to replaced by a full 
+        //  expression if we want to get rid of fromQuery ('a').
+        //
+        Dictionary<string, Expr> outputNameMap_;
+
         public override string ToString() => $"FROM ({alias_})";
         public FromQueryRef(SelectStmt query, [NotNull] string alias, List<string> colOutputNames) : base(query, alias) { 
             colOutputNames_ = colOutputNames;
@@ -234,6 +243,28 @@ namespace adb
                 return r;
             }
         }
+
+        public void CreateOutputNameMap()
+        {
+            List<Expr> inside = query_.selection_;
+            List<Expr> outside = AllColumnsRefs();
+
+            // it only expose part of selection to outside ref
+            Debug.Assert(outside.Count <= inside.Count);
+            outputNameMap_ = new Dictionary<string, Expr>();
+            if (colOutputNames_.Count == 0)
+                Debug.Assert(inside.Count == outside.Count);
+            else
+                Debug.Assert(outside.Count == colOutputNames_.Count);
+            for (int i = 0; i < outside.Count; i++)
+            {
+                // no-output-named column can't be referenced outside anyway
+                if (outside[i].outputName_ != null)
+                    outputNameMap_[outside[i].outputName_] = inside[i];
+            }
+        }
+
+        public Expr MapOutputName(string name) => outputNameMap_[name];
     }
 
     // WITH <alias> AS <query>
