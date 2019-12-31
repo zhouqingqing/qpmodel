@@ -464,6 +464,22 @@ namespace adb
             return clone;
         }
 
+        // In current expression, search all type T and replace with callback(T)
+        public Expr SearchReplace<T>(Func<T, Expr> callback) where T: Expr
+        {
+            if (this is T)
+                return callback((T)this);
+            else
+            {
+                for (int i = 0; i < children_.Count; i++)
+                {
+                    var child = children_[i];
+                    children_[i] = child.SearchReplace<T>(callback);
+                }
+                return this;
+            }
+        }
+
         protected static bool exprEquals(Expr l, Expr r)
         {
             if (l is null && r is null)
@@ -521,9 +537,13 @@ namespace adb
 
         public virtual void Bind(BindContext context)
         {
-            children_.ForEach(x=> {
+            for (int i = 0; i < children_.Count; i++) {
+                Expr x = children_[i];
+                
                 x.Bind(context);
-            });
+                children_[i] = x.SearchReplace<ColExpr>(
+                                    z => z.ExprOfQueryRef());
+            }
 			AggregateTableRefs ();
 
             markBounded();
@@ -546,33 +566,27 @@ namespace adb
         public override void Bind(BindContext context) => throw new InvalidProgramException("shall be expanded already");
         internal List<Expr> Expand(BindContext context)
         {
+            var targetrefs = new List<TableRef>();
+            if (tabAlias_ is null)
+                targetrefs = context.AllTableRefs();
+            else { 
+                var x = context.Table(tabAlias_);
+                targetrefs.Add(x);
+            }
+
             var unbounds = new List<Expr>();
             var exprs = new List<Expr>();
-            if (tabAlias_ is null)
+            targetrefs.ForEach(x =>
             {
-                // *
-                context.AllTableRefs().ForEach(x =>
-                {
-                    // subquery's shall be bounded already, and only * from basetable 
-                    // are not bounded. We don't have to differentitate them, but I 
-                    // just try to be strict.
-                    //
-                    if (x is QueryRef)
-                        exprs.AddRange(x.AllColumnsRefs());
-                    else
-                        unbounds.AddRange(x.AllColumnsRefs());
-                });
-            }
-            else
-            {
-                // table.* - you have to find it in current context
-                var x = context.Table(tabAlias_);
+                // subquery's shall be bounded already, and only * from basetable 
+                // are not bounded. We don't have to differentitate them, but I 
+                // just try to be strict.
+                //
                 if (x is QueryRef)
                     exprs.AddRange(x.AllColumnsRefs());
                 else
                     unbounds.AddRange(x.AllColumnsRefs());
-            }
-
+            });
             unbounds.ForEach(x => x.Bind(context));
             exprs.AddRange(unbounds);
             return exprs;
@@ -602,6 +616,13 @@ namespace adb
         {
             dbName_ = dbName; tabName_ = tabName; colName_ = colName; outputName_ = colName; type_ = type;
             Debug.Assert(Clone().Equals(this));
+        }
+
+        public Expr ExprOfQueryRef()
+        {
+            //if (tabRef_ is FromQueryRef tf)
+            //    return tf.MapOutputName(outputName_);
+            return this;
         }
 
         public override void Bind(BindContext context)

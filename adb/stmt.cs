@@ -86,7 +86,7 @@ namespace adb
         internal readonly Expr where_;
         internal List<Expr> groupby_;
         internal readonly Expr having_;
-        internal readonly List<Expr> selection_;
+        internal List<Expr> selection_;
 
         // this section can only show up in top query
         public readonly List<CteExpr> ctes_;

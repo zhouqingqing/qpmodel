@@ -494,17 +494,15 @@ namespace test
             result = ExecuteSQL(sql); Assert.AreEqual("0,0;1,2;2,6", string.Join(";", result));
             sql = "select a1, sum(a12) as a2 from (select a1, a1*a2 a12 from a) b where a1 >= (select c1 from c where c1=a12) group by a1;";
             result = ExecuteSQL(sql); Assert.AreEqual("0,0", string.Join(";", result));
-            sql = @"SELECT e1 
-                        FROM   (SELECT d1 
-                                FROM   (SELECT Sum(ab12) 
-                                        FROM   (SELECT e1 * b2 ab12 
-                                                FROM   (SELECT e1 
-                                                        FROM   (SELECT d1 
+            sql = @"SELECT e1  FROM   (SELECT d1 FROM   (SELECT Sum(ab12) 
+                                        FROM   (SELECT e1 * b2 ab12 FROM   (SELECT e1 FROM   (SELECT d1 
                                                                 FROM   (SELECT Sum(ab12) 
                                                                         FROM   (SELECT a1 * b2 ab12 FROM  a  JOIN b ON a1 = b1) b) 
                                                                        c(d1)) 
                                                                d(e1)) a JOIN b ON e1 = 8*b1) b) c(d1)) d(e1); ";
             result = ExecuteSQL(sql); Assert.AreEqual("16", string.Join(";", result));
+            sql = "select *, cd.* from (select a.* from a join b on a1=b1) ab , (select c1 , c3 from c join d on c1=d1) cd where ab.a1=cd.c1";
+            result = ExecuteSQL(sql); Assert.AreEqual("0,1,2,3,0,2,0,2;1,2,3,4,1,3,1,3;2,3,4,5,2,4,2,4", string.Join(";", result));
 
             // FIXME: if we turn memo on, we have problems resolving columns
         }

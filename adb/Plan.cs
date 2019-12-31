@@ -238,9 +238,14 @@ namespace adb
                         break;
                     case QueryRef sref:
                         var plan = sref.query_.CreatePlan();
-                        from = new LogicFromQuery(sref, plan);
-                        subQueries_.Add(sref.query_);
-                        fromQueries_.Add(sref.query_, from as LogicFromQuery);
+                        //if (sref is FromQueryRef)
+                        //    from = plan;
+                        //else
+                        { 
+                            from = new LogicFromQuery(sref, plan);
+                            subQueries_.Add(sref.query_);
+                            fromQueries_.Add(sref.query_, from as LogicFromQuery);
+                        }
                         break;
                     case JoinQueryRef jref:
                         // We will form join group on all tables and put a filter on top
@@ -364,8 +369,9 @@ namespace adb
             void bindSelectionList(BindContext context)
             {
                 List<SelStar> selstars = new List<SelStar>();
-                selection_.ForEach(x =>
+                for (int i = 0; i < selection_.Count; i++)
                 {
+                    Expr x = selection_[i];
                     if (x is SelStar xs)
                         selstars.Add(xs);
                     else
@@ -373,15 +379,25 @@ namespace adb
                         x.Bind(context);
                         if (x.HasAggFunc())
                             hasAgg_ = true;
+                        selection_[i] = x.SearchReplace<ColExpr>(
+                                            z => z.ExprOfQueryRef());
                     }
-                });
+                }
 
                 // expand * into actual columns
                 selstars.ForEach(x =>
                 {
                     selection_.Remove(x);
-                    selection_.AddRange(x.Expand(context));
+                    var list = x.Expand(context);
+
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        if (list[i] is ColExpr lc)
+                            list[i] = lc.ExprOfQueryRef();
+                    }
+                    selection_.AddRange(list);
                 });
+                Debug.Assert(selection_.Count(x => x is SelStar) == 0);
             }
 
             // bind stage is earlier than plan creation
@@ -461,6 +477,9 @@ namespace adb
                     case QueryRef qref:
                         if (qref.query_.bindContext_ is null)
                             qref.query_.Bind(context);
+
+                        if (qref is FromQueryRef qf)
+                            qf.CreateOutputNameMap();
 
                         // the subquery itself in from clause can be seen as a new table, so register it here
                         context.AddTable(qref);
