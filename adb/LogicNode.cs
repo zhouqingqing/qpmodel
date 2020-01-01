@@ -156,34 +156,31 @@ namespace adb
             }
 
             // we have to use each ColExpr and fix its ordinal
-            clone.VisitEachExpr(y =>
+            clone.VisitEach<ColExpr>(target =>
             {
-                if (y is ColExpr target)
+                Predicate<Expr> nameTest;
+                nameTest = z => target.Equals(z) || 
+                            target.colName_.Equals(z.outputName_);
+
+                // using source's matching index for ordinal
+                // fix colexpr's ordinal - leave the outerref as it is already handled in ColExpr.Bind()
+                if (!target.isOuterRef_)
                 {
-                    Predicate<Expr> nameTest;
-                    nameTest = z => target.Equals(z) || 
-                                target.colName_.Equals(z.outputName_);
+                    target.ordinal_ = source.FindIndex(nameTest);
 
-                    // using source's matching index for ordinal
-                    // fix colexpr's ordinal - leave the outerref as it is already handled in ColExpr.Bind()
-                    if (!target.isOuterRef_)
-                    {
+                    // we may hit more than one target, say t2.col1 matching {t1.col1, t2.col1}
+                    // in this case, we shall redo the mapping with table name
+                    //
+                    Debug.Assert (source.FindAll(nameTest).Count >= 1);
+                    if (source.FindAll(nameTest).Count > 1) {
+                        nameTest = z => z is ColExpr 
+                                && target.colName_.Equals(z.outputName_)
+                                && target.tabRef_.Equals((z as ColExpr).tabRef_);
                         target.ordinal_ = source.FindIndex(nameTest);
-
-                        // we may hit more than one target, say t2.col1 matching {t1.col1, t2.col1}
-                        // in this case, we shall redo the mapping with table name
-                        //
-                        Debug.Assert (source.FindAll(nameTest).Count >= 1);
-                        if (source.FindAll(nameTest).Count > 1) {
-                            nameTest = z => z is ColExpr 
-                                    && target.colName_.Equals(z.outputName_)
-                                    && target.tabRef_.Equals((z as ColExpr).tabRef_);
-                            target.ordinal_ = source.FindIndex(nameTest);
-                            Debug.Assert(source.FindAll(nameTest).Count == 1);
-                        }
+                        Debug.Assert(source.FindAll(nameTest).Count == 1);
                     }
-                    Debug.Assert(target.ordinal_ != -1);
                 }
+                Debug.Assert(target.ordinal_ != -1);
             });
 
             return clone;
@@ -462,11 +459,10 @@ namespace adb
             var reqList = ExprHelper.CloneList(reqOutput, new List<Type> { typeof(LiteralExpr) });
             var aggs = new List<Expr>();
             reqList.ForEach(x =>
-                x.VisitEachExpr(y =>
+                x.VisitEach<AggFunc>(y =>
                 {
                     // 1+abs(min(a))+max(b)
-                    if (y is AggFunc ay)
-                        aggs.Add(x);
+                    aggs.Add(x);
                 }));
 
             // aggs remove functions
@@ -474,13 +470,10 @@ namespace adb
             {
                 reqList.Remove(x);
                 bool check = false;
-                x.VisitEachExpr(y =>
+                x.VisitEach<AggFunc>(y =>
                 {
-                    if (y is AggFunc ay)
-                    {
-                        check = true;
-                        reqList.AddRange(ay.GetNonFuncExprList());
-                    }
+                    check = true;
+                    reqList.AddRange(y.GetNonFuncExprList());
                 });
                 Debug.Assert(check);
             });
@@ -520,15 +513,12 @@ namespace adb
             if (keys_ != null) output_ = Utils.SearchReplace(output_, keys_);
             output_.ForEach(x =>
             {
-                x.VisitEachExpr(y =>
+                x.VisitEach<AggFunc>(y =>
                 {
-                    if (y is AggFunc ya)
-                    {
-                        // remove the duplicates immediatley to avoid wrong ordinal in ExprRef
-                        if (!aggrCore_.Contains(ya))
-                            aggrCore_.Add(ya);
-                        x = x.SearchReplace(y, new ExprRef(y, nkeys + aggrCore_.IndexOf(y)));
-                    }
+                    // remove the duplicates immediatley to avoid wrong ordinal in ExprRef
+                    if (!aggrCore_.Contains(y))
+                        aggrCore_.Add(y);
+                    x = x.SearchReplace(y, new ExprRef(y, nkeys + aggrCore_.IndexOf(y)));
                 });
 
                 newoutput.Add(x);
@@ -651,12 +641,9 @@ namespace adb
                             // aggfunc shall never pushed to me
                             Debug.Assert(!(y is AggFunc));
 
-                            // TODO: we shall pull const evaluation eariler
-                            if (!y.IsConst())
-                            {
-                                // a single table column ref, or combination of them say "c1+c2+7"
-                                Debug.Assert(y.EqualTableRef(tabref_));
-                            }
+                            // a single table column ref, or combination of them say "c1+c2+7"
+                            Debug.Assert(!y.IsConst());
+                            Debug.Assert(y.EqualTableRef(tabref_));
                             break;
                     }
                 });

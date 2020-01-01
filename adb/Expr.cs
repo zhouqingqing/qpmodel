@@ -126,29 +126,19 @@ namespace adb
         public static List<ColExpr> RetrieveAllColExpr(Expr expr, bool includingParameters = false)
         {
             var list = new HashSet<ColExpr>();
-            expr.VisitEachExpr(x =>
+            expr.VisitEach<ColExpr>(x =>
             {
-                if (x is ColExpr xc)
-                {
-                    if (includingParameters || !xc.isOuterRef_)
-                        list.Add(xc);
-                }
+                if (includingParameters || !x.isOuterRef_)
+                    list.Add(x);
             });
 
             return list.ToList();
         }
 
-        public static List<T> RetrieveAllType<T>(Expr expr)
+        public static List<T> RetrieveAllType<T>(Expr expr) where T: Expr
         {
             var list = new List<T>();
-            expr.VisitEachExpr(x =>
-            {
-                if (x is T xc)
-                {
-                    list.Add(xc);
-                }
-            });
-
+            expr.VisitEach<T>(x => list.Add(x));
             return list;
         }
 
@@ -165,12 +155,7 @@ namespace adb
         public static List<TableRef> AllTableRef(Expr expr)
         {
             var list = new HashSet<TableRef>();
-            expr.VisitEachExpr(x =>
-            {
-                if (x is ColExpr xc)
-                    list.Add(xc.tabRef_);
-            });
-
+            expr.VisitEach<ColExpr>(x => list.Add(x.tabRef_));
             return list.ToList();
         }
 
@@ -181,17 +166,14 @@ namespace adb
             if (expr.HasSubQuery())
             {
                 r += "\n";
-                expr.VisitEachExpr(x =>
+                expr.VisitEach<SubqueryExpr>(x =>
                 {
-                    if (x is SubqueryExpr sx)
-                    {
-                        r += Utils.Tabs(depth + 2) + $"<{sx.GetType().Name}> {sx.subqueryid_}\n";
-                        Debug.Assert(sx.query_.bindContext_ != null);
-                        if (sx.query_.physicPlan_ != null)
-                            r += $"{sx.query_.physicPlan_.PrintString(depth + 4)}";
-                        else
-                            r += $"{sx.query_.logicPlan_.PrintString(depth + 4)}";
-                    }
+                    r += Utils.Tabs(depth + 2) + $"<{x.GetType().Name}> {x.subqueryid_}\n";
+                    Debug.Assert(x.query_.bindContext_ != null);
+                    if (x.query_.physicPlan_ != null)
+                        r += $"{x.query_.physicPlan_.PrintString(depth + 4)}";
+                    else
+                        r += $"{x.query_.logicPlan_.PrintString(depth + 4)}";
                 });
             }
 
@@ -202,15 +184,12 @@ namespace adb
         public static void SubqueryDirectToPhysic(Expr expr)
         {
             // append the subquery plan align with expr
-            expr.VisitEachExpr(x =>
+            expr.VisitEach< SubqueryExpr>(x =>
             {
-                if (x is SubqueryExpr sx)
-                {
-                    Debug.Assert(expr.HasSubQuery());
-                    var query = sx.query_;
-                    ProfileOption poption = query.TopStmt().profileOpt_;
-                    query.physicPlan_ = query.logicPlan_.DirectToPhysical(poption);
-                }
+                Debug.Assert(expr.HasSubQuery());
+                var query = x.query_;
+                ProfileOption poption = query.TopStmt().profileOpt_;
+                query.physicPlan_ = query.logicPlan_.DirectToPhysical(poption);
             });
         }
     }
@@ -349,6 +328,7 @@ namespace adb
             Debug.Assert(tableRefs_.Distinct().Count() == tableRefs_.Count);
             return tableRefs_.Count;
         }
+
         public bool EqualTableRef(TableRef tableRef)
         {
             Debug.Assert(bounded_);
@@ -367,17 +347,17 @@ namespace adb
             return Utils.ListAEqualsB(tableRefs, tableRefs_);
         }
 
-        public bool VisitEachExprExists(Func<Expr, bool> check, List<Type> excluding = null)
+        bool VisitEachExistsT<T>(Func<T, bool> check, List<Type> excluding = null) where T: Expr
         {
             if (excluding?.Contains(GetType()) ?? false)
                 return false;
-            bool r = check(this);
 
+            bool r = check(this as T);
             if (!r)
             {
                 foreach (var v in children_)
                 {
-                    if (v.VisitEachExprExists(check, excluding))
+                    if (v.VisitEachExistsT(check, excluding))
                         return true;
                 }
                 return false;
@@ -385,15 +365,18 @@ namespace adb
             return true;
         }
 
-        public void VisitEachExpr(Action<Expr> callback)
+        public bool VisitEachExprExists(Func<Expr, bool> check, List<Type> excluding = null) 
+            => VisitEachExistsT<Expr>(check, excluding);
+
+        public void VisitEach<T>(Action<T> callback) where T: Expr
         {
             Func<T, bool> wrapCallbackAsCheck<T>(Action<T> callback)
             {
-                return a => { callback(a); return false; };
+                return a => { if (a is T) callback(a); return false; };
             }
-            Func<Expr, bool> check = wrapCallbackAsCheck(callback);
-            VisitEachExprExists(check);
+            VisitEachExistsT(wrapCallbackAsCheck(callback));
         }
+        public void VisitEachExpr(Action<Expr> callback) => VisitEach<Expr>(callback);
 
         // TODO: this is kinda redundant, since this check does not save us any time
         public bool HasSubQuery() => VisitEachExprExists(e => e is SubqueryExpr);
@@ -467,8 +450,8 @@ namespace adb
         // In current expression, search all type T and replace with callback(T)
         public Expr SearchReplace<T>(Func<T, Expr> replacefn) where T: Expr
         {
-            bool check(Expr e) => e is T;
-            return SearchReplace<T>(check, replacefn);
+            bool checkfn(Expr e) => e is T;
+            return SearchReplace<T>(checkfn, replacefn);
         }
 
         // generic form of search with condition @checkfn and replace with @replacefn
