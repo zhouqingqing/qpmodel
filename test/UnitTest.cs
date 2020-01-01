@@ -168,7 +168,7 @@ namespace test
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[4]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[5]), out _, option);
-                Assert.AreEqual("48091", string.Join(";", result));
+                Assert.AreEqual("77948", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[6]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[7]), out _, option);
@@ -727,9 +727,17 @@ namespace test
         [TestMethod]
         public void TestConst()
         {
+            var phyplan = "";
             var sql = "select repeat('ab', 2) from a;";
-            var result = TestHelper.ExecuteSQL(sql);
+            var result = TestHelper.ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "abab"));
             Assert.AreEqual("abab;abab;abab", string.Join(";", result));
+            sql = "select 1+2*3, 1+2+a1 from a where a1+2+(1*5+1)>2*3 and 1+2=2+1;";
+            result = TestHelper.ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "and True")); // FIXME
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "7,3+a.a1[0]"));
+            Assert.AreEqual(1, TestHelper.CountStringOccurrences(phyplan, "a.a1[0]+2+6>6")); // FIXME
+            Assert.AreEqual("7,3;7,4;7,5", string.Join(";", result));
         }
     }
     

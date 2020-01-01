@@ -24,16 +24,16 @@ namespace adb
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             sql = "select a1,a1,a3,a3 from a where a2> (select b1 from (select * from b) d,c where b1=c1 and b1=a1 and b2=3);"; // lost a2>@1
-            //Tpch.LoadTables("001");
+            //Tpch.LoadTables("0001");
             //Tpch.AnalyzeTables();
 
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[3];
+                var v = files[5];
                 {
                     sql = File.ReadAllText(v);
-                    //goto doit;
+                   // goto doit;
                 }
             }
             //sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
@@ -90,6 +90,7 @@ namespace adb
             sql = "select sum(e1) from (select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1)) d(e1);";
             //sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
 
+            sql = "select repeat('ab', 2) from a;";
 
         doit:
             Console.WriteLine(sql);
@@ -107,7 +108,7 @@ namespace adb
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.PrintString(0));
 
-            a.optimizeOpt_.use_memo_ = false;
+            a.optimizeOpt_.use_memo_ = true;
             ExplainOption.costoff_ = !a.optimizeOpt_.use_memo_;
             PhysicNode phyplan = null;
             if (a.optimizeOpt_.use_memo_)

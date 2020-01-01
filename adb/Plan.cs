@@ -306,14 +306,15 @@ namespace adb
         }
 
         /*
-            SQL is implemented as if a query was executed in the following order:
-
-            FROM clause
-            WHERE clause
-            GROUP BY clause
-            HAVING clause
-            SELECT clause
-            ORDER BY clause
+            SELECT is implemented as if a query was executed in the following order:
+            1. CTEs: every one is evaluated and evaluted once as if it is served as temp table.
+            2. FROM clause: every one in from clause evaluted. They together evaluated as a catersian join.
+            3. WHERE clause: filters, including joins filters are evaluted.
+            4. GROUP BY clause: grouping according to group by clause and filtered by HAVING clause.
+            5. SELECT [ALL|DISTINCT] clause: ALL (default) will output every row and DISTINCT removes duplicates.
+            6. Set Ops: UION [ALL] | INTERSECT| EXCEPT combines multiple output of SELECT.
+            7. ORDER BY clause: sort the results with the specified order.
+            8. LIMIT|FETCH|OFFSET clause: restrict amount of results output.
         */
         public override LogicNode CreatePlan()
         {
@@ -379,6 +380,7 @@ namespace adb
                         x.Bind(context);
                         if (x.HasAggFunc())
                             hasAgg_ = true;
+                        x = x.Simplify();
                         selection_[i] = x.SearchReplace<ColExpr>(
                                             z => z.ExprOfQueryRef());
                     }

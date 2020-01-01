@@ -405,7 +405,7 @@ namespace adb
                 // meaning has non-constantable (or we don't want to waste time try 
                 // to figure out if they are constant, say 'select 1' or sin(2))
                 //
-                bool nonconst = e is ColExpr || e is SubqueryExpr;
+                bool nonconst = e is ColExpr || e is SubqueryExpr || e is AggFunc;
                 return nonconst;
             });
         }
@@ -465,21 +465,27 @@ namespace adb
         }
 
         // In current expression, search all type T and replace with callback(T)
-        public Expr SearchReplace<T>(Func<T, Expr> callback) where T: Expr
+        public Expr SearchReplace<T>(Func<T, Expr> replacefn) where T: Expr
         {
-            if (this is T)
-                return callback((T)this);
+            bool check(Expr e) => e is T;
+            return SearchReplace<T>(check, replacefn);
+        }
+
+        // generic form of search with condition @checkfn and replace with @replacefn
+        public Expr SearchReplace<T>(Func<Expr, bool> checkfn, Func<T, Expr> replacefn) where T: Expr
+        {
+            if (checkfn(this))
+                return replacefn((T)this);
             else
             {
                 for (int i = 0; i < children_.Count; i++)
                 {
                     var child = children_[i];
-                    children_[i] = child.SearchReplace<T>(callback);
+                    children_[i] = child.SearchReplace(checkfn, replacefn);
                 }
                 return this;
             }
         }
-
         protected static bool exprEquals(Expr l, Expr r)
         {
             if (l is null && r is null)
@@ -541,12 +547,30 @@ namespace adb
                 Expr x = children_[i];
                 
                 x.Bind(context);
+                x = x.Simplify();
                 children_[i] = x.SearchReplace<ColExpr>(
                                     z => z.ExprOfQueryRef());
             }
 			AggregateTableRefs ();
 
             markBounded();
+        }
+
+        public Expr Simplify()
+        {
+            Debug.Assert(bounded_);
+
+            bool IsConstFn(Expr e) => !(e is LiteralExpr) && e.IsConst();
+            Expr EvalConstFn(Expr e)
+            {
+                e.TryEvalConst(out Value val);
+                return LiteralExpr.MakeLiteral(val, type_);
+            }
+
+            if (this is LiteralExpr)
+                return this;
+            else
+                return SearchReplace<Expr>(IsConstFn, EvalConstFn);
         }
 
         public virtual string PrintString(int depth) => ToString();
@@ -790,7 +814,7 @@ namespace adb
                 default:
                     break;
             }
-            
+
             Debug.Assert(type_ != null);
             Debug.Assert(val_ != null || type_ is AnyType);
         }
@@ -841,6 +865,21 @@ namespace adb
                 return str_.Equals(lo.str_);
             }
             return false;
+        }
+
+        // give @val and perform the necessary type conversion
+        // 8.1, int => 8
+        //
+        public static LiteralExpr MakeLiteral(Value val, ColumnType type)
+        {
+            LiteralExpr ret = null;
+            if (val is string || val is DateTime)
+                ret = new LiteralExpr($"'{val}'", type);
+            else
+                ret = new LiteralExpr($"{val}", type);
+
+            ret.markBounded();
+            return ret;
         }
     }
 
