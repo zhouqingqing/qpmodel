@@ -16,25 +16,7 @@ namespace test
         static internal List<Row> ExecuteSQL(string sql) => ExecuteSQL(sql, out _);
 
         static internal List<Row> ExecuteSQL(string sql, out string physicplan, OptimizeOption option = null)
-        {
-            try
-            {
-                error_ = null;
-
-                var stmt = RawParser.ParseSingleSqlStatement(sql);
-                if (option != null)
-                    stmt.optimizeOpt_ = option;
-                var result = stmt.Exec(true);
-                physicplan = stmt.physicPlan_.PrintString(0);
-                return result;
-            }
-            catch (Exception e)
-            {
-                error_ = e.Message;
-                physicplan = null;
-                return null;
-            }
-        }
+            => SQLStatement.ExecSQL(sql, out physicplan, out error_, option);
 
         static public void PlanAssertEqual(string l, string r)
         {

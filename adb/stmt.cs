@@ -53,6 +53,26 @@ namespace adb
             result.Close();
             return result.rows_;
         }
+        public static List<Row> ExecSQL(string sql, out string physicplan, out string error, OptimizeOption option = null)
+        {
+            try
+            {
+                var stmt = RawParser.ParseSingleSqlStatement(sql);
+                if (option != null)
+                    stmt.optimizeOpt_ = option;
+                var result = stmt.Exec(true);
+                physicplan = stmt.physicPlan_.PrintString(0);
+                error = "";
+                return result;
+            }
+            catch (Exception e)
+            {
+                error = e.Message;
+                Console.WriteLine(error);
+                physicplan = null;
+                return null;
+            }
+        }
     }
 
     public class StatementList: SQLStatement
