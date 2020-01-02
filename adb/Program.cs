@@ -81,16 +81,20 @@ namespace adb
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             sql = "select sum(e1) from (select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1)) d(e1);";
+            SQLStatement.ExecSQL(sql, out _, out _);
             sql = "select * from (select a1*a2 a12, a1 a2 from a) b(a12);";
-            sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1";
+            SQLStatement.ExecSQL(sql, out _, out _);
             sql = "select * from (select a1*a2 a12, a1 a3 from a) b;";
+            SQLStatement.ExecSQL(sql, out _, out _);
             sql = "select *, cd.* from (select a.* from a join b on a1=b1) ab , (select c1 , c3 from c join d on c1=d1) cd where ab.a1=cd.c1";
+            SQLStatement.ExecSQL(sql, out _, out _);
             sql = "select * from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where ab.a1=cd.c1";
+            SQLStatement.ExecSQL(sql, out _, out _);
             sql = "select a12*a12 from (select a1*a2 a12, a1 a3 from a) b;";
+            SQLStatement.ExecSQL(sql, out _, out _);
             sql = "select sum(e1) from (select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1)) d(e1);";
             //sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
-
-            sql = "select repeat('ab', 2) from a;";
+            sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;";
 
         doit:
             Console.WriteLine(sql);
