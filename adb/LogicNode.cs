@@ -454,31 +454,38 @@ namespace adb
             children_.Add(child); keys_ = groupby; having_ = having;
         }
 
+        // count(*), sum(count(a1)*b1) => 0, a1, b1
         List<Expr> removeAggFuncFromOutput(List<Expr> reqOutput)
         {
             var reqList = ExprHelper.CloneList(reqOutput, new List<Type> { typeof(LiteralExpr) });
-            var aggs = new List<Expr>();
+            var reqContainAggs = new List<Expr>();
+
+            // first let's find out all elements containing any AggFunc
             reqList.ForEach(x =>
                 x.VisitEach<AggFunc>(y =>
                 {
                     // 1+abs(min(a))+max(b)
-                    aggs.Add(x);
+                    reqContainAggs.Add(x);
                 }));
 
-            // aggs remove functions
-            aggs.ForEach(x =>
+            // now remove AggFunc but add back the dependent exprs
+            reqContainAggs.ForEach(x =>
             {
+                // remove the element from reqList
                 reqList.Remove(x);
-                bool check = false;
+
+                // add back the dependent exprs back
+                bool foundAggFunc = false;
                 x.VisitEach<AggFunc>(y =>
                 {
-                    check = true;
+                    foundAggFunc = true;
                     reqList.AddRange(y.GetNonFuncExprList());
                 });
-                Debug.Assert(check);
+                Debug.Assert(foundAggFunc);
             });
 
             reqList = reqList.Distinct().ToList();
+            reqList.ForEach(x => Debug.Assert(!x.HasAggFunc()));
             return reqList;
         }
 

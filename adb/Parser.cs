@@ -244,6 +244,7 @@ namespace adb
             }
         }
 
+        // map the outside outputName to inside Expr
         public void CreateOutputNameMap()
         {
             List<Expr> inside = query_.selection_;
