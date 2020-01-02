@@ -27,6 +27,8 @@ namespace adb
         internal readonly string text_;
 
         protected SQLStatement(string text) => text_ = text;
+
+        public override string ToString() => text_;
         public virtual BindContext Bind(BindContext parent) => null;
         public virtual LogicNode PhaseOneOptimize() => logicPlan_;
         public virtual LogicNode CreatePlan() => logicPlan_;
@@ -103,9 +105,9 @@ namespace adb
 
         // this section can show up in setops
         internal List<TableRef> from_;
-        internal readonly Expr where_;
+        internal Expr where_;
         internal List<Expr> groupby_;
-        internal readonly Expr having_;
+        internal Expr having_;
         internal List<Expr> selection_;
 
         // this section can only show up in top query
@@ -330,7 +332,7 @@ namespace adb
             // optimize for subqueries 
             //  fromquery needs some special handling to link the new plan
             subQueries_.ForEach(x => {
-                x.optimizeOpt_ = optimizeOpt_;
+                Debug.Assert (x.optimizeOpt_ == optimizeOpt_);
                 x.PhaseOneOptimize();
             });
             foreach (var x in fromQueries_) {

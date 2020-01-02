@@ -516,12 +516,17 @@ namespace adb
 
 		public void AggregateTableRefs ()
 		{
-            children_.ForEach(x=> {
-                Debug.Assert (x.bounded_);
-                tableRefs_.AddRange(x.tableRefs_);
-            });
-            if (tableRefs_.Count > 1)
-                tableRefs_ = tableRefs_.Distinct().ToList();
+            if (children_.Count > 0)
+            {
+                tableRefs_.Clear();
+                children_.ForEach(x =>
+                {
+                    Debug.Assert(x.bounded_);
+                    tableRefs_.AddRange(x.tableRefs_);
+                });
+                if (tableRefs_.Count > 1)
+                    tableRefs_ = tableRefs_.Distinct().ToList();
+            }
 		}
 
         public virtual void Bind(BindContext context)
@@ -531,8 +536,7 @@ namespace adb
                 
                 x.Bind(context);
                 x = x.Simplify();
-                children_[i] = x.SearchReplace<ColExpr>(
-                                    z => z.ExprOfQueryRef());
+                children_[i] = x;
             }
 			AggregateTableRefs ();
 
@@ -554,6 +558,13 @@ namespace adb
                 return this;
             else
                 return SearchReplace<Expr>(IsConstFn, EvalConstFn);
+        }
+
+        public Expr DeQueryRef()
+        {
+            var expr = SearchReplace<ColExpr>(x => x.ExprOfQueryRef());
+            expr.AggregateTableRefs();
+            return expr;
         }
 
         public virtual string PrintString(int depth) => ToString();
@@ -627,9 +638,13 @@ namespace adb
 
         public Expr ExprOfQueryRef()
         {
-            //if (tabRef_ is FromQueryRef tf)
-            //    return tf.MapOutputName(outputName_);
-            return this;
+            Expr expr = this;
+            Debug.Assert(bounded_);
+            if (tabRef_ is FromQueryRef tf)
+            {
+                expr = tf.MapOutputName(outputName_);
+            }
+            return expr;
         }
 
         public override void Bind(BindContext context)

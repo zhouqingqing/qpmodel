@@ -41,6 +41,8 @@ namespace test
 
         public static int CountStringOccurrences(string text, string pattern)
         {
+            Assert.IsNotNull(text);
+
             // Loop through all instances of the string 'text'.
             int count = 0;
             int i = 0;
@@ -419,6 +421,7 @@ namespace test
         [TestMethod]
         public void TestExecSubFrom()
         {
+            #region regular w/o FromQuery removal
             var sql = "select * from a, (select * from b) c";
             var result = ExecuteSQL(sql);
             Assert.AreEqual(9, result.Count);
@@ -485,6 +488,38 @@ namespace test
             result = ExecuteSQL(sql); Assert.AreEqual("16", string.Join(";", result));
             sql = "select *, cd.* from (select a.* from a join b on a1=b1) ab , (select c1 , c3 from c join d on c1=d1) cd where ab.a1=cd.c1";
             result = ExecuteSQL(sql); Assert.AreEqual("0,1,2,3,0,2,0,2;1,2,3,4,1,3,1,3;2,3,4,5,2,4,2,4", string.Join(";", result));
+            #endregion
+
+            // these queries we can remove from
+            OptimizeOption option = new OptimizeOption();
+            option.remove_from = true;
+            sql = "select a1 from(select b1 as a1 from b) c;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TestHelper.CountStringOccurrences(phyplan, "PhysicFromQuery"));
+            sql = "select b1 from (select count(*) as b1 from b) a;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TestHelper.CountStringOccurrences(phyplan, "PhysicFromQuery"));
+            sql = "select c100 from (select c1 c100 from c) c where c100>1";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TestHelper.CountStringOccurrences(phyplan, "PhysicFromQuery"));
+            sql = "select * from (select a1*a2 a12, a1 a2 from a) b(a12);";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TestHelper.CountStringOccurrences(phyplan, "PhysicFromQuery"));
+            sql = "select * from (select a1*a2 a12, a1 a3 from a) b;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TestHelper.CountStringOccurrences(phyplan, "PhysicFromQuery"));
+            sql = "select *, cd.* from (select a.* from a join b on a1=b1) ab , (select c1 , c3 from c join d on c1=d1) cd where ab.a1=cd.c1";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TestHelper.CountStringOccurrences(phyplan, "PhysicFromQuery"));
+            sql = "select * from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where ab.a1=cd.c1";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TestHelper.CountStringOccurrences(phyplan, "PhysicFromQuery"));
+            sql = "select a12*a12 from (select a1*a2 a12, a1 a3 from a) b;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TestHelper.CountStringOccurrences(phyplan, "PhysicFromQuery"));
+            sql = "select a2, count(*), sum(a2) from (select a2 from a) b where a2*a2> 1 group by a2;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TestHelper.CountStringOccurrences(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("2,1,2;3,1,3", string.Join(";", result));
+            sql = "select b1, b2+b2, c100 from (select b1, count(*) as b2 from b group by b1) a, (select c1 c100 from c) c where c100>1;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TestHelper.CountStringOccurrences(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("0,2,2;1,2,2;2,2,2", string.Join(";", result));
+
+            // We can't push too much to aggregation since it assumes key projection
+            // sql = "select b1+b1, b2+b2, c100 from (select b1, count(*) as b2 from b group by b1) a, (select c1 c100 from c) c where c100>1;";
+            // result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TestHelper.CountStringOccurrences(phyplan, "PhysicFromQuery"));
+            // Assert.AreEqual("0,2,2;2,2,2;4,2,2", string.Join(";", result));
 
             // FIXME: if we turn memo on, we have problems resolving columns
         }
@@ -504,76 +539,50 @@ namespace test
 
             // subquery in selection
             sql = "select a1,a1,a3,a3, (select b3 from b where b2=2) from a where a1>1";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual(1, result.Count);
-            Assert.AreEqual("2,2,4,4,3", result[0].ToString());
+            result = ExecuteSQL(sql); Assert.AreEqual("2,2,4,4,3", string.Join(";", result));
             sql = "select a1,a1,a3,a3, (select b3 from b where a1=b1 and b2=3) from a where a1>1";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual(1, result.Count);
-            Assert.AreEqual("2,2,4,4,4", result[0].ToString());
+            result = ExecuteSQL(sql); Assert.AreEqual("2,2,4,4,4", string.Join(";", result));
             sql = "select a1,a1,a3,a3, (select b3 from b where a1=b2 and b2=3) from a where a1>1";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual(1, result.Count);
-            Assert.AreEqual($"2,2,4,4,", result[0].ToString());
+            result = ExecuteSQL(sql); Assert.AreEqual($"2,2,4,4,", string.Join(";", result));
 
             // scalar subquery
             sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = 3)";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual(1, result.Count);
-            Assert.AreEqual("2,4", result[0].ToString());
+            result = ExecuteSQL(sql); Assert.AreEqual("2,4", string.Join(";", result));
             sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = 4)";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual(0, result.Count);
+            result = ExecuteSQL(sql); Assert.AreEqual(0, result.Count);
 
             // correlated scalar subquery
             // test1: simple case
             sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<3);";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual(1, result.Count);
-            Assert.AreEqual("0,2", result[0].ToString());
+            result = ExecuteSQL(sql); Assert.AreEqual("0,2", string.Join(";", result));
             sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4);";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual(2, result.Count);
-            Assert.AreEqual("0,2", result[0].ToString());
-            Assert.AreEqual("1,3", result[1].ToString());
+            result = ExecuteSQL(sql); Assert.AreEqual("0,2;1,3", string.Join(";", result));
             // test2: 2+ variables
             sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b1 = a1 and b3<3);";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual(1, result.Count);
-            Assert.AreEqual("0,2", result[0].ToString());
+            result = ExecuteSQL(sql); Assert.AreEqual("0,2", string.Join(";", result));
             sql = "select a1, a3  from a where a.a1 = (select b1 from b where b4 = a4 and b1 = a1 and b2<5);";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual("0,2;1,3;2,4", string.Join(";", result));
+            result = ExecuteSQL(sql); Assert.AreEqual("0,2;1,3;2,4", string.Join(";", result));
             // test3: deep vars
             sql = "select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3 = a3 and b3>1) and b2<4);";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual("0;1;2", string.Join(";", result));
+            result = ExecuteSQL(sql); Assert.AreEqual("0;1;2", string.Join(";", result));
             // test4: deep/ref 2+ outside vars
             sql = "select a1,a2,a3  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b3<4);";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual(2, result.Count);
-            Assert.AreEqual("0,1,2", result[0].ToString());
-            Assert.AreEqual("1,2,3", result[1].ToString());
+            result = ExecuteSQL(sql); Assert.AreEqual("0,1,2;1,2,3", string.Join(";", result));
             sql = @" select a1+a2+a3  from a where a.a1 = (select b1 from b bo where b4 = a4 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 2) and b3<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 >= (select b2 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b3<4);";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual(1, result.Count);
-            Assert.AreEqual("6", result[0].ToString());
+            result = ExecuteSQL(sql); Assert.AreEqual("6", string.Join(";", result));
             sql = @"select a4  from a where a.a1 = (select b1 from (select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2
                 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b3=a3 and bo.b3 = a3 and b3> 0) and b3<5);";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual("3;4;5", string.Join(";", result));
+            result = ExecuteSQL(sql); Assert.AreEqual("3;4;5", string.Join(";", result));
             sql = @"select a1 from a, b where a1=b1 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = a3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and b3<5);";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual("0;1;2", string.Join(";", result));
+            result = ExecuteSQL(sql); Assert.AreEqual("0;1;2", string.Join(";", result));
             sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual("0;1;2", string.Join(";", result));
+            result = ExecuteSQL(sql); Assert.AreEqual("0;1;2", string.Join(";", result));
 
             // in-list and in-subquery
             sql = "select a2 from a where a1 in (1,2,3);";
@@ -1065,6 +1074,9 @@ namespace test
             sql = "select count(*)+1 from (select b1+c1 from (select b1 from b) a, (select c1,c2 from c) c where c2>1) a;";
             result = ExecuteSQL(sql);
             Assert.AreEqual("7", string.Join(";", result));
+            sql = "select d1, sum(d2) from (select c1/2, sum(c1) from (select b1, count(*) as a1 from b group by b1)c(c1, c2) group by c1/2) d(d1, d2) group by d1;";
+            result = ExecuteSQL(sql);
+            Assert.AreEqual("0,1;1,2", string.Join(";", result));
         }
 
         [TestMethod]

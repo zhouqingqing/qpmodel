@@ -19,6 +19,8 @@ namespace adb
         public bool enable_hashjoin_ = true;
         public bool enable_nljoin_ = true;
 
+        public bool remove_from = false;
+
         // optimizer controls
         public bool use_memo_ = false;
     }
@@ -238,9 +240,9 @@ namespace adb
                         break;
                     case QueryRef sref:
                         var plan = sref.query_.CreatePlan();
-                        //if (sref is FromQueryRef)
-                        //    from = plan;
-                        //else
+                        if (sref is FromQueryRef && optimizeOpt_.remove_from)
+                            from = plan;
+                        else
                         { 
                             from = new LogicFromQuery(sref, plan);
                             subQueries_.Add(sref.query_);
@@ -360,6 +362,9 @@ namespace adb
             parent_ = parent?.stmt_ as SelectStmt;
             bindContext_ = context;
 
+            // optimizer option controls all plan behavior
+            if (parent_ != null)
+                optimizeOpt_ = parent_.optimizeOpt_;
             Debug.Assert(!bounded_);
             var ret = BindWithContext(context);
             bounded_ = true;
@@ -381,8 +386,9 @@ namespace adb
                         if (x.HasAggFunc())
                             hasAgg_ = true;
                         x = x.Simplify();
-                        selection_[i] = x.SearchReplace<ColExpr>(
-                                            z => z.ExprOfQueryRef());
+                        selection_[i] = x;
+                        if (optimizeOpt_.remove_from)
+                            selection_[i] = selection_[i].DeQueryRef();
                     }
                 }
 
@@ -394,8 +400,11 @@ namespace adb
 
                     for (int i = 0; i < list.Count; i++)
                     {
-                        if (list[i] is ColExpr lc)
-                            list[i] = lc.ExprOfQueryRef();
+                        if (optimizeOpt_.remove_from)
+                        {
+                            if (list[i] is ColExpr lc)
+                                list[i] = lc.ExprOfQueryRef();
+                        }
                     }
                     selection_.AddRange(list);
                 });
@@ -416,10 +425,28 @@ namespace adb
             // from binding shall be the first since it may create new alias
             bindFrom(context);
             bindSelectionList(context);
+
             where_?.Bind(context);
+            if (optimizeOpt_.remove_from && where_!= null)
+                where_ = where_.DeQueryRef();
+
             groupby_?.ForEach(x => x.Bind(context));
+            if (optimizeOpt_.remove_from)
+            {
+                for (int i = 0; i < groupby_?.Count; i++)
+                    groupby_[i] = groupby_[i].DeQueryRef();
+            }
+
             having_?.Bind(context);
+            if (optimizeOpt_.remove_from && having_ != null)
+                having_ = having_.DeQueryRef();
+
             orders_?.ForEach(x => x.Bind(context));
+            if (optimizeOpt_.remove_from)
+            {
+                for (int i = 0; i < orders_?.Count; i++)
+                    orders_[i] = orders_[i].DeQueryRef();
+            }
 
             return context;
         }
