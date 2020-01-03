@@ -128,6 +128,9 @@ namespace adb
             sql = "select e1 from (select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1)) d(e1);";
             sql = "select sum(e1+e1) from (select sum(a1) a12 from a) d(e1) group by e1;";
             sql = "select e1+e1 from (select sum(a1) a12 from a) d(e1) group by e1;";
+            sql = "select " +
+                "'|r3: null,null,3|', sum(r1), avg(r1), min(r1), max(r1), count(*), count(r1), " +
+                "'|r3: 2,null,4|', sum(r3), avg(r3), min(r3), max(r3), count(r3) from r;";
 
         doit:
             Console.WriteLine(sql);

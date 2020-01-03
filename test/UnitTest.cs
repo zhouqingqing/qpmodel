@@ -152,15 +152,15 @@ namespace test
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[4]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[5]), out _, option);
-                Assert.AreEqual("77948", string.Join(";", result));
+                Assert.AreEqual("77949.9186", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[6]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[7]), out _, option);
                 Assert.AreEqual("0,0", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[8]), out _, option);
                 Assert.AreEqual(9, result.Count);
-                Assert.AreEqual("ARGENTINA,0,121664;ETHIOPIA,0,160941;IRAN,0,183369;IRAQ,0,179599;KENYA,0,577213;"+
-                    "MOROCCO,0,1687299;PERU,0,564370;UNITED KINGDOM,0,2309469;UNITED STATES,0,274484",
+                Assert.AreEqual("ARGENTINA,0,121664.3574;ETHIOPIA,0,160941.78;IRAN,0,183368.022;IRAQ,0,179598.8939;KENYA,0,577214.8907;MOROCCO,0,1687292.0869;"+
+                    "PERU,0,564372.7491;UNITED KINGDOM,0,2309462.0142;UNITED STATES,0,274483.6167",
                     string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[9]), out _, option);
                 Assert.AreEqual(43, result.Count);
@@ -732,11 +732,11 @@ namespace test
             Assert.AreEqual("7,3;7,4;7,5", string.Join(";", result));
         }
     }
-    
+
     [TestClass]
     public class GeneralTest
     {
-        internal List<Row> ExecuteSQL(string sql)=> TestHelper.ExecuteSQL(sql);
+        internal List<Row> ExecuteSQL(string sql) => TestHelper.ExecuteSQL(sql);
         internal List<Row> ExecuteSQL(string sql, out string physicplan) => TestHelper.ExecuteSQL(sql, out physicplan);
 
         [TestInitialize]
@@ -1097,9 +1097,9 @@ namespace test
         [TestMethod]
         public void TestSort()
         {
-           var sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1 order by a3";
-           var result = ExecuteSQL(sql); Assert.IsNull(result);
-           Assert.IsTrue(TestHelper.error_.Contains("SemanticAnalyzeException"));
+            var sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1 order by a3";
+            var result = ExecuteSQL(sql); Assert.IsNull(result);
+            Assert.IsTrue(TestHelper.error_.Contains("SemanticAnalyzeException"));
 
             sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1 order by 1";
             result = ExecuteSQL(sql, out string phyplan);
@@ -1254,7 +1254,7 @@ namespace test
                                 Output: a.a1[0],#a.a2[1],#a.a3[2]
                             -> PhysicScanTable b as bo  (actual rows = 9)
                                 Output: bo.b1[0],bo.b2[1],#bo.b3[2]";
-                                Assert.AreEqual("0;1", string.Join(";", result));
+            Assert.AreEqual("0;1", string.Join(";", result));
             Assert.AreEqual("0;1", string.Join(";", result));
             TestHelper.PlanAssertEqual(answer, phyplan);
 
@@ -1346,5 +1346,19 @@ namespace test
             Assert.AreEqual("0;1;2", string.Join(";", result));
             TestHelper.PlanAssertEqual(answer, phyplan);
         }
+
+        [TestMethod]
+        public void TestNull()
+        {
+            var phyplan = "";
+            var sql = "select count(*) from r;";
+            var result = ExecuteSQL(sql, out phyplan); Assert.AreEqual("3", string.Join(";", result));
+            sql = "select count(r1) from r;";
+            result = ExecuteSQL(sql, out phyplan); Assert.AreEqual("1", string.Join(";", result));
+            sql = "select " +
+              "'|r3: null,null,3|', sum(r1), avg(r1), min(r1), max(r1), count(*), count(r1), " +
+              "'|r3: 2,null,4|', sum(r3), avg(r3), min(r3), max(r3), count(r3) from r;";
+            result = ExecuteSQL(sql, out phyplan); Assert.AreEqual("|r3: null,null,3|,3,3,3,3,3,1,|r3: 2,null,4|,6,3,2,4,2", string.Join(";", result));
+        }
     }
-}
+    }

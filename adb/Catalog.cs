@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Linq;
 using System.Collections.Generic;
+using System.IO;
 
 using TableColumn = System.Tuple<string, string>;
 
@@ -166,9 +167,18 @@ namespace adb
                 @"create table b (b1 int, b2 int, b3 int, b4 int);",
                 @"create table c (c1 int, c2 int, c3 int, c4 int);",
                 @"create table d (d1 int, d2 int, d3 int, d4 int);",
+                // nullable tables
+                @"create table r (r1 int, r2 int, r3 int, r4 int);",
             };
             var stmt = RawParser.ParseSqlStatements(string.Join("", ddls));
             stmt.Exec();
+
+            // load r
+            string curdir = Directory.GetCurrentDirectory();
+            string folder = $@"{curdir}\..\..\..\data";
+            string filename = $@"'{folder}\r.tbl'";
+            var sql = $"copy r from {filename};";
+            var result = SQLStatement.ExecSQL(sql, out _, out _);
         }
         static Catalog()
         {
