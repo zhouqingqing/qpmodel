@@ -173,8 +173,8 @@ namespace adb
                         {
                             var oldplan = plan;
                             plan = existsToMarkJoin(plan, ef);
-                            //if (oldplan != plan)
-                            //    subqueries_.Remove(ef.query_);
+                            if (oldplan != plan)
+                                decorrelatedSubs_.Add(ef.query_);
                         }
                     }
                     foreach (var ef in ExprHelper.RetrieveAllType<ScalarSubqueryExpr>(filter))
@@ -183,9 +183,8 @@ namespace adb
                         {
                             var oldplan = plan;
                             plan = scalarToMarkJoin(plan, ef);
-                            // FIXME: can't remove subquery for now since a subquery might nested within it not unnested
-                            //if (oldplan != plan)
-                            //    subqueries_.Remove(ef.query_);
+                            if (oldplan != plan)
+                                decorrelatedSubs_.Add(ef.query_);
                         }
                     }
                 }
