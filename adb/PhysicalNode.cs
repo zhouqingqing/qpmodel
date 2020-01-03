@@ -468,9 +468,10 @@ namespace adb
         private Row AggrCoreToRow(ExecContext context, Row input)
         {
             Row r = new Row();
-            (logic_ as LogicAgg).aggrCore_.ForEach(x => r.values_.Add(x.Exec(context, input)));
+            (logic_ as LogicAgg).aggrCore_.ForEach(x => r.values_.Add(null));
             return r;
         }
+
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicAgg;
@@ -484,32 +485,42 @@ namespace adb
 
                 if (hm.TryGetValue(keys, out Row exist))
                 {
-                    aggrcore.ForEach(x =>
+                    for (int i = 0; i < aggrcore.Count; i++)
                     {
-                        var xa = x as AggFunc;
-                        var old = exist.values_[aggrcore.IndexOf(xa)];
-                        xa.Accum(context, old, l);
-                    });
-
-                    hm[keys] = AggrCoreToRow(context, l);
+                        var old = exist.values_[i];
+                        var newval = aggrcore[i].Accum(context, old, l);
+                        exist.values_[i] = newval;
+                    }
                 }
                 else
                 {
-                    aggrcore.ForEach(x =>
-                    {
-                        var xa = x as AggFunc;
-                        xa.Init(context, l);
-                    });
-
                     hm.Add(keys, AggrCoreToRow(context, l));
+                    exist = hm[keys];
+                    for (int i = 0; i<aggrcore.Count; i++)
+                    {
+                        var initval = aggrcore[i].Init(context, l);
+                        exist.values_[i] = initval;
+                    }
                 }
+
                 return null;
             });
 
             // stitch keys+aggcore into final output
             foreach (var v in hm)
             {
-                var w = new Row(new Row(v.Key.keys_), v.Value);
+                var keys = v.Key.keys_;
+                Row row = v.Value;
+                for (int i = 0; i < aggrcore.Count; i++)
+                {
+                    if (aggrcore[i] is AggAvg)
+                    {
+                        var old = row.values_[i];
+                        var newval = (old as AggAvg.AvgPair).Compute();
+                        row.values_[i] = newval;
+                    }
+                }
+                var w = new Row(new Row(keys), row);
                 var newr = ExecProject(context, w);
                 callback(newr);
             }

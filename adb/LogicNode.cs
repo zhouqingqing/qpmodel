@@ -434,7 +434,7 @@ namespace adb
         internal Expr having_;
 
         // runtime info: derived from output request
-        internal List<Expr> aggrCore_ = new List<Expr>();
+        internal List<AggFunc> aggrCore_ = new List<AggFunc>();
         public override string ToString() => $"Agg({child_()})";
 
         public override string PrintMoreDetails(int depth)

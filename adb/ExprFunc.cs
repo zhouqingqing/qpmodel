@@ -189,8 +189,8 @@ namespace adb
             if (argcnt_ == 1)
                 type_ = arg_().type_;
         }
-        public virtual void Init(ExecContext context, Row input) { }
-        public virtual void Accum(ExecContext context, Value old, Row input) { }
+        public abstract Value Init(ExecContext context, Row input);
+        public abstract Value Accum(ExecContext context, Value old, Row input);
     }
 
     public class AggSum : AggFunc
@@ -199,8 +199,12 @@ namespace adb
         internal Value sum_;
         public AggSum(Expr arg) : base("sum", new List<Expr> { arg }) { }
 
-        public override void Init(ExecContext context, Row input) => sum_ = arg_().Exec(context, input);
-        public override void Accum(ExecContext context, Value old, Row input)
+        public override Value Init(ExecContext context, Row input)
+        {
+            sum_ = arg_().Exec(context, input);
+            return sum_;
+        }
+        public override Value Accum(ExecContext context, Value old, Row input)
         {
             var arg = arg_().Exec(context, input);
             Type ltype, rtype; ltype = typeof(int); rtype = typeof(int);
@@ -215,6 +219,8 @@ namespace adb
                     sum_ = lv + rv;
                 }
             }
+
+            return sum_;
         }
         public override Value Exec(ExecContext context, Row input) => sum_;
     }
@@ -231,21 +237,23 @@ namespace adb
             type_ = new IntType();
         }
 
-        public override void Init(ExecContext context, Row input) 
+        public override Value Init(ExecContext context, Row input) 
         {
             count_ = 0;
             Accum(context, null, input);
+            return count_;
         }
 
-        public override void Accum(ExecContext context, Value old, Row input)
+        public override Value Accum(ExecContext context, Value old, Row input)
         {
             var arg = arg_().Exec(context, input);
-            // Debug.Assert(old is null || (long)old == count_); // FIXME
             if (arg != null)
-                count_ += 1;
+                count_  = old is null? 1: (long)old + 1;
+            return count_;
         }
         public override Value Exec(ExecContext context, Row input) => count_;
     }
+
     public class AggCountStar : AggFunc
     {
         // Exec info
@@ -258,8 +266,16 @@ namespace adb
             type_ = new IntType();
         }
 
-        public override void Init(ExecContext context, Row input) => count_ = 1;
-        public override void Accum(ExecContext context, Value old, Row input) => count_ += 1;
+        public override Value Init(ExecContext context, Row input)
+        {
+            count_ = 1;
+            return count_;
+        }
+        public override Value Accum(ExecContext context, Value old, Row input)
+        {
+            count_ = (long)old + 1;
+            return count_;
+        }
         public override Value Exec(ExecContext context, Row input) => count_;
     }
 
@@ -268,8 +284,12 @@ namespace adb
         // Exec info
         Value min_;
         public AggMin(Expr arg) : base("min", new List<Expr> { arg }) { }
-        public override void Init(ExecContext context, Row input) => min_ = args_()[0].Exec(context, input);
-        public override void Accum(ExecContext context, Value old, Row input)
+        public override Value Init(ExecContext context, Row input)
+        {
+            min_ = args_()[0].Exec(context, input);
+            return min_;
+        }
+        public override Value Accum(ExecContext context, Value old, Row input)
         {
             var arg = arg_().Exec(context, input);
 
@@ -284,6 +304,8 @@ namespace adb
                     min_ = lv > rv ? arg : old;
                 }
             }
+
+            return min_;
         }
         public override Value Exec(ExecContext context, Row input) => min_;
     }
@@ -293,8 +315,12 @@ namespace adb
         // Exec info
         Value max_;
         public AggMax(Expr arg) : base("max", new List<Expr> { arg }) { }
-        public override void Init(ExecContext context, Row input) => max_ = arg_().Exec(context, input);
-        public override void Accum(ExecContext context, Value old, Row input)
+        public override Value Init(ExecContext context, Row input)
+        {
+            max_ = arg_().Exec(context, input);
+            return max_;
+        }
+        public override Value Accum(ExecContext context, Value old, Row input)
         {
             var arg = arg_().Exec(context, input);
 
@@ -310,6 +336,8 @@ namespace adb
                     max_ = lv < rv ? arg : old;
                 }
             }
+
+            return max_;
         }
         public override Value Exec(ExecContext context, Row input) => max_;
     }
@@ -317,49 +345,65 @@ namespace adb
     public class AggAvg : AggFunc
     {
         // Exec info
-        Value sum_;
-        long count_;
+        public class AvgPair {
+            internal Value sum_;
+            internal long count_;
+            internal Value Compute()
+            {
+                dynamic lv = sum_;
+                if (count_ == 0)
+                {
+                    Debug.Assert(lv is null);
+                    return null;
+                }
+                Debug.Assert(count_ != 0);
+                return lv is null ? null : lv / count_;
+            }
+
+            public override string ToString() => $"avg({sum_}/{count_})";
+        }
+        AvgPair pair_;
 
         public AggAvg(Expr arg) : base("avg", new List<Expr> { arg }) { }
 
-        public override void Init(ExecContext context, Row input)
+        public override Value Init(ExecContext context, Row input)
         {
-            sum_ = arg_().Exec(context, input);
-            count_ = sum_ is null? 0: 1;
+            pair_ = new AvgPair();
+            pair_.sum_ = arg_().Exec(context, input);
+            pair_.count_ = pair_.sum_ is null? 0: 1;
+            return pair_;
         }
-        public override void Accum(ExecContext context, Value old, Row input)
+        public override Value Accum(ExecContext context, Value old, Row input)
         {
             var arg = arg_().Exec(context, input);
             Type ltype, rtype; ltype = typeof(int); rtype = typeof(int);
-            if (old is null)
+
+            Debug.Assert(old != null);
+            AvgPair oldpair = old as AvgPair;
+            if (oldpair.sum_ is null)
             {
-                sum_ = arg;
-                Debug.Assert(count_ == 0);
+                pair_.sum_ = arg;
+                Debug.Assert(oldpair.count_ == 0);
                 if (arg != null)
-                    count_++;
+                    pair_.count_ = 1;
             }
             else
             {
-                dynamic lv = old;
+                dynamic lv = oldpair.sum_;
                 if (!(arg is null))
                 {
                     dynamic rv = arg;
-                    sum_ = lv + rv;
-                    count_++;
+                    pair_.sum_ = lv + rv;
+                    pair_.count_ = oldpair.count_ + 1;
                 }
             }
+
+            return pair_;
         }
+
         public override Value Exec(ExecContext context, Row input)
         {
-            Type ltype; ltype = typeof(int);
-            dynamic lv = sum_;
-            if (count_ == 0)
-            {
-                Debug.Assert(lv is null);
-                return null;
-            }
-            Debug.Assert(count_!=0);
-            return lv is null? null: lv / count_;
+            return pair_.Compute();
         }
     }
 
