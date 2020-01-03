@@ -546,6 +546,7 @@ namespace adb
                 case "like":
                 case "not like":
                 case "in":
+                case "is":
                     type_ = new BoolType();
                     break;
                 default:
@@ -560,7 +561,7 @@ namespace adb
             dynamic lv = l_().Exec(context, input);
             dynamic rv = r_().Exec(context, input);
 
-            if (lv is null || rv is null)
+            if (op_ != "is" && (lv is null || rv is null))
                 return null;
 
             switch (op_)
@@ -579,6 +580,8 @@ namespace adb
                 case "not like": return !Utils.StringLike(lv, rv);
                 case " and ": return lv && rv;
                 case " or ": // null handling is different - handled by itself
+                case "is":
+                    return lv is null && rv is null;
                 default:
                     throw new NotImplementedException();
             }

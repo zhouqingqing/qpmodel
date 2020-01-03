@@ -322,7 +322,7 @@ namespace adb
         public override int GetHashCode()
         {
             int hashcode = 0;
-            keys_.ForEach(x => hashcode ^= x.GetHashCode());
+            keys_.ForEach(x => hashcode ^= x?.GetHashCode()??0);
             return hashcode;
         }
         public override bool Equals(object obj)

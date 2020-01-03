@@ -777,40 +777,48 @@ namespace adb
             str_ = str;
             type_ = type;
 
-            switch (type)
+            if (str == "")
             {
-                case IntType it:
-                    if (int.TryParse(str, out int value))
-                        val_ = value;
-                    else
-                        throw new SemanticAnalyzeException("wrong integer format");
-                    break;
-                case DoubleType dt:
-                    if (double.TryParse(str, out double valued))
-                        val_ = valued;
-                    else
-                        throw new SemanticAnalyzeException("wrong double precision format");
-                    break;
-                case DateTimeType dtt:
-                    var datestr = Utils.RemoveStringQuotes(str);
-                    if (DateTime.TryParse(datestr, out DateTime valuedt))
-                        val_ = valuedt;
-                    else
-                        throw new SemanticAnalyzeException("wrong datetime format");
-                    break;
-                case CharType ct:
-                case VarCharType vt:
-                    str_ = Utils.RemoveStringQuotes(str_);
-                    val_ = str_;
-                    break;
-                case BoolType bt:
-                    val_ = bool.Parse(str);
-                    break;
-                case AnyType at:
-                    val_ = null;
-                    break;
-                default:
-                    break;
+                val_ = null;
+                type_ = new AnyType();
+            }
+            else
+            {
+                switch (type)
+                {
+                    case IntType it:
+                        if (int.TryParse(str, out int value))
+                            val_ = value;
+                        else
+                            throw new SemanticAnalyzeException("wrong integer format");
+                        break;
+                    case DoubleType dt:
+                        if (double.TryParse(str, out double valued))
+                            val_ = valued;
+                        else
+                            throw new SemanticAnalyzeException("wrong double precision format");
+                        break;
+                    case DateTimeType dtt:
+                        var datestr = Utils.RemoveStringQuotes(str);
+                        if (DateTime.TryParse(datestr, out DateTime valuedt))
+                            val_ = valuedt;
+                        else
+                            throw new SemanticAnalyzeException("wrong datetime format");
+                        break;
+                    case CharType ct:
+                    case VarCharType vt:
+                        str_ = Utils.RemoveStringQuotes(str_);
+                        val_ = str_;
+                        break;
+                    case BoolType bt:
+                        val_ = bool.Parse(str);
+                        break;
+                    case AnyType at:
+                        val_ = null;
+                        break;
+                    default:
+                        break;
+                }
             }
 
             Debug.Assert(type_ != null);
