@@ -440,7 +440,7 @@ namespace adb
         public override string PrintMoreDetails(int depth)
         {
             string r = null;
-            if (aggrCore_ != null)
+            if (aggrCore_.Count > 0)
                 r += $"Agg Core: {string.Join(", ", aggrCore_)}\n";
             if (keys_ != null)
                 r += Utils.Tabs(depth + 2) + $"Group by: {string.Join(", ", keys_)}\n";
@@ -454,10 +454,32 @@ namespace adb
             children_.Add(child); keys_ = groupby; having_ = having;
         }
 
-        // count(*), sum(count(a1)*b1) => 0, a1, b1
-        List<Expr> removeAggFuncFromOutput(List<Expr> reqOutput)
+        // key: b1+b2
+        // x: b1+b2+3 => true, b1+b2 => false
+        bool exprConsistPureKeys(Expr x, List<Expr> keys)
         {
-            var reqList = ExprHelper.CloneList(reqOutput, new List<Type> { typeof(LiteralExpr) });
+            var constTrue = new LiteralExpr("true", new BoolType());
+            if (keys is null)
+                return false;
+            if (keys.Contains(x))
+                return false;
+
+            Expr xchanged = x.Clone();
+            foreach (var v in keys)
+                xchanged = xchanged.SearchReplace(v, constTrue);
+            if (!xchanged.VisitEachExprExists(
+                    e => e.IsLeaf() && !(e is LiteralExpr) && !e.Equals(constTrue)))
+                return true;
+            return false;
+        }
+
+        // say 
+        //  keys: k1+k2,k2+k3 
+        //  reqOutput: (k1+k2)+(k3+k2), count(*), sum(count(a1)*b1) 
+        //  => 0, a1, b1
+        //
+        List<Expr> removeAggFuncAndKeyExprsFromOutput(List<Expr> reqList, List<Expr> keys)
+        {
             var reqContainAggs = new List<Expr>();
 
             // first let's find out all elements containing any AggFunc
@@ -468,6 +490,24 @@ namespace adb
                     reqContainAggs.Add(x);
                 }));
 
+            // we also remove expressions only with key computations - this non-trivial
+            // consider this:
+            //    keys: a1+a2, a2+a3
+            //    expr: (a1+a2+a2)+a3, sum(a+a2+(a3+a2)), 
+            //  with some arrangement, we can map expr to keys
+            //
+            if (keys?.Count > 0)
+            {
+                var constTrue = new LiteralExpr("true", new BoolType());
+                reqList.ForEach(x =>
+                {
+                    if (reqContainAggs.Contains(x))
+                        return;
+                    if (exprConsistPureKeys(x, keys))
+                        reqContainAggs.Add(x);
+                });
+            }
+
             // now remove AggFunc but add back the dependent exprs
             reqContainAggs.ForEach(x =>
             {
@@ -475,13 +515,14 @@ namespace adb
                 reqList.Remove(x);
 
                 // add back the dependent exprs back
-                bool foundAggFunc = false;
                 x.VisitEach<AggFunc>(y =>
                 {
-                    foundAggFunc = true;
-                    reqList.AddRange(y.GetNonFuncExprList());
+                    foreach (var z in y.GetNonFuncExprList())
+                    {
+                        if (!exprConsistPureKeys(y, keys))
+                            reqList.Add(z);
+                    }
                 });
-                Debug.Assert(foundAggFunc);
             });
 
             reqList = reqList.Distinct().ToList();
@@ -493,12 +534,18 @@ namespace adb
         {
             List<int> ordinals = new List<int>();
 
-            // request from child including reqOutput and filter
+            // reqOutput may contain ExprRef which is generated during FromQuery removal process, remove them
+            var reqList = ExprHelper.CloneList(reqOutput, new List<Type> { typeof(LiteralExpr)});
+
+            // request from child including reqOutput and filter. Don't use whole expression
+            // matching push down like k+k => (k+k)[0] instead, we need k[0]+k[0] because 
+            // aggregation only projection values from hash table(key, value).
+            //
             List<Expr> reqFromChild = new List<Expr>();
-            reqFromChild.AddRange(removeAggFuncFromOutput(reqOutput));
+            reqFromChild.AddRange(removeAggFuncAndKeyExprsFromOutput(reqList, keys_));
             if (keys_ != null) reqFromChild.AddRange(ExprHelper.RetrieveAllColExpr(keys_));
-            children_[0].ResolveColumnOrdinal(reqFromChild);
-            var childout = children_[0].output_;
+            child_().ResolveColumnOrdinal(reqFromChild);
+            var childout = child_().output_;
 
             if (keys_ != null) keys_ = CloneFixColumnOrdinal(keys_, childout);
             output_ = CloneFixColumnOrdinal(reqOutput, childout);
@@ -532,8 +579,8 @@ namespace adb
             });
             Debug.Assert(aggrCore_.Count == aggrCore_.Distinct().Count());
 
-            // Say invvalid expression means contains colexpr, then the output shall contains
-            // no expression consists invalid expression
+            // Say invvalid expression means contains colexpr (replaced with ref), then the output shall
+            // contains no expression consists invalid expression
             //
             Expr offending = null;
             newoutput.ForEach(x =>
