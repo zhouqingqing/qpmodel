@@ -1359,6 +1359,14 @@ namespace test
               "'|r3: null,null,3|', sum(r1), avg(r1), min(r1), max(r1), count(*), count(r1), " +
               "'|r3: 2,null,4|', sum(r3), avg(r3), min(r3), max(r3), count(r3) from r;";
             result = ExecuteSQL(sql, out phyplan); Assert.AreEqual("|r3: null,null,3|,3,3,3,3,3,1,|r3: 2,null,4|,6,3,2,4,2", string.Join(";", result));
+            sql = "select a1, a2, r1 from r join a on a1=r1 or a2=r1;";
+            result = ExecuteSQL(sql, out phyplan); Assert.AreEqual("2,3,3", string.Join(";", result));
+            sql = "select a1, a2, r1 from r join a on a2=r1;";
+            result = ExecuteSQL(sql, out phyplan); Assert.AreEqual("2,3,3", string.Join(";", result));
+            sql = "select null=null, null<>null, null>null, null<null, null>=null, null<=null, " +
+                "null+null, null-null, null*null, null/null, " +
+                "null+8, null-8, null*8, null/8, null/8 is null;";
+            result = ExecuteSQL(sql, out phyplan); Assert.AreEqual(",,,,,,,,,,,,,,True", string.Join(";", result));
         }
     }
     }
