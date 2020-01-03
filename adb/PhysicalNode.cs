@@ -219,21 +219,28 @@ namespace adb
                 int i = 0;
                 Array.ForEach(fields, f =>
                 {
-                    switch (columns[i].type_)
-                    {
-                        case IntType i:
-                            r.values_.Add(int.Parse(f));
-                            break;
-                        case DateTimeType d:
-                            r.values_.Add(DateTime.Parse(f));
-                            break;
-                        case DoubleType b:
-                            r.values_.Add(Double.Parse(f));
-                            break;
-                        default:
-                            r.values_.Add(f);
-                            break;
+                    if (f == "") {
+                        r.values_.Add(null);
                     }
+                    else
+                    {
+                        switch (columns[i].type_)
+                        {
+                            case IntType i:
+                                r.values_.Add(int.Parse(f));
+                                break;
+                            case DateTimeType d:
+                                r.values_.Add(DateTime.Parse(f));
+                                break;
+                            case DoubleType b:
+                                r.values_.Add(Double.Parse(f));
+                                break;
+                            default:
+                                r.values_.Add(f);
+                                break;
+                        }
+                    }
+
                     i++;
                 });
                 Debug.Assert(r.ColCount() == columns.Count);
