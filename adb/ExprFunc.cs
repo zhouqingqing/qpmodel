@@ -173,7 +173,13 @@ namespace adb
 
     public abstract class AggFunc : FuncExpr
     {
-        public AggFunc(string func, List<Expr> args) : base(func, args) { argcnt_ = 1;}
+        public AggFunc(string func, List<Expr> args) : base(func, args) { 
+            argcnt_ = 1;
+            foreach (var v in args) {
+                if (v.VisitEachExprExists(e => e is AggFunc))
+                    throw new Exception("aggregate functions cannot be nested");
+            }
+        }
 
         public override void Bind(BindContext context)
         {

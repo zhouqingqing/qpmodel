@@ -403,7 +403,7 @@ namespace adb
                         if (optimizeOpt_.remove_from)
                         {
                             if (list[i] is ColExpr lc)
-                                list[i] = lc.ExprOfQueryRef();
+                                list[i] = lc.DeQueryRef();
                         }
                     }
                     selection_.AddRange(list);

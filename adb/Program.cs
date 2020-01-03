@@ -123,8 +123,11 @@ namespace adb
             //sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
             //sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=b.a1+1) or a2>2) b group by a2/2;";
             //sql = "select b1+b1, b2+b2, c100 from (select b1, count(*) as b2 from b group by b1) a, (select c1 c100 from c) c where c100>1;";
-            sql = "select b2+c100 from (select count(*) as b2 from b) a, (select c1 c100 from c) c where c100>1;";
-            sql = "select b1, b2+b2, c100 from (select b1, count(*) as b2 from b group by b1) a, (select c1 c100 from c) c where c100>1;";
+            sql = "select sum(e1) from (select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1)) d(e1);";
+            sql = "select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1);";
+            sql = "select e1 from (select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1)) d(e1);";
+            sql = "select sum(e1+e1) from (select sum(a1) a12 from a) d(e1) group by e1;";
+            sql = "select e1+e1 from (select sum(a1) a12 from a) d(e1) group by e1;";
 
         doit:
             Console.WriteLine(sql);
@@ -177,8 +180,6 @@ namespace adb
             final.Exec(new ExecContext(), null);
             final.Close();
             Console.WriteLine(phyplan.PrintString(0));
-
-         //   Console.ReadKey();
         }
     }
 }

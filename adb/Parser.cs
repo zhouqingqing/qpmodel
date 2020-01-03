@@ -261,7 +261,11 @@ namespace adb
             {
                 // no-output-named column can't be referenced outside anyway
                 if (outside[i].outputName_ != null)
+                {
                     outputNameMap_[outside[i].outputName_] = inside[i];
+                    if (inside[i] is AggFunc)
+                        outputNameMap_[outside[i].outputName_] = new ExprRef(inside[i], i);
+                }
             }
         }
 

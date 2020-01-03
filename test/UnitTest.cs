@@ -515,11 +515,12 @@ namespace test
             sql = "select b1, b2+b2, c100 from (select b1, count(*) as b2 from b group by b1) a, (select c1 c100 from c) c where c100>1;";
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TestHelper.CountStringOccurrences(phyplan, "PhysicFromQuery"));
             Assert.AreEqual("0,2,2;1,2,2;2,2,2", string.Join(";", result));
-
-            // We can't push too much to aggregation since it assumes key projection
-            // sql = "select b1+b1, b2+b2, c100 from (select b1, count(*) as b2 from b group by b1) a, (select c1 c100 from c) c where c100>1;";
-            // result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TestHelper.CountStringOccurrences(phyplan, "PhysicFromQuery"));
-            // Assert.AreEqual("0,2,2;2,2,2;4,2,2", string.Join(";", result));
+            sql = "select b1+b1, b2+b2, c100 from (select b1, count(*) as b2 from b group by b1) a, (select c1 c100 from c) c where c100>1;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TestHelper.CountStringOccurrences(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("0,2,2;2,2,2;4,2,2", string.Join(";", result));
+            sql = "select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1);";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TestHelper.CountStringOccurrences(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("8", string.Join(";", result));
 
             // FIXME: if we turn memo on, we have problems resolving columns
         }
@@ -1044,6 +1045,9 @@ namespace test
             var sql = "select a1, sum(a1) from a group by a2";
             var result = ExecuteSQL(sql); Assert.IsNull(result);
             Assert.IsTrue(TestHelper.error_.Contains("SemanticAnalyzeException"));
+            sql = "select max(sum(a)+1) from a;";
+            result = ExecuteSQL(sql); Assert.IsNull(result);
+            Assert.IsTrue(TestHelper.error_.Contains("nested"));
 
             sql = "select 7, (4-a3)/2*2+1+sum(a1), sum(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";
             result = ExecuteSQL(sql, out string phyplan);
@@ -1075,8 +1079,19 @@ namespace test
             result = ExecuteSQL(sql);
             Assert.AreEqual("7", string.Join(";", result));
             sql = "select d1, sum(d2) from (select c1/2, sum(c1) from (select b1, count(*) as a1 from b group by b1)c(c1, c2) group by c1/2) d(d1, d2) group by d1;";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual("0,1;1,2", string.Join(";", result));
+            result = ExecuteSQL(sql); Assert.AreEqual("0,1;1,2", string.Join(";", result));
+            sql = "select b1+b1 from b group by b1;";
+            result = ExecuteSQL(sql); Assert.AreEqual("0;2;4", string.Join(";", result));
+            sql = "select sum(b1+b1) from b group by b1;";
+            result = ExecuteSQL(sql); Assert.AreEqual("0;2;4", string.Join(";", result));
+            sql = "select 2+b1+b1+b2 from b group by b1,b2;";
+            result = ExecuteSQL(sql); Assert.AreEqual("3;6;9", string.Join(";", result));
+            sql = "select sum(2+b1+b1+b2) from b group by b1,b2;";
+            result = ExecuteSQL(sql); Assert.AreEqual("3;6;9", string.Join(";", result));
+            sql = "select max(b1) from (select sum(a1) from a)b(b1);";
+            result = ExecuteSQL(sql); Assert.AreEqual("3", string.Join(";", result));
+            sql = "select sum(e1+e1*3) from (select sum(a1) a12 from a) d(e1);";
+            result = ExecuteSQL(sql); Assert.AreEqual("12", string.Join(";", result));
         }
 
         [TestMethod]
