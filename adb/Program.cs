@@ -24,16 +24,16 @@ namespace adb
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             sql = "select a1,a1,a3,a3 from a where a2> (select b1 from (select * from b) d,c where b1=c1 and b1=a1 and b2=3);"; // lost a2>@1
-            //Tpch.LoadTables("0001");
-            //Tpch.AnalyzeTables();
+            Tpch.LoadTables("0001");
+            Tpch.AnalyzeTables();
 
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[5];
+                var v = files[21];
                 {
                     sql = File.ReadAllText(v);
-                   // goto doit;
+                    goto doit;
                 }
             }
             //sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
@@ -128,16 +128,14 @@ namespace adb
             sql = "select e1 from (select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1)) d(e1);";
             sql = "select sum(e1+e1) from (select sum(a1) a12 from a) d(e1) group by e1;";
             sql = "select e1+e1 from (select sum(a1) a12 from a) d(e1) group by e1;";
-            sql = "select " +
-                "'|r3: null,null,3|', sum(r1), avg(r1), min(r1), max(r1), count(*), count(r1), " +
-                "'|r3: 2,null,4|', sum(r3), avg(r3), min(r3), max(r3), count(r3) from r;";
 
         doit:
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
             a.profileOpt_.enabled_ = true;
             a.optimizeOpt_.enable_subquery_to_markjoin_ = true;
-            a.optimizeOpt_.remove_from = true;
+            a.optimizeOpt_.remove_from = false;
+            a.optimizeOpt_.use_memo_ = false;
 
             // -- Semantic analysis:
             //  - bind the query
@@ -149,7 +147,6 @@ namespace adb
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.PrintString(0));
 
-            a.optimizeOpt_.use_memo_ = false;
             ExplainOption.costoff_ = !a.optimizeOpt_.use_memo_;
             PhysicNode phyplan = null;
             if (a.optimizeOpt_.use_memo_)

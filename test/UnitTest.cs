@@ -148,7 +148,7 @@ namespace test
                 Assert.AreEqual(8, result.Count);
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[3]), out _, option);
                 Assert.AreEqual(5, result.Count);
-                Assert.AreEqual("1-URGENT,33;2-HIGH,27;3-MEDIUM,36;4-NOT SPECIFIED,37;5-LOW,38", string.Join(";", result));
+                Assert.AreEqual("1-URGENT,9;2-HIGH,7;3-MEDIUM,9;4-NOT SPECIFIED,7;5-LOW,12", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[4]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[5]), out _, option);
@@ -169,7 +169,7 @@ namespace test
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[11]), out _, option);
                 Assert.AreEqual("MAIL,5,5;SHIP,5,10", string.Join(";", result));
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[12]), out _, option);
-                Assert.AreEqual(100, result.Count);
+                Assert.AreEqual(26, result.Count);
                 result = TestHelper.ExecuteSQL(File.ReadAllText(files[13]), out _, option);
                 Assert.AreEqual(1, result.Count);
                 Assert.AreEqual(true, result[0].ToString().Contains("15.23"));
