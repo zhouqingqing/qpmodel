@@ -420,6 +420,8 @@ namespace adb
             //  - from binding shall be the first since it may create new alias
             //
             groupby_ = replaceOutputNameToExpr(groupby_);
+            if (groupby_?.Any(x => x.HasAggFunc())??false)
+                throw new SemanticAnalyzeException("aggregation functions are not allowed in group by clause");
             orders_ = replaceOutputNameToExpr(orders_);
 
             // from binding shall be the first since it may create new alias

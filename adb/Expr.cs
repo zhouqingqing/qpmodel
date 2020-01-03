@@ -378,7 +378,6 @@ namespace adb
         }
         public void VisitEachExpr(Action<Expr> callback) => VisitEach<Expr>(callback);
 
-        // TODO: this is kinda redundant, since this check does not save us any time
         public bool HasSubQuery() => VisitEachExprExists(e => e is SubqueryExpr);
         public bool HasAggFunc() => VisitEachExprExists(e => e is AggFunc);
         public bool IsConst()
@@ -514,7 +513,7 @@ namespace adb
                 children_.SequenceEqual(n.children_);
         }
 
-		public void AggregateTableRefs ()
+		public List<TableRef> ResetAggregateTableRefs ()
 		{
             if (children_.Count > 0)
             {
@@ -522,11 +521,13 @@ namespace adb
                 children_.ForEach(x =>
                 {
                     Debug.Assert(x.bounded_);
-                    tableRefs_.AddRange(x.tableRefs_);
+                    tableRefs_.AddRange(x.ResetAggregateTableRefs());
                 });
                 if (tableRefs_.Count > 1)
                     tableRefs_ = tableRefs_.Distinct().ToList();
             }
+
+            return tableRefs_;
 		}
 
         public virtual void Bind(BindContext context)
@@ -538,7 +539,7 @@ namespace adb
                 x = x.Simplify();
                 children_[i] = x;
             }
-			AggregateTableRefs ();
+			ResetAggregateTableRefs ();
 
             markBounded();
         }
@@ -563,7 +564,7 @@ namespace adb
         public Expr DeQueryRef()
         {
             var expr = SearchReplace<ColExpr>(x => x.ExprOfQueryRef());
-            expr.AggregateTableRefs();
+            expr.ResetAggregateTableRefs();
             return expr;
         }
 

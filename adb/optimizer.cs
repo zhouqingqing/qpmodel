@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
 
-using LogicSignature = System.Int32;
+using LogicSignature = System.Int64;
 
 // TODO:
 //  - branch and bound prouning
@@ -446,7 +446,7 @@ namespace adb
             var subqueries = select.Subqueries();
             foreach (var v in subqueries)
             {
-                enqueueit = !select.SubqueryIsFromQuery(v);
+                enqueueit = !select.SubqueryIsWithMainQuery(v);
                 Optimizer.OptimizeRootPlan(v, required, enqueueit);
             }
 
@@ -494,7 +494,7 @@ namespace adb
                 phyplan = CopyOutOnePlan(stmt, memoset_[copyoutCounter_++]);
             var subqueries = select.Subqueries();
             foreach (var v in subqueries)
-                CopyOutOptimalPlan(v, !select.SubqueryIsFromQuery(v));
+                CopyOutOptimalPlan(v, !select.SubqueryIsWithMainQuery(v));
             return phyplan;
         }
 

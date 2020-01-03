@@ -187,11 +187,14 @@ namespace adb
         }
 
         // fix each expression by using source's ordinal and make a copy
-        internal List<Expr> CloneFixColumnOrdinal(List<Expr> toclone, List<Expr> source)
+        internal List<Expr> CloneFixColumnOrdinal(List<Expr> toclone, List<Expr> source, bool removeRedundant)
         {
             var clone = new List<Expr>();
             toclone.ForEach(x => clone.Add(CloneFixColumnOrdinal(x, source)));
             Debug.Assert(clone.Count == toclone.Count);
+
+            if (removeRedundant)
+                return clone.Distinct().ToList();
             return clone;
         }
 
@@ -380,9 +383,7 @@ namespace adb
             var childrenout = lout.ToList(); childrenout.AddRange(rout.ToList());
             if (filter_ != null)
                 filter_ = CloneFixColumnOrdinal(filter_, childrenout);
-            output_ = CloneFixColumnOrdinal(reqOutput, childrenout);
-            if (removeRedundant)
-                output_ = output_.Distinct().ToList();
+            output_ = CloneFixColumnOrdinal(reqOutput, childrenout, removeRedundant);
             return ordinals;
         }
     }
@@ -420,10 +421,7 @@ namespace adb
             var childout = children_[0].output_;
 
             filter_ = CloneFixColumnOrdinal(filter_, childout);
-            output_ = CloneFixColumnOrdinal(reqOutput, childout);
-            if (removeRedundant)
-                output_ = output_.Distinct().ToList();
-
+            output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
             return ordinals;
         }
     }
@@ -434,14 +432,14 @@ namespace adb
         internal Expr having_;
 
         // runtime info: derived from output request
-        internal List<AggFunc> aggrCore_ = new List<AggFunc>();
+        internal List<AggFunc> aggrFns_ = new List<AggFunc>();
         public override string ToString() => $"Agg({child_()})";
 
         public override string PrintMoreDetails(int depth)
         {
             string r = null;
-            if (aggrCore_.Count > 0)
-                r += $"Agg Core: {string.Join(", ", aggrCore_)}\n";
+            if (aggrFns_.Count > 0)
+                r += $"Agg Fns: {string.Join(", ", aggrFns_)}\n";
             if (keys_ != null)
                 r += Utils.Tabs(depth + 2) + $"Group by: {string.Join(", ", keys_)}\n";
             if (having_ != null)
@@ -543,14 +541,21 @@ namespace adb
             //
             List<Expr> reqFromChild = new List<Expr>();
             reqFromChild.AddRange(removeAggFuncAndKeyExprsFromOutput(reqList, keys_));
-            if (keys_ != null) reqFromChild.AddRange(ExprHelper.RetrieveAllColExpr(keys_));
+
+            // It is ideal to add keys_ directly to reqFromChild but matching can be harder.
+            // Consider the following case:
+            //   keys: a1+a2, a3+a4
+            //   reqOutput: a1+a3+a2+a4
+            // Let's fix this later
+            //
+            if (keys_ != null)
+                reqFromChild.AddRange(ExprHelper.RetrieveAllColExpr(keys_));
             child_().ResolveColumnOrdinal(reqFromChild);
             var childout = child_().output_;
 
-            if (keys_ != null) keys_ = CloneFixColumnOrdinal(keys_, childout);
-            output_ = CloneFixColumnOrdinal(reqOutput, childout);
-            if (removeRedundant)
-                output_ = output_.Distinct().ToList();
+            if (keys_ != null) 
+                keys_ = CloneFixColumnOrdinal(keys_, childout, true);
+            output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
 
             // Bound aggrs to output, so when we computed aggrs, we automatically get output
             // Here is an example:
@@ -558,7 +563,7 @@ namespace adb
             //                       |           \       /          |   
             //                       |            \     /           |   
             //  keys_:               a1            \   /            |
-            //  aggrCore_:                        sum(a1),      sum(a2+a3)
+            //  aggrFns_:                        sum(a1),      sum(a2+a3)
             // =>
             //  output_: <literal>, cos(ref[0]*7)+ref[1],  ref[1]+ref[2]*2
             //
@@ -570,14 +575,14 @@ namespace adb
                 x.VisitEach<AggFunc>(y =>
                 {
                     // remove the duplicates immediatley to avoid wrong ordinal in ExprRef
-                    if (!aggrCore_.Contains(y))
-                        aggrCore_.Add(y);
-                    x = x.SearchReplace(y, new ExprRef(y, nkeys + aggrCore_.IndexOf(y)));
+                    if (!aggrFns_.Contains(y))
+                        aggrFns_.Add(y);
+                    x = x.SearchReplace(y, new ExprRef(y, nkeys + aggrFns_.IndexOf(y)));
                 });
 
                 newoutput.Add(x);
             });
-            Debug.Assert(aggrCore_.Count == aggrCore_.Distinct().Count());
+            Debug.Assert(aggrFns_.Count == aggrFns_.Distinct().Count());
 
             // Say invvalid expression means contains colexpr (replaced with ref), then the output shall
             // contains no expression consists invalid expression
@@ -624,10 +629,8 @@ namespace adb
             children_[0].ResolveColumnOrdinal(reqFromChild);
             var childout = children_[0].output_;
 
-            orders_ = CloneFixColumnOrdinal(orders_, childout);
-            output_ = CloneFixColumnOrdinal(reqOutput, childout);
-            if (removeRedundant)
-                output_ = output_.Distinct().ToList();
+            orders_ = CloneFixColumnOrdinal(orders_, childout, false);
+            output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
             return ordinals;
         }
     }
@@ -647,7 +650,7 @@ namespace adb
             query.logicPlan_.ResolveColumnOrdinal(query.selection_);
 
             var childout = queryRef_.AllColumnsRefs();
-            output_ = CloneFixColumnOrdinal(reqOutput, childout);
+            output_ = CloneFixColumnOrdinal(reqOutput, childout, false);
 
             // finally, consider outerref to this table: if it is not there, add it. We can't
             // simply remove redundant because we have to respect removeRedundant flag
@@ -714,7 +717,7 @@ namespace adb
 
             if (filter_ != null)
                 filter_ = CloneFixColumnOrdinal(filter_, columns);
-            output_ = CloneFixColumnOrdinal(reqOutput, columns);
+            output_ = CloneFixColumnOrdinal(reqOutput, columns, false);
 
             // Finally, consider outerrefs to this table: if they are not there, add them
             output_ = tabref_.AddOuterRefsToOutput(output_);

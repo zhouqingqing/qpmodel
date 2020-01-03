@@ -468,14 +468,14 @@ namespace adb
         private Row AggrCoreToRow(ExecContext context, Row input)
         {
             Row r = new Row();
-            (logic_ as LogicAgg).aggrCore_.ForEach(x => r.values_.Add(null));
+            (logic_ as LogicAgg).aggrFns_.ForEach(x => r.values_.Add(null));
             return r;
         }
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicAgg;
-            var aggrcore = logic.aggrCore_;
+            var aggrcore = logic.aggrFns_;
             var hm = new Dictionary<KeyList, Row>();
 
             // aggregation is working on aggCore targets

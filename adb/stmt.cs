@@ -124,6 +124,7 @@ namespace adb
         internal SelectStmt parent_;
         // subqueries at my level (children level excluded)
         internal List<SelectStmt> subQueries_ = new List<SelectStmt>();
+        internal List<SelectStmt> decorrelatedSubs_ = new List<SelectStmt>();
         internal Dictionary<SelectStmt, LogicFromQuery> fromQueries_ = new Dictionary<SelectStmt, LogicFromQuery>();
         internal bool isCorrelated = false;
         internal bool hasAgg_ = false;
@@ -292,9 +293,11 @@ namespace adb
             return plan;
         }
 
-        public bool SubqueryIsFromQuery(SelectStmt subquery)
+        public bool SubqueryIsWithMainQuery(SelectStmt subquery)
         {
-            return (fromQueries_.TryGetValue(subquery, out _));
+            // FromQuery or decorrelated subqueries are merged with main plan
+            return (fromQueries_.TryGetValue(subquery, out _) ||
+                decorrelatedSubs_.Contains(subquery));
         }
 
         public List<SelectStmt> Subqueries(bool excludeFromQuery = false)
@@ -303,7 +306,7 @@ namespace adb
             if (excludeFromQuery)
             {
                 foreach (var x in subQueries_)
-                    if (!SubqueryIsFromQuery(x))
+                    if (!SubqueryIsWithMainQuery(x))
                         ret.Add(x);
             }
             else

@@ -178,7 +178,7 @@ namespace adb
         public AggFunc(string func, List<Expr> args) : base(func, args) { 
             argcnt_ = 1;
             foreach (var v in args) {
-                if (v.VisitEachExprExists(e => e is AggFunc))
+                if (v.HasAggFunc())
                     throw new Exception("aggregate functions cannot be nested");
             }
         }
@@ -611,7 +611,7 @@ namespace adb
         public static LogicAndExpr MakeExpr(Expr l, Expr r)
         {
             var and = new LogicAndExpr(l, r);
-            and.AggregateTableRefs();
+            and.ResetAggregateTableRefs();
             and.bounded_ = true;
             return and;
         }
