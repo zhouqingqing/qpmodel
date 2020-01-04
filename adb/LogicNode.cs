@@ -732,7 +732,7 @@ namespace adb
         public LogicScanTable(BaseTableRef tab) : base(tab) { }
         public override long EstCardinality()
         {
-            return Math.Max(PhysicScanTable.n_fake_rows_, Catalog.sysstat_.NumberOfRows(tabref_.relname_));
+            return Math.Max(3, Catalog.sysstat_.NumberOfRows(tabref_.relname_));
         }
     }
 

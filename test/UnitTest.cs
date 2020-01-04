@@ -639,11 +639,11 @@ namespace test
             var sql = "insert into a values(1+2*3, 'something' ,'2019-09-01', 50.2, 50);";
             var stmt = RawParser.ParseSingleSqlStatement(sql) as InsertStmt;
             Assert.AreEqual(5, stmt.vals_.Count);
-            sql = "insert into a values(1+2,2*3,3,4);";
+            sql = "insert into test values(1+2,2*3,3,4);";
             var result = TU.ExecuteSQL(sql);
-            sql = "insert into a select * from a where a1>1;";
+            sql = "insert into test select * from a where a1>1;";
             result = TU.ExecuteSQL(sql);
-            sql = "insert into a select * from b where b1>1;";
+            sql = "insert into test select * from b where b1>1;";
             result = TU.ExecuteSQL(sql);
         }
 
@@ -651,10 +651,10 @@ namespace test
         public void TestCopy()
         {
             string filename = @"'..\..\..\data\test.tbl'";
-            var sql = $"copy a from {filename};";
+            var sql = $"copy test from {filename};";
             var stmt = RawParser.ParseSingleSqlStatement(sql) as CopyStmt;
             Assert.AreEqual(filename, stmt.fileName_);
-            sql = $"copy a from {filename} where a1 >1;";
+            sql = $"copy test from {filename} where a1 >1;";
             var result = TU.ExecuteSQL(sql);
         }
     }
