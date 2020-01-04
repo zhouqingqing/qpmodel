@@ -158,6 +158,10 @@ namespace adb
             // we have to use each ColExpr and fix its ordinal
             clone.VisitEach<ColExpr>(target =>
             {
+                // ignore system column
+                if (target is SysColExpr)
+                    return;
+
                 Predicate<Expr> nameTest;
                 nameTest = z => target.Equals(z) || 
                             target.colName_.Equals(z.outputName_);
@@ -390,7 +394,7 @@ namespace adb
 
     public class LogicFilter : LogicNode
     {
-        public override string ToString() => $"{children_[0]} filter: {filter_}";
+        public override string ToString() => $"{child_()} filter: {filter_}";
 
         public override int GetHashCode()
         {
@@ -417,8 +421,8 @@ namespace adb
             List<Expr> reqFromChild = new List<Expr>();
             reqFromChild.AddRange(ExprHelper.CloneList(reqOutput));
             reqFromChild.AddRange(ExprHelper.RetrieveAllColExpr(filter_));
-            children_[0].ResolveColumnOrdinal(reqFromChild);
-            var childout = children_[0].output_;
+            child_().ResolveColumnOrdinal(reqFromChild);
+            var childout = child_().output_;
 
             filter_ = CloneFixColumnOrdinal(filter_, childout);
             output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
@@ -626,8 +630,8 @@ namespace adb
             List<Expr> reqFromChild = new List<Expr>();
             reqFromChild.AddRange(ExprHelper.CloneList(reqOutput));
             reqFromChild.AddRange(orders_);
-            children_[0].ResolveColumnOrdinal(reqFromChild);
-            var childout = children_[0].output_;
+            child_().ResolveColumnOrdinal(reqFromChild);
+            var childout = child_().output_;
 
             orders_ = CloneFixColumnOrdinal(orders_, childout, false);
             output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);

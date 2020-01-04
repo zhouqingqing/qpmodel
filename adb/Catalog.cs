@@ -64,7 +64,12 @@ namespace adb
 
     public class AnyType : ColumnType {
         public AnyType() : base(typeof(object), 8) { }
-        public override string ToString() => "anytype";
+        public override string ToString() => $"anytype";
+    }
+
+    public class RowType : ColumnType {
+        public RowType() : base(typeof(Row), 8) { }
+        public override string ToString() => $"row";
     }
 
     public class ColumnDef

@@ -347,9 +347,15 @@ namespace adb
             return FuncExpr.BuildFuncExpr(context.function_name().GetText(), args);
         }
         public override object VisitColExpr([NotNull] SQLiteParser.ColExprContext context)
-            => new ColExpr(context.database_name()?.GetText(),
-                context.table_name()?.GetText(),
-                context.column_name()?.GetText(), null);
+        {
+            var dbname = context.database_name()?.GetText();
+            var tabname = context.table_name()?.GetText();
+            var colname = context.column_name()?.GetText();
+            if (SysColExpr.SysCols_.Contains(colname))
+                return new SysColExpr(dbname, tabname, colname, null);
+            else
+                return new ColExpr(dbname, tabname, colname, null);
+        }
         public override object VisitArithcompexpr([NotNull] SQLiteParser.ArithcompexprContext context)
             => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
         public override object VisitLogicAndExpr([NotNull] SQLiteParser.LogicAndExprContext context)
