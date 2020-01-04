@@ -292,7 +292,7 @@ namespace adb
         //
         internal string outputName_;
 
-        // subclass shall only use children_[] to contain the expressions used
+        // subclass shall only use children_ to contain Expr, otherwise, Bind() etc won't work
         internal List<Expr> children_ = new List<Expr>();
 
         // we require some columns for query processing but user may not want 
@@ -704,7 +704,7 @@ namespace adb
                     return co.tabName_.Equals(tabName_) && co.colName_.Equals(colName_);
             }
             else if (obj is ExprRef oe)
-                return Equals(oe.children_[0]);
+                return Equals(oe.expr_());
             return false;
         }
         public override string ToString()
@@ -728,6 +728,33 @@ namespace adb
                 return context.GetParam(tabRef_, ordinal_);
             else
                 return input[ordinal_];
+        }
+    }
+
+    public class SysColExpr : ColExpr {
+
+        public static List<string> SysCols_ = new List<string>() { "sysrid_" };
+        public SysColExpr(string dbName, string tabName, string colName, ColumnType type):base(dbName, tabName, colName, type)
+        {
+            Debug.Assert(SysCols_.Contains(colName));
+        }
+
+        public override void Bind(BindContext context)
+        {
+            Debug.Assert(context.AllTableRefs().Count == 1);
+            var tabref = context.AllTableRefs()[0];
+            tabName_ = tabref.alias_;
+            tabRef_ = tabref;
+            tableRefs_.Add(tabref);
+
+            type_ = new RowType();
+            ordinal_ = -10;
+            markBounded();
+        }
+
+        public override Value Exec(ExecContext context, Row input)
+        {
+            return input;
         }
     }
 
@@ -896,7 +923,7 @@ namespace adb
     //
     public class ExprRef : Expr
     {
-        // children_[0] can't be an ExprRef again
+        // child_() can't be an ExprRef again
         internal Expr expr_() => child_();
         internal int ordinal_;
 

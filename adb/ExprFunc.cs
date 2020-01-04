@@ -504,7 +504,7 @@ namespace adb
         public override bool Equals(object obj)
         {
             if (obj is ExprRef oe)
-                return this.Equals(oe.children_[0]);
+                return this.Equals(oe.expr_());
             else if (obj is BinExpr bo)
             {
                 return exprEquals(l_(), bo.l_()) && exprEquals(r_(), bo.r_()) && op_.Equals(bo.op_);
@@ -516,8 +516,6 @@ namespace adb
             children_.Add(l);
             children_.Add(r);
             op_ = op;
-            Debug.Assert(l_() == l);
-            Debug.Assert(r_() == r);
             Debug.Assert(Clone().Equals(this));
         }
 

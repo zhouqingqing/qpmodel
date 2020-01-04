@@ -90,6 +90,7 @@
     <Compile Include="ExprFunc.cs" />
     <Compile Include="ExprSubquery.cs" />
     <Compile Include="Index.cs" />
+    <Compile Include="PhysicalExec.cs" />
     <Compile Include="Plan.cs" />
     <Compile Include="RulesImpl.cs" />
     <Compile Include="LogicNode.cs" />

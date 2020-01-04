@@ -20,7 +20,7 @@ namespace adb
             targetref_ = target;
             unique_ = unique;
             select_ = RawParser.ParseSingleSqlStatement
-                ($"select  {string.Join(",", columns)} from {target.relname_}") as SelectStmt;
+                ($"select sysrid_, {string.Join(",", columns)} from {target.relname_}") as SelectStmt;
         }
         public override BindContext Bind(BindContext parent)
         {
@@ -79,7 +79,12 @@ namespace adb
         {
             child_().Exec(context, r =>
             {
-                index_.Insert(r, null);
+                var tablerow = r[0];
+                Debug.Assert(tablerow != null && tablerow is Row);
+                var key = new KeyList(r.ColCount() -1);
+                for (int i = 1; i < r.ColCount(); i++)
+                    key[i - 1] = r[i];
+                index_.Insert(key, tablerow as Row);
                 return null;
             });
         }
