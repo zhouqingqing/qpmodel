@@ -152,7 +152,6 @@ namespace adb
 
     public class PhysicScanTable : PhysicNode
     {
-        public static readonly long n_fake_rows_ = 3;
         public PhysicScanTable(LogicNode logic) : base(logic) { }
         public override string ToString() => $"PScan({(logic_ as LogicScanTable).tabref_}: {Cost()})";
 
@@ -161,30 +160,15 @@ namespace adb
             var logic = logic_ as LogicScanTable;
             var filter = logic.filter_;
             var tabname = logic.tabref_.relname_.ToLower();
-            string[] faketable = { "a", "b", "c", "d"};
-            bool isFaketable = faketable.Contains(tabname);
             var heap = (logic.tabref_).Table().heap_.GetEnumerator();
 
-            var looprows = n_fake_rows_;
-            if (!isFaketable)
-                looprows = long.MaxValue;
-            for (var i = 0; i < looprows; i++)
+            Row r = null;
+            for (; ; )
             {
-                Row r = new Row();
-                if (isFaketable)
-                {
-                    r.values_.Add(i);
-                    r.values_.Add(i + 1);
-                    r.values_.Add(i + 2);
-                    r.values_.Add(i + 3);
-                }
+                if (heap.MoveNext())
+                    r = heap.Current;
                 else
-                {
-                    if (heap.MoveNext())
-                        r = heap.Current;
-                    else
-                        break;
-                }
+                    break;
 
                 if (logic.tabref_.outerrefs_.Count != 0)
                     context.AddParam(logic.tabref_, r);

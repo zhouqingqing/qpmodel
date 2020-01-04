@@ -163,6 +163,8 @@ namespace adb
         static void createBuildInTestTables()
         {
             string[] ddls = {
+                @"create table test (a1 int, a2 int, a3 int, a4 int);"
+                ,
                 @"create table a (a1 int, a2 int, a3 int, a4 int);",
                 @"create table b (b1 int, b2 int, b3 int, b4 int);",
                 @"create table c (c1 int, c2 int, c3 int, c4 int);",
@@ -176,9 +178,12 @@ namespace adb
             // load r
             string curdir = Directory.GetCurrentDirectory();
             string folder = $@"{curdir}\..\..\..\data";
-            string filename = $@"'{folder}\r.tbl'";
-            var sql = $"copy r from {filename};";
-            var result = SQLStatement.ExecSQL(sql, out _, out _);
+            foreach (var v in new List<char>(){ 'a', 'b', 'c', 'd', 'r' })
+            {
+                string filename = $@"'{folder}\{v}.tbl'";
+                var sql = $"copy {v} from {filename};";
+                var result = SQLStatement.ExecSQL(sql, out _, out _);
+            }
         }
         static Catalog()
         {

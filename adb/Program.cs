@@ -128,6 +128,7 @@ namespace adb
             sql = "select ca2 from (select sum(a1) as ca2 from a group by a2) b;";
             sql = "select ca2 from (select count(a2) as ca2 from a group by a1) b ;";
             sql = "select ca2 from (select count(a2) as ca2 from a group by a1) b group by ca2;";
+            sql = "select * from a;";
 
         doit:
             Console.WriteLine(sql);
