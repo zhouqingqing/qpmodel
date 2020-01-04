@@ -36,7 +36,11 @@ namespace adb
                 switch (n)
                 {
                     case LogicScanTable ln:
-                        phy = new PhysicScanTable(ln);
+                        // if there are indexes can help filter, use them
+                        if (FilterHelper.FilterCanUseIndex(ln.tabref_, ln.filter_))
+                           phy = new PhysicSeekIndex(ln);
+                        else
+                            phy = new PhysicScanTable(ln);
                         if (ln.filter_ != null)
                             ExprHelper.SubqueryDirectToPhysic(ln.filter_);
                         break;
@@ -66,7 +70,7 @@ namespace adb
 
                                 // if left side has outerrefs, we needs NLJ to drive the parameter
                                 // pass to right side, so we can't use HJ in this case.
-                                if (lc.FilterHashable() && !lhasouter)
+                                if (FilterHelper.FilterHashable(lc.filter_) && !lhasouter)
                                     phy = new PhysicHashJoin(lc,
                                         l.DirectToPhysical(profiling),
                                         r.DirectToPhysical(profiling));
@@ -299,37 +303,6 @@ namespace adb
                 return base.Equals(lo) && (filter_?.Equals(lo.filter_) ?? true);
             }
             return false;
-        }
-
-        // forms to consider:
-        //   a.i = b.j
-        //   a.i = b.j and b.l = a.k
-        //   (a.i, a.k) = (b.j, b.l)
-        //   a.i + b.i = c.i-2*d.i if left side contained a,b and right side c,d
-        // but not:
-        //   a.i = c.i-2*d.i-b.i if left side contained a,b and right side c,d (we can add later)
-        //
-        bool OneFilterHashable(Expr filter)
-        {
-            if (filter is BinExpr bf && bf.op_.Equals("="))
-            {
-                var ltabrefs = bf.l_().tableRefs_;
-                var rtabrefs = bf.r_().tableRefs_;
-                // TODO: a.i+b.i=0 => a.i=-b.i
-                return ltabrefs.Count > 0 && rtabrefs.Count > 0;
-            }
-            return false;
-        }
-        public bool FilterHashable()
-        {
-            Expr filter = filter_;
-            var andlist = FilterHelper.FilterToAndList(filter);
-            foreach (var v in andlist)
-            {
-                if (!OneFilterHashable(v))
-                    return false;
-            }
-            return andlist.Count >= 1;
         }
 
         public bool AddFilter(Expr filter)

@@ -275,6 +275,53 @@ namespace adb
                 return false;
             });
         }
+
+        // suppport forms
+        //   a.i =|>|< 5
+        public static bool FilterCanUseIndex(BaseTableRef table, Expr filter)
+        {
+            if (filter is null)
+                return false;
+
+            if (table.Table().indexes_.Count == 0)
+                return false;
+
+            if (filter is BinExpr fb && fb.op_ == "=" && fb.l_() is ColExpr && fb.r_() is LiteralExpr)
+                return true;
+
+            return false;
+        }
+
+        // forms to consider:
+        //   a.i = b.j
+        //   a.i = b.j and b.l = a.k
+        //   (a.i, a.k) = (b.j, b.l)
+        //   a.i + b.i = c.i-2*d.i if left side contained a,b and right side c,d
+        // but not:
+        //   a.i = c.i-2*d.i-b.i if left side contained a,b and right side c,d (we can add later)
+        //
+        public static bool FilterHashable(Expr filter)
+        {
+            bool OneFilterHashable(Expr filter)
+            {
+                if (filter is BinExpr bf && bf.op_.Equals("="))
+                {
+                    var ltabrefs = bf.l_().tableRefs_;
+                    var rtabrefs = bf.r_().tableRefs_;
+                    // TODO: a.i+b.i=0 => a.i=-b.i
+                    return ltabrefs.Count > 0 && rtabrefs.Count > 0;
+                }
+                return false;
+            }
+
+            var andlist = FilterHelper.FilterToAndList(filter);
+            foreach (var v in andlist)
+            {
+                if (!OneFilterHashable(v))
+                    return false;
+            }
+            return andlist.Count >= 1;
+        }
     }
 
     public class Expr

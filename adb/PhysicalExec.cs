@@ -10,7 +10,7 @@ namespace adb
 {
     public class SemanticExecutionException : Exception
     {
-        public SemanticExecutionException(string msg) => Console.WriteLine(msg);
+        public SemanticExecutionException(string msg) => Console.WriteLine($"ERROR[execution]: {msg}");
     }
 
     public class Row : IComparable

@@ -1095,6 +1095,19 @@ namespace test
         }
 
         [TestMethod]
+        public void TestIndex()
+        {
+            string phyplan;
+            OptimizeOption option =new OptimizeOption();
+            option.use_memo_ = false;
+
+            var sql = "select * from d where d1=2;";
+            var result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "SeekIndex"));
+            Assert.AreEqual("2,2,,5", string.Join(";", result));
+        }
+
+        [TestMethod]
         public void TestPushdown()
         {
             OptimizeOption option = new OptimizeOption();
