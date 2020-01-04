@@ -727,7 +727,7 @@ namespace adb
             if (isOuterRef_)
                 return context.GetParam(tabRef_, ordinal_);
             else
-                return input.values_[ordinal_];
+                return input[ordinal_];
         }
     }
 
@@ -925,7 +925,7 @@ namespace adb
         public override Value Exec(ExecContext context, Row input)
         {
             Debug.Assert(type_ != null);
-            return input.values_[ordinal_];
+            return input[ordinal_];
         }
     }
 }

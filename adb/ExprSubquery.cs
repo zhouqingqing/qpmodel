@@ -113,7 +113,7 @@ namespace adb
                 return null;
             });
 
-            return r?.values_[0] ?? null;
+            return (r != null)? r[0] : null;
         }
     }
 
@@ -142,7 +142,7 @@ namespace adb
             query_.physicPlan_.Exec(context, l =>
             {
                 // it may have hidden columns but that's after [0]
-                set.Add(l.values_[0]);
+                set.Add(l[0]);
                 return null;
             });
 
