@@ -108,8 +108,11 @@ namespace test
         [TestMethod]
         public void TestCreateIndex()
         {
-            var sql = "create index aa1 on a(a1);";
+            var sql = "create index an1 on a(a1);";
             var stmt = RawParser.ParseSqlStatements(sql);
+            stmt.Exec(true);
+            sql = "create unique index au1 on a(a1);";
+            stmt = RawParser.ParseSqlStatements(sql);
             stmt.Exec(true);
         }
 
@@ -766,7 +769,7 @@ namespace test
             sql = @"select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2;";
             result = ExecuteSQL(sql);
             Assert.AreEqual(9, result.Count);
-            Assert.AreEqual(3, result[0].values_.Count);
+            Assert.AreEqual(3, result[0].ColCount());
             Assert.AreEqual("0,1,2", result[0].ToString());
             Assert.AreEqual("1,1,2", result[1].ToString());
             Assert.AreEqual("2,1,2", result[2].ToString());
@@ -839,7 +842,7 @@ namespace test
             string sql = "select 2+6*3+2*6";
             var result = ExecuteSQL(sql);
             Assert.AreEqual(1, result.Count);
-            Assert.AreEqual(32, result[0].values_[0]);
+            Assert.AreEqual(32, result[0][0]);
             sql = "select substring('abc', 1, 2);";
             result = ExecuteSQL(sql);
             Assert.AreEqual("ab", string.Join(";", result));
@@ -851,17 +854,17 @@ namespace test
             string sql = "select b.a1 + a2 from (select a1,a2 from a, c) b";
             var result = ExecuteSQL(sql);
             Assert.AreEqual(9, result.Count);
-            int i; Assert.AreEqual(1, result[0].values_.Count);
-            for (i = 0; i < 3; i++) Assert.AreEqual(1, result[i].values_[0]);
-            for (; i < 6; i++) Assert.AreEqual(3, result[i].values_[0]);
-            for (; i < 9; i++) Assert.AreEqual(5, result[i].values_[0]);
+            int i; Assert.AreEqual(1, result[0].ColCount());
+            for (i = 0; i < 3; i++) Assert.AreEqual(1, result[i][0]);
+            for (; i < 6; i++) Assert.AreEqual(3, result[i][0]);
+            for (; i < 9; i++) Assert.AreEqual(5, result[i][0]);
             sql = "select b.a1 + a2 from (select a1,a3,a2 from a, c) b";
             result = ExecuteSQL(sql);
             Assert.AreEqual(9, result.Count);
-            Assert.AreEqual(1, result[0].values_.Count);
-            for (i = 0; i < 3; i++) Assert.AreEqual(1, result[i].values_[0]);
-            for (; i < 6; i++) Assert.AreEqual(3, result[i].values_[0]);
-            for (; i < 9; i++) Assert.AreEqual(5, result[i].values_[0]);
+            Assert.AreEqual(1, result[0].ColCount());
+            for (i = 0; i < 3; i++) Assert.AreEqual(1, result[i][0]);
+            for (; i < 6; i++) Assert.AreEqual(3, result[i][0]);
+            for (; i < 9; i++) Assert.AreEqual(5, result[i][0]);
             sql = "select b.a1 + a2 from (select a1,a2,a4,a2,a1 from a, c) b";
             result = ExecuteSQL(sql);
             result = ExecuteSQL(sql); Assert.IsNull(result);

@@ -52,7 +52,7 @@ namespace adb
             // A full row is presented here, since we generate per column 
             // stats and full row needed for correlation analysis
             for (int i = 0; i < stats.Count; i++) {
-                stats[i].Increment(r.values_[i]);
+                stats[i].Increment(r[i]);
             }
         }
 

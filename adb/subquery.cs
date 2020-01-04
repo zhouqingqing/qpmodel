@@ -240,7 +240,7 @@ namespace adb
         public override string ToString() => $"PMarkJOIN({l_()},{r_()}: {Cost()})";
 
         // always the first column
-        void fixMarkerValue(Row r, Value value) => r.values_[0] = value;
+        void fixMarkerValue(Row r, Value value) => r[0] = value;
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
@@ -300,7 +300,7 @@ namespace adb
         public override string ToString() => $"PSingleMarkJOIN({l_()},{r_()}: {Cost()})";
 
         // always the first column
-        void fixMarkerValue(Row r, Value value) => r.values_[0] = value;
+        void fixMarkerValue(Row r, Value value) => r[0] = value;
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {

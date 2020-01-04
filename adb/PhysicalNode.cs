@@ -13,33 +13,53 @@ namespace adb
 
     public class Row: IComparable
     {
-        public readonly List<Value> values_ = new List<Value>();
-
-        public Row() { }
-        public Row(List<Value> values) => values_ = values;
+        Value[] values_ = null;
+   
+        public Row(List<Value> values) => values_ = values.ToArray();
 
         // used by outer joins
-        public Row(int nNulls) {
-            Debug.Assert(nNulls > 0);
-            for (int i = 0; i < nNulls; i++)
-                values_.Add(null);
+        public Row(int length) {
+            Debug.Assert(length >= 0);
+            values_ = (Value[])Array.CreateInstance(typeof(Value), length);
+            Array.ForEach(values_, x => Debug.Assert(x is null));
         }
+
         public Row(Row l, Row r)
         {
             // for semi/anti-semi joins, one of them may be null
             Debug.Assert(l!=null || r!=null);
+            int size = l?.ColCount()??0;
+            size += r?.ColCount() ?? 0;
+            values_ = (Value[])Array.CreateInstance(typeof(Value), size);
+
+            int start = 0;
             if (l != null)
-                values_.AddRange(l.values_);
+            {
+                for (int i = 0; i < l.ColCount(); i++)
+                    values_[start + i] = l[i];
+                start += l.ColCount();
+            }
             if (r != null)
-                values_.AddRange(r.values_);
+            {
+                for (int i = 0; i < r.ColCount(); i++)
+                    values_[start + i] = r[i];
+                start += r.ColCount();
+            }
+            Debug.Assert(start == size);
+        }
+
+        public Value this[int i]
+        {
+            get { return values_[i]; }
+            set { values_[i] = value; }
         }
 
         public int CompareTo(object obj) {
             Debug.Assert(!(obj is null));
             var rrow = obj as Row;
             for (int i = 0; i < ColCount(); i++) {
-                dynamic l = values_[i];
-                dynamic r = rrow.values_[i];
+                dynamic l = this[i];
+                dynamic r = rrow[i];
                 var c = l.CompareTo(r);
                 if (c < 0)
                     return -1;
@@ -50,9 +70,8 @@ namespace adb
             }
             return 0;
         }
-        public int ColCount() => values_.Count;
-
-        public override string ToString() => string.Join(",", values_);
+        public int ColCount() => values_.Length;
+        public override string ToString() => string.Join(",", values_.ToList());
     }
 
     public class Parameter
@@ -72,7 +91,7 @@ namespace adb
         public Value GetParam(TableRef tabref, int ordinal)
         {
             Debug.Assert(params_.FindAll(x => x.tabref_.Equals(tabref)).Count == 1);
-            return params_.Find(x => x.tabref_.Equals(tabref)).row_.values_[ordinal];
+            return params_.Find(x => x.tabref_.Equals(tabref)).row_[ordinal];
         }
         public void AddParam(TableRef tabref, Row row)
         {
@@ -109,8 +128,10 @@ namespace adb
 
         internal Row ExecProject(ExecContext context, Row input)
         {
-            Row r = new Row();
-            logic_.output_.ForEach(x => r.values_.Add(x.Exec(context, input)));
+            var output = logic_.output_;
+            Row r = new Row(output.Count);
+            for (int i = 0; i < output.Count; i++)
+                r[i] = output[i].Exec(context, input);
 
             return r;
         }
@@ -159,7 +180,6 @@ namespace adb
         {
             var logic = logic_ as LogicScanTable;
             var filter = logic.filter_;
-            var tabname = logic.tabref_.relname_.ToLower();
             var heap = (logic.tabref_).Table().heap_.GetEnumerator();
 
             Row r = null;
@@ -198,29 +218,29 @@ namespace adb
             var columns = logic.tabref_.baseref_.Table().ColumnsInOrder();
             Utils.ReadCsvLine(filename, fields =>
             {
-                Row r = new Row();
+                Row r = new Row(fields.Length);
 
                 int i = 0;
                 Array.ForEach(fields, f =>
                 {
                     if (f == "") {
-                        r.values_.Add(null);
+                        r[i] = null;
                     }
                     else
                     {
                         switch (columns[i].type_)
                         {
-                            case IntType i:
-                                r.values_.Add(int.Parse(f));
+                            case IntType it:
+                                r[i] = int.Parse(f);
                                 break;
-                            case DateTimeType d:
-                                r.values_.Add(DateTime.Parse(f));
+                            case DateTimeType dt:
+                                r[i] = DateTime.Parse(f);
                                 break;
-                            case DoubleType b:
-                                r.values_.Add(Double.Parse(f));
+                            case DoubleType bt:
+                                r[i] = Double.Parse(f);
                                 break;
                             default:
-                                r.values_.Add(f);
+                                r[i] = f;
                                 break;
                         }
                     }
@@ -451,8 +471,8 @@ namespace adb
 
         private Row AggrCoreToRow(ExecContext context, Row input)
         {
-            Row r = new Row();
-            (logic_ as LogicAgg).aggrFns_.ForEach(x => r.values_.Add(null));
+            var aggfns = (logic_ as LogicAgg).aggrFns_;
+            Row r = new Row(aggfns.Count);
             return r;
         }
 
@@ -471,9 +491,9 @@ namespace adb
                 {
                     for (int i = 0; i < aggrcore.Count; i++)
                     {
-                        var old = exist.values_[i];
+                        var old = exist[i];
                         var newval = aggrcore[i].Accum(context, old, l);
-                        exist.values_[i] = newval;
+                        exist[i] = newval;
                     }
                 }
                 else
@@ -483,7 +503,7 @@ namespace adb
                     for (int i = 0; i<aggrcore.Count; i++)
                     {
                         var initval = aggrcore[i].Init(context, l);
-                        exist.values_[i] = initval;
+                        exist[i] = initval;
                     }
                 }
 
@@ -499,9 +519,9 @@ namespace adb
                 {
                     if (aggrcore[i] is AggAvg)
                     {
-                        var old = row.values_[i];
+                        var old = row[i];
                         var newval = (old as AggAvg.AvgPair).Compute();
-                        row.values_[i] = newval;
+                        row[i] = newval;
                     }
                 }
                 var w = new Row(new Row(keys), row);
@@ -655,17 +675,19 @@ namespace adb
         public PhysicCollect(PhysicNode child): base(null) => children_.Add(child);
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
+            var child = (children_[0] is PhysicProfiling) ?
+                    children_[0].children_[0] : children_[0];
+            var output = child.logic_.output_;
+            var ncolumns = output.Count(x => x.isVisible_);
+
             context.Reset();
             child_().Exec(context, r =>
             {
-                Row newr = new Row();
-                var child = (children_[0] is PhysicProfiling) ?
-                        children_[0].children_[0] : children_[0];
-                List<Expr> output = child.logic_.output_;
+                Row newr = new Row(ncolumns);
                 for (int i = 0; i < output.Count; i++)
                 {
                     if (output[i].isVisible_)
-                        newr.values_.Add(r.values_[i]);
+                        newr[i] = r[i];
                 }
                 rows_.Add(newr);
                 Console.WriteLine($"{newr}");
