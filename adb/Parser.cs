@@ -10,7 +10,7 @@ namespace adb
     // antlr requires user defined exception with this name
     public class RuntimeException : Exception
     {
-        public RuntimeException(string msg) => Console.WriteLine($"ERROR[RunTime]: {msg }");
+        public RuntimeException(string msg) => Console.WriteLine($"ERROR[Antlr]: {msg }");
     }
 
     public class SemanticAnalyzeException : Exception

@@ -8,70 +8,6 @@ using TableColumn = System.Tuple<string, string>;
 
 namespace adb
 {
-    public class ColumnType
-    {
-        public Type type_;
-        public int len_;
-        public ColumnType(Type type, int len) { type_ = type; len_ = len; }
-
-        public bool Compatible(ColumnType type)
-        {
-            return true;
-        }
-    }
-
-    public class BoolType : ColumnType
-    {
-        public BoolType() : base(typeof(bool), 1) { }
-        public override string ToString() => $"bool";
-    }
-    public class IntType : ColumnType
-    {
-        public IntType() : base(typeof(int), 4) { }
-        public override string ToString() => $"int";
-    }
-    public class DoubleType : ColumnType
-    {
-        public DoubleType() : base(typeof(double), 8) { }
-        public override string ToString() => $"double";
-    }
-    public class DateTimeType : ColumnType
-    {
-        public DateTimeType() : base(typeof(DateTime), 8) { }
-        public override string ToString() => $"datetime";
-    }
-    public class TimeSpanType : ColumnType
-    {
-        public TimeSpanType() : base(typeof(TimeSpan), 8) {}
-        public override string ToString() => $"interval";
-    }
-    public class CharType : ColumnType
-    {
-        public CharType(int len) : base(typeof(string), len) { }
-        public override string ToString() => $"char({len_})";
-    }
-    public class VarCharType : ColumnType
-    {
-        public VarCharType(int len) : base(typeof(string), len) { }
-        public override string ToString() => $"varchar({len_})";
-    }
-    public class NumericType : ColumnType
-    {
-        public int scale_;
-        public NumericType(int prec, int scale) : base(typeof(decimal), prec) => scale_ = scale;
-        public override string ToString() => $"numeric({len_}, {scale_})";
-    }
-
-    public class AnyType : ColumnType {
-        public AnyType() : base(typeof(object), 8) { }
-        public override string ToString() => $"anytype";
-    }
-
-    public class RowType : ColumnType {
-        public RowType() : base(typeof(Row), 8) { }
-        public override string ToString() => $"row";
-    }
-
     public class ColumnDef
     {
         readonly public string name_;
@@ -88,6 +24,7 @@ namespace adb
     {
         public string name_;
         public Dictionary<string, ColumnDef> columns_;
+        public List<IndexDef> indexes_ = new List<IndexDef>();
 
         // storage
         public List<Row> heap_ = new List<Row>();
@@ -159,6 +96,7 @@ namespace adb
         }
     }
 
+
     static class Catalog
     {
         // list of system tables
@@ -167,7 +105,8 @@ namespace adb
 
         static void createBuildInTestTables()
         {
-            string[] ddls = {
+            // create tables
+            string[] createtables = {
                 @"create table test (a1 int, a2 int, a3 int, a4 int);"
                 ,
                 @"create table a (a1 int, a2 int, a3 int, a4 int);",
@@ -177,10 +116,10 @@ namespace adb
                 // nullable tables
                 @"create table r (r1 int, r2 int, r3 int, r4 int);",
             };
-            var stmt = RawParser.ParseSqlStatements(string.Join("", ddls));
+            var stmt = RawParser.ParseSqlStatements(string.Join("", createtables));
             stmt.Exec();
 
-            // load r
+            // load tables
             string curdir = Directory.GetCurrentDirectory();
             string folder = $@"{curdir}\..\..\..\data";
             foreach (var v in new List<char>(){ 'a', 'b', 'c', 'd', 'r' })
@@ -189,6 +128,14 @@ namespace adb
                 var sql = $"copy {v} from {filename};";
                 var result = SQLStatement.ExecSQL(sql, out _, out _);
             }
+
+            // create index
+            string[] createindexes = {
+                @"create unique index dd1 on d(d1);",
+                @"create index dd2 on d(d2);",
+            };
+            stmt = RawParser.ParseSqlStatements(string.Join("", createindexes));
+            stmt.Exec();
         }
         static Catalog()
         {

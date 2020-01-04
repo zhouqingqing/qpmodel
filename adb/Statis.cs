@@ -14,13 +14,27 @@ namespace adb
     class ColumnStat
     {
         public long n_rows_;
+        public double nullfrac_;
         public long n_distinct_;
         public Historgram hists_;
 
         public ColumnStat() { }
 
-        public void Increment(Value value) {
-            n_rows_++;
+        public void ComputeStats(int index, List<Row> samples) {
+            int nNulls = 0;
+            List<Value> values = new List<Value>();
+            foreach (var r in samples) {
+                Value val = r[index];
+                if (val is null)
+                    nNulls++;
+
+                values.Add(val);
+            }
+
+            // now finalize the stats
+            n_rows_ = samples.Count;
+            Debug.Assert(nNulls<= samples.Count);
+            nullfrac_ = nNulls / samples.Count;
         }
     }
 
@@ -48,11 +62,11 @@ namespace adb
             return stats;
         }
 
-        public void Increment(Row r, List<ColumnStat> stats) {
+        public void ComputeStats(List<Row> samples, List<ColumnStat> stats) {
             // A full row is presented here, since we generate per column 
             // stats and full row needed for correlation analysis
             for (int i = 0; i < stats.Count; i++) {
-                stats[i].Increment(r[i]);
+                stats[i].ComputeStats(i, samples);
             }
         }
 
@@ -82,13 +96,16 @@ namespace adb
 
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
+            List<Row> samples = new List<Row>();
             child_().Exec(context, r =>
             {
-                // TODO: we may consider using a SQL statement to do this
-                //  select count(*), count(distint a1), count(distinct a2), build_historgram(a1), ...
-                Catalog.sysstat_.Increment(r, stats_);
+                samples.Add(r);
                 return null;
             });
+
+            // TODO: we may consider using a SQL statement to do this
+            //  select count(*), count(distint a1), count(distinct a2), build_historgram(a1), ...
+            Catalog.sysstat_.ComputeStats(samples, stats_);
         }
     }
 }

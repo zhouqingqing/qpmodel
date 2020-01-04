@@ -129,8 +129,7 @@ namespace adb
             sql = "select ca2 from (select count(a2) as ca2 from a group by a1) b ;";
             sql = "select ca2 from (select count(a2) as ca2 from a group by a1) b group by ca2;";
             sql = "select * from a;";
-            sql = "create unique index aa1 on a(a1);";
-
+            sql = "select * from d where d1=2;";
 
         doit:
             Console.WriteLine(sql);
@@ -138,7 +137,7 @@ namespace adb
             a.profileOpt_.enabled_ = true;
             a.optimizeOpt_.enable_subquery_to_markjoin_ = true;
             a.optimizeOpt_.remove_from = true;
-            a.optimizeOpt_.use_memo_ = true;
+            a.optimizeOpt_.use_memo_ = false;
 
             // -- Semantic analysis:
             //  - bind the query

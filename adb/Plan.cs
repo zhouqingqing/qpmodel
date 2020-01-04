@@ -18,6 +18,7 @@ namespace adb
         public bool enable_subquery_to_markjoin_ = true;
         public bool enable_hashjoin_ = true;
         public bool enable_nljoin_ = true;
+        public bool enable_index = true;
 
         public bool remove_from = false;
 

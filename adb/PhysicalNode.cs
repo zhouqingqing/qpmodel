@@ -112,6 +112,41 @@ namespace adb
         }
     }
 
+    public class PhysicSeekIndex : PhysicNode
+    {
+        public PhysicSeekIndex(LogicNode logic) : base(logic) { }
+        public override string ToString() => $"ISeek({(logic_ as LogicScanTable).tabref_}: {Cost()})";
+
+        public override void Exec(ExecContext context, Func<Row, string> callback)
+        {
+            var logic = logic_ as LogicScanTable;
+            var filter = logic.filter_;
+            var index = (logic.tabref_).Table().indexes_[0].index_;
+
+            bool ok = (filter as BinExpr).r_().TryEvalConst(out Value searchval);
+            Debug.Assert(ok);
+            KeyList key = new KeyList(1);
+            key[0] = searchval;
+            var r = index.SearchUnique(key);
+            if (r != null)
+            {
+                if (logic.tabref_.outerrefs_.Count != 0)
+                    context.AddParam(logic.tabref_, r);
+                if (filter is null || filter.Exec(context, r) is true)
+                {
+                    r = ExecProject(context, r);
+                    callback(r);
+                }
+            }
+        }
+
+        public override double Cost()
+        {
+            var logic = (logic_) as LogicScanTable;
+            return logic.EstCardinality() * 1;
+        }
+    }
+
     public class PhysicScanFile : PhysicNode
     {
         public PhysicScanFile(LogicNode logic) : base(logic) { }

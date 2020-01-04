@@ -86,6 +86,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Catalog.cs" />
+    <Compile Include="DataType.cs" />
     <Compile Include="Expr.cs" />
     <Compile Include="ExprFunc.cs" />
     <Compile Include="ExprSubquery.cs" />

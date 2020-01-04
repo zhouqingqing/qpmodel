@@ -10,18 +10,22 @@ namespace adb
 {
     public class CreateIndexStmt : SQLStatement
     {
-        public readonly string indexname_;
-        public readonly bool unique_;
+        public IndexDef def_;
         public readonly BaseTableRef targetref_;
         public readonly SelectStmt select_;
+
         public CreateIndexStmt(string indexname, 
             BaseTableRef target, bool unique, List<string> columns, Expr where, string text) : base(text)
         {
             targetref_ = target;
-            unique_ = unique;
+            def_ = new IndexDef();
+            def_.name_ = indexname;
+            def_.unique_ = unique;
+            def_.columns_ = columns;
             select_ = RawParser.ParseSingleSqlStatement
                 ($"select sysrid_, {string.Join(",", columns)} from {target.relname_}") as SelectStmt;
         }
+
         public override BindContext Bind(BindContext parent)
         {
             return select_.Bind(parent);
@@ -33,26 +37,36 @@ namespace adb
             // disable memo optimization for it
             optimizeOpt_.use_memo_ = false;
 
-            logicPlan_ = new LogicIndex(select_.CreatePlan(), unique_);
+            logicPlan_ = new LogicIndex(select_.CreatePlan(), def_);
             return logicPlan_;
         }
 
         public override LogicNode PhaseOneOptimize()
         {
             var scan = select_.PhaseOneOptimize();
-            logicPlan_ = new LogicIndex(scan, unique_);
+            logicPlan_ = new LogicIndex(scan, def_);
             // convert to physical plan
             physicPlan_ = logicPlan_.DirectToPhysical(profileOpt_);
             return logicPlan_;
         }
     }
 
+    public class IndexDef
+    {
+        public string name_;
+        public bool unique_;
+        public List<string> columns_;
+
+        // storage
+        internal ISearchIndex index_;
+    }
+
     public class LogicIndex : LogicNode
     {
-        internal bool unique_;
-        public LogicIndex(LogicNode child, bool unique)
+        internal IndexDef def_;
+        public LogicIndex(LogicNode child, IndexDef def)
         {
-            children_.Add(child); unique_ = unique;
+            children_.Add(child); def_ = def;
         }
 
         public BaseTableRef GetTargetTable() => (child_() as LogicScanTable).tabref_;
@@ -69,7 +83,7 @@ namespace adb
             var logic = (logic_ as LogicIndex);
             var tabName = logic.GetTargetTable().relname_;
 
-            if (logic.unique_)
+            if (logic.def_.unique_)
                 index_ = new UniqueIndex();
             else
                 index_ = new NonUniqueIndex();
@@ -87,6 +101,17 @@ namespace adb
                 index_.Insert(key, tablerow as Row);
                 return null;
             });
+        }
+
+        public override void Close()
+        {
+            var logic = (logic_ as LogicIndex);
+            var def = logic.def_;
+
+            // register the index
+            Debug.Assert(def.index_ is null);
+            def.index_ = index_;
+            logic.GetTargetTable().Table().indexes_.Add(def);
         }
     }
 
@@ -136,7 +161,8 @@ namespace adb
         public override void Insert(dynamic key, Row r)
         {
             if (data_.TryGetValue(key, out Row l))
-                throw new SemanticExecutionException("duplicated key found");
+                throw new SemanticExecutionException(
+                    $"try to insert duplicated key: {key}. Existing row: {l}, new row: {r}");
             else
                 data_.Add(key,  r);
         }
