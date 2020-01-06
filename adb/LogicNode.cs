@@ -416,7 +416,7 @@ namespace adb
         {
             string r = null;
             if (aggrFns_.Count > 0)
-                r += $"Agg Fns: {string.Join(", ", aggrFns_)}\n";
+                r += $"Aggregates: {string.Join(", ", aggrFns_)}\n";
             if (keys_ != null)
                 r += Utils.Tabs(depth + 2) + $"Group by: {string.Join(", ", keys_)}\n";
             if (having_ != null)

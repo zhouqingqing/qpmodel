@@ -17,8 +17,11 @@ namespace test
         static internal List<Row> ExecuteSQL(string sql) => ExecuteSQL(sql, out _);
 
         static internal List<Row> ExecuteSQL(string sql, out string physicplan, OptimizeOption option = null)
-            => SQLStatement.ExecSQL(sql, out physicplan, out error_, option);
-
+        {
+            var results = SQLStatement.ExecSQL(sql, out physicplan, out error_, option);
+            Console.WriteLine(physicplan);
+            return results;
+        }
         static internal void ExecuteSQL(string sql, string resultstr)
         {
             var result = ExecuteSQL(sql);
@@ -153,6 +156,7 @@ namespace test
             {
                 option.use_memo_ = i == 0;
                 option.enable_subquery_to_markjoin_ = true;
+                option.remove_from = true;
 
                 var result = TU.ExecuteSQL(File.ReadAllText(files[0]), out _, option);
                 Assert.AreEqual(4, result.Count);
@@ -183,8 +187,11 @@ namespace test
                 Assert.AreEqual("", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[11]), out _, option);
                 Assert.AreEqual("MAIL,5,5;SHIP,5,10", string.Join(";", result));
+                // FIXME: agg on agg from
+                option.remove_from = false;
                 result = TU.ExecuteSQL(File.ReadAllText(files[12]), out _, option);
                 Assert.AreEqual(26, result.Count);
+                option.remove_from = true;
                 result = TU.ExecuteSQL(File.ReadAllText(files[13]), out _, option);
                 Assert.AreEqual(1, result.Count);
                 Assert.AreEqual(true, result[0].ToString().Contains("15.23"));
@@ -199,7 +206,8 @@ namespace test
                 Assert.AreEqual("", string.Join(";", result));
                 // q20 parameter join order
                 // q21 parameter join order
-                result = TU.ExecuteSQL(File.ReadAllText(files[21]), out _, option); 
+                result = TU.ExecuteSQL(File.ReadAllText(files[21]), out phyplan, option);
+                Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery")); // no nljoin
                 Assert.AreEqual(7, result.Count);
             }
         }
@@ -299,7 +307,7 @@ namespace test
                             <ScalarSubqueryExpr> 1
                                 -> PhysicHashAgg   (actual rows = 3)
                                     Output: {min(b.b1*2)}[0]
-                                    Agg Fns: min(b.b1[1]*2)
+                                    Aggregates: min(b.b1[1]*2)
                                     -> PhysicScanTable b  (actual rows = 9)
                                         Output: b.b1[0]*2,b.b1[0],2,#b.b2[1]
                                         Filter: b.b2[1]>=@2 and b.b3[2]>@3
@@ -458,7 +466,7 @@ namespace test
             result = ExecuteSQL(sql, out string phyplan);
             var answer = @"PhysicHashAgg   (actual rows = 1)
                 Output: {count(*)(0)}[0]
-                Agg Fns: count(*)(0)
+                Aggregates: count(*)(0)
                 -> PhysicFromQuery <b>  (actual rows = 1)
                     Output: 0
                     -> PhysicScanTable a  (actual rows = 1)
@@ -541,7 +549,9 @@ namespace test
             sql = "select ca2 from (select count(a2) as ca2 from a group by a1) b ;";
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
             Assert.AreEqual("1;1;1", string.Join(";", result));
-
+            sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("0,1;1,2", string.Join(";", result));
 
             // FIXME
             sql = "select sum(e1+1) from (select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1)) b(e1);";
@@ -790,7 +800,7 @@ namespace test
             sql = "select count(a1) from a where 3>2 or 2<5";
             var answer = @"PhysicHashAgg   (actual rows = 1)
                             Output: {count(a.a1)}[0]
-                            Agg Fns: count(a.a1[0])
+                               Aggregates: count(a.a1[0])
                             -> PhysicScanTable a  (actual rows = 3)
                                 Output: a.a1[0]";
             result = ExecuteSQL(sql, out phyplan);
@@ -1025,7 +1035,7 @@ namespace test
             result = ExecuteSQL(sql, out string phyplan);
             var answer = @"PhysicHashAgg   (actual rows = 2)
                             Output: 7,{4-a.a3/2}[0]*2+1+{sum(a.a1)}[1],{sum(a.a1)}[1]+{sum(a.a1+a.a2)}[2]*2
-                            Agg Fns: sum(a.a1[0]), sum(a.a1[0]+a.a2[2])
+                            Aggregates: sum(a.a1[0]), sum(a.a1[0]+a.a2[2])
                         Group by: 4-a.a3[3]/2
                             -> PhysicScanTable a  (actual rows = 3)
                                 Output: a.a1[0],a.a1[0]+a.a2[1],a.a2[1],a.a3[2]";
@@ -1080,7 +1090,7 @@ namespace test
                             Order by: {4-a.a3/2}[0]
                             -> PhysicHashAgg   (actual rows = 2)
                                 Output: {4-a.a3/2}[0],{4-a.a3/2}[0]*2+1+{min(a.a1)}[1],{avg(a.a4)}[2]+{count(a.a1)}[3],{max(a.a1)}[4]+{sum(a.a1+a.a2)}[5]*2
-                                Agg Fns: min(a.a1[1]), avg(a.a4[2]), count(a.a1[1]), max(a.a1[1]), sum(a.a1[1]+a.a2[4])
+                                Aggregates: min(a.a1[1]), avg(a.a4[2]), count(a.a1[1]), max(a.a1[1]), sum(a.a1[1]+a.a2[4])
                                 Group by: {4-a.a3/2}[0]
                                 -> PhysicScanTable a  (actual rows = 3)
                                     Output: 4-a.a3[2]/2,a.a1[0],a.a4[3],a.a1[0]+a.a2[1],a.a2[1],a.a3[2]";
