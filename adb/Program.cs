@@ -24,16 +24,16 @@ namespace adb
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             sql = "select a1,a1,a3,a3 from a where a2> (select b1 from (select * from b) d,c where b1=c1 and b1=a1 and b2=3);"; // lost a2>@1
-            //Tpch.LoadTables("0001");
-            //Tpch.AnalyzeTables();
+            Tpch.LoadTables("0001");
+            Tpch.AnalyzeTables();
 
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[18];
+                var v = files[16]; //12
                 {
                     sql = File.ReadAllText(v);
-                    //goto doit;
+                    goto doit;
                 }
             }
             //sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
@@ -128,8 +128,9 @@ namespace adb
             sql = "select ca2 from (select sum(a1) as ca2 from a group by a2) b;";
             sql = "select ca2 from (select count(a2) as ca2 from a group by a1) b ;";
             sql = "select ca2 from (select count(a2) as ca2 from a group by a1) b group by ca2;";
-            sql = "select * from a;";
-            sql = "select * from d where d1=2;";
+            sql = "select a1 from (select a1 from a where a2 > (select max(b1) from b)) c;";
+            //sql = "select a1 from a where a2 > (select max(b1) from b);";
+            sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and exists (select * from a b where b.a3>=2*b.a1) ) b group by a2/2;";
 
         doit:
             Console.WriteLine(sql);

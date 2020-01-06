@@ -245,8 +245,6 @@ namespace adb
 
         // loop through optimize members of the group
         public void OptimizeGroup(Memo memo, PhysicProperty required) {
-            Console.WriteLine($"opt group {memoid_}");
-
             for (int i = 0; i < exprList_.Count; i++)
             {
                 CGroupMember member = exprList_[i];

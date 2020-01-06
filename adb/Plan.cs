@@ -242,9 +242,12 @@ namespace adb
                     case QueryRef sref:
                         var plan = sref.query_.CreatePlan();
                         if (sref is FromQueryRef && optimizeOpt_.remove_from)
+                        {
                             from = plan;
+                            subQueries_.AddRange(sref.query_.subQueries_);
+                        }
                         else
-                        { 
+                        {
                             from = new LogicFromQuery(sref, plan);
                             subQueries_.Add(sref.query_);
                             fromQueries_.Add(sref.query_, from as LogicFromQuery);

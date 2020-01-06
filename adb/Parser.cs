@@ -263,7 +263,7 @@ namespace adb
                 if (outside[i].outputName_ != null)
                 {
                     outputNameMap_[outside[i].outputName_] = inside[i];
-                    if (inside[i] is AggFunc)
+                    if (inside[i].HasAggFunc())
                         outputNameMap_[outside[i].outputName_] = new ExprRef(inside[i], i);
                 }
             }
