@@ -627,4 +627,24 @@ namespace adb
             });
         }
     }
+
+    public class PhysicLimit : PhysicNode {
+
+        public PhysicLimit(LogicLimit logic, PhysicNode l) : base(logic) => children_.Add(l);
+
+        public override void Exec(ExecContext context, Func<Row, string> callback)
+        {
+            int nrows = 0;
+            int limit = (logic_ as LogicLimit).limit_;
+
+            child_().Exec(context, l =>
+            {
+                nrows++;
+                if (nrows <= limit)
+                    callback(l);
+                return null;
+            });
+
+        }
+    }
 }

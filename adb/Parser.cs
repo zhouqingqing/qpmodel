@@ -560,7 +560,7 @@ namespace adb
             }
 
             // -- binding stage
-            return new SelectStmt(resultCols, resultRels, where, groupby, having, null, null, null, context.GetText());
+            return new SelectStmt(resultCols, resultRels, where, groupby, having, null, null, null, null, context.GetText());
         }
 
         public override object VisitCommon_table_expression([NotNull] SQLiteParser.Common_table_expressionContext context)
@@ -587,6 +587,7 @@ namespace adb
             var setqs = new List<SelectStmt>();
             Array.ForEach(context.select_core(), x => setqs.Add(VisitSelect_core(x) as SelectStmt));
 
+            // ORDER BY clause
             List<OrderTerm> orders = null;
             if (context.K_ORDER() != null)
             {
@@ -595,9 +596,15 @@ namespace adb
                 Array.ForEach(context.ordering_term(), x => orders.Add(VisitOrdering_term(x) as OrderTerm));
             }
 
+            // LIMIT clause
+            Expr limit = null;
+            if (context.K_LIMIT() != null) {
+                limit = Visit(context.expr(0)) as Expr;
+            }
+
             // seqts[0] is also expanded to main body
             return new SelectStmt(setqs[0].selection_, setqs[0].from_, setqs[0].where_, setqs[0].groupby_, setqs[0].having_,
-                                    ctes, setqs, orders, context.GetText());
+                                    ctes, setqs, orders, limit, context.GetText());
         }
 
         public override object VisitType_name([NotNull] SQLiteParser.Type_nameContext context)

@@ -19,6 +19,7 @@ namespace adb
             new Agg2HashAgg(),
             new Order2Sort(),
             new From2From(),
+            new Limit2Limit(),
             new JoinCommutativeRule(),  // intentionally add a duplicated rule
         };
 

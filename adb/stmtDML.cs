@@ -158,7 +158,7 @@ namespace adb
                 colrefs = targetref.AllColumnsRefs();
             ExternalTableRef sourcetab = new ExternalTableRef(fileName, targetref, colrefs);
             SelectStmt select = new SelectStmt(new List<Expr> { new SelStar(null) },
-                            new List<TableRef> { sourcetab }, where, null, null, null, null, null, text);
+                            new List<TableRef> { sourcetab }, where, null, null, null, null, null, null, text);
             insert_ = new InsertStmt(targetref, cols, null, select, text) { profileOpt_ = profileOpt_ };
         }
 

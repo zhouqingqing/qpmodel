@@ -116,6 +116,7 @@ namespace adb
         public readonly List<SelectStmt> setqs_;
         public List<Expr> orders_;
         public readonly List<bool> descends_;   // order by DESC|ASC
+        public Expr limit_;
 
         // optimizer info
         // ---------------
@@ -165,7 +166,7 @@ namespace adb
             // setops ok fields
             List<Expr> selection, List<TableRef> from, Expr where, List<Expr> groupby, Expr having,
             // top query only fields
-            List<CteExpr> ctes, List<SelectStmt> setqs, List<OrderTerm> orders,
+            List<CteExpr> ctes, List<SelectStmt> setqs, List<OrderTerm> orders, Expr limit,
             string text) : base(text)
         {
             selection_ = selection;
@@ -182,6 +183,7 @@ namespace adb
                 orders_ = seq2selection((from x in orders select x.orderby_()).ToList(), selection);
                 descends_ = (from x in orders select x.descend_).ToList();
             }
+            limit_ = limit;
         }
 
         bool pushdownFilter(LogicNode plan, Expr filter)

@@ -30,7 +30,7 @@ namespace adb
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[17]; //12
+                var v = files[1]; //12
                 {
                     sql = File.ReadAllText(v);
                     //goto doit;
@@ -130,7 +130,7 @@ namespace adb
             sql = "select ca2 from (select count(a2) as ca2 from a group by a1) b group by ca2;";
             sql = "select a1 from (select a1 from a where a2 > (select max(b1) from b)) c;";
             //sql = "select a1 from a where a2 > (select max(b1) from b);";
-            sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and exists (select * from a b where b.a3>=2*b.a1) ) b group by a2/2;";
+            sql = "select a1,a1 from a limit 2;";
 
         doit:
             Console.WriteLine(sql);
@@ -138,7 +138,7 @@ namespace adb
             a.profileOpt_.enabled_ = true;
             a.optimizeOpt_.enable_subquery_to_markjoin_ = true;
             a.optimizeOpt_.remove_from = true;
-            a.optimizeOpt_.use_memo_ = false;
+            a.optimizeOpt_.use_memo_ = true;
 
             // -- Semantic analysis:
             //  - bind the query

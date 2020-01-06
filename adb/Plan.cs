@@ -333,17 +333,21 @@ namespace adb
                 root = new LogicFilter(root, where_);
             }
 
-            // group by
+            // group by / having
             if (hasAgg_ || groupby_ != null)
+            {
+                if (having_ != null)
+                    subQueryExprCreatePlan(having_);
                 root = new LogicAgg(root, groupby_, getAggFuncFromSelection(), having_);
-
-            // having
-            if (having_ != null)
-                subQueryExprCreatePlan(having_);
+            }
 
             // order by
             if (orders_ != null)
                 root = new LogicOrder(root, orders_, descends_);
+
+			// limit
+			if (limit_ != null)
+				root = new LogicLimit (root, limit_);
 
             // selection list
             selection_.ForEach(x => subQueryExprCreatePlan(x));
