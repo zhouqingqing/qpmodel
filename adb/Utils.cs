@@ -52,17 +52,23 @@ namespace adb
         // for each element in @source, if there is a matching k in @target of its sub expression, 
         // replace that element as ExprRef(k, index_of_k_in_target)
         //
+        public static Expr SearchReplace(Expr source, List<Expr> target)
+        {
+            for (int i = 0; i < target.Count; i++)
+            {
+                var e = target[i];
+                source = source.SearchReplace(e, new ExprRef(e, i));
+            }
+
+            return source;
+        }
+
         public static List<Expr> SearchReplace(List<Expr> source, List<Expr> target)
         {
             var r = new List<Expr>();
             source.ForEach(x =>
             {
-                for (int i = 0; i < target.Count; i++)
-                {
-                    var e = target[i];
-                    x = x.SearchReplace(e, new ExprRef(e, i));
-                }
-                r.Add(x);
+                r.Add(SearchReplace(x, target));
             });
 
             Debug.Assert(r.Count == source.Count);

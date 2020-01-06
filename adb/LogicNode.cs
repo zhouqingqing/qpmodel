@@ -416,9 +416,9 @@ namespace adb
         {
             string r = null;
             if (aggrFns_.Count > 0)
-                r += $"Aggregates: {string.Join(", ", aggrFns_)}\n";
+                r += $"Aggregates: {string.Join(", ", aggrFns_)}\n{Utils.Tabs(depth + 2)}";
             if (keys_ != null)
-                r += Utils.Tabs(depth + 2) + $"Group by: {string.Join(", ", keys_)}\n";
+                r += $"Group by: {string.Join(", ", keys_)}\n";
             if (having_ != null)
                 r += Utils.Tabs(depth + 2) + $"{PrintFilter(having_, depth)}";
             return r;
@@ -521,17 +521,21 @@ namespace adb
 
             // It is ideal to add keys_ directly to reqFromChild but matching can be harder.
             // Consider the following case:
-            //   keys: a1+a2, a3+a4
+            //   keys/having: a1+a2, a3+a4
             //   reqOutput: a1+a3+a2+a4
             // Let's fix this later
             //
             if (keys_ != null)
                 reqFromChild.AddRange(ExprHelper.RetrieveAllColExpr(keys_));
+            if (having_ != null)
+                reqFromChild.AddRange(ExprHelper.RetrieveAllColExpr(having_));
             child_().ResolveColumnOrdinal(reqFromChild);
             var childout = child_().output_;
 
             if (keys_ != null) 
                 keys_ = CloneFixColumnOrdinal(keys_, childout, true);
+            if (having_ != null)
+                having_ = CloneFixColumnOrdinal(having_, childout);
             output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
 
             // Bound aggrs to output, so when we computed aggrs, we automatically get output
@@ -558,6 +562,14 @@ namespace adb
                 });
 
                 newoutput.Add(x);
+            });
+            if (having_ != null) having_ = Utils.SearchReplace(having_, keys_);
+            having_?.VisitEach<AggFunc>(y =>
+            {
+                // remove the duplicates immediatley to avoid wrong ordinal in ExprRef
+                if (!aggrFns_.Contains(y))
+                    aggrFns_.Add(y);
+                having_ = having_.SearchReplace(y, new ExprRef(y, nkeys + aggrFns_.IndexOf(y)));
             });
             Debug.Assert(aggrFns_.Count == aggrFns_.Distinct().Count());
 

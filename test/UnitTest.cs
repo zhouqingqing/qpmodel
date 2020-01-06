@@ -1074,6 +1074,14 @@ namespace test
             result = ExecuteSQL(sql); Assert.AreEqual("3", string.Join(";", result));
             sql = "select sum(e1+e1*3) from (select sum(a1) a12 from a) d(e1);";
             result = ExecuteSQL(sql); Assert.AreEqual("12", string.Join(";", result));
+            sql = "select a1 from a group by a1 having sum(a2) > 2;";
+            result = ExecuteSQL(sql); Assert.AreEqual("2", string.Join(";", result));
+            sql = "select a1, sum(a1) from a group by a1 having sum(a2) > 2;";
+            result = ExecuteSQL(sql); Assert.AreEqual("2,2", string.Join(";", result));
+
+            // failed:
+            // sql = "select a1, sum(a1) from a group by a1 having sum(a2) > a3;";
+            // sql = "select * from a having sum(a2) > 1;";
         }
 
         [TestMethod]

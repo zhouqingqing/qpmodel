@@ -30,10 +30,10 @@ namespace adb
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[16]; //12
+                var v = files[17]; //12
                 {
                     sql = File.ReadAllText(v);
-                    goto doit;
+                    //goto doit;
                 }
             }
             //sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
