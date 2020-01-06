@@ -182,7 +182,7 @@ namespace test
                     "PERU,0,564372.7491;UNITED KINGDOM,0,2309462.0142;UNITED STATES,0,274483.6167",
                     string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[9]), out _, option);
-                Assert.AreEqual(43, result.Count);
+                Assert.AreEqual(20, result.Count);
                 result = TU.ExecuteSQL(File.ReadAllText(files[10]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[11]), out _, option);
@@ -1110,6 +1110,13 @@ namespace test
             result = ExecuteSQL(sql); Assert.AreEqual("1;2", string.Join(";", result));
             sql = " select count(a2) as ca2 from a group by a1/2 order by 1;";
             result = ExecuteSQL(sql); Assert.AreEqual("1;2", string.Join(";", result));
+        }
+
+        [TestMethod]
+        public void TestLimit()
+        {
+            var sql = "select a1,a1 from a limit 2;";
+            var result = ExecuteSQL(sql); Assert.AreEqual("0,0;1,1", string.Join(";", result));
         }
 
         [TestMethod]

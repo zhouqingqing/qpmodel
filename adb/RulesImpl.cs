@@ -135,4 +135,21 @@ namespace adb
             return new CGroupMember(phy, expr.group_);
         }
     }
+
+    public class Limit2Limit: ImplmentationRule
+    {
+        public override bool Appliable(CGroupMember expr)
+        {
+            var log = expr.logic_ as LogicLimit;
+            return log != null;
+        }
+
+        public override CGroupMember Apply(CGroupMember expr)
+        {
+            var log = expr.logic_ as LogicLimit;
+            var phy = new PhysicLimit(log, new PhysicMemoRef(log.child_()));
+            return new CGroupMember(phy, expr.group_);
+        }
+    }
+
 }

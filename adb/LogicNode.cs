@@ -115,6 +115,9 @@ namespace adb
                     case LogicIndex lindex:
                         phy = new PhysicIndex(lindex, n.child_().DirectToPhysical(profiling));
                         break;
+                    case LogicLimit limit:
+                        phy = new PhysicLimit(limit, n.child_().DirectToPhysical(profiling));
+                        break;
                     default:
                         throw new NotImplementedException();
                 }
@@ -756,5 +759,31 @@ namespace adb
     {
         public override string ToString() => string.Join(",", output_);
         public LogicResult(List<Expr> exprs) => output_ = exprs;
+    }
+
+    public class LogicLimit : LogicNode {
+
+        internal int limit_;
+
+        public override string PrintInlineDetails(int depth) => $"({limit_})";
+
+        public LogicLimit(LogicNode child, Expr expr)
+        {
+            children_.Add(child);
+
+            Utils.Assumes(expr.IsConst());
+            expr.TryEvalConst(out Object val);
+            limit_ = (int)val;
+        }
+
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
+        {
+            // limit is the top node and don't remove redundant
+            List<int> ordinals = new List<int>();
+
+            child_().ResolveColumnOrdinal(reqOutput, false);
+            output_ = child_().output_;
+            return ordinals;
+        }
     }
 }
