@@ -454,8 +454,11 @@ namespace adb
                     }
                 }
                 var w = new Row(keys, row);
-                var newr = ExecProject(context, w);
-                callback(newr);
+                if (logic.having_ is null || logic.having_.Exec(context, w) is true)
+                {
+                    var newr = ExecProject(context, w);
+                    callback(newr);
+                }
             }
         }
     }
