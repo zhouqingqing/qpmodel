@@ -13,7 +13,7 @@ namespace adb
             "region", "nation", "part","supplier",
             "partsupp", "customer", "orders", "lineitem"
         };
-        static public string[] ddls_ = {
+        static public string[] createtables_ = {
             @"CREATE TABLE region  (
                 r_regionkey  INTEGER not null,
                 r_name       CHAR(25) not null,
@@ -84,9 +84,19 @@ namespace adb
                 l_shipmode     CHAR(10) not null,
                 l_comment      VARCHAR(44) not null);"
         };
+        static public string[] createindexes_ = {
+            @"create index idx_supplier_nation_key on supplier (s_nationkey);",
+            @"create index idx_partsupp_partkey on partsupp (ps_partkey);",
+            @"create index idx_partsupp_suppkey on partsupp (ps_suppkey);",
+            @"create index idx_customer_nationkey on customer (c_nationkey);",
+            @"create index idx_orders_custkey on orders (o_custkey);",
+            @"create index idx_lineitem_orderkey on lineitem (l_orderkey);",
+            @"create index idx_lineitem_part_supp on lineitem (l_partkey,l_suppkey);",
+            @"create index idx_nation_regionkey on nation (n_regionkey);",
+        };
 
         static public void CreateTables() {
-            foreach (var v in ddls_) {
+            foreach (var v in createtables_) {
                 var stmt = RawParser.ParseSqlStatements(v);
                 stmt.Exec();
             }
@@ -100,6 +110,14 @@ namespace adb
                 string filename = $@"'{folder}\{v}.tbl'";
                 var sql = $"copy {v} from {filename};";
                 var stmt = RawParser.ParseSqlStatements(sql);
+                stmt.Exec();
+            }
+        }
+
+        static public void CreateIndexes() {
+            foreach (var v in createindexes_)
+            {
+                var stmt = RawParser.ParseSqlStatements(v);
                 stmt.Exec();
             }
         }

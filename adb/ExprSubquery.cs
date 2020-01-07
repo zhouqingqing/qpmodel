@@ -167,7 +167,7 @@ namespace adb
 
         public override int GetHashCode()
         {
-            return expr_().GetHashCode() ^ Utils.ListHashCode(inlist_());
+            return expr_().GetHashCode() ^ inlist_().ListHashCode();
         }
         public override bool Equals(object obj)
         {

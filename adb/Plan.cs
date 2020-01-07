@@ -52,7 +52,7 @@ namespace adb
             {
                 r = "Filter: " + filter.PrintString(depth);
                 // append the subquery plan align with filter
-                r += ExprHelper.PrintExprWithSubqueryExpanded(filter, depth);
+                r += filter.PrintExprWithSubqueryExpanded(depth);
             }
             return r;
         }
@@ -166,7 +166,7 @@ namespace adb
         }
         public override int GetHashCode()
         {
-            return GetType().GetHashCode() ^ Utils.ListHashCode(children_);
+            return GetType().GetHashCode() ^ children_.ListHashCode();
         }
         public override bool Equals(object obj)
         {
@@ -274,7 +274,7 @@ namespace adb
                                     children[1] = t;
                                 else
                                     subjoin = new LogicJoin(t, subjoin);
-                                filterexpr = FilterHelper.AddAndFilter(filterexpr, jref.constraints_[i - 1]);
+                                filterexpr = filterexpr.AddAndFilter(jref.constraints_[i - 1]);
                             }
                         }
                         Debug.Assert(filterexpr != null);
@@ -393,7 +393,7 @@ namespace adb
                         x.Bind(context);
                         if (x.HasAggFunc())
                             hasAgg_ = true;
-                        x = x.Simplify();
+                        x = x.ConstFolding();
                         selection_[i] = x;
                         if (optimizeOpt_.remove_from)
                             selection_[i] = selection_[i].DeQueryRef();

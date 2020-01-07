@@ -289,7 +289,7 @@ namespace adb
             var rtabrefs = r_().logic_.InclusiveTableRefs();
             var lkeyrefs = fb.l_().tableRefs_;
             var rkeyrefs = fb.r_().tableRefs_;
-            if (Utils.ListAContainsB(ltabrefs, lkeyrefs))
+            if (ltabrefs.ContainsList(lkeyrefs))
             {
                 leftKeys_.Add(fb.l_());
                 rightKeys_.Add(fb.r_());
@@ -297,7 +297,7 @@ namespace adb
             else
             {
                 // switch side
-                Debug.Assert(Utils.ListAContainsB(rtabrefs, lkeyrefs));
+                Debug.Assert(rtabrefs.ContainsList(lkeyrefs));
                 leftKeys_.Add(fb.r_());
                 rightKeys_.Add(fb.l_());
             }
@@ -310,7 +310,7 @@ namespace adb
             var filter = (logic_ as LogicJoin).filter_;
 
             Debug.Assert(filter != null);
-            var andlist = FilterHelper.FilterToAndList(filter);
+            var andlist = filter.FilterToAndList();
             foreach (var v in andlist)
             {
                 Debug.Assert(v is BinExpr);

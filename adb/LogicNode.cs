@@ -20,7 +20,7 @@ namespace adb
             if (output_.Count != 0)
             {
                 string r = "Output: " + string.Join(",", output_);
-                output_.ForEach(x => r += ExprHelper.PrintExprWithSubqueryExpanded(x, depth));
+                output_.ForEach(x => r += x.PrintExprWithSubqueryExpanded(depth));
                 return r;
             }
             return null;
@@ -37,12 +37,12 @@ namespace adb
                 {
                     case LogicScanTable ln:
                         // if there are indexes can help filter, use them
-                        if (FilterHelper.FilterCanUseIndex(ln.tabref_, ln.filter_))
+                        if (ln.filter_.FilterCanUseIndex(ln.tabref_))
                            phy = new PhysicSeekIndex(ln);
                         else
                             phy = new PhysicScanTable(ln);
                         if (ln.filter_ != null)
-                            ExprHelper.SubqueryDirectToPhysic(ln.filter_);
+                            ln.filter_.SubqueryDirectToPhysic();
                         break;
                     case LogicJoin lc:
                         var l = n.l_();
@@ -70,7 +70,7 @@ namespace adb
 
                                 // if left side has outerrefs, we needs NLJ to drive the parameter
                                 // pass to right side, so we can't use HJ in this case.
-                                if (FilterHelper.FilterHashable(lc.filter_) && !lhasouter)
+                                if (lc.filter_.FilterHashable() && !lhasouter)
                                     phy = new PhysicHashJoin(lc,
                                         l.DirectToPhysical(profiling),
                                         r.DirectToPhysical(profiling));
@@ -95,7 +95,7 @@ namespace adb
                     case LogicFilter lf:
                         phy = new PhysicFilter(lf, n.child_().DirectToPhysical(profiling));
                         if (lf.filter_ != null)
-                            ExprHelper.SubqueryDirectToPhysic(lf.filter_);
+                            lf.filter_.SubqueryDirectToPhysic();
                         break;
                     case LogicInsert li:
                         phy = new PhysicInsert(li, n.child_().DirectToPhysical(profiling));
@@ -289,8 +289,8 @@ namespace adb
                 //   (A X B on f1) X C on f3 AND f2
                 // The filter signature generation has to be able to accomomdate this difference.
                 //
-                var andlist = FilterHelper.FilterToAndList(filter_);
-                filterhash = Utils.ListHashCode(andlist);
+                var andlist = filter_.FilterToAndList();
+                filterhash = andlist.ListHashCode();
                 //filterhash = filter_.GetHashCode();
             }
             return l_().MemoLogicSign() ^ r_().MemoLogicSign() ^ filterhash;
@@ -310,7 +310,7 @@ namespace adb
 
         public bool AddFilter(Expr filter)
         {
-            filter_ = FilterHelper.AddAndFilter(filter_, filter);
+            filter_ = filter_.AddAndFilter(filter);
             return true;
         }
 
@@ -329,17 +329,17 @@ namespace adb
             var rreq = new HashSet<Expr>();
             foreach (var v in reqFromChild)
             {
-                var tables = ExprHelper.AllTableRef(v);
+                var tables = v.AllTableRef();
 
-                if (Utils.ListAContainsB(ltables, tables))
+                if (ltables.ContainsList( tables))
                     lreq.Add(v);
-                else if (Utils.ListAContainsB(rtables, tables))
+                else if (rtables.ContainsList( tables))
                     rreq.Add(v);
                 else
                 {
                     // the whole list can't push to the children (Eg. a.a1 + b.b1)
                     // decompose to singleton and push down
-                    var colref = ExprHelper.RetrieveAllColExpr(v);
+                    var colref = v.RetrieveAllColExpr();
                     colref.ForEach(x =>
                     {
                         if (ltables.Contains(x.tabRef_))
@@ -395,8 +395,8 @@ namespace adb
             List<int> ordinals = new List<int>();
             // request from child including reqOutput and filter
             List<Expr> reqFromChild = new List<Expr>();
-            reqFromChild.AddRange(ExprHelper.CloneList(reqOutput));
-            reqFromChild.AddRange(ExprHelper.RetrieveAllColExpr(filter_));
+            reqFromChild.AddRange(reqOutput.CloneList());
+            reqFromChild.AddRange(filter_.RetrieveAllColExpr());
             child_().ResolveColumnOrdinal(reqFromChild);
             var childout = child_().output_;
 
@@ -513,7 +513,7 @@ namespace adb
             List<int> ordinals = new List<int>();
 
             // reqOutput may contain ExprRef which is generated during FromQuery removal process, remove them
-            var reqList = ExprHelper.CloneList(reqOutput, new List<Type> { typeof(LiteralExpr)});
+            var reqList = reqOutput.CloneList(new List<Type> { typeof(LiteralExpr)});
 
             // request from child including reqOutput and filter. Don't use whole expression
             // matching push down like k+k => (k+k)[0] instead, we need k[0]+k[0] because 
@@ -529,9 +529,9 @@ namespace adb
             // Let's fix this later
             //
             if (keys_ != null)
-                reqFromChild.AddRange(ExprHelper.RetrieveAllColExpr(keys_));
+                reqFromChild.AddRange(keys_.RetrieveAllColExpr());
             if (having_ != null)
-                reqFromChild.AddRange(ExprHelper.RetrieveAllColExpr(having_));
+                reqFromChild.AddRange(having_.RetrieveAllColExpr());
             child_().ResolveColumnOrdinal(reqFromChild);
             var childout = child_().output_;
 
@@ -553,7 +553,7 @@ namespace adb
             //
             var nkeys = keys_?.Count ?? 0;
             var newoutput = new List<Expr>();
-            if (keys_ != null) output_ = Utils.SearchReplace(output_, keys_);
+            if (keys_ != null) output_ = output_.SearchReplace(keys_);
             output_.ForEach(x =>
             {
                 x.VisitEach<AggFunc>(y =>
@@ -566,7 +566,7 @@ namespace adb
 
                 newoutput.Add(x);
             });
-            if (having_ != null) having_ = Utils.SearchReplace(having_, keys_);
+            if (having_ != null) having_ = having_.SearchReplace(keys_);
             having_?.VisitEach<AggFunc>(y =>
             {
                 // remove the duplicates immediatley to avoid wrong ordinal in ExprRef
@@ -616,7 +616,7 @@ namespace adb
             // request from child including reqOutput and filter
             List<int> ordinals = new List<int>();
             List<Expr> reqFromChild = new List<Expr>();
-            reqFromChild.AddRange(ExprHelper.CloneList(reqOutput));
+            reqFromChild.AddRange(reqOutput.CloneList());
             reqFromChild.AddRange(orders_);
             child_().ResolveColumnOrdinal(reqFromChild);
             var childout = child_().output_;
@@ -671,7 +671,7 @@ namespace adb
 
         public bool AddFilter(Expr filter)
         {
-            filter_ = FilterHelper.AddAndFilter(filter_, filter);
+            filter_ = filter_.AddAndFilter(filter);
             return true;
         }
 

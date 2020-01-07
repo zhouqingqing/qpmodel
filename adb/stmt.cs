@@ -207,7 +207,7 @@ namespace adb
                         return false;
                     });
                 default:
-					return FilterHelper.PushJoinFilter (plan, filter);
+					return plan.PushJoinFilter (filter);
             }
         }
 
@@ -263,7 +263,7 @@ namespace adb
                     // it there - shall we try hard to stop query early? Nope, it is no deserved
                     // to poke around for this corner case.
                     //
-                    var isConst = FilterHelper.FilterIsConst(filterexpr, out bool trueOrFalse);
+                    var isConst = filterexpr.FilterIsConst(out bool trueOrFalse);
                     if (isConst)
                     {
                         if (!trueOrFalse)
@@ -274,7 +274,7 @@ namespace adb
                     else
                     {
                         // filter push down
-                        andlist = FilterHelper.FilterToAndList(filterexpr);
+                        andlist = filterexpr.FilterToAndList();
                         andlist.RemoveAll(e => pushdownFilter(plan, e));
                     }
 
@@ -288,7 +288,7 @@ namespace adb
                             parent.children_[index] = filter.child_();
                     }
                     else
-                        filter.filter_ = ExprHelper.AndListToExpr(andlist);
+                        filter.filter_ = andlist.AndListToExpr();
                 }
             }
 

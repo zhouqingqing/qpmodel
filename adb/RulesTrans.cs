@@ -96,14 +96,14 @@ namespace adb
             foreach (var m in ABC)
                 ABCtabrefs.AddRange(m.InclusiveTableRefs());
 
-            var andlist = FilterHelper.FilterToAndList(fullfilter);
+            var andlist = fullfilter.FilterToAndList();
             foreach (var v in andlist)
             {
                 var predicate = v as BinExpr;
                 var predicateRefs = predicate.tableRefs_;
-                if (Utils.ListAEqualsB(ABCtabrefs, predicateRefs))
+                if (ABCtabrefs.ListAEqualsB( predicateRefs))
                 {
-                    ret = FilterHelper.AddAndFilter(ret, predicate);
+                    ret = ret.AddAndFilter(predicate);
                 }
             }
 
@@ -146,13 +146,13 @@ namespace adb
             // pull up all join filters and re-push them back
             Expr allfilters = bcfilter;
             if (a_bc.filter_ != null)
-                allfilters = FilterHelper.AddAndFilter(allfilters, a_bc.filter_);
+                allfilters = allfilters.AddAndFilter(a_bc.filter_);
             if (allfilters != null)
             {
-                var andlist = FilterHelper.FilterToAndList(allfilters);
-                andlist.RemoveAll(e => FilterHelper.PushJoinFilter(ab_c, e));
+                var andlist = allfilters.FilterToAndList();
+                andlist.RemoveAll(e => ab_c.PushJoinFilter(e));
                 if (andlist.Count > 0)
-                    ab_c.filter_ = ExprHelper.AndListToExpr(andlist);
+                    ab_c.filter_ = andlist.AndListToExpr();
             }
 
             return new CGroupMember(ab_c, expr.group_);
