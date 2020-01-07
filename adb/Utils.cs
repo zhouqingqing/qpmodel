@@ -20,9 +20,9 @@ namespace adb
         public static void Assumes(bool cond, string message) => Debug.Assert(cond, message);
 
         // a contains b?
-        public static bool ListAContainsB<T>(List<T> a, List<T> b) => !b.Except(a).Any();
-        public static bool ListAEqualsB<T>(List<T> a, List<T> b) => ListAContainsB(a, b) && ListAContainsB(b, a);
-        public static int ListHashCode<T>(List<T> l)
+        public static bool ContainsList<T>(this List<T> a, List<T> b) => !b.Except(a).Any();
+        public static bool ListAEqualsB<T>(this List<T> a, List<T> b) => a.ContainsList(b) && b.ContainsList(a);
+        public static int ListHashCode<T>(this List<T> l)
         {
             //int hash = 0x72344ABC;
             int hash = 0;
@@ -30,21 +30,22 @@ namespace adb
             return hash;
         }
 
-        public static string RetrieveQuotedString(string str)
+        public static string RetrieveQuotedString(this string str)
         {
             Debug.Assert(str.Count(x => x == '\'') == 2);
             var quotedstr = str.Substring(str.IndexOf('\''),
                                         str.LastIndexOf('\'') - str.IndexOf('\'') + 1);
             return quotedstr;
         }
-        public static string RemoveStringQuotes(string str)
+
+        public static string RemoveStringQuotes(this string str)
         {
             Debug.Assert(str[0] == '\'' && str[str.Length - 1] == '\'');
             var dequote = str.Substring(1, str.Length - 2);
             return dequote;
         }
 
-        public static bool StringLike(string s, string pattern) {
+        public static bool StringLike(this string s, string pattern) {
             var regpattern = pattern.Replace("%", ".*");
             return Regex.IsMatch(s, regpattern);
         }
@@ -52,7 +53,7 @@ namespace adb
         // for each element in @source, if there is a matching k in @target of its sub expression, 
         // replace that element as ExprRef(k, index_of_k_in_target)
         //
-        public static Expr SearchReplace(Expr source, List<Expr> target)
+        public static Expr SearchReplace(this Expr source, List<Expr> target)
         {
             for (int i = 0; i < target.Count; i++)
             {
@@ -63,12 +64,12 @@ namespace adb
             return source;
         }
 
-        public static List<Expr> SearchReplace(List<Expr> source, List<Expr> target)
+        public static List<Expr> SearchReplace(this List<Expr> source, List<Expr> target)
         {
             var r = new List<Expr>();
             source.ForEach(x =>
             {
-                r.Add(SearchReplace(x, target));
+                r.Add(x.SearchReplace(target));
             });
 
             Debug.Assert(r.Count == source.Count);
@@ -76,7 +77,7 @@ namespace adb
         }
 
         // a[0]+b[1] => a+b 
-        public static string RemovePositions(string r)
+        public static string RemovePositions(this string r)
         {
             do
             {

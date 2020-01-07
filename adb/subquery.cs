@@ -53,7 +53,7 @@ namespace adb
             // nodeB contains the join filter
             var nodeB = existExpr.query_.logicPlan_;
             var nodeBFilter = nodeB.filter_;
-            FilterHelper.NullifyFilter(nodeB);
+            nodeB.NullifyFilter();
 
             // nullify nodeA's filter: the rest is push to top filter. However,
             // if nodeA is a Filter|MarkJoin, keep its mark filter.
@@ -62,7 +62,7 @@ namespace adb
             if (nodeAIsOnMarkJoin)
                 nodeA.filter_ = markerFilter;
             else
-                FilterHelper.NullifyFilter(nodeA);
+                nodeA.NullifyFilter();
 
             // make a mark join
             LogicMarkJoin markjoin;
@@ -125,7 +125,7 @@ namespace adb
 
             Debug.Assert(scalarExpr.query_.selection_.Count == 1);
             var singleValueExpr = scalarExpr.query_.selection_[0];
-            FilterHelper.NullifyFilter(nodeB);
+            nodeB.NullifyFilter();
 
             // nullify nodeA's filter: the rest is push to top filter. However,
             // if nodeA is a Filter|MarkJoin, keep its mark filter.
@@ -134,7 +134,7 @@ namespace adb
             if (nodeAIsOnMarkJoin)
                 nodeA.filter_ = markerFilter;
             else
-                FilterHelper.NullifyFilter(nodeA);
+                nodeA.NullifyFilter();
 
             // make a mark join
             var markjoin = new LogicSingleMarkJoin(nodeA, nodeB);
@@ -146,7 +146,7 @@ namespace adb
                 topfilter = nodeAFilter.SearchReplace(scalarExpr, new LiteralExpr($"{int.MinValue}", new IntType()));
             else
             {
-                topfilter = FilterHelper.AddAndFilter(markerFilter, nodeAFilter);
+                topfilter = markerFilter.AddAndFilter(nodeAFilter);
                 topfilter = topfilter.SearchReplace(scalarExpr, singleValueExpr);
             }
             LogicFilter Filter = new LogicFilter(markjoin, topfilter);
@@ -167,7 +167,7 @@ namespace adb
                 var filter = plan.filter_;
                 if (filter != null)
                 {
-                    foreach (var ef in ExprHelper.RetrieveAllType<ExistSubqueryExpr>(filter))
+                    foreach (var ef in filter.RetrieveAllType<ExistSubqueryExpr>())
                     {
                         if (ef.IsCorrelated())
                         {
@@ -177,7 +177,7 @@ namespace adb
                                 decorrelatedSubs_.Add(ef.query_);
                         }
                     }
-                    foreach (var ef in ExprHelper.RetrieveAllType<ScalarSubqueryExpr>(filter))
+                    foreach (var ef in filter.RetrieveAllType<ScalarSubqueryExpr>())
                     {
                         if (ef.IsCorrelated())
                         {

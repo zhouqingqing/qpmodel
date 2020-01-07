@@ -33,7 +33,7 @@ namespace adb
                 var v = files[1]; //12
                 {
                     sql = File.ReadAllText(v);
-                    //goto doit;
+                    goto doit;
                 }
             }
             //sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
@@ -130,7 +130,7 @@ namespace adb
             sql = "select ca2 from (select count(a2) as ca2 from a group by a1) b group by ca2;";
             sql = "select a1 from (select a1 from a where a2 > (select max(b1) from b)) c;";
             //sql = "select a1 from a where a2 > (select max(b1) from b);";
-            sql = "select a1,a1 from a limit 2;";
+            sql = "select * from b join a on a1=b1 where a1 < (select a2 from a where a2=b2);";
 
         doit:
             Console.WriteLine(sql);

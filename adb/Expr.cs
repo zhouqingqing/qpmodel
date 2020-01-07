@@ -90,7 +90,7 @@ namespace adb
     public static class ExprHelper
     {
         // a List<Expr> conditions merge into a LogicAndExpr
-        public static Expr AndListToExpr(List<Expr> andlist)
+        public static Expr AndListToExpr(this List<Expr> andlist)
         {
             Debug.Assert(andlist.Count >= 1);
             if (andlist.Count == 1)
@@ -104,7 +104,7 @@ namespace adb
             }
         }
 
-        public static List<Expr> CloneList(List<Expr> source, List<Type> excludes = null)
+        public static List<Expr> CloneList(this List<Expr> source, List<Type> excludes = null)
         {
             var clone = new List<Expr>();
             if (excludes is null)
@@ -123,7 +123,7 @@ namespace adb
             return clone;
         }
 
-        public static List<ColExpr> RetrieveAllColExpr(Expr expr, bool includingParameters = false)
+        public static List<ColExpr> RetrieveAllColExpr(this Expr expr, bool includingParameters = false)
         {
             var list = new HashSet<ColExpr>();
             expr.VisitEach<ColExpr>(x =>
@@ -135,14 +135,14 @@ namespace adb
             return list.ToList();
         }
 
-        public static List<T> RetrieveAllType<T>(Expr expr) where T: Expr
+        public static List<T> RetrieveAllType<T>(this Expr expr) where T: Expr
         {
             var list = new List<T>();
             expr.VisitEach<T>(x => list.Add(x));
             return list;
         }
 
-        public static List<ColExpr> RetrieveAllColExpr(List<Expr> exprs, bool includingParameters = false)
+        public static List<ColExpr> RetrieveAllColExpr(this List<Expr> exprs, bool includingParameters = false)
         {
             var list = new List<ColExpr>();
             exprs.ForEach(x => list.AddRange(RetrieveAllColExpr(x, includingParameters)));
@@ -152,14 +152,14 @@ namespace adb
 		// TODO: what about expr.tableRefs_?
         //  They shall be equal but our implmentation sometimes get them inconsistent
         //  for example, xc.tabRef_ can contain outerrefs but tableRefs_ does not.
-        public static List<TableRef> AllTableRef(Expr expr)
+        public static List<TableRef> AllTableRef(this Expr expr)
         {
             var list = new HashSet<TableRef>();
             expr.VisitEach<ColExpr>(x => list.Add(x.tabRef_));
             return list.ToList();
         }
 
-        public static string PrintExprWithSubqueryExpanded(Expr expr, int depth)
+        public static string PrintExprWithSubqueryExpanded(this Expr expr, int depth)
         {
             string r = "";
             // append the subquery plan align with expr
@@ -181,7 +181,7 @@ namespace adb
         }
 
         // this is a hack - shall be removed after all optimization process in place
-        public static void SubqueryDirectToPhysic(Expr expr)
+        public static void SubqueryDirectToPhysic(this Expr expr)
         {
             // append the subquery plan align with expr
             expr.VisitEach< SubqueryExpr>(x =>
@@ -197,12 +197,12 @@ namespace adb
     public static class FilterHelper {
         
         // a > 3 or c > 1, b > 5 =>  (a > 3 or c > 1) and (b > 5)
-        public static Expr AddAndFilter(Expr basefilter, Expr newcond) {
+        public static Expr AddAndFilter(this Expr basefilter, Expr newcond) {
             if (basefilter is null)
                 return newcond.Clone();
             return LogicAndExpr.MakeExpr(basefilter, newcond.Clone());
         }
-        public static void NullifyFilter(LogicNode node)
+        public static void NullifyFilter(this LogicNode node)
         {
             node.filter_ = null;
             // we have to keep the LogicFilter in various cases for easier handling 
@@ -212,7 +212,7 @@ namespace adb
                 node.filter_ = new LiteralExpr("true", new BoolType());
         }
 
-        public static bool FilterIsConst(Expr filter, out bool trueOrfalse)
+        public static bool FilterIsConst(this Expr filter, out bool trueOrfalse)
         {
             trueOrfalse = false;
             if (filter.TryEvalConst(out Value value)) {
@@ -225,7 +225,7 @@ namespace adb
 
         // a>5 => [a > 5]
         // a>5 AND c>7 => [a>5, c>7]
-        public static List<Expr> FilterToAndList(Expr filter)
+        public static List<Expr> FilterToAndList(this Expr filter)
         {
             var andlist = new List<Expr>();
             if (filter is LogicAndExpr andexpr)
@@ -246,7 +246,7 @@ namespace adb
         // but not filter2. Current stage is too early for this purpose since join reordering
         // is happened later. So we only do best efforts here only.
         //
-        public static bool PushJoinFilter(LogicNode plan, Expr filter)
+        public static bool PushJoinFilter(this LogicNode plan, Expr filter)
         {
             // the filter shall be a join filter
             Debug.Assert(filter.TableRefCount() >= 2);
@@ -265,8 +265,8 @@ namespace adb
                     //
                     if (filter.TableRefsContainedBy(nodejoinIncl))
                     {
-                        if (!PushJoinFilter(nodeJoin.l_(), filter) &&
-                            !PushJoinFilter(nodeJoin.r_(), filter))
+                        if (!nodeJoin.l_().PushJoinFilter(filter) &&
+                            !nodeJoin.r_().PushJoinFilter(filter))
                             return nodeJoin.AddFilter(filter);
                         else
                             return true;
@@ -278,7 +278,7 @@ namespace adb
 
         // suppport forms
         //   a.i =|>|< 5
-        public static bool FilterCanUseIndex(BaseTableRef table, Expr filter)
+        public static bool FilterCanUseIndex(this Expr filter, BaseTableRef table)
         {
             if (filter is null)
                 return false;
@@ -300,7 +300,7 @@ namespace adb
         // but not:
         //   a.i = c.i-2*d.i-b.i if left side contained a,b and right side c,d (we can add later)
         //
-        public static bool FilterHashable(Expr filter)
+        public static bool FilterHashable(this Expr filter)
         {
             bool OneFilterHashable(Expr filter)
             {
@@ -314,7 +314,7 @@ namespace adb
                 return false;
             }
 
-            var andlist = FilterHelper.FilterToAndList(filter);
+            var andlist = filter.FilterToAndList();
             foreach (var v in andlist)
             {
                 if (!OneFilterHashable(v))
@@ -386,12 +386,12 @@ namespace adb
         public bool TableRefsContainedBy(List<TableRef> tableRefs)
         {
             Debug.Assert(bounded_);
-            return Utils.ListAContainsB(tableRefs, tableRefs_);
+            return tableRefs.ContainsList( tableRefs_);
         }
         public bool TableRefsEquals(List<TableRef> tableRefs)
         {
             Debug.Assert(bounded_);
-            return Utils.ListAEqualsB(tableRefs, tableRefs_);
+            return tableRefs.ListAEqualsB( tableRefs_);
         }
 
         bool VisitEachExistsT<T>(Func<T, bool> check, List<Type> excluding = null) where T: Expr
@@ -461,7 +461,7 @@ namespace adb
         public virtual Expr Clone()
         {
             Expr n = (Expr)MemberwiseClone();
-            n.children_ = ExprHelper.CloneList(children_);
+            n.children_ = children_.CloneList();
             n.tableRefs_ = new List<TableRef>();
             tableRefs_.ForEach(n.tableRefs_.Add);
             Debug.Assert(Equals(n));
@@ -550,7 +550,7 @@ namespace adb
             Debug.Assert(!bounded_);
             bounded_ = true;
         }
-        public override int GetHashCode() => Utils.ListHashCode(tableRefs_) ^ Utils.ListHashCode(children_);
+        public override int GetHashCode() => tableRefs_.ListHashCode() ^ children_.ListHashCode();
         public override bool Equals(object obj)
         {
             if (!(obj is Expr))
@@ -583,7 +583,7 @@ namespace adb
                 Expr x = children_[i];
                 
                 x.Bind(context);
-                x = x.Simplify();
+                x = x.ConstFolding();
                 children_[i] = x;
             }
 			ResetAggregateTableRefs ();
@@ -591,7 +591,7 @@ namespace adb
             markBounded();
         }
 
-        public Expr Simplify()
+        public Expr ConstFolding()
         {
             Debug.Assert(bounded_);
 
@@ -874,7 +874,7 @@ namespace adb
                             throw new SemanticAnalyzeException("wrong double precision format");
                         break;
                     case DateTimeType dtt:
-                        var datestr = Utils.RemoveStringQuotes(str);
+                        var datestr = str.RemoveStringQuotes();
                         if (DateTime.TryParse(datestr, out DateTime valuedt))
                             val_ = valuedt;
                         else
@@ -882,7 +882,7 @@ namespace adb
                         break;
                     case CharType ct:
                     case VarCharType vt:
-                        str_ = Utils.RemoveStringQuotes(str_);
+                        str_ = str_.RemoveStringQuotes();
                         val_ = str_;
                         break;
                     case BoolType bt:
@@ -903,7 +903,7 @@ namespace adb
         public LiteralExpr(string interval, string unit)
         {
             int day = 0;
-            interval = Utils.RemoveStringQuotes(interval);
+            interval = interval.RemoveStringQuotes();
             if (int.TryParse(interval, out int value))
                 day = value;
             else
@@ -974,7 +974,7 @@ namespace adb
         internal Expr expr_() => child_();
         internal int ordinal_;
 
-        public override string ToString() => $@"{{{Utils.RemovePositions(expr_().ToString())}}}[{ordinal_}]";
+        public override string ToString() => $@"{{{expr_().ToString().RemovePositions()}}}[{ordinal_}]";
         public ExprRef(Expr expr, int ordinal)
         {
             if (expr is ExprRef ee)

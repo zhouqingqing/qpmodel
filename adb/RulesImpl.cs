@@ -13,7 +13,7 @@ namespace adb
         public override bool Appliable(CGroupMember expr)
         {
             LogicJoin join = expr.logic_ as LogicJoin;
-            return join != null && FilterHelper.FilterHashable(join.filter_);
+            return join != null && join.filter_.FilterHashable();
         }
 
         public override CGroupMember Apply(CGroupMember expr)
