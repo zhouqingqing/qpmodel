@@ -304,19 +304,19 @@ namespace test
             var answer = @"PhysicScanTable a  (actual rows = 3)
                             Output: a.a2[1]
                             Filter: a.a3[2]>@1
-                            <ScalarSubqueryExpr> 1
-                                -> PhysicHashAgg   (actual rows = 3)
+                            <ScalarSubqueryExpr> cached 1
+                                -> PhysicHashAgg   (actual rows = 1)
                                     Output: {min(b.b1*2)}[0]
                                     Aggregates: min(b.b1[1]*2)
-                                    -> PhysicScanTable b  (actual rows = 9)
+                                    -> PhysicScanTable b  (actual rows = 3)
                                         Output: b.b1[0]*2,b.b1[0],2,#b.b2[1]
                                         Filter: b.b2[1]>=@2 and b.b3[2]>@3
                                         <ScalarSubqueryExpr> 2
-                                            -> PhysicScanTable c  (actual rows = 9)
+                                            -> PhysicScanTable c  (actual rows = 3)
                                                 Output: c.c2[1]-1
                                                 Filter: c.c2[1]=?b.b2[1]
                                         <ScalarSubqueryExpr> 3
-                                            -> PhysicScanTable c  (actual rows = 9)
+                                            -> PhysicScanTable c  (actual rows = 3)
                                                 Output: c.c2[1]
                                                 Filter: c.c2[1]=?b.b2[1]";
             Assert.AreEqual("1;2;3", string.Join(";", result));
@@ -1182,16 +1182,16 @@ namespace test
             answer = @"PhysicScanTable a  (actual rows = 0)
                         Output: 1
                         Filter: a.a1[0]>@1
-                        <ScalarSubqueryExpr> 1
+                        <ScalarSubqueryExpr> cached 1
                             -> PhysicScanTable b  (actual rows = 0)
                                 Output: b.b1[0],#b.b2[1]
                                 Filter: b.b2[1]>@2 and b.b1[0]>@3
                                 <ScalarSubqueryExpr> 2
-                                    -> PhysicScanTable c  (actual rows = 9)
+                                    -> PhysicScanTable c  (actual rows = 3)
                                         Output: c.c2[1]
                                         Filter: c.c2[1]=?b.b2[1]
                                 <ScalarSubqueryExpr> 3
-                                    -> PhysicScanTable c  (actual rows = 9)
+                                    -> PhysicScanTable c  (actual rows = 3)
                                         Output: c.c2[1]
                                         Filter: c.c2[1]=?b.b2[1]";
             TU.PlanAssertEqual(answer, phyplan);
@@ -1199,20 +1199,20 @@ namespace test
             answer = @"PhysicScanTable a  (actual rows = 0)
                         Output: 1
                         Filter: a.a1[0]>@1
-                        <ScalarSubqueryExpr> 1
+                        <ScalarSubqueryExpr> cached 1
                             -> PhysicFilter   (actual rows = 0)
                                 Output: b.b1[1]
                                 Filter: {#marker}[0] and b.b2[2]>c.c2[3] and b.b1[1]>@3
                                 <ScalarSubqueryExpr> 3
-                                    -> PhysicScanTable c  (actual rows = 9)
+                                    -> PhysicScanTable c  (actual rows = 3)
                                         Output: c.c2[1]
                                         Filter: c.c2[1]=?b.b2[1]
-                                -> PhysicSingleMarkJoin   (actual rows = 9)
+                                -> PhysicSingleMarkJoin   (actual rows = 3)
                                     Output: #marker,b.b1[0],b.b2[1],c.c2[2]
                                     Filter: c.c2[2]=?b.b2[1]
-                                    -> PhysicScanTable b  (actual rows = 9)
+                                    -> PhysicScanTable b  (actual rows = 3)
                                         Output: b.b1[0],b.b2[1]
-                                    -> PhysicScanTable c  (actual rows = 27)
+                                    -> PhysicScanTable c  (actual rows = 9)
                                         Output: c.c2[1]";
             TU.PlanAssertEqual(answer, phyplan);
 

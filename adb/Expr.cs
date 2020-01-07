@@ -168,7 +168,8 @@ namespace adb
                 r += "\n";
                 expr.VisitEach<SubqueryExpr>(x =>
                 {
-                    r += Utils.Tabs(depth + 2) + $"<{x.GetType().Name}> {x.subqueryid_}\n";
+                    string cached = !x.IsCorrelated() ? "cached " : "";
+                    r += Utils.Tabs(depth + 2) + $"<{x.GetType().Name}> {cached}{x.subqueryid_}\n";
                     Debug.Assert(x.query_.bindContext_ != null);
                     if (x.query_.physicPlan_ != null)
                         r += $"{x.query_.physicPlan_.PrintString(depth + 4)}";
