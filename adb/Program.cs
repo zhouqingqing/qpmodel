@@ -135,7 +135,9 @@ namespace adb
             sql = "select * from a, (select * from b) c";
             sql = "select b.a1 + b.a2 from (select a1 from a) b";
             sql = "select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) and b.b1 > (select c2 / 2 from c where c.c2 = b2);";
-            sql = "select * from a join b on a1=b1 join c on a1=c1 join d on a1>=d1 limit 1;";
+            sql = "select * from a where a2 > (select max(b1) from b);";
+            sql = "select a2 from a where a1 in (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1));";
+
 
         doit:
             Console.WriteLine(sql);

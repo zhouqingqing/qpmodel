@@ -15,6 +15,10 @@ namespace adb
         internal SelectStmt query_;
         internal int subqueryid_;    // bounded
 
+        // runtime optimization for non-correlated subquery
+        internal bool cachedValSet_ = false;
+        internal Value cachedVal_;
+
         public SubqueryExpr(SelectStmt query, string subqtype)
         {
             Debug.Assert(new List<string>(){"scalar", "in", "exist"}.Contains(subqtype));
@@ -62,6 +66,7 @@ namespace adb
     public class ExistSubqueryExpr : SubqueryExpr
     {
         internal bool hasNot_ = false;
+
         public ExistSubqueryExpr(SelectStmt query) : base(query, "exist") { }
 
         public override void Bind(BindContext context)
@@ -74,6 +79,9 @@ namespace adb
         public override Value Exec(ExecContext context, Row input)
         {
             Debug.Assert(type_ != null);
+            if (!IsCorrelated() && cachedValSet_)
+                return cachedVal_;
+
             Row r = null;
             query_.physicPlan_.Exec(context, l =>
             {
@@ -83,7 +91,9 @@ namespace adb
             });
 
             bool exists = r != null;
-            return hasNot_? !exists: exists;
+            cachedVal_ = hasNot_? !exists: exists;
+            cachedValSet_ = true;
+            return cachedVal_;
         }
     }
 
@@ -103,6 +113,9 @@ namespace adb
         public override Value Exec(ExecContext context, Row input)
         {
             Debug.Assert(type_ != null);
+            if (!IsCorrelated() && cachedValSet_)
+                return cachedVal_;
+
             Row r = null;
             query_.physicPlan_.Exec(context, l =>
             {
@@ -113,7 +126,9 @@ namespace adb
                 return null;
             });
 
-            return (r != null)? r[0] : null;
+            cachedVal_ = (r != null)? r[0] : null;
+            cachedValSet_ = true;
+            return cachedVal_;
         }
     }
 
@@ -138,6 +153,10 @@ namespace adb
         public override Value Exec(ExecContext context, Row input)
         {
             Debug.Assert(type_ != null);
+            Value expr = expr_().Exec(context, input);
+            if (!IsCorrelated() && cachedValSet_)
+                return (cachedVal_ as HashSet<Value>).Contains(expr);
+            
             var set = new HashSet<Value>();
             query_.physicPlan_.Exec(context, l =>
             {
@@ -146,8 +165,9 @@ namespace adb
                 return null;
             });
 
-            Value expr = expr_().Exec(context, input);
-            return set.Contains(expr);
+            cachedVal_ = set;
+            cachedValSet_ = true;
+            return set.Contains(expr); ;
         }
     }
 
