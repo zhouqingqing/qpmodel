@@ -90,6 +90,9 @@ namespace adb
             Row r = null;
             for (; ; )
             {
+                if (context.stop_)
+                    break;
+
                 if (heap.MoveNext())
                     r = heap.Current;
                 else
@@ -160,6 +163,9 @@ namespace adb
             {
                 Row r = new Row(fields.Length);
 
+                if (context.stop_)
+                    return;
+
                 int i = 0;
                 Array.ForEach(fields, f =>
                 {
@@ -212,6 +218,9 @@ namespace adb
 
             l_().Exec(context, l =>
             {
+                if (context.stop_)
+                    return null;
+                
                 bool foundOneMatch = false;
                 r_().Exec(context, r =>
                 {
@@ -354,6 +363,9 @@ namespace adb
             // right side probes the hash table
             r_().Exec(context, r =>
             {
+                if (context.stop_)
+                    return null;
+
                 Row fakel = new Row(l_().logic_.output_.Count);
                 Row n = new Row(fakel, r);
                 var keys = KeyList.ComputeKeys(context, rightKeys_, n);
@@ -442,6 +454,9 @@ namespace adb
             // stitch keys+aggcore into final output
             foreach (var v in hm)
             {
+                if (context.stop_)
+                    break;
+
                 var keys = v.Key;
                 Row row = v.Value;
                 for (int i = 0; i < aggrcore.Count; i++)
@@ -489,7 +504,11 @@ namespace adb
 
             // output sorted set
             foreach (var v in set)
+            {
+                if (context.stop_)
+                    break;
                 callback(v);
+            }
         }
     }
 
@@ -504,6 +523,9 @@ namespace adb
             var logic = logic_ as LogicFromQuery;
             child_().Exec(context, l =>
             {
+                if (context.stop_)
+                    return null;
+                
                 if (logic.queryRef_.outerrefs_.Count != 0)
                     context.AddParam(logic.queryRef_, l);
                 var r = ExecProject(context, l);
@@ -526,6 +548,9 @@ namespace adb
 
             child_().Exec(context, l =>
             {
+                if (context.stop_)
+                    return null;
+
                 if (filter is null || filter.Exec(context, l) is true)
                 {
                     var r = ExecProject(context, l);
@@ -640,8 +665,10 @@ namespace adb
             child_().Exec(context, l =>
             {
                 nrows++;
-                if (nrows <= limit)
-                    callback(l);
+                Debug.Assert(nrows <= limit);
+                if (nrows == limit)
+                    context.stop_ = true;
+                callback(l);
                 return null;
             });
 
