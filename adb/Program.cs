@@ -30,7 +30,7 @@ namespace adb
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[1]; //12
+                var v = files[3]; //12
                 {
                     sql = File.ReadAllText(v);
                     goto doit;
@@ -129,8 +129,13 @@ namespace adb
             sql = "select ca2 from (select count(a2) as ca2 from a group by a1) b ;";
             sql = "select ca2 from (select count(a2) as ca2 from a group by a1) b group by ca2;";
             sql = "select a1 from (select a1 from a where a2 > (select max(b1) from b)) c;";
-            //sql = "select a1 from a where a2 > (select max(b1) from b);";
-            sql = "select * from b join a on a1=b1 where a1 < (select a2 from a where a2=b2);";
+            sql = "select a1, count(a1) from a where exists (select *  from b where b1=a1) group by a1;";
+            sql = "select a1 from a where a2 > (select max(b1) from b);";
+            sql = "select a2 from a where a.a3 > (select min(b1*2) from b where b.b2 >= (select c2-1 from c where c.c2=b2) and b.b3 > ((select c2 from c where c.c2=b2)));";
+            sql = "select * from a, (select * from b) c";
+            sql = "select b.a1 + b.a2 from (select a1 from a) b";
+            sql = "select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) and b.b1 > (select c2 / 2 from c where c.c2 = b2);";
+            sql = "select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) and b.b1 > (select c2 / 2 from c where c.c2 = b2);";
 
         doit:
             Console.WriteLine(sql);
@@ -138,7 +143,7 @@ namespace adb
             a.profileOpt_.enabled_ = true;
             a.optimizeOpt_.enable_subquery_to_markjoin_ = true;
             a.optimizeOpt_.remove_from = true;
-            a.optimizeOpt_.use_memo_ = true;
+            a.optimizeOpt_.use_memo_ = false;
 
             // -- Semantic analysis:
             //  - bind the query

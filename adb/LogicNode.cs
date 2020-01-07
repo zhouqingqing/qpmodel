@@ -418,12 +418,13 @@ namespace adb
         public override string PrintMoreDetails(int depth)
         {
             string r = null;
+            string tabs = Utils.Tabs(depth + 2);
             if (aggrFns_.Count > 0)
-                r += $"Aggregates: {string.Join(", ", aggrFns_)}\n{Utils.Tabs(depth + 2)}";
+                r += $"Aggregates: {string.Join(", ", aggrFns_)}";
             if (keys_ != null)
-                r += $"Group by: {string.Join(", ", keys_)}\n";
+                r += $"{(aggrFns_.Count > 0? "\n"+tabs: "")}Group by: {string.Join(", ", keys_)}";
             if (having_ != null)
-                r += Utils.Tabs(depth + 2) + $"{PrintFilter(having_, depth)}";
+                r += $"{(keys_ != null ? "\n"+tabs: "")}{PrintFilter(having_, depth)}";
             return r;
         }
 
@@ -566,7 +567,7 @@ namespace adb
 
                 newoutput.Add(x);
             });
-            if (having_ != null) having_ = having_.SearchReplace(keys_);
+            if (having_ != null && keys_ != null) having_ = having_.SearchReplace(keys_);
             having_?.VisitEach<AggFunc>(y =>
             {
                 // remove the duplicates immediatley to avoid wrong ordinal in ExprRef
@@ -588,6 +589,8 @@ namespace adb
             if (offending != null)
                 throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
             output_ = newoutput;
+            if (having_?.VisitEachExprExists(y => y is ColExpr, new List<Type> { typeof(ExprRef) })??false)
+                throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
 
             return ordinals;
         }
