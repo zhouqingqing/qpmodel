@@ -777,6 +777,8 @@ namespace adb
             Utils.Assumes(expr.IsConst());
             expr.TryEvalConst(out Object val);
             limit_ = (int)val;
+            if (limit_ <= 0)
+                throw new SemanticAnalyzeException("limit shall be positive");
         }
 
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)

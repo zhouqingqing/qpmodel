@@ -103,16 +103,19 @@ namespace adb
 
     public class ExecContext
     {
+    	public bool stop_ = false;
         public List<Parameter> params_ = new List<Parameter>();
 
         public void Reset() { params_.Clear(); }
         public Value GetParam(TableRef tabref, int ordinal)
         {
+        	Debug.Assert (!stop_);
             Debug.Assert(params_.FindAll(x => x.tabref_.Equals(tabref)).Count == 1);
             return params_.Find(x => x.tabref_.Equals(tabref)).row_[ordinal];
         }
         public void AddParam(TableRef tabref, Row row)
         {
+        	Debug.Assert (!stop_);
             Debug.Assert(params_.FindAll(x => x.tabref_.Equals(tabref)).Count <= 1);
             params_.Remove(params_.Find(x => x.tabref_.Equals(tabref)));
             params_.Add(new Parameter(tabref, row));
