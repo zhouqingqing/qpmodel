@@ -448,6 +448,7 @@ namespace adb
             }
 
             having_?.Bind(context);
+			hasAgg_ |= having_ != null?true:false;
             if (optimizeOpt_.remove_from && having_ != null)
                 having_ = having_.DeQueryRef();
 
@@ -496,7 +497,7 @@ namespace adb
                 {
                     from_[i] = wayUpToFindCte(context, bref.alias_);
                     if (from_[i] is null)
-                        throw new Exception($@"table {bref.relname_} not exists");
+                        throw new Exception($@"table '{bref.relname_}' not exists");
                 }
             }
 
@@ -511,7 +512,7 @@ namespace adb
                         if (Catalog.systable_.TryTable(eref.baseref_.relname_) != null)
                             context.AddTable(eref);
                         else
-                            throw new Exception($@"base table {eref.baseref_.relname_} not exists");
+                            throw new Exception($@"base table '{eref.baseref_.relname_}' not exists");
                         break;
                     case QueryRef qref:
                         if (qref.query_.bindContext_ is null)

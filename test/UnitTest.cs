@@ -1030,13 +1030,19 @@ namespace test
             sql = "select max(sum(a)+1) from a;";
             result = ExecuteSQL(sql); Assert.IsNull(result);
             Assert.IsTrue(TU.error_.Contains("nested"));
+            sql = "select a1, sum(a1) from a group by a1 having sum(a2) > a3;";
+            result = ExecuteSQL(sql); Assert.IsNull(result);
+            Assert.IsTrue(TU.error_.Contains("SemanticAnalyzeException"));  // FIXME: error message doesn't propogate
+            sql = "select * from a having sum(a2) > a1;";
+            result = ExecuteSQL(sql); Assert.IsNull(result);
+            Assert.IsTrue(TU.error_.Contains("SemanticAnalyzeException"));
 
             sql = "select 7, (4-a3)/2*2+1+sum(a1), sum(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";
             result = ExecuteSQL(sql, out string phyplan);
             var answer = @"PhysicHashAgg   (actual rows = 2)
                             Output: 7,{4-a.a3/2}[0]*2+1+{sum(a.a1)}[1],{sum(a.a1)}[1]+{sum(a.a1+a.a2)}[2]*2
                             Aggregates: sum(a.a1[0]), sum(a.a1[0]+a.a2[2])
-                        Group by: 4-a.a3[3]/2
+                            Group by: 4-a.a3[3]/2
                             -> PhysicScanTable a  (actual rows = 3)
                                 Output: a.a1[0],a.a1[0]+a.a2[1],a.a2[1],a.a3[2]";
             TU.PlanAssertEqual(answer, phyplan);
@@ -1078,6 +1084,10 @@ namespace test
             result = ExecuteSQL(sql); Assert.AreEqual("2", string.Join(";", result));
             sql = "select a1, sum(a1) from a group by a1 having sum(a2) > 2;";
             result = ExecuteSQL(sql); Assert.AreEqual("2,2", string.Join(";", result));
+            sql = "select max(b1) from b having max(b1)>1;";
+            result = ExecuteSQL(sql); Assert.AreEqual("2", string.Join(";", result));
+            sql = "select a3, sum(a1) from a group by a3 having sum(a2) > a3/2;";
+            result = ExecuteSQL(sql); Assert.AreEqual("3,1;4,2", string.Join(";", result));
 
             // failed:
             // sql = "select a1, sum(a1) from a group by a1 having sum(a2) > a3;";
