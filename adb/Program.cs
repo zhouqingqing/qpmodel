@@ -30,10 +30,10 @@ namespace adb
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[1]; //12
+                var v = files[20]; //12
                 {
                     sql = File.ReadAllText(v);
-                    //goto doit;
+                    goto doit;
                 }
             }
             //sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
@@ -137,9 +137,9 @@ namespace adb
             sql = "select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) and b.b1 > (select c2 / 2 from c where c.c2 = b2);";
             sql = "select a2 from a where a1 in (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1));";
             sql = "select b3+c2 from a, b, c where (select b1+b2 from b where b1=a1)>4 and (select c2+c3 from c where c1=b1)>6 and c1<1";
+            //sql = "select * from a where a2 > (select max(b1) from b where a2=b2);";
+            //sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1";
             sql = "select * from b join a on a1=b1 where a1 < (select a2 from a where a2=b2);";
-            sql = "select * from a where a2 > (select max(b1) from b where a2=b2);";
-            sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1";
 
         doit:
             Console.WriteLine(sql);
@@ -147,7 +147,7 @@ namespace adb
             a.profileOpt_.enabled_ = true;
             a.optimizeOpt_.enable_subquery_to_markjoin_ = true;
             a.optimizeOpt_.remove_from = true;
-            a.optimizeOpt_.use_memo_ = true;
+            a.optimizeOpt_.use_memo_ = false;
 
             // -- Semantic analysis:
             //  - bind the query

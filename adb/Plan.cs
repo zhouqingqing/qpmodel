@@ -440,7 +440,7 @@ namespace adb
             bindSelectionList(context);
 
             where_?.Bind(context);
-            if (!(where_?.IsComparisonExpr() ?? true))
+            if (!(where_?.IsBoolean() ?? true))
                 throw new SemanticAnalyzeException("WHERE condition must be a blooean expression");
             if (optimizeOpt_.remove_from && where_!= null)
                 where_ = where_.DeQueryRef();
@@ -453,7 +453,7 @@ namespace adb
             }
 
             having_?.Bind(context);
-            if (!(having_?.IsComparisonExpr() ?? true))
+            if (!(having_?.IsBoolean() ?? true))
                 throw new SemanticAnalyzeException("HAVING condition must be a blooean expression");
             hasAgg_ |= having_ != null?true:false;
             if (optimizeOpt_.remove_from && having_ != null)

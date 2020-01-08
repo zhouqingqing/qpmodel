@@ -46,8 +46,8 @@ namespace adb
         //
         internal string alias_;
 
-		// list of correlated colexpr needs this table
-        internal readonly List<ColExpr> outerrefs_ = new List<ColExpr>();
+		// list of correlated column used in correlated subqueries
+        internal readonly List<ColExpr> colRefedInSubq_ = new List<ColExpr>();
 
         public override string ToString() => $"{alias_}";
         public Expr LocateColumn(string colAlias)
@@ -72,7 +72,7 @@ namespace adb
         public List<Expr> AddOuterRefsToOutput(List<Expr> output)
         {
 	        // for outerrefs, if it is not found in output list, add them there and mark invisible
-            outerrefs_.ForEach(x =>
+            colRefedInSubq_.ForEach(x =>
             {
                 if (!output.Contains(x))
                 {
@@ -86,10 +86,10 @@ namespace adb
             return output;
         }
 
-        public static bool HasOuterRefs(List<TableRef> tables) {
+        public static bool HasColsUsedBySubquries(List<TableRef> tables) {
             foreach (var v in tables)
             {
-                if (v.outerrefs_.Count > 0)
+                if (v.colRefedInSubq_.Count > 0)
                     return true;
             }
             return false;

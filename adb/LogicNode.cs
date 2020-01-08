@@ -65,12 +65,12 @@ namespace adb
                                     r.DirectToPhysical(profiling));
                                 break;
                             default:
-                                bool lhasouter = TableRef.HasOuterRefs(l.InclusiveTableRefs());
-                                bool rhasouter = TableRef.HasOuterRefs(r.InclusiveTableRefs());
+                                bool lhasSubqCol = TableRef.HasColsUsedBySubquries(l.InclusiveTableRefs());
+                                bool rhasSubqCol = TableRef.HasColsUsedBySubquries(r.InclusiveTableRefs());
 
                                 // if left side has outerrefs, we needs NLJ to drive the parameter
                                 // pass to right side, so we can't use HJ in this case.
-                                if (lc.filter_.FilterHashable() && !lhasouter)
+                                if (lc.filter_.FilterHashable() && !lhasSubqCol)
                                     phy = new PhysicHashJoin(lc,
                                         l.DirectToPhysical(profiling),
                                         r.DirectToPhysical(profiling));
@@ -222,6 +222,21 @@ namespace adb
             long card = 1;
             children_.ForEach(x => card = Math.Max(x.EstCardinality(), card));
             return card;
+        }
+
+        // retrieve all correlated filters on the subtree
+        public List<Expr> RetrieveCorrelatedFilters() {
+            List<Expr> preds = new List<Expr>();
+            TraversEachNode(x => {
+                var logic = x as LogicNode;
+                var filterExpr = logic.filter_;
+
+                if (filterExpr != null) {
+                    preds.AddRange(filterExpr.FilterGetCorrelated());
+                }
+            });
+
+            return preds;
         }
     }
 

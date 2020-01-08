@@ -217,7 +217,7 @@ namespace adb
             });
         }
 
-        public static bool IsComparisonExpr(this Expr expr)
+        public static bool IsBoolean(this Expr expr)
         {
             Debug.Assert(expr.type_ != null);
             return expr.type_ is BoolType;
@@ -228,7 +228,7 @@ namespace adb
         
         // a > 3 or c > 1, b > 5 =>  (a > 3 or c > 1) and (b > 5)
         public static Expr AddAndFilter(this Expr basefilter, Expr newcond) {
-            Debug.Assert(newcond.IsComparisonExpr());
+            Debug.Assert(newcond.IsBoolean());
             if (basefilter is null)
                 return newcond.Clone();
             return LogicAndExpr.MakeExpr(basefilter, newcond.Clone());
@@ -245,7 +245,7 @@ namespace adb
 
         public static bool FilterIsConst(this Expr filter, out bool trueOrfalse)
         {
-            Debug.Assert(filter.IsComparisonExpr());
+            Debug.Assert(filter.IsBoolean());
             trueOrfalse = false;
             if (filter.TryEvalConst(out Value value)) {
                 Debug.Assert(value is bool);
@@ -259,7 +259,7 @@ namespace adb
         // a>5 AND c>7 => [a>5, c>7]
         public static List<Expr> FilterToAndList(this Expr filter)
         {
-            Debug.Assert(filter.IsComparisonExpr());
+            Debug.Assert(filter.IsBoolean());
             var andlist = new List<Expr>();
             if (filter is LogicAndExpr andexpr)
                 andlist = andexpr.BreakToList();
@@ -282,7 +282,7 @@ namespace adb
         public static bool PushJoinFilter(this LogicNode plan, Expr filter)
         {
             // the filter shall be a join filter
-            Debug.Assert(filter.IsComparisonExpr());
+            Debug.Assert(filter.IsBoolean());
             Debug.Assert(filter.TableRefCount() >= 2);
 
             return plan.VisitEachNodeExists(n =>
@@ -317,7 +317,7 @@ namespace adb
             if (filter is null)
                 return false;
 
-            Debug.Assert(filter.IsComparisonExpr());
+            Debug.Assert(filter.IsBoolean());
             if (table.Table().indexes_.Count == 0)
                 return false;
 
@@ -358,6 +358,30 @@ namespace adb
                     return false;
             }
             return andlist.Count >= 1;
+        }
+
+        // c.c2=?b.b2 and b.b3>2 => c.c2=b.b2
+        public static List<Expr> FilterGetCorrelated(this Expr filter)
+        {
+            bool OneFilterIsCorrelated(Expr filter)
+            {
+                bool hasOutref = false;
+                filter.VisitEach<ColExpr>(x=>{
+                    if (x.isOuterRef_)
+                        hasOutref = true;
+                });
+                return hasOutref;
+            }
+
+            List<Expr> preds = new List<Expr>();
+            Debug.Assert(filter.IsBoolean());
+            var andlist = filter.FilterToAndList();
+            foreach (var v in andlist)
+            {
+                if (OneFilterIsCorrelated(v))
+                    preds.Add(v);
+            }
+            return preds;
         }
     }
 
@@ -753,7 +777,7 @@ namespace adb
                     {
                         // we are actually switch the context to parent, whichTab_ is not right ...
                         isOuterRef_ = true;
-                        tabRef_.outerrefs_.Add(this);
+                        tabRef_.colRefedInSubq_.Add(this);
                         (context.stmt_ as SelectStmt).isCorrelated = true;
                         context = parent;
                         break;
