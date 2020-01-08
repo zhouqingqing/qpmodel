@@ -34,7 +34,28 @@ namespace adb
 
         // table APIs
         //
-        public void AddTable(TableRef tab) => boundFrom_.Add(boundFrom_.Count, tab);
+        public void RegisterTable(TableRef tab)
+        {
+            bool FindSameInParents(TableRef tab)
+            {
+                var top = parent_;
+                while (top != null)
+                {
+                    if (top.boundFrom_.Values.Any(x => x.alias_.Equals(tab.alias_)))
+                    {
+                        Debug.Assert(top.boundFrom_.Values.Count(x => x.alias_.Equals(tab.alias_)) == 1);
+                        return true;
+                    }
+
+                    top = top.parent_;
+                }
+                return false;
+            }
+            
+            if (FindSameInParents(tab))
+                tab.alias_ = $"{tab.alias_}__{globalSubqCounter_}";
+            boundFrom_.Add(boundFrom_.Count, tab);
+        }
         public List<TableRef> AllTableRefs() => boundFrom_.Values.ToList();
         public TableRef Table(string alias) => boundFrom_.Values.FirstOrDefault(x => x.alias_.Equals(alias));
         public int TableIndex(string alias)
@@ -85,6 +106,8 @@ namespace adb
             }
             throw new SemanticAnalyzeException($"column not exists {tabAlias}.{colAlias}");
         }
+
+
     }
 
     public static class ExprHelper
@@ -193,12 +216,19 @@ namespace adb
                 query.physicPlan_ = query.logicPlan_.DirectToPhysical(poption);
             });
         }
+
+        public static bool IsComparisonExpr(this Expr expr)
+        {
+            Debug.Assert(expr.type_ != null);
+            return expr.type_ is BoolType;
+        }
     }
 
     public static class FilterHelper {
         
         // a > 3 or c > 1, b > 5 =>  (a > 3 or c > 1) and (b > 5)
         public static Expr AddAndFilter(this Expr basefilter, Expr newcond) {
+            Debug.Assert(newcond.IsComparisonExpr());
             if (basefilter is null)
                 return newcond.Clone();
             return LogicAndExpr.MakeExpr(basefilter, newcond.Clone());
@@ -215,6 +245,7 @@ namespace adb
 
         public static bool FilterIsConst(this Expr filter, out bool trueOrfalse)
         {
+            Debug.Assert(filter.IsComparisonExpr());
             trueOrfalse = false;
             if (filter.TryEvalConst(out Value value)) {
                 Debug.Assert(value is bool);
@@ -228,6 +259,7 @@ namespace adb
         // a>5 AND c>7 => [a>5, c>7]
         public static List<Expr> FilterToAndList(this Expr filter)
         {
+            Debug.Assert(filter.IsComparisonExpr());
             var andlist = new List<Expr>();
             if (filter is LogicAndExpr andexpr)
                 andlist = andexpr.BreakToList();
@@ -250,6 +282,7 @@ namespace adb
         public static bool PushJoinFilter(this LogicNode plan, Expr filter)
         {
             // the filter shall be a join filter
+            Debug.Assert(filter.IsComparisonExpr());
             Debug.Assert(filter.TableRefCount() >= 2);
 
             return plan.VisitEachNodeExists(n =>
@@ -284,6 +317,7 @@ namespace adb
             if (filter is null)
                 return false;
 
+            Debug.Assert(filter.IsComparisonExpr());
             if (table.Table().indexes_.Count == 0)
                 return false;
 
@@ -315,6 +349,8 @@ namespace adb
                 return false;
             }
 
+            if (filter is null)
+                return false;
             var andlist = filter.FilterToAndList();
             foreach (var v in andlist)
             {
