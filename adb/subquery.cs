@@ -157,34 +157,37 @@ namespace adb
         {
             // before the filter push down, there shall be at most one filter
             // except for from query. 
-            var parents = new List<LogicNode>();
+            var parentNodes = new List<LogicNode>();
             var indexes = new List<int>();
-            var filters = new List<LogicFilter>();
-            var cntFilter = plan.FindNodeTyped(parents, indexes, filters);
+            var logFilterNodes = new List<LogicFilter>();
+            var cntFilter = plan.FindNodeTyped(parentNodes, indexes, logFilterNodes);
             Debug.Assert(cntFilter <= 1 || plan.CountNodeTyped<LogicFromQuery>() > 0);
 
+            if (cntFilter == 1)
             {
-                var filter = plan.filter_;
-                if (filter != null)
+                var filterExpr = plan.filter_;
+                if (filterExpr != null)
                 {
-                    foreach (var ef in filter.RetrieveAllType<ExistSubqueryExpr>())
+                    foreach (var ef in filterExpr.RetrieveAllType<ExistSubqueryExpr>())
                     {
                         if (ef.IsCorrelated())
                         {
                             var oldplan = plan;
-                            plan = existsToMarkJoin(plan, ef);
-                            if (oldplan != plan)
+                            var newplan = existsToMarkJoin(plan, ef);
+                            if (oldplan != newplan)
                                 decorrelatedSubs_.Add(ef.query_);
+                            plan = newplan;
                         }
                     }
-                    foreach (var ef in filter.RetrieveAllType<ScalarSubqueryExpr>())
+                    foreach (var ef in filterExpr.RetrieveAllType<ScalarSubqueryExpr>())
                     {
                         if (ef.IsCorrelated())
                         {
                             var oldplan = plan;
-                            plan = scalarToMarkJoin(plan, ef);
+                            var newplan = scalarToMarkJoin(plan, ef);
                             if (oldplan != plan)
                                 decorrelatedSubs_.Add(ef.query_);
+                            plan = newplan;
                         }
                     }
                 }

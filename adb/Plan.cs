@@ -326,11 +326,14 @@ namespace adb
         {
             LogicNode root = transformFromClause();
 
-            // transform where clause
+            // transform where clause - we only want one filter
             if (where_ != null)
             {
                 subQueryExprCreatePlan(where_);
-                root = new LogicFilter(root, where_);
+                if (!(root is LogicFilter lr))
+                    root = new LogicFilter(root, where_);
+                else
+                    lr.filter_ = lr.filter_.AddAndFilter(where_);
             }
 
             // group by / having
@@ -437,6 +440,8 @@ namespace adb
             bindSelectionList(context);
 
             where_?.Bind(context);
+            if (!(where_?.IsComparisonExpr() ?? true))
+                throw new SemanticAnalyzeException("WHERE condition must be a blooean expression");
             if (optimizeOpt_.remove_from && where_!= null)
                 where_ = where_.DeQueryRef();
 
@@ -448,7 +453,9 @@ namespace adb
             }
 
             having_?.Bind(context);
-			hasAgg_ |= having_ != null?true:false;
+            if (!(having_?.IsComparisonExpr() ?? true))
+                throw new SemanticAnalyzeException("HAVING condition must be a blooean expression");
+            hasAgg_ |= having_ != null?true:false;
             if (optimizeOpt_.remove_from && having_ != null)
                 having_ = having_.DeQueryRef();
 
@@ -506,11 +513,11 @@ namespace adb
                 {
                     case BaseTableRef bref:
                         Debug.Assert(Catalog.systable_.TryTable(bref.relname_) != null);
-                        context.AddTable(bref);
+                        context.RegisterTable(bref);
                         break;
                     case ExternalTableRef eref:
                         if (Catalog.systable_.TryTable(eref.baseref_.relname_) != null)
-                            context.AddTable(eref);
+                            context.RegisterTable(eref);
                         else
                             throw new Exception($@"base table '{eref.baseref_.relname_}' not exists");
                         break;
@@ -522,7 +529,7 @@ namespace adb
                             qf.CreateOutputNameMap();
 
                         // the subquery itself in from clause can be seen as a new table, so register it here
-                        context.AddTable(qref);
+                        context.RegisterTable(qref);
                         break;
                     case JoinQueryRef jref:
                         jref.tables_.ForEach(bindTableRef);
@@ -532,6 +539,11 @@ namespace adb
                         throw new NotImplementedException();
                 }
             }
+
+            // no duplicated table without alias not allowed
+            var query = from_.GroupBy(x => x.alias_).Where(g => g.Count() > 1).Select(y => y.Key).ToList();
+            if (query.Count > 0)
+                throw new SemanticAnalyzeException($"table name '{query[0]}' specified more than once");
             from_.ForEach(bindTableRef);
         }
 

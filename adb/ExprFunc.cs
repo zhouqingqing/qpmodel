@@ -584,14 +584,7 @@ namespace adb
                     throw new NotImplementedException();
             }
         }
-    }
 
-    public class BinCmpExpr : BinExpr {
-        public BinCmpExpr(Expr l, Expr r, string op) : base(l, r, op)
-        {
-            Debug.Assert(new List<string>(){ "=", ">", ">=", "!=", "<", "<="}.Contains(op));
-            type_ = new BoolType(); Debug.Assert(Clone().Equals(this));
-        }
     }
 
     public class LogicAndOrExpr : BinExpr
@@ -600,11 +593,14 @@ namespace adb
         {
             Debug.Assert(op.Equals(" and ") || op.Equals(" or "));
             type_ = new BoolType(); Debug.Assert(Clone().Equals(this));
+            Debug.Assert(this.IsComparisonExpr());
         }
     }
-    public class LogicAndExpr : BinExpr
+    public class LogicAndExpr : LogicAndOrExpr
     {
-        public LogicAndExpr(Expr l, Expr r) : base(l, r, " and ") { }
+        public LogicAndExpr(Expr l, Expr r) : base(l, r, " and ")
+        {
+        }
 
         public static LogicAndExpr MakeExpr(Expr l, Expr r)
         {
@@ -632,7 +628,7 @@ namespace adb
         }
     }
 
-    public class LogicOrExpr : BinExpr
+    public class LogicOrExpr : LogicAndOrExpr
     {
         public LogicOrExpr(Expr l, Expr r) : base(l, r, " or ") { }
 
