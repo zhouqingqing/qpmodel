@@ -593,7 +593,7 @@ namespace adb
         {
             Debug.Assert(op.Equals(" and ") || op.Equals(" or "));
             type_ = new BoolType(); Debug.Assert(Clone().Equals(this));
-            Debug.Assert(this.IsComparisonExpr());
+            Debug.Assert(this.IsBoolean());
         }
     }
     public class LogicAndExpr : LogicAndOrExpr

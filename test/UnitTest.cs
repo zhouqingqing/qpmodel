@@ -204,7 +204,8 @@ namespace test
                 // q18 join filter push down
                 result = TU.ExecuteSQL(File.ReadAllText(files[18]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
-                // q20 parameter join order
+                result = TU.ExecuteSQL(File.ReadAllText(files[19]), out _, option);
+                Assert.AreEqual("", string.Join(";", result));
                 // q21 parameter join order
                 result = TU.ExecuteSQL(File.ReadAllText(files[21]), out phyplan, option);
                 Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery")); // no nljoin
