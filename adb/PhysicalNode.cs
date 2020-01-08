@@ -361,6 +361,8 @@ namespace adb
             });
 
             // right side probes the hash table
+            if (hm.Count == 0)
+                return;
             r_().Exec(context, r =>
             {
                 if (context.stop_)

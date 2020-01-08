@@ -39,6 +39,11 @@ namespace adb
         {
             LogicJoin join = expr.logic_ as LogicJoin;
             var l = join.l_(); var r = join.r_(); var f = join.filter_;
+
+            Debug.Assert(!l.LeftReferencesRight(r));
+            if (r.LeftReferencesRight(l))
+                return expr;
+
             LogicJoin newjoin = null;
             switch (join)
             {
@@ -137,11 +142,16 @@ namespace adb
         public override CGroupMember Apply(CGroupMember expr)
         {
             LogicJoin a_bc = expr.logic_ as LogicJoin;
+            LogicNode a = (a_bc.l_() as LogicMemoRef).Deref<LogicNode>();
             LogicJoin bc = (a_bc.r_() as LogicMemoRef).Deref<LogicJoin>();
             Expr bcfilter = bc.filter_;
-            var ab_c = new LogicJoin(
-                new LogicJoin(a_bc.l_(), bc.l_()),
-                bc.children_[1]);
+            var ab = new LogicJoin(a_bc.l_(), bc.l_());
+            var c = bc.r_();
+            var ab_c = new LogicJoin(ab, c);
+
+            Debug.Assert(!a.LeftReferencesRight(bc));
+            if (ab.LeftReferencesRight(c))
+                return expr;
 
             // pull up all join filters and re-push them back
             Expr allfilters = bcfilter;

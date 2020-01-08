@@ -347,6 +347,12 @@ namespace adb
                 if (newplan != null)
                     fromQuery.children_[0] = newplan.logicPlan_;
             }
+
+            // now we can adjust join order
+            logic.TraversEachNode(x => {
+                if (x is LogicJoin lx)
+                    lx.SwapJoinSideIfNeeded();
+            });
             logicPlan_ = logic;
 
             // convert to physical plan

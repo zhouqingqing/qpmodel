@@ -38,7 +38,7 @@ namespace adb
                     case LogicScanTable ln:
                         // if there are indexes can help filter, use them
                         if (ln.filter_.FilterCanUseIndex(ln.tabref_))
-                           phy = new PhysicSeekIndex(ln);
+                            phy = new PhysicSeekIndex(ln);
                         else
                             phy = new PhysicScanTable(ln);
                         if (ln.filter_ != null)
@@ -47,6 +47,7 @@ namespace adb
                     case LogicJoin lc:
                         var l = n.l_();
                         var r = n.r_();
+                        Debug.Assert(!l.LeftReferencesRight(r));
                         switch (lc)
                         {
                             case LogicSingleMarkJoin lsmj:
@@ -65,24 +66,18 @@ namespace adb
                                     r.DirectToPhysical(profiling));
                                 break;
                             default:
+                                // one restriction of HJ is that if build side has columns used by probe side
+                                // subquries, we need to use NLJ to pass variables. It is can be fixed by changing
+                                // the way we pass parameters though.
                                 bool lhasSubqCol = TableRef.HasColsUsedBySubquries(l.InclusiveTableRefs());
-                                bool rhasSubqCol = TableRef.HasColsUsedBySubquries(r.InclusiveTableRefs());
-
-                                // if left side has outerrefs, we needs NLJ to drive the parameter
-                                // pass to right side, so we can't use HJ in this case.
                                 if (lc.filter_.FilterHashable() && !lhasSubqCol)
                                     phy = new PhysicHashJoin(lc,
                                         l.DirectToPhysical(profiling),
                                         r.DirectToPhysical(profiling));
                                 else
-                                {
-                                    // it is ok right side reference left side's variable but not 
-                                    // the other direction. In this case, we shall flip the side.
-                                    //
                                     phy = new PhysicNLJoin(lc,
                                         l.DirectToPhysical(profiling),
                                         r.DirectToPhysical(profiling));
-                                }
                                 break;
                         }
                         break;
@@ -174,7 +169,9 @@ namespace adb
                             target.colName_.Equals(z.outputName_);
 
                 // using source's matching index for ordinal
-                // fix colexpr's ordinal - leave the outerref as it is already handled in ColExpr.Bind()
+                // fix colexpr's ordinal - leave the outerref as it is already decided in ColExpr.Bind()
+                // During execution, the bottom node will be responsible to fill the value via AddParam().
+                //
                 if (!target.isOuterRef_)
                 {
                     target.ordinal_ = source.FindIndex(nameTest);
@@ -237,6 +234,39 @@ namespace adb
             });
 
             return preds;
+        }
+    }
+
+    public static class LogicHelper {
+        public static bool LeftReferencesRight(this LogicNode l, LogicNode r)
+        {
+            var ltables = l.InclusiveTableRefs();
+            var rtables = r.InclusiveTableRefs();
+
+            // if right does not even referenced by any subqueries, surely left does not reference right
+            bool rhasSubqCol = TableRef.HasColsUsedBySubquries(rtables);
+            if (!rhasSubqCol)
+                return false;
+
+            // now examine each correlated expr from left, so if it references right
+            var listexpr = l.RetrieveCorrelatedFilters();
+            foreach (var v in listexpr) {
+                var refs = v.FilterGetOuterRef();
+                if (rtables.Intersect(refs).Any())
+                    return true;
+            }
+
+            return false;
+        }
+
+        public static void SwapJoinSideIfNeeded(this LogicJoin join)
+        {
+            var oldl = join.l_(); var oldr = join.r_();
+            if (oldl.LeftReferencesRight(oldr))
+            {
+                join.children_[0] = oldr;
+                join.children_[1] = oldl;
+            }
         }
     }
 
