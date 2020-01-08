@@ -96,7 +96,7 @@
     <Compile Include="RulesImpl.cs" />
     <Compile Include="LogicNode.cs" />
     <Compile Include="Optimizer.cs" />
-    <Compile Include="Parser.cs" />
+    <Compile Include="SQLParser.cs" />
     <Compile Include="PhysicalNode.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
