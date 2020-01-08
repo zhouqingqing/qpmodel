@@ -225,7 +225,7 @@ namespace adb
     }
 
     public static class FilterHelper {
-        
+
         // a > 3 or c > 1, b > 5 =>  (a > 3 or c > 1) and (b > 5)
         public static Expr AddAndFilter(this Expr basefilter, Expr newcond) {
             Debug.Assert(newcond.IsBoolean());
@@ -360,28 +360,36 @@ namespace adb
             return andlist.Count >= 1;
         }
 
-        // c.c2=?b.b2 and b.b3>2 => c.c2=b.b2
+        // Simple case: c.c2=?b.b2 and b.b3>2 => c.c2=?b.b2
+        // Complex case: a.i > @1 and @1 is a subquery with correlated expr
+        //
         public static List<Expr> FilterGetCorrelated(this Expr filter)
         {
-            bool OneFilterIsCorrelated(Expr filter)
-            {
-                bool hasOutref = false;
-                filter.VisitEach<ColExpr>(x=>{
-                    if (x.isOuterRef_)
-                        hasOutref = true;
-                });
-                return hasOutref;
-            }
-
             List<Expr> preds = new List<Expr>();
             Debug.Assert(filter.IsBoolean());
             var andlist = filter.FilterToAndList();
             foreach (var v in andlist)
             {
-                if (OneFilterIsCorrelated(v))
-                    preds.Add(v);
+                v.VisitEachExpr(x => {
+                    if (x is SubqueryExpr xs)
+                        preds.AddRange(xs.query_.logicPlan_.RetrieveCorrelatedFilters());
+                    if (x is ColExpr xc && xc.isOuterRef_)
+                        preds.Add(v);
+                });
             }
             return preds;
+        }
+
+        // c.c2=?b.b2 => b
+        public static List<TableRef> FilterGetOuterRef(this Expr filter)
+        {
+            List<TableRef> refs = new List<TableRef>();
+            filter.VisitEach<ColExpr>(x => {
+                if (x.isOuterRef_)
+                    refs.Add(x.tabRef_);
+            });
+
+            return refs;
         }
     }
 

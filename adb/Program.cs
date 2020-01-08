@@ -30,7 +30,7 @@ namespace adb
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[20]; //12
+                var v = files[16]; //12
                 {
                     sql = File.ReadAllText(v);
                     goto doit;
@@ -140,6 +140,12 @@ namespace adb
             //sql = "select * from a where a2 > (select max(b1) from b where a2=b2);";
             //sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1";
             sql = "select * from b join a on a1=b1 where a1 < (select a2 from a where a2=b2);";
+            sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
+                and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
+                and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);"; // FIXME-remove_from
+            sql = "select * from (select * from a join b on a1=b1) ab join (select * from c join d on c1=d1) cd on a1+b1=c1+d1"; // FIXME-remove_from
+            sql = "select * from (select * from a join b on a1=b1) ab join (select * from c join d on c1=d1) cd on a1+b1=c1 and a2+b2=d2;"; // FIXME-remove_from
+            sql = "select a1+b1 from a join b on a1=b1 where a1 < (select a2 from a where a2=b2);"; 
 
         doit:
             Console.WriteLine(sql);
@@ -147,7 +153,7 @@ namespace adb
             a.profileOpt_.enabled_ = true;
             a.optimizeOpt_.enable_subquery_to_markjoin_ = true;
             a.optimizeOpt_.remove_from = true;
-            a.optimizeOpt_.use_memo_ = false;
+            a.optimizeOpt_.use_memo_ = true ;
 
             // -- Semantic analysis:
             //  - bind the query

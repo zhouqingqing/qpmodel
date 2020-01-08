@@ -27,6 +27,11 @@ namespace test
             var result = ExecuteSQL(sql);
             Assert.AreEqual(resultstr, string.Join(";", result));
         }
+        static internal void ExecuteSQL(string sql, string resultstr, out string physicplan, OptimizeOption option = null)
+        {
+            var result = SQLStatement.ExecSQL(sql, out physicplan, out error_, option);
+            Assert.AreEqual(resultstr, string.Join(";", result));
+        }
 
         static public void PlanAssertEqual(string l, string r)
         {
@@ -198,15 +203,19 @@ namespace test
                 // q15 cte
                 result = TU.ExecuteSQL(File.ReadAllText(files[15]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
-                // q17 parameter join order
-                //result = TestHelper.ExecuteSQL(File.ReadAllText(files[16]), out _, option);
-                //Assert.AreEqual(0, result.Count);
+                result = TU.ExecuteSQL(File.ReadAllText(files[16]), out _, option);
+                Assert.AreEqual("", string.Join(";", result));
                 // q18 join filter push down
                 result = TU.ExecuteSQL(File.ReadAllText(files[18]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[19]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
-                // q21 parameter join order
+                if (option.use_memo_)
+                {
+                    // q21 non-memo plan too slow
+                    result = TU.ExecuteSQL(File.ReadAllText(files[20]), out _, option);
+                    Assert.AreEqual("", string.Join(";", result));
+                }
                 result = TU.ExecuteSQL(File.ReadAllText(files[21]), out phyplan, option);
                 Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery")); // no nljoin
                 Assert.AreEqual(7, result.Count);
@@ -554,7 +563,6 @@ namespace test
             sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;";
 
             // FIXME: if we turn memo on, we have problems resolving columns
-
         }
 
         [TestMethod]
@@ -613,10 +621,6 @@ namespace test
             // in-list and in-subquery
             sql = "select a2 from a where a1 in (1,2,3);"; TU.ExecuteSQL(sql, "2;3");
             sql = "select a2 from a where a1 in (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1));"; TU.ExecuteSQL(sql, "2;3");
-
-            // fail due to parameter dependency order: join shall flip the side
-            sql = "select * from a join b on a1=b1 where a1 < (select a2 from a where a2=b2);";
-            sql = "select * from a join c on a1=c1 where a1 < (select b2 from a join b on a1=b1 where a1 < (select a2 from a where a2=b2) and a3 = c3) x";
 
             // TODO: add not cases
         }
@@ -1001,6 +1005,14 @@ namespace test
             Assert.AreEqual(1, TU.CountStr(phyplan, "HashJoin"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "Filter: a.a1[0]=b.b1[4] and a.a1[0]=c.c1[8]"));
             Assert.AreEqual("0,1,2,3,0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5,2,3,4,5", string.Join(";", result));
+
+            // these queries depends on we can decide left/right side parameter dependencies
+            OptimizeOption option = new OptimizeOption();
+            option.enable_subquery_to_markjoin_ = false;
+            sql = "select a1+b1 from a join b on a1=b1 where a1 < (select a2 from a where a2=b2);"; TU.ExecuteSQL(sql, "0;2;4", out _, option);
+            sql = "select a1+b1 from b join a on a1=b1 where a1 < (select a2 from a where a2=b2);"; TU.ExecuteSQL(sql, "0;2;4", out _, option);
+            sql = "select a2+c3 from a join c on a1=c1 where a1 < (select b2 from a join b on a1=b1 where a1 < (select a2 from a where a2=b2) and a3 = c3)"; TU.ExecuteSQL(sql, "3;5;7", out _, option);
+            sql = "select a2+c3 from c join a on a1=c1 where a1 < (select b2 from b join a on a1=b1 where a1 < (select a2 from a where a2=b2) and a3 = c3)"; TU.ExecuteSQL(sql, "3;5;7", out _, option);
 
             // FAILED
             sql = "select * from (select * from a join b on a1=b1) ab join (select * from c join d on c1=d1) cd on a1+b1=c1+d1"; // FIXME
