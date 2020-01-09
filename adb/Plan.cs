@@ -432,27 +432,27 @@ namespace adb
             // bind stage is earlier than plan creation
             Debug.Assert(logicPlan_ == null);
 
-            // rules:
-            //  - groupby/orderby may reference selection list's alias, so let's 
-            //    expand them first
+            // binding order:
             //  - from binding shall be the first since it may create new alias
+            //  - groupby/orderby may reference selection list's alias, so let's 
+            //    expand them first, but sequence item is handled after selection list bounded
             //
+            bindFrom(context);
             if (groupby_ != null)
             {
-                groupby_ = seq2selection(groupby_, selection_);
                 groupby_ = replaceOutputNameToExpr(groupby_);
                 if (groupby_.Any(x => x.HasAggFunc()))
                     throw new SemanticAnalyzeException("aggregation functions are not allowed in group by clause");
             }
             if (orders_ != null) 
-            {
-                orders_ = seq2selection(orders_, selection_);
                 orders_ = replaceOutputNameToExpr(orders_);
-            }
 
-            // from binding shall be the first since it may create new alias
-            bindFrom(context);
             bindSelectionList(context);
+
+            if (groupby_ != null)
+                groupby_ = seq2selection(groupby_, selection_);
+            if (orders_ != null)
+                orders_ = seq2selection(orders_, selection_);
 
             if (where_ != null)
             {
@@ -465,7 +465,10 @@ namespace adb
 
             if (groupby_ != null)
             {
-                groupby_.ForEach(x => x.Bind(context));
+                groupby_.ForEach(x => {
+                    if (!x.bounded_)        // some items already bounded with seq2selection()
+                        x.Bind(context);
+                });
                 if (queryOpt_.optimize_.remove_from)
                 {
                     for (int i = 0; i < groupby_.Count; i++)
@@ -485,7 +488,10 @@ namespace adb
 
             if (orders_ != null)
             {
-                orders_.ForEach(x => x.Bind(context));
+                orders_.ForEach(x => {
+                    if (!x.bounded_)        // some items already bounded with seq2selection()
+                        x.Bind(context);
+                });
                 if (queryOpt_.optimize_.remove_from)
                 {
                     for (int i = 0; i < orders_.Count; i++)
