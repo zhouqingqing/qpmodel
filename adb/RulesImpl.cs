@@ -8,12 +8,15 @@ namespace adb
 {
     public class ImplmentationRule : Rule { }
 
-    public class JoinToHashJoin : ImplmentationRule
+    public class Join2HashJoin : ImplmentationRule
     {
         public override bool Appliable(CGroupMember expr)
         {
             LogicJoin join = expr.logic_ as LogicJoin;
-            if (join != null && join.filter_.FilterHashable()) {
+            if (join is null || join is LogicMarkJoin)
+                return false;
+
+            if (join.filter_.FilterHashable()) {
                 bool lhasSubqCol = TableRef.HasColsUsedBySubquries(join.l_().InclusiveTableRefs());
                 if (!lhasSubqCol)
                     return true;
@@ -36,12 +39,32 @@ namespace adb
         public override bool Appliable(CGroupMember expr)
         {
             LogicJoin log = expr.logic_ as LogicJoin;
-            return log != null;
+            if (log is null || log is LogicMarkJoin)
+                return false;
+            return true;
         }
 
         public override CGroupMember Apply(CGroupMember expr)
         {
             LogicJoin log = expr.logic_ as LogicJoin;
+            var l = new PhysicMemoRef(log.l_());
+            var r = new PhysicMemoRef(log.r_());
+            PhysicNode phy = new PhysicNLJoin(log, l, r);
+            return new CGroupMember(phy, expr.group_);
+        }
+    }
+
+    public class Join2MarkJoin : ImplmentationRule
+    {
+        public override bool Appliable(CGroupMember expr)
+        {
+            LogicMarkJoin log = expr.logic_ as LogicMarkJoin;
+            return !(log is null);
+        }
+
+        public override CGroupMember Apply(CGroupMember expr)
+        {
+            LogicMarkJoin log = expr.logic_ as LogicMarkJoin;
             var l = new PhysicMemoRef(log.l_());
             var r = new PhysicMemoRef(log.r_());
             PhysicNode phy = null;
@@ -53,11 +76,8 @@ namespace adb
                 case LogicMarkJoin lmj:
                     phy = new PhysicMarkJoin(lmj, l, r);
                     break;
-                case LogicSingleJoin lsj:
-                    phy = new PhysicSingleJoin(lsj, l, r);
-                    break;
                 default:
-                    phy = new PhysicNLJoin(log, l, r);
+                    phy = null;
                     break;
             }
             return new CGroupMember(phy, expr.group_);

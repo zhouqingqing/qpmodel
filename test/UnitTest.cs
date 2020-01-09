@@ -369,75 +369,88 @@ namespace test
         [TestMethod]
         public void TestExistsSubquery()
         {
-            // exist-subquery
-            var phyplan = "";
-            var sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1);";
-            var result = ExecuteSQL(sql, out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin"));
-            Assert.AreEqual("1;2", string.Join(";", result));
-            sql = "select a2 from a where exists (select * from a);";
-            result = ExecuteSQL(sql, out phyplan);
-            Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicMarkJoin"));
-            Assert.AreEqual("1;2;3", string.Join(";", result));
-            sql = "select a2 from a where not exists (select * from a b where b.a3>=a.a1+b.a1+1);";
-            result = ExecuteSQL(sql, out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin"));
-            Assert.AreEqual("3", string.Join(";", result));
-            sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and a2>2;";
-            result = ExecuteSQL(sql, out phyplan);
-            Assert.AreEqual(0, result.Count);
-            sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2;";
-            result = ExecuteSQL(sql, out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin"));
-            Assert.AreEqual("1;2;3", string.Join(";", result));
-            sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
-            result = ExecuteSQL(sql, out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin"));
-            Assert.AreEqual("0,1;1,2", string.Join(";", result));
-            // multiple subquery - FIXME: shall be two mark join
-            sql = @"select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1)
+            QueryOption option = new QueryOption();
+
+            for (int i = 0; i < 2; i++)
+            {
+                option.optimize_.use_memo_ = i==0;
+                // exist-subquery
+                var phyplan = "";
+                var sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1);";
+                var result = TU.ExecuteSQL(sql, out phyplan, option);
+                Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin"));
+                Assert.AreEqual("1;2", string.Join(";", result));
+                sql = "select a2 from a where exists (select * from a);";
+                result = TU.ExecuteSQL(sql, out phyplan, option);
+                Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicMarkJoin"));
+                Assert.AreEqual("1;2;3", string.Join(";", result));
+                sql = "select a2 from a where not exists (select * from a b where b.a3>=a.a1+b.a1+1);";
+                result = TU.ExecuteSQL(sql, out phyplan, option);
+                Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin"));
+                Assert.AreEqual("3", string.Join(";", result));
+                sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and a2>2;";
+                result = TU.ExecuteSQL(sql, out phyplan);
+                Assert.AreEqual(0, result.Count);
+                sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2;";
+                result = TU.ExecuteSQL(sql, out phyplan, option);
+                Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin"));
+                Assert.AreEqual("1;2;3", string.Join(";", result));
+                sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
+                result = TU.ExecuteSQL(sql, out phyplan, option);
+                Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin"));
+                Assert.AreEqual("0,1;1,2", string.Join(";", result));
+                // multiple subquery - FIXME: shall be two mark join
+                sql = @"select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1)
                      and a2>1 and not exists (select * from a b where b.a2+7=a.a1+b.a1);";
-            result = ExecuteSQL(sql, out phyplan);
-            Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicMarkJoin"));
-            Assert.AreEqual("2", string.Join(";", result));
+                result = TU.ExecuteSQL(sql, out phyplan, option);
+                Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicMarkJoin"));
+                Assert.AreEqual("2", string.Join(";", result));
+            }
         }
 
         [TestMethod]
         public void TestScalarSubquery()
         {
-            var phyplan = "";
-            var sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2);";
-            var result = ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
-            Assert.AreEqual("0,2;1,3;2,4", string.Join(";", result));
-            sql = "select a1, a3  from a where a.a2 = (select b1*2 from b where b2 = a2);";
-            result = ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
-            Assert.AreEqual("1,3", string.Join(";", result));
-            sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<3);";
-            result = ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
-            Assert.AreEqual("0,2", string.Join(";", result));
-            sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) and a2>1;";
-            result = ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
-            Assert.AreEqual("1,3", string.Join(";", result));
-            sql = @"select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) 
-                    and b.b1 > (select c2 / 2 from c where c.c3 = 3);";
-            result = ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
-            Assert.AreEqual("2", string.Join(";", result));
-            sql = @"select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) 
-                    and b.b1 > (select c2 / 2 from c where c.c3 = b3);";
-            result = ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
-            Assert.AreEqual("2", string.Join(";", result));
-            sql = @"select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 
-                    and b1 = (select b1 from b where b3 = a3 and b3>1) and b2<3);";
-            result = ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
-            Assert.AreEqual("0;1", string.Join(";", result));
-            sql = "select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 or b1 = (select b1 from b where b2 = 2*a1 and b3>1) and b2<3);";
-            result = ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
-            Assert.AreEqual("0;1;2", string.Join(";", result));
-            sql = "select a1,a2,b2 from b join a on a1=b1 where a1-1 < (select a2/2 from a where a2=b2);";
-            result = ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
-            Assert.AreEqual("0,1,1;1,2,2", string.Join(";", result));
+            QueryOption option = new QueryOption();
 
-            //  OR condition failed sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) or a2>1;";
+            for (int i = 0; i < 2; i++)
+            {
+                option.optimize_.use_memo_ = i == 0;
+
+                var phyplan = "";
+                var sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2);";
+                var result = TU.ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
+                Assert.AreEqual("0,2;1,3;2,4", string.Join(";", result));
+                sql = "select a1, a3  from a where a.a2 = (select b1*2 from b where b2 = a2);";
+                result = TU.ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
+                Assert.AreEqual("1,3", string.Join(";", result));
+                sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<3);";
+                result = TU.ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
+                Assert.AreEqual("0,2", string.Join(";", result));
+                sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) and a2>1;";
+                result = TU.ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
+                Assert.AreEqual("1,3", string.Join(";", result));
+                sql = @"select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) 
+                    and b.b1 > (select c2 / 2 from c where c.c3 = 3);";
+                result = TU.ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
+                Assert.AreEqual("2", string.Join(";", result));
+                sql = @"select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) 
+                    and b.b1 > (select c2 / 2 from c where c.c3 = b3);";
+                result = TU.ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
+                Assert.AreEqual("2", string.Join(";", result));
+                sql = @"select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 
+                    and b1 = (select b1 from b where b3 = a3 and b3>1) and b2<3);";
+                result = TU.ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
+                Assert.AreEqual("0;1", string.Join(";", result));
+                sql = "select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 or b1 = (select b1 from b where b2 = 2*a1 and b3>1) and b2<3);";
+                result = TU.ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
+                Assert.AreEqual("0;1;2", string.Join(";", result));
+                sql = "select a1,a2,b2 from b join a on a1=b1 where a1-1 < (select a2/2 from a where a2=b2);";
+                result = TU.ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
+                Assert.AreEqual("0,1,1;1,2,2", string.Join(";", result));
+
+                //  OR condition failed sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) or a2>1;";
+            }
         }
 
         [TestMethod]
@@ -612,19 +625,19 @@ namespace test
             sql = "select a1,a2,a3  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b3<4);";
             result = ExecuteSQL(sql); Assert.AreEqual("0,1,2;1,2,3", string.Join(";", result));
             sql = @" select a1+a2+a3  from a where a.a1 = (select b1 from b bo where b4 = a4 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 2) and b3<5)
-                and a.a2 = (select b2 from b bo where b1 = a1 and b2 >= (select b2 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b3<4);";
+            and a.a2 = (select b2 from b bo where b1 = a1 and b2 >= (select b2 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b3<4);";
             result = ExecuteSQL(sql); Assert.AreEqual("6", string.Join(";", result));
             sql = @"select a4  from a where a.a1 = (select b1 from (select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2
-                and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b2<5)
-                and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b3=a3 and bo.b3 = a3 and b3> 0) and b3<5);";
+            and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b2<5)
+            and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b3=a3 and bo.b3 = a3 and b3> 0) and b3<5);";
             result = ExecuteSQL(sql); Assert.AreEqual("3;4;5", string.Join(";", result));
             sql = @"select a1 from a, b where a1=b1 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
-                and b1 = (select b1 from b where b3 = a3 and bo.b3 = a3 and b3> 1) and b2<5)
-                and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and b3<5);";
+            and b1 = (select b1 from b where b3 = a3 and bo.b3 = a3 and b3> 1) and b2<5)
+            and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and b3<5);";
             result = ExecuteSQL(sql); Assert.AreEqual("0;1;2", string.Join(";", result));
             sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
-                and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
-                and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
+            and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
+            and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             result = ExecuteSQL(sql); Assert.AreEqual("0;1;2", string.Join(";", result));
             sql = "select b3+c2 from a, b, c where (select b1+b2 from b where b1=a1)>4 and (select c2+c3 from c where c1=b1)>6 and c1<1"; TU.ExecuteSQL(sql, "5");
 

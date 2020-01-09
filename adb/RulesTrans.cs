@@ -13,7 +13,8 @@ namespace adb
             new JoinAssociativeRule(),
             new JoinCommutativeRule(),
             new Join2NLJoin(),
-            new JoinToHashJoin(),
+            new Join2HashJoin(),
+            new Join2MarkJoin(),
             new Scan2Scan(),
             new Filter2Filter(),
             new Agg2HashAgg(),
@@ -30,9 +31,10 @@ namespace adb
     public class ExplorationRule : Rule { }
 
     public class JoinCommutativeRule : ExplorationRule {
+
         public override bool Appliable(CGroupMember expr)
         {
-            return expr.logic_ is LogicJoin lj && lj.type_ == JoinType.InnerJoin;
+            return expr.logic_ is LogicJoin lj && lj.IsInnerJoin();
         }
 
         public override CGroupMember Apply(CGroupMember expr)
@@ -44,29 +46,7 @@ namespace adb
             if (r.LeftReferencesRight(l))
                 return expr;
 
-            LogicJoin newjoin = null;
-            switch (join)
-            {
-                case LogicSingleMarkJoin lsmj:
-                    newjoin = new LogicSingleMarkJoin(r, l, f);
-                    break;
-                case LogicMarkSemiJoin lsm:
-                    newjoin = new LogicMarkSemiJoin(r, l, f);
-                    break;
-                case LogicMarkAntiSemiJoin lsam:
-                    newjoin = new LogicMarkAntiSemiJoin(r, l, f);
-                    break;
-                case LogicMarkJoin lmj:
-                    newjoin = new LogicMarkJoin(r, l, f);
-                    break;
-                case LogicSingleJoin lsj:
-                    newjoin = new LogicSingleJoin(r,l,f);
-                    break;
-                default:
-                    newjoin = new LogicJoin(r,l,f);
-                    break;
-            }
-
+            LogicJoin newjoin = new LogicJoin(r,l,f);
             return new CGroupMember(newjoin, expr.group_);
         }
     }
@@ -121,9 +101,15 @@ namespace adb
 
             if (a_bc != null)
             {
+                if (!a_bc.IsInnerJoin())
+                    return false;
+
                 var bc = (a_bc.r_() as LogicMemoRef).Deref();
                 var bcfilter = bc.filter_;
-                if (bc is LogicJoin) {
+                if (bc is LogicJoin bcj) {
+                    if (!bcj.IsInnerJoin())
+                        return false;
+
                     Expr abcfilter = a_bc.filter_;
                     var abfilter = exactFilter(abcfilter,
                         new List<LogicNode>(){

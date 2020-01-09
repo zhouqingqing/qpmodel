@@ -25,6 +25,7 @@ namespace adb
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             sql = "select a1,a1,a3,a3 from a where a2> (select b1 from (select * from b) d,c where b1=c1 and b1=a1 and b2=3);"; // lost a2>@1
             Tpch.LoadTables("0001");
+            //Tpch.CreateIndexes();
             Tpch.AnalyzeTables();
 
             {
@@ -36,47 +37,6 @@ namespace adb
                     goto doit;
                 }
             }
-            //sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
-            sql = "select * from a join b on a1=b1 where a1 < (select a2 from a where a2=b2);";
-            //sql = "select * from a join c on a1=c1 where a1 < (select b2 from a join b on a1=b1 where a1 < (select a2 from a where a2=b2) and a3 = c3) x";
-            sql = "select a.a1,b.a1,c.a1, a.a1+b.a1+c.a1 from a, a b, a c where a.a1=5-b.a1-c.a1;";
-            //sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3 and c.c1 = a.a1";
-            //sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
-            //sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
-            //sql = "analyze a;";
-            sql = "select b2 from (select a3, a4 from a) b(b2);";
-            sql = "select sum(a12) from (select a1*a2 a12 from a) b;";
-            sql = "select d1 from (select sum(a12) from (select a1*a2 a12 from a) b) c(d1);";
-            sql = "select e1 from (select d1 from (select sum(a12) from (select a1*a2 a12 from a) b) c(d1)) d(e1);";
-            sql = "select e1 from (select * from (select sum(a12) from (select a1*a2 a12 from a) b) c(d1)) d(e1);";
-            sql = "select e1 from(select d1 from (select sum(ab12) from (select a1* b2 ab12 from a join b on a1= b1) b) c(d1)) d(e1);";
-            sql = "select e1 from (select e1 from (select sum(a12) from (select a1*a2 a12 from a) b) c(e1)) d;";
-            sql = "select e1 from (select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1)) d(e1);";
-            sql = "select a1, sum(a12) as a2 from (select a1, a1*a2 a12 from a) b where a1 >= (select c1 from c where c1=a12) group by a1;";
-            sql = "select b2 from (select a3, a4 from a) b(b2);";
-            sql = "select * from (select a1, a1*a2 a12 from a) b where a1 >= (select c1 from c where c1=a12) ;";
-
-            // good
-            sql = "select * from (select a1*a2 a12, a1 from a) b;";
-            sql = "select a12, a1 from (select a1*a2 a12, a1 from a) b;";
-            sql = "select a12,a1 from (select a12, a1 from (select a1*a2 a12, a1 from a) b)c;";
-            sql = "select * from (select a12, a1 from (select a1*a2 a12, a1 from a) b)c;";
-            sql = "select * from (select a12 from (select a1*a2 a12, a1 from a) b)c;";
-            sql = "select * from (select e1 from (select a12 from (select a1*a2 a12 from a) b) c(e1)) d;";
-            sql = "select * from (select a1, a1*a2 a12 from a) b where a1 >= (select c1 from c where c1=a12);";
-            //sql = "select e1 from(select d1 as e1 from (select sum(ab12) from (select a1* b2 ab12 from a join b on a1= b1) b) c(d1)) d(e1);";
-            //sql = "select c3 from (select sum(a2) from (select a1*a2 a12, a1 as a2 from a) b(a2, a3)) c(c3);";
-            // sql = "select count(*)+1 from (select b1+c1 from (select b1 from b) a, (select c1,c2 from c) c ) a;";
-            //sql = @"with cte1 as (select* from a) select * from cte1 where a1>1;";
-            // sql = "select b.a1 , a2 from (select a1,a2 from a, c) b";
-            sql = "select e1 from(select d1 from (select sum(ab12) from (select a1* b2 ab12 from a join b on a1= b1) b) c(d1)) d(e1);";
-            sql = "select b1+b1 from (select a1*2 b1 from a) b where b1 > 2;";
-            //sql = "select c2 from (select b1+b1 from (select a1*2 from a) b(b1)) c(c2);";
-            //sql = "select count(*)+1 from (select b1+c1 from (select b1 from b) a, (select c1,c2 from c) c(c1,c3) where c3>1) a;";
-            sql = "select e1 from(select d1 as e1 from (select sum(ab12) from (select a1* b2 ab12 from a join b on a1= b1) b) c(d1)) d(e1);";
-            sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
-                and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
-                and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
 
             /*OptimizeOption option = new OptimizeOption();
             option.remove_from = true;
@@ -163,13 +123,14 @@ namespace adb
             sql = "select b1,c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where b1>1 and c100>1;"; // ANSWER WRONG
 
         doit:
-            sql = "select * from a order by 1";
+            sql = @"select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1)
+                     and a2>1 and not exists (select * from a b where b.a2+7=a.a1+b.a1);";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
             a.queryOpt_.profile_.enabled_ = true;
             a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = true;
-            a.queryOpt_.optimize_.remove_from = true;
+            a.queryOpt_.optimize_.remove_from = false;
             a.queryOpt_.optimize_.use_memo_ = true;
 
             // -- Semantic analysis:
