@@ -60,11 +60,6 @@ namespace adb
                                     l.DirectToPhysical(option),
                                     r.DirectToPhysical(option));
                                 break;
-                            case LogicSingleJoin lsj:
-                                phy = new PhysicSingleJoin(lsj,
-                                    l.DirectToPhysical(option),
-                                    r.DirectToPhysical(option));
-                                break;
                             default:
                                 // one restriction of HJ is that if build side has columns used by probe side
                                 // subquries, we need to use NLJ to pass variables. It is can be fixed by changing
@@ -331,6 +326,8 @@ namespace adb
         { 
             filter_ = filter; 
         }
+
+        public bool IsInnerJoin() => type_ == JoinType.InnerJoin && !(this is LogicMarkJoin);
 
         public override int MemoLogicSign() {
             var filterhash = 0;
