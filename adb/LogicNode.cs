@@ -172,7 +172,7 @@ namespace adb
                 // fix colexpr's ordinal - leave the outerref as it is already decided in ColExpr.Bind()
                 // During execution, the bottom node will be responsible to fill the value via AddParam().
                 //
-                if (!target.isOuterRef_)
+                if (!target.isParameter_)
                 {
                     target.ordinal_ = source.FindIndex(nameTest);
 
@@ -222,19 +222,26 @@ namespace adb
         }
 
         // retrieve all correlated filters on the subtree
-        public List<Expr> RetrieveCorrelatedFilters() {
-            List<Expr> preds = new List<Expr>();
+        public List<Expr> RetrieveCorrelated(bool returnColExprOnly)
+        {
+            List<Expr> results = new List<Expr>();
             TraversEachNode(x => {
                 var logic = x as LogicNode;
                 var filterExpr = logic.filter_;
 
                 if (filterExpr != null) {
-                    preds.AddRange(filterExpr.FilterGetCorrelated());
+                    if (returnColExprOnly)
+                        results.AddRange(filterExpr.FilterGetCorrelatedCol());
+                    else
+                        results.AddRange(filterExpr.FilterGetCorrelatedFilter());
                 }
             });
 
-            return preds;
+            return results;
         }
+
+        public List<Expr> RetrieveCorrelatedFilters() => RetrieveCorrelated(false);
+        public List<Expr> RetrieveCorrelatedCols() => RetrieveCorrelated(true);
     }
 
     public static class LogicHelper {

@@ -363,6 +363,10 @@ namespace adb
                     Debug.Assert(log.filter_ is null);
             });
 
+            // the plan we get here is able to run (converted to physical) with some exceptions
+            //  - the join order might not right if left side has parameter dependency on right side
+            //    which is fixed in optimization stage where we get more information to decide it
+            //
             logicPlan_ = root;
             return root;
         }
