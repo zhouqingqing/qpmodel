@@ -98,7 +98,7 @@ namespace adb
                 else
                     break;
 
-                if (logic.tabref_.colRefedInSubq_.Count != 0)
+                if (logic.tabref_.colRefedBySubq_.Count != 0)
                     context.AddParam(logic.tabref_, r);
                 if (filter is null || filter.Exec(context, r) is true)
                 {
@@ -133,7 +133,7 @@ namespace adb
             var r = index.SearchUnique(key);
             if (r != null)
             {
-                if (logic.tabref_.colRefedInSubq_.Count != 0)
+                if (logic.tabref_.colRefedBySubq_.Count != 0)
                     context.AddParam(logic.tabref_, r);
                 if (filter is null || filter.Exec(context, r) is true)
                 {
@@ -528,7 +528,7 @@ namespace adb
                 if (context.stop_)
                     return null;
                 
-                if (logic.queryRef_.colRefedInSubq_.Count != 0)
+                if (logic.queryRef_.colRefedBySubq_.Count != 0)
                     context.AddParam(logic.queryRef_, l);
                 var r = ExecProject(context, l);
                 callback(r);

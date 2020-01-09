@@ -139,6 +139,7 @@ namespace adb
             // make a mark join
             var markjoin = new LogicSingleMarkJoin(nodeA, nodeB);
             markjoin.AddFilter(nodeBFilter);
+            markjoin.filter_.DeParameter(nodeA.InclusiveTableRefs());
 
             // make a filter on top of the mark join
             Expr topfilter;

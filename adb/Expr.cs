@@ -151,7 +151,7 @@ namespace adb
             var list = new HashSet<ColExpr>();
             expr.VisitEach<ColExpr>(x =>
             {
-                if (includingParameters || !x.isOuterRef_)
+                if (includingParameters || !x.isParameter_)
                     list.Add(x);
             });
 
@@ -363,34 +363,56 @@ namespace adb
         // Simple case: c.c2=?b.b2 and b.b3>2 => c.c2=?b.b2
         // Complex case: a.i > @1 and @1 is a subquery with correlated expr
         //
-        public static List<Expr> FilterGetCorrelated(this Expr filter)
+        static List<Expr> FilterGetCorrelated(this Expr filter, bool shallowColExprOnly)
         {
-            List<Expr> preds = new List<Expr>();
+            List<Expr> results = new List<Expr>();
             Debug.Assert(filter.IsBoolean());
             var andlist = filter.FilterToAndList();
             foreach (var v in andlist)
             {
                 v.VisitEachExpr(x => {
-                    if (x is SubqueryExpr xs)
-                        preds.AddRange(xs.query_.logicPlan_.RetrieveCorrelatedFilters());
-                    if (x is ColExpr xc && xc.isOuterRef_)
-                        preds.Add(v);
+                    if (x is SubqueryExpr xs && !shallowColExprOnly)
+                        results.AddRange(xs.query_.logicPlan_.RetrieveCorrelated(shallowColExprOnly));
+                    if (x is ColExpr xc && xc.isParameter_) {
+                        if (shallowColExprOnly)
+                            results.Add(xc);
+                        else
+                            results.Add(v);
+                    }
                 });
             }
-            return preds;
+            return results;
         }
+
+        public static List<Expr> FilterGetCorrelatedFilter(this Expr filter)=> FilterGetCorrelated(filter, false);
+        public static List<Expr> FilterGetCorrelatedCol(this Expr filter)=>FilterGetCorrelated(filter, true);
 
         // c.c2=?b.b2 => b
         public static List<TableRef> FilterGetOuterRef(this Expr filter)
         {
             List<TableRef> refs = new List<TableRef>();
             filter.VisitEach<ColExpr>(x => {
-                if (x.isOuterRef_)
+                if (x.isParameter_)
                     refs.Add(x.tabRef_);
             });
 
             return refs;
         }
+
+        // deparameterize all ColExpr in @filter if they are contained in @tablerefs
+        // e.g., filter: a.a1=?b.b1 and a.a2=?c.c1; tablrefs={b}
+        //       then we shall only process 'b.b1'
+        //
+		public static void DeParameter(this Expr filter, List<TableRef> tablerefs){
+			var cols = filter.FilterGetCorrelatedCol();
+            cols.ForEach(x =>
+            {
+                var xc = x as ColExpr;
+                if (tablerefs.Contains(xc.tabRef_))
+                    xc.DeParameter();
+            });
+			filter.ResetAggregateTableRefs();
+		}
     }
 
     public class Expr
@@ -742,7 +764,7 @@ namespace adb
 
         // bound info
         internal TableRef tabRef_;
-        internal bool isOuterRef_;
+        internal bool isParameter_;
         internal int ordinal_ = -1;          // which column in children's output
 
         // -- execution section --
@@ -764,13 +786,20 @@ namespace adb
             return expr;
         }
 
+        public void DeParameter() {
+            Debug.Assert(isParameter_);
+            Debug.Assert(tableRefs_.Count == 0 && tableRefs_ != null);
+            isParameter_ = false;
+            tableRefs_.Add(tabRef_);
+        }
+
         public override void Bind(BindContext context)
         {
             Debug.Assert(tabRef_ is null);
             Debug.Assert(IsLeaf());
 
             // if table name is not given, search through all tablerefs
-            isOuterRef_ = false;
+            isParameter_ = false;
             tabRef_ = context.GetTableRef(tabName_, colName_);
 
             // we can't find the column in current context, so it could an outer reference
@@ -784,8 +813,8 @@ namespace adb
                     if (tabRef_ != null)
                     {
                         // we are actually switch the context to parent, whichTab_ is not right ...
-                        isOuterRef_ = true;
-                        tabRef_.colRefedInSubq_.Add(this);
+                        isParameter_ = true;
+                        tabRef_.colRefedBySubq_.Add(this);
                         (context.stmt_ as SelectStmt).isCorrelated = true;
                         context = parent;
                         break;
@@ -798,7 +827,7 @@ namespace adb
             Debug.Assert(tabRef_ != null);
             if (tabName_ is null)
                 tabName_ = tabRef_.alias_;
-            if (!isOuterRef_)
+            if (!isParameter_)
             {
                 Debug.Assert(tableRefs_.Count == 0);
                 tableRefs_.Add(tabRef_);
@@ -825,7 +854,7 @@ namespace adb
         }
         public override string ToString()
         {
-            string para = isOuterRef_ ? "?" : "";
+            string para = isParameter_ ? "?" : "";
             bool showTableName = ExplainOption.show_tablename_;
             if (para != "")
                 showTableName = true;
@@ -840,7 +869,7 @@ namespace adb
         public override Value Exec(ExecContext context, Row input)
         {
             Debug.Assert(type_ != null);
-            if (isOuterRef_)
+            if (isParameter_)
                 return context.GetParam(tabRef_, ordinal_);
             else
                 return input[ordinal_];

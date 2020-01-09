@@ -13,7 +13,12 @@ namespace adb
         public override bool Appliable(CGroupMember expr)
         {
             LogicJoin join = expr.logic_ as LogicJoin;
-            return join != null && join.filter_.FilterHashable();
+            if (join != null && join.filter_.FilterHashable()) {
+                bool lhasSubqCol = TableRef.HasColsUsedBySubquries(join.l_().InclusiveTableRefs());
+                if (!lhasSubqCol)
+                    return true;
+            }
+            return false;
         }
 
         public override CGroupMember Apply(CGroupMember expr)
