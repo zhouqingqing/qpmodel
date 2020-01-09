@@ -1045,6 +1045,11 @@ namespace test
             result = ExecuteSQL(sql); Assert.IsNull(result);
             Assert.IsTrue(TU.error_.Contains("SemanticAnalyzeException"));
 
+            sql = "select 'one', count(b1), count(*), avg(b1), min(b4), count(*), min(b2)+max(b3), sum(b2) from b where b3>1000;";
+            TU.ExecuteSQL(sql, "one,0,0,,,0,,");
+            sql = "select 'one', count(b1), count(*), avg(b1) from b where b3>1000 having avg(b2) is not null;";
+            TU.ExecuteSQL(sql, "");
+
             sql = "select 7, (4-a3)/2*2+1+sum(a1), sum(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";
             result = ExecuteSQL(sql, out string phyplan);
             var answer = @"PhysicHashAgg   (actual rows = 2)
@@ -1059,9 +1064,6 @@ namespace test
             sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1";
             result = ExecuteSQL(sql);
             Assert.AreEqual("1,3,4,2;0,2,6,18", string.Join(";", result));
-            sql = "select sum(b1) from b where b3>1000;";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual(0, result.Count);   // FIXME: shall be a null
             sql = "select a1, a2  from a where a.a1 = (select sum(b1) from b where b2 = a2 and b3<4);";
             result = ExecuteSQL(sql);
             Assert.AreEqual("0,1;1,2", string.Join(";", result));
