@@ -30,10 +30,10 @@ namespace adb
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[20]; //12
+                var v = files[3]; //12
                 {
                     sql = File.ReadAllText(v);
-                    //goto doit;
+                    goto doit;
                 }
             }
             //sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
@@ -163,12 +163,14 @@ namespace adb
             sql = "select b1,c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where b1>1 and c100>1;"; // ANSWER WRONG
 
         doit:
+            sql = "select * from a order by 1";
+
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
             a.queryOpt_.profile_.enabled_ = true;
-            a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = false;
-            a.queryOpt_.optimize_.remove_from = false;
-            a.queryOpt_.optimize_.use_memo_ = false;
+            a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = true;
+            a.queryOpt_.optimize_.remove_from = true;
+            a.queryOpt_.optimize_.use_memo_ = true;
 
             // -- Semantic analysis:
             //  - bind the query

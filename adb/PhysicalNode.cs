@@ -419,6 +419,33 @@ namespace adb
             return r;
         }
 
+        //  special case: when there is no key and hm is empty, we shall still return one row
+        //    count: 0, avg/min/max/sum: null
+        //    but HAVING clause can filter this row out.
+        //
+        Row AggrHandleEmptyResult(ExecContext context)
+        {
+            var logic = logic_ as LogicAgg;
+            var aggrcore = logic.aggrFns_;
+
+            Row aggvals = new Row(aggrcore.Count);
+            for (int i = 0; i < aggrcore.Count; i++)
+            {
+                aggvals[i] = null;
+                if (aggrcore[i] is AggCount || aggrcore[i] is AggCountStar)
+                {
+                    aggvals[i] = 0;
+                }
+            }
+            var w = new Row(null, aggvals);
+            if (logic.having_ is null || logic.having_.Exec(context, w) is true)
+            {
+                var newr = ExecProject(context, w);
+                return newr;
+            }
+            return null;
+        }
+
         public override void Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicAgg;
@@ -454,23 +481,28 @@ namespace adb
             });
 
             // stitch keys+aggcore into final output
+            if (logic.keys_ is null && hm.Count == 0) {
+                Row row = AggrHandleEmptyResult(context);
+                if (row != null)
+                    callback(row);
+            }
             foreach (var v in hm)
             {
                 if (context.stop_)
                     break;
 
                 var keys = v.Key;
-                Row row = v.Value;
+                Row aggvals = v.Value;
                 for (int i = 0; i < aggrcore.Count; i++)
                 {
                     if (aggrcore[i] is AggAvg)
                     {
-                        var old = row[i];
+                        var old = aggvals[i];
                         var newval = (old as AggAvg.AvgPair).Compute();
-                        row[i] = newval;
+                        aggvals[i] = newval;
                     }
                 }
-                var w = new Row(keys, row);
+                var w = new Row(keys, aggvals);
                 if (logic.having_ is null || logic.having_.Exec(context, w) is true)
                 {
                     var newr = ExecProject(context, w);

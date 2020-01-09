@@ -437,40 +437,60 @@ namespace adb
             //    expand them first
             //  - from binding shall be the first since it may create new alias
             //
-            groupby_ = replaceOutputNameToExpr(groupby_);
-            if (groupby_?.Any(x => x.HasAggFunc())??false)
-                throw new SemanticAnalyzeException("aggregation functions are not allowed in group by clause");
-            orders_ = replaceOutputNameToExpr(orders_);
+            if (groupby_ != null)
+            {
+                groupby_ = seq2selection(groupby_, selection_);
+                groupby_ = replaceOutputNameToExpr(groupby_);
+                if (groupby_.Any(x => x.HasAggFunc()))
+                    throw new SemanticAnalyzeException("aggregation functions are not allowed in group by clause");
+            }
+            if (orders_ != null) 
+            {
+                orders_ = seq2selection(orders_, selection_);
+                orders_ = replaceOutputNameToExpr(orders_);
+            }
 
             // from binding shall be the first since it may create new alias
             bindFrom(context);
             bindSelectionList(context);
 
-            where_?.Bind(context);
-            if (!(where_?.IsBoolean() ?? true))
-                throw new SemanticAnalyzeException("WHERE condition must be a blooean expression");
-            if (queryOpt_.optimize_.remove_from && where_!= null)
-                where_ = where_.DeQueryRef();
-
-            groupby_?.ForEach(x => x.Bind(context));
-            if (queryOpt_.optimize_.remove_from)
+            if (where_ != null)
             {
-                for (int i = 0; i < groupby_?.Count; i++)
-                    groupby_[i] = groupby_[i].DeQueryRef();
+                where_.Bind(context);
+                if (!where_.IsBoolean())
+                    throw new SemanticAnalyzeException("WHERE condition must be a blooean expression");
+                if (queryOpt_.optimize_.remove_from)
+                    where_ = where_.DeQueryRef();
             }
 
-            having_?.Bind(context);
-            if (!(having_?.IsBoolean() ?? true))
-                throw new SemanticAnalyzeException("HAVING condition must be a blooean expression");
-            hasAgg_ |= having_ != null?true:false;
-            if (queryOpt_.optimize_.remove_from && having_ != null)
-                having_ = having_.DeQueryRef();
-
-            orders_?.ForEach(x => x.Bind(context));
-            if (queryOpt_.optimize_.remove_from)
+            if (groupby_ != null)
             {
-                for (int i = 0; i < orders_?.Count; i++)
-                    orders_[i] = orders_[i].DeQueryRef();
+                groupby_.ForEach(x => x.Bind(context));
+                if (queryOpt_.optimize_.remove_from)
+                {
+                    for (int i = 0; i < groupby_.Count; i++)
+                        groupby_[i] = groupby_[i].DeQueryRef();
+                }
+            }
+
+            if (having_ != null) 
+            {
+                hasAgg_ = true;
+                having_.Bind(context);
+                if (!having_.IsBoolean())
+                    throw new SemanticAnalyzeException("HAVING condition must be a blooean expression");
+                if (queryOpt_.optimize_.remove_from)
+                    having_ = having_.DeQueryRef();
+            }
+
+            if (orders_ != null)
+            {
+                orders_.ForEach(x => x.Bind(context));
+                if (queryOpt_.optimize_.remove_from)
+                {
+                    for (int i = 0; i < orders_.Count; i++)
+                        orders_[i] = orders_[i].DeQueryRef();
+                }
             }
 
             return context;

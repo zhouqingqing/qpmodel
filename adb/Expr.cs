@@ -736,15 +736,15 @@ namespace adb
             {
                 // subquery's shall be bounded already, and only * from basetable 
                 // are not bounded. We don't have to differentitate them, but I 
-                // just try to be strict.
+                // just try to be strict to not binding multiple times. Expanding
+                // order is also important.
                 //
-                if (x is QueryRef)
-                    exprs.AddRange(x.AllColumnsRefs());
-                else
-                    unbounds.AddRange(x.AllColumnsRefs());
+                var list = x.AllColumnsRefs();
+                if (!(x is QueryRef)) { 
+                    list.ForEach(x => x.Bind(context));
+                }
+                exprs.AddRange(list);
             });
-            unbounds.ForEach(x => x.Bind(context));
-            exprs.AddRange(unbounds);
             return exprs;
         }
     }

@@ -172,14 +172,13 @@ namespace adb
             from_ = from;
             where_ = where;
             having_ = having;
-            if (groupby != null)
-                groupby_ = seq2selection(groupby, selection);
+            groupby_ = groupby;
 
             ctes_ = ctes;
             setqs_ = setqs;
             if (orders != null)
             {
-                orders_ = seq2selection((from x in orders select x.orderby_()).ToList(), selection);
+                orders_ = (from x in orders select x.orderby_()).ToList();
                 descends_ = (from x in orders select x.descend_).ToList();
             }
             limit_ = limit;

@@ -545,6 +545,7 @@ namespace adb
                 case "not like":
                 case "in":
                 case "is":
+                case "is not":
                     type_ = new BoolType();
                     break;
                 default:
@@ -580,6 +581,8 @@ namespace adb
                 case " or ": // null handling is different - handled by itself
                 case "is":
                     return lv is null && rv is null;
+                case "is not":
+                    return !(lv is null) && rv is null;
                 default:
                     throw new NotImplementedException();
             }
