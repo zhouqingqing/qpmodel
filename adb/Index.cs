@@ -35,7 +35,7 @@ namespace adb
         public override LogicNode CreatePlan()
         {
             // disable memo optimization for it
-            optimizeOpt_.use_memo_ = false;
+            queryOpt_.optimize_.use_memo_ = false;
 
             logicPlan_ = new LogicIndex(select_.CreatePlan(), def_);
             return logicPlan_;
@@ -46,7 +46,7 @@ namespace adb
             var scan = select_.PhaseOneOptimize();
             logicPlan_ = new LogicIndex(scan, def_);
             // convert to physical plan
-            physicPlan_ = logicPlan_.DirectToPhysical(profileOpt_);
+            physicPlan_ = logicPlan_.DirectToPhysical(queryOpt_);
             return logicPlan_;
         }
     }

@@ -212,8 +212,7 @@ namespace adb
             {
                 Debug.Assert(expr.HasSubQuery());
                 var query = x.query_;
-                ProfileOption poption = query.TopStmt().profileOpt_;
-                query.physicPlan_ = query.logicPlan_.DirectToPhysical(poption);
+                query.physicPlan_ = query.logicPlan_.DirectToPhysical(query.TopStmt().queryOpt_);
             });
         }
 

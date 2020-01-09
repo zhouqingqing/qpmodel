@@ -27,7 +27,7 @@ namespace adb
         }
 
         // This is an honest translation from logic to physical plan
-        public PhysicNode DirectToPhysical(ProfileOption profiling)
+        public PhysicNode DirectToPhysical(QueryOption option)
         {
             PhysicNode root = null;
             TraversEachNode(n =>
@@ -52,18 +52,18 @@ namespace adb
                         {
                             case LogicSingleMarkJoin lsmj:
                                 phy = new PhysicSingleMarkJoin(lsmj,
-                                    l.DirectToPhysical(profiling),
-                                    r.DirectToPhysical(profiling));
+                                    l.DirectToPhysical(option),
+                                    r.DirectToPhysical(option));
                                 break;
                             case LogicMarkJoin lmj:
                                 phy = new PhysicMarkJoin(lmj,
-                                    l.DirectToPhysical(profiling),
-                                    r.DirectToPhysical(profiling));
+                                    l.DirectToPhysical(option),
+                                    r.DirectToPhysical(option));
                                 break;
                             case LogicSingleJoin lsj:
                                 phy = new PhysicSingleJoin(lsj,
-                                    l.DirectToPhysical(profiling),
-                                    r.DirectToPhysical(profiling));
+                                    l.DirectToPhysical(option),
+                                    r.DirectToPhysical(option));
                                 break;
                             default:
                                 // one restriction of HJ is that if build side has columns used by probe side
@@ -72,12 +72,12 @@ namespace adb
                                 bool lhasSubqCol = TableRef.HasColsUsedBySubquries(l.InclusiveTableRefs());
                                 if (lc.filter_.FilterHashable() && !lhasSubqCol)
                                     phy = new PhysicHashJoin(lc,
-                                        l.DirectToPhysical(profiling),
-                                        r.DirectToPhysical(profiling));
+                                        l.DirectToPhysical(option),
+                                        r.DirectToPhysical(option));
                                 else
                                     phy = new PhysicNLJoin(lc,
-                                        l.DirectToPhysical(profiling),
-                                        r.DirectToPhysical(profiling));
+                                        l.DirectToPhysical(option),
+                                        r.DirectToPhysical(option));
                                 break;
                         }
                         break;
@@ -85,39 +85,39 @@ namespace adb
                         phy = new PhysicResult(lr);
                         break;
                     case LogicFromQuery ls:
-                        phy = new PhysicFromQuery(ls, n.child_().DirectToPhysical(profiling));
+                        phy = new PhysicFromQuery(ls, n.child_().DirectToPhysical(option));
                         break;
                     case LogicFilter lf:
-                        phy = new PhysicFilter(lf, n.child_().DirectToPhysical(profiling));
+                        phy = new PhysicFilter(lf, n.child_().DirectToPhysical(option));
                         if (lf.filter_ != null)
                             lf.filter_.SubqueryDirectToPhysic();
                         break;
                     case LogicInsert li:
-                        phy = new PhysicInsert(li, n.child_().DirectToPhysical(profiling));
+                        phy = new PhysicInsert(li, n.child_().DirectToPhysical(option));
                         break;
                     case LogicScanFile le:
                         phy = new PhysicScanFile(le);
                         break;
                     case LogicAgg la:
-                        phy = new PhysicHashAgg(la, n.child_().DirectToPhysical(profiling));
+                        phy = new PhysicHashAgg(la, n.child_().DirectToPhysical(option));
                         break;
                     case LogicOrder lo:
-                        phy = new PhysicOrder(lo, n.child_().DirectToPhysical(profiling));
+                        phy = new PhysicOrder(lo, n.child_().DirectToPhysical(option));
                         break;
                     case LogicAnalyze lan:
-                        phy = new PhysicAnalyze(lan, n.child_().DirectToPhysical(profiling));
+                        phy = new PhysicAnalyze(lan, n.child_().DirectToPhysical(option));
                         break;
                     case LogicIndex lindex:
-                        phy = new PhysicIndex(lindex, n.child_().DirectToPhysical(profiling));
+                        phy = new PhysicIndex(lindex, n.child_().DirectToPhysical(option));
                         break;
                     case LogicLimit limit:
-                        phy = new PhysicLimit(limit, n.child_().DirectToPhysical(profiling));
+                        phy = new PhysicLimit(limit, n.child_().DirectToPhysical(option));
                         break;
                     default:
                         throw new NotImplementedException();
                 }
 
-                if (profiling.enabled_)
+                if (option.profile_.enabled_)
                     phy = new PhysicProfiling(phy);
 
                 if (root is null)

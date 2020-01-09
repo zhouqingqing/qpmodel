@@ -7,23 +7,26 @@ using System.Diagnostics;
 
 namespace adb
 {
-    public class ProfileOption
-    {
-        public bool enabled_ = false;
-    }
+    public class QueryOption {
+        public class ProfileOption
+        {
+            public bool enabled_ = false;
+        }
+        public class OptimizeOption
+        {
+            // rewrite controls
+            public bool enable_subquery_to_markjoin_ = true;
+            public bool enable_hashjoin_ = true;
+            public bool enable_nljoin_ = true;
+            public bool enable_index = true;
+            public bool remove_from = false;
 
-    public class OptimizeOption
-    {
-        // rewrite controls
-        public bool enable_subquery_to_markjoin_ = true;
-        public bool enable_hashjoin_ = true;
-        public bool enable_nljoin_ = true;
-        public bool enable_index = true;
+            // optimizer controls
+            public bool use_memo_ = false;
+        }
 
-        public bool remove_from = false;
-
-        // optimizer controls
-        public bool use_memo_ = false;
+        public ProfileOption profile_ = new ProfileOption();
+        public OptimizeOption optimize_ = new OptimizeOption();
     }
 
     public static class ExplainOption {
@@ -241,7 +244,7 @@ namespace adb
                         break;
                     case QueryRef sref:
                         var plan = sref.query_.CreatePlan();
-                        if (sref is FromQueryRef && optimizeOpt_.remove_from)
+                        if (sref is FromQueryRef && queryOpt_.optimize_.remove_from)
                         {
                             from = plan;
                             subQueries_.AddRange(sref.query_.subQueries_);
@@ -379,7 +382,7 @@ namespace adb
 
             // optimizer option controls all plan behavior
             if (parent_ != null)
-                optimizeOpt_ = parent_.optimizeOpt_;
+                queryOpt_ = parent_.queryOpt_;
             Debug.Assert(!bounded_);
             var ret = BindWithContext(context);
             bounded_ = true;
@@ -402,7 +405,7 @@ namespace adb
                             hasAgg_ = true;
                         x = x.ConstFolding();
                         selection_[i] = x;
-                        if (optimizeOpt_.remove_from)
+                        if (queryOpt_.optimize_.remove_from)
                             selection_[i] = selection_[i].DeQueryRef();
                     }
                 }
@@ -415,7 +418,7 @@ namespace adb
 
                     for (int i = 0; i < list.Count; i++)
                     {
-                        if (optimizeOpt_.remove_from)
+                        if (queryOpt_.optimize_.remove_from)
                         {
                             if (list[i] is ColExpr lc)
                                 list[i] = lc.DeQueryRef();
@@ -446,11 +449,11 @@ namespace adb
             where_?.Bind(context);
             if (!(where_?.IsBoolean() ?? true))
                 throw new SemanticAnalyzeException("WHERE condition must be a blooean expression");
-            if (optimizeOpt_.remove_from && where_!= null)
+            if (queryOpt_.optimize_.remove_from && where_!= null)
                 where_ = where_.DeQueryRef();
 
             groupby_?.ForEach(x => x.Bind(context));
-            if (optimizeOpt_.remove_from)
+            if (queryOpt_.optimize_.remove_from)
             {
                 for (int i = 0; i < groupby_?.Count; i++)
                     groupby_[i] = groupby_[i].DeQueryRef();
@@ -460,11 +463,11 @@ namespace adb
             if (!(having_?.IsBoolean() ?? true))
                 throw new SemanticAnalyzeException("HAVING condition must be a blooean expression");
             hasAgg_ |= having_ != null?true:false;
-            if (optimizeOpt_.remove_from && having_ != null)
+            if (queryOpt_.optimize_.remove_from && having_ != null)
                 having_ = having_.DeQueryRef();
 
             orders_?.ForEach(x => x.Bind(context));
-            if (optimizeOpt_.remove_from)
+            if (queryOpt_.optimize_.remove_from)
             {
                 for (int i = 0; i < orders_?.Count; i++)
                     orders_[i] = orders_[i].DeQueryRef();

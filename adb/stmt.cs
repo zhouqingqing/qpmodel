@@ -20,8 +20,7 @@ namespace adb
         public PhysicNode physicPlan_;
 
         // others
-        public ProfileOption profileOpt_ = new ProfileOption();
-        public OptimizeOption optimizeOpt_ = new OptimizeOption();
+        public QueryOption queryOpt_ = new QueryOption();
 
         // DEBUG support
         internal readonly string text_;
@@ -36,13 +35,13 @@ namespace adb
         public virtual List<Row> Exec(bool enableProfiling = false)
         {
             if (enableProfiling)
-                profileOpt_.enabled_ = true;
+                queryOpt_.profile_.enabled_ = true;
 
             Bind(null);
             CreatePlan();
             PhaseOneOptimize();
 
-            if (optimizeOpt_.use_memo_)
+            if (queryOpt_.optimize_.use_memo_)
             {
                 Optimizer.InitRootPlan(this);
                 Optimizer.OptimizeRootPlan(this, null);
@@ -55,13 +54,13 @@ namespace adb
             result.Close();
             return result.rows_;
         }
-        public static List<Row> ExecSQL(string sql, out string physicplan, out string error, OptimizeOption option = null)
+        public static List<Row> ExecSQL(string sql, out string physicplan, out string error, QueryOption option = null)
         {
             try
             {
                 var stmt = RawParser.ParseSingleSqlStatement(sql);
                 if (option != null)
-                    stmt.optimizeOpt_ = option;
+                    stmt.queryOpt_ = option;
                 var result = stmt.Exec(true);
                 physicplan = stmt.physicPlan_.PrintString(0);
                 error = "";
@@ -91,7 +90,7 @@ namespace adb
             var result = new List<Row>();
             foreach (var v in list_)
             {
-                v.optimizeOpt_ = optimizeOpt_;
+                v.queryOpt_ = queryOpt_;
                 result = v.Exec(enableProfiling);
             }
             return result;
@@ -328,7 +327,7 @@ namespace adb
             // have more normalized plan shape before push down. And we may generate
             // some unnecessary filter to clean up.
             //
-            if (optimizeOpt_.enable_subquery_to_markjoin_ && subQueries_.Count > 0)
+            if (queryOpt_.optimize_.enable_subquery_to_markjoin_ && subQueries_.Count > 0)
                 logic = subqueryToMarkJoin(logic);
 
             // push down filters
@@ -337,7 +336,7 @@ namespace adb
             // optimize for subqueries 
             //  fromquery needs some special handling to link the new plan
             subQueries_.ForEach(x => {
-                Debug.Assert (x.optimizeOpt_ == optimizeOpt_);
+                Debug.Assert (x.queryOpt_ == queryOpt_);
                 x.PhaseOneOptimize();
             });
             foreach (var x in fromQueries_) {
@@ -357,9 +356,9 @@ namespace adb
 
             // convert to physical plan
             Debug.Assert(physicPlan_ is null);
-            if (!optimizeOpt_.use_memo_)
+            if (!queryOpt_.optimize_.use_memo_)
             {
-                physicPlan_ = logicPlan_.DirectToPhysical(profileOpt_);
+                physicPlan_ = logicPlan_.DirectToPhysical(queryOpt_);
                 selection_.ForEach(ExprHelper.SubqueryDirectToPhysic);
 
                 // finally we can physically resolve the columns ordinals

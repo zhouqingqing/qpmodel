@@ -299,7 +299,7 @@ namespace adb
             phy.logic_ = RetrieveLogicTree(phy.logic_);
             Debug.Assert(!(phy is PhysicMemoRef));
             Debug.Assert(!(phy.logic_ is LogicMemoRef));
-            if (Optimizer.topstmt_.profileOpt_.enabled_)
+            if (Optimizer.topstmt_.queryOpt_.profile_.enabled_)
                 phy = new PhysicProfiling(phy);
             return phy;
         }
