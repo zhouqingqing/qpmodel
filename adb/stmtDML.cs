@@ -55,7 +55,7 @@ namespace adb
         public override LogicNode CreatePlan()
         {
             // disable memo optimization for it
-            optimizeOpt_.use_memo_ = false;
+            queryOpt_.optimize_.use_memo_ = false;
 
             logicPlan_ = new LogicAnalyze(select_.CreatePlan());
             return logicPlan_;
@@ -66,7 +66,7 @@ namespace adb
             var scan = select_.PhaseOneOptimize();
             logicPlan_ = new LogicAnalyze(scan);
             // convert to physical plan
-            physicPlan_ = logicPlan_.DirectToPhysical(profileOpt_);
+            physicPlan_ = logicPlan_.DirectToPhysical(queryOpt_);
             return logicPlan_;
         }
     }
@@ -131,7 +131,7 @@ namespace adb
         public override LogicNode PhaseOneOptimize()
         {
             // convert to physical plan
-            physicPlan_ = logicPlan_.DirectToPhysical(profileOpt_);
+            physicPlan_ = logicPlan_.DirectToPhysical(queryOpt_);
             return logicPlan_;
         }
     }
@@ -159,7 +159,7 @@ namespace adb
             ExternalTableRef sourcetab = new ExternalTableRef(fileName, targetref, colrefs);
             SelectStmt select = new SelectStmt(new List<Expr> { new SelStar(null) },
                             new List<TableRef> { sourcetab }, where, null, null, null, null, null, null, text);
-            insert_ = new InsertStmt(targetref, cols, null, select, text) { profileOpt_ = profileOpt_ };
+            insert_ = new InsertStmt(targetref, cols, null, select, text) { queryOpt_ = queryOpt_};
         }
 
         public override BindContext Bind(BindContext parent) => insert_.Bind(parent);

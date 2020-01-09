@@ -15,7 +15,7 @@ namespace adb
 
     public class SemanticAnalyzeException : Exception
     {
-        public SemanticAnalyzeException(string msg) => Console.WriteLine($"ERROR[Compiler]: {msg }");
+        public SemanticAnalyzeException(string msg) => Console.WriteLine($"ERROR[Optimizer]: {msg }");
     }
 
     public class RawParser

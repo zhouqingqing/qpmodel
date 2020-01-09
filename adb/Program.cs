@@ -33,7 +33,7 @@ namespace adb
                 var v = files[20]; //12
                 {
                     sql = File.ReadAllText(v);
-                    goto doit;
+                    //goto doit;
                 }
             }
             //sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2<c.c3;";
@@ -149,15 +149,26 @@ namespace adb
             sql = @"select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 
                     and b1 = (select b1 from b where b3 = a3 and b3>1) and b2<3);";
             sql = "select a1, a2  from a where a.a1 = (select sum(b1) from b where b2 = a2 and b3<4);";
-            sql = "select a1 from a where a1 < (select b2 from b where b2=a2);";
+            sql = "select a1 from a where a1 < (select max(b2) from b where b2=a2);";
+            //sql = "select a1 from a where a1 < (select b2 from b where b2=a2);";
+            // sql = "select a1 from a, (select b2, max(b3) maxb3 from b group by b2) b where a.a2 = b.b2 and a1 < maxb3";
+            // sql = "select a1 from a, (select b2, max(b3) maxb3 from b group by b2) b where a.a2 = b.b2";
+            // sql = "select * from (select max(b3) maxb3 from b) b where maxb3>1";    // WRONG!
+            sql = "select a1 from a, (select max(b3) maxb3 from b) b where a1 < maxb3"; // WRONG!
+            sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;"; // WRONG
+            sql = "select b1,c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;"; // OK
+            sql = "select b1,b2,c100 from (select count(*) as b1, sum(b1) b2 from b) a, (select c1 c100 from c) c where c100>1;"; // OK
+            sql = "select b1+b2,c100 from (select count(*) as b1, sum(b1) b2 from b) a, (select c1 c100 from c) c where c100>1;"; // OK
+            sql = "select b4*b1+b2*b3 from (select 1 as b4, b3, count(*) as b1, sum(b1) b2 from b group by b3) a;"; // OK
+            sql = "select b1,c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where b1>1 and c100>1;"; // ANSWER WRONG
 
         doit:
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
-            a.profileOpt_.enabled_ = true;
-            a.optimizeOpt_.enable_subquery_to_markjoin_ = true;
-            a.optimizeOpt_.remove_from = true;
-            a.optimizeOpt_.use_memo_ = true;
+            a.queryOpt_.profile_.enabled_ = true;
+            a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = false;
+            a.queryOpt_.optimize_.remove_from = false;
+            a.queryOpt_.optimize_.use_memo_ = false;
 
             // -- Semantic analysis:
             //  - bind the query
@@ -169,9 +180,9 @@ namespace adb
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.PrintString(0));
 
-            ExplainOption.costoff_ = !a.optimizeOpt_.use_memo_;
+            ExplainOption.costoff_ = !a.queryOpt_.optimize_.use_memo_;
             PhysicNode phyplan = null;
-            if (a.optimizeOpt_.use_memo_)
+            if (a.queryOpt_.optimize_.use_memo_)
             {
                 Console.WriteLine("***************** optimized plan *************");
                 var optplan = a.PhaseOneOptimize();

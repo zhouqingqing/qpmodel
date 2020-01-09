@@ -16,7 +16,7 @@ namespace test
         static internal string error_ = null;
         static internal List<Row> ExecuteSQL(string sql) => ExecuteSQL(sql, out _);
 
-        static internal List<Row> ExecuteSQL(string sql, out string physicplan, OptimizeOption option = null)
+        static internal List<Row> ExecuteSQL(string sql, out string physicplan, QueryOption option = null)
         {
             var results = SQLStatement.ExecSQL(sql, out physicplan, out error_, option);
             Console.WriteLine(physicplan);
@@ -27,7 +27,7 @@ namespace test
             var result = ExecuteSQL(sql);
             Assert.AreEqual(resultstr, string.Join(";", result));
         }
-        static internal void ExecuteSQL(string sql, string resultstr, out string physicplan, OptimizeOption option = null)
+        static internal void ExecuteSQL(string sql, string resultstr, out string physicplan, QueryOption option = null)
         {
             var result = SQLStatement.ExecSQL(sql, out physicplan, out error_, option);
             Assert.AreEqual(resultstr, string.Join(";", result));
@@ -155,13 +155,13 @@ namespace test
 
             // execute queries
             string phyplan = "";
-            OptimizeOption option = new OptimizeOption();
+            var option = new QueryOption();
 
             for (int i = 0; i < 2; i++)
             {
-                option.use_memo_ = i == 0;
-                option.enable_subquery_to_markjoin_ = true;
-                option.remove_from = true;
+                option.optimize_.use_memo_ = i == 0;
+                option.optimize_.enable_subquery_to_markjoin_ = true;
+                option.optimize_.remove_from = true;
 
                 var result = TU.ExecuteSQL(File.ReadAllText(files[0]), out _, option);
                 Assert.AreEqual(4, result.Count);
@@ -193,10 +193,10 @@ namespace test
                 result = TU.ExecuteSQL(File.ReadAllText(files[11]), out _, option);
                 Assert.AreEqual("MAIL,5,5;SHIP,5,10", string.Join(";", result));
                 // FIXME: agg on agg from
-                option.remove_from = false;
+                option.optimize_.remove_from = false;
                 result = TU.ExecuteSQL(File.ReadAllText(files[12]), out _, option);
                 Assert.AreEqual(26, result.Count);
-                option.remove_from = true;
+                option.optimize_.remove_from = true;
                 result = TU.ExecuteSQL(File.ReadAllText(files[13]), out _, option);
                 Assert.AreEqual(1, result.Count);
                 Assert.AreEqual(true, result[0].ToString().Contains("15.23"));
@@ -247,9 +247,9 @@ namespace test
         public void TestMemo()
         {
             string phyplan = "";
-            OptimizeOption option = new OptimizeOption();
-            option.use_memo_ = true;
-            option.enable_subquery_to_markjoin_ = true;
+            QueryOption option = new QueryOption();
+            option.optimize_.use_memo_ = true;
+            option.optimize_.enable_subquery_to_markjoin_ = true;
 
             var sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
             var result = TU.ExecuteSQL(sql, out _, option);
@@ -260,10 +260,10 @@ namespace test
             Assert.AreEqual("0;1;2", string.Join(";", result));
 
             sql = "select * from b join a on a1=b1 where a1 < (select a2 from a where a2=b2);";
-            option.enable_subquery_to_markjoin_ = false; // FIXME: they shall work together
+            option.optimize_.enable_subquery_to_markjoin_ = false; // FIXME: they shall work together
             result = TU.ExecuteSQL(sql, out _, option);
             Assert.AreEqual("0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5", string.Join(";", result));
-            option.enable_subquery_to_markjoin_ = true;
+            option.optimize_.enable_subquery_to_markjoin_ = true;
 
             sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3 and c.c1 = a.a1";
             result = TU.ExecuteSQL(sql, out _, option);
@@ -356,7 +356,7 @@ namespace test
             Assert.AreEqual("1,2,3,4", string.Join(";", result));
 
 
-            Assert.IsTrue(option.use_memo_);
+            Assert.IsTrue(option.optimize_.use_memo_);
         }
     }
 
@@ -513,8 +513,8 @@ namespace test
             #endregion
 
             // these queries we can remove from
-            OptimizeOption option = new OptimizeOption();
-            option.remove_from = true;
+            QueryOption option = new QueryOption();
+            option.optimize_.remove_from = true;
             sql = "select a1 from(select b1 as a1 from b) c;";
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
             sql = "select b1 from (select count(*) as b1 from b) a;";
@@ -555,10 +555,22 @@ namespace test
             sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
             Assert.AreEqual("0,1;1,2", string.Join(";", result));
+            sql = "select b4*b1+b2*b3 from (select 1 as b4, b3, count(*) as b1, sum(b1) b2 from b group by b3) a;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("1;4;9", string.Join(";", result));
 
             // FIXME
             sql = "select sum(e1+1) from (select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1)) b(e1);";
             sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;";
+            // sql = "select * from (select max(b3) maxb3 from b) b where maxb3>1";    // WRONG!
+            sql = "select a1 from a, (select max(b3) maxb3 from b) b where a1 < maxb3"; // WRONG!
+            sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;"; // WRONG
+            sql = "select b1,c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;"; // OK
+            sql = "select b1,b2,c100 from (select count(*) as b1, sum(b1) b2 from b) a, (select c1 c100 from c) c where c100>1;"; // OK
+            sql = "select b1+b2,c100 from (select count(*) as b1, sum(b1) b2 from b) a, (select c1 c100 from c) c where c100>1;"; // OK
+            sql = "select b4*b1+b2*b3 from (select 1 as b4, b3, count(*) as b1, sum(b1) b2 from b group by b3) a;"; // OK
+            sql = "select b1,c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where b1>1 and c100>1;"; // ANSWER WRONG
+
 
             // FIXME: if we turn memo on, we have problems resolving columns
         }
@@ -1005,8 +1017,8 @@ namespace test
             Assert.AreEqual("0,1,2,3,0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5,2,3,4,5", string.Join(";", result));
 
             // these queries depends on we can decide left/right side parameter dependencies
-            OptimizeOption option = new OptimizeOption();
-            option.enable_subquery_to_markjoin_ = false;
+            var option = new QueryOption();
+            option.optimize_.enable_subquery_to_markjoin_ = false;
             sql = "select a1+b1 from a join b on a1=b1 where a1 < (select a2 from a where a2=b2);"; TU.ExecuteSQL(sql, "0;2;4", out _, option);
             sql = "select a1+b1 from b join a on a1=b1 where a1 < (select a2 from a where a2=b2);"; TU.ExecuteSQL(sql, "0;2;4", out _, option);
             sql = "select a2+c3 from a join c on a1=c1 where a1 < (select b2 from a join b on a1=b1 where a1 < (select a2 from a where a2=b2) and a3 = c3)"; TU.ExecuteSQL(sql, "3;5;7", out _, option);
@@ -1129,8 +1141,8 @@ namespace test
         public void TestIndex()
         {
             string phyplan;
-            OptimizeOption option =new OptimizeOption();
-            option.use_memo_ = false;
+            var option =new QueryOption();
+            option.optimize_.use_memo_ = false;
 
             var sql = "select * from d where d1=2;";
             var result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
@@ -1141,7 +1153,7 @@ namespace test
         [TestMethod]
         public void TestPushdown()
         {
-            OptimizeOption option = new OptimizeOption();
+            var option = new QueryOption();
             var sql = "select a.a2,a3,a.a1+b2 from a,b where a.a1 > 1 and a1+b3>2";
             var result = ExecuteSQL(sql, out string phyplan);
             var answer = @"PhysicNLJoin   (actual rows = 3)
@@ -1173,7 +1185,7 @@ namespace test
             TU.PlanAssertEqual(answer, phyplan);
 
             sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b1 > ((select c2 from c where c.c2=b2)))";
-            option.enable_subquery_to_markjoin_ = false;
+            option.optimize_.enable_subquery_to_markjoin_ = false;
             result = TU.ExecuteSQL(sql, out phyplan, option);
             answer = @"PhysicScanTable a  (actual rows = 0)
                         Output: 1
@@ -1242,7 +1254,7 @@ namespace test
             // key here is bo.b3=a3 show up in 3rd subquery
             sql = @"select a1  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 
                         and bo.b3 = a3 and b3> 1) and b2<3);";
-            option.enable_subquery_to_markjoin_ = false;
+            option.optimize_.enable_subquery_to_markjoin_ = false;
             result = TU.ExecuteSQL(sql, out phyplan, option);
             answer = @"PhysicScanTable a  (actual rows = 2)
                         Output: a.a1[0],#a.a2[1],#a.a3[2]
@@ -1265,7 +1277,7 @@ namespace test
                             Output: #marker,a.a1[0],bo.b1[3]
                             Filter: bo.b2[4]=a.a2[1] and bo.b1[3]=@2 and bo.b2[4]<3
                             <ScalarSubqueryExpr> 2
-                                -> PhysicScanTable b
+                                -> PhysicScanTable b (actual rows = 3)
                                     Output: b.b1[0]
                                     Filter: b.b3[2]=?a.a3[2] and ?bo.b3[2]=?a.a3[2] and b.b3[2]>1
                             -> PhysicScanTable a  (actual rows = 3)
@@ -1279,7 +1291,7 @@ namespace test
             sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
-            option.enable_subquery_to_markjoin_ = false;
+            option.optimize_.enable_subquery_to_markjoin_ = false;
             result = TU.ExecuteSQL(sql, out phyplan, option);
             answer = @"PhysicNLJoin  (actual rows = 3)
                         Output: a.a1[2]
@@ -1340,7 +1352,7 @@ namespace test
                             Output: #marker,a.a1[0],b.b1[1],b.b2[2],c.c2[3],bo.b1[5],a.a2[4]
                             Filter: bo.b2[6]=a.a2[4] and bo.b1[5]=@2 and bo.b2[6]<5
                             <ScalarSubqueryExpr> 2
-                                -> PhysicScanTable b as b__2
+                                -> PhysicScanTable b as b__2 (actual rows = 81)
                                     Output: b__2.b1[0]
                                     Filter: b__2.b3[2]=?a.a3[2] and ?bo.b3[2]=?c.c3[2] and b__2.b3[2]>1
                             -> PhysicNLJoin  (actual rows = 27)
