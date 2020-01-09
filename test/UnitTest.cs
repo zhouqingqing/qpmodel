@@ -714,6 +714,8 @@ namespace test
             sql = "select * from (select a1*a2 a12, a1 a2 from a) b(a12, a3);"; TU.ExecuteSQL(sql, "0,0;2,1;6,2");
             sql = "select count(*)+1 from (select b1+c1 from (select b1 from b) a, (select c1,c2 from c) c(c1,c3) where c3>1) a;"; TU.ExecuteSQL(sql, "7");
 
+            sql = "select a1 as a2, a2 from a where a2>2;"; TU.ExecuteSQL(sql, "2,3");
+
             // table alias
             sql = "select * from a , a;";
             result = TU.ExecuteSQL(sql); Assert.IsNull(result); Assert.IsTrue(TU.error_.Contains("SemanticAnalyzeException"));
