@@ -174,7 +174,6 @@ namespace adb
                     if (z is ColExpr cz)
                     {
                         cz.tabRef_ = this;
-                        cz.tabName_ = this.alias_;
                     }
                 });
                 r.Add(y);
@@ -235,7 +234,6 @@ namespace adb
                         if (z is ColExpr cz)
                         {
                             cz.tabRef_ = this;
-                            cz.tabName_ = this.alias_;
                         }
                     });
 
