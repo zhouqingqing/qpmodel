@@ -764,9 +764,9 @@ namespace adb
     //
     public class ColExpr : Expr
     {
-        // parse info
-        internal string dbName_;
-        internal string tabName_;
+        // parse info - don't change after assignment
+        internal readonly string dbName_;
+        internal readonly string tabName_;
         internal readonly string colName_;
 
         // bound info
@@ -780,6 +780,13 @@ namespace adb
         {
             dbName_ = dbName; tabName_ = tabName; colName_ = colName; outputName_ = colName; type_ = type;
             Debug.Assert(Clone().Equals(this));
+        }
+
+        public string tableName_() {
+            if (bounded_)
+                return tabRef_.alias_;
+            else
+                return tabName_;
         }
 
         public Expr ExprOfQueryRef()
@@ -802,8 +809,9 @@ namespace adb
 
         public override void Bind(BindContext context)
         {
-            Debug.Assert(tabRef_ is null);
             Debug.Assert(IsLeaf());
+            Debug.Assert(tabRef_ is null);
+            Debug.Assert(tabName_ == tableName_());
 
             // if table name is not given, search through all tablerefs
             isParameter_ = false;
@@ -841,28 +849,26 @@ namespace adb
             }
 
             Debug.Assert(tabRef_ != null);
-            if (tabName_ is null)
-                tabName_ = tabRef_.alias_;
             if (!isParameter_)
             {
                 Debug.Assert(tableRefs_.Count == 0);
                 tableRefs_.Add(tabRef_);
             }
             // FIXME: we shall not decide ordinal_ so early but if not, hard to handle outerref
-            ordinal_ = context.ColumnOrdinal(tabName_, colName_, out ColumnType type);
+            ordinal_ = context.ColumnOrdinal(tabRef_.alias_, colName_, out ColumnType type);
             type_ = type;
             markBounded();
         }
 
-        public override int GetHashCode() => (tabName_ + colName_).GetHashCode();
+        public override int GetHashCode() => (tableName_() + colName_).GetHashCode();
         public override bool Equals(object obj)
         {
             if (obj is ColExpr co)
             {
-                if (co.tabName_ is null)
-                    return tabName_ is null && co.colName_.Equals(colName_);
+                if (co.tableName_() is null)
+                    return tableName_() is null && co.colName_.Equals(colName_);
                 else
-                    return co.tabName_.Equals(tabName_) && co.colName_.Equals(colName_);
+                    return co.tableName_().Equals(tableName_()) && co.colName_.Equals(colName_);
             }
             else if (obj is ExprRef oe)
                 return Equals(oe.expr_());
@@ -874,7 +880,7 @@ namespace adb
             bool showTableName = ExplainOption.show_tablename_;
             if (para != "")
                 showTableName = true;
-            string tablename = showTableName ? tabName_+"." : "";
+            string tablename = showTableName ? tableName_() + "." : "";
             para += isVisible_ ? "" : "#";
             if (colName_.Equals(outputName_))
                 return ordinal_==-1? $@"{para}{tablename}{colName_}":
@@ -904,7 +910,6 @@ namespace adb
         {
             Debug.Assert(context.AllTableRefs().Count == 1);
             var tabref = context.AllTableRefs()[0];
-            tabName_ = tabref.alias_;
             tabRef_ = tabref;
             tableRefs_.Add(tabref);
 
