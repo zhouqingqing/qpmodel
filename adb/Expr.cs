@@ -175,10 +175,14 @@ namespace adb
 		// TODO: what about expr.tableRefs_?
         //  They shall be equal but our implmentation sometimes get them inconsistent
         //  for example, xc.tabRef_ can contain outerrefs but tableRefs_ does not.
-        public static List<TableRef> AllTableRef(this Expr expr)
+        public static List<TableRef> CollectAllTableRef(this Expr expr, bool includingParameters = true)
         {
             var list = new HashSet<TableRef>();
-            expr.VisitEach<ColExpr>(x => list.Add(x.tabRef_));
+            expr.VisitEach<ColExpr>(x =>
+            {
+                if (!x.isParameter_ || includingParameters)
+                    list.Add(x.tabRef_);
+            });
             return list.ToList();
         }
 
@@ -239,7 +243,7 @@ namespace adb
             // and we leave the vacuum job to filter push down
             //
             if (node is LogicFilter)
-                node.filter_ = new LiteralExpr("true", new BoolType());
+                node.filter_ = LiteralExpr.MakeLiteral("true", new BoolType());
         }
 
         public static bool FilterIsConst(this Expr filter, out bool trueOrfalse)
@@ -524,7 +528,8 @@ namespace adb
                 // meaning has non-constantable (or we don't want to waste time try 
                 // to figure out if they are constant, say 'select 1' or sin(2))
                 //
-                bool nonconst = e is ColExpr || e is SubqueryExpr || e is AggFunc;
+                bool nonconst = e is ColExpr || e is SubqueryExpr
+                                        || e is AggFunc || e is MarkerExpr;
                 return nonconst;
             });
         }
@@ -559,7 +564,7 @@ namespace adb
         }
 
         // In current expression, search and replace @from with @to 
-        public Expr SearchReplace<T>(T from, Expr to)
+        public Expr SearchReplace<T>(T from, Expr to, bool aggregateTableRefs = true)
         {
             Debug.Assert(from != null);
 
@@ -576,10 +581,12 @@ namespace adb
             else
             {
                 var newl = new List<Expr>();
-                clone.children_.ForEach(x => newl.Add(x.SearchReplace(from, to)));
+                clone.children_.ForEach(x => newl.Add(x.SearchReplace(from, to, aggregateTableRefs)));
                 clone.children_ = newl;
             }
 
+            if (aggregateTableRefs)
+                clone.ResetAggregateTableRefs();
             return clone;
         }
 
@@ -1051,7 +1058,7 @@ namespace adb
         public static LiteralExpr MakeLiteral(Value val, ColumnType type)
         {
             LiteralExpr ret = null;
-            if (val is string || val is DateTime)
+            if (type is CharType || type is VarCharType || type is DateTimeType)
                 ret = new LiteralExpr($"'{val}'", type);
             else
                 ret = new LiteralExpr($"{val}", type);

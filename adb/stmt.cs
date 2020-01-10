@@ -186,6 +186,10 @@ namespace adb
 
         bool pushdownFilter(LogicNode plan, Expr filter)
         {
+            // don't push down special expressions
+            if (filter.VisitEachExprExists(x => x is MarkerExpr))
+                return false;
+
             switch (filter.TableRefCount())
             {
                 case 0:
@@ -243,9 +247,6 @@ namespace adb
                 var filter = filters[i];
                 var index = indexes[i];
 
-                var filterOnMarkJoin = filter.child_() is LogicMarkJoin;
-                if (filterOnMarkJoin)
-                    continue;
 
                 // we shall ignore FromQuery as it will be optimized by subquery optimization
                 // and this will cause double predicate push down (a1>1 && a1 > 1)
@@ -265,7 +266,7 @@ namespace adb
                     if (isConst)
                     {
                         if (!trueOrFalse)
-                            andlist.Add(new LiteralExpr("false", new BoolType()));
+                            andlist.Add(LiteralExpr.MakeLiteral("false", new BoolType()));
                         else
                             Debug.Assert(andlist.Count == 0);
                     }

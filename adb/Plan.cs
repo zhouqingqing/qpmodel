@@ -600,7 +600,7 @@ namespace adb
                 foreach (var s in selection)
                 {
                     if (s.outputName_ != null)
-                        newv = newv.SearchReplace(s.outputName_, s);
+                        newv = newv.SearchReplace(s.outputName_, s, false);
                 }
                 newlist.Add(newv);
             }
