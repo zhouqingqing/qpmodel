@@ -126,9 +126,11 @@ namespace adb
         internal List<SelectStmt> subQueries_ = new List<SelectStmt>();
         internal List<SelectStmt> decorrelatedSubs_ = new List<SelectStmt>();
         internal Dictionary<SelectStmt, LogicFromQuery> fromQueries_ = new Dictionary<SelectStmt, LogicFromQuery>();
-        internal bool isCorrelated = false;
         internal bool hasAgg_ = false;
         internal bool bounded_ = false;
+
+        internal bool isCorrelated_ = false;
+        internal List<SelectStmt> correlatedWhich_ = new List<SelectStmt>();
 
         internal SelectStmt TopStmt()
         {
@@ -184,6 +186,17 @@ namespace adb
             limit_ = limit;
         }
 
+        internal List<SelectStmt> InclusiveAllSubquries()
+        {
+            List<SelectStmt> allsubs = new List<SelectStmt>();
+            allsubs.Add(this);
+            Subqueries(true).ForEach(x =>
+            {
+                allsubs.AddRange(x.InclusiveAllSubquries());
+            });
+
+            return allsubs;
+        }
         bool pushdownFilter(LogicNode plan, Expr filter)
         {
             // don't push down special expressions

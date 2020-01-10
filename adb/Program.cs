@@ -31,7 +31,7 @@ namespace adb
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[3]; //12
+                var v = files[19]; //12
                 {
                     sql = File.ReadAllText(v);
                     goto doit;
@@ -122,7 +122,7 @@ namespace adb
             sql = "select b4*b1+b2*b3 from (select 1 as b4, b3, count(*) as b1, sum(b1) b2 from b group by b3) a;"; // OK
             sql = "select b1,c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where b1>1 and c100>1;"; // ANSWER WRONG
 
-        doit:
+      //  doit:
             // sql = @"select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1)
             //          and a2>1 and not exists (select * from a b where b.a2+7=a.a1+b.a1);";
             // sql = " select a1, sum(a12) from (select a1, a1*a2 a12 from a) b where a1 >= (select c1 from c where c1=a1) group by a1;";
@@ -130,14 +130,18 @@ namespace adb
             sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2;";
             sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b1 > ((select c2 from c where c.c2=b2)))";
             sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and a1>2;";
-            sql = @"select a1  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 
-                        and bo.b3 = a3 and b3> 1) and b2<3);"; // b2<3 not pushed down
-
+            sql = "select a2 from a where a1 in (select a2 from a a1 where exists (select * from a b where b.a3>=a1.a1+b.a1+1));"; //2,3
+            sql = "select a2 from a where a1 in (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1));"; //2,3
+            sql = "select a2 from a where a1 in (select a2 from a where exists (select * from a b where b.a3>a1+b.a1+1));"; //2,3, ok
+            sql = "select a2 from a where a1 in (select a2 from a a1 where exists (select * from a b where b.a3>=a.a1+b.a1+1));"; // 2
+            sql = "select a2 from a where a1 in (select a2 from a where exists(select * from a b where b.a3 >= a.a1 + b.a1 + 1));";
+            sql = "select a1,a2,b2 from b, a where a1=b1 and a1 < (select a2 from a where a2=b2);";
+doit:
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
             a.queryOpt_.profile_.enabled_ = true;
             a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = true;
-            a.queryOpt_.optimize_.remove_from = false;
+            a.queryOpt_.optimize_.remove_from = true;
             a.queryOpt_.optimize_.use_memo_ = false;
 
             // -- Semantic analysis:
