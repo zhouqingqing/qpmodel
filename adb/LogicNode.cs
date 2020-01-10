@@ -378,7 +378,7 @@ namespace adb
             var rreq = new HashSet<Expr>();
             foreach (var v in reqFromChild)
             {
-                var tables = v.AllTableRef();
+                var tables = v.CollectAllTableRef();
 
                 if (ltables.ContainsList( tables))
                     lreq.Add(v);
@@ -486,7 +486,7 @@ namespace adb
         // x: b1+b2+3 => true, b1+b2 => false
         bool exprConsistPureKeys(Expr x, List<Expr> keys)
         {
-            var constTrue = new LiteralExpr("true", new BoolType());
+            var constTrue = LiteralExpr.MakeLiteral("true", new BoolType());
             if (keys is null)
                 return false;
             if (keys.Contains(x))
@@ -526,7 +526,7 @@ namespace adb
             //
             if (keys?.Count > 0)
             {
-                var constTrue = new LiteralExpr("true", new BoolType());
+                var constTrue = LiteralExpr.MakeLiteral("true", new BoolType());
                 reqList.ForEach(x =>
                 {
                     if (reqContainAggs.Contains(x))
@@ -723,6 +723,8 @@ namespace adb
 
         public bool AddFilter(Expr filter)
         {
+            // constant filter (true|false) we are ok
+            Debug.Assert(filter.CollectAllTableRef(false).Count <= 1);
             filter_ = filter_.AddAndFilter(filter);
             return true;
         }
