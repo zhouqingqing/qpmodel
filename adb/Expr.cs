@@ -41,6 +41,7 @@ namespace adb
                 var top = parent_;
                 while (top != null)
                 {
+                    // it is ok to have same alias in the virtical (different levels) but not on the same level
                     if (top.boundFrom_.Values.Any(x => x.alias_.Equals(tab.alias_)))
                     {
                         Debug.Assert(top.boundFrom_.Values.Count(x => x.alias_.Equals(tab.alias_)) == 1);
@@ -68,15 +69,15 @@ namespace adb
 
         // column APIs
         //
-        TableRef locateByColumnName(string colAlias)
-        {
-            var result = AllTableRefs().FirstOrDefault(x => x.LocateColumn(colAlias) != null);
-            if (result != AllTableRefs().LastOrDefault(x => x.LocateColumn(colAlias) != null))
-                throw new SemanticAnalyzeException($"ambigous column name: {colAlias}");
-            return result;
-        }
         public TableRef GetTableRef(string tabAlias, string colAlias)
         {
+            TableRef locateByColumnName(string colAlias)
+            {
+                var result = AllTableRefs().FirstOrDefault(x => x.LocateColumn(colAlias) != null);
+                if (result != AllTableRefs().LastOrDefault(x => x.LocateColumn(colAlias) != null))
+                    throw new SemanticAnalyzeException($"ambigous column name: {colAlias}");
+                return result;
+            }
             if (tabAlias is null)
                 return locateByColumnName(colAlias);
             else
@@ -195,7 +196,7 @@ namespace adb
                 r += "\n";
                 expr.VisitEach<SubqueryExpr>(x =>
                 {
-                    string cached = !x.IsCorrelated() ? "cached " : "";
+                    string cached = x.IsCacheable() ? "cached " : "";
                     r += Utils.Tabs(depth + 2) + $"<{x.GetType().Name}> {cached}{x.subqueryid_}\n";
                     Debug.Assert(x.query_.bindContext_ != null);
                     if (x.query_.physicPlan_ != null)
@@ -811,7 +812,11 @@ namespace adb
             // we can't find the column in current context, so it could an outer reference
             if (tabRef_ is null)
             {
-                // can't find in my current context, try my ancestors
+                // can't find in my current context, try my ancestors levels up: order is important
+                // as we are matching naming with the order closest first
+                //    ... from A ... ( from A where exists (... from B where b1 > a.a1)) 
+                // so a.a1 matches the inner side A.
+                //
                 BindContext parent = context;
                 while ((parent = parent.parent_) != null)
                 {
@@ -821,7 +826,12 @@ namespace adb
                         // we are actually switch the context to parent, whichTab_ is not right ...
                         isParameter_ = true;
                         tabRef_.colRefedBySubq_.Add(this);
-                        (context.stmt_ as SelectStmt).isCorrelated = true;
+
+                        // mark myself a correlated query and remember whom I am correlated to
+                        var mystmt = context.stmt_ as SelectStmt;
+                        mystmt.isCorrelated_ = true;
+                        mystmt.correlatedWhich_.Add(parent.stmt_ as SelectStmt);
+
                         context = parent;
                         break;
                     }

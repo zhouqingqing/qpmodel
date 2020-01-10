@@ -16,6 +16,7 @@ namespace adb
         internal int subqueryid_;    // bounded
 
         // runtime optimization for non-correlated subquery
+        internal Value isCacheable_ = null;
         internal bool cachedValSet_ = false;
         internal Value cachedVal_;
 
@@ -51,7 +52,42 @@ namespace adb
 
         public bool IsCorrelated() {
             Debug.Assert(bounded_);
-            return query_.isCorrelated;
+            return query_.isCorrelated_;
+        }
+
+        // similar to IsCorrelated() but also consider children. If None is correlated
+        // or the correlation does not go outside this expr range, then we can cache
+        // the result and reuse it without repeatly execute it.
+        //
+        // Eg. ... a where a1 in ( ... b where exists (select * from c where c1>=a1))
+        // InSubquery ... b is not correlated but its child is correlated to outside 
+        // table a, which makes it not cacheable.
+        //
+        public bool IsCacheable() {
+            if (isCacheable_ is null)
+            {
+                if (IsCorrelated())
+                    isCacheable_ = false;
+                else
+                {
+                    // collect all subquries within this query, they are ok to correlate
+                    var queriesOkToRef = query_.InclusiveAllSubquries();
+
+                    // if the subquery reference anything beyond the ok-range, we can't cache
+                    bool childCorrelated = false;
+                    query_.subQueries_.ForEach(x =>
+                    {
+                        if (x.isCorrelated_) { 
+                            if (!queriesOkToRef.ContainsList(x.correlatedWhich_))
+                                childCorrelated = true;
+                        }
+                    });
+
+                    isCacheable_ = !childCorrelated;
+                }
+            }
+
+            return (bool)isCacheable_;
         }
 
         public override int GetHashCode() => subqueryid_.GetHashCode();
@@ -79,7 +115,7 @@ namespace adb
         public override Value Exec(ExecContext context, Row input)
         {
             Debug.Assert(type_ != null);
-            if (!IsCorrelated() && cachedValSet_)
+            if (IsCacheable() && cachedValSet_)
                 return cachedVal_;
 
             Row r = null;
@@ -113,7 +149,7 @@ namespace adb
         public override Value Exec(ExecContext context, Row input)
         {
             Debug.Assert(type_ != null);
-            if (!IsCorrelated() && cachedValSet_)
+            if (IsCacheable() && cachedValSet_)
                 return cachedVal_;
 
             Row r = null;
@@ -154,7 +190,7 @@ namespace adb
         {
             Debug.Assert(type_ != null);
             Value expr = expr_().Exec(context, input);
-            if (!IsCorrelated() && cachedValSet_)
+            if (IsCacheable () && cachedValSet_)
                 return (cachedVal_ as HashSet<Value>).Contains(expr);
             
             var set = new HashSet<Value>();
