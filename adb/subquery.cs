@@ -191,13 +191,21 @@ namespace adb
             if (cntFilter == 0)
                 return plan;
 
-            var filterExpr = plan.filter_;
+            if (parentNodes[0] is LogicFromQuery)
+                return plan;
+
+            LogicNode subplan = logFilterNodes[0];
+            var filterExpr = subplan.filter_;
             if (filterExpr != null)
             {
                 foreach (var ef in filterExpr.RetrieveAllType<SubqueryExpr>())
-                {
-                    plan = oneSubqueryToMarkJoin(plan, ef);
-                }
+                    subplan = oneSubqueryToMarkJoin(subplan, ef);
+
+                // merge back to the root plan
+                if (parentNodes[0] is null)
+                    plan = subplan;
+                else
+                    parentNodes[0].children_[indexes[0]] = subplan;
             }
 
             return plan;
