@@ -155,6 +155,29 @@ namespace adb
             return Filter;
         }
 
+        LogicNode oneSubqueryToMarkJoin(LogicNode subplan, SubqueryExpr subexpr)
+        {
+            LogicNode oldplan = subplan;
+            LogicNode newplan = null;
+
+            if (!subexpr.IsCorrelated())
+                return subplan;
+
+            switch (subexpr) {
+                case ExistSubqueryExpr se:
+                    newplan = existsToMarkJoin(subplan, se);
+                    break;
+                case ScalarSubqueryExpr ss:
+                    newplan = scalarToMarkJoin(subplan, ss);
+                    break;
+                default:
+                    break;
+            }
+            if (oldplan != newplan)
+                decorrelatedSubs_.Add(subexpr.query_);
+            return newplan;
+        }
+
         LogicNode subqueryToMarkJoin(LogicNode plan)
         {
             // before the filter push down, there shall be at most one filter
@@ -165,33 +188,15 @@ namespace adb
             var cntFilter = plan.FindNodeTyped(parentNodes, indexes, logFilterNodes);
             Debug.Assert(cntFilter <= 1 || plan.CountNodeTyped<LogicFromQuery>() > 0);
 
-            if (cntFilter == 1)
+            if (cntFilter == 0)
+                return plan;
+
+            var filterExpr = plan.filter_;
+            if (filterExpr != null)
             {
-                var filterExpr = plan.filter_;
-                if (filterExpr != null)
+                foreach (var ef in filterExpr.RetrieveAllType<SubqueryExpr>())
                 {
-                    foreach (var ef in filterExpr.RetrieveAllType<ExistSubqueryExpr>())
-                    {
-                        if (ef.IsCorrelated())
-                        {
-                            var oldplan = plan;
-                            var newplan = existsToMarkJoin(plan, ef);
-                            if (oldplan != newplan)
-                                decorrelatedSubs_.Add(ef.query_);
-                            plan = newplan;
-                        }
-                    }
-                    foreach (var ef in filterExpr.RetrieveAllType<ScalarSubqueryExpr>())
-                    {
-                        if (ef.IsCorrelated())
-                        {
-                            var oldplan = plan;
-                            var newplan = scalarToMarkJoin(plan, ef);
-                            if (oldplan != plan)
-                                decorrelatedSubs_.Add(ef.query_);
-                            plan = newplan;
-                        }
-                    }
+                    plan = oneSubqueryToMarkJoin(plan, ef);
                 }
             }
 
