@@ -70,14 +70,15 @@ namespace adb
                 markjoin = new LogicMarkAntiSemiJoin(nodeA, nodeB);
             else
                 markjoin = new LogicMarkSemiJoin(nodeA, nodeB);
-            markjoin.AddFilter(nodeBFilter);
 
-            // make a filter on top of the mark join
+            // make a filter on top of the mark join collecting all filters
             Expr topfilter;
             if (nodeAIsOnMarkJoin)
                 topfilter = nodeAFilter.SearchReplace(existExpr, LiteralExpr.MakeLiteral("true", new BoolType()));
             else
                 topfilter = nodeAFilter.SearchReplace(existExpr, markerFilter);
+            nodeBFilter.DeParameter(nodeA.InclusiveTableRefs());
+            topfilter = topfilter.AddAndFilter(nodeBFilter);
             LogicFilter Filter = new LogicFilter(markjoin, topfilter);
             return Filter;
         }
@@ -138,10 +139,8 @@ namespace adb
 
             // make a mark join
             var markjoin = new LogicSingleMarkJoin(nodeA, nodeB);
-            markjoin.AddFilter(nodeBFilter);
-            markjoin.filter_.DeParameter(nodeA.InclusiveTableRefs());
 
-            // make a filter on top of the mark join
+            // make a filter on top of the mark join collecting all filters
             Expr topfilter;
             if (nodeAIsOnMarkJoin)
                 topfilter = nodeAFilter.SearchReplace(scalarExpr, LiteralExpr.MakeLiteral($"{int.MinValue}", new IntType()));
@@ -150,6 +149,8 @@ namespace adb
                 topfilter = markerFilter.AddAndFilter(nodeAFilter);
                 topfilter = topfilter.SearchReplace(scalarExpr, singleValueExpr);
             }
+            nodeBFilter.DeParameter(nodeA.InclusiveTableRefs());
+            topfilter = topfilter.AddAndFilter(nodeBFilter);
             LogicFilter Filter = new LogicFilter(markjoin, topfilter);
             return Filter;
         }
