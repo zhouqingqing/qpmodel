@@ -10,7 +10,7 @@ namespace adb
     public class QueryOption {
         public class ProfileOption
         {
-            public bool enabled_ = false;
+            public bool enabled_ = true;
         }
         public class OptimizeOption
         {

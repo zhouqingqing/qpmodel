@@ -82,6 +82,7 @@ namespace adb
                     Console.WriteLine("  {0}", ce.ToString());
                     Console.WriteLine();
                 }
+                throw new SemanticExecutionException("codegen failed");
             }
             else
             {

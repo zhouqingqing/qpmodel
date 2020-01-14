@@ -94,6 +94,25 @@ namespace test
     }
 
     [TestClass]
+    public class CodeGenTest
+    {
+        [TestMethod]
+        public void TestSimpleSlect()
+        {
+            // you may encounter an error saying can't find roslyn/csc.exe
+            // one work around is to copy the folder there.
+            //
+            string sql = "select * from a where a1>1;";
+            QueryOption option = new QueryOption();
+            option.profile_.enabled_ = false;
+            option.optimize_.use_codegen_ = true;
+
+            var result = TU.ExecuteSQL(sql, out string resultstr, option);
+            Assert.AreEqual(0, result.Count);
+        }
+    }
+
+    [TestClass]
     public class DDLTest
     {
         [TestMethod]
@@ -120,10 +139,10 @@ namespace test
         {
             var sql = "create index an1 on a(a1);";
             var stmt = RawParser.ParseSqlStatements(sql);
-            stmt.Exec(true);
+            stmt.Exec();
             sql = "create unique index au1 on a(a1);";
             stmt = RawParser.ParseSqlStatements(sql);
-            stmt.Exec(true);
+            stmt.Exec();
         }
 
         [TestMethod]
@@ -131,7 +150,7 @@ namespace test
         {
             var sql = "analyze a;";
             var stmt = RawParser.ParseSqlStatements(sql);
-            stmt.Exec(true);
+            stmt.Exec();
         }
     }
 
@@ -915,7 +934,7 @@ namespace test
         {
             var sql = "select b1+b1 from (select b1 from b) a";
             var stmt = RawParser.ParseSingleSqlStatement(sql);
-            stmt.Exec(true); var phyplan = stmt.physicPlan_;
+            stmt.Exec(); var phyplan = stmt.physicPlan_;
             var answer = @"PhysicFromQuery <a>  (actual rows = 3)
                             Output: a.b1[0]+a.b1[0]
                             -> PhysicScanTable b  (actual rows = 3)
@@ -923,7 +942,7 @@ namespace test
             TU.PlanAssertEqual(answer, phyplan.PrintString(0));
             sql = "select b1+c1 from (select b1 from b) a, (select c1 from c) c where c1>1";
             stmt = RawParser.ParseSingleSqlStatement(sql);
-            stmt.Exec(true); phyplan = stmt.physicPlan_;    // FIXME: filter is still there
+            stmt.Exec(); phyplan = stmt.physicPlan_;    // FIXME: filter is still there
             answer = @"PhysicFilter   (actual rows = 3)
                         Output: {a.b1+c.c1}[0]
                         Filter: c.c1[1]>1
@@ -945,7 +964,7 @@ namespace test
             Assert.AreEqual("4", result[2].ToString());
             sql = "select b1+c1 from (select b1 from b) a, (select c1,c2 from c) c where c2-b1>1";
             stmt = RawParser.ParseSingleSqlStatement(sql);
-            stmt.Exec(true); phyplan = stmt.physicPlan_;
+            stmt.Exec(); phyplan = stmt.physicPlan_;
             answer = @"PhysicNLJoin   (actual rows = 3)
                         Output: a.b1[0]+c.c1[1]
                         Filter: c.c2[2]-a.b1[0]>1
