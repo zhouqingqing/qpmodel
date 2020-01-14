@@ -27,7 +27,7 @@ namespace adb
         }
         public override string ToString() => $"{tabName_ }: {string.Join(",", cols_)}";
 
-        public override List<Row> Exec(bool enableProfiling = false)
+        public override List<Row> Exec()
         {
             Catalog.systable_.Add(tabName_, cols_);
             return null;

@@ -32,11 +32,8 @@ namespace adb
         public virtual LogicNode PhaseOneOptimize() => logicPlan_;
         public virtual LogicNode CreatePlan() => logicPlan_;
 
-        public virtual List<Row> Exec(bool enableProfiling = false)
+        public virtual List<Row> Exec()
         {
-            if (enableProfiling)
-                queryOpt_.profile_.enabled_ = true;
-
             Bind(null);
             CreatePlan();
             PhaseOneOptimize();
@@ -61,7 +58,7 @@ namespace adb
                 var stmt = RawParser.ParseSingleSqlStatement(sql);
                 if (option != null)
                     stmt.queryOpt_ = option;
-                var result = stmt.Exec(true);
+                var result = stmt.Exec();
                 physicplan = stmt.physicPlan_.PrintString(0);
                 error = "";
                 return result;
@@ -85,13 +82,13 @@ namespace adb
             list_ = list;
         }
 
-        public override List<Row> Exec(bool enableProfiling = false)
+        public override List<Row> Exec()
         {
             var result = new List<Row>();
             foreach (var v in list_)
             {
                 v.queryOpt_ = queryOpt_;
-                result = v.Exec(enableProfiling);
+                result = v.Exec();
             }
             return result;
         }

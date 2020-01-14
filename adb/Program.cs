@@ -142,15 +142,15 @@ namespace adb
             sql = "select * from a where a1> (select b2 from b where a1<>b1);";
 
         doit:
-
-            sql = "select * from a;";
+             sql = "select * from a where a1>1;";
+            //sql = "select e1 from (select d1 from (select sum(a12) from (select a1*a2 a12 from a) b) c(d1)) d(e1);";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
             a.queryOpt_.profile_.enabled_ = false;
             a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = true;
             a.queryOpt_.optimize_.remove_from = true;
-            a.queryOpt_.optimize_.use_memo_ = false;
+            a.queryOpt_.optimize_.use_memo_ = true;
             a.queryOpt_.optimize_.use_codegen_ = true;
 
             // -- Semantic analysis:
