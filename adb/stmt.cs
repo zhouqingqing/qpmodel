@@ -50,7 +50,7 @@ namespace adb
 
             var result = new PhysicCollect(physicPlan_);
             result.Open();
-            result.Exec(new ExecContext(), null);
+            result.Exec(new ExecContext(queryOpt_), null);
             result.Close();
             return result.rows_;
         }

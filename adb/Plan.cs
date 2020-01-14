@@ -23,6 +23,9 @@ namespace adb
 
             // optimizer controls
             public bool use_memo_ = false;
+
+            // codegen controls
+            public bool use_codegen_ = false;
         }
 
         public ProfileOption profile_ = new ProfileOption();

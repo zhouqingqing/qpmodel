@@ -443,7 +443,7 @@ namespace adb
         // 1. subquery's outerref 
         // 2. system generated syscolumns (say sysrid_ for indexing)
         //
-        internal bool isVisible_ = true;
+        public bool isVisible_ = true;
 
         // an expression can reference multiple tables
         //      e.g., a.i + b.j > [a.]k => references 2 tables

@@ -89,7 +89,7 @@ namespace adb
                 index_ = new NonUniqueIndex();
         }
 
-        public override void Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             child_().Exec(context, r =>
             {
@@ -101,6 +101,7 @@ namespace adb
                 index_.Insert(key, tablerow as Row);
                 return null;
             });
+            return null;
         }
 
         public override void Close()

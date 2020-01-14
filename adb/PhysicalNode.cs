@@ -29,9 +29,9 @@ namespace adb
         public virtual void Open() => children_.ForEach(x => x.Open());
         public virtual void Close() => children_.ForEach(x => x.Close());
         // @context is to carray parameters etc, @callback.Row is current row for processing
-        public abstract void Exec(ExecContext context, Func<Row, string> callback);
+        public abstract string Exec(ExecContext context, Func<Row, string> callback);
 
-        internal Row ExecProject(ExecContext context, Row input)
+        public Row ExecProject(ExecContext context, Row input)
         {
             var output = logic_.output_;
             Row r = new Row(output.Count);
@@ -46,6 +46,13 @@ namespace adb
                 cost_ = 10.0;
             return cost_;
         }
+
+        // local varialbes are named locally by append the local hmid. Record r passing
+        // across callback boundaries are special: they have to be uniquely named and
+        // use consistently.
+        //
+        internal string nameRbeforeCall() { return $"_r_{ObjectID.newId()}"; }
+        internal string getRofCallback() { return $"_r_{ObjectID.curId()}"; }
     }
 
     // PhysicMemoRef wrap a LogicMemoRef as a physical node (so LogicMemoRef can be 
@@ -56,7 +63,7 @@ namespace adb
         public PhysicMemoRef(LogicNode logic) : base(logic) { Debug.Assert(logic is LogicMemoRef); }
         public override string ToString() => Logic().ToString();
 
-        public override void Exec(ExecContext context, Func<Row, string> callback) => throw new InvalidProgramException("not executable");
+        public override string Exec(ExecContext context, Func<Row, string> callback) => throw new InvalidProgramException("not executable");
         public override int GetHashCode() => Group().memoid_;
         public override bool Equals(object obj)
         {
@@ -81,30 +88,66 @@ namespace adb
         public PhysicScanTable(LogicNode logic) : base(logic) { }
         public override string ToString() => $"PScan({(logic_ as LogicScanTable).tabref_}: {Cost()})";
 
-        public override void Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicScanTable;
             var filter = logic.filter_;
             var heap = (logic.tabref_).Table().heap_.GetEnumerator();
 
-            Row r = null;
-            for (; ; )
+            if (context.option_.optimize_.use_codegen_)
             {
-                if (context.stop_)
-                    break;
+                string cs = $@"
+                BaseTableRef tabref = new BaseTableRef(""{logic.tabref_.relname_}"");
+                LogicScanTable logic = new LogicScanTable(tabref);
+                PhysicScanTable scan = new PhysicScanTable(logic);
+                ExecContext context = new ExecContext(new QueryOption());
 
-                if (heap.MoveNext())
-                    r = heap.Current;
-                else
-                    break;
+                var heap = (logic.tabref_).Table().heap_.GetEnumerator();
+                var filter = logic.filter_;
 
-                if (logic.tabref_.colRefedBySubq_.Count != 0)
-                    context.AddParam(logic.tabref_, r);
-                if (filter is null || filter.Exec(context, r) is true)
+                for (; ; )
+                {{
+                    Row r = null;
+                    if (context.stop_)
+                        break;
+
+                    if (heap.MoveNext())
+                        r = heap.Current;
+                    else
+                        break;
+
+                    if (filter is null || filter.Exec(context, r) is true)
+                    {{
+                        r = scan.ExecProject(context, r);
+                        {callback(null)};
+                    }}
+                }}";
+
+                return cs;
+            }
+            else
+            {
+                Row r = null;
+                for (; ; )
                 {
-                    r = ExecProject(context, r);
-                    callback(r);
+                    if (context.stop_)
+                        break;
+
+                    if (heap.MoveNext())
+                        r = heap.Current;
+                    else
+                        break;
+
+                    if (logic.tabref_.colRefedBySubq_.Count != 0)
+                        context.AddParam(logic.tabref_, r);
+                    if (filter is null || filter.Exec(context, r) is true)
+                    {
+                        r = ExecProject(context, r);
+                        callback(r);
+                    }
                 }
+
+                return null;
             }
         }
 
@@ -120,7 +163,7 @@ namespace adb
         public PhysicSeekIndex(LogicNode logic) : base(logic) { }
         public override string ToString() => $"ISeek({(logic_ as LogicScanTable).tabref_}: {Cost()})";
 
-        public override void Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicScanTable;
             var filter = logic.filter_;
@@ -141,6 +184,8 @@ namespace adb
                     callback(r);
                 }
             }
+
+            return null;
         }
 
         public override double Cost()
@@ -154,7 +199,7 @@ namespace adb
     {
         public PhysicScanFile(LogicNode logic) : base(logic) { }
 
-        public override void Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicScanFile;
             var filename = logic.FileName();
@@ -197,6 +242,8 @@ namespace adb
 
                 callback(r);
             });
+
+            return null;
         }
     }
 
@@ -208,7 +255,7 @@ namespace adb
         }
         public override string ToString() => $"PNLJ({l_()},{r_()}: {Cost()})";
 
-        public override void Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicJoin;
             var type = logic.type_;
@@ -248,6 +295,7 @@ namespace adb
                 }
                 return null;
             });
+            return null;
         }
 
         public override double Cost()
@@ -335,7 +383,7 @@ namespace adb
             base.Open();
         }
 
-        public override void Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicJoin;
             var type = logic.type_;
@@ -362,7 +410,7 @@ namespace adb
 
             // right side probes the hash table
             if (hm.Count == 0)
-                return;
+                return null;
             r_().Exec(context, r =>
             {
                 if (context.stop_)
@@ -396,6 +444,8 @@ namespace adb
                 }
                 return null;
             });
+
+            return null;
         }
 
         public override double Cost()
@@ -446,7 +496,7 @@ namespace adb
             return null;
         }
 
-        public override void Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicAgg;
             var aggrcore = logic.aggrFns_;
@@ -509,6 +559,7 @@ namespace adb
                     callback(newr);
                 }
             }
+            return null;
         }
     }
 
@@ -525,7 +576,7 @@ namespace adb
 
             return l.CompareTo(r);
         }
-        public override void Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicOrder;
             var set = new List<Row>();
@@ -543,6 +594,7 @@ namespace adb
                     break;
                 callback(v);
             }
+            return null;
         }
     }
 
@@ -552,7 +604,7 @@ namespace adb
 
         public PhysicFromQuery(LogicFromQuery logic, PhysicNode l) : base(logic) => children_.Add(l);
 
-        public override void Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicFromQuery;
             child_().Exec(context, l =>
@@ -566,6 +618,7 @@ namespace adb
                 callback(r);
                 return null;
             });
+            return null;
         }
     }
 
@@ -576,7 +629,7 @@ namespace adb
 
         public override string ToString() => $"PFILTER({child_()}: {Cost()})";
 
-        public override void Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             Expr filter = (logic_ as LogicFilter).filter_;
 
@@ -592,6 +645,7 @@ namespace adb
                 }
                 return null;
             });
+            return null;
         }
         public override int GetHashCode()
         {
@@ -613,7 +667,7 @@ namespace adb
     {
         public PhysicInsert(LogicInsert logic, PhysicNode l) : base(logic) => children_.Add(l);
 
-        public override void Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             child_().Exec(context, l =>
             {
@@ -621,6 +675,7 @@ namespace adb
                 table.heap_.Add(l);
                 return null;
             });
+            return null;
         }
     }
 
@@ -628,10 +683,11 @@ namespace adb
     {
         public PhysicResult(LogicResult logic) : base(logic) { }
 
-        public override void Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             Row r = ExecProject(context, null);
             callback(r);
+            return null;
         }
     }
 
@@ -648,7 +704,7 @@ namespace adb
             Debug.Assert(profile_ is null);
         }
 
-        public override void Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             child_().Exec(context, l =>
             {
@@ -656,6 +712,7 @@ namespace adb
                 callback(l);
                 return null;
             });
+            return null;
         }
     }
 
@@ -664,26 +721,51 @@ namespace adb
         public readonly List<Row> rows_ = new List<Row>();
 
         public PhysicCollect(PhysicNode child): base(null) => children_.Add(child);
-        public override void Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             var child = (child_() is PhysicProfiling) ?
                     child_().child_() : child_();
             var output = child.logic_.output_;
             var ncolumns = output.Count(x => x.isVisible_);
 
+            CodeWriter.Reset();
             context.Reset();
-            child_().Exec(context, r =>
+            string s = "";
+            s += child_().Exec(context, r =>
             {
-                Row newr = new Row(ncolumns);
-                for (int i = 0; i < output.Count; i++)
-                {
-                    if (output[i].isVisible_)
-                        newr[i] = r[i];
+                if (r is null) {
+                    string cs = $@"
+                    Row newr = new Row({ncolumns});
+                    for (int i = 0; i < {output.Count}; i++)
+                    {{
+                        // output[i]
+                        if (logic.output_[i].isVisible_)
+                            newr[i] = r[i];
+                    }}
+                    Console.WriteLine(newr);";
+                    return cs;
                 }
-                rows_.Add(newr);
-                Console.WriteLine($"{newr}");
-                return null;
+                else
+                {
+                    Row newr = new Row(ncolumns);
+                    for (int i = 0; i < output.Count; i++)
+                    {
+                        if (output[i].isVisible_)
+                            newr[i] = r[i];
+                    }
+                    rows_.Add(newr);
+                    Console.WriteLine($"{newr}");
+                    return null;
+                }
             });
+
+            if (s != "")
+            {
+                s += "}}";
+                CodeWriter.WriteLine(s);
+                Compiler.Compile();
+            }
+            return s;
         }
     }
 
@@ -691,7 +773,7 @@ namespace adb
 
         public PhysicLimit(LogicLimit logic, PhysicNode l) : base(logic) => children_.Add(l);
 
-        public override void Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             int nrows = 0;
             int limit = (logic_ as LogicLimit).limit_;
@@ -705,7 +787,7 @@ namespace adb
                 callback(l);
                 return null;
             });
-
+            return null;
         }
     }
 }
