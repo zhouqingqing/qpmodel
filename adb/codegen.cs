@@ -57,6 +57,10 @@ namespace adb
         {
             // there are builtin CodeDomProvider.CreateProvider("CSharp") or the Nuget one
             //  we use the latter since it suppports newer C# features (but it is way slower)
+            // you may encounter IO path issues like: Could not find a part of the path … bin\roslyn\csc.exe
+            // solution is to run Nuget console: 
+            //     Update-Package Microsoft.CodeDom.Providers.DotNetCompilerPlatform -r
+            //
             string source = "gen.cs";
             var provider = new Microsoft.CodeDom.Providers.DotNetCompilerPlatform.CSharpCodeProvider();
 
