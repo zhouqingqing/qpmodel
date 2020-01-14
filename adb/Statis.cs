@@ -94,7 +94,7 @@ namespace adb
             stats_ = Catalog.sysstat_.GetOrCreateTableStats(tabName);
         }
 
-        public override void Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             List<Row> samples = new List<Row>();
             child_().Exec(context, r =>
@@ -106,6 +106,7 @@ namespace adb
             // TODO: we may consider using a SQL statement to do this
             //  select count(*), count(distint a1), count(distinct a2), build_historgram(a1), ...
             Catalog.sysstat_.ComputeStats(samples, stats_);
+            return null;
         }
     }
 }

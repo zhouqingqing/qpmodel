@@ -31,7 +31,7 @@ namespace adb
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[3]; //12
+                var v = files[20]; //12
                 {
                     sql = File.ReadAllText(v);
                     goto doit;
@@ -138,14 +138,20 @@ namespace adb
             sql = "select a1,a2,b2 from b, a where a1=b1 and a1 < (select a2 from a where a2=b2);";
             sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
             sql = "select a2 from a where a.a3 > (select min(b1*2) from b where b.b2 >= (select c2-1 from c where c.c2=b2) and b.b3 > ((select c2 from c where c.c2=b2)));";
+            sql = "select * from a where a1> (select sum(b2) from b where a1=b1);";
+            sql = "select * from a where a1> (select b2 from b where a1<>b1);";
+
         doit:
+
+            sql = "select * from a;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
-            a.queryOpt_.profile_.enabled_ = true;
+            a.queryOpt_.profile_.enabled_ = false;
             a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = true;
             a.queryOpt_.optimize_.remove_from = true;
             a.queryOpt_.optimize_.use_memo_ = false;
+            a.queryOpt_.optimize_.use_codegen_ = true;
 
             // -- Semantic analysis:
             //  - bind the query
@@ -187,7 +193,7 @@ namespace adb
             Console.WriteLine("-- profiling plan --");
             var final = new PhysicCollect(phyplan);
             final.Open();
-            final.Exec(new ExecContext(), null);
+            final.Exec(new ExecContext(a.queryOpt_), null);
             final.Close();
             Console.WriteLine(phyplan.PrintString(0));
         }

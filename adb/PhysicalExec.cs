@@ -103,8 +103,13 @@ namespace adb
 
     public class ExecContext
     {
-    	public bool stop_ = false;
+        public QueryOption option_;
+
+        public bool stop_ = false;
+
         public List<Parameter> params_ = new List<Parameter>();
+
+        public ExecContext(QueryOption option) { option_ = option; }
 
         public void Reset() { params_.Clear(); }
         public Value GetParam(TableRef tabref, int ordinal)

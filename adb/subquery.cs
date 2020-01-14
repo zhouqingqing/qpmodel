@@ -260,7 +260,7 @@ namespace adb
         // always the first column
         void fixMarkerValue(Row r, Value value) => r[0] = value;
 
-        public override void Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicMarkJoin;
             var filter = logic.filter_;
@@ -299,6 +299,7 @@ namespace adb
                 }
                 return null;
             });
+            return null;
         }
 
         public override double Cost()
@@ -320,7 +321,7 @@ namespace adb
         // always the first column
         void fixMarkerValue(Row r, Value value) => r[0] = value;
 
-        public override void Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicMarkJoin;
             var filter = logic.filter_;
@@ -359,6 +360,7 @@ namespace adb
                 }
                 return null;
             });
+            return null;
         }
 
         public override double Cost()
