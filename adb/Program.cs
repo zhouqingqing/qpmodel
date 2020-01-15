@@ -192,9 +192,17 @@ namespace adb
 
             Console.WriteLine("-- profiling plan --");
             var final = new PhysicCollect(phyplan);
-            final.Open();
-            final.Exec(new ExecContext(a.queryOpt_), null);
-            final.Close();
+            var context = new ExecContext(a.queryOpt_);
+            var code = final.Open(context);
+            code += final.Exec(context, null);
+            code += final.Close(context);
+
+            if (a.queryOpt_.optimize_.use_codegen_)
+            {
+                CodeWriter.WriteLine(code);
+                Compiler.Compile();
+            }
+
             Console.WriteLine(phyplan.PrintString(0));
         }
     }

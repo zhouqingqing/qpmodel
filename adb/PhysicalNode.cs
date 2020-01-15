@@ -8,7 +8,7 @@ namespace adb
 {
     public abstract class PhysicNode : PlanNode<PhysicNode>
     {
-        internal LogicNode logic_;
+        public LogicNode logic_;
         internal PhysicProfiling profile_;
 
         internal double cost_ = double.NaN;
@@ -26,8 +26,12 @@ namespace adb
         public override string PrintInlineDetails(int depth) => logic_.PrintInlineDetails(depth);
         public override string PrintMoreDetails(int depth) => logic_.PrintMoreDetails(depth);
 
-        public virtual void Open() => children_.ForEach(x => x.Open());
-        public virtual void Close() => children_.ForEach(x => x.Close());
+        public virtual string Open(ExecContext context){
+            string s = ""; children_.ForEach(x => s += x.Open(context)); return s;
+        }
+        public virtual string Close(ExecContext context) {
+            string s = ""; children_.ForEach(x => s += x.Close(context)); return s;
+        }
         // @context is to carray parameters etc, @callback.Row is current row for processing
         public abstract string Exec(ExecContext context, Func<Row, string> callback);
 
@@ -53,6 +57,9 @@ namespace adb
         //
         internal string nameRbeforeCall() { return $"_r_{ObjectID.newId()}"; }
         internal string getRofCallback() { return $"_r_{ObjectID.curId()}"; }
+
+        internal string codegen_logic_ = "<unset logic node name>";
+        internal string codegen_this_ = "<unset physic node name>";
     }
 
     // PhysicMemoRef wrap a LogicMemoRef as a physical node (so LogicMemoRef can be 
@@ -88,6 +95,23 @@ namespace adb
         public PhysicScanTable(LogicNode logic) : base(logic) { }
         public override string ToString() => $"PScan({(logic_ as LogicScanTable).tabref_}: {Cost()})";
 
+        public override string Open(ExecContext context)
+        {
+            if (!context.option_.optimize_.use_codegen_)
+                return null;
+
+            var logic = logic_ as LogicScanTable;
+            var tabalias = logic.tabref_.alias_;
+            codegen_logic_ = $"{logic.GetType().Name}_{tabalias}";
+            codegen_this_ = $"{this.GetType().Name}_{tabalias}";
+            string cs = $@"
+                BaseTableRef tabref = new BaseTableRef(""{logic.tabref_.relname_}"");
+                LogicScanTable {codegen_logic_} = new LogicScanTable(tabref);
+                PhysicScanTable {codegen_this_}= new PhysicScanTable({codegen_logic_});
+                ";
+            return cs;
+        }
+
         public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicScanTable;
@@ -97,13 +121,9 @@ namespace adb
             if (context.option_.optimize_.use_codegen_)
             {
                 string cs = $@"
-                BaseTableRef tabref = new BaseTableRef(""{logic.tabref_.relname_}"");
-                LogicScanTable logic = new LogicScanTable(tabref);
-                PhysicScanTable scan = new PhysicScanTable(logic);
-                ExecContext context = new ExecContext(new QueryOption());
-
-                var heap = (logic.tabref_).Table().heap_.GetEnumerator();
+                var logic = {codegen_logic_} as LogicScanTable;
                 var filter = logic.filter_;
+                var heap = (logic.tabref_).Table().heap_.GetEnumerator();
 
                 for (; ; )
                 {{
@@ -118,7 +138,7 @@ namespace adb
 
                     if (filter is null || filter.Exec(context, r) is true)
                     {{
-                        r = scan.ExecProject(context, r);
+                        r = {codegen_this_}.ExecProject(context, r);
                         {callback(null)};
                     }}
                 }}";
@@ -375,12 +395,13 @@ namespace adb
             }
         }
 
-        public override void Open()
+        public override string Open(ExecContext context)
         {
             // get the left side and right side key list
             Debug.Assert(leftKeys_.Count == 0);
             getKeyList();
-            base.Open();
+            base.Open(context);
+            return null;
         }
 
         public override string Exec(ExecContext context, Func<Row, string> callback)
@@ -721,6 +742,19 @@ namespace adb
         public readonly List<Row> rows_ = new List<Row>();
 
         public PhysicCollect(PhysicNode child): base(null) => children_.Add(child);
+
+        public override string Open(ExecContext context)
+        {
+            string s = $@"ExecContext context = new ExecContext(new QueryOption());";
+            return s + base.Open(context);
+        }
+
+        public override string Close(ExecContext context)
+        {
+            string s = "}}";
+            return base.Close(context) + s;
+        }
+
         public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             var child = (child_() is PhysicProfiling) ?
@@ -730,16 +764,14 @@ namespace adb
 
             CodeWriter.Reset();
             context.Reset();
-            string s = "";
-            s += child_().Exec(context, r =>
+            string s = child_().Exec(context, r =>
             {
-                if (r is null) {
+                if (context.option_.optimize_.use_codegen_) {
                     string cs = $@"
                     Row newr = new Row({ncolumns});
                     for (int i = 0; i < {output.Count}; i++)
                     {{
-                        // output[i]
-                        if (logic.output_[i].isVisible_)
+                        if ({child_().codegen_logic_}.output_[i].isVisible_)
                             newr[i] = r[i];
                     }}
                     Console.WriteLine(newr);";
@@ -759,12 +791,6 @@ namespace adb
                 }
             });
 
-            if (s != "")
-            {
-                s += "}}";
-                CodeWriter.WriteLine(s);
-                Compiler.Compile();
-            }
             return s;
         }
     }
