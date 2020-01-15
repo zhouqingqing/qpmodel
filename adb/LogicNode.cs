@@ -304,7 +304,7 @@ namespace adb
         }
     }
 
-    enum JoinType {
+    public enum JoinType {
         // ANSI SQL specified join types can show in SQL statement
         InnerJoin,
         LeftJoin,
@@ -319,7 +319,7 @@ namespace adb
 
     public class LogicJoin : LogicNode
     {
-        internal JoinType type_ = JoinType.InnerJoin;
+        public JoinType type_ = JoinType.InnerJoin;
         public override string ToString() => $"({l_()} {type_} {r_()})";
         public LogicJoin(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
         public LogicJoin(LogicNode l, LogicNode r, Expr filter): this(l, r) 
