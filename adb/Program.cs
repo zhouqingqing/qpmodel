@@ -143,7 +143,8 @@ namespace adb
 
         doit:
 
-            sql = "select * from a;";
+            sql = "select * from a, b, c where a1>b1 and a2>c2";
+            //sql = "select * from a where a1>1;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);

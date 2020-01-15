@@ -27,6 +27,11 @@ namespace adb
         public override string PrintMoreDetails(int depth) => logic_.PrintMoreDetails(depth);
 
         public virtual string Open(ExecContext context){
+            // default setting of codegen parameters
+            _ = GetHashCode().ToString();
+            _logic_ = $"{logic_?.GetType().Name}{_}";
+            _physic_ = $"{this.GetType().Name}{_}";
+
             string s = ""; children_.ForEach(x => s += x.Open(context)); return s;
         }
         public virtual string Close(ExecContext context) {
@@ -51,6 +56,8 @@ namespace adb
             return cost_;
         }
 
+        // codegen support seciton
+        // -----------------------
         // local varialbes are named locally by append the local hmid. Record r passing
         // across callback boundaries are special: they have to be uniquely named and
         // use consistently.
@@ -58,8 +65,9 @@ namespace adb
         internal string nameRbeforeCall() { return $"_r_{ObjectID.newId()}"; }
         internal string getRofCallback() { return $"_r_{ObjectID.curId()}"; }
 
-        internal string codegen_logic_ = "<unset logic node name>";
-        internal string codegen_this_ = "<unset physic node name>";
+        internal string _ = "<unset current node id>";
+        internal string _logic_ = "<unset logic node name>";
+        internal string _physic_ = "<unset physic node name>";
     }
 
     // PhysicMemoRef wrap a LogicMemoRef as a physical node (so LogicMemoRef can be 
@@ -101,13 +109,16 @@ namespace adb
                 return null;
 
             var logic = logic_ as LogicScanTable;
-            var tabalias = logic.tabref_.alias_;
-            codegen_logic_ = $"{logic.GetType().Name}_{tabalias}";
-            codegen_this_ = $"{this.GetType().Name}_{tabalias}";
+            _ = logic.tabref_.alias_;
+            _logic_ = $"{logic.GetType().Name}{_}";
+            _physic_ = $"{this.GetType().Name}{_}";
             string cs = $@"
-                BaseTableRef tabref = new BaseTableRef(""{logic.tabref_.relname_}"");
-                LogicScanTable {codegen_logic_} = new LogicScanTable(tabref);
-                PhysicScanTable {codegen_this_}= new PhysicScanTable({codegen_logic_});
+                LogicScanTable {_logic_} = new LogicScanTable(new BaseTableRef(""{logic.tabref_.relname_}""));
+                PhysicScanTable {_physic_} = new PhysicScanTable({_logic_});
+
+                var logic{_} = {_logic_} as LogicScanTable;
+                var filter{_} = logic{_}.filter_;
+                var heap{_} = (logic{_}.tabref_).Table().heap_.GetEnumerator();
                 ";
             return cs;
         }
@@ -121,25 +132,22 @@ namespace adb
             if (context.option_.optimize_.use_codegen_)
             {
                 string cs = $@"
-                var logic = {codegen_logic_} as LogicScanTable;
-                var filter = logic.filter_;
-                var heap = (logic.tabref_).Table().heap_.GetEnumerator();
 
                 for (; ; )
                 {{
-                    Row r = null;
+                    Row r{_} = null;
                     if (context.stop_)
                         break;
 
-                    if (heap.MoveNext())
-                        r = heap.Current;
+                    if (heap{_}.MoveNext())
+                        r{_} = heap{_}.Current;
                     else
                         break;
 
-                    if (filter is null || filter.Exec(context, r) is true)
+                    if (filter{_} is null || filter{_}.Exec(context, r{_}) is true)
                     {{
-                        r = {codegen_this_}.ExecProject(context, r);
-                        {callback(null)};
+                        r{_} = {_physic_}.ExecProject(context, r{_});
+                        {callback(null)}
                     }}
                 }}";
 
@@ -275,6 +283,21 @@ namespace adb
         }
         public override string ToString() => $"PNLJ({l_()},{r_()}: {Cost()})";
 
+        public override string Open(ExecContext context)
+        {
+            var childcode = base.Open(context);
+            var logic = logic_ as LogicJoin;
+
+            var cs = $@"
+                LogicJoin {_logic_} = new LogicJoin({l_()._logic_}, {r_()._logic_});
+                PhysicNLJoin {_physic_}= new PhysicNLJoin({_logic_}, {l_()._physic_}, {r_()._physic_});
+
+                var logic{_} = {_logic_} as LogicJoin;
+                var filter{_} = {_logic_}.filter_;
+                bool semi{_} = logic{_}.type_ == JoinType.SemiJoin;
+                bool antisemi{_} = logic{_}.type_ == JoinType.AntiSemiJoin;";
+            return childcode + cs;
+        }
         public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicJoin;
@@ -283,39 +306,93 @@ namespace adb
             bool semi = type == JoinType.SemiJoin;
             bool antisemi = type == JoinType.AntiSemiJoin;
 
-            l_().Exec(context, l =>
+            string s = l_().Exec(context, l =>
             {
-                if (context.stop_)
-                    return null;
+                string out_code = "";
+                if (context.option_.optimize_.use_codegen_)
+                {
+                    out_code += $@"
+                        if (context.stop_)
+                            return;";
+                }
+                else
+                {
+                    if (context.stop_)
+                        return null;
+                }
                 
                 bool foundOneMatch = false;
-                r_().Exec(context, r =>
+                out_code += $"bool foundOneMatch{_} = false;";
+                out_code += r_().Exec(context, r =>
                 {
-                    if (!semi || !foundOneMatch)
+                    if (context.option_.optimize_.use_codegen_)
                     {
-                        Row n = new Row(l, r);
-                        if (filter is null || filter.Exec(context, n) is true)
+                        string inner_code = $@"
+                        if (!semi{_} || !foundOneMatch{_})
+                        {{
+                            Row r{_} = new Row(r{l_()._}, r{r_()._});
+                            if (filter{_} is null || filter{_}.Exec(context, r{_}) is true)
+                            {{
+                                foundOneMatch{_} = true;
+                                if (!antisemi{_})
+                                {{
+                                    r{_} = {_physic_}.ExecProject(context, r{_});
+                                    {callback(null)}
+                                }}
+                            }}
+                        }}
+                        ";
+                        return inner_code;
+                    }
+                    else
+                    {
+                        if (!semi || !foundOneMatch)
                         {
-                            foundOneMatch = true;
-                            if (!antisemi)
+                            Row n = new Row(l, r);
+                            if (filter is null || filter.Exec(context, n) is true)
                             {
-                                n = ExecProject(context, n);
-                                callback(n);
+                                foundOneMatch = true;
+                                if (!antisemi)
+                                {
+                                    n = ExecProject(context, n);
+                                    callback(n);
+                                }
                             }
                         }
+                        return null;
                     }
-                    return null;
                 });
 
-                if (antisemi && !foundOneMatch)
+                if (context.option_.optimize_.use_codegen_) 
                 {
-                    Row n = new Row(l, null);
-                    n = ExecProject(context, n);
-                    callback(n);
+                    if (antisemi)
+                    {
+                        out_code += $@"
+                            Debug.Assert (antisemi{_});
+                            if (!foundOneMatch{_})
+                            {{
+                                Row r{_} = new Row(r{l_()._}, null);
+                                r{_} = {_physic_}.ExecProject(context, r{_});
+                                {callback(null)}
+                            }}
+                            ";
+                    }
+                    return out_code;
                 }
-                return null;
+                else
+                {
+
+                    if (antisemi && !foundOneMatch)
+                    {
+                        Row n = new Row(l, null);
+                        n = ExecProject(context, n);
+                        callback(n);
+                    }
+                    return null;
+                }
             });
-            return null;
+
+            return s;
         }
 
         public override double Cost()
@@ -771,8 +848,8 @@ namespace adb
                     Row newr = new Row({ncolumns});
                     for (int i = 0; i < {output.Count}; i++)
                     {{
-                        if ({child_().codegen_logic_}.output_[i].isVisible_)
-                            newr[i] = r[i];
+                        if ({child_()._logic_}.output_[i].isVisible_)
+                            newr[i] = r{child_()._}[i];
                     }}
                     Console.WriteLine(newr);";
                     return cs;
