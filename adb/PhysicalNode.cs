@@ -144,7 +144,7 @@ namespace adb
                     else
                         break;
 
-                    if (filter{_} is null || filter{_}.Exec(context, r{_}) is true)
+                    if ({(filter is null).ToStrLower()} || filter{_}.Exec(context, r{_}) is true)
                     {{
                         r{_} = {_physic_}.ExecProject(context, r{_});
                         {callback(null)}
@@ -293,9 +293,7 @@ namespace adb
                 PhysicNLJoin {_physic_}= new PhysicNLJoin({_logic_}, {l_()._physic_}, {r_()._physic_});
 
                 var logic{_} = {_logic_} as LogicJoin;
-                var filter{_} = {_logic_}.filter_;
-                bool semi{_} = logic{_}.type_ == JoinType.SemiJoin;
-                bool antisemi{_} = logic{_}.type_ == JoinType.AntiSemiJoin;";
+                var filter{_} = {_logic_}.filter_;";
             return childcode + cs;
         }
         public override string Exec(ExecContext context, Func<Row, string> callback)
@@ -328,20 +326,19 @@ namespace adb
                     if (context.option_.optimize_.use_codegen_)
                     {
                         string inner_code = $@"
-                        if (!semi{_} || !foundOneMatch{_})
+                        if (!{semi.ToStrLower()} || !foundOneMatch{_})
                         {{
                             Row r{_} = new Row(r{l_()._}, r{r_()._});
-                            if (filter{_} is null || filter{_}.Exec(context, r{_}) is true)
+                            if ({(filter is null).ToStrLower()} || filter{_}.Exec(context, r{_}) is true)
                             {{
                                 foundOneMatch{_} = true;
-                                if (!antisemi{_})
+                                if (!{antisemi.ToStrLower()})
                                 {{
                                     r{_} = {_physic_}.ExecProject(context, r{_});
                                     {callback(null)}
                                 }}
                             }}
-                        }}
-                        ";
+                        }}";
                         return inner_code;
                     }
                     else
@@ -365,18 +362,14 @@ namespace adb
 
                 if (context.option_.optimize_.use_codegen_) 
                 {
-                    if (antisemi)
-                    {
-                        out_code += $@"
-                            Debug.Assert (antisemi{_});
-                            if (!foundOneMatch{_})
-                            {{
-                                Row r{_} = new Row(r{l_()._}, null);
-                                r{_} = {_physic_}.ExecProject(context, r{_});
-                                {callback(null)}
-                            }}
-                            ";
-                    }
+                    out_code += $@"
+                        if ({antisemi.ToStrLower()} && !foundOneMatch{_})
+                        {{
+                            Row r{_} = new Row(r{l_()._}, null);
+                            r{_} = {_physic_}.ExecProject(context, r{_});
+                            {callback(null)}
+                        }}
+                        ";
                     return out_code;
                 }
                 else
@@ -845,13 +838,13 @@ namespace adb
             {
                 if (context.option_.optimize_.use_codegen_) {
                     string cs = $@"
-                    Row newr = new Row({ncolumns});
-                    for (int i = 0; i < {output.Count}; i++)
-                    {{
-                        if ({child_()._logic_}.output_[i].isVisible_)
-                            newr[i] = r{child_()._}[i];
-                    }}
-                    Console.WriteLine(newr);";
+                        Row newr = new Row({ncolumns});";
+                    for (int i = 0; i < output.Count; i++)
+                    {
+                        if (output[i].isVisible_)
+                            cs += $"newr[{i}] = r{child_()._}[{i}];";
+                    }
+                    cs += "Console.WriteLine(newr);";
                     return cs;
                 }
                 else
