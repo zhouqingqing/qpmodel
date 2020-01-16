@@ -46,9 +46,16 @@ namespace adb
             }
 
             var result = new PhysicCollect(physicPlan_);
-            result.Open();
-            result.Exec(new ExecContext(queryOpt_), null);
-            result.Close();
+            var context = new ExecContext(queryOpt_);
+            var code = result.Open(context);
+            code += result.Exec(context, null);
+            code += result.Close(context);
+
+            if (queryOpt_.optimize_.use_codegen_)
+            {
+                CodeWriter.WriteLine(code);
+                Compiler.Compile();
+            }
             return result.rows_;
         }
         public static List<Row> ExecSQL(string sql, out string physicplan, out string error, QueryOption option = null)
