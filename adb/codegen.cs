@@ -9,6 +9,23 @@ using System.CodeDom.Compiler;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis;
 
+// code generation
+//  code generation shall do specialization matching the given query plan:
+//  1. specilization: anything related to the given plan shall be specialized without any 
+//     runtime cost. For example, number of columns output, handling of semi/antisemi branches 
+//     in join code etc. But keep in mind, we don't want to break the code structure too 
+//     much, so we can leave some work to c# compiler for it to figure out. Example:
+//      - original code: if (filter is null || filter.Exec(row) is true)
+//      since we know filter if null or not by the plan itself,  but we don't know if
+//      filter.Exec(row) evlation is true or not depending on the actual data, so we can do 
+//      is to generate code without breaking too much structure like:
+//      - generated code: $"if ({filter is null} || filter{_}.Exec(row) is true)"
+//      So when a filter is not given, it will translated into if (true|| filter2372.Exec(row) is true)
+//      then compiler can easily take out this if statement.
+//  2. run time decided: anything related to the data can't be specalized. For example, number of 
+//     rows, handling of null value of rows etc.
+//
+
 namespace adb
 {
     class ObjectID
