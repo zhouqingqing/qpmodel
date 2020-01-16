@@ -72,6 +72,11 @@ namespace adb
             cp.CompilerOptions = "/optimize";
             CompilerResults cr = provider.CompileAssemblyFromFile(cp, source);
 
+            // format it
+            var str = File.ReadAllText(source);
+            var tree = CSharpSyntaxTree.ParseText(str);
+            File.WriteAllText(source, tree.GetRoot().NormalizeWhitespace().ToFullString());
+
             // compile it
             if (cr.Errors.Count > 0)
             {
@@ -87,10 +92,6 @@ namespace adb
             else
             {
                 Console.WriteLine("compiled OK");
-                // format it
-                var str = File.ReadAllText(source);
-                var tree = CSharpSyntaxTree.ParseText(str);
-                File.WriteAllText(source, tree.GetRoot().NormalizeWhitespace().ToFullString());
             }
         }
     }

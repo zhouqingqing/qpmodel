@@ -88,10 +88,11 @@ namespace adb
 
         public PhysicAnalyze(LogicAnalyze logic, PhysicNode l) : base(logic) => children_.Add(l);
 
-        public override void Open()
+        public override string Open(ExecContext context)
         {
             var tabName = (logic_ as LogicAnalyze).GetTargetTable().relname_;
             stats_ = Catalog.sysstat_.GetOrCreateTableStats(tabName);
+            return null;
         }
 
         public override string Exec(ExecContext context, Func<Row, string> callback)

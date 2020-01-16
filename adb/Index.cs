@@ -78,7 +78,7 @@ namespace adb
 
         public PhysicIndex(LogicIndex logic, PhysicNode l) : base(logic) => children_.Add(l);
 
-        public override void Open()
+        public override string Open(ExecContext context)
         {
             var logic = (logic_ as LogicIndex);
             var tabName = logic.GetTargetTable().relname_;
@@ -87,6 +87,8 @@ namespace adb
                 index_ = new UniqueIndex();
             else
                 index_ = new NonUniqueIndex();
+
+            return null;
         }
 
         public override string Exec(ExecContext context, Func<Row, string> callback)
@@ -104,7 +106,7 @@ namespace adb
             return null;
         }
 
-        public override void Close()
+        public override string Close(ExecContext context)
         {
             var logic = (logic_ as LogicIndex);
             var def = logic.def_;
@@ -113,6 +115,7 @@ namespace adb
             Debug.Assert(def.index_ is null);
             def.index_ = index_;
             logic.GetTargetTable().Table().indexes_.Add(def);
+            return null;
         }
     }
 

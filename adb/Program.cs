@@ -142,8 +142,9 @@ namespace adb
             sql = "select * from a where a1> (select b2 from b where a1<>b1);";
 
         doit:
-             sql = "select * from a where a1>1;";
-            //sql = "select e1 from (select d1 from (select sum(a12) from (select a1*a2 a12 from a) b) c(d1)) d(e1);";
+
+            sql = "select * from a, b, c where a1>b1 and a2>c2";
+            //sql = "select * from a where a1>1;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
@@ -192,9 +193,17 @@ namespace adb
 
             Console.WriteLine("-- profiling plan --");
             var final = new PhysicCollect(phyplan);
-            final.Open();
-            final.Exec(new ExecContext(a.queryOpt_), null);
-            final.Close();
+            var context = new ExecContext(a.queryOpt_);
+            var code = final.Open(context);
+            code += final.Exec(context, null);
+            code += final.Close(context);
+
+            if (a.queryOpt_.optimize_.use_codegen_)
+            {
+                CodeWriter.WriteLine(code);
+                Compiler.Compile();
+            }
+
             Console.WriteLine(phyplan.PrintString(0));
         }
     }
