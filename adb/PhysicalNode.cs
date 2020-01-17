@@ -118,7 +118,6 @@ namespace adb
 
                 var logic{_} = {_logic_} as LogicScanTable;
                 var filter{_} = logic{_}.filter_;
-                var heap{_} = (logic{_}.tabref_).Table().heap_.GetEnumerator();
                 ";
             return cs;
         }
@@ -132,7 +131,7 @@ namespace adb
             if (context.option_.optimize_.use_codegen_)
             {
                 string cs = $@"
-
+                var heap{_} = (logic{_}.tabref_).Table().heap_.GetEnumerator();
                 for (; ; )
                 {{
                     Row r{_} = null;
@@ -745,9 +744,10 @@ namespace adb
 
     public class PhysicProfiling : PhysicNode
     {
-        internal Int64 nrows_;
+        internal Int64 nrows_ = 0;
+        internal Int64 nloops_= 0;
 
-        public override string ToString() => $"{child_()}";
+        public override string ToString() => $"${child_()}";
 
         public PhysicProfiling(PhysicNode l) : base(l.logic_)
         {
@@ -758,6 +758,7 @@ namespace adb
 
         public override string Exec(ExecContext context, Func<Row, string> callback)
         {
+            nloops_++;
             child_().Exec(context, l =>
             {
                 nrows_++;
