@@ -31,7 +31,7 @@ namespace adb
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[20]; //12
+                var v = files[8]; //12
                 {
                     sql = File.ReadAllText(v);
                     goto doit;
@@ -143,16 +143,16 @@ namespace adb
 
         doit:
 
-            sql = "select * from a, b, c where a1>b1 and a2>c2";
+            //sql = "select * from a, b, c where a1>b1 and a2>c2";
             //sql = "select * from a where a1>1;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
-            a.queryOpt_.profile_.enabled_ = false;
+            a.queryOpt_.profile_.enabled_ = true;
             a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = true;
             a.queryOpt_.optimize_.remove_from = true;
             a.queryOpt_.optimize_.use_memo_ = true;
-            a.queryOpt_.optimize_.use_codegen_ = true;
+            a.queryOpt_.optimize_.use_codegen_ = false;
 
             // -- Semantic analysis:
             //  - bind the query

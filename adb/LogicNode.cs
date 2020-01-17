@@ -363,6 +363,11 @@ namespace adb
             return true;
         }
 
+        public override long EstCardinality()
+        {
+            return base.EstCardinality();
+        }
+
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             // request from child including reqOutput and filter
@@ -778,7 +783,14 @@ namespace adb
         public LogicScanTable(BaseTableRef tab) : base(tab) { }
         public override long EstCardinality()
         {
-            return Math.Max(3, Catalog.sysstat_.NumberOfRows(tabref_.relname_));
+            var nrows = Catalog.sysstat_.NumberOfRows(tabref_.relname_);
+            if (filter_ != null)
+            {
+                var selectivity = filter_.EstSelectivity();
+                nrows = (long)(selectivity * nrows);
+            }
+
+            return Math.Max(1, nrows);
         }
     }
 

@@ -44,7 +44,7 @@ namespace adb
         //  [OK] select b.a1 from a b; 
         //  [FAIL] select a.a1 from a b;
         //
-        internal string alias_;
+        public string alias_;
 
 		// list of correlated column used in correlated subqueries
         internal readonly List<ColExpr> colRefedBySubq_ = new List<ColExpr>();

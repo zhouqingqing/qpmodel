@@ -173,6 +173,7 @@ namespace test
 
             // load data
             Tpch.LoadTables("0001");
+            Tpch.AnalyzeTables();
 
             // execute queries
             string phyplan = "";
