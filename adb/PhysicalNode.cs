@@ -27,10 +27,13 @@ namespace adb
         public override string PrintMoreDetails(int depth) => logic_.PrintMoreDetails(depth);
 
         public virtual string Open(ExecContext context){
-            // default setting of codegen parameters
-            _ = GetHashCode().ToString();
-            _logic_ = $"{logic_?.GetType().Name}{_}";
-            _physic_ = $"{this.GetType().Name}{_}";
+            if (context.option_.optimize_.use_codegen_)
+            {
+                // default setting of codegen parameters
+                _ = ObjectID.NewId().ToString();
+                _logic_ = $"{logic_?.GetType().Name}{_}";
+                _physic_ = $"{this.GetType().Name}{_}";
+            }
 
             string s = ""; children_.ForEach(x => s += x.Open(context)); return s;
         }
@@ -62,12 +65,40 @@ namespace adb
         // across callback boundaries are special: they have to be uniquely named and
         // use consistently.
         //
-        internal string nameRbeforeCall() { return $"_r_{ObjectID.newId()}"; }
-        internal string getRofCallback() { return $"_r_{ObjectID.curId()}"; }
+        public PhysicNode Locate(string objectid) {
+            PhysicNode target = null;
+            VisitEachNodeExists(x =>
+            {
+                if ((x as PhysicNode)._ == objectid)
+                {
+                    if (target != null)
+                        throw new Exception("no duplicates allowed");
+                    target = x as PhysicNode;
+                    return false;
+                }
+                return false;
+            });
 
-        internal string _ = "<unset current node id>";
-        internal string _logic_ = "<unset logic node name>";
-        internal string _physic_ = "<unset physic node name>";
+            Debug.Assert(target != null);
+            return target;
+        }
+
+        protected string CreateCommonNames(ExecContext context) {
+            Debug.Assert(context.option_.optimize_.use_codegen_);
+
+            var phytype = GetType().Name;
+            var logtype = logic_?.GetType().Name;
+            string s = $@"
+                {phytype} {_physic_}  = stmt.physicPlan_.Locate(""{_}"") as {phytype};
+                {logtype} {_logic_} = {_physic_}.logic_ as {logtype};
+                var filter{_} = {_logic_}.filter_;
+                ";
+            return s;
+        }
+
+        internal string _ = "<codegen: current node id>";
+        internal string _logic_ = "<codegen: logic node name>";
+        internal string _physic_ = "<codegen: physic node name>";
     }
 
     // PhysicMemoRef wrap a LogicMemoRef as a physical node (so LogicMemoRef can be 
@@ -112,13 +143,7 @@ namespace adb
             _ = logic.tabref_.alias_;
             _logic_ = $"{logic.GetType().Name}{_}";
             _physic_ = $"{this.GetType().Name}{_}";
-            string cs = $@"
-                LogicScanTable {_logic_} = new LogicScanTable(new BaseTableRef(""{logic.tabref_.relname_}""));
-                PhysicScanTable {_physic_} = new PhysicScanTable({_logic_});
-
-                var logic{_} = {_logic_} as LogicScanTable;
-                var filter{_} = logic{_}.filter_;
-                ";
+            string cs = CreateCommonNames(context);
             return cs;
         }
 
@@ -131,7 +156,7 @@ namespace adb
             if (context.option_.optimize_.use_codegen_)
             {
                 string cs = $@"
-                var heap{_} = (logic{_}.tabref_).Table().heap_.GetEnumerator();
+                var heap{_} = ({_logic_}.tabref_).Table().heap_.GetEnumerator();
                 for (; ; )
                 {{
                     Row r{_} = null;
@@ -285,14 +310,10 @@ namespace adb
         public override string Open(ExecContext context)
         {
             var childcode = base.Open(context);
-            var logic = logic_ as LogicJoin;
+            if (!context.option_.optimize_.use_codegen_)
+                return null;
 
-            var cs = $@"
-                LogicJoin {_logic_} = new LogicJoin({l_()._logic_}, {r_()._logic_});
-                PhysicNLJoin {_physic_}= new PhysicNLJoin({_logic_}, {l_()._physic_}, {r_()._physic_});
-
-                var logic{_} = {_logic_} as LogicJoin;
-                var filter{_} = {_logic_}.filter_;";
+            var cs = CreateCommonNames(context);
             return childcode + cs;
         }
         public override string Exec(ExecContext context, Func<Row, string> callback)
@@ -777,7 +798,7 @@ namespace adb
 
         public override string Open(ExecContext context)
         {
-            string s = $@"ExecContext context = new ExecContext(new QueryOption());";
+            string s = $@"";
             return s + base.Open(context);
         }
 

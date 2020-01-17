@@ -32,9 +32,9 @@ namespace adb
     {
         static int id_ = 0;
 
-        internal static void reset() { id_ = 0; }
-        internal static int newId() { return ++id_; }
-        internal static int curId() { return id_; }
+        internal static void Reset() { id_ = 0; }
+        internal static int NewId() { return ++id_; }
+        internal static int CurId() { return id_; }
     }
 
     class CodeWriter
@@ -53,9 +53,9 @@ namespace adb
 				using System.IO;
                 using adb;");
                 file.WriteLine(@"
-                class Program
+                public class QueryCode
                 {
-                    static void Main(string[] args)
+                    public static void Run(SQLStatement stmt, ExecContext context)
                     {");
             }
         }
@@ -70,8 +70,18 @@ namespace adb
 
     class Compiler
     {
-        internal static void Compile()
+        // format it and write it back to the same file
+        internal static void FromatFile(string sourcePath)
         {
+            var str = File.ReadAllText(sourcePath);
+            var tree = CSharpSyntaxTree.ParseText(str);
+            File.WriteAllText(sourcePath, tree.GetRoot().NormalizeWhitespace().ToFullString());
+        }
+
+        internal static CompilerResults Compile()
+        {
+            bool optimize = false;
+
             // there are builtin CodeDomProvider.CreateProvider("CSharp") or the Nuget one
             //  we use the latter since it suppports newer C# features (but it is way slower)
             // you may encounter IO path issues like: Could not find a part of the path … bin\roslyn\csc.exe
@@ -79,37 +89,41 @@ namespace adb
             //     Update-Package Microsoft.CodeDom.Providers.DotNetCompilerPlatform -r
             //
             string source = "gen.cs";
+            FromatFile(source);
+
+            // use a provider recognize newer C# features
             var provider = new Microsoft.CodeDom.Providers.DotNetCompilerPlatform.CSharpCodeProvider();
 
+            // compile it
             string[] references = { "adb.exe" };
-            string exeName = "gen.exe";
             CompilerParameters cp = new CompilerParameters(references);
-            cp.GenerateExecutable = true;
-            cp.OutputAssembly = exeName;
-            cp.CompilerOptions = "/optimize";
+            cp.GenerateInMemory = true;
+            cp.GenerateExecutable = false;
+            cp.IncludeDebugInformation = !optimize;
+            if (optimize) cp.CompilerOptions = "/optimize";
             CompilerResults cr = provider.CompileAssemblyFromFile(cp, source);
 
-            // format it
-            var str = File.ReadAllText(source);
-            var tree = CSharpSyntaxTree.ParseText(str);
-            File.WriteAllText(source, tree.GetRoot().NormalizeWhitespace().ToFullString());
-
-            // compile it
+            // detect any errors
             if (cr.Errors.Count > 0)
             {
-                Console.WriteLine("Errors building {0} into {1}",
-                     source, cr.PathToAssembly);
+                Console.WriteLine("Errors building {0} into {1}", source, cr.PathToAssembly);
                 foreach (CompilerError ce in cr.Errors)
-                {
-                    Console.WriteLine("  {0}", ce.ToString());
-                    Console.WriteLine();
-                }
+                    Console.WriteLine("  {0}: {1}", ce.ErrorNumber, ce.ErrorText);
                 throw new SemanticExecutionException("codegen failed");
             }
-            else
-            {
-                Console.WriteLine("compiled OK");
-            }
+
+            // now we can execute it
+            Console.WriteLine("compiled OK");
+            return cr;
+        }
+
+        internal static void Run(CompilerResults cr, SQLStatement stmt, ExecContext context)
+        {
+            // now we can execute it
+            var assembly = cr.CompiledAssembly;
+            var queryCode = assembly.GetType("QueryCode");
+            var runmethod = queryCode.GetMethod("Run");
+            runmethod.Invoke(null, new object[2] { stmt, context });
         }
     }
 }
