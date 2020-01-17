@@ -416,13 +416,6 @@ namespace adb
 
     public class PhysicHashJoin : PhysicNode
     {
-        // ab join cd on c1+d1=a1-b1 and a1+b1=c2+d2;
-        //    leftKey_:  a1-b1, a1+b1
-        //    rightKey_: c1+d1, c2+d2
-        //
-        internal List<Expr> leftKeys_ = new List<Expr>();
-        internal List<Expr> rightKeys_ = new List<Expr>();
-
         public PhysicHashJoin(LogicJoin logic, PhysicNode l, PhysicNode r) : base(logic)
         {
             Debug.Assert(logic.filter_ != null);
@@ -430,46 +423,14 @@ namespace adb
         }
         public override string ToString() => $"PHJ({l_()},{r_()}: {Cost()})";
 
-        void getOneKeyList(BinExpr fb) {
-            Debug.Assert(fb.op_ == "=");
-            var ltabrefs = l_().logic_.InclusiveTableRefs();
-            var rtabrefs = r_().logic_.InclusiveTableRefs();
-            var lkeyrefs = fb.l_().tableRefs_;
-            var rkeyrefs = fb.r_().tableRefs_;
-            if (ltabrefs.ContainsList(lkeyrefs))
-            {
-                leftKeys_.Add(fb.l_());
-                rightKeys_.Add(fb.r_());
-            }
-            else
-            {
-                // switch side
-                Debug.Assert(rtabrefs.ContainsList(lkeyrefs));
-                leftKeys_.Add(fb.r_());
-                rightKeys_.Add(fb.l_());
-            }
-
-            Debug.Assert(leftKeys_.Count == rightKeys_.Count);
-        }
-
-        void getKeyList()
-        {
-            var filter = (logic_ as LogicJoin).filter_;
-
-            Debug.Assert(filter != null);
-            var andlist = filter.FilterToAndList();
-            foreach (var v in andlist)
-            {
-                Debug.Assert(v is BinExpr);
-                getOneKeyList(v as BinExpr);
-            }
-        }
-
         public override string Open(ExecContext context)
         {
-            // get the left side and right side key list
-            Debug.Assert(leftKeys_.Count == 0);
-            getKeyList();
+            var logic = logic_ as LogicJoin;
+
+            // recreate the left side and right side key list - can't reuse old values 
+            // because earlier optimization time keylist may have wrong bindings
+            //
+            logic.CreateKeyList(false);
             base.Open(context);
             return null;
         }
@@ -484,7 +445,7 @@ namespace adb
 
             // build hash table with left side 
             l_().Exec(context, l => {
-                var keys = KeyList.ComputeKeys(context, leftKeys_, l);
+                var keys = KeyList.ComputeKeys(context, logic.leftKeys_, l);
 
                 if (hm.TryGetValue(keys, out List<Row> exist))
                 {
@@ -509,7 +470,7 @@ namespace adb
 
                 Row fakel = new Row(l_().logic_.output_.Count);
                 Row n = new Row(fakel, r);
-                var keys = KeyList.ComputeKeys(context, rightKeys_, n);
+                var keys = KeyList.ComputeKeys(context, logic.rightKeys_, n);
                 bool foundOneMatch = false;
 
                 if (hm.TryGetValue(keys, out List<Row> exist))

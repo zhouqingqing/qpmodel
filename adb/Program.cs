@@ -144,7 +144,8 @@ namespace adb
         doit:
 
             //sql = "select * from a, b, c where a1>b1 and a2>c2";
-            //sql = "select * from a where a1>1;";
+            //sql = "select * from a join b on a1=b1 where a1=1;";
+            //sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3 and c.c1 = a.a1";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
