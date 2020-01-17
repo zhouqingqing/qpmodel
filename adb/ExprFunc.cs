@@ -553,6 +553,22 @@ namespace adb
             }
         }
 
+        public string SwithSideOp() {
+            switch (op_)
+            {
+                case ">":
+                    return "<=";
+                case ">=":
+                    return "<";
+                case "<":
+                    return ">=";
+                case "<=":
+                    return ">";
+                default:
+                    return op_;
+            }
+        }
+
         public override string ToString() => $"{l_()}{op_}{r_()}{outputName()}";
 
         public override Value Exec(ExecContext context, Row input)

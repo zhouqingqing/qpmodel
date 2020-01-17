@@ -12,6 +12,7 @@ namespace adb
         //
         public Expr filter_ = null;
         public List<Expr> output_ = new List<Expr>();
+        public long card_ = -1;
 
         public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
 
@@ -211,9 +212,13 @@ namespace adb
         public virtual List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true) => null;
 
         public virtual long EstCardinality() {
-            long card = 1;
-            children_.ForEach(x => card = Math.Max(x.EstCardinality(), card));
-            return card;
+            if (card_ == -1)
+            {
+                long card = 1;
+                children_.ForEach(x => card = Math.Max(x.EstCardinality(), card));
+                card_ = card;
+            }
+            return card_;
         }
 
         // retrieve all correlated filters on the subtree
@@ -320,6 +325,16 @@ namespace adb
     public class LogicJoin : LogicNode
     {
         public JoinType type_ = JoinType.InnerJoin;
+
+        // dervided information from join condition
+        // ab join cd on c1+d1=a1-b1 and a1+b1=c2+d2;
+        //    leftKey_:  a1-b1, a1+b1
+        //    rightKey_: c1+d1, c2+d2
+        //
+        internal List<Expr> leftKeys_ = new List<Expr>();
+        internal List<Expr> rightKeys_ = new List<Expr>();
+        internal List<string> ops_ = new List<string>();
+
         public override string ToString() => $"({l_()} {type_} {r_()})";
         public LogicJoin(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
         public LogicJoin(LogicNode l, LogicNode r, Expr filter): this(l, r) 
@@ -340,7 +355,6 @@ namespace adb
                 //
                 var andlist = filter_.FilterToAndList();
                 filterhash = andlist.ListHashCode();
-                //filterhash = filter_.GetHashCode();
             }
             return l_().MemoLogicSign() ^ r_().MemoLogicSign() ^ filterhash;
         }
@@ -363,9 +377,107 @@ namespace adb
             return true;
         }
 
+        internal void CreateKeyList(bool canReUse = true)
+        {
+            void createOneKeyList(BinExpr fb)
+            {
+                var ltabrefs = l_().InclusiveTableRefs();
+                var rtabrefs = r_().InclusiveTableRefs();
+                var lkeyrefs = fb.l_().tableRefs_;
+                var rkeyrefs = fb.r_().tableRefs_;
+                if (ltabrefs.ContainsList(lkeyrefs))
+                {
+                    leftKeys_.Add(fb.l_());
+                    rightKeys_.Add(fb.r_());
+                    ops_.Add(fb.op_);
+                }
+                else
+                {
+                    // switch side if possible
+                    //  E.g., a.a1+b.b1 = 3 is not possible to decompose to left right side
+                    //  without transform to a.a1=3=b.b1 (hashable)
+                    //
+                    if (rtabrefs.ContainsList(lkeyrefs))
+                    {
+                        leftKeys_.Add(fb.r_());
+                        rightKeys_.Add(fb.l_());
+                        ops_.Add(fb.SwithSideOp());
+                    }
+                }
+
+                Debug.Assert(leftKeys_.Count == rightKeys_.Count);
+            }
+
+            // reset the old values
+            if (!canReUse)
+            {
+                leftKeys_.Clear();
+                rightKeys_.Clear();
+                ops_.Clear();
+            }
+            else
+            {
+                if (leftKeys_.Count != 0)
+                    return;
+            }
+
+            // cross join does not have join filter
+            if (filter_ != null)
+            {
+                var andlist = filter_.FilterToAndList();
+                foreach (var v in andlist)
+                {
+                    Debug.Assert(v is BinExpr);
+                    createOneKeyList(v as BinExpr);
+                }
+            }
+        }
+
+        // classic formula is:
+        //   A X B => |A|*|B|/max(dA, dB) where dA,dB are distinct values of joining columns
+        // This however does not consider join key distribution. In SQL Server 2014, it introduced
+        // histogram join to better the estimation.
+        //
         public override long EstCardinality()
         {
-            return base.EstCardinality();
+            if (card_ == -1)
+            {
+                CreateKeyList();
+                var cardl = l_().EstCardinality();
+                var cardr = r_().EstCardinality();
+
+                long dl = 0, dr = 0, mindlr = 1;
+                for (int i = 0; i < leftKeys_.Count; i++)
+                {
+                    var lv = leftKeys_[i];
+                    if (lv is ColExpr vl && vl.tabRef_ is BaseTableRef bvl)
+                    {
+                        var stat = Catalog.sysstat_.GetColumnStat(bvl.relname_, vl.colName_);
+                        dl = stat.EstDistinct();
+                    }
+                    var rv = rightKeys_[i];
+                    if (rv is ColExpr vr && vr.tabRef_ is BaseTableRef bvr)
+                    {
+                        var stat = Catalog.sysstat_.GetColumnStat(bvr.relname_, vr.colName_);
+                        dr = stat.EstDistinct();
+                    }
+
+                    if (ops_[i] != "=")
+                    {
+                        mindlr = 0;
+                        break;
+                    }
+                    mindlr = mindlr * Math.Min(dl, dr);
+                }
+
+                if (mindlr != 0)
+                    card_ = Math.Max(1, (cardl * cardr) / mindlr);
+                else
+                    // fall back to the old estimator
+                    card_ = base.EstCardinality();
+            }
+
+            return card_;
         }
 
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
@@ -783,14 +895,18 @@ namespace adb
         public LogicScanTable(BaseTableRef tab) : base(tab) { }
         public override long EstCardinality()
         {
-            var nrows = Catalog.sysstat_.NumberOfRows(tabref_.relname_);
-            if (filter_ != null)
+            if (card_ == -1)
             {
-                var selectivity = filter_.EstSelectivity();
-                nrows = (long)(selectivity * nrows);
+                var nrows = Catalog.sysstat_.NumberOfRows(tabref_.relname_);
+                if (filter_ != null)
+                {
+                    var selectivity = filter_.EstSelectivity();
+                    nrows = (long)(selectivity * nrows);
+                }
+                card_ = Math.Max(1, nrows);
             }
 
-            return Math.Max(1, nrows);
+            return card_;
         }
     }
 

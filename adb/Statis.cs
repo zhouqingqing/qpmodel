@@ -82,6 +82,7 @@ namespace adb
     {
         public long n_rows_;                // number of rows
         public double nullfrac_;            // null value percentage
+        public long n_distinct_;
         public Historgram hists_ = new Historgram(); // value historgram
 
         public ColumnStat() { }
@@ -101,6 +102,7 @@ namespace adb
 
             // now sort the values and equal-depth buckets
             values.Sort();
+            n_distinct_ = values.Distinct().Count();
             int nbuckets = Math.Min(Historgram.NBuckets_, values.Count);
             int depth = values.Count / nbuckets;
             Debug.Assert(depth >= 1);
@@ -122,6 +124,11 @@ namespace adb
         public double EstSelectivity(string op, Value val)
         {
             return hists_.EstSelectivity(op, val);
+        }
+        public long EstDistinct()
+        {
+            Debug.Assert(n_distinct_ >= 0);
+            return Math.Max(1, n_distinct_);
         }
     }
 
