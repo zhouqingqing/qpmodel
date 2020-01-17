@@ -202,8 +202,30 @@ namespace adb
             nullfrac_ = nNulls / samples.Count;
         }
 
+        // Follow PostgreSQL's heuristic for LIKE: 
+        //      %,_ increase selectivity and other char reduce it
+        //
+        double EstLikeSelectivity(Value val)
+        {
+            const double FIXED_CHAR_SEL = 0.2;
+            const double FULL_WILDCARD_SEL = 5.0;
+            const double ANY_CHAR_SEL = 0.9;
+
+            Debug.Assert(val is string);
+            string str = val as string;
+
+            double sel = Math.Pow(FULL_WILDCARD_SEL, str.Count(x => x == '%'));
+            sel *= Math.Pow(ANY_CHAR_SEL, str.Count(x => x == '_'));
+            sel *= Math.Pow(FIXED_CHAR_SEL, str.Count(x => x != '_' && x != '%'));
+            if (sel > 1)
+                sel = 1;
+            return sel;
+        }
+
         public double EstSelectivity(string op, Value val)
         {
+            if (op == "like")
+                return EstLikeSelectivity(val);
             if (mcv_ != null)
                 return mcv_.EstSelectivity(op, val);
             else
