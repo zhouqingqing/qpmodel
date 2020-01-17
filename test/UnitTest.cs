@@ -108,7 +108,7 @@ namespace test
             option.optimize_.use_codegen_ = true;
 
             var result = TU.ExecuteSQL(sql, out string resultstr, option);
-            //Assert.AreEqual(0, result.Count);
+            // Assert.AreEqual("1;2;2;2;2", string.Join(";", result));
         }
     }
 

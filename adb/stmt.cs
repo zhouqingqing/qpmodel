@@ -54,7 +54,7 @@ namespace adb
             if (queryOpt_.optimize_.use_codegen_)
             {
                 CodeWriter.WriteLine(code);
-                Compiler.Compile();
+                Compiler.Run(Compiler.Compile(), this, context);
             }
             return result.rows_;
         }
