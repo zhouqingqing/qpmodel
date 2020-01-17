@@ -78,6 +78,60 @@ namespace adb
         }
     }
 
+    class MCVList {
+        public const int NValues_ = 100;
+
+        public int nvalues_;
+        public Value[] values_ = new Value[NValues_];
+        public double[] freqs_ = new double[NValues_];
+
+        internal void Validate()
+        {
+            Debug.Assert(nvalues_ <= NValues_);
+            double total = 0;
+            for (int i = 0; i < nvalues_; i++) total += freqs_[i];
+            Debug.Assert(total <= 1 + 0.001);
+        }
+
+        int whichValue(Value val) {
+            return Array.IndexOf(values_, val);
+        }
+        public double EstSelectivity(string op, Value val)
+        {
+            if (!new List<String>() { "=", ">", ">=", "<", "<=" }.Contains(op))
+                return 1.0;
+
+            int which = whichValue(val);
+            if (which == -1)
+                return 0.001;
+
+            double selectivity = 0.0;
+            switch (op)
+            {
+                case "=":
+                    selectivity = freqs_[which];
+                    break;
+                case ">":
+                case ">=":
+                    int start = which;
+                    for (int i = start; i < nvalues_; i++)
+                        selectivity += freqs_[i];
+                    break;
+                case "<":
+                case "<=":
+                    int end = which;
+                    for (int i = 0; i <= end; i++)
+                        selectivity += freqs_[i];
+                    break;
+            }
+
+            if (selectivity == 0)
+                selectivity = 0.001;
+            Estimator.validSelectivity(selectivity);
+            return selectivity;
+        }
+    }
+
     // Per column statistics
     //  PostgreSQL maintains most common values (mcv) for frequent values and also histgoram for less-frequent values.
     //  Example: say a a table has 
@@ -91,7 +145,8 @@ namespace adb
         public long n_rows_;                // number of rows
         public double nullfrac_;            // null value percentage
         public long n_distinct_;
-        public Historgram hists_ = new Historgram(); // value historgram
+        public Historgram hist_; // value historgram
+        public MCVList mcv_;
 
         public ColumnStat() { }
 
@@ -108,20 +163,38 @@ namespace adb
                 values.Add(val);
             }
 
-            // now sort the values and equal-depth buckets
-            values.Sort();
             n_distinct_ = values.Distinct().Count();
-            int nbuckets = Math.Min(Historgram.NBuckets_, values.Count);
-            int depth = values.Count / nbuckets;
-            Debug.Assert(depth >= 1);
-            for (int i = 0; i < nbuckets; i++)
+            if (n_distinct_ <= MCVList.NValues_)
             {
-                hists_.buckets_[i] = values[(i + 1) * depth - 1];
-                hists_.distincts_[i] = values.GetRange(i * depth, depth).Distinct().Count();
-                Debug.Assert(hists_.distincts_[i]>0);
+                mcv_ = new MCVList();
+                var groups = from value in values group value by value into newGroup orderby newGroup.Key select newGroup;
+                int i = 0;
+                foreach (var g in groups) {
+                    mcv_.values_[i] = g.Key;
+                    mcv_.freqs_[i] = (1.0 * g.Count())/values.Count();
+                    i++;
+                }
+                mcv_.nvalues_ = i;
+                mcv_.Validate();
             }
-            hists_.depth_ = depth;
-            hists_.nbuckets_ = nbuckets;
+            else
+            {
+                // now sort the values and create equal-depth historgram
+                values.Sort();
+                int nbuckets = Math.Min(Historgram.NBuckets_, values.Count);
+                int depth = values.Count / nbuckets;
+                Debug.Assert(depth >= 1);
+
+                hist_ = new Historgram();
+                for (int i = 0; i < nbuckets; i++)
+                {
+                    hist_.buckets_[i] = values[(i + 1) * depth - 1];
+                    hist_.distincts_[i] = values.GetRange(i * depth, depth).Distinct().Count();
+                    Debug.Assert(hist_.distincts_[i] > 0);
+                }
+                hist_.depth_ = depth;
+                hist_.nbuckets_ = nbuckets;
+            }
 
             // finalize the stats
             n_rows_ = samples.Count;
@@ -131,7 +204,10 @@ namespace adb
 
         public double EstSelectivity(string op, Value val)
         {
-            return hists_.EstSelectivity(op, val);
+            if (mcv_ != null)
+                return mcv_.EstSelectivity(op, val);
+            else
+                return hist_.EstSelectivity(op, val);
         }
         public long EstDistinct()
         {
@@ -144,7 +220,7 @@ namespace adb
     {
         public static void validSelectivity(double selectivity)
         {
-            Debug.Assert(selectivity > 0 && selectivity <= 1);
+            Debug.Assert(selectivity > 0 && selectivity <= 1 + 0.00001);
         }
 
         static double EstSingleSelectivity(Expr filter)

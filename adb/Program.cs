@@ -31,7 +31,7 @@ namespace adb
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[9]; //12
+                var v = files[17]; //12
                 {
                     sql = File.ReadAllText(v);
                     goto doit;
@@ -143,22 +143,13 @@ namespace adb
 
         doit:
 
-            sql = "select * from a where a1>1;";
-            sql = "select * from a, b, c where a1>b1 and a2>c2";
-            //sql = "select a.a1 from a, b, c where a1>b1 and a2>c2;";
-            //sql = "select a1, a2, r1 from r join a on a1=r1 or a2=r1;";
-            //sql = "select b.a1 + a2 from (select a1,a2 from a, c) b";
-
-            //sql = "select * from a join b on a1=b1 where a1=1;";
-            //sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3 and c.c1 = a.a1";
-
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
-            a.queryOpt_.profile_.enabled_ = false;
+            a.queryOpt_.profile_.enabled_ = true;
             a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = true;
             a.queryOpt_.optimize_.remove_from = true;
-            a.queryOpt_.optimize_.use_memo_ = false;
-            a.queryOpt_.optimize_.use_codegen_ = true;
+            a.queryOpt_.optimize_.use_memo_ = true;
+            a.queryOpt_.optimize_.use_codegen_ = false;
 
             // -- Semantic analysis:
             //  - bind the query
@@ -166,8 +157,8 @@ namespace adb
 
             // -- generate an initial plan
             ExplainOption.costoff_ = false;
-            //ExplainOption.show_tablename_ = false;
-            //ExplainOption.show_output = false;
+            ExplainOption.show_tablename_ = false;
+            ExplainOption.show_output = false;
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.PrintString(0));
 
