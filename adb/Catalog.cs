@@ -136,6 +136,13 @@ namespace adb
             };
             stmt = RawParser.ParseSqlStatements(string.Join("", createindexes));
             stmt.Exec();
+
+            // analyze tables
+            foreach (var v in new List<char>() { 'a', 'b', 'c', 'd', 'r' })
+            {
+                var sql = $"analyze {v};";
+                var result = SQLStatement.ExecSQL(sql, out _, out _);
+            }
         }
         static Catalog()
         {
