@@ -35,6 +35,7 @@ namespace adb
     public static class ExplainOption {
         public static bool show_tablename_ = true;
         public static bool costoff_ = true;
+        public static bool show_output = true;
     }
 
     public abstract class PlanNode<T> where T : PlanNode<T>
@@ -72,20 +73,25 @@ namespace adb
                 if (depth != 0)
                     r += "-> ";
 
-                // output line of <nodeName> : <Estimation> <Actual>
+                // print line of <nodeName> : <Estimation> <Actual>
                 r += $"{this.GetType().Name} {PrintInlineDetails(depth)}";
                 var phynode = this as PhysicNode;
                 if (phynode != null && phynode.profile_ != null)
                 {
                     if (!ExplainOption.costoff_)
-                        r += $" (cost = {phynode.Cost()}, rows={phynode.logic_.EstCardinality()})";
-                    r += $" (actual rows = {phynode.profile_.nrows_})";
+                        r += $" (cost={phynode.Cost()}, rows={phynode.logic_.EstCardinality()})";
+
+                    var profile = phynode.profile_;
+                    if (profile.nloops_ == 1 || profile.nloops_==0)
+                        r += $" (actual rows={profile.nrows_})";
+                    else
+                        r += $" (actual rows={profile.nrows_ / profile.nloops_}, loops={profile.nloops_})";
                 }
                 r += "\n";
                 var details = PrintMoreDetails(depth);
 
-                // output of current node
-                var output = PrintOutput(depth);
+                // print current node's output
+                var output = ExplainOption.show_output? PrintOutput(depth): null;
                 if (output != null)
                     r += Utils.Tabs(depth + 2) + output + "\n";
                 if (details != null)

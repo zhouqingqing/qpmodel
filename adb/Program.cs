@@ -31,7 +31,7 @@ namespace adb
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[8]; //12
+                var v = files[9]; //12
                 {
                     sql = File.ReadAllText(v);
                     goto doit;
@@ -146,6 +146,8 @@ namespace adb
             //sql = "select * from a, b, c where a1>b1 and a2>c2";
             //sql = "select * from a join b on a1=b1 where a1=1;";
             //sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3 and c.c1 = a.a1";
+            // sql = "select count(*) from lineitem, orders where l_orderkey = o_orderkey;";
+            sql = "select count(*) from lineitem where l_returnflag='R';";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
@@ -161,7 +163,8 @@ namespace adb
 
             // -- generate an initial plan
             ExplainOption.costoff_ = false;
-            ExplainOption.show_tablename_ = true;
+            ExplainOption.show_tablename_ = false;
+            ExplainOption.show_output = false;
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.PrintString(0));
 

@@ -322,7 +322,7 @@ namespace adb
         AntiSemiJoin,
     };
 
-    public class LogicJoin : LogicNode
+    public partial class LogicJoin : LogicNode
     {
         public JoinType type_ = JoinType.InnerJoin;
 
@@ -433,53 +433,6 @@ namespace adb
             }
         }
 
-        // classic formula is:
-        //   A X B => |A|*|B|/max(dA, dB) where dA,dB are distinct values of joining columns
-        // This however does not consider join key distribution. In SQL Server 2014, it introduced
-        // histogram join to better the estimation.
-        //
-        public override long EstCardinality()
-        {
-            if (card_ == -1)
-            {
-                CreateKeyList();
-                var cardl = l_().EstCardinality();
-                var cardr = r_().EstCardinality();
-
-                long dl = 0, dr = 0, mindlr = 1;
-                for (int i = 0; i < leftKeys_.Count; i++)
-                {
-                    var lv = leftKeys_[i];
-                    if (lv is ColExpr vl && vl.tabRef_ is BaseTableRef bvl)
-                    {
-                        var stat = Catalog.sysstat_.GetColumnStat(bvl.relname_, vl.colName_);
-                        dl = stat.EstDistinct();
-                    }
-                    var rv = rightKeys_[i];
-                    if (rv is ColExpr vr && vr.tabRef_ is BaseTableRef bvr)
-                    {
-                        var stat = Catalog.sysstat_.GetColumnStat(bvr.relname_, vr.colName_);
-                        dr = stat.EstDistinct();
-                    }
-
-                    if (ops_[i] != "=")
-                    {
-                        mindlr = 0;
-                        break;
-                    }
-                    mindlr = mindlr * Math.Min(dl, dr);
-                }
-
-                if (mindlr != 0)
-                    card_ = Math.Max(1, (cardl * cardr) / mindlr);
-                else
-                    // fall back to the old estimator
-                    card_ = base.EstCardinality();
-            }
-
-            return card_;
-        }
-
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             // request from child including reqOutput and filter
@@ -572,7 +525,7 @@ namespace adb
         }
     }
 
-    public class LogicAgg : LogicNode
+    public partial class LogicAgg : LogicNode
     {
         internal List<Expr> keys_;
         internal Expr having_;
@@ -890,24 +843,9 @@ namespace adb
         }
     }
 
-    public class LogicScanTable : LogicGet<BaseTableRef>
+    public partial class LogicScanTable : LogicGet<BaseTableRef>
     {
         public LogicScanTable(BaseTableRef tab) : base(tab) { }
-        public override long EstCardinality()
-        {
-            if (card_ == -1)
-            {
-                var nrows = Catalog.sysstat_.NumberOfRows(tabref_.relname_);
-                if (filter_ != null)
-                {
-                    var selectivity = filter_.EstSelectivity();
-                    nrows = (long)(selectivity * nrows);
-                }
-                card_ = Math.Max(1, nrows);
-            }
-
-            return card_;
-        }
     }
 
     public class LogicScanFile : LogicGet<ExternalTableRef>
