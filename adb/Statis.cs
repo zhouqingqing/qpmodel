@@ -24,6 +24,7 @@ namespace adb
     //  cut: [-3,-1,2,3,4],[5,5,6,6,11],[12,12,13,13,14],[15, etc
     //  and the boundaries are: 4, 11, 14, etc
     //  and the distincts are: 5, 3, 3, etc
+    //
     class Historgram {
         public const int NBuckets_ = 100;
 
@@ -77,7 +78,14 @@ namespace adb
         }
     }
 
-    // per column statistics
+    // Per column statistics
+    //  PostgreSQL maintains most common values (mcv) for frequent values and also histgoram for less-frequent values.
+    //  Example: say a a table has 
+    //   [1..10]*10, [11..190], [191..200]*2, [201..300] that is 100+180+20+100=400 rows.
+    //   - mcv: [1..10; 191..200] with freq: [0.025..0.025; 0.005..0.005] where 0.025 = 10/400, 0.005 = 2/400
+    //   - historgram for range [11..190; 201..300]
+    //  In this way, it can capture small distinct value set and also large distinct value set.
+    //
     class ColumnStat
     {
         public long n_rows_;                // number of rows
