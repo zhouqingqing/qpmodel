@@ -1,6 +1,13 @@
 ﻿using System;
 using System.IO;
 
+using adb.codegen;
+using adb.logic;
+using adb.physic;
+using adb.test;
+using adb.sqlparser;
+using adb.optimizer;
+
 // profiling with callback mode - not sure if callback is good for profiling
 // output expression by push down from top: a node's output including two parts: 
 // 1) everything it needs (say filter)
@@ -18,20 +25,14 @@ namespace adb
         {
             string sql = "";
 
-            sql = "select a1,a1,a3,a3 from a where a2> (select b1 from b where b1=a1 and b2=3);"; // lost a2>@1
-            // bad sql = "select a1,a1,a3,a3 from a where a2> (select b1 from b where b1=a1) or a2<=2;"; 
-            sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
-                and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
-                and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
-            sql = "select a1,a1,a3,a3 from a where a2> (select b1 from (select * from b) d,c where b1=c1 and b1=a1 and b2=3);"; // lost a2>@1
-            Tpch.LoadTables("001");
+            Tpch.LoadTables("0001");
             //Tpch.CreateIndexes();
             Tpch.AnalyzeTables();
 
             {
                 var files = Directory.GetFiles(@"../../../tpch");
 
-                var v = files[8]; //12
+                var v = files[4]; //12
                 {
                     sql = File.ReadAllText(v);
                     goto doit;
@@ -142,6 +143,8 @@ namespace adb
             sql = "select * from a where a1> (select b2 from b where a1<>b1);";
 
         doit:
+            //sql = "select * from a, b, c where a1>b1 and a2>c2;";
+            //sql = "select count(*) from lineitem, orders, customer where l_orderkey=o_orderkey and c_custkey = o_custkey;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);

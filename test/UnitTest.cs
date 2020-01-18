@@ -5,6 +5,15 @@ using System.Linq;
 using System.IO;
 using System.Collections.Generic;
 
+using adb.physic;
+using adb.utils;
+using adb.logic;
+using adb.sqlparser;
+using adb.optimizer;
+using adb.test;
+using adb.expr;
+using adb.dml;
+
 // failed tests:
 // sql = "select 5+5 as a1 from a where a1 > 2;";
 
@@ -196,7 +205,7 @@ namespace test
                 Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin")); Assert.AreEqual(0, TU.CountStr(phyplan, "Subquery"));
                 Assert.AreEqual(5, result.Count);
                 Assert.AreEqual("1-URGENT,9;2-HIGH,7;3-MEDIUM,9;4-NOT SPECIFIED,7;5-LOW,12", string.Join(";", result));
-                result = TU.ExecuteSQL(File.ReadAllText(files[4]), out _, option);
+                result = TU.ExecuteSQL(File.ReadAllText(files[4]), out phyplan, option);
                 Assert.AreEqual("", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[5]), out _, option);
                 Assert.AreEqual("77949.9186", string.Join(";", result));

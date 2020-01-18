@@ -4,9 +4,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
+
+using adb.expr;
+using adb.logic;
+
 using Value = System.Object;
 
-namespace adb
+namespace adb.physic
 {
     public class SemanticExecutionException : Exception
     {

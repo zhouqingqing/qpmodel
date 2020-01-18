@@ -6,7 +6,11 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using Value = System.Object;
 
-namespace adb
+using adb.logic;
+using adb.physic;
+using adb.utils;
+
+namespace adb.expr
 {
     public abstract class SubqueryExpr : Expr
     {

@@ -2,17 +2,30 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
+using adb.stat;
+using adb.expr;
+using adb.physic;
+using adb.index;
+using adb.optimizer;
+using adb.utils;
 
-namespace adb
+namespace adb.logic
 {
+    public class SemanticAnalyzeException : Exception
+    {
+        public SemanticAnalyzeException(string msg) => Console.WriteLine($"ERROR[Optimizer]: {msg }");
+    }
+
     public abstract class LogicNode : PlanNode<LogicNode>
     {
+        public const long CARD_INVALID = -1;
+
         // TODO: we can consider normalize all node specific expressions into List<Expr> 
         // so processing can be generalized - similar to Expr.children_[]
         //
         public Expr filter_ = null;
         public List<Expr> output_ = new List<Expr>();
-        public long card_ = -1;
+        public long card_ = CARD_INVALID;
 
         public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
 
@@ -487,7 +500,7 @@ namespace adb
         }
     }
 
-    public class LogicFilter : LogicNode
+    public partial class LogicFilter : LogicNode
     {
         public override string ToString() => $"{child_()} filter: {filter_}";
 

@@ -4,11 +4,25 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
+using adb;
+using adb.expr;
+using adb.logic;
+using adb.physic;
+using adb.sqlparser;
 
 using Value = System.Object;
+using TableColumn = System.Tuple<string, string>;
 
-namespace adb
+namespace adb.stat
 {
+    class StatConst 
+    {
+        public const double sel_zero = 0.000000001;
+        public const double sel_one = 1.0;
+
+        public const double epsilon_ = 0.001;
+    }
+
     // There are two major types of histgram:
     //  1. equal-width: all buckets have the same boundary width
     //  2. equal-depth: all buckets have the same number of elements. 
@@ -25,7 +39,7 @@ namespace adb
     //  and the boundaries are: 4, 11, 14, etc
     //  and the distincts are: 5, 3, 3, etc
     //
-    class Historgram {
+    public class Historgram {
         public const int NBuckets_ = 100;
 
         public int depth_;
@@ -50,7 +64,7 @@ namespace adb
         }
 
         public double EstSelectivity(string op, Value val) {
-            double selectivity = 1.0;
+            double selectivity = StatConst.sel_one;
 
             if (!new List<String>() { "=", ">", ">=", "<","<=" }.Contains(op))
                 return selectivity;
@@ -72,13 +86,13 @@ namespace adb
             }
 
             if (selectivity == 0)
-                selectivity = 0.001;
+                selectivity = StatConst.sel_zero;
             Estimator.validSelectivity(selectivity);
             return selectivity;
         }
     }
 
-    class MCVList {
+    public class MCVList {
         public const int NValues_ = 100;
 
         public int nvalues_;
@@ -90,7 +104,7 @@ namespace adb
             Debug.Assert(nvalues_ <= NValues_);
             double total = 0;
             for (int i = 0; i < nvalues_; i++) total += freqs_[i];
-            Debug.Assert(total <= 1 + 0.001);
+            Debug.Assert(total <= 1 + StatConst.epsilon_);
         }
 
         int whichValue(Value val) {
@@ -99,11 +113,11 @@ namespace adb
         public double EstSelectivity(string op, Value val)
         {
             if (!new List<String>() { "=", ">", ">=", "<", "<=" }.Contains(op))
-                return 1.0;
+                return StatConst.sel_one;
 
             int which = whichValue(val);
             if (which == -1)
-                return 0.001;
+                return StatConst.sel_zero;
 
             double selectivity = 0.0;
             switch (op)
@@ -126,7 +140,7 @@ namespace adb
             }
 
             if (selectivity == 0)
-                selectivity = 0.001;
+                selectivity = StatConst.sel_zero;
             Estimator.validSelectivity(selectivity);
             return selectivity;
         }
@@ -140,7 +154,7 @@ namespace adb
     //   - historgram for range [11..190; 201..300]
     //  In this way, it can capture small distinct value set and also large distinct value set.
     //
-    class ColumnStat
+    public class ColumnStat
     {
         public long n_rows_;                // number of rows
         public double nullfrac_;            // null value percentage
@@ -218,7 +232,7 @@ namespace adb
             sel *= Math.Pow(ANY_CHAR_SEL, str.Count(x => x == '_'));
             sel *= Math.Pow(FIXED_CHAR_SEL, str.Count(x => x != '_' && x != '%'));
             if (sel > 1)
-                sel = 1;
+                sel = StatConst.sel_one;
             return sel;
         }
 
@@ -242,7 +256,7 @@ namespace adb
     {
         public static void validSelectivity(double selectivity)
         {
-            Debug.Assert(selectivity > 0 && selectivity <= 1 + 0.00001);
+            Debug.Assert(selectivity > 0 && selectivity <= 1.0 + StatConst.epsilon_);
         }
 
         static double EstSingleSelectivity(Expr filter)
@@ -266,6 +280,11 @@ namespace adb
             return selectivity;
         }
 
+        // problems:
+        //  1. same column correlation: a1 > 5 && a1 <= 5 (say a1 in [1,10])
+        //     we can't use sel(a1>5) * sel(a1<=5) which gives 0.25
+        //  2. different column correlation:  country='US' and continent='North America'
+        //   
         public static double EstSelectivity(this Expr filter)
         {
             Debug.Assert(filter.IsBoolean());
@@ -285,7 +304,26 @@ namespace adb
         }
     }
 
-    partial class SysStats : SystemTable {
+    // format: (tableName, colName):key, column stat
+    public class SysStats : SystemTable {
+        readonly Dictionary<TableColumn, ColumnStat> records_ = new Dictionary<TableColumn, ColumnStat>();
+
+        public void AddOrUpdate(string tabName, string colName, ColumnStat stat)
+        {
+            var tabcol = new TableColumn(tabName, colName);
+            if (GetColumnStat(tabName, colName) is null)
+                records_.Add(tabcol, stat);
+            else
+                records_[tabcol] = stat;
+        }
+
+        public ColumnStat GetColumnStat(string tabName, string colName)
+        {
+            if (records_.TryGetValue(new TableColumn(tabName, colName), out ColumnStat value))
+                return value;
+            return null;
+        }
+
         public List<ColumnStat> GetOrCreateTableStats(string tabName)
         {
             var table = Catalog.systable_.Table(tabName);
@@ -318,7 +356,7 @@ namespace adb
         }
 
         // stats getters
-        public long NumberOfRows(string tabName) {
+        public long EstCardinality(string tabName) {
             return GetOrCreateTableStats(tabName)[0].n_rows_;
         }
     }

@@ -3,16 +3,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
 
+using adb.logic;
+using adb.physic;
+
 using LogicSignature = System.Int64;
 
 // TODO:
 //  - branch and bound prouning
 //  - enforcer: by test Join2MJ and indexing
 //  - aggregation/ctes: by generate multiple memo
-//  - more precise row count: we don't consider filter
 //
 
-namespace adb
+namespace adb.optimizer
 {
     public class JoinOrderResolver
     {

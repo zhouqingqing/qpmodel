@@ -4,7 +4,11 @@ using System.Diagnostics;
 using System.Linq;
 using Value = System.Object;
 
-namespace adb
+using adb.logic;
+using adb.physic;
+using adb.utils;
+
+namespace adb.expr
 {
     // It carries info needed by expression binding, it includes
     //  - tablerefs, so we can lookup column names

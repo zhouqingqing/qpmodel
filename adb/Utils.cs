@@ -5,8 +5,19 @@ using System.Linq;
 using Microsoft.VisualBasic.FileIO;
 using System.Text.RegularExpressions;
 
-namespace adb
+using adb.expr;
+
+namespace adb.utils
 {
+    class ObjectID
+    {
+        static int id_ = 0;
+
+        internal static void Reset() { id_ = 0; }
+        internal static int NewId() { return ++id_; }
+        internal static int CurId() { return id_; }
+    }
+
     public static class Utils
     {
         internal static string Tabs(int depth) => new string(' ', depth * 2);
