@@ -3,15 +3,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Diagnostics;
+using adb.stat;
+using adb.expr;
 
-namespace adb
+namespace adb.logic
 {
-    partial class LogicScanTable {
+    public partial class LogicFilter {
         public override long EstCardinality()
         {
-            if (card_ == -1)
+            if (card_ is CARD_INVALID)
             {
-                var nrows = Catalog.sysstat_.NumberOfRows(tabref_.relname_);
+                var nrows = child_().EstCardinality();
                 if (filter_ != null)
                 {
                     var selectivity = filter_.EstSelectivity();
@@ -24,10 +27,28 @@ namespace adb
         }
     }
 
-    partial class LogicAgg {
+    public partial class LogicScanTable {
         public override long EstCardinality()
         {
-            if (card_ == -1)
+            if (card_ is CARD_INVALID)
+            {
+                var nrows = Catalog.sysstat_.EstCardinality(tabref_.relname_);
+                if (filter_ != null)
+                {
+                    var selectivity = filter_.EstSelectivity();
+                    nrows = (long)(selectivity * nrows);
+                }
+                card_ = Math.Max(1, nrows);
+            }
+
+            return card_;
+        }
+    }
+
+    public partial class LogicAgg {
+        public override long EstCardinality()
+        {
+            if (card_ is CARD_INVALID)
             {
                 if (keys_ is null)
                     card_ = 1;
@@ -47,7 +68,7 @@ namespace adb
         //
         public override long EstCardinality()
         {
-            if (card_ == -1)
+            if (card_ is CARD_INVALID)
             {
                 CreateKeyList();
                 var cardl = l_().EstCardinality();

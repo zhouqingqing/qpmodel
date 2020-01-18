@@ -4,6 +4,14 @@ using System.Linq;
 using System.Collections.Generic;
 using System.IO;
 
+using adb.stat;
+using adb.sqlparser;
+using adb.expr;
+using adb.logic;
+using adb.physic;
+using adb.index;
+using adb.test;
+
 using TableColumn = System.Tuple<string, string>;
 
 namespace adb
@@ -49,12 +57,12 @@ namespace adb
         }
     }
 
-    class SystemTable
+    public class SystemTable
     {
     };
 
     // format: tableName:key, list of <ColName: Key, Column definition>
-    class SysTable : SystemTable
+    public class SysTable : SystemTable
     {
         readonly Dictionary<string, TableDef> records_ = new Dictionary<string, TableDef>();
 
@@ -74,30 +82,7 @@ namespace adb
         public ColumnDef Column(string tabName, string colName)=> TableCols(tabName)[colName];
     }
 
-    // format: (tableName, colName):key, column stat
-    partial class SysStats : SystemTable
-    {
-        readonly Dictionary<TableColumn, ColumnStat> records_ = new Dictionary<TableColumn, ColumnStat>();
-
-        public void AddOrUpdate(string tabName, string colName, ColumnStat stat)
-        {
-            var tabcol = new TableColumn(tabName, colName);
-            if (GetColumnStat(tabName, colName) is null)
-                records_.Add(tabcol, stat);
-            else
-                records_[tabcol] = stat;
-        }
-
-        public ColumnStat GetColumnStat(string tabName, string colName)
-        {
-            if (records_.TryGetValue(new TableColumn(tabName, colName), out ColumnStat value))
-                return value;
-            return null;
-        }
-    }
-
-
-    static class Catalog
+    public static class Catalog
     {
         // list of system tables
         public static SysTable systable_ = new SysTable();

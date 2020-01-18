@@ -4,7 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace adb
+using adb.expr;
+using adb.logic;
+using adb.physic;
+
+namespace adb.optimizer
 {
     public class ImplmentationRule : Rule { }
 

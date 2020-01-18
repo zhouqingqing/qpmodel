@@ -5,7 +5,11 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
 
-namespace adb
+using adb.logic;
+using adb.expr;
+using adb.utils;
+
+namespace adb.optimizer
 {
     public class Rule
     {

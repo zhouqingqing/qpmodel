@@ -9,8 +9,17 @@ using System.CodeDom.Compiler;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis;
 
-// code generation
-//  code generation shall do specialization matching the given query plan:
+using adb.logic;
+using adb.physic;
+
+// Code Generation Targets:
+//  1. specialization with all possible without breaking code structure.
+//  2. can be integrated gradually - we can do one iterator by another.
+//    2.1 expr is not included
+//    2.2 some iterators not included
+//  3. profiling and debugging intergrated
+//
+//  Code generation shall do specialization matching the given query plan:
 //  1. specilization: anything related to the given plan shall be specialized without any 
 //     runtime cost. For example, number of columns output, handling of semi/antisemi branches 
 //     in join code etc. But keep in mind, we don't want to break the code structure too 
@@ -26,17 +35,8 @@ using Microsoft.CodeAnalysis;
 //     rows, handling of null value of rows etc.
 //
 
-namespace adb
+namespace adb.codegen
 {
-    class ObjectID
-    {
-        static int id_ = 0;
-
-        internal static void Reset() { id_ = 0; }
-        internal static int NewId() { return ++id_; }
-        internal static int CurId() { return id_; }
-    }
-
     class CodeWriter
     {
         static string path_ = "gen.cs";
@@ -45,14 +45,20 @@ namespace adb
         {
             using (StreamWriter file = new StreamWriter(path_))
             {
-                file.WriteLine(@"using System;
+                file.WriteLine(@"
+                using System;
 				using System.Collections.Generic;
-				using System.Text;
-				using System.Threading.Tasks;
 				using System.Diagnostics;
 				using System.IO;
-                using adb;");
+
+                using adb.physic;
+                using adb.utils;
+                using adb.logic;
+                using adb.test;
+                using adb.expr;
+                using adb.dml;");
                 file.WriteLine(@"
+                // entrance of query execution
                 public class QueryCode
                 {
                     public static void Run(SQLStatement stmt, ExecContext context)

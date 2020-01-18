@@ -2,9 +2,13 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
+
+using adb.physic;
+using adb.utils;
+
 using Value = System.Object;
 
-namespace adb
+namespace adb.expr
 {
     public class FuncExpr : Expr
     {
@@ -557,13 +561,15 @@ namespace adb
             switch (op_)
             {
                 case ">":
-                    return "<=";
-                case ">=":
                     return "<";
+                case ">=":
+                    return "<=";
                 case "<":
-                    return ">=";
-                case "<=":
                     return ">";
+                case "<=":
+                    return ">=";
+                case "in":
+                    throw new Exception("not switchable");
                 default:
                     return op_;
             }

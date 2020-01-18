@@ -2,9 +2,16 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+
+using adb.expr;
+using adb.logic;
+using adb.utils;
+using adb.optimizer;
+using adb.codegen;
+
 using Value = System.Object;
 
-namespace adb
+namespace adb.physic
 {
     public abstract class PhysicNode : PlanNode<PhysicNode>
     {
@@ -523,8 +530,12 @@ namespace adb
         public override double Cost()
         {
             if (double.IsNaN(cost_))
-                cost_ = (l_() as PhysicMemoRef).Logic().EstCardinality() * 2 
-                    + (r_() as PhysicMemoRef).Logic().EstCardinality();
+            {
+                var buildcost = (l_() as PhysicMemoRef).Logic().EstCardinality() * 2.0;
+                var probecost = (r_() as PhysicMemoRef).Logic().EstCardinality() * 1.0;
+                var outputcost = logic_.EstCardinality() * 1.0;
+                cost_ = buildcost + probecost + outputcost;
+            }
             return cost_;
         }
     }

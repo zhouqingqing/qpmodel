@@ -6,7 +6,12 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using Value = System.Object;
 
-namespace adb
+using adb.sqlparser;
+using adb.logic;
+using adb.physic;
+using adb.expr;
+
+namespace adb.index
 {
     public class CreateIndexStmt : SQLStatement
     {

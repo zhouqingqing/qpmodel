@@ -162,7 +162,7 @@
     <None Include="packages.config" />
     <Antlr4 Include="SQLite.g4">
       <Generator>MSBuild:Compile</Generator>
-      <CustomToolNamespace>adb</CustomToolNamespace>
+      <CustomToolNamespace>adb.sqlparser</CustomToolNamespace>
     </Antlr4>
   </ItemGroup>
   <ItemGroup>

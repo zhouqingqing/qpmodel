@@ -5,7 +5,9 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 
-namespace adb
+using adb.sqlparser;
+
+namespace adb.test
 {
     public class Tpch
     {

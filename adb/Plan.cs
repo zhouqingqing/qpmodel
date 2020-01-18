@@ -5,7 +5,11 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
 
-namespace adb
+using adb.expr;
+using adb.physic;
+using adb.utils;
+
+namespace adb.logic
 {
     public class QueryOption {
         public class ProfileOption
@@ -23,6 +27,7 @@ namespace adb
 
             // optimizer controls
             public bool use_memo_ = false;
+            public bool memo_disable_crossjoin = true;
 
             // codegen controls
             public bool use_codegen_ = false;

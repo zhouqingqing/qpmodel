@@ -2,8 +2,14 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using adb.stat;
+using adb.sqlparser;
+using adb.expr;
+using adb.logic;
+using adb.physic;
+using adb.utils;
 
-namespace adb
+namespace adb.dml
 {
     public abstract class TableConstraint { 
     }
