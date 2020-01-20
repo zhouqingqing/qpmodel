@@ -297,9 +297,9 @@ expr
  | expr op=( '*' | '/' | '%' ) expr							#arithtimesexpr
  | expr op=( PLUS | MINUS ) expr							#arithplusexpr
  | expr op=( '<<' | '>>' | '&' | '|' ) expr					#arithbitexpr
+ | expr op=( '||' | '||' ) expr							    #stringopexpr
  | expr op=( '<' | '<=' | '>' | '>=' ) expr					#arithcompexpr																		
  | expr K_NOT? K_BETWEEN '(' expr ',' expr ')'				#BetweenExpr
- | expr K_NOT? K_BETWEEN expr K_AND expr                     #BetweenExpr
  | expr op=( '=' | '==' | '!=' | '<>' | K_IS | 'is not' 
 	 |'not like' | K_LIKE | K_GLOB | K_MATCH | K_REGEXP ) expr	#BoolEqualexpr
  | expr K_NOT? K_IN ( '(' ( select_stmt						
@@ -395,12 +395,12 @@ join_clause
  ;
 
 join_operator
- : ','
- | K_NATURAL? ( K_LEFT K_OUTER? | K_INNER | K_CROSS )? K_JOIN
+: K_NATURAL? ( K_LEFT K_OUTER? | K_INNER | K_CROSS )? K_JOIN
  ;
 
 join_constraint
  : ( K_ON expr
+   | K_ON '(' expr ')'
    | K_USING '(' column_name ( ',' column_name )* ')' )?
  ;
 
@@ -437,7 +437,7 @@ date_unit_plural
 ;
 
 literal_value
-: NUMERIC_LITERAL  (date_unit_plural)?          #NumericOrDateLiteral
+: signed_number  (date_unit_plural)?          #NumericOrDateLiteral
  | K_DATE STRING_LITERAL                        #DateStringLiteral
  | K_INTERVAL STRING_LITERAL date_unit_single   #IntervalLiteral
  | STRING_LITERAL                               #StringLiteral

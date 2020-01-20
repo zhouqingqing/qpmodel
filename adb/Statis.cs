@@ -242,8 +242,12 @@ namespace adb.stat
                 return EstLikeSelectivity(val);
             if (mcv_ != null)
                 return mcv_.EstSelectivity(op, val);
-            else
+            else if (hist_ != null)
                 return hist_.EstSelectivity(op, val);
+            else {
+                // only wild guess now
+                return StatConst.sel_one;
+            }
         }
         public long EstDistinct()
         {

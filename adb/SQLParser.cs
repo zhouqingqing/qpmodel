@@ -48,14 +48,14 @@ namespace adb.sqlparser
         public override object VisitNumericOrDateLiteral([NotNull] SQLiteParser.NumericOrDateLiteralContext context)
         {
             if (context.date_unit_plural() != null)
-                return new LiteralExpr($"'{context.NUMERIC_LITERAL().GetText()}'", context.date_unit_plural().GetText());
+                return new LiteralExpr($"'{context.signed_number().GetText()}'", context.date_unit_plural().GetText());
             else
             {
-                Debug.Assert(context.NUMERIC_LITERAL() != null);
-                if (context.NUMERIC_LITERAL().GetText().Contains("."))
-                    return new LiteralExpr(context.NUMERIC_LITERAL().GetText(), new DoubleType());
+                Debug.Assert(context.signed_number() != null);
+                if (context.signed_number().GetText().Contains("."))
+                    return new LiteralExpr(context.signed_number().GetText(), new DoubleType());
                 else
-                    return new LiteralExpr(context.NUMERIC_LITERAL().GetText(), new IntType());
+                    return new LiteralExpr(context.signed_number().GetText(), new IntType());
             }
         }
         public override object VisitCurrentTimeLiteral([NotNull] SQLiteParser.CurrentTimeLiteralContext context)
@@ -70,6 +70,9 @@ namespace adb.sqlparser
             => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
         public override object VisitArithplusexpr([NotNull] SQLiteParser.ArithplusexprContext context)
             => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
+        public override object VisitStringopexpr([NotNull] SQLiteParser.StringopexprContext context)
+            => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
+
         public override object VisitBetweenExpr([NotNull] SQLiteParser.BetweenExprContext context)
         {
             var left = new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), ">=");
@@ -409,6 +412,9 @@ namespace adb.sqlparser
             return new AnalyzeStmt(tabref, context.GetText());
         }
 
+        public override object VisitDrop_table_stmt([NotNull] SQLiteParser.Drop_table_stmtContext context) 
+            => new DropTableStmt (context.table_name().GetText(), context.GetText());
+
         public override object VisitCreate_index_stmt([NotNull] SQLiteParser.Create_index_stmtContext context)
         {
             bool unique = context.K_UNIQUE() is null ? false : true;
@@ -458,6 +464,8 @@ namespace adb.sqlparser
                 r = Visit(context.select_stmt()) as SQLStatement;
             else if (context.create_table_stmt() != null)
                 r = Visit(context.create_table_stmt()) as SQLStatement;
+            else if (context.drop_table_stmt() != null)
+                r = Visit(context.drop_table_stmt()) as DropTableStmt;
             else if (context.insert_stmt() != null)
                 r = Visit(context.insert_stmt()) as SQLStatement;
             else if (context.copy_stmt() != null)

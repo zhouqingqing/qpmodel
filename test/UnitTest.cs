@@ -164,11 +164,38 @@ namespace test
     }
 
     [TestClass]
-    public class TpchTest
+    public class TpcTest
     {
         [TestMethod]
-        public void TestTpch()
+        public void TestBenchmarks()
         {
+            TestTpcds();
+            TestTpch();
+        }
+
+        void TestTpcds()
+        {
+            var files = Directory.GetFiles(@"../../../tpcds");
+
+            Tpcds.CreateTables();
+
+            // make sure all queries can generate phase one opt plan
+            QueryOption option = new QueryOption();
+            option.optimize_.enable_subquery_to_markjoin_ = true;
+            option.optimize_.remove_from = false;
+            option.optimize_.use_memo_ = false;
+            foreach (var v in files)
+            {
+                var sql = File.ReadAllText(v);
+                var result = TU.ExecuteSQL(sql, out string phyplan, option);
+                Assert.IsNotNull(phyplan); Assert.IsNotNull(result);
+            }
+        }
+
+        void TestTpch()
+        {
+            Tpch.CreateTables();
+
             // make sure all queries parsed
             var files = Directory.GetFiles(@"../../../tpch");
             foreach (var v in files)
@@ -249,25 +276,6 @@ namespace test
                 result = TU.ExecuteSQL(File.ReadAllText(files[21]), out phyplan, option);
                 Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
                 Assert.AreEqual(7, result.Count);
-            }
-        }
-    }
-
-    [TestClass]
-    public class TpcdsTest
-    {
-        [TestMethod]
-        public void TestTpcds()
-        {
-            var files = Directory.GetFiles(@"../../../tpcds");
-
-            // make sure all queries parsed
-            foreach (var v in files)
-            {
-                var sql = File.ReadAllText(v);
-                var stmt = RawParser.ParseSqlStatements(sql);
-                stmt.Bind(null);
-                //Console.WriteLine(stmt.CreatePlan().PrintString(0));
             }
         }
     }
@@ -748,6 +756,7 @@ namespace test
             Assert.AreEqual(2, stmt.setqs_.Count);
             Assert.AreEqual(2, stmt.orders_.Count);
         }
+
         [TestMethod]
         public void TestOutputName()
         {
@@ -1190,6 +1199,11 @@ namespace test
             result = ExecuteSQL(sql); Assert.AreEqual("1;2", string.Join(";", result));
             sql = " select count(a2) as ca2 from a group by a1/2 order by 1;";
             result = ExecuteSQL(sql); Assert.AreEqual("1;2", string.Join(";", result));
+        }
+
+        [TestMethod]
+        public void TestSetOps()
+        {
         }
 
         [TestMethod]

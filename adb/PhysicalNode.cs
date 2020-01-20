@@ -649,6 +649,7 @@ namespace adb.physic
     public class PhysicOrder : PhysicNode
     {
         public PhysicOrder(LogicOrder logic, PhysicNode l) : base(logic) => children_.Add(l);
+        public override string ToString() => $"POrder({child_()}: {Cost()})";
 
         // respect logic.orders_|descends_
         private int compareRow(Row l, Row r)
@@ -678,6 +679,16 @@ namespace adb.physic
                 callback(v);
             }
             return null;
+        }
+
+        public override double Cost()
+        {
+            if (double.IsNaN(cost_))
+            {
+                var rowstosort = (child_() as PhysicMemoRef).Logic().EstCardinality() * 1.0;
+                cost_ = rowstosort * (0.1 + Math.Log(rowstosort));
+            }
+            return cost_;
         }
     }
 

@@ -267,7 +267,10 @@ namespace adb.logic
                         {
                             from = new LogicFromQuery(sref, plan);
                             subQueries_.Add(sref.query_);
-                            fromQueries_.Add(sref.query_, from as LogicFromQuery);
+
+                            // if from CTE, then it could be duplicates
+                            if (!fromQueries_.ContainsKey(sref.query_))
+                                fromQueries_.Add(sref.query_, from as LogicFromQuery);
                         }
                         break;
                     case JoinQueryRef jref:
@@ -518,7 +521,7 @@ namespace adb.logic
 
         void bindFrom(BindContext context)
         {
-            CTEQueryRef wayUpToFindCte(BindContext context, string alias)
+            CTEQueryRef wayUpToFindCte(BindContext context, string ctename, string alias)
             {
                 var parent = context;
                 do
@@ -526,8 +529,10 @@ namespace adb.logic
                     var topctes = (parent.stmt_ as SelectStmt).ctefrom_;
                     CTEQueryRef cte;
                     if (topctes != null &&
-                        null != (cte = topctes.Find(x => x.alias_.Equals(alias))))
-                        return cte;
+                        null != (cte = topctes.Find(x => x.ctename_.Equals(ctename))))
+                    {
+                        return new CTEQueryRef(cte.query_, ctename, alias);
+                    }
                 } while ((parent = parent.parent_) != null);
                 return null;
             }
@@ -537,7 +542,7 @@ namespace adb.logic
             {
                 ctefrom_ = new List<CTEQueryRef>();
                 ctes_.ForEach(x => {
-                    var cte = new CTEQueryRef(x.query_ as SelectStmt, x.cteName_);
+                    var cte = new CTEQueryRef(x.query_ as SelectStmt, x.cteName_, x.cteName_);
                     ctefrom_.Add(cte);
                 });
             }
@@ -549,7 +554,7 @@ namespace adb.logic
                 if (x is BaseTableRef bref &&
                     Catalog.systable_.TryTable(bref.relname_) is null)
                 {
-                    from_[i] = wayUpToFindCte(context, bref.alias_);
+                    from_[i] = wayUpToFindCte(context, bref.relname_, bref.alias_);
                     if (from_[i] is null)
                         throw new Exception($@"table '{bref.relname_}' not exists");
                 }

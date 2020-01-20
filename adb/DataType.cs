@@ -20,6 +20,56 @@ namespace adb.expr
         {
             return true;
         }
+
+        // 5/2.0 => 2.5
+        public static ColumnType CoerseType(string op, ColumnType l, ColumnType r)
+        {
+            ColumnType result = null;
+            if (l.Equals(r))
+                return l;
+            else
+            {
+                if (l is DoubleType || r is DoubleType)
+                    result = new DoubleType();
+                else if (l is AnyType || r is AnyType)
+                    result = new AnyType();
+                else
+                {
+                    if (l is NumericType || r is NumericType)
+                    {
+                        // FIXME: this is a rough calculation
+                        int prec = 0, scale = 0;
+                        if (l is NumericType ln)
+                        {
+                            prec = ln.len_; scale = ln.scale_;
+                        }
+                        if (r is NumericType rn)
+                        {
+                            prec = Math.Max(rn.len_, prec);
+                            scale = Math.Max(rn.scale_, scale);
+                        }
+                        result = new NumericType(prec, scale);
+                    }
+                    else
+                        throw new NotImplementedException("types coersion not implmeneted");
+                }
+            }
+
+            Debug.Assert(result != null);
+            return result;
+        }
+
+        public override int GetHashCode()
+        {
+            return type_.GetHashCode() ^ len_.GetHashCode();
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is ColumnType oc)
+                return type_.Equals(oc.type_) && len_ == oc.len_;
+            return false;
+        }
     }
 
     public class BoolType : ColumnType
@@ -318,13 +368,18 @@ namespace adb.expr
         public Expr MapOutputName(string name) => outputNameMap_[name];
     }
 
-    // WITH <alias> AS <query>
+    // WITH <ctename> AS <query>
     public class CTEQueryRef : QueryRef
     {
-        public override string ToString() => $"WITH ({alias_})";
-        public CTEQueryRef(SelectStmt query, string alias) : base(query, alias)
+        public string ctename_;
+
+        public override string ToString()
+            => (ctename_.Equals(alias_)) ? $"{alias_}" : $"{ctename_} as {alias_}";
+        public CTEQueryRef(SelectStmt query, string ctename, string alias) : base(query, alias)
         {
-            Debug.Assert(alias != null);
+            query.isCtebody_ = true;
+            Debug.Assert(ctename != null);
+            ctename_ = ctename;
         }
     }
 

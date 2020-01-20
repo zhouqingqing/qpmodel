@@ -66,10 +66,15 @@ namespace adb
     {
         readonly Dictionary<string, TableDef> records_ = new Dictionary<string, TableDef>();
 
-        public void Add(string tabName, List<ColumnDef> columns)
+        public void Create(string tabName, List<ColumnDef> columns)
         {
             records_.Add(tabName,
                 new TableDef(tabName, columns));
+        }
+        public void Drop(string tabName)
+        {
+            records_.Remove(tabName);
+            // FIXME: we shall also remove index etc
         }
 
         public TableDef TryTable(string tabName) {
@@ -133,7 +138,7 @@ namespace adb
         {
             // be careful: any exception happened here will be swallowed without throw any exception
             createBuildInTestTables();
-            Tpch.CreateTables();
+            //Tpch.CreateTables();
 
             // customer table is dup named with tpch, so we can't load tpcds for now
             // Tpcds.CreateTables();
