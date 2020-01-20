@@ -25,16 +25,21 @@ namespace adb
         {
             string sql = "";
 
-            Tpch.LoadTables("0001");
-            //Tpch.CreateIndexes();
-            Tpch.AnalyzeTables();
+            if (false)
+            {
+                Tpch.LoadTables("0001");
+                Tpch.CreateIndexes();
+                Tpch.AnalyzeTables();
+            }
+            else
+                Tpcds.CreateTables();
 
             {
-                var files = Directory.GetFiles(@"../../../tpch");
-
-                var v = files[4]; //12
+                var files = Directory.GetFiles(@"../../../tpcds/problem_queries/");
+                var v = files[1]; //12
                 {
-                    sql = File.ReadAllText(v);
+                    // sql = File.ReadAllText("../../../tpcds/problem_queries/q9.sql");
+                    sql = File.ReadAllText("../../../tpcds/problem_queries/q64.sql");
                     goto doit;
                 }
             }
@@ -81,11 +86,6 @@ namespace adb
             sql = "select count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b;";
             sql = "select count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1)) b;";
             sql = "select b1+b1, b2+b2+b1, c100 from (select b1, count(*) as b2 from b) a, (select c1 c100 from c) c where c100>1;";
-            //sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
-            //sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=b.a1+1) or a2>2) b group by a2/2;";
-            //sql = "select b1+b1, b2+b2, c100 from (select b1, count(*) as b2 from b group by b1) a, (select c1 c100 from c) c where c100>1;";
-            //sql = "select count(ca2) from (select count(a2) from a group by a1) b(ca2);";
-            //sql = "select ca2, from (select a1, count(a2) as ca2 from a group by a1) b;";
             sql = "select ca2 from (select sum(a1) as ca2 from a group by a2) b;";
             sql = "select ca2 from (select count(a2) as ca2 from a group by a1) b ;";
             sql = "select ca2 from (select count(a2) as ca2 from a group by a1) b group by ca2;";
@@ -145,13 +145,14 @@ namespace adb
         doit:
             //sql = "select * from a, b, c where a1>b1 and a2>c2;";
             //sql = "select count(*) from lineitem, orders, customer where l_orderkey=o_orderkey and c_custkey = o_custkey;";
+            sql = "select * from a union all select * from b;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
             a.queryOpt_.profile_.enabled_ = true;
             a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = true;
-            a.queryOpt_.optimize_.remove_from = true;
-            a.queryOpt_.optimize_.use_memo_ = true;
+            a.queryOpt_.optimize_.remove_from = false;
+            a.queryOpt_.optimize_.use_memo_ = false;
             a.queryOpt_.optimize_.use_codegen_ = false;
 
             // -- Semantic analysis:
@@ -160,7 +161,7 @@ namespace adb
 
             // -- generate an initial plan
             ExplainOption.costoff_ = false;
-            ExplainOption.show_tablename_ = false;
+            ExplainOption.show_tablename_ = true;
             ExplainOption.show_output = false;
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.PrintString(0));

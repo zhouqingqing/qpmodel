@@ -52,6 +52,7 @@ namespace adb.expr
                 case "min": r = new AggMin(args[0]); break;
                 case "max": r = new AggMax(args[0]); break;
                 case "avg": r = new AggAvg(args[0]); break;
+                case "stddev_samp": r = new AggStddevSamp(args[0]); break;
                 case "count":
                     if (args.Count == 0)
                         r = new AggCountStar(null);
@@ -59,9 +60,11 @@ namespace adb.expr
                         r = new AggCount(args[0]);
                     break;
                 case "substr": case "substring": r = new SubstringFunc(args); break;
+                case "upper": r = new UpperFunc(args); break;
                 case "year": r = new YearFunc(args); break;
                 case "repeat": r = new RepeatFunc(args); break;
                 case "round": r = new RoundFunc(args); break;
+                case "coalesce": r = new CoalesceFunc(args); break;
                 default:
                     r = new FuncExpr(funcName, args);
                     break;
@@ -89,9 +92,9 @@ namespace adb.expr
         public override string ToString() => $"{funcName_}({string.Join(",", args_())})";
     }
 
-    public class SubstringFunc : FuncExpr { 
-        public SubstringFunc(List<Expr> args): base("substring", args){ 
-            argcnt_ = 3; 
+    public class SubstringFunc : FuncExpr {
+        public SubstringFunc(List<Expr> args) : base("substring", args) {
+            argcnt_ = 3;
         }
 
         public override void Bind(BindContext context)
@@ -107,6 +110,25 @@ namespace adb.expr
             int end = (int)args_()[2].Exec(context, input) - 1;
 
             return str.Substring(start, end - start + 1);
+        }
+    }
+    public class UpperFunc : FuncExpr
+    {
+        public UpperFunc(List<Expr> args) : base("upper", args)
+        {
+            argcnt_ = 1;
+        }
+
+        public override void Bind(BindContext context)
+        {
+            base.Bind(context);
+            type_ = args_()[0].type_;
+            Debug.Assert(type_ is CharType || type_ is VarCharType);
+        }
+        public override Value Exec(ExecContext context, Row input)
+        {
+            string str = (string)args_()[0].Exec(context, input);
+            return str.ToUpper();
         }
     }
 
@@ -152,9 +174,32 @@ namespace adb.expr
             return Math.Round(number, decimals);
         }
     }
+
+    public class CoalesceFunc : FuncExpr
+    {
+        public CoalesceFunc(List<Expr> args) : base("coalesce", args)
+        {
+            argcnt_ = 2;
+        }
+
+        public override void Bind(BindContext context)
+        {
+            base.Bind(context);
+            type_ = args_()[0].type_;
+        }
+
+        public override Value Exec(ExecContext context, Row input)
+        {
+            var val = args_()[0].Exec(context, input);
+            if (val is null)
+                return args_()[1].Exec(context, input);
+            return val;
+        }
+    }
+
     public class YearFunc : FuncExpr
     {
-        public YearFunc(List<Expr> args) : base("year", args) { 
+        public YearFunc(List<Expr> args) : base("year", args) {
             argcnt_ = 1;
             type_ = new DateTimeType();
         }
@@ -177,9 +222,10 @@ namespace adb.expr
         }
     }
 
+
     public abstract class AggFunc : FuncExpr
     {
-        public AggFunc(string func, List<Expr> args) : base(func, args) { 
+        public AggFunc(string func, List<Expr> args) : base(func, args) {
             argcnt_ = 1;
             foreach (var v in args) {
                 if (v.HasAggFunc())
@@ -241,7 +287,7 @@ namespace adb.expr
             type_ = new IntType();
         }
 
-        public override Value Init(ExecContext context, Row input) 
+        public override Value Init(ExecContext context, Row input)
         {
             count_ = 0;
             Accum(context, null, input);
@@ -252,7 +298,7 @@ namespace adb.expr
         {
             var arg = arg_().Exec(context, input);
             if (arg != null)
-                count_  = old is null? 1: (long)old + 1;
+                count_ = old is null ? 1 : (long)old + 1;
             return count_;
         }
         public override Value Exec(ExecContext context, Row input) => count_;
@@ -374,7 +420,7 @@ namespace adb.expr
         {
             pair_ = new AvgPair();
             pair_.sum_ = arg_().Exec(context, input);
-            pair_.count_ = pair_.sum_ is null? 0: 1;
+            pair_.count_ = pair_.sum_ is null ? 0 : 1;
             return pair_;
         }
         public override Value Accum(ExecContext context, Value old, Row input)
@@ -409,6 +455,38 @@ namespace adb.expr
         {
             return pair_.Compute();
         }
+    }
+
+    public class AggStddevSamp: AggFunc
+    {
+        // FIXME: not implmeneted
+        Value max_;
+        public AggStddevSamp(Expr arg) : base("stddev_samp", new List<Expr> { arg }) { }
+        public override Value Init(ExecContext context, Row input)
+        {
+            max_ = arg_().Exec(context, input);
+            return max_;
+        }
+        public override Value Accum(ExecContext context, Value old, Row input)
+        {
+            var arg = arg_().Exec(context, input);
+
+            Type ltype, rtype; ltype = typeof(int); rtype = typeof(int); // FIXME
+            if (old is null)
+                max_ = arg;
+            else
+            {
+                dynamic lv = old;
+                if (!(arg is null))
+                {
+                    dynamic rv = arg;
+                    max_ = lv < rv ? arg : old;
+                }
+            }
+
+            return max_;
+        }
+        public override Value Exec(ExecContext context, Row input) => max_;
     }
 
     // case <eval>
@@ -535,7 +613,8 @@ namespace adb.expr
                 case "-":
                 case "*":
                 case "/":
-                    type_ = l_().type_;
+                case "||":
+                    type_ = ColumnType.CoerseType(op_, l_().type_, r_().type_);
                     break;
                 case ">":
                 case ">=":
@@ -591,6 +670,7 @@ namespace adb.expr
                 case "-": return lv - rv;
                 case "*": return lv * rv;
                 case "/": return lv / rv;
+                case "||": return string.Concat(lv, rv);
                 case ">": return lv > rv;
                 case ">=": return lv >= rv;
                 case "<": return lv < rv;

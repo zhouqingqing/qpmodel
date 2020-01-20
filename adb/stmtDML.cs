@@ -31,16 +31,31 @@ namespace adb.dml
                 throw new SemanticAnalyzeException("duplicated column name");
             cons_ = cons;
         }
-        public override string ToString() => $"{tabName_ }: {string.Join(",", cols_)}";
+        public override string ToString() => $"CREATE {tabName_ }: {string.Join(",", cols_)}";
 
         public override List<Row> Exec()
         {
-            Catalog.systable_.Add(tabName_, cols_);
+            Catalog.systable_.Create(tabName_, cols_);
             return null;
         }
     }
 
- 
+    public class DropTableStmt : SQLStatement
+    {
+        public readonly string tabName_;
+        public DropTableStmt(string tabName, string text) : base(text)
+        {
+            tabName_ = tabName; 
+        }
+        public override string ToString() => $"DROP {tabName_}";
+
+        public override List<Row> Exec()
+        {
+            Catalog.systable_.Drop(tabName_);
+            return null;
+        }
+    }
+
     public class AnalyzeStmt : SQLStatement {
         public readonly BaseTableRef targetref_;
         public readonly SelectStmt select_;

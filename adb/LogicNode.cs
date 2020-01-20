@@ -169,12 +169,12 @@ namespace adb.logic
             // we have to use each ColExpr and fix its ordinal
             clone.VisitEach<ColExpr>(target =>
             {
-                // ignore system column
+                // ignore system column, ordinal is known
                 if (target is SysColExpr)
                     return;
 
-                Predicate<Expr> nameTest;
-                nameTest = z => target.Equals(z) || 
+                Predicate<Expr> roughNameTest;
+                roughNameTest = z => target.Equals(z) ||
                             target.colName_.Equals(z.outputName_);
 
                 // using source's matching index for ordinal
@@ -183,18 +183,18 @@ namespace adb.logic
                 //
                 if (!target.isParameter_)
                 {
-                    target.ordinal_ = source.FindIndex(nameTest);
+                    target.ordinal_ = source.FindIndex(roughNameTest);
 
                     // we may hit more than one target, say t2.col1 matching {t1.col1, t2.col1}
                     // in this case, we shall redo the mapping with table name
                     //
-                    Debug.Assert (source.FindAll(nameTest).Count >= 1);
-                    if (source.FindAll(nameTest).Count > 1) {
-                        nameTest = z => z is ColExpr 
-                                && target.colName_.Equals(z.outputName_)
+                    Debug.Assert (source.FindAll(roughNameTest).Count >= 1);
+                    if (source.FindAll(roughNameTest).Count > 1) {
+                        Predicate<Expr> preciseNameTest = z => z is ColExpr zc
+                                && (target.colName_.Equals(z.outputName_) || target.colName_.Equals(zc.colName_))
                                 && target.tabRef_.Equals((z as ColExpr).tabRef_);
-                        target.ordinal_ = source.FindIndex(nameTest);
-                        Debug.Assert(source.FindAll(nameTest).Count == 1);
+                        target.ordinal_ = source.FindIndex(preciseNameTest);
+                        Debug.Assert(source.FindAll(preciseNameTest).Count == 1);
                     }
                 }
                 Debug.Assert(target.ordinal_ != -1);
@@ -733,6 +733,9 @@ namespace adb.logic
     {
         internal List<Expr> orders_ = new List<Expr>();
         internal List<bool> descends_ = new List<bool>();
+
+        public override string ToString() => $"Order({child_()})";
+
         public override string PrintMoreDetails(int depth)
         {
             var r = $"Order by: {string.Join(", ", orders_)}\n";

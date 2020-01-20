@@ -1,0 +1,31 @@
+diff --git a/tools/query_handler.c b/tools/query_handler.c
+old mode 100644
+new mode 100755
+index 25b3d46..b014caf
+--- a/tools/query_handler.c
++++ b/tools/query_handler.c
+@@ -216,6 +216,14 @@ void GenerateQuery(FILE *pOutFile, FILE *pLogFile, int nQuery)
+ 
+ 	if (pOutFile == NULL)
+ 		pOutFile = stdout;
++	else
++	{
++		char outfile[100];
++		sprintf(outfile, "q%d.sql", nQuery);
++		pOutFile = fopen(outfile, "w");
++		
++		printf ("%s\n", outfile);
++	}
+ 
+ 	/* get the template */
+ 	pCurrentQuery = getItem(TemplateList, nQuery);
+@@ -306,7 +314,8 @@ void GenerateQuery(FILE *pOutFile, FILE *pLogFile, int nQuery)
+ 		if (pSegment->flags & QS_EOS)
+ 			fprintf(pOutFile, ";\n");
+ 	}
+-	
++
++	fclose(pOutFile);
+ 	nQueryCount += 1;
+ 
+ 	

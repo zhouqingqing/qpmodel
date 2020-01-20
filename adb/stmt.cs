@@ -118,6 +118,7 @@ namespace adb.logic
         internal List<Expr> groupby_;
         internal Expr having_;
         internal List<Expr> selection_;
+        internal bool isCtebody_ = false;
 
         // this section can only show up in top query
         public readonly List<CteExpr> ctes_;
@@ -339,6 +340,15 @@ namespace adb.logic
             return ret;
         }
 
+        bool stmtIsInCTEChain() {
+            if ((bindContext_.stmt_ as SelectStmt).isCtebody_)
+                return true;
+           if (bindContext_.parent_ is null)
+                return false;
+            else
+                return (bindContext_.parent_.stmt_ as SelectStmt).stmtIsInCTEChain();
+        }
+
         public override LogicNode PhaseOneOptimize()
         {
             LogicNode logic = logicPlan_;
@@ -377,8 +387,11 @@ namespace adb.logic
             });
             logicPlan_ = logic;
 
-            // convert to physical plan
-            Debug.Assert(physicPlan_ is null);
+            // convert to physical plan if memo is not used because we don't want
+            // to waste time for memo as it will generate physical plan anyway. 
+            // CTEQueries share the same physical plan, so we exclude it from assertion. 
+            //
+            Debug.Assert(physicPlan_ is null || stmtIsInCTEChain());
             if (!queryOpt_.optimize_.use_memo_)
             {
                 physicPlan_ = logicPlan_.DirectToPhysical(queryOpt_);
