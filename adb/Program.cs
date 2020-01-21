@@ -27,21 +27,18 @@ namespace adb
 
             if (false)
             {
+                Tpch.CreateTables();
                 Tpch.LoadTables("0001");
                 Tpch.CreateIndexes();
                 Tpch.AnalyzeTables();
+                sql = File.ReadAllText("../../../tpch/q03.sql");
+                goto doit;
             }
-            else
+            else 
+            { 
                 Tpcds.CreateTables();
-
-            {
-                var files = Directory.GetFiles(@"../../../tpcds/problem_queries/");
-                var v = files[1]; //12
-                {
-                    // sql = File.ReadAllText("../../../tpcds/problem_queries/q9.sql");
-                    sql = File.ReadAllText("../../../tpcds/q1.sql");
-                    goto doit;
-                }
+                sql = File.ReadAllText("../../../tpcds/problem_queries/q64.sql");
+                goto doit;
             }
 
             /*OptimizeOption option = new OptimizeOption();
@@ -147,17 +144,16 @@ namespace adb
             //sql = "select count(*) from lineitem, orders, customer where l_orderkey=o_orderkey and c_custkey = o_custkey;";
             //sql = "select * from a union all select * from b;";
             //sql = "select 1+2*3, 1+2.1+a1 from a where a1+2+(1*5+1)>2*4.6 and 1+2<2+1.4;";
-            sql = "select 1+2+3 from d where 1=d1 and 2<d1";
-            sql = "select * from d where 1<d1;";
-            sql = "select a2, sum(a1) from a where a1>0 group by a2";
-
+            //sql = "select 1+2+3 from d where 1=d1 and 2<d1";
+            //sql = "select count(*) from lineitem, orders where l_orderkey=o_orderkey;";
+            //sql = "select * from d where 3<d1;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
             a.queryOpt_.profile_.enabled_ = true;
             a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = true;
             a.queryOpt_.optimize_.remove_from = false;
-            a.queryOpt_.optimize_.use_memo_ = false;
+            a.queryOpt_.optimize_.use_memo_ = true;
             a.queryOpt_.optimize_.use_codegen_ = false;
 
             // -- Semantic analysis:

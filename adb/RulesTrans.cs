@@ -13,13 +13,14 @@ namespace adb.optimizer
 {
     public class Rule
     {
-        public static Rule[] ruleset_ = {
+        public static List<Rule> ruleset_ = new List<Rule>() {
             new JoinAssociativeRule(),
             new JoinCommutativeRule(),
             new Join2NLJoin(),
             new Join2HashJoin(),
             new Join2MarkJoin(),
             new Scan2Scan(),
+            new Scan2IndexSeek(),
             new Filter2Filter(),
             new Agg2HashAgg(),
             new Order2Sort(),
@@ -27,6 +28,15 @@ namespace adb.optimizer
             new Limit2Limit(),
             new JoinCommutativeRule(),  // intentionally add a duplicated rule
         };
+
+        public static void Init(QueryOption option) {
+            if (!option.optimize_.enable_indexseek)
+                ruleset_.RemoveAll(x => x is Scan2IndexSeek);
+            if (!option.optimize_.enable_hashjoin_)
+                ruleset_.RemoveAll(x => x is Join2HashJoin);
+            if (!option.optimize_.enable_nljoin_)
+                ruleset_.RemoveAll(x => x is Join2NLJoin);
+        }
 
         public virtual bool Appliable(CGroupMember expr) => false;
         public virtual CGroupMember Apply(CGroupMember expr) =>  null;
@@ -158,7 +168,7 @@ namespace adb.optimizer
             // if there is no cross join in the given plan but cross join generated
             // in the new plan, we return the original plan
             //
-            if (expr.QOption().optimize_.memo_disable_crossjoin)
+            if (expr.QueryOption().optimize_.memo_disable_crossjoin)
             {
                 if (a_bc.filter_ != null && bcfilter != null) {
                     if (ab_c.filter_ is null || ab.filter_ is null)
