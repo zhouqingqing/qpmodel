@@ -35,7 +35,7 @@ namespace adb.dml
 
         public override List<Row> Exec()
         {
-            Catalog.systable_.Create(tabName_, cols_);
+            Catalog.systable_.CreateTable(tabName_, cols_);
             return null;
         }
     }
@@ -51,7 +51,7 @@ namespace adb.dml
 
         public override List<Row> Exec()
         {
-            Catalog.systable_.Drop(tabName_);
+            Catalog.systable_.DropTable(tabName_);
             return null;
         }
     }

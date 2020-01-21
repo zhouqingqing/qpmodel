@@ -56,6 +56,21 @@ namespace adb.index
         }
     }
 
+    public class DropIndexStmt : SQLStatement
+    {
+        public readonly string indName_;
+        public DropIndexStmt(string indName, string text) : base(text)
+        {
+            indName_ = indName;
+        }
+        public override string ToString() => $"DROP {indName_}";
+
+        public override List<Row> Exec()
+        {
+            Catalog.systable_.DropIndex(indName_);
+            return null;
+        }
+    }
     public class IndexDef
     {
         public string name_;
@@ -119,14 +134,13 @@ namespace adb.index
             // register the index
             Debug.Assert(def.index_ is null);
             def.index_ = index_;
-            logic.GetTargetTable().Table().indexes_.Add(def);
+            Catalog.systable_.CreateIndex(logic.GetTargetTable().relname_, def);
             return null;
         }
     }
 
     public abstract class ISearchIndex {
         public virtual void Insert(dynamic key, Row r) => throw new NotImplementedException();
-        public virtual Row SearchUnique(dynamic key) => throw new NotImplementedException();
         public virtual List<Row> Search(dynamic key) => throw new NotImplementedException();
         public virtual List<Row> Search(dynamic l, dynamic r) => throw new NotImplementedException();
     }
@@ -176,10 +190,10 @@ namespace adb.index
                 data_.Add(key,  r);
         }
 
-        public override Row SearchUnique(dynamic key)
+        public override List<Row> Search(dynamic key)
         {
             if (data_.TryGetValue(key, out Row l))
-                return l;
+                return new List<Row>() { l };
             return null;
         }
 

@@ -144,17 +144,6 @@ namespace test
         }
 
         [TestMethod]
-        public void TestCreateIndex()
-        {
-            var sql = "create index an1 on a(a1);";
-            var stmt = RawParser.ParseSqlStatements(sql);
-            stmt.Exec();
-            sql = "create unique index au1 on a(a1);";
-            stmt = RawParser.ParseSqlStatements(sql);
-            stmt.Exec();
-        }
-
-        [TestMethod]
         public void TestAnalyze()
         {
             var sql = "analyze a;";
@@ -322,11 +311,19 @@ namespace test
             Assert.AreEqual("0;1;2", string.Join(";", result));
 
             sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3";
+            option.optimize_.memo_disable_crossjoin = false;
             result = TU.ExecuteSQL(sql, out _, option);
             memo = Optimizer.memoset_[0];
             memo.CalcStats(out tlogics, out tphysics);
             Assert.AreEqual(6, memo.cgroups_.Count);
             Assert.AreEqual(11, tlogics); Assert.AreEqual(17, tphysics);
+            Assert.AreEqual("0;1;2", string.Join(";", result));
+            option.optimize_.memo_disable_crossjoin = true;
+            result = TU.ExecuteSQL(sql, out _, option);
+            memo = Optimizer.memoset_[0];
+            memo.CalcStats(out tlogics, out tphysics);
+            Assert.AreEqual(5, memo.cgroups_.Count);
+            Assert.AreEqual(7, tlogics); Assert.AreEqual(11, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
 
             sql = "select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1";
@@ -819,11 +816,12 @@ namespace test
             Assert.AreEqual(1, TU.CountStr(phyplan, "7,3+a.a1[0]"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "a.a1[0]+2+6>6")); // FIXME
             Assert.AreEqual("7,3;7,4;7,5", string.Join(";", result));
-            sql = "select 1+2*3, 1+2.1+a1 from a where a1+2+(1*5+1)>2*4.6 and 1+2<2+1.4;";
+            sql = "select 1+20*3, 1+2.1+a1 from a where a1+2+(1*5+1)>2*4.6 and 1+2<2+1.4;";
             result = TU.ExecuteSQL(sql, out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "and True")); // FIXME
+            Assert.AreEqual(1, TU.CountStr(phyplan, "61"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "9.2"));
-            Assert.AreEqual("7,5.1", string.Join(";", result));
+            Assert.AreEqual("61,5.1", string.Join(";", result));
         }
     }
 
@@ -1144,9 +1142,9 @@ namespace test
             sql = "select a2, sum(a1) from a where a1>0 group by a2";
             result = ExecuteSQL(sql);
             Assert.AreEqual("2,1;3,2", string.Join(";", result));
-            sql = "select a3/2*2 from a group by 1;";
+            sql = "select a3/2*2, sum(a3), count(a3), stddev_samp(a3) from a group by 1;";
             result = ExecuteSQL(sql);
-            Assert.AreEqual("2;4", string.Join(";", result));
+            Assert.AreEqual("2,5,2,0.707106781186548;4,4,1,", string.Join(";", result));
             sql = "select count(*)+1 from (select b1+c1 from (select b1 from b) a, (select c1,c2 from c) c where c2>1) a;";
             result = ExecuteSQL(sql);
             Assert.AreEqual("7", string.Join(";", result));
@@ -1225,10 +1223,14 @@ namespace test
             var option =new QueryOption();
             option.optimize_.use_memo_ = false;
 
-            var sql = "select * from d where d1=2;";
+            var sql = "select * from d where 1*3-1=d1;";
             var result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "SeekIndex"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicIndexSeek"));
             Assert.AreEqual("2,2,,5", string.Join(";", result));
+            sql = "select * from d where 1<d1;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicIndexSeek"));
+            Assert.AreEqual("", string.Join(";", result)); // FIXME
         }
 
         [TestMethod]

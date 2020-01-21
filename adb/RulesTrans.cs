@@ -143,7 +143,7 @@ namespace adb.optimizer
             if (ab.LeftReferencesRight(c))
                 return expr;
 
-            // pull up all join filters and re-push them back
+            // pull up all join filters and re-push them back            
             Expr allfilters = bcfilter;
             if (a_bc.filter_ != null)
                 allfilters = allfilters.AddAndFilter(a_bc.filter_);
@@ -153,6 +153,17 @@ namespace adb.optimizer
                 andlist.RemoveAll(e => ab_c.PushJoinFilter(e));
                 if (andlist.Count > 0)
                     ab_c.filter_ = andlist.AndListToExpr();
+            }
+
+            // if there is no cross join in the given plan but cross join generated
+            // in the new plan, we return the original plan
+            //
+            if (expr.QOption().optimize_.memo_disable_crossjoin)
+            {
+                if (a_bc.filter_ != null && bcfilter != null) {
+                    if (ab_c.filter_ is null || ab.filter_ is null)
+                        return expr;
+                }
             }
 
             return new CGroupMember(ab_c, expr.group_);

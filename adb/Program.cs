@@ -39,7 +39,7 @@ namespace adb
                 var v = files[1]; //12
                 {
                     // sql = File.ReadAllText("../../../tpcds/problem_queries/q9.sql");
-                    sql = File.ReadAllText("../../../tpcds/problem_queries/q64.sql");
+                    sql = File.ReadAllText("../../../tpcds/q1.sql");
                     goto doit;
                 }
             }
@@ -145,8 +145,12 @@ namespace adb
         doit:
             //sql = "select * from a, b, c where a1>b1 and a2>c2;";
             //sql = "select count(*) from lineitem, orders, customer where l_orderkey=o_orderkey and c_custkey = o_custkey;";
-            sql = "select * from a union all select * from b;";
-            sql = "select 1+2*3, 1+2.1+a1 from a where a1+2+(1*5+1)>2*4.6 and 1+2<2+1.4;";
+            //sql = "select * from a union all select * from b;";
+            //sql = "select 1+2*3, 1+2.1+a1 from a where a1+2+(1*5+1)>2*4.6 and 1+2<2+1.4;";
+            sql = "select 1+2+3 from d where 1=d1 and 2<d1";
+            sql = "select * from d where 1<d1;";
+            sql = "select a2, sum(a1) from a where a1>0 group by a2";
+
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
@@ -163,7 +167,7 @@ namespace adb
             // -- generate an initial plan
             ExplainOption.costoff_ = false;
             ExplainOption.show_tablename_ = true;
-            ExplainOption.show_output = false;
+            ExplainOption.show_output = true;
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.PrintString(0));
 

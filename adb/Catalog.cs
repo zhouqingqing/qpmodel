@@ -66,15 +66,25 @@ namespace adb
     {
         readonly Dictionary<string, TableDef> records_ = new Dictionary<string, TableDef>();
 
-        public void Create(string tabName, List<ColumnDef> columns)
+        public void CreateTable(string tabName, List<ColumnDef> columns)
         {
             records_.Add(tabName,
                 new TableDef(tabName, columns));
         }
-        public void Drop(string tabName)
+        public void DropTable(string tabName)
         {
             records_.Remove(tabName);
             // FIXME: we shall also remove index etc
+        }
+
+        public void CreateIndex(string tabName, IndexDef index)
+        {
+            records_[tabName].indexes_.Add(index);
+        }
+        public void DropIndex(string indName) {
+            var tab = IndexGetTable(indName);
+            if (tab != null)
+                tab.indexes_.RemoveAll(x => x.name_.Equals(indName));
         }
 
         public TableDef TryTable(string tabName) {
@@ -83,6 +93,27 @@ namespace adb
             return null;
         }
         public TableDef Table(string tabName)=> records_[tabName];
+
+        public IndexDef Index(string indName) {
+            foreach (var v in records_)
+            {
+                foreach (var i in v.Value.indexes_)
+                    if (i.name_.Equals(indName))
+                        return i;
+            }
+            return null;
+        }
+
+        public TableDef IndexGetTable(string indName)
+        {
+            foreach (var v in records_)
+            {
+                foreach (var i in v.Value.indexes_)
+                    if (i.name_.Equals(indName))
+                        return v.Value;
+            }
+            return null;
+        }
         public Dictionary<string, ColumnDef> TableCols(string tabName)=> records_[tabName].columns_;
         public ColumnDef Column(string tabName, string colName)=> TableCols(tabName)[colName];
     }
@@ -134,14 +165,11 @@ namespace adb
                 var result = SQLStatement.ExecSQL(sql, out _, out _);
             }
         }
+
         static Catalog()
         {
             // be careful: any exception happened here will be swallowed without throw any exception
             createBuildInTestTables();
-            //Tpch.CreateTables();
-
-            // customer table is dup named with tpch, so we can't load tpcds for now
-            // Tpcds.CreateTables();
         }
     }
 }
