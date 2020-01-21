@@ -819,6 +819,11 @@ namespace test
             Assert.AreEqual(1, TU.CountStr(phyplan, "7,3+a.a1[0]"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "a.a1[0]+2+6>6")); // FIXME
             Assert.AreEqual("7,3;7,4;7,5", string.Join(";", result));
+            sql = "select 1+2*3, 1+2.1+a1 from a where a1+2+(1*5+1)>2*4.6 and 1+2<2+1.4;";
+            result = TU.ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "and True")); // FIXME
+            Assert.AreEqual(1, TU.CountStr(phyplan, "9.2"));
+            Assert.AreEqual("7,5.1", string.Join(";", result));
         }
     }
 

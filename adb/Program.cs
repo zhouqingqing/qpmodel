@@ -146,6 +146,7 @@ namespace adb
             //sql = "select * from a, b, c where a1>b1 and a2>c2;";
             //sql = "select count(*) from lineitem, orders, customer where l_orderkey=o_orderkey and c_custkey = o_custkey;";
             sql = "select * from a union all select * from b;";
+            sql = "select 1+2*3, 1+2.1+a1 from a where a1+2+(1*5+1)>2*4.6 and 1+2<2+1.4;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
