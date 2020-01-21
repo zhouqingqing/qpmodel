@@ -241,6 +241,10 @@ namespace adb.expr
         }
         public abstract Value Init(ExecContext context, Row input);
         public abstract Value Accum(ExecContext context, Value old, Row input);
+        public virtual Value Finalize(ExecContext context, Value old) => old;
+
+        public override object Exec(ExecContext context, Row input) 
+            => throw new Exception("aggfn [some] are stateful, they use different set of APIs");
     }
 
     public class AggSum : AggFunc
@@ -272,7 +276,6 @@ namespace adb.expr
 
             return sum_;
         }
-        public override Value Exec(ExecContext context, Row input) => sum_;
     }
 
     public class AggCount : AggFunc
@@ -301,7 +304,6 @@ namespace adb.expr
                 count_ = old is null ? 1 : (long)old + 1;
             return count_;
         }
-        public override Value Exec(ExecContext context, Row input) => count_;
     }
 
     public class AggCountStar : AggFunc
@@ -326,7 +328,6 @@ namespace adb.expr
             count_ = (long)old + 1;
             return count_;
         }
-        public override Value Exec(ExecContext context, Row input) => count_;
     }
 
     public class AggMin : AggFunc
@@ -357,7 +358,6 @@ namespace adb.expr
 
             return min_;
         }
-        public override Value Exec(ExecContext context, Row input) => min_;
     }
 
     public class AggMax : AggFunc
@@ -389,7 +389,6 @@ namespace adb.expr
 
             return max_;
         }
-        public override Value Exec(ExecContext context, Row input) => max_;
     }
 
     public class AggAvg : AggFunc
@@ -398,7 +397,7 @@ namespace adb.expr
         public class AvgPair {
             internal Value sum_;
             internal long count_;
-            internal Value Compute()
+            internal Value Finalize()
             {
                 dynamic lv = sum_;
                 if (count_ == 0)
@@ -451,42 +450,59 @@ namespace adb.expr
             return pair_;
         }
 
-        public override Value Exec(ExecContext context, Row input)
-        {
-            return pair_.Compute();
-        }
+        public override Value Finalize(ExecContext context, Value old) => (old as AvgPair).Finalize();
     }
 
+    // sqrt(sum((x_i - mean)^2)/(n-1)) where n is sample size
     public class AggStddevSamp: AggFunc
     {
-        // FIXME: not implmeneted
-        Value max_;
+        public class AggStddevValues {
+            Value stddev_ = null;
+            bool computed_ = false;
+            internal List<dynamic> vals_ = new List<dynamic>();
+            internal Value Finalize()
+            {
+                if (!computed_)
+                {
+                    int n = vals_.Count;
+                    if (n == 1)
+                        stddev_ = null;
+                    else
+                    {
+                        dynamic sum = 0.0; vals_.ForEach(x => sum += x);
+                        var mean = sum / n;
+
+                        dynamic stddev = 0; vals_.ForEach(x => stddev += ((x - mean) * (x - mean)));
+                        stddev = Math.Sqrt(stddev / (n - 1));
+                        stddev_ = stddev;
+                    }
+
+                    computed_ = true;
+                }
+
+                return stddev_;
+            }
+        }
+        AggStddevValues values_;
+
         public AggStddevSamp(Expr arg) : base("stddev_samp", new List<Expr> { arg }) { }
+
         public override Value Init(ExecContext context, Row input)
         {
-            max_ = arg_().Exec(context, input);
-            return max_;
+            values_ = new AggStddevValues();
+            values_.vals_.Add(arg_().Exec(context, input));
+            type_ = new DoubleType();
+            return values_;
         }
         public override Value Accum(ExecContext context, Value old, Row input)
         {
             var arg = arg_().Exec(context, input);
-
-            Type ltype, rtype; ltype = typeof(int); rtype = typeof(int); // FIXME
-            if (old is null)
-                max_ = arg;
-            else
-            {
-                dynamic lv = old;
-                if (!(arg is null))
-                {
-                    dynamic rv = arg;
-                    max_ = lv < rv ? arg : old;
-                }
-            }
-
-            return max_;
+            AggStddevValues oldlist = old as AggStddevValues;
+            oldlist.vals_.Add(arg);
+            values_ = oldlist;
+            return values_;
         }
-        public override Value Exec(ExecContext context, Row input) => max_;
+        public override Value Finalize(ExecContext context, Value old) => (old as AggStddevValues).Finalize();
     }
 
     // case <eval>
@@ -636,8 +652,8 @@ namespace adb.expr
             }
         }
 
-        public string SwithSideOp() {
-            switch (op_)
+        public static string SwapSideOp(string op) {
+            switch (op)
             {
                 case ">":
                     return "<";
@@ -650,8 +666,16 @@ namespace adb.expr
                 case "in":
                     throw new Exception("not switchable");
                 default:
-                    return op_;
+                    return op;
             }
+        }
+
+        public void SwapSide()
+        {
+            var oldl = l_();
+            children_[0] = r_();
+            children_[1] = oldl;
+            op_ = SwapSideOp(op_);
         }
 
         public override string ToString() => $"{l_()}{op_}{r_()}{outputName()}";

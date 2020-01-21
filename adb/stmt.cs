@@ -321,8 +321,9 @@ namespace adb.logic
         public bool SubqueryIsWithMainQuery(SelectStmt subquery)
         {
             // FromQuery or decorrelated subqueries are merged with main plan
-            return (fromQueries_.TryGetValue(subquery, out _) ||
+            var r = (fromQueries_.ContainsKey(subquery) ||
                 decorrelatedSubs_.Contains(subquery));
+            return r;
         }
 
         public List<SelectStmt> Subqueries(bool excludeFromQuery = false)
@@ -392,6 +393,7 @@ namespace adb.logic
             // CTEQueries share the same physical plan, so we exclude it from assertion. 
             //
             Debug.Assert(physicPlan_ is null || stmtIsInCTEChain());
+            physicPlan_ = null;
             if (!queryOpt_.optimize_.use_memo_)
             {
                 physicPlan_ = logicPlan_.DirectToPhysical(queryOpt_);

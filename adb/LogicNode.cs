@@ -51,8 +51,8 @@ namespace adb.logic
                 {
                     case LogicScanTable ln:
                         // if there are indexes can help filter, use them
-                        if (ln.filter_.FilterCanUseIndex(ln.tabref_))
-                            phy = new PhysicSeekIndex(ln);
+                        if (ln.filter_ != null && ln.filter_.FilterCanUseIndex(ln.tabref_))
+                            phy = new PhysicIndexSeek(ln);
                         else
                             phy = new PhysicScanTable(ln);
                         if (ln.filter_ != null)
@@ -409,12 +409,15 @@ namespace adb.logic
                     // switch side if possible
                     //  E.g., a.a1+b.b1 = 3 is not possible to decompose to left right side
                     //  without transform to a.a1=3=b.b1 (hashable)
+                    // 
+                    // we can't do this early during filter normalization because join side 
+                    // is not decided yet that time.
                     //
                     if (rtabrefs.ContainsList(lkeyrefs))
                     {
                         leftKeys_.Add(fb.r_());
                         rightKeys_.Add(fb.l_());
-                        ops_.Add(fb.SwithSideOp());
+                        ops_.Add(BinExpr.SwapSideOp(fb.op_));
                     }
                 }
 
@@ -502,7 +505,7 @@ namespace adb.logic
 
     public partial class LogicFilter : LogicNode
     {
-        public override string ToString() => $"{child_()} filter: {filter_}";
+        public override string ToString() => $"filter({child_()}): {filter_}";
 
         public override int GetHashCode()
         {
@@ -901,6 +904,7 @@ namespace adb.logic
 
         internal int limit_;
 
+        public override string ToString() => $"Limit({child_()})";
         public override string PrintInlineDetails(int depth) => $"({limit_})";
 
         public LogicLimit(LogicNode child, Expr expr)

@@ -322,17 +322,33 @@ namespace adb.expr
         //   a.i =|>|< 5
         public static bool FilterCanUseIndex(this Expr filter, BaseTableRef table)
         {
-            if (filter is null)
-                return false;
-
+            string[] indexops = {"=", ">=", "<=", ">", "<"};
             Debug.Assert(filter.IsBoolean());
             if (table.Table().indexes_.Count == 0)
                 return false;
 
-            if (filter is BinExpr fb && fb.op_ == "=" && fb.l_() is ColExpr && fb.r_() is LiteralExpr)
-                return true;
+            if (filter is BinExpr fb)
+            {
+                // expression is already normalized, so no swap side shall considered
+                Debug.Assert(!(fb.l_() is LiteralExpr && fb.r_() is ColExpr));
+                if (indexops.Contains(fb.op_) && fb.l_() is ColExpr && fb.r_() is LiteralExpr)
+                    return true;
+            }
 
             return false;
+        }
+
+        // 2 < a.i => a.i > 2
+        public static Expr FilterNormalize(this Expr filter)
+        {
+            Debug.Assert(filter.IsBoolean());
+
+            filter.VisitEach<BinExpr>(x =>
+            {
+                if (x.IsBoolean() && x.l_() is LiteralExpr)
+                    x.SwapSide();
+            });
+            return filter;
         }
 
         // forms to consider:

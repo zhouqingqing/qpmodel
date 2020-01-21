@@ -34,6 +34,8 @@ namespace adb.optimizer
 
         internal CMemoGroup group_;
 
+        internal QueryOption QOption() => group_.memo_.stmt_.queryOpt_;
+
         internal LogicNode Logic() {
             LogicNode logic;
             if (logic_ != null)
@@ -308,11 +310,13 @@ namespace adb.optimizer
     }
 
     public class Memo {
+        public SQLStatement stmt_;
         public CMemoGroup rootgroup_;
         public Dictionary<LogicSignature, CMemoGroup> cgroups_ = new Dictionary<LogicSignature, CMemoGroup>();
 
         public Stack<CMemoGroup> stack_ = new Stack<CMemoGroup>();
 
+        public Memo(SQLStatement stmt) => stmt_ = stmt;
         public CMemoGroup LookupCGroup(LogicNode subtree) {
             if (subtree is LogicMemoRef sl)
                 return sl.group_;
@@ -430,7 +434,7 @@ namespace adb.optimizer
             var select = stmt as SelectStmt;
 
             // each statement sitting in a new memo
-            var memo = new Memo();
+            var memo = new Memo(stmt);
             if (enqueueit) {
                 memoset_.Add(memo);
 

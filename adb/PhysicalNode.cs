@@ -212,14 +212,19 @@ namespace adb.physic
 
         public override double Cost()
         {
-            var logic = (logic_) as LogicScanTable;
-            return logic.EstCardinality() * 1;
+            if (double.IsNaN(cost_))
+            {
+                var logic = (logic_) as LogicScanTable;
+                var tablerows = Catalog.sysstat_.EstCardinality(logic.tabref_.relname_);
+                cost_ = tablerows * 1.0;
+            }
+            return cost_;
         }
     }
 
-    public class PhysicSeekIndex : PhysicNode
+    public class PhysicIndexSeek : PhysicNode
     {
-        public PhysicSeekIndex(LogicNode logic) : base(logic) { }
+        public PhysicIndexSeek(LogicNode logic) : base(logic) { }
         public override string ToString() => $"ISeek({(logic_ as LogicScanTable).tabref_}: {Cost()})";
 
         public override string Exec(ExecContext context, Func<Row, string> callback)
@@ -232,15 +237,15 @@ namespace adb.physic
             Debug.Assert(ok);
             KeyList key = new KeyList(1);
             key[0] = searchval;
-            var r = index.SearchUnique(key);
-            if (r != null)
+            var rlist = index.Search(key);
+            foreach (var r in rlist)
             {
                 if (logic.tabref_.colRefedBySubq_.Count != 0)
                     context.AddParam(logic.tabref_, r);
                 if (filter is null || filter.Exec(context, r) is true)
                 {
-                    r = ExecProject(context, r);
-                    callback(r);
+                    var n = ExecProject(context, r);
+                    callback(n);
                 }
             }
 
@@ -249,8 +254,13 @@ namespace adb.physic
 
         public override double Cost()
         {
-            var logic = (logic_) as LogicScanTable;
-            return logic.EstCardinality() * 1;
+            if (double.IsNaN(cost_))
+            {
+                // 2 means < 50% selection ratio will pick up index
+                var logic = (logic_) as LogicScanTable;
+                cost_ = logic.EstCardinality() * 2.0;
+            }
+            return cost_;
         }
     }
 
@@ -556,7 +566,7 @@ namespace adb.physic
         //    count: 0, avg/min/max/sum: null
         //    but HAVING clause can filter this row out.
         //
-        Row AggrHandleEmptyResult(ExecContext context)
+        Row HandleEmptyResult(ExecContext context)
         {
             var logic = logic_ as LogicAgg;
             var aggrcore = logic.aggrFns_;
@@ -586,7 +596,7 @@ namespace adb.physic
             var hm = new Dictionary<KeyList, Row>();
 
             // aggregation is working on aggCore targets
-            child_().Exec(context, l =>
+            string s = child_().Exec(context, l =>
             {
                 var keys = KeyList.ComputeKeys(context, logic.keys_, l);
 
@@ -595,8 +605,7 @@ namespace adb.physic
                     for (int i = 0; i < aggrcore.Count; i++)
                     {
                         var old = exist[i];
-                        var newval = aggrcore[i].Accum(context, old, l);
-                        exist[i] = newval;
+                        exist[i] = aggrcore[i].Accum(context, old, l);
                     }
                 }
                 else
@@ -604,10 +613,7 @@ namespace adb.physic
                     hm.Add(keys, AggrCoreToRow(context, l));
                     exist = hm[keys];
                     for (int i = 0; i<aggrcore.Count; i++)
-                    {
-                        var initval = aggrcore[i].Init(context, l);
-                        exist[i] = initval;
-                    }
+                        exist[i] = aggrcore[i].Init(context, l);
                 }
 
                 return null;
@@ -615,7 +621,7 @@ namespace adb.physic
 
             // stitch keys+aggcore into final output
             if (logic.keys_ is null && hm.Count == 0) {
-                Row row = AggrHandleEmptyResult(context);
+                Row row = HandleEmptyResult(context);
                 if (row != null)
                     callback(row);
             }
@@ -627,14 +633,7 @@ namespace adb.physic
                 var keys = v.Key;
                 Row aggvals = v.Value;
                 for (int i = 0; i < aggrcore.Count; i++)
-                {
-                    if (aggrcore[i] is AggAvg)
-                    {
-                        var old = aggvals[i];
-                        var newval = (old as AggAvg.AvgPair).Compute();
-                        aggvals[i] = newval;
-                    }
-                }
+                    aggvals[i] = aggrcore[i].Finalize(context, aggvals[i]);
                 var w = new Row(keys, aggvals);
                 if (logic.having_ is null || logic.having_.Exec(context, w) is true)
                 {
@@ -642,7 +641,7 @@ namespace adb.physic
                     callback(newr);
                 }
             }
-            return null;
+            return s;
         }
     }
 
@@ -873,6 +872,7 @@ namespace adb.physic
     public class PhysicLimit : PhysicNode {
 
         public PhysicLimit(LogicLimit logic, PhysicNode l) : base(logic) => children_.Add(l);
+        public override string ToString() => $"PLIMIT({child_()}: {Cost()})";
 
         public override string Exec(ExecContext context, Func<Row, string> callback)
         {

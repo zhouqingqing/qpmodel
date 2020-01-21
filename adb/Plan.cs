@@ -22,7 +22,7 @@ namespace adb.logic
             public bool enable_subquery_to_markjoin_ = true;
             public bool enable_hashjoin_ = true;
             public bool enable_nljoin_ = true;
-            public bool enable_index = true;
+            public bool enable_indexseek = true;
             public bool remove_from = false;
 
             // optimizer controls
@@ -474,6 +474,7 @@ namespace adb.logic
             if (where_ != null)
             {
                 where_.Bind(context);
+                where_ = where_.FilterNormalize();
                 if (!where_.IsBoolean())
                     throw new SemanticAnalyzeException("WHERE condition must be a blooean expression");
                 if (queryOpt_.optimize_.remove_from)
@@ -497,6 +498,7 @@ namespace adb.logic
             {
                 hasAgg_ = true;
                 having_.Bind(context);
+                having_ = having_.FilterNormalize();
                 if (!having_.IsBoolean())
                     throw new SemanticAnalyzeException("HAVING condition must be a blooean expression");
                 if (queryOpt_.optimize_.remove_from)
