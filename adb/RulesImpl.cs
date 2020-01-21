@@ -104,6 +104,30 @@ namespace adb.optimizer
         }
     }
 
+    public class Scan2IndexSeek : ImplmentationRule
+    {
+        public override bool Appliable(CGroupMember expr)
+        {
+            LogicScanTable log = expr.logic_ as LogicScanTable;
+            if (log != null && log.filter_ != null)
+                return true;
+            return false;
+        }
+
+        public override CGroupMember Apply(CGroupMember expr)
+        {
+            LogicScanTable log = expr.logic_ as LogicScanTable;
+            var index = log.filter_.FilterCanUseIndex(log.tabref_);
+            if (index is null)
+                return expr;
+            else
+            {
+                var phy = new PhysicIndexSeek(log, index);
+                return new CGroupMember(phy, expr.group_);
+            }
+        }
+    }
+
     public class Filter2Filter : ImplmentationRule
     {
         public override bool Appliable(CGroupMember expr)

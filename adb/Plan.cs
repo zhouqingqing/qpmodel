@@ -20,12 +20,12 @@ namespace adb.logic
         {
             // rewrite controls
             public bool enable_subquery_to_markjoin_ = true;
-            public bool enable_hashjoin_ = true;
-            public bool enable_nljoin_ = true;
-            public bool enable_indexseek = true;
             public bool remove_from = false;
 
             // optimizer controls
+            public bool enable_hashjoin_ = true;
+            public bool enable_nljoin_ = true;
+            public bool enable_indexseek = true;
             public bool use_memo_ = false;
             public bool memo_disable_crossjoin = true;
 

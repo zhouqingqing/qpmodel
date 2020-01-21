@@ -27,8 +27,9 @@ namespace adb.index
             def_.name_ = indexname;
             def_.unique_ = unique;
             def_.columns_ = columns;
+            def_.table_ = target;
             select_ = RawParser.ParseSingleSqlStatement
-                ($"select sysrid_, {string.Join(",", columns)} from {target.relname_}") as SelectStmt;
+                ($"select sysrid_, {string.Join(",", columns)} from {def_.table_.relname_}") as SelectStmt;
         }
 
         public override BindContext Bind(BindContext parent)
@@ -71,14 +72,18 @@ namespace adb.index
             return null;
         }
     }
+
     public class IndexDef
     {
         public string name_;
+        public BaseTableRef table_;
         public bool unique_;
         public List<string> columns_;
 
         // storage
         internal ISearchIndex index_;
+
+        public override string ToString() => $"{name_}({string.Join(",", columns_)}) on {table_}";
     }
 
     public class LogicIndex : LogicNode
@@ -102,12 +107,7 @@ namespace adb.index
         {
             var logic = (logic_ as LogicIndex);
             var tabName = logic.GetTargetTable().relname_;
-
-            if (logic.def_.unique_)
-                index_ = new UniqueIndex();
-            else
-                index_ = new NonUniqueIndex();
-
+            index_ = new MemoryIndex(logic.def_.unique_);
             return null;
         }
 
@@ -140,68 +140,71 @@ namespace adb.index
     }
 
     public abstract class ISearchIndex {
-        public virtual void Insert(dynamic key, Row r) => throw new NotImplementedException();
-        public virtual List<Row> Search(dynamic key) => throw new NotImplementedException();
-        public virtual List<Row> Search(dynamic l, dynamic r) => throw new NotImplementedException();
+        public virtual void Insert(KeyList key, Row r) => throw new NotImplementedException();
+        public virtual List<Row> Search(string op, KeyList key) => throw new NotImplementedException();
+        public virtual List<Row> Search(KeyList l, KeyList r) => throw new NotImplementedException();
     }
 
-    public class NonUniqueIndex: ISearchIndex{
-        internal SortedDictionary<dynamic, List<Row>> data_ = new SortedDictionary<dynamic, List<Row>>();
+    public class MemoryIndex: ISearchIndex{
 
-        public NonUniqueIndex() {
+        internal bool unique_;
+        internal SortedDictionary<KeyList, List<Row>> data_ = new SortedDictionary<KeyList, List<Row>>();
+
+        public MemoryIndex(bool unique) {
+            unique_ = unique;
         }
 
-        public override void Insert(dynamic key, Row r) {
+        public override void Insert(KeyList key, Row r) {
             if (data_.TryGetValue(key, out List<Row> l))
+            {
+                if (unique_) {
+                    Debug.Assert(l.Count == 1);
+                    throw new SemanticExecutionException(
+                        $"try to insert duplicated key: {key}. Existing row: {l}, new row: {r}");
+                }
                 l.Add(r);
+            }
             else
                 data_.Add(key, new List<Row>() { r });
         }
 
-        public override List<Row> Search(dynamic key)
+        public override List<Row> Search(string op, KeyList key)
         {
-            if (data_.TryGetValue(key, out List<Row> l))
-                return l;
-            return null;
+            List<Row> rows = new List<Row>();
+            switch (op)
+            {
+                case "=":
+                    if (data_.TryGetValue(key, out List<Row> l))
+                        return l;
+                    break;
+                case ">":
+                    foreach (var v in data_.Where(x => x.Key.CompareTo(key) > 0))
+                        rows.AddRange(v.Value);
+                    break;
+                case ">=":
+                    foreach (var v in data_.Where(x => x.Key.CompareTo(key) >= 0))
+                        rows.AddRange(v.Value);
+                    break;
+                case "<":
+                    foreach (var v in data_.Where(x => x.Key.CompareTo(key) < 0))
+                        rows.AddRange(v.Value);
+                    break;
+                case "<=":
+                    foreach (var v in data_.Where(x => x.Key.CompareTo(key) <= 0))
+                        rows.AddRange(v.Value);
+                    break;
+                default:
+                    throw new NotImplementedException("index search");
+            }
+
+            return rows;
         }
 
-        public override List<Row> Search(dynamic l, dynamic r)
+        public override List<Row> Search(KeyList l, KeyList r)
         {
             List<Row> res = new List<Row>();
-            foreach (var v in data_.Where(x => x.Key >= l && x.Key <= r))
+            foreach (var v in data_.Where(x => x.Key.CompareTo(l) > 0 && x.Key.CompareTo(r) < 0))
                 res.AddRange(v.Value);
-            return res;
-        }
-    }
-    public class UniqueIndex : ISearchIndex
-    {
-        internal SortedDictionary<dynamic, Row> data_ = new SortedDictionary<dynamic, Row>();
-
-        public UniqueIndex()
-        {
-        }
-
-        public override void Insert(dynamic key, Row r)
-        {
-            if (data_.TryGetValue(key, out Row l))
-                throw new SemanticExecutionException(
-                    $"try to insert duplicated key: {key}. Existing row: {l}, new row: {r}");
-            else
-                data_.Add(key,  r);
-        }
-
-        public override List<Row> Search(dynamic key)
-        {
-            if (data_.TryGetValue(key, out Row l))
-                return new List<Row>() { l };
-            return null;
-        }
-
-        public override List<Row> Search(dynamic l, dynamic r)
-        {
-            List<Row> res = new List<Row>();
-            foreach (var v in data_.Where(x => x.Key >= l && x.Key <= r))
-                res.Add(v.Value);
             return res;
         }
     }
