@@ -8,15 +8,6 @@ using adb.test;
 using adb.sqlparser;
 using adb.optimizer;
 
-// profiling with callback mode - not sure if callback is good for profiling
-// output expression by push down from top: a node's output including two parts: 
-// 1) everything it needs (say filter)
-// 2) everything its parent node need
-// A top node's output is defined by query's selection list. So we can decide the 
-// output list by push down the request from top. Meanwhile, scalar subquery is 
-// handled separately.
-//
-
 namespace adb
 {
     class Program
@@ -25,7 +16,7 @@ namespace adb
         {
             string sql = "";
 
-            if (false)
+            if (true)
             {
                 Tpch.CreateTables();
                 Tpch.LoadTables("0001");
@@ -145,32 +136,30 @@ namespace adb
             //sql = "select * from a union all select * from b;";
             //sql = "select 1+2*3, 1+2.1+a1 from a where a1+2+(1*5+1)>2*4.6 and 1+2<2+1.4;";
             //sql = "select 1+2+3 from d where 1=d1 and 2<d1";
-            //sql = "select count(*) from lineitem, orders where l_orderkey=o_orderkey;";
             //sql = "select * from d where 3<d1;";
-            sql = "select * from a; select * from b; select * from c;";
-
-            var s = SQLStatement.ExecSQLList(sql);
+            sql = "select * from a where a1>1;";
+            sql = "select count(*) from lineitem, orders where l_orderkey=o_orderkey;";
+            sql = "select * from a, b, c where a1>b1 and a2>c2;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
-            a.queryOpt_.profile_.enabled_ = true;
+            a.queryOpt_.profile_.enabled_ = false;
             a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = true;
-            a.queryOpt_.optimize_.remove_from = false;
+            a.queryOpt_.optimize_.remove_from = true;
             a.queryOpt_.optimize_.use_memo_ = true;
-            a.queryOpt_.optimize_.use_codegen_ = false;
+            a.queryOpt_.optimize_.use_codegen_ = true;
 
             // -- Semantic analysis:
             //  - bind the query
             a.Bind(null);
 
             // -- generate an initial plan
-            ExplainOption.costoff_ = false;
-            ExplainOption.show_tablename_ = true;
-            ExplainOption.show_output = true;
+            ExplainOption.show_tablename_ = false;
+            a.explain_.show_output_ = false;
+            a.explain_.show_cost_ =  a.queryOpt_.optimize_.use_memo_;
             var rawplan = a.CreatePlan();
-            Console.WriteLine(rawplan.PrintString(0));
+            Console.WriteLine(rawplan.Explain(0));
 
-            ExplainOption.costoff_ = !a.queryOpt_.optimize_.use_memo_;
             PhysicNode phyplan = null;
             if (a.queryOpt_.optimize_.use_memo_)
             {
@@ -181,7 +170,7 @@ namespace adb
                 Console.WriteLine(Optimizer.PrintMemo());
                 phyplan = Optimizer.CopyOutOptimalPlan();
                 Console.WriteLine("***************** Memo plan *************");
-                Console.WriteLine(phyplan.PrintString(0));
+                Console.WriteLine(phyplan.Explain(0, a.explain_));
                 Optimizer.PrintMemo();
             }
             else
@@ -189,12 +178,12 @@ namespace adb
                 // -- optimize the plan
                 Console.WriteLine("-- optimized plan --");
                 var optplan = a.PhaseOneOptimize();
-                Console.WriteLine(optplan.PrintString(0));
+                Console.WriteLine(optplan.Explain(0, a.explain_));
 
                 // -- physical plan
                 Console.WriteLine("-- physical plan --");
                 phyplan = a.physicPlan_;
-                Console.WriteLine(phyplan.PrintString(0));
+                Console.WriteLine(phyplan.Explain(0, a.explain_));
             }
 
             Console.WriteLine("-- profiling plan --");
@@ -210,7 +199,7 @@ namespace adb
                 Compiler.Run(Compiler.Compile(), a, context);
             }
 
-            Console.WriteLine(phyplan.PrintString(0));
+            Console.WriteLine(phyplan.Explain(0, a.explain_));
         }
     }
 }

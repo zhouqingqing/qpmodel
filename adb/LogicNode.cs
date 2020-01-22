@@ -34,9 +34,9 @@ namespace adb.logic
         // it is possible to really have this value but ok to recompute
         protected LogicSignature logicSign_ = -1;
 
-        public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
+        public override string ExplainMoreDetails(int depth) => PrintFilter(filter_, depth);
 
-        public override string PrintOutput(int depth)
+        public override string ExplainOutput(int depth)
         {
             if (output_.Count != 0)
             {
@@ -505,7 +505,7 @@ namespace adb.logic
                         else if (rtables.Contains(x.tabRef_))
                             rreq.Add(x);
                         else
-                            throw new InvalidProgramException("contains invalid tableref");
+                            throw new InvalidProgramException($"requests contains invalid tableref {x.tabRef_}");
                     });
                 }
             }
@@ -573,7 +573,7 @@ namespace adb.logic
         internal List<AggFunc> aggrFns_ = new List<AggFunc>();
         public override string ToString() => $"Agg({child_()})";
 
-        public override string PrintMoreDetails(int depth)
+        public override string ExplainMoreDetails(int depth)
         {
             string r = null;
             string tabs = Utils.Tabs(depth + 2);
@@ -762,7 +762,7 @@ namespace adb.logic
 
         public override string ToString() => $"Order({child_()})";
 
-        public override string PrintMoreDetails(int depth)
+        public override string ExplainMoreDetails(int depth)
         {
             var r = $"Order by: {string.Join(", ", orders_)}\n";
             return r;
@@ -796,7 +796,7 @@ namespace adb.logic
         public QueryRef queryRef_;
 
         public override string ToString() => $"<{queryRef_.alias_}>({child_()})";
-        public override string PrintInlineDetails(int depth) => $"<{queryRef_.alias_}>";
+        public override string ExplainInlineDetails(int depth) => $"<{queryRef_.alias_}>";
         public LogicFromQuery(QueryRef query, LogicNode child) { queryRef_ = query; children_.Add(child); }
 
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
@@ -824,7 +824,7 @@ namespace adb.logic
 
         public LogicGet(T tab) => tabref_ = tab;
         public override string ToString() => tabref_.ToString();
-        public override string PrintInlineDetails(int depth) => ToString();
+        public override string ExplainInlineDetails(int depth) => ToString();
         public override int GetHashCode() => base.GetHashCode() ^ (filter_?.GetHashCode()??0) ^ tabref_.GetHashCode();
         public override bool Equals(object obj)
         {
@@ -905,7 +905,7 @@ namespace adb.logic
             children_.Add(child);
         }
         public override string ToString() => targetref_.ToString();
-        public override string PrintInlineDetails(int depth) => ToString();
+        public override string ExplainInlineDetails(int depth) => ToString();
 
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
@@ -928,7 +928,7 @@ namespace adb.logic
         internal int limit_;
 
         public override string ToString() => $"Limit({child_()})";
-        public override string PrintInlineDetails(int depth) => $"({limit_})";
+        public override string ExplainInlineDetails(int depth) => $"({limit_})";
 
         public LogicLimit(LogicNode child, Expr expr)
         {

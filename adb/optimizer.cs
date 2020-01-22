@@ -139,9 +139,9 @@ namespace adb.optimizer
                     if (newlogic.MemoLogicSign() != list[0].MemoSignature())
                     {
                         Console.WriteLine("********* list[0]");
-                        Console.WriteLine(list[0].Logic().PrintString(0));
+                        Console.WriteLine(list[0].Logic().Explain(0));
                         Console.WriteLine("********* newlogic");
-                        Console.WriteLine(newlogic.PrintString(0));
+                        Console.WriteLine(newlogic.Explain(0));
                     }
                     Debug.Assert(newlogic.MemoLogicSign() == list[0].MemoSignature());
                 }
