@@ -144,6 +144,10 @@ namespace test
         }
 
         [TestMethod]
+        public void TestCreateIndex()
+        { }
+
+        [TestMethod]
         public void TestAnalyze()
         {
             var sql = "analyze a;";
@@ -1207,6 +1211,7 @@ namespace test
             result = ExecuteSQL(sql); Assert.AreEqual("1;2", string.Join(";", result));
             sql = " select count(a2) as ca2 from a group by a1/2 order by 1;";
             result = ExecuteSQL(sql); Assert.AreEqual("1;2", string.Join(";", result));
+            sql = "select -a1/2, -a2 from a order by -a1/2 desc, -a2 asc;"; TU.ExecuteSQL(sql, "0,-2;0,-1;-1,-3");
         }
 
         [TestMethod]
