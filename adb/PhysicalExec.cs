@@ -92,6 +92,29 @@ namespace adb.physic
             }
             return 0;
         }
+
+        public int CompareTo(object obj, List<bool> descends)
+        {
+            Debug.Assert(!(obj is null));
+            var rrow = obj as Row;
+
+            Debug.Assert(descends.Count == ColCount());
+            for (int i = 0; i < ColCount(); i++)
+            {
+                dynamic l = this[i];
+                dynamic r = rrow[i];
+                bool flip = descends[i];
+                var c = l.CompareTo(r);
+                if (c < 0)
+                    return flip?+1:-1;
+                else if (c == 0)
+                    continue;
+                else if (c > 0)
+                    return flip?-1:+1;
+            }
+            return 0;
+        }
+
         public int ColCount() => values_.Length;
         public override string ToString() => string.Join(",", values_.ToList());
     }

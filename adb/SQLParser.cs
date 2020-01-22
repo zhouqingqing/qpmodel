@@ -124,16 +124,16 @@ namespace adb.sqlparser
 
         public override object VisitUnaryexpr([NotNull] SQLiteParser.UnaryexprContext context)
         {
-            bool hasNot = (context.unary_operator().K_NOT() != null);
+            string op = context.unary_operator().GetText();
             var expr = Visit(context.expr()) as Expr;
             if (expr is ExistSubqueryExpr ee)
             {
                 // ExistsSubquery needs to get hasNot together for easier processing
-                ee.hasNot_ = hasNot;
+                ee.hasNot_ = (context.unary_operator().K_NOT() != null);
                 return ee;
             }
             else
-                return new UnaryExpr(expr, hasNot);
+                return new UnaryExpr(op, expr);
         }
 
         public override object VisitInSubqueryExpr([NotNull] SQLiteParser.InSubqueryExprContext context)
