@@ -196,7 +196,7 @@ namespace test
                 var sql = File.ReadAllText(v);
                 var stmt = RawParser.ParseSingleSqlStatement(sql);
                 stmt.Bind(null);
-                Console.WriteLine(stmt.CreatePlan().PrintString(0));
+                Console.WriteLine(stmt.CreatePlan().Explain(0));
             }
             Assert.AreEqual(22, files.Length);
 
@@ -971,7 +971,7 @@ namespace test
                             Output: a.b1[0]+a.b1[0]
                             -> PhysicScanTable b  (actual rows=3)
                                 Output: b.b1[0]";
-            TU.PlanAssertEqual(answer, phyplan.PrintString(0));
+            TU.PlanAssertEqual(answer, phyplan.Explain(0));
             sql = "select b1+c1 from (select b1 from b) a, (select c1 from c) c where c1>1";
             stmt = RawParser.ParseSingleSqlStatement(sql);
             stmt.Exec(); phyplan = stmt.physicPlan_;    // FIXME: filter is still there
@@ -988,7 +988,7 @@ namespace test
                                 Output: c.c1[0]
                                 -> PhysicScanTable c (actual rows=3, loops=3)
                                     Output: c.c1[0]";
-            TU.PlanAssertEqual(answer, phyplan.PrintString(0));
+            TU.PlanAssertEqual(answer, phyplan.Explain(0));
             var result = ExecuteSQL(sql);
             Assert.AreEqual(3, result.Count);
             Assert.AreEqual("2", result[0].ToString());
@@ -1008,7 +1008,7 @@ namespace test
                             Output: c.c1[0],c.c2[1]
                             -> PhysicScanTable c (actual rows=3, loops=3)
                                 Output: c.c1[0],c.c2[1]";
-            TU.PlanAssertEqual(answer, phyplan.PrintString(0));
+            TU.PlanAssertEqual(answer, phyplan.Explain(0));
             result = ExecuteSQL(sql);
             Assert.AreEqual("1;2;3", string.Join(";", result));
         }

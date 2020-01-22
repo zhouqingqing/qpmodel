@@ -26,6 +26,8 @@ namespace adb.logic
         public PhysicNode physicPlan_;
 
         // others
+        public bool explainOnly_ = false;
+        public ExplainOption explain_ = new ExplainOption();
         public QueryOption queryOpt_ = new QueryOption();
 
         // DEBUG support
@@ -50,7 +52,10 @@ namespace adb.logic
                 Optimizer.OptimizeRootPlan(this, null);
                 physicPlan_ = Optimizer.CopyOutOptimalPlan();
             }
+            if (explainOnly_)
+                return null;
 
+            // actual execution is needed
             var result = new PhysicCollect(physicPlan_);
             var context = new ExecContext(queryOpt_);
             var code = result.Open(context);
@@ -64,6 +69,7 @@ namespace adb.logic
             }
             return result.rows_;
         }
+
         public static List<Row> ExecSQL(string sql, out string physicplan, out string error, QueryOption option = null)
         {
             try
@@ -72,7 +78,7 @@ namespace adb.logic
                 if (option != null)
                     stmt.queryOpt_ = option;
                 var result = stmt.Exec();
-                physicplan = stmt.physicPlan_.PrintString(0);
+                physicplan = stmt.physicPlan_.Explain(0);
                 error = "";
                 return result;
             }

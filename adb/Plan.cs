@@ -37,10 +37,10 @@ namespace adb.logic
         public OptimizeOption optimize_ = new OptimizeOption();
     }
 
-    public static class ExplainOption {
+    public class ExplainOption {
         public static bool show_tablename_ = true;
-        public static bool costoff_ = true;
-        public static bool show_output = true;
+        public bool show_cost_ = false;
+        public bool show_output_ = true;
     }
 
     public abstract class PlanNode<T> where T : PlanNode<T>
@@ -54,9 +54,9 @@ namespace adb.logic
         public T r_() { Debug.Assert(children_.Count == 2); return children_[1]; }
 
         // print utilities
-        public virtual string PrintOutput(int depth) => null;
-        public virtual string PrintInlineDetails(int depth) => null;
-        public virtual string PrintMoreDetails(int depth) => null;
+        public virtual string ExplainOutput(int depth) => null;
+        public virtual string ExplainInlineDetails(int depth) => null;
+        public virtual string ExplainMoreDetails(int depth) => null;
         protected string PrintFilter(Expr filter, int depth)
         {
             string r = null;
@@ -69,9 +69,12 @@ namespace adb.logic
             return r;
         }
 
-        public string PrintString(int depth)
+        public string Explain(int depth = 0, ExplainOption option = null)
         {
             string r = null;
+            bool exp_showcost = option?.show_cost_ ?? false;
+            bool exp_output = option?.show_output_ ?? true;
+
             if (!(this is PhysicProfiling))
             {
                 r = Utils.Tabs(depth);
@@ -79,11 +82,11 @@ namespace adb.logic
                     r += "-> ";
 
                 // print line of <nodeName> : <Estimation> <Actual>
-                r += $"{this.GetType().Name} {PrintInlineDetails(depth)}";
+                r += $"{this.GetType().Name} {ExplainInlineDetails(depth)}";
                 var phynode = this as PhysicNode;
                 if (phynode != null && phynode.profile_ != null)
                 {
-                    if (!ExplainOption.costoff_)
+                    if (exp_showcost)
                         r += $" (cost={phynode.Cost()}, rows={phynode.logic_.EstCardinality()})";
 
                     var profile = phynode.profile_;
@@ -93,10 +96,10 @@ namespace adb.logic
                         r += $" (actual rows={profile.nrows_ / profile.nloops_}, loops={profile.nloops_})";
                 }
                 r += "\n";
-                var details = PrintMoreDetails(depth);
+                var details = ExplainMoreDetails(depth);
 
                 // print current node's output
-                var output = ExplainOption.show_output? PrintOutput(depth): null;
+                var output = exp_output ? ExplainOutput(depth): null;
                 if (output != null)
                     r += Utils.Tabs(depth + 2) + output + "\n";
                 if (details != null)
@@ -111,7 +114,7 @@ namespace adb.logic
                 depth += 2;
             }
 
-            children_.ForEach(x => r += x.PrintString(depth));
+            children_.ForEach(x => r += x.Explain(depth, option));
             return r;
         }
 

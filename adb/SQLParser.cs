@@ -468,6 +468,10 @@ namespace adb.sqlparser
         {
             SQLStatement r = null;
 
+            bool isExplain = false;
+            if (context.K_EXPLAIN() != null)
+                isExplain = true;
+
             if (context.select_stmt() != null)
                 r = Visit(context.select_stmt()) as SQLStatement;
             else if (context.create_table_stmt() != null)
@@ -485,6 +489,9 @@ namespace adb.sqlparser
 
             if (r is null)
                 throw new NotImplementedException();
+
+            Debug.Assert(!r.explainOnly_);
+            r.explainOnly_ = isExplain;
             return r;
         }
 
