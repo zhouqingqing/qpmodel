@@ -16,6 +16,7 @@ namespace adb.expr
         public int len_;
         public ColumnType(Type type, int len) { type_ = type; len_ = len; }
 
+        // TODO: data type compatible tests
         public bool Compatible(ColumnType type)
         {
             return true;
@@ -137,8 +138,11 @@ namespace adb.expr
         // list of correlated column used in correlated subqueries
         internal readonly List<ColExpr> colRefedBySubq_ = new List<ColExpr>();
 
+        // cached value
+        protected List<Expr> allColumnsRefs_ = null;
+
         public override string ToString() => $"{alias_}";
-        public Expr LocateColumn(string colAlias)
+        public Expr LocateColumn(string colName)
         {
             // TODO: the logic here only uses alias, but not table. Need polish 
             // here to differentiate alias from different tables
@@ -147,11 +151,11 @@ namespace adb.expr
             var list = AllColumnsRefs();
             foreach (var v in list)
             {
-                if (v.outputName_?.Equals(colAlias) ?? false)
+                if (v.outputName_?.Equals(colName) ?? false)
                     if (r is null)
                         r = v;
                     else
-                        throw new SemanticAnalyzeException($"ambigous column name {colAlias}");
+                        throw new SemanticAnalyzeException($"ambigous column name {colName}");
             }
 
             return r;
@@ -187,7 +191,7 @@ namespace adb.expr
             }
             return false;
         }
-        public abstract List<Expr> AllColumnsRefs();
+        public abstract List<Expr> AllColumnsRefs(bool refresh = false);
     }
 
     // FROM <table> [alias]
@@ -207,17 +211,22 @@ namespace adb.expr
         public override string ToString()
             => (relname_.Equals(alias_)) ? $"{alias_}" : $"{relname_} as {alias_}";
 
-        public override List<Expr> AllColumnsRefs()
+        public override List<Expr> AllColumnsRefs(bool refresh = false)
         {
-            List<Expr> l = new List<Expr>();
-            var columns = Catalog.systable_.TableCols(relname_);
-            foreach (var c in columns)
+            if (allColumnsRefs_ is null || refresh)
             {
-                ColumnDef coldef = c.Value;
-                l.Add(new ColExpr(null, alias_, coldef.name_, coldef.type_));
+                List<Expr> l = new List<Expr>();
+                var columns = Catalog.systable_.TableCols(relname_);
+                foreach (var c in columns)
+                {
+                    ColumnDef coldef = c.Value;
+                    l.Add(new ColExpr(null, alias_, coldef.name_, coldef.type_));
+                }
+
+                allColumnsRefs_ = l;
             }
 
-            return l;
+            return allColumnsRefs_;
         }
     }
 
@@ -237,7 +246,7 @@ namespace adb.expr
         }
 
         public override string ToString() => filename_;
-        public override List<Expr> AllColumnsRefs() => colrefs_;
+        public override List<Expr> AllColumnsRefs(bool refresh = false) => colrefs_;
     }
 
     public abstract class QueryRef : TableRef
@@ -251,31 +260,36 @@ namespace adb.expr
             alias_ = alias;
         }
 
-        public override List<Expr> AllColumnsRefs()
+        public override List<Expr> AllColumnsRefs(bool refresh = false)
         {
-            // make a coopy of selection list and replace their tabref as this
-            var r = new List<Expr>();
-
-            Debug.Assert(query_.bounded_);
-            query_.selection_.ForEach(x =>
+            if (allColumnsRefs_ is null || refresh)
             {
-                var y = x.Clone();
-                y.VisitEachExpr(z =>
-                {
-                    if (z is ColExpr cz)
-                    {
-                        cz.tabRef_ = this;
-                    }
-                });
-                r.Add(y);
-            });
+                // make a coopy of selection list and replace their tabref as this
+                var r = new List<Expr>();
 
-            // it is actually a waste to return as many as selection: if selection item is 
-            // without an alias, there is no way outer layer can references it, thus no need
-            // to output them.
-            //
-            Debug.Assert(r.Count() == query_.selection_.Count());
-            return r;
+                Debug.Assert(query_.bounded_);
+                query_.selection_.ForEach(x =>
+                {
+                    var y = x.Clone();
+                    y.VisitEachExpr(z =>
+                    {
+                        if (z is ColExpr cz)
+                        {
+                            cz.tabRef_ = this;
+                        }
+                    });
+                    r.Add(y);
+                });
+
+                // it is actually a waste to return as many as selection: if selection item is 
+                // without an alias, there is no way outer layer can references it, thus no need
+                // to output them.
+                //
+                Debug.Assert(r.Count() == query_.selection_.Count());
+                allColumnsRefs_ = r;
+            }
+
+            return allColumnsRefs_;
         }
     }
 
@@ -307,37 +321,44 @@ namespace adb.expr
             colOutputNames_ = colOutputNames;
         }
 
-        public override List<Expr> AllColumnsRefs()
+        public override List<Expr> AllColumnsRefs(bool refresh = false)
         {
-            if (colOutputNames_.Count == 0)
-                return base.AllColumnsRefs();
-            else
+            if (allColumnsRefs_ is null || refresh)
             {
-                // column alias count shall be no more than the selection columns
-                if (colOutputNames_.Count > query_.selection_.Count)
-                    throw new SemanticAnalyzeException($"more renamed columns than the output columns");
-
-                var r = new List<Expr>();
-                for (int i = 0; i < colOutputNames_.Count; i++)
+                List<Expr> r = null;
+                if (colOutputNames_.Count == 0)
+                    r = base.AllColumnsRefs();
+                else
                 {
-                    var outName = colOutputNames_[i];
-                    var x = query_.selection_[i];
-                    var y = x.Clone();
-                    y.VisitEachExpr(z =>
-                    {
-                        if (z is ColExpr cz)
-                        {
-                            cz.tabRef_ = this;
-                        }
-                    });
+                    r = new List<Expr>();
+                    // column alias count shall be no more than the selection columns
+                    if (colOutputNames_.Count > query_.selection_.Count)
+                        throw new SemanticAnalyzeException($"more renamed columns than the output columns");
 
-                    y.outputName_ = outName;
-                    r.Add(y);
+                    for (int i = 0; i < colOutputNames_.Count; i++)
+                    {
+                        var outName = colOutputNames_[i];
+                        var x = query_.selection_[i];
+                        var y = x.Clone();
+                        y.VisitEachExpr(z =>
+                        {
+                            if (z is ColExpr cz)
+                            {
+                                cz.tabRef_ = this;
+                            }
+                        });
+
+                        y.outputName_ = outName;
+                        r.Add(y);
+                    }
+
+                    Debug.Assert(r.Count == colOutputNames_.Count);
                 }
 
-                Debug.Assert(r.Count == colOutputNames_.Count);
-                return r;
+                allColumnsRefs_ = r;
             }
+
+            return allColumnsRefs_;
         }
 
         // map the outside outputName to inside Expr
@@ -399,11 +420,16 @@ namespace adb.expr
             constraints_ = constraints;
         }
 
-        public override List<Expr> AllColumnsRefs()
+        public override List<Expr> AllColumnsRefs(bool refresh = false)
         {
-            List<Expr> r = new List<Expr>();
-            tables_.ForEach(x => r.AddRange(x.AllColumnsRefs()));
-            return r;
+            if (allColumnsRefs_ is null || refresh)
+            {
+                List<Expr> r = new List<Expr>();
+                tables_.ForEach(x => r.AddRange(x.AllColumnsRefs()));
+                allColumnsRefs_ = r;
+            }
+
+            return allColumnsRefs_;
         }
     }
 }

@@ -34,7 +34,7 @@ namespace adb.optimizer
 
         internal CMemoGroup group_;
 
-        internal QueryOption QOption() => group_.memo_.stmt_.queryOpt_;
+        internal QueryOption QueryOption() => group_.memo_.stmt_.queryOpt_;
 
         internal LogicNode Logic() {
             LogicNode logic;
@@ -45,7 +45,7 @@ namespace adb.optimizer
             Debug.Assert(!(logic is LogicMemoRef));
             return logic;
         }
-        internal int MemoSignature() => Logic().MemoLogicSign();
+        internal LogicSignature MemoSignature() => Logic().MemoLogicSign();
 
         public CGroupMember(LogicNode node, CMemoGroup group) {
             logic_ = node; group_ = group;
@@ -124,13 +124,18 @@ namespace adb.optimizer
             {
                 if (rule.Appliable(this))
                 {
+                    // apply rule: sometimes it may simply returns the old member
                     var newmember = rule.Apply(this);
+                    if (newmember == this)
+                        continue;
+
+                    // enqueue the new member
                     var newlogic = newmember.Logic();
                     memo.EnquePlan(newlogic);
-
                     if (!list.Contains(newmember))
                         list.Add(newmember);
-                    // newmember shall have the same signature as old ones
+
+                    // do some verification: newmember shall have the same signature as old ones
                     if (newlogic.MemoLogicSign() != list[0].MemoSignature())
                     {
                         Console.WriteLine("********* list[0]");
@@ -368,18 +373,16 @@ namespace adb.optimizer
             // bottom up equeue all nodes
             if (!plan.IsLeaf())
             {
-                foreach (var v in plan.children_)
-                    EnquePlan(v);
-
-                // now all children in the memo, convert the plan with children 
-                // replaced by memo cgroup
-                var children = new List<LogicNode>();
-                foreach (var v in plan.children_)
+                for (int i = 0; i < plan.children_.Count; i++)
                 {
-                    var child = LookupCGroup(v);
-                    children.Add(new LogicMemoRef(child));
+                    var child = plan.children_[i];
+                    var group = EnquePlan(child);
+					Debug.Assert (group == LookupCGroup(child));
+
+                    // now the child is in the memo, convert the plan with children 
+                    // replaced by memo cgroup
+                    plan.children_[i] = new LogicMemoRef(group);
                 }
-                plan.children_ = children;
             }
             return TryInsertCGroup(plan);
         }
@@ -425,6 +428,7 @@ namespace adb.optimizer
         public static void InitRootPlan(SQLStatement stmt)
         {
             // call once
+            Rule.Init(stmt.queryOpt_);
             topstmt_ = stmt;
             memoset_.Clear();
         }

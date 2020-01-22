@@ -7,6 +7,7 @@ using Value = System.Object;
 using adb.logic;
 using adb.physic;
 using adb.utils;
+using adb.index;
 
 namespace adb.expr
 {
@@ -73,19 +74,19 @@ namespace adb.expr
 
         // column APIs
         //
-        public TableRef GetTableRef(string tabAlias, string colAlias)
+        public TableRef GetTableRef(string tabName, string colName)
         {
-            TableRef locateByColumnName(string colAlias)
+            TableRef locateByColumnName(string colName)
             {
-                var result = AllTableRefs().FirstOrDefault(x => x.LocateColumn(colAlias) != null);
-                if (result != AllTableRefs().LastOrDefault(x => x.LocateColumn(colAlias) != null))
-                    throw new SemanticAnalyzeException($"ambigous column name: {colAlias}");
+                var result = AllTableRefs().FirstOrDefault(x => x.LocateColumn(colName) != null);
+                if (result != AllTableRefs().LastOrDefault(x => x.LocateColumn(colName) != null))
+                    throw new SemanticAnalyzeException($"ambigous column name: {colName}");
                 return result;
             }
-            if (tabAlias is null)
-                return locateByColumnName(colAlias);
+            if (tabName is null)
+                return locateByColumnName(colName);
             else
-                return Table(tabAlias);
+                return Table(tabName);
         }
         public int ColumnOrdinal(string tabAlias, string colAlias, out ColumnType type)
         {
@@ -320,22 +321,27 @@ namespace adb.expr
 
         // suppport forms
         //   a.i =|>|< 5
-        public static bool FilterCanUseIndex(this Expr filter, BaseTableRef table)
+        public static IndexDef FilterCanUseIndex(this Expr filter, BaseTableRef table)
         {
             string[] indexops = {"=", ">=", "<=", ">", "<"};
             Debug.Assert(filter.IsBoolean());
-            if (table.Table().indexes_.Count == 0)
-                return false;
 
+            IndexDef ret = null;
             if (filter is BinExpr fb)
             {
                 // expression is already normalized, so no swap side shall considered
                 Debug.Assert(!(fb.l_() is LiteralExpr && fb.r_() is ColExpr));
-                if (indexops.Contains(fb.op_) && fb.l_() is ColExpr && fb.r_() is LiteralExpr)
-                    return true;
+                if (indexops.Contains(fb.op_) && fb.l_() is ColExpr cl && fb.r_() is LiteralExpr)
+                {
+                    var index = table.Table().IndexContains(cl.colName_);
+                    if (index != null) {
+                        if (index.columns_[0].Equals(cl.colName_))
+                            ret = index;
+                    }
+                }
             }
 
-            return false;
+            return ret;
         }
 
         // 2 < a.i => a.i > 2
@@ -522,9 +528,8 @@ namespace adb.expr
                     if (v.VisitEachExistsT(check, excluding))
                         return true;
                 }
-                return false;
             }
-            return true;
+            return r;
         }
 
         public bool VisitEachExprExists(Func<Expr, bool> check, List<Type> excluding = null) 
@@ -868,6 +873,12 @@ namespace adb.expr
                     throw new SemanticAnalyzeException($"can't bind column '{colName_}' to table");
             }
 
+            // we have identified the tableRef this belongs to, make sure outputName not conflicting
+            // Eg. select c1 as c2, ... from c
+            if (!outputName_.Equals(colName_) &&
+                tabRef_.LocateColumn(outputName_) != null)
+                throw new SemanticAnalyzeException($"conflicting output name {outputName_} is not allowed");
+
             Debug.Assert(tabRef_ != null);
             if (!isParameter_)
             {
@@ -968,17 +979,6 @@ namespace adb.expr
         {
             children_.Add(expr); descend_ = descend;
         }
-    }
-
-    public class UnaryExpr : Expr {
-        internal bool hasNot_;
-
-        internal Expr expr_() => children_[0];
-        public UnaryExpr(Expr expr, bool hasNot) {
-            hasNot_ = hasNot;
-            children_.Add(expr);
-        }
-        public override string ToString() => $"{(hasNot_?"not ":"")}{expr_()}";
     }
 
     public class LiteralExpr : Expr

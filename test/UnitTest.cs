@@ -144,6 +144,10 @@ namespace test
         }
 
         [TestMethod]
+        public void TestCreateIndex()
+        { }
+
+        [TestMethod]
         public void TestAnalyze()
         {
             var sql = "analyze a;";
@@ -576,15 +580,15 @@ namespace test
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
             sql = "select c100 from (select c1 c100 from c) c where c100>1";
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            sql = "select * from (select a1*a2 a12, a1 a2 from a) b(a12);";
+            sql = "select * from (select a1*a2 a12, a1 a7 from a) b(a12);";
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            sql = "select * from (select a1*a2 a12, a1 a3 from a) b;";
+            sql = "select * from (select a1*a2 a12, a1 a7 from a) b;";
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
             sql = "select *, cd.* from (select a.* from a join b on a1=b1) ab , (select c1 , c3 from c join d on c1=d1) cd where ab.a1=cd.c1";
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
             sql = "select * from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where ab.a1=cd.c1";
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            sql = "select a12*a12 from (select a1*a2 a12, a1 a3 from a) b;";
+            sql = "select a12*a12 from (select a1*a2 a12, a1 a7 from a) b;";
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
             sql = "select a2, count(*), sum(a2) from (select a2 from a) b where a2*a2> 1 group by a2;";
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
@@ -772,12 +776,17 @@ namespace test
             sql = "select a.b1+c.b1 from (select count(*) as b1 from b) a, (select c1 b1 from c) c where c.b1>1;"; TU.ExecuteSQL(sql, "5");
             sql = "select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) and b.b1 > (select c2 / 2 from c where c.c2 = b2);"; TU.ExecuteSQL(sql, "2");
             sql = "select b1 from b where  b.b2 > (select c2 / 2 from c where c.c3 = b3) and b.b1 > (select c2 / 2 from c where c.c3 = b3);"; TU.ExecuteSQL(sql, "2");
-            sql = "select a1*a2 a12, a1 a3 from a;"; TU.ExecuteSQL(sql, "0,0;2,1;6,2");
-            sql = "select * from (select a1*a2 a12, a1 a3 from a) b;"; TU.ExecuteSQL(sql, "0,0;2,1;6,2");
-            sql = "select * from (select a1*a2 a12, a1 a2 from a) b(a12, a3);"; TU.ExecuteSQL(sql, "0,0;2,1;6,2");
+            sql = "select a1*a2 a12, a1 a6 from a;"; TU.ExecuteSQL(sql, "0,0;2,1;6,2");
+            sql = "select * from (select a1*a2 a12, a1 a6 from a) b;"; TU.ExecuteSQL(sql, "0,0;2,1;6,2");
+            sql = "select * from (select a1*a2 a12, a1 a9 from a) b(a12, a9);"; TU.ExecuteSQL(sql, "0,0;2,1;6,2");
             sql = "select count(*)+1 from (select b1+c1 from (select b1 from b) a, (select c1,c2 from c) c(c1,c3) where c3>1) a;"; TU.ExecuteSQL(sql, "7");
 
-            sql = "select a1 as a2, a2 from a where a2>2;"; TU.ExecuteSQL(sql, "2,3");
+            sql = "select a1 as a5, a2 from a where a2>2;"; TU.ExecuteSQL(sql, "2,3");
+
+            sql = "select c1 as c2, c3 from c join d on c1 = d1 and c2=d1;";
+            result = TU.ExecuteSQL(sql); Assert.IsNull(result);
+            Assert.IsTrue(TU.error_.Contains("SemanticAnalyzeException"));
+            sql = "select c2, c1+c1 as c2, c3 from c join d on c1 = d1 and (c2+c2)>d1;"; TU.ExecuteSQL(sql, "1,0,2;2,2,3;3,4,4");
 
             // table alias
             sql = "select * from a , a;";
@@ -1202,6 +1211,7 @@ namespace test
             result = ExecuteSQL(sql); Assert.AreEqual("1;2", string.Join(";", result));
             sql = " select count(a2) as ca2 from a group by a1/2 order by 1;";
             result = ExecuteSQL(sql); Assert.AreEqual("1;2", string.Join(";", result));
+            sql = "select -a1/2, -a2 from a order by -a1/2 desc, -a2 asc;"; TU.ExecuteSQL(sql, "0,-2;0,-1;-1,-3");
         }
 
         [TestMethod]
@@ -1221,7 +1231,7 @@ namespace test
         {
             string phyplan;
             var option =new QueryOption();
-            option.optimize_.use_memo_ = false;
+            option.optimize_.use_memo_ = false; // because of costs
 
             var sql = "select * from d where 1*3-1=d1;";
             var result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
@@ -1230,7 +1240,7 @@ namespace test
             sql = "select * from d where 1<d1;";
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicIndexSeek"));
-            Assert.AreEqual("", string.Join(";", result)); // FIXME
+            Assert.AreEqual("2,2,,5;3,3,5,6", string.Join(";", result));
         }
 
         [TestMethod]

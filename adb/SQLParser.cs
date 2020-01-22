@@ -41,6 +41,14 @@ namespace adb.sqlparser
     // antlr visitor pattern parser
     class SQLiteVisitor : SQLiteBaseVisitor<object>
     {
+        string GetRawText(ParserRuleContext context)
+        {
+            int a = context.Start.StartIndex;
+            int b = context.Stop.StopIndex;
+            Interval interval = new Interval(a, b);
+            return context.Start.InputStream.GetText(interval);
+        }
+
         public override object VisitDateStringLiteral([NotNull] SQLiteParser.DateStringLiteralContext context)
             => new LiteralExpr(context.STRING_LITERAL().GetText(), new DateTimeType());
         public override object VisitIntervalLiteral([NotNull] SQLiteParser.IntervalLiteralContext context)
@@ -116,16 +124,16 @@ namespace adb.sqlparser
 
         public override object VisitUnaryexpr([NotNull] SQLiteParser.UnaryexprContext context)
         {
-            bool hasNot = (context.unary_operator().K_NOT() != null);
+            string op = context.unary_operator().GetText();
             var expr = Visit(context.expr()) as Expr;
             if (expr is ExistSubqueryExpr ee)
             {
                 // ExistsSubquery needs to get hasNot together for easier processing
-                ee.hasNot_ = hasNot;
+                ee.hasNot_ = (context.unary_operator().K_NOT() != null);
                 return ee;
             }
             else
-                return new UnaryExpr(expr, hasNot);
+                return new UnaryExpr(op, expr);
         }
 
         public override object VisitInSubqueryExpr([NotNull] SQLiteParser.InSubqueryExprContext context)
@@ -344,7 +352,7 @@ namespace adb.sqlparser
 
             // seqts[0] is also expanded to main body
             return new SelectStmt(setqs[0].selection_, setqs[0].from_, setqs[0].where_, setqs[0].groupby_, setqs[0].having_,
-                                    ctes, setqs, orders, limit, context.GetText());
+                                    ctes, setqs, orders, limit, GetRawText(context));
         }
 
         public override object VisitType_name([NotNull] SQLiteParser.Type_nameContext context)
@@ -489,7 +497,7 @@ namespace adb.sqlparser
                 list.Add(stmt);
             }
 
-            return new StatementList(list, context.GetText());
+            return new StatementList(list, GetRawText(context));
         }
     }
 }
