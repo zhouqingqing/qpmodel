@@ -84,6 +84,14 @@ namespace adb.logic
                 return null;
             }
         }
+
+        public static string ExecSQLList(string sqls, QueryOption option = null)
+        {
+            StatementList stmts = RawParser.ParseSqlStatements(sqls);
+            if (option != null)
+                stmts.queryOpt_ = option;
+            return stmts.ExecList();
+        }
     }
 
     public class StatementList: SQLStatement
@@ -102,6 +110,22 @@ namespace adb.logic
             {
                 v.queryOpt_ = queryOpt_;
                 result = v.Exec();
+            }
+            return result;
+        }
+
+        public string ExecList()
+        {
+            string result = "";
+            foreach (var v in list_)
+            {
+                v.queryOpt_ = queryOpt_;
+                var rows = ExecSQL(v.text_, out string plan, out _);
+
+                // format: <sql> <plan> <result>
+                result += v.text_ + "\n";
+                result += plan;
+                result += string.Join("\n", rows) + "\n\n";
             }
             return result;
         }
