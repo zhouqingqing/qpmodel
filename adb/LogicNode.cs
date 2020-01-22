@@ -9,6 +9,8 @@ using adb.index;
 using adb.optimizer;
 using adb.utils;
 
+using LogicSignature = System.Int64;
+
 namespace adb.logic
 {
     public class SemanticAnalyzeException : Exception
@@ -27,6 +29,11 @@ namespace adb.logic
         public List<Expr> output_ = new List<Expr>();
         public long card_ = CARD_INVALID;
 
+        // these fields are used to avoid recompute - be careful with stale caching
+        protected List<TableRef> tableRefs_ = null;
+        // it is possible to really have this value but ok to recompute
+        protected LogicSignature logicSign_ = -1;
+
         public override string PrintMoreDetails(int depth) => PrintFilter(filter_, depth);
 
         public override string PrintOutput(int depth)
@@ -43,113 +50,118 @@ namespace adb.logic
         // This is an honest translation from logic to physical plan
         public PhysicNode DirectToPhysical(QueryOption option)
         {
-            PhysicNode root = null;
-            TraversEachNode(n =>
+            PhysicNode phy;
+            switch (this)
             {
-                PhysicNode phy;
-                switch (n)
-                {
-                    case LogicScanTable ln:
-                        // if there are indexes can help filter, use them
-                        if (ln.filter_ != null && ln.filter_.FilterCanUseIndex(ln.tabref_))
-                            phy = new PhysicIndexSeek(ln);
-                        else
-                            phy = new PhysicScanTable(ln);
-                        if (ln.filter_ != null)
-                            ln.filter_.SubqueryDirectToPhysic();
-                        break;
-                    case LogicJoin lc:
-                        var l = n.l_();
-                        var r = n.r_();
-                        Debug.Assert(!l.LeftReferencesRight(r));
-                        switch (lc)
-                        {
-                            case LogicSingleMarkJoin lsmj:
-                                phy = new PhysicSingleMarkJoin(lsmj,
+                case LogicScanTable ln:
+                    // if there are indexes can help filter, use them
+                    IndexDef index = null;
+                    if (ln.filter_ != null)
+                    {
+                        if (option.optimize_.enable_indexseek)
+                            index = ln.filter_.FilterCanUseIndex(ln.tabref_);
+                        ln.filter_.SubqueryDirectToPhysic();
+                    }
+                    if (index is null)
+                        phy = new PhysicScanTable(ln);
+                    else
+                        phy = new PhysicIndexSeek(ln, index);
+                    break;
+                case LogicJoin lc:
+                    var l = l_();
+                    var r = r_();
+                    Debug.Assert(!l.LeftReferencesRight(r));
+                    switch (lc)
+                    {
+                        case LogicSingleMarkJoin lsmj:
+                            phy = new PhysicSingleMarkJoin(lsmj,
+                                l.DirectToPhysical(option),
+                                r.DirectToPhysical(option));
+                            break;
+                        case LogicMarkJoin lmj:
+                            phy = new PhysicMarkJoin(lmj,
+                                l.DirectToPhysical(option),
+                                r.DirectToPhysical(option));
+                            break;
+                        default:
+                            // one restriction of HJ is that if build side has columns used by probe side
+                            // subquries, we need to use NLJ to pass variables. It is can be fixed by changing
+                            // the way we pass parameters though.
+                            bool lhasSubqCol = TableRef.HasColsUsedBySubquries(l.InclusiveTableRefs());
+                            if (lc.filter_.FilterHashable() && !lhasSubqCol)
+                                phy = new PhysicHashJoin(lc,
                                     l.DirectToPhysical(option),
                                     r.DirectToPhysical(option));
-                                break;
-                            case LogicMarkJoin lmj:
-                                phy = new PhysicMarkJoin(lmj,
+                            else
+                                phy = new PhysicNLJoin(lc,
                                     l.DirectToPhysical(option),
                                     r.DirectToPhysical(option));
-                                break;
-                            default:
-                                // one restriction of HJ is that if build side has columns used by probe side
-                                // subquries, we need to use NLJ to pass variables. It is can be fixed by changing
-                                // the way we pass parameters though.
-                                bool lhasSubqCol = TableRef.HasColsUsedBySubquries(l.InclusiveTableRefs());
-                                if (lc.filter_.FilterHashable() && !lhasSubqCol)
-                                    phy = new PhysicHashJoin(lc,
-                                        l.DirectToPhysical(option),
-                                        r.DirectToPhysical(option));
-                                else
-                                    phy = new PhysicNLJoin(lc,
-                                        l.DirectToPhysical(option),
-                                        r.DirectToPhysical(option));
-                                break;
-                        }
-                        break;
-                    case LogicResult lr:
-                        phy = new PhysicResult(lr);
-                        break;
-                    case LogicFromQuery ls:
-                        phy = new PhysicFromQuery(ls, n.child_().DirectToPhysical(option));
-                        break;
-                    case LogicFilter lf:
-                        phy = new PhysicFilter(lf, n.child_().DirectToPhysical(option));
-                        if (lf.filter_ != null)
-                            lf.filter_.SubqueryDirectToPhysic();
-                        break;
-                    case LogicInsert li:
-                        phy = new PhysicInsert(li, n.child_().DirectToPhysical(option));
-                        break;
-                    case LogicScanFile le:
-                        phy = new PhysicScanFile(le);
-                        break;
-                    case LogicAgg la:
-                        phy = new PhysicHashAgg(la, n.child_().DirectToPhysical(option));
-                        break;
-                    case LogicOrder lo:
-                        phy = new PhysicOrder(lo, n.child_().DirectToPhysical(option));
-                        break;
-                    case LogicAnalyze lan:
-                        phy = new PhysicAnalyze(lan, n.child_().DirectToPhysical(option));
-                        break;
-                    case LogicIndex lindex:
-                        phy = new PhysicIndex(lindex, n.child_().DirectToPhysical(option));
-                        break;
-                    case LogicLimit limit:
-                        phy = new PhysicLimit(limit, n.child_().DirectToPhysical(option));
-                        break;
-                    default:
-                        throw new NotImplementedException();
-                }
+                            break;
+                    }
+                    break;
+                case LogicResult lr:
+                    phy = new PhysicResult(lr);
+                    break;
+                case LogicFromQuery ls:
+                    phy = new PhysicFromQuery(ls, child_().DirectToPhysical(option));
+                    break;
+                case LogicFilter lf:
+                    phy = new PhysicFilter(lf, child_().DirectToPhysical(option));
+                    if (lf.filter_ != null)
+                        lf.filter_.SubqueryDirectToPhysic();
+                    break;
+                case LogicInsert li:
+                    phy = new PhysicInsert(li, child_().DirectToPhysical(option));
+                    break;
+                case LogicScanFile le:
+                    phy = new PhysicScanFile(le);
+                    break;
+                case LogicAgg la:
+                    phy = new PhysicHashAgg(la, child_().DirectToPhysical(option));
+                    break;
+                case LogicOrder lo:
+                    phy = new PhysicOrder(lo, child_().DirectToPhysical(option));
+                    break;
+                case LogicAnalyze lan:
+                    phy = new PhysicAnalyze(lan, child_().DirectToPhysical(option));
+                    break;
+                case LogicIndex lindex:
+                    phy = new PhysicIndex(lindex, child_().DirectToPhysical(option));
+                    break;
+                case LogicLimit limit:
+                    phy = new PhysicLimit(limit, child_().DirectToPhysical(option));
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
 
-                if (option.profile_.enabled_)
-                    phy = new PhysicProfiling(phy);
-
-                if (root is null)
-                    root = phy;
-            });
-
-            return root;
+            if (option.profile_.enabled_)
+                phy = new PhysicProfiling(phy);
+            return phy;
         }
 
-        public List<TableRef> InclusiveTableRefs()
+        public List<TableRef> InclusiveTableRefs(bool refresh = false)
         {
-            List<TableRef> refs = new List<TableRef>();
-            TraversEachNode(x =>
+            if (tableRefs_ is null || refresh)
             {
-                if (x is LogicScanTable gx)
+                List<TableRef> refs = new List<TableRef>();
+                if (this is LogicScanTable gx)
                     refs.Add(gx.tabref_);
-                else if (x is LogicFromQuery fx)
+                else if (this is LogicFromQuery fx)
                 {
                     refs.Add(fx.queryRef_);
                     refs.AddRange(fx.queryRef_.query_.bindContext_.AllTableRefs());
                 }
-            });
-            return refs;
+                else 
+                {
+                    foreach (var v in children_)
+                        refs.AddRange(v.InclusiveTableRefs(refresh));
+                }
+
+                tableRefs_ = refs;
+            }
+
+            return tableRefs_;
         }
 
         internal Expr CloneFixColumnOrdinal(Expr toclone, List<Expr> source)
@@ -215,7 +227,12 @@ namespace adb.logic
             return clone;
         }
 
-        public virtual int MemoLogicSign() => GetHashCode();
+        public virtual LogicSignature MemoLogicSign()
+        {
+            if (logicSign_ is -1)
+                logicSign_ = GetHashCode();
+            return logicSign_;
+        }
 
         // resolve mapping from children output
         // 1. you shall first compute the reqOutput by accouting parent's reqOutput and your filter etc
@@ -254,7 +271,6 @@ namespace adb.logic
         }
 
         public List<Expr> RetrieveCorrelatedFilters() => RetrieveCorrelated(false);
-        public List<Expr> RetrieveCorrelatedCols() => RetrieveCorrelated(true);
     }
 
     public static class LogicHelper {
@@ -312,8 +328,8 @@ namespace adb.logic
         }
         public override string ToString() => group_.ToString();
 
-        public override int MemoLogicSign() => Deref().MemoLogicSign();
-        public override int GetHashCode() => MemoLogicSign();
+        public override LogicSignature MemoLogicSign() => Deref().MemoLogicSign();
+        public override int GetHashCode() => (int)MemoLogicSign();
         public override bool Equals(object obj) 
         {
             if (obj is LogicMemoRef lo)
@@ -357,19 +373,26 @@ namespace adb.logic
 
         public bool IsInnerJoin() => type_ == JoinType.InnerJoin && !(this is LogicMarkJoin);
 
-        public override int MemoLogicSign() {
-            var filterhash = 0;
-            if (filter_ != null) {
-                // consider the case:
-                //   A X (B X C on f3) on f1 AND f2
-                // is equal to commutative transformation
-                //   (A X B on f1) X C on f3 AND f2
-                // The filter signature generation has to be able to accomomdate this difference.
-                //
-                var andlist = filter_.FilterToAndList();
-                filterhash = andlist.ListHashCode();
+        public override LogicSignature MemoLogicSign() {
+            if (logicSign_ == -1)
+            {
+                var filterhash = 0;
+                if (filter_ != null)
+                {
+                    // consider the case:
+                    //   A X (B X C on f3) on f1 AND f2
+                    // is equal to commutative transformation
+                    //   (A X B on f1) X C on f3 AND f2
+                    // The filter signature generation has to be able to accomomdate this difference.
+                    //
+                    var andlist = filter_.FilterToAndList();
+                    filterhash = andlist.ListHashCode();
+                }
+
+                logicSign_ = l_().MemoLogicSign() ^ r_().MemoLogicSign() ^ filterhash;
             }
-            return l_().MemoLogicSign() ^ r_().MemoLogicSign() ^ filterhash;
+
+            return logicSign_;
         }
 
         public override int GetHashCode()

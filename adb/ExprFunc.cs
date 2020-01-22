@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
 
+using adb.logic;
 using adb.physic;
 using adb.utils;
 
@@ -590,6 +591,41 @@ namespace adb.expr
             return null;
         }
     }
+
+    public class UnaryExpr : Expr
+    {
+        internal string op_;
+
+        internal Expr arg_() => children_[0];
+        public UnaryExpr(string op, Expr expr)
+        {
+            string[] supportops = { "+", "-" };
+
+            if (!supportops.Contains(op))
+                throw new SemanticAnalyzeException($"{op} on {expr} is not supported");
+            op_ = op;
+            children_.Add(expr);
+        }
+
+        public override void Bind(BindContext context)
+        {
+            base.Bind(context);
+            type_ = arg_().type_;
+        }
+        public override string ToString() => $"{op_}{arg_()}";
+        public override object Exec(ExecContext context, Row input)
+        {
+            Value arg = arg_().Exec(context, input);
+            switch (op_)
+            {
+                case "-":
+                    return -(dynamic)arg;
+                default:
+                    return arg;
+            }
+        }
+    }
+
 
     // we can actually put all binary ops in BinExpr class but we want to keep 
     // some special ones (say AND/OR) so we can coding easier

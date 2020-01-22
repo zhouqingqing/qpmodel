@@ -8,6 +8,7 @@ using adb.logic;
 using adb.utils;
 using adb.optimizer;
 using adb.codegen;
+using adb.index;
 
 using Value = System.Object;
 
@@ -224,20 +225,26 @@ namespace adb.physic
 
     public class PhysicIndexSeek : PhysicNode
     {
-        public PhysicIndexSeek(LogicNode logic) : base(logic) { }
-        public override string ToString() => $"ISeek({(logic_ as LogicScanTable).tabref_}: {Cost()})";
+        public IndexDef index_;
+
+        public PhysicIndexSeek(LogicNode logic, IndexDef index) : base(logic) { index_ = index; }
+
+        public override string PrintInlineDetails(int depth) => $"{index_}";
+        public override string ToString() => $"ISeek({index_}: {Cost()})";
 
         public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicScanTable;
-            var filter = logic.filter_;
-            var index = (logic.tabref_).Table().indexes_[0].index_;
+            var filter = logic.filter_ as BinExpr;
+            var index = index_.index_;
 
-            bool ok = (filter as BinExpr).r_().TryEvalConst(out Value searchval);
+            bool ok = filter.r_().TryEvalConst(out Value searchval);
             Debug.Assert(ok);
             KeyList key = new KeyList(1);
             key[0] = searchval;
-            var rlist = index.Search(key);
+            var rlist = index.Search(filter.op_, key);
+            if (rlist is null)
+                return null;
             foreach (var r in rlist)
             {
                 if (logic.tabref_.colRefedBySubq_.Count != 0)
@@ -435,11 +442,11 @@ namespace adb.physic
     }
 
     // Key list is a special row
-    internal class KeyList: Row
+    public class KeyList: Row
     {
         public KeyList(int length): base(length){}
 
-        static internal KeyList ComputeKeys(ExecContext context, List<Expr> keys, Row input)
+        static public KeyList ComputeKeys(ExecContext context, List<Expr> keys, Row input)
         {
             if (keys != null) {
                 var list = new KeyList(keys.Count);
@@ -647,6 +654,8 @@ namespace adb.physic
 
     public class PhysicOrder : PhysicNode
     {
+        ExecContext context_;
+
         public PhysicOrder(LogicOrder logic, PhysicNode l) : base(logic) => children_.Add(l);
         public override string ToString() => $"POrder({child_()}: {Cost()})";
 
@@ -657,12 +666,16 @@ namespace adb.physic
             var orders = logic.orders_;
             var descends = logic.descends_;
 
-            return l.CompareTo(r);
+            var lkey = KeyList.ComputeKeys(context_, orders, l);
+            var rkey = KeyList.ComputeKeys(context_, orders, r);
+            return lkey.CompareTo(rkey, descends);
         }
         public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicOrder;
             var set = new List<Row>();
+            context_ = context;
+
             child_().Exec(context, l =>
             {
                 set.Add(l);

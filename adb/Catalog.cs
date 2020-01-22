@@ -55,6 +55,15 @@ namespace adb
             columns_.TryGetValue(column, out var value);
             return value;
         }
+
+        public IndexDef IndexContains(string column) 
+        {
+            foreach (var v in indexes_) {
+                if (v.columns_.Contains(column))
+                    return v;
+            }
+            return null;
+        }
     }
 
     public class SystemTable
