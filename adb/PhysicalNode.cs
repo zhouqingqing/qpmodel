@@ -654,6 +654,8 @@ namespace adb.physic
 
     public class PhysicOrder : PhysicNode
     {
+        ExecContext context_;
+
         public PhysicOrder(LogicOrder logic, PhysicNode l) : base(logic) => children_.Add(l);
         public override string ToString() => $"POrder({child_()}: {Cost()})";
 
@@ -664,12 +666,16 @@ namespace adb.physic
             var orders = logic.orders_;
             var descends = logic.descends_;
 
-            return l.CompareTo(r);
+            var lkey = KeyList.ComputeKeys(context_, orders, l);
+            var rkey = KeyList.ComputeKeys(context_, orders, r);
+            return lkey.CompareTo(rkey, descends);
         }
         public override string Exec(ExecContext context, Func<Row, string> callback)
         {
             var logic = logic_ as LogicOrder;
             var set = new List<Row>();
+            context_ = context;
+
             child_().Exec(context, l =>
             {
                 set.Add(l);
