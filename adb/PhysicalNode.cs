@@ -37,6 +37,7 @@ namespace adb.physic
         public override string ExplainMoreDetails(int depth) => logic_.ExplainMoreDetails(depth);
 
         public virtual string Open(ExecContext context){
+            string s = null;
             context_ = context;
             if (context.option_.optimize_.use_codegen_)
             {
@@ -44,10 +45,12 @@ namespace adb.physic
                 _ = ObjectID.NewId().ToString();
                 _logic_ = $"{logic_?.GetType().Name}{_}";
                 _physic_ = $"{this.GetType().Name}{_}";
+                s += CreateCommonNames();
             }
 
-            string s = ""; children_.ForEach(x => s += x.Open(context)); return s;
+            children_.ForEach(x => s += x.Open(context)); return s;
         }
+
         public virtual string Close() {
             string s = ""; children_.ForEach(x => s += x.Close()); return s;
         }
@@ -94,16 +97,21 @@ namespace adb.physic
             return target;
         }
 
-        protected string CreateCommonNames(ExecContext context) {
-            Debug.Assert(context.option_.optimize_.use_codegen_);
+        protected string CreateCommonNames() {
+            Debug.Assert(context_.option_.optimize_.use_codegen_);
 
             var phytype = GetType().Name;
-            var logtype = logic_?.GetType().Name;
+            string logicfilter = null;
+            if (logic_ != null)
+            {
+                var logtype = logic_.GetType().Name;
+                logicfilter = $@"
+                    {logtype} {_logic_} = {_physic_}.logic_ as {logtype};
+                    var filter{_} = {_logic_}.filter_;";
+            }
             string s = $@"
                 {phytype} {_physic_}  = stmt.physicPlan_.Locate(""{_}"") as {phytype};
-                {logtype} {_logic_} = {_physic_}.logic_ as {logtype};
-                var filter{_} = {_logic_}.filter_;
-                ";
+                {logicfilter}";
             return s;
         }
 
@@ -121,7 +129,7 @@ namespace adb.physic
                 return code;
             return null;
         }
-        protected string codegenif(bool cond, string code)
+        protected string codegen_if(bool cond, string code)
         {
             if (context_.option_.optimize_.use_codegen_ && cond)
                 return code;
@@ -168,22 +176,24 @@ namespace adb.physic
 
         public override string Open(ExecContext context)
         {
+            string cs = null;
             context_ = context;
-            if (!context.option_.optimize_.use_codegen_)
-                return null;
-
-            var logic = logic_ as LogicScanTable;
-            _ = logic.tabref_.alias_;
-            _logic_ = $"{logic.GetType().Name}{_}";
-            _physic_ = $"{this.GetType().Name}{_}";
-            string cs = CreateCommonNames(context);
+            if (context.option_.optimize_.use_codegen_)
+            {
+                // create more meaningful names myself
+                var logic = logic_ as LogicScanTable;
+                _ = logic.tabref_.alias_;
+                _logic_ = $"{logic.GetType().Name}{_}";
+                _physic_ = $"{this.GetType().Name}{_}";
+                cs += CreateCommonNames();
+            }
+            children_.ForEach(x => cs += x.Open(context));
             return cs;
         }
 
         public override string Exec(Func<Row, string> callback)
         {
             ExecContext context = context_;
-            Debug.Assert(context != null);
             var logic = logic_ as LogicScanTable;
             var filter = logic.filter_;
             var heap = (logic.tabref_).Table().heap_.GetEnumerator();
@@ -203,7 +213,7 @@ namespace adb.physic
                         r{_} = heap{_}.Current;
                     else
                         break;
-                    {codegenif(logic.tabref_.colRefedBySubq_.Count != 0, 
+                    {codegen_if(logic.tabref_.colRefedBySubq_.Count != 0, 
                             $@"context.AddParam({_logic_}.tabref_, r{_});")}
                     if ({(filter is null).ToLower()} || filter{_}.Exec(context, r{_}) is true)
                     {{
@@ -360,15 +370,6 @@ namespace adb.physic
         }
         public override string ToString() => $"PNLJ({l_()},{r_()}: {Cost()})";
 
-        public override string Open(ExecContext context)
-        {
-            var childcode = base.Open(context);
-            if (!context.option_.optimize_.use_codegen_)
-                return null;
-
-            var cs = CreateCommonNames(context);
-            return childcode + cs;
-        }
         public override string Exec(Func<Row, string> callback)
         {
             ExecContext context = context_;
@@ -401,7 +402,7 @@ namespace adb.physic
                             if ({(filter is null).ToLower()} || filter{_}.Exec(context, r{_}) is true)
                             {{
                                 foundOneMatch{_} = true;
-                                {codegenif(!antisemi, $@"
+                                {codegen_if(!antisemi, $@"
                                 {{
                                     r{_} = {_physic_}.ExecProject(r{_});
                                     {callback(null)}
@@ -430,7 +431,7 @@ namespace adb.physic
 
                 if (context.option_.optimize_.use_codegen_)
                 {
-                    out_code += codegenif(antisemi, $@"
+                    out_code += codegen_if(antisemi, $@"
                     if (!foundOneMatch{_})
                     {{
                         Row r{_} = new Row(r{l_()._}, null);
@@ -490,19 +491,18 @@ namespace adb.physic
 
         public override string Open(ExecContext context)
         {
-            var logic = logic_ as LogicJoin;
+            string cs = base.Open(context);
 
             // recreate the left side and right side key list - can't reuse old values 
             // because earlier optimization time keylist may have wrong bindings
             //
+            var logic = logic_ as LogicJoin;
             logic.CreateKeyList(false);
-            string s = base.Open(context);
-            if (!context.option_.optimize_.use_codegen_)
-                return null;
-
-            s += CreateCommonNames(context);
-            s += $@"var hm{_} = new Dictionary<KeyList, List<Row>>();";
-            return s;
+            if (context.option_.optimize_.use_codegen_)
+            {
+                cs += $@"var hm{_} = new Dictionary<KeyList, List<Row>>();";
+            }
+            return cs;
         }
 
         public override string Exec(Func<Row, string> callback)
@@ -584,14 +584,14 @@ namespace adb.physic
                         {{
                             r{_} = {_physic_}.ExecProject(new Row(v{_}, {rname}));
                             {callback(null)}
-                            {codegenif(semi, 
+                            {codegen_if(semi, 
                                 "break;")}
                         }}
                     }}
                     else
                     {{
                         // no match for antisemi
-                        {codegenif(antisemi, $@"
+                        {codegen_if(antisemi, $@"
                         if (!foundOneMatch{_})
                         {{
                             r{_} = new Row(null, r{_});
@@ -666,14 +666,13 @@ namespace adb.physic
 
         public override string Open(ExecContext context)
         {
-            var childcode = base.Open(context);
-            if (!context.option_.optimize_.use_codegen_)
-                return null;
-
-            var cs = CreateCommonNames(context);
-            cs += $@"var aggrcore{_} = {_logic_}.aggrFns_;
+            string cs = base.Open(context);
+            if (context.option_.optimize_.use_codegen_)
+            {
+                cs += $@"var aggrcore{_} = {_logic_}.aggrFns_;
                    var hm{_} = new Dictionary<KeyList, Row>();";
-            return childcode + cs;
+            }
+            return cs;
         }
 
         //  special case: when there is no key and hm is empty, we shall still return one row
@@ -1000,16 +999,6 @@ namespace adb.physic
         public readonly List<Row> rows_ = new List<Row>();
 
         public PhysicCollect(PhysicNode child): base(null) => children_.Add(child);
-
-        public override string Open(ExecContext context)
-        {
-            var childcode = base.Open(context);
-            if (!context.option_.optimize_.use_codegen_)
-                return null;
-
-            string s = $@"PhysicCollect {_physic_}  = stmt.physicPlan_.Locate(""{_}"") as PhysicCollect;";
-            return childcode + s;
-        }
 
         public override string Close()
         {
