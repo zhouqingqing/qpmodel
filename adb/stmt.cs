@@ -59,9 +59,11 @@ namespace adb.logic
             var finalplan = new PhysicCollect(physicPlan_);
             physicPlan_ = finalplan;
             var context = new ExecContext(queryOpt_);
+            if (this is SelectStmt select)
+                select.OpenSubQueries(context);
             var code = finalplan.Open(context);
-            code += finalplan.Exec(context, null);
-            code += finalplan.Close(context);
+            code += finalplan.Exec(null);
+            code += finalplan.Close();
 
             if (queryOpt_.optimize_.use_codegen_)
             {
@@ -79,7 +81,9 @@ namespace adb.logic
                 if (option != null)
                     stmt.queryOpt_ = option;
                 var result = stmt.Exec();
-                physicplan = stmt.physicPlan_.Explain(0);
+                physicplan = "";
+                if (stmt.physicPlan_ != null)
+                    physicplan = stmt.physicPlan_.Explain(0);
                 error = "";
                 return result;
             }
@@ -92,6 +96,7 @@ namespace adb.logic
             }
         }
 
+        // This function can also be used to execute a single SQL statement
         public static string ExecSQLList(string sqls, QueryOption option = null)
         {
             StatementList stmts = RawParser.ParseSqlStatements(sqls);
@@ -132,7 +137,8 @@ namespace adb.logic
                 // format: <sql> <plan> <result>
                 result += v.text_ + "\n";
                 result += plan;
-                result += string.Join("\n", rows) + "\n\n";
+                if (rows != null)
+                    result += string.Join("\n", rows) + "\n\n";
             }
             return result;
         }
@@ -435,6 +441,14 @@ namespace adb.logic
             }
 
             return logic;
+        }
+
+        internal void OpenSubQueries(ExecContext context) 
+        {
+            foreach (var v in Subqueries(true))
+                v.physicPlan_.Open(context);
+            foreach (var v in Subqueries(false))
+                v.OpenSubQueries(context);
         }
     }
 }

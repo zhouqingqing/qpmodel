@@ -379,15 +379,16 @@ namespace adb.stat
 
         public override string Open(ExecContext context)
         {
+            base.Open(context);
             var tabName = (logic_ as LogicAnalyze).GetTargetTable().relname_;
             stats_ = Catalog.sysstat_.GetOrCreateTableStats(tabName);
             return null;
         }
 
-        public override string Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(Func<Row, string> callback)
         {
             List<Row> samples = new List<Row>();
-            child_().Exec(context, r =>
+            child_().Exec(r =>
             {
                 samples.Add(r);
                 return null;

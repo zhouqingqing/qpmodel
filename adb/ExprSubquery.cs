@@ -123,7 +123,7 @@ namespace adb.expr
                 return cachedVal_;
 
             Row r = null;
-            query_.physicPlan_.Exec(context, l =>
+            query_.physicPlan_.Exec(l =>
             {
                 // exists check can immediately return after receiving a row
                 r = l;
@@ -157,7 +157,7 @@ namespace adb.expr
                 return cachedVal_;
 
             Row r = null;
-            query_.physicPlan_.Exec(context, l =>
+            query_.physicPlan_.Exec(l =>
             {
                 // exists check can immediately return after receiving a row
                 var prevr = r; r = l;
@@ -198,7 +198,7 @@ namespace adb.expr
                 return (cachedVal_ as HashSet<Value>).Contains(expr);
             
             var set = new HashSet<Value>();
-            query_.physicPlan_.Exec(context, l =>
+            query_.physicPlan_.Exec(l =>
             {
                 // it may have hidden columns but that's after [0]
                 set.Add(l[0]);

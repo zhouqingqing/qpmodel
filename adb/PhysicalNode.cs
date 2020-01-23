@@ -21,6 +21,8 @@ namespace adb.physic
 
         internal double cost_ = double.NaN;
 
+        internal ExecContext context_;
+
         protected PhysicNode(LogicNode logic)
         {
             // logic node shall not be null unless it is PhysicCollect
@@ -35,6 +37,7 @@ namespace adb.physic
         public override string ExplainMoreDetails(int depth) => logic_.ExplainMoreDetails(depth);
 
         public virtual string Open(ExecContext context){
+            context_ = context;
             if (context.option_.optimize_.use_codegen_)
             {
                 // default setting of codegen parameters
@@ -45,18 +48,18 @@ namespace adb.physic
 
             string s = ""; children_.ForEach(x => s += x.Open(context)); return s;
         }
-        public virtual string Close(ExecContext context) {
-            string s = ""; children_.ForEach(x => s += x.Close(context)); return s;
+        public virtual string Close() {
+            string s = ""; children_.ForEach(x => s += x.Close()); return s;
         }
         // @context is to carray parameters etc, @callback.Row is current row for processing
-        public abstract string Exec(ExecContext context, Func<Row, string> callback);
+        public abstract string Exec(Func<Row, string> callback);
 
-        public Row ExecProject(ExecContext context, Row input)
+        public Row ExecProject(Row input)
         {
             var output = logic_.output_;
             Row r = new Row(output.Count);
             for (int i = 0; i < output.Count; i++)
-                r[i] = output[i].Exec(context, input);
+                r[i] = output[i].Exec(context_, input);
 
             return r;
         }
@@ -105,22 +108,22 @@ namespace adb.physic
         }
 
         // @code won't be evaluated unless use_codegen_ is enabled
-        protected string codegen(ExecContext context, Lazy<string> code)
+        protected string codegen(Lazy<string> code)
         {
-            if (context.option_.optimize_.use_codegen_)
+            if (context_.option_.optimize_.use_codegen_)
                 return code.Value;
             return null;
         }
         // a simpler form of codegen but code is evaluated always
-        protected string codegen(ExecContext context, string code)
+        protected string codegen(string code)
         {
-            if (context.option_.optimize_.use_codegen_)
+            if (context_.option_.optimize_.use_codegen_)
                 return code;
             return null;
         }
-        protected string codegenif(ExecContext context, bool cond, string code)
+        protected string codegenif(bool cond, string code)
         {
-            if (context.option_.optimize_.use_codegen_ && cond)
+            if (context_.option_.optimize_.use_codegen_ && cond)
                 return code;
             return null;
         }
@@ -138,7 +141,7 @@ namespace adb.physic
         public PhysicMemoRef(LogicNode logic) : base(logic) { Debug.Assert(logic is LogicMemoRef); }
         public override string ToString() => Logic().ToString();
 
-        public override string Exec(ExecContext context, Func<Row, string> callback) => throw new InvalidProgramException("not executable");
+        public override string Exec(Func<Row, string> callback) => throw new InvalidProgramException("not executable");
         public override int GetHashCode() => Group().memoid_;
         public override bool Equals(object obj)
         {
@@ -165,6 +168,7 @@ namespace adb.physic
 
         public override string Open(ExecContext context)
         {
+            context_ = context;
             if (!context.option_.optimize_.use_codegen_)
                 return null;
 
@@ -176,8 +180,10 @@ namespace adb.physic
             return cs;
         }
 
-        public override string Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(Func<Row, string> callback)
         {
+            ExecContext context = context_;
+            Debug.Assert(context != null);
             var logic = logic_ as LogicScanTable;
             var filter = logic.filter_;
             var heap = (logic.tabref_).Table().heap_.GetEnumerator();
@@ -197,11 +203,11 @@ namespace adb.physic
                         r{_} = heap{_}.Current;
                     else
                         break;
-                    {codegenif(context, logic.tabref_.colRefedBySubq_.Count != 0, 
+                    {codegenif(logic.tabref_.colRefedBySubq_.Count != 0, 
                             $@"context.AddParam({_logic_}.tabref_, r{_});")}
                     if ({(filter is null).ToLower()} || filter{_}.Exec(context, r{_}) is true)
                     {{
-                        r{_} = {_physic_}.ExecProject(context, r{_});
+                        r{_} = {_physic_}.ExecProject(r{_});
                         {callback(null)}
                     }}
                 }}";
@@ -223,7 +229,7 @@ namespace adb.physic
                         context.AddParam(logic.tabref_, r);
                     if (filter is null || filter.Exec(context, r) is true)
                     {
-                        r = ExecProject(context, r);
+                        r = ExecProject(r);
                         callback(r);
                     }
                 }
@@ -253,8 +259,9 @@ namespace adb.physic
         public override string ExplainInlineDetails(int depth) => $"{index_}";
         public override string ToString() => $"ISeek({index_}: {Cost()})";
 
-        public override string Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(Func<Row, string> callback)
         {
+            ExecContext context = context_;
             var logic = logic_ as LogicScanTable;
             var filter = logic.filter_ as BinExpr;
             var index = index_.index_;
@@ -272,7 +279,7 @@ namespace adb.physic
                     context.AddParam(logic.tabref_, r);
                 if (filter is null || filter.Exec(context, r) is true)
                 {
-                    var n = ExecProject(context, r);
+                    var n = ExecProject(r);
                     callback(n);
                 }
             }
@@ -296,8 +303,9 @@ namespace adb.physic
     {
         public PhysicScanFile(LogicNode logic) : base(logic) { }
 
-        public override string Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(Func<Row, string> callback)
         {
+            ExecContext context = context_;
             var logic = logic_ as LogicScanFile;
             var filename = logic.FileName();
             var columns = logic.tabref_.baseref_.Table().ColumnsInOrder();
@@ -361,26 +369,27 @@ namespace adb.physic
             var cs = CreateCommonNames(context);
             return childcode + cs;
         }
-        public override string Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(Func<Row, string> callback)
         {
+            ExecContext context = context_;
             var logic = logic_ as LogicJoin;
             var type = logic.type_;
             var filter = logic.filter_;
             bool semi = type == JoinType.SemiJoin;
             bool antisemi = type == JoinType.AntiSemiJoin;
 
-            string s = l_().Exec(context, l =>
+            string s = l_().Exec(l =>
             {
                 string out_code = "";
                 if (context.stop_)
                     return null;
-                out_code += codegen(context, $@"
+                out_code += codegen($@"
                     if (context.stop_)
                         return;");
 
                 bool foundOneMatch = false;
-                out_code += codegen(context, $"bool foundOneMatch{_} = false;");
-                out_code += r_().Exec(context, r =>
+                out_code += codegen($"bool foundOneMatch{_} = false;");
+                out_code += r_().Exec(r =>
                 {
                     string inner_code = null;
                     if (context.option_.optimize_.use_codegen_)
@@ -392,11 +401,11 @@ namespace adb.physic
                             if ({(filter is null).ToLower()} || filter{_}.Exec(context, r{_}) is true)
                             {{
                                 foundOneMatch{_} = true;
-                                if (!{antisemi.ToLower()})
+                                {codegenif(!antisemi, $@"
                                 {{
-                                    r{_} = {_physic_}.ExecProject(context, r{_});
+                                    r{_} = {_physic_}.ExecProject(r{_});
                                     {callback(null)}
-                                }}
+                                }}")}
                             }}
                         }}";
                     }
@@ -410,7 +419,7 @@ namespace adb.physic
                                 foundOneMatch = true;
                                 if (!antisemi)
                                 {
-                                    n = ExecProject(context, n);
+                                    n = ExecProject(n);
                                     callback(n);
                                 }
                             }
@@ -419,24 +428,22 @@ namespace adb.physic
                     return inner_code;
                 });
 
-                if (context.option_.optimize_.use_codegen_) 
+                if (context.option_.optimize_.use_codegen_)
                 {
-                    if (antisemi)
-                        out_code += $@"
-                            if (!foundOneMatch{_})
-                            {{
-                                Row r{_} = new Row(r{l_()._}, null);
-                                r{_} = {_physic_}.ExecProject(context, r{_});
-                                {callback(null)}
-                            }}
-                            ";
+                    out_code += codegenif(antisemi, $@"
+                    if (!foundOneMatch{_})
+                    {{
+                        Row r{_} = new Row(r{l_()._}, null);
+                        r{_} = {_physic_}.ExecProject(r{_});
+                        {callback(null)}
+                    }}");
                 }
                 else
                 {
                     if (antisemi && !foundOneMatch)
                     {
                         Row n = new Row(l, null);
-                        n = ExecProject(context, n);
+                        n = ExecProject(n);
                         callback(n);
                     }
                 }
@@ -498,8 +505,9 @@ namespace adb.physic
             return s;
         }
 
-        public override string Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(Func<Row, string> callback)
         {
+            ExecContext context = context_;
             var logic = logic_ as LogicJoin;
             var type = logic.type_;
             var hm = new Dictionary<KeyList, List<Row>>();
@@ -507,7 +515,7 @@ namespace adb.physic
             bool antisemi = type == JoinType.AntiSemiJoin;
 
             // build hash table with left side 
-            string s = l_().Exec(context, l => {
+            string s = l_().Exec(l => {
                 string buildcode = null;
                 if (context.option_.optimize_.use_codegen_)
                 {
@@ -555,7 +563,7 @@ namespace adb.physic
                 if (hm.Count == 0)
                     return null;
             }
-            s+= r_().Exec(context, r =>
+            s+= r_().Exec(r =>
             {
                 string probecode = null;
                 if (context.option_.optimize_.use_codegen_) {
@@ -574,19 +582,20 @@ namespace adb.physic
                         foundOneMatch{_} = true;
                         foreach (var v{_} in exist{_})
                         {{
-                            r{_} = {_physic_}.ExecProject(context, new Row(v{_}, {rname}));
+                            r{_} = {_physic_}.ExecProject(new Row(v{_}, {rname}));
                             {callback(null)}
-                            {codegenif(context, semi, "break;")}
+                            {codegenif(semi, 
+                                "break;")}
                         }}
                     }}
                     else
                     {{
                         // no match for antisemi
-                        {codegenif(context, antisemi, $@"
+                        {codegenif(antisemi, $@"
                         if (!foundOneMatch{_})
                         {{
                             r{_} = new Row(null, r{_});
-                            r{_} = {_physic_}.ExecProject(context, r{_});
+                            r{_} = {_physic_}.ExecProject(r{_});
                             {callback(null)}
                         }}")}
                     }}
@@ -607,7 +616,7 @@ namespace adb.physic
                         foundOneMatch = true;
                         foreach (var v in exist)
                         {
-                            n = ExecProject(context, new Row(v, r));
+                            n = ExecProject(new Row(v, r));
                             callback(n);
                             if (semi)
                                 break;
@@ -619,7 +628,7 @@ namespace adb.physic
                         if (antisemi && !foundOneMatch)
                         {
                             n = new Row(null, r);
-                            n = ExecProject(context, n);
+                            n = ExecProject(n);
                             callback(n);
                         }
                     }
@@ -648,7 +657,7 @@ namespace adb.physic
         public PhysicHashAgg(LogicAgg logic, PhysicNode l) : base(logic) => children_.Add(l);
         public override string ToString() => $"PHAgg({(logic_ as LogicAgg)}: {Cost()})";
 
-        public Row AggrCoreToRow(ExecContext context, Row input)
+        public Row AggrCoreToRow(Row input)
         {
             var aggfns = (logic_ as LogicAgg).aggrFns_;
             Row r = new Row(aggfns.Count);
@@ -688,20 +697,21 @@ namespace adb.physic
             var w = new Row(null, aggvals);
             if (logic.having_ is null || logic.having_.Exec(context, w) is true)
             {
-                var newr = ExecProject(context, w);
+                var newr = ExecProject(w);
                 return newr;
             }
             return null;
         }
 
-        public override string Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(Func<Row, string> callback)
         {
+            ExecContext context = context_;
             var logic = logic_ as LogicAgg;
             var aggrcore = logic.aggrFns_;
             var hm = new Dictionary<KeyList, Row>();
 
             // aggregation is working on aggCore targets
-            string s = child_().Exec(context, l =>
+            string s = child_().Exec(l =>
             {
                 string buildcode = null;
                 if (context.option_.optimize_.use_codegen_)
@@ -720,7 +730,7 @@ namespace adb.physic
                         }}
                         else
                         {{
-                            hm{_}.Add(keys, {_physic_}.AggrCoreToRow(context, {lrow}));
+                            hm{_}.Add(keys, {_physic_}.AggrCoreToRow({lrow}));
                             exist = hm{_}[keys];
                             for (int i = 0; i < {aggrcore.Count}; i++)
                                 exist[i] = aggrcore{_}[i].Init(context, {lrow});
@@ -739,7 +749,7 @@ namespace adb.physic
                     }
                     else
                     {
-                        hm.Add(keys, AggrCoreToRow(context, l));
+                        hm.Add(keys, AggrCoreToRow(l));
                         exist = hm[keys];
                         for (int i = 0; i < aggrcore.Count; i++)
                             exist[i] = aggrcore[i].Init(context, l);
@@ -776,7 +786,7 @@ namespace adb.physic
                     var w{_} = new Row(keys{_}, aggvals{_});
                     if ({(logic.having_ is null).ToLower()} || {_logic_}.having_.Exec(context, w{_}) is true)
                     {{
-                        var r{_} = {_physic_}.ExecProject(context, w{_});
+                        var r{_} = {_physic_}.ExecProject(w{_});
                         {callback(null)}
                     }}
                 }}
@@ -802,7 +812,7 @@ namespace adb.physic
                     var w = new Row(keys, aggvals);
                     if (logic.having_ is null || logic.having_.Exec(context, w) is true)
                     {
-                        var newr = ExecProject(context, w);
+                        var newr = ExecProject(w);
                         callback(newr);
                     }
                 }
@@ -814,8 +824,6 @@ namespace adb.physic
 
     public class PhysicOrder : PhysicNode
     {
-        ExecContext context_;
-
         public PhysicOrder(LogicOrder logic, PhysicNode l) : base(logic) => children_.Add(l);
         public override string ToString() => $"POrder({child_()}: {Cost()})";
 
@@ -830,13 +838,14 @@ namespace adb.physic
             var rkey = KeyList.ComputeKeys(context_, orders, r);
             return lkey.CompareTo(rkey, descends);
         }
-        public override string Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(Func<Row, string> callback)
         {
+            ExecContext context = context_;
             var logic = logic_ as LogicOrder;
             var set = new List<Row>();
             context_ = context;
 
-            child_().Exec(context, l =>
+            child_().Exec(l =>
             {
                 set.Add(l);
                 return null;
@@ -870,17 +879,18 @@ namespace adb.physic
 
         public PhysicFromQuery(LogicFromQuery logic, PhysicNode l) : base(logic) => children_.Add(l);
 
-        public override string Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(Func<Row, string> callback)
         {
+            ExecContext context = context_;
             var logic = logic_ as LogicFromQuery;
-            child_().Exec(context, l =>
+            child_().Exec(l =>
             {
                 if (context.stop_)
                     return null;
                 
                 if (logic.queryRef_.colRefedBySubq_.Count != 0)
                     context.AddParam(logic.queryRef_, l);
-                var r = ExecProject(context, l);
+                var r = ExecProject(l);
                 callback(r);
                 return null;
             });
@@ -895,18 +905,19 @@ namespace adb.physic
 
         public override string ToString() => $"PFILTER({child_()}: {Cost()})";
 
-        public override string Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(Func<Row, string> callback)
         {
+            ExecContext context = context_;
             Expr filter = (logic_ as LogicFilter).filter_;
 
-            child_().Exec(context, l =>
+            child_().Exec(l =>
             {
                 if (context.stop_)
                     return null;
 
                 if (filter is null || filter.Exec(context, l) is true)
                 {
-                    var r = ExecProject(context, l);
+                    var r = ExecProject(l);
                     callback(r);
                 }
                 return null;
@@ -933,9 +944,9 @@ namespace adb.physic
     {
         public PhysicInsert(LogicInsert logic, PhysicNode l) : base(logic) => children_.Add(l);
 
-        public override string Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(Func<Row, string> callback)
         {
-            child_().Exec(context, l =>
+            child_().Exec(l =>
             {
                 var table = (logic_ as LogicInsert).targetref_.Table();
                 table.heap_.Add(l);
@@ -949,9 +960,9 @@ namespace adb.physic
     {
         public PhysicResult(LogicResult logic) : base(logic) { }
 
-        public override string Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(Func<Row, string> callback)
         {
-            Row r = ExecProject(context, null);
+            Row r = ExecProject(null);
             callback(r);
             return null;
         }
@@ -971,10 +982,10 @@ namespace adb.physic
             Debug.Assert(profile_ is null);
         }
 
-        public override string Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(Func<Row, string> callback)
         {
             nloops_++;
-            child_().Exec(context, l =>
+            child_().Exec(l =>
             {
                 nrows_++;
                 callback(l);
@@ -1000,22 +1011,24 @@ namespace adb.physic
             return childcode + s;
         }
 
-        public override string Close(ExecContext context)
+        public override string Close()
         {
             string s = "}}";
-            return base.Close(context) + s;
+            return base.Close() + s;
         }
 
-        public override string Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(Func<Row, string> callback)
         {
+            ExecContext context = context_;
             var child = (child_() is PhysicProfiling) ?
                     child_().child_() : child_();
             var output = child.logic_.output_;
             var ncolumns = output.Count(x => x.isVisible_);
 
-            CodeWriter.Reset();
+            if (context.option_.optimize_.use_codegen_)
+                CodeWriter.Reset();
             context.Reset();
-            string s = child_().Exec(context, r =>
+            string s = child_().Exec(r =>
             {
                 string cs = null;
                 if (context.option_.optimize_.use_codegen_) {
@@ -1052,12 +1065,13 @@ namespace adb.physic
         public PhysicLimit(LogicLimit logic, PhysicNode l) : base(logic) => children_.Add(l);
         public override string ToString() => $"PLIMIT({child_()}: {Cost()})";
 
-        public override string Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(Func<Row, string> callback)
         {
+            ExecContext context = context_;
             int nrows = 0;
             int limit = (logic_ as LogicLimit).limit_;
 
-            child_().Exec(context, l =>
+            child_().Exec(l =>
             {
                 nrows++;
                 Debug.Assert(nrows <= limit);

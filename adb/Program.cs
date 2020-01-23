@@ -16,7 +16,7 @@ namespace adb
         {
             string sql = "";
 
-            if (true)
+            if (false)
             {
                 Tpch.CreateTables();
                 Tpch.LoadTables("0001");
@@ -29,6 +29,7 @@ namespace adb
             { 
                 Tpcds.CreateTables();
                 sql = File.ReadAllText("../../../tpcds/problem_queries/q64.sql");
+                sql = File.ReadAllText("../../../tpcds/q1.sql");
                 goto doit;
             }
 
@@ -137,10 +138,6 @@ namespace adb
             //sql = "select 1+2*3, 1+2.1+a1 from a where a1+2+(1*5+1)>2*4.6 and 1+2<2+1.4;";
             //sql = "select 1+2+3 from d where 1=d1 and 2<d1";
             //sql = "select * from d where 3<d1;";
-            sql = "select * from a where a1>1;";
-            sql = "select count(*) from lineitem, orders where l_orderkey=o_orderkey;";
-            sql = "select * from a, b where a1=b1;";
-            sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
@@ -148,7 +145,7 @@ namespace adb
             a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = true;
             a.queryOpt_.optimize_.remove_from = true;
             a.queryOpt_.optimize_.use_memo_ = true;
-            a.queryOpt_.optimize_.use_codegen_ = true;
+            a.queryOpt_.optimize_.use_codegen_ = false;
 
             // -- Semantic analysis:
             //  - bind the query
@@ -191,9 +188,11 @@ namespace adb
             var final = new PhysicCollect(phyplan);
             a.physicPlan_ = final;
             var context = new ExecContext(a.queryOpt_);
+            if (a is SelectStmt select)
+                select.OpenSubQueries(context);
             var code = final.Open(context);
-            code += final.Exec(context, null);
-            code += final.Close(context);
+            code += final.Exec(null);
+            code += final.Close();
 
             if (a.queryOpt_.optimize_.use_codegen_)
             {
