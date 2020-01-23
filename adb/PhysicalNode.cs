@@ -377,9 +377,10 @@ namespace adb.physic
                 out_code += codegen(context, $"bool foundOneMatch{_} = false;");
                 out_code += r_().Exec(context, r =>
                 {
+                    string inner_code = null;
                     if (context.option_.optimize_.use_codegen_)
                     {
-                        string inner_code = $@"
+                        inner_code += $@"
                         if (!{semi.ToLower()} || !foundOneMatch{_})
                         {{
                             Row r{_} = new Row(r{l_()._}, r{r_()._});
@@ -393,7 +394,6 @@ namespace adb.physic
                                 }}
                             }}
                         }}";
-                        return inner_code;
                     }
                     else
                     {
@@ -410,20 +410,21 @@ namespace adb.physic
                                 }
                             }
                         }
-                        return null;
                     }
+                    return inner_code;
                 });
 
                 if (context.option_.optimize_.use_codegen_) 
                 {
-                    out_code += $@"
-                        if ({antisemi.ToLower()} && !foundOneMatch{_})
-                        {{
-                            Row r{_} = new Row(r{l_()._}, null);
-                            r{_} = {_physic_}.ExecProject(context, r{_});
-                            {callback(null)}
-                        }}
-                        ";
+                    if (antisemi)
+                        out_code += $@"
+                            if (!foundOneMatch{_})
+                            {{
+                                Row r{_} = new Row(r{l_()._}, null);
+                                r{_} = {_physic_}.ExecProject(context, r{_});
+                                {callback(null)}
+                            }}
+                            ";
                 }
                 else
                 {
@@ -570,18 +571,30 @@ namespace adb.physic
         public PhysicHashAgg(LogicAgg logic, PhysicNode l) : base(logic) => children_.Add(l);
         public override string ToString() => $"PHAgg({(logic_ as LogicAgg)}: {Cost()})";
 
-        private Row AggrCoreToRow(ExecContext context, Row input)
+        public Row AggrCoreToRow(ExecContext context, Row input)
         {
             var aggfns = (logic_ as LogicAgg).aggrFns_;
             Row r = new Row(aggfns.Count);
             return r;
         }
 
+        public override string Open(ExecContext context)
+        {
+            var childcode = base.Open(context);
+            if (!context.option_.optimize_.use_codegen_)
+                return null;
+
+            var cs = CreateCommonNames(context);
+            cs += $@"var aggrcore{_} = {_logic_}.aggrFns_;
+                   var hm{_} = new Dictionary<KeyList, Row>();";
+            return childcode + cs;
+        }
+
         //  special case: when there is no key and hm is empty, we shall still return one row
         //    count: 0, avg/min/max/sum: null
         //    but HAVING clause can filter this row out.
         //
-        Row HandleEmptyResult(ExecContext context)
+        public Row HandleEmptyResult(ExecContext context)
         {
             var logic = logic_ as LogicAgg;
             var aggrcore = logic.aggrFns_;
@@ -613,49 +626,111 @@ namespace adb.physic
             // aggregation is working on aggCore targets
             string s = child_().Exec(context, l =>
             {
-                var keys = KeyList.ComputeKeys(context, logic.keys_, l);
-
-                if (hm.TryGetValue(keys, out Row exist))
+                string buildcode = null;
+                if (context.option_.optimize_.use_codegen_)
                 {
-                    for (int i = 0; i < aggrcore.Count; i++)
-                    {
-                        var old = exist[i];
-                        exist[i] = aggrcore[i].Accum(context, old, l);
-                    }
+                    var lrow = $"r{child_()._}";
+                    buildcode += $@" 
+                        var keys = KeyList.ComputeKeys(context, {_logic_}.keys_, {lrow});";
+                    buildcode += $@"
+                        if (hm{_}.TryGetValue(keys, out Row exist))
+                        {{
+                            for (int i = 0; i < {aggrcore.Count}; i++)
+                            {{
+                                var old = exist[i];
+                                exist[i] = aggrcore{_}[i].Accum(context, old, {lrow});
+                            }}
+                        }}
+                        else
+                        {{
+                            hm{_}.Add(keys, {_physic_}.AggrCoreToRow(context, {lrow}));
+                            exist = hm{_}[keys];
+                            for (int i = 0; i < {aggrcore.Count}; i++)
+                                exist[i] = aggrcore{_}[i].Init(context, {lrow});
+                        }}";
                 }
                 else
                 {
-                    hm.Add(keys, AggrCoreToRow(context, l));
-                    exist = hm[keys];
-                    for (int i = 0; i<aggrcore.Count; i++)
-                        exist[i] = aggrcore[i].Init(context, l);
+                    var keys = KeyList.ComputeKeys(context, logic.keys_, l);
+                    if (hm.TryGetValue(keys, out Row exist))
+                    {
+                        for (int i = 0; i < aggrcore.Count; i++)
+                        {
+                            var old = exist[i];
+                            exist[i] = aggrcore[i].Accum(context, old, l);
+                        }
+                    }
+                    else
+                    {
+                        hm.Add(keys, AggrCoreToRow(context, l));
+                        exist = hm[keys];
+                        for (int i = 0; i < aggrcore.Count; i++)
+                            exist[i] = aggrcore[i].Init(context, l);
+                    }
                 }
 
-                return null;
+                return buildcode;
             });
 
             // stitch keys+aggcore into final output
-            if (logic.keys_ is null && hm.Count == 0) {
-                Row row = HandleEmptyResult(context);
-                if (row != null)
-                    callback(row);
-            }
-            foreach (var v in hm)
+            if (context.option_.optimize_.use_codegen_)
             {
-                if (context.stop_)
-                    break;
+                if (logic.keys_ is null)
+                    s += $@"
+                    if (hm{_}.Count == 0)
+                    {{
+                        Row r{_} = {_physic_}.HandleEmptyResult(context);
+                        if (r{_} != null)
+                        {{
+                            {callback(null)}
+                        }}
+                    }}
+                    ";
+                s += $@"
+                foreach (var v{_} in hm{_})
+                {{
+                    if (context.stop_)
+                        break;
 
-                var keys = v.Key;
-                Row aggvals = v.Value;
-                for (int i = 0; i < aggrcore.Count; i++)
-                    aggvals[i] = aggrcore[i].Finalize(context, aggvals[i]);
-                var w = new Row(keys, aggvals);
-                if (logic.having_ is null || logic.having_.Exec(context, w) is true)
+                    var keys{_} = v{_}.Key;
+                    Row aggvals{_} = v{_}.Value;
+                    for (int i = 0; i < {aggrcore.Count}; i++)
+                        aggvals{_}[i] = aggrcore{_}[i].Finalize(context, aggvals{_}[i]);
+                    var w{_} = new Row(keys{_}, aggvals{_});
+                    if ({(logic.having_ is null).ToLower()} || {_logic_}.having_.Exec(context, w{_}) is true)
+                    {{
+                        var r{_} = {_physic_}.ExecProject(context, w{_});
+                        {callback(null)}
+                    }}
+                }}
+                ";
+            }
+            else
+            {
+                if (logic.keys_ is null && hm.Count == 0)
                 {
-                    var newr = ExecProject(context, w);
-                    callback(newr);
+                    Row row = HandleEmptyResult(context);
+                    if (row != null)
+                        callback(row);
+                }
+                foreach (var v in hm)
+                {
+                    if (context.stop_)
+                        break;
+
+                    var keys = v.Key;
+                    Row aggvals = v.Value;
+                    for (int i = 0; i < aggrcore.Count; i++)
+                        aggvals[i] = aggrcore[i].Finalize(context, aggvals[i]);
+                    var w = new Row(keys, aggvals);
+                    if (logic.having_ is null || logic.having_.Exec(context, w) is true)
+                    {
+                        var newr = ExecProject(context, w);
+                        callback(newr);
+                    }
                 }
             }
+
             return s;
         }
     }
@@ -840,8 +915,12 @@ namespace adb.physic
 
         public override string Open(ExecContext context)
         {
-            string s = $@"";
-            return s + base.Open(context);
+            var childcode = base.Open(context);
+            if (!context.option_.optimize_.use_codegen_)
+                return null;
+
+            string s = $@"PhysicCollect {_physic_}  = stmt.physicPlan_.Locate(""{_}"") as PhysicCollect;";
+            return childcode + s;
         }
 
         public override string Close(ExecContext context)
@@ -870,7 +949,8 @@ namespace adb.physic
                         if (output[i].isVisible_)
                             cs += $"newr[{i}] = r{child_()._}[{i}];";
                     }
-                    cs += "Console.WriteLine(newr);";
+                    cs += $"{_physic_}.rows_.Add(newr);";
+                    cs += $"Console.WriteLine(newr);";
                 }
                 else
                 {
