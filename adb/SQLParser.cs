@@ -411,17 +411,17 @@ namespace adb.sqlparser
             var cons = new List<TableConstraint>();
             foreach (var v in context.table_constraint())
                 cons.Add(VisitTable_constraint(v) as TableConstraint);
-            return new CreateTableStmt(context.table_name().GetText(), cols, cons, context.GetText());
+            return new CreateTableStmt(context.table_name().GetText(), cols, cons, GetRawText(context));
         }
 
         public override object VisitAnalyze_stmt([NotNull] SQLiteParser.Analyze_stmtContext context)
         {
             var tabref = new BaseTableRef(context.table_name().GetText());
-            return new AnalyzeStmt(tabref, context.GetText());
+            return new AnalyzeStmt(tabref, GetRawText(context));
         }
 
         public override object VisitDrop_table_stmt([NotNull] SQLiteParser.Drop_table_stmtContext context) 
-            => new DropTableStmt (context.table_name().GetText(), context.GetText());
+            => new DropTableStmt (context.table_name().GetText(), GetRawText(context));
 
         public override object VisitCreate_index_stmt([NotNull] SQLiteParser.Create_index_stmtContext context)
         {
@@ -434,7 +434,7 @@ namespace adb.sqlparser
                 columns.Add(v.GetText());
 
             Debug.Assert(columns.Count >= 1);
-            return new CreateIndexStmt(indexname, tableref, unique, columns, where, context.GetText());
+            return new CreateIndexStmt(indexname, tableref, unique, columns, where, GetRawText(context));
         }
 
         public override object VisitInsert_stmt([NotNull] SQLiteParser.Insert_stmtContext context)
@@ -449,7 +449,7 @@ namespace adb.sqlparser
             SelectStmt select = null;
             if (context.select_stmt() != null)
                 select = Visit(context.select_stmt()) as SelectStmt;
-            return new InsertStmt(tabref, cols, vals, select, context.GetText());
+            return new InsertStmt(tabref, cols, vals, select, GetRawText(context));
         }
 
         public override object VisitCopy_stmt([NotNull] SQLiteParser.Copy_stmtContext context)
@@ -461,7 +461,7 @@ namespace adb.sqlparser
             Expr where = null;
             if (context.K_WHERE() != null)
                 where = Visit(context.expr()) as Expr;
-            return new CopyStmt(tabref, cols, context.STRING_LITERAL().GetText(), where, context.GetText());
+            return new CopyStmt(tabref, cols, context.STRING_LITERAL().GetText(), where, GetRawText(context));
         }
 
         public override object VisitSql_stmt([NotNull] SQLiteParser.Sql_stmtContext context)

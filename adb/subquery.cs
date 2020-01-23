@@ -262,8 +262,9 @@ namespace adb.logic
         // always the first column
         void fixMarkerValue(Row r, Value value) => r[0] = value;
 
-        public override string Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(Func<Row, string> callback)
         {
+            ExecContext context = context_;
             var logic = logic_ as LogicMarkJoin;
             var filter = logic.filter_;
             bool semi = (logic_ is LogicMarkSemiJoin);
@@ -271,10 +272,10 @@ namespace adb.logic
 
             Debug.Assert(filter != null);
 
-            l_().Exec(context, l =>
+            l_().Exec(l =>
             {
                 bool foundOneMatch = false;
-                r_().Exec(context, r =>
+                r_().Exec(r =>
                 {
                     if (!foundOneMatch)
                     {
@@ -284,7 +285,7 @@ namespace adb.logic
                             foundOneMatch = true;
 
                             // there is at least one match, mark true
-                            n = ExecProject(context, n);
+                            n = ExecProject(n);
                             fixMarkerValue(n, semi ? true : false);
                             callback(n);
                         }
@@ -295,7 +296,7 @@ namespace adb.logic
                 // if there is no match, mark false
                 if (!foundOneMatch)
                 {
-                    Row n = ExecProject(context, l);
+                    Row n = ExecProject(l);
                     fixMarkerValue(n, semi ? false: true);
                     callback(n);
                 }
@@ -323,18 +324,19 @@ namespace adb.logic
         // always the first column
         void fixMarkerValue(Row r, Value value) => r[0] = value;
 
-        public override string Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(Func<Row, string> callback)
         {
+            ExecContext context = context_;
             var logic = logic_ as LogicMarkJoin;
             var filter = logic.filter_;
             Debug.Assert(logic is LogicSingleMarkJoin);
 
             Debug.Assert(filter != null);
 
-            l_().Exec(context, l =>
+            l_().Exec(l =>
             {
                 bool foundOneMatch = false;
-                r_().Exec(context, r =>
+                r_().Exec(r =>
                 {
                     Row n = new Row(l, r);
                     if (filter.Exec(context, n) is true)
@@ -344,7 +346,7 @@ namespace adb.logic
                         foundOneMatch = true;
 
                         // there is at least one match, mark true
-                        n = ExecProject(context, n);
+                        n = ExecProject(n);
                         fixMarkerValue(n, true);
                         callback(n);
                     }
@@ -356,7 +358,7 @@ namespace adb.logic
                 {
                     var nNulls = r_().logic_.output_.Count;
                     Row n = new Row(l, new Row(nNulls));
-                    n = ExecProject(context, n);
+                    n = ExecProject(n);
                     fixMarkerValue(n, false);
                     callback(n);
                 }

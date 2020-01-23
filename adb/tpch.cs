@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.IO;
 
 using adb.sqlparser;
+using adb.logic;
 
 namespace adb.test
 {
@@ -28,15 +29,13 @@ namespace adb.test
 
         static public void CreateTables() {
             // hack: drop tpch table customer
-            var stmt = RawParser.ParseSqlStatements("drop table customer;");
-            stmt.Exec();
+            SQLStatement.ExecSQL("drop table customer;", out _, out _);
 
             string curdir = Directory.GetCurrentDirectory();
             string folder = $@"{curdir}\..\..\..\tpch\create";
             string filename = $@"{folder}\tpch.sql";
             var sql = File.ReadAllText(filename);
-            stmt = RawParser.ParseSqlStatements(sql);
-            stmt.Exec();
+            SQLStatement.ExecSQLList(sql);
         }
 
         static public void LoadTables(string subfolder) {
@@ -46,17 +45,12 @@ namespace adb.test
             {
                 string filename = $@"'{folder}\{v}.tbl'";
                 var sql = $"copy {v} from {filename};";
-                var stmt = RawParser.ParseSqlStatements(sql);
-                stmt.Exec();
+                SQLStatement.ExecSQL(sql, out _, out _);
             }
         }
 
         static public void CreateIndexes() {
-            foreach (var v in createindexes_)
-            {
-                var stmt = RawParser.ParseSqlStatements(v);
-                stmt.Exec();
-            }
+            SQLStatement.ExecSQLList(string.Join("", createindexes_));
         }
 
         static public void AnalyzeTables()
@@ -64,8 +58,7 @@ namespace adb.test
             foreach (var v in tabnames_)
             {
                 var sql = $"analyze {v};";
-                var stmt = RawParser.ParseSqlStatements(sql);
-                stmt.Exec();
+                SQLStatement.ExecSQL(sql, out _, out _);
             }
         }
     }
@@ -74,15 +67,13 @@ namespace adb.test
         static public void CreateTables()
         {
             // hack: drop tpch table customer
-            var stmt = RawParser.ParseSqlStatements("drop table customer;");
-            stmt.Exec();
+            SQLStatement.ExecSQL("drop table customer;", out _, out _);
 
             string curdir = Directory.GetCurrentDirectory();
             string folder = $@"{curdir}\..\..\..\tpcds\create";
             string filename = $@"{folder}\tpcds.sql";
             var sql = File.ReadAllText(filename);
-            stmt = RawParser.ParseSqlStatements(sql);
-            stmt.Exec();
+            SQLStatement.ExecSQLList(sql);
         }
 
         static public void LoadTables(string subfolder)
