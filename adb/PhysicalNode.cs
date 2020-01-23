@@ -118,6 +118,12 @@ namespace adb.physic
                 return code;
             return null;
         }
+        protected string codegenif(ExecContext context, bool cond, string code)
+        {
+            if (context.option_.optimize_.use_codegen_ && cond)
+                return code;
+            return null;
+        }
 
         internal string _ = "<codegen: current node id>";
         internal string _logic_ = "<codegen: logic node name>";
@@ -191,9 +197,8 @@ namespace adb.physic
                         r{_} = heap{_}.Current;
                     else
                         break;
-
-                    if ({(logic.tabref_.colRefedBySubq_.Count != 0).ToLower()})
-                        context.AddParam({_logic_}.tabref_, r{_});
+                    {codegenif(context, logic.tabref_.colRefedBySubq_.Count != 0, 
+                            $@"context.AddParam({_logic_}.tabref_, r{_});")}
                     if ({(filter is null).ToLower()} || filter{_}.Exec(context, r{_}) is true)
                     {{
                         r{_} = {_physic_}.ExecProject(context, r{_});
@@ -484,8 +489,13 @@ namespace adb.physic
             // because earlier optimization time keylist may have wrong bindings
             //
             logic.CreateKeyList(false);
-            base.Open(context);
-            return null;
+            string s = base.Open(context);
+            if (!context.option_.optimize_.use_codegen_)
+                return null;
+
+            s += CreateCommonNames(context);
+            s += $@"var hm{_} = new Dictionary<KeyList, List<Row>>();";
+            return s;
         }
 
         public override string Exec(ExecContext context, Func<Row, string> callback)
@@ -497,60 +507,127 @@ namespace adb.physic
             bool antisemi = type == JoinType.AntiSemiJoin;
 
             // build hash table with left side 
-            l_().Exec(context, l => {
-                var keys = KeyList.ComputeKeys(context, logic.leftKeys_, l);
-
-                if (hm.TryGetValue(keys, out List<Row> exist))
+            string s = l_().Exec(context, l => {
+                string buildcode = null;
+                if (context.option_.optimize_.use_codegen_)
                 {
-                    exist.Add(l);
+                    var lname = $"r{l_()._}";
+                    buildcode += $@"
+                    var keys{_} = KeyList.ComputeKeys(context, {_logic_}.leftKeys_, {lname});
+                    if (hm{_}.TryGetValue(keys{_}, out List<Row> exist))
+                    {{
+                        exist.Add({lname});
+                    }}
+                    else
+                    {{
+                        List <Row> rows = new List<Row>();
+                        rows.Add({lname});
+                        hm{_}.Add(keys{_}, rows);
+                    }}
+                    ";
                 }
                 else
                 {
-                    List<Row> rows = new List<Row>();
-                    rows.Add(l);
-                    hm.Add(keys, rows);
+                    var keys = KeyList.ComputeKeys(context, logic.leftKeys_, l);
+                    if (hm.TryGetValue(keys, out List<Row> exist))
+                    {
+                        exist.Add(l);
+                    }
+                    else
+                    {
+                        List<Row> rows = new List<Row>();
+                        rows.Add(l);
+                        hm.Add(keys, rows);
+                    }
                 }
-                return null;
+                return buildcode;
             });
 
             // right side probes the hash table
-            if (hm.Count == 0)
-                return null;
-            r_().Exec(context, r =>
+            if (context.option_.optimize_.use_codegen_)
             {
-                if (context.stop_)
+                s += $@"
+                if (hm{_}.Count == 0)
+                    return;";
+            }
+            else
+            {
+                if (hm.Count == 0)
                     return null;
+            }
+            s+= r_().Exec(context, r =>
+            {
+                string probecode = null;
+                if (context.option_.optimize_.use_codegen_) {
+                    var rname = $"r{r_()._}";
+                    probecode += $@"
+                    if (context.stop_)
+                        return;
 
-                Row fakel = new Row(l_().logic_.output_.Count);
-                Row n = new Row(fakel, r);
-                var keys = KeyList.ComputeKeys(context, logic.rightKeys_, n);
-                bool foundOneMatch = false;
+                    Row fakel{_} = new Row({l_().logic_.output_.Count});
+                    Row r{_} = new Row(fakel{_}, {rname});
+                    var keys{_} = KeyList.ComputeKeys(context, {_logic_}.rightKeys_, r{_});
+                    bool foundOneMatch{_} = false;
 
-                if (hm.TryGetValue(keys, out List<Row> exist))
-                {
-                    foundOneMatch = true;
-                    foreach (var v in exist)
-                    {
-                        n = ExecProject(context, new Row(v, r));
-                        callback(n);
-                        if (semi)
-                            break;
-                    }
+                    if (hm{_}.TryGetValue(keys{_}, out List<Row> exist{_}))
+                    {{
+                        foundOneMatch{_} = true;
+                        foreach (var v{_} in exist{_})
+                        {{
+                            r{_} = {_physic_}.ExecProject(context, new Row(v{_}, {rname}));
+                            {callback(null)}
+                            {codegenif(context, semi, "break;")}
+                        }}
+                    }}
+                    else
+                    {{
+                        // no match for antisemi
+                        {codegenif(context, antisemi, $@"
+                        if (!foundOneMatch{_})
+                        {{
+                            r{_} = new Row(null, r{_});
+                            r{_} = {_physic_}.ExecProject(context, r{_});
+                            {callback(null)}
+                        }}")}
+                    }}
+                    ";
                 }
                 else
                 {
-                    // no match
-                    if (antisemi && !foundOneMatch)
+                    if (context.stop_)
+                        return null;
+
+                    Row fakel = new Row(l_().logic_.output_.Count);
+                    Row n = new Row(fakel, r);
+                    var keys = KeyList.ComputeKeys(context, logic.rightKeys_, n);
+                    bool foundOneMatch = false;
+
+                    if (hm.TryGetValue(keys, out List<Row> exist))
                     {
-                        n = new Row(null, r);
-                        n = ExecProject(context, n);
-                        callback(n);
+                        foundOneMatch = true;
+                        foreach (var v in exist)
+                        {
+                            n = ExecProject(context, new Row(v, r));
+                            callback(n);
+                            if (semi)
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        // no match for antisemi
+                        if (antisemi && !foundOneMatch)
+                        {
+                            n = new Row(null, r);
+                            n = ExecProject(context, n);
+                            callback(n);
+                        }
                     }
                 }
-                return null;
+                return probecode;
             });
 
-            return null;
+            return s;
         }
 
         public override double Cost()
