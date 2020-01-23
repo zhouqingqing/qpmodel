@@ -566,11 +566,11 @@ namespace adb.logic
 
     public partial class LogicAgg : LogicNode
     {
-        internal List<Expr> keys_;
-        internal Expr having_;
+        public List<Expr> keys_;
+        public Expr having_;
 
         // runtime info: derived from output request
-        internal List<AggFunc> aggrFns_ = new List<AggFunc>();
+        public List<AggFunc> aggrFns_ = new List<AggFunc>();
         public override string ToString() => $"Agg({child_()})";
 
         public override string ExplainMoreDetails(int depth)

@@ -56,18 +56,19 @@ namespace adb.logic
                 return null;
 
             // actual execution is needed
-            var result = new PhysicCollect(physicPlan_);
+            var finalplan = new PhysicCollect(physicPlan_);
+            physicPlan_ = finalplan;
             var context = new ExecContext(queryOpt_);
-            var code = result.Open(context);
-            code += result.Exec(context, null);
-            code += result.Close(context);
+            var code = finalplan.Open(context);
+            code += finalplan.Exec(context, null);
+            code += finalplan.Close(context);
 
             if (queryOpt_.optimize_.use_codegen_)
             {
                 CodeWriter.WriteLine(code);
                 Compiler.Run(Compiler.Compile(), this, context);
             }
-            return result.rows_;
+            return finalplan.rows_;
         }
 
         public static List<Row> ExecSQL(string sql, out string physicplan, out string error, QueryOption option = null)

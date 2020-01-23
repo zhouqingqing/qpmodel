@@ -75,7 +75,7 @@ namespace adb.logic
             bool exp_showcost = option?.show_cost_ ?? false;
             bool exp_output = option?.show_output_ ?? true;
 
-            if (!(this is PhysicProfiling))
+            if (!(this is PhysicProfiling) && !(this is PhysicCollect))
             {
                 r = Utils.Tabs(depth);
                 if (depth != 0)

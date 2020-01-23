@@ -111,13 +111,13 @@ namespace test
             // you may encounter an error saying can't find roslyn/csc.exe
             // one work around is to copy the folder there.
             //
-            string sql = "select * from a, b, c where a1>b1 and a2>c2;";
+            string sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
             QueryOption option = new QueryOption();
             option.profile_.enabled_ = false;
             option.optimize_.use_codegen_ = true;
 
             var result = TU.ExecuteSQL(sql, out string resultstr, option);
-            // Assert.AreEqual("1;2;2;2;2", string.Join(";", result));
+            Assert.AreEqual("4,1;6,4", string.Join(";", result));
         }
     }
 
