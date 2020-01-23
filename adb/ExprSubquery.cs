@@ -14,8 +14,6 @@ namespace adb.expr
 {
     public abstract class SubqueryExpr : Expr
     {
-        internal string subqtype_;    // in, exists, scalar
-
         internal SelectStmt query_;
         internal int subqueryid_;    // bounded
 
@@ -24,11 +22,11 @@ namespace adb.expr
         internal bool cachedValSet_ = false;
         internal Value cachedVal_;
 
-        public SubqueryExpr(SelectStmt query, string subqtype)
+        public SubqueryExpr(SelectStmt query)
         {
-            Debug.Assert(new List<string>(){"scalar", "in", "exist"}.Contains(subqtype));
-            query_ = query; subqtype_ = subqtype;
+            query_ = query;
         }
+
         // don't print the subquery here, it shall be printed by up caller layer for pretty format
         public override string ToString() => $@"@{subqueryid_}";
 
@@ -42,7 +40,7 @@ namespace adb.expr
             Debug.Assert(query_.parent_ == mycontext.parent_?.stmt_);
 
             // verify column count after bound because SelStar expansion
-            if (subqtype_ != "scalar")
+            if (!(this is ScalarSubqueryExpr))
             {
                 type_ = new BoolType();
             }
@@ -107,7 +105,7 @@ namespace adb.expr
     {
         internal bool hasNot_ = false;
 
-        public ExistSubqueryExpr(SelectStmt query) : base(query, "exist") { }
+        public ExistSubqueryExpr(SelectStmt query) : base(query) { }
 
         public override void Bind(BindContext context)
         {
@@ -139,7 +137,7 @@ namespace adb.expr
 
     public class ScalarSubqueryExpr : SubqueryExpr
     {
-        public ScalarSubqueryExpr(SelectStmt query) : base(query, "scalar") { }
+        public ScalarSubqueryExpr(SelectStmt query) : base(query) { }
 
         public override void Bind(BindContext context)
         {
@@ -178,7 +176,7 @@ namespace adb.expr
         internal Expr expr_() => children_[0];
 
         public override string ToString() => $"{expr_()} in @{subqueryid_}";
-        public InSubqueryExpr(Expr expr, SelectStmt query) : base(query, "in") { children_.Add(expr); }
+        public InSubqueryExpr(Expr expr, SelectStmt query) : base(query) { children_.Add(expr); }
 
         public override void Bind(BindContext context)
         {
