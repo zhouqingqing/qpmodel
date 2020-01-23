@@ -360,8 +360,8 @@ namespace adb.logic
         //    leftKey_:  a1-b1, a1+b1
         //    rightKey_: c1+d1, c2+d2
         //
-        internal List<Expr> leftKeys_ = new List<Expr>();
-        internal List<Expr> rightKeys_ = new List<Expr>();
+        public List<Expr> leftKeys_ = new List<Expr>();
+        public List<Expr> rightKeys_ = new List<Expr>();
         internal List<string> ops_ = new List<string>();
 
         public override string ToString() => $"({l_()} {type_} {r_()})";

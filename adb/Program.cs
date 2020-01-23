@@ -139,7 +139,8 @@ namespace adb
             //sql = "select * from d where 3<d1;";
             sql = "select * from a where a1>1;";
             sql = "select count(*) from lineitem, orders where l_orderkey=o_orderkey;";
-            sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
+            sql = "select * from a, b where a1=b1;";
+            sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
