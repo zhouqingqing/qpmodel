@@ -84,4 +84,24 @@ namespace adb.test
         {
         }
     }
+
+    public class JOBench
+    {
+        static public void CreateTables()
+        {
+            string curdir = Directory.GetCurrentDirectory();
+            string folder = $@"{curdir}\..\..\..\jobench\create";
+            string filename = $@"{folder}\schema.sql";
+            var sql = File.ReadAllText(filename);
+            SQLStatement.ExecSQLList(sql);
+        }
+
+        static public void LoadTables(string subfolder)
+        {
+        }
+
+        static public void AnalyzeTables()
+        {
+        }
+    }
 }

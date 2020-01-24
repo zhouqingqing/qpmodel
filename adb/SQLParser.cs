@@ -112,6 +112,20 @@ namespace adb.sqlparser
             => new LogicOrExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)));
         public override object VisitBoolEqualexpr([NotNull] SQLiteParser.BoolEqualexprContext context)
             => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
+        public override object VisitIsExpr([NotNull] SQLiteParser.IsExprContext context)
+        {
+            var text = "is";
+            if (context.K_NOT() != null)
+                text = "is not";
+            return new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), text);
+        }
+        public override object VisitLikeExpr([NotNull] SQLiteParser.LikeExprContext context)
+        {
+            var text = "like";
+            if (context.K_NOT() != null)
+                text = "not like";
+            return new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), text);
+        }
 
         public override object VisitCastExpr([NotNull] SQLiteParser.CastExprContext context)
             => new CastExpr((Expr)Visit(context.expr()), (ColumnType)Visit(context.type_name()));
@@ -361,6 +375,7 @@ namespace adb.sqlparser
                 {"int", typeof(int)}, {"integer", typeof(int)},
                 {"double", typeof(double)},{"double precision", typeof(double)},
                 {"char", typeof(string)}, {"varchar", typeof(string)},
+                {"text", typeof(string)},
                 {"datetime", typeof(DateTime)}, {"date", typeof(DateTime)},{"time", typeof(DateTime)},
                 {"numeric", typeof(decimal)}, {"decimal", typeof(decimal)},
             };
@@ -375,9 +390,16 @@ namespace adb.sqlparser
                 return new DateTimeType();
             else if (type == typeof(string))
             {
-                var numbers = context.signed_number();
-                adb.utils.Utils.Checks(numbers.Count() == 1);
-                return new CharType(int.Parse(numbers[0].NUMERIC_LITERAL().GetText()));
+                int len;
+                if (typename == "text")
+                    len = 1024 * 1024 * 1024;
+                else
+                {
+                    var numbers = context.signed_number();
+                    adb.utils.Utils.Checks(numbers.Count() == 1);
+                    len = int.Parse(numbers[0].NUMERIC_LITERAL().GetText());
+                }
+                return new CharType(len);
             }
             else if (type == typeof(decimal))
             {

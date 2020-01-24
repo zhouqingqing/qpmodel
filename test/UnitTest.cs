@@ -162,6 +162,26 @@ namespace test
     public class TpcTest
     {
         [TestMethod]
+        public void TestJobench()
+        {
+            var files = Directory.GetFiles(@"../../../jobench");
+
+            JOBench.CreateTables();
+
+            // make sure all queries can generate phase one opt plan
+            QueryOption option = new QueryOption();
+            option.optimize_.enable_subquery_to_markjoin_ = true;
+            option.optimize_.remove_from = false;
+            option.optimize_.use_memo_ = false;
+            foreach (var v in files)
+            {
+                var sql = File.ReadAllText(v);
+                var result = TU.ExecuteSQL(sql, out string phyplan, option);
+                Assert.IsNotNull(phyplan); Assert.IsNotNull(result);
+            }
+        }
+
+        [TestMethod]
         public void TestBenchmarks()
         {
             TestTpcds();

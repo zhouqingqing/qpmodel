@@ -300,8 +300,10 @@ expr
  | expr op=( '||' | '||' ) expr							    #stringopexpr
  | expr op=( '<' | '<=' | '>' | '>=' ) expr					#arithcompexpr																		
  | expr K_NOT? K_BETWEEN '(' expr ',' expr ')'				#BetweenExpr
- | expr op=( '=' | '==' | '!=' | '<>' | K_IS | 'is not' 
-	 |'not like' | K_LIKE | K_GLOB | K_MATCH | K_REGEXP ) expr	#BoolEqualexpr
+ | expr K_IS K_NOT? expr									#IsExpr
+ | expr K_NOT? K_LIKE expr									#LikeExpr
+ | expr op=( '=' | '==' | '!=' | '<>' 
+	 | K_GLOB | K_MATCH | K_REGEXP ) expr	                #BoolEqualexpr
  | expr K_NOT? K_IN ( '(' ( select_stmt						
                           | expr ( ',' expr )*
                           )? 
@@ -314,7 +316,6 @@ expr
  | '(' expr ')'												#brackexpr
  | K_CAST '(' expr K_AS type_name ')'						#CastExpr
  | expr ( K_ISNULL | K_NOTNULL | K_NOT K_NULL )				#NullExpr
- | expr K_IS K_NOT? expr									#IsExpr
  | K_CASE expr? ( K_WHEN expr K_THEN expr )+ ( K_ELSE expr )? K_END		#CaseExpr
  ;
 
