@@ -205,9 +205,9 @@ namespace adb.expr
                     r += Utils.Tabs(depth + 2) + $"<{x.GetType().Name}> {cached}{x.subqueryid_}\n";
                     Debug.Assert(x.query_.bindContext_ != null);
                     if (x.query_.physicPlan_ != null)
-                        r += $"{x.query_.physicPlan_.PrintString(depth + 4)}";
+                        r += $"{x.query_.physicPlan_.Explain(depth + 4)}";
                     else
-                        r += $"{x.query_.logicPlan_.PrintString(depth + 4)}";
+                        r += $"{x.query_.logicPlan_.Explain(depth + 4)}";
                 });
             }
 

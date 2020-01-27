@@ -111,13 +111,16 @@ namespace test
             // you may encounter an error saying can't find roslyn/csc.exe
             // one work around is to copy the folder there.
             //
-            string sql = "select * from a, b, c where a1>b1 and a2>c2;";
+            string sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
             QueryOption option = new QueryOption();
             option.profile_.enabled_ = false;
             option.optimize_.use_codegen_ = true;
 
-            var result = TU.ExecuteSQL(sql, out string resultstr, option);
-            // Assert.AreEqual("1;2;2;2;2", string.Join(";", result));
+            var result = TU.ExecuteSQL(sql, out string phyplan, option);
+            Assert.AreEqual("4,1;6,4", string.Join(";", result));
+            sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2;";
+            result = TU.ExecuteSQL(sql, out phyplan, option);
+            Assert.AreEqual("2,1;4,1;6,1", string.Join(";", result));
         }
     }
 
@@ -151,14 +154,33 @@ namespace test
         public void TestAnalyze()
         {
             var sql = "analyze a;";
-            var stmt = RawParser.ParseSqlStatements(sql);
-            stmt.Exec();
+            SQLStatement.ExecSQL(sql, out _, out _);
         }
     }
 
     [TestClass]
     public class TpcTest
     {
+        [TestMethod]
+        public void TestJobench()
+        {
+            var files = Directory.GetFiles(@"../../../jobench");
+
+            JOBench.CreateTables();
+
+            // make sure all queries can generate phase one opt plan
+            QueryOption option = new QueryOption();
+            option.optimize_.enable_subquery_to_markjoin_ = true;
+            option.optimize_.remove_from = false;
+            option.optimize_.use_memo_ = false;
+            foreach (var v in files)
+            {
+                var sql = File.ReadAllText(v);
+                var result = TU.ExecuteSQL(sql, out string phyplan, option);
+                Assert.IsNotNull(phyplan); Assert.IsNotNull(result);
+            }
+        }
+
         [TestMethod]
         public void TestBenchmarks()
         {
@@ -196,7 +218,7 @@ namespace test
                 var sql = File.ReadAllText(v);
                 var stmt = RawParser.ParseSingleSqlStatement(sql);
                 stmt.Bind(null);
-                Console.WriteLine(stmt.CreatePlan().PrintString(0));
+                Console.WriteLine(stmt.CreatePlan().Explain(0));
             }
             Assert.AreEqual(22, files.Length);
 
@@ -966,15 +988,15 @@ namespace test
         {
             var sql = "select b1+b1 from (select b1 from b) a";
             var stmt = RawParser.ParseSingleSqlStatement(sql);
-            stmt.Exec(); var phyplan = stmt.physicPlan_;
+            SQLStatement.ExecSQL(sql, out string phyplan, out _);
             var answer = @"PhysicFromQuery <a>  (actual rows=3)
                             Output: a.b1[0]+a.b1[0]
                             -> PhysicScanTable b  (actual rows=3)
                                 Output: b.b1[0]";
-            TU.PlanAssertEqual(answer, phyplan.PrintString(0));
+            TU.PlanAssertEqual(answer, phyplan);
             sql = "select b1+c1 from (select b1 from b) a, (select c1 from c) c where c1>1";
             stmt = RawParser.ParseSingleSqlStatement(sql);
-            stmt.Exec(); phyplan = stmt.physicPlan_;    // FIXME: filter is still there
+            SQLStatement.ExecSQL(sql, out phyplan, out _);// FIXME: filter is still there
             answer = @"PhysicFilter  (actual rows=3)
                         Output: {a.b1+c.c1}[0]
                         Filter: c.c1[1]>1
@@ -988,7 +1010,7 @@ namespace test
                                 Output: c.c1[0]
                                 -> PhysicScanTable c (actual rows=3, loops=3)
                                     Output: c.c1[0]";
-            TU.PlanAssertEqual(answer, phyplan.PrintString(0));
+            TU.PlanAssertEqual(answer, phyplan);
             var result = ExecuteSQL(sql);
             Assert.AreEqual(3, result.Count);
             Assert.AreEqual("2", result[0].ToString());
@@ -996,7 +1018,7 @@ namespace test
             Assert.AreEqual("4", result[2].ToString());
             sql = "select b1+c1 from (select b1 from b) a, (select c1,c2 from c) c where c2-b1>1";
             stmt = RawParser.ParseSingleSqlStatement(sql);
-            stmt.Exec(); phyplan = stmt.physicPlan_;
+            SQLStatement.ExecSQL(sql, out phyplan, out _);
             answer = @"PhysicNLJoin  (actual rows=3)
                         Output: a.b1[0]+c.c1[1]
                         Filter: c.c2[2]-a.b1[0]>1
@@ -1008,7 +1030,7 @@ namespace test
                             Output: c.c1[0],c.c2[1]
                             -> PhysicScanTable c (actual rows=3, loops=3)
                                 Output: c.c1[0],c.c2[1]";
-            TU.PlanAssertEqual(answer, phyplan.PrintString(0));
+            TU.PlanAssertEqual(answer, phyplan);
             result = ExecuteSQL(sql);
             Assert.AreEqual("1;2;3", string.Join(";", result));
         }

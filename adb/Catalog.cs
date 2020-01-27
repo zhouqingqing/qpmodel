@@ -146,8 +146,7 @@ namespace adb
                 // nullable tables
                 @"create table r (r1 int, r2 int, r3 int, r4 int);",
             };
-            var stmt = RawParser.ParseSqlStatements(string.Join("", createtables));
-            stmt.Exec();
+            SQLStatement.ExecSQLList(string.Join("", createtables));
 
             // load tables
             string curdir = Directory.GetCurrentDirectory();
@@ -164,8 +163,7 @@ namespace adb
                 @"create unique index dd1 on d(d1);",
                 @"create index dd2 on d(d2);",
             };
-            stmt = RawParser.ParseSqlStatements(string.Join("", createindexes));
-            stmt.Exec();
+            SQLStatement.ExecSQLList(string.Join("", createindexes));
 
             // analyze tables
             foreach (var v in new List<char>() { 'a', 'b', 'c', 'd', 'r' })
