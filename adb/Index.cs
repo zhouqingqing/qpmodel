@@ -105,15 +105,16 @@ namespace adb.index
 
         public override string Open(ExecContext context)
         {
+            base.Open(context);
             var logic = (logic_ as LogicIndex);
             var tabName = logic.GetTargetTable().relname_;
             index_ = new MemoryIndex(logic.def_.unique_);
             return null;
         }
 
-        public override string Exec(ExecContext context, Func<Row, string> callback)
+        public override string Exec(Func<Row, string> callback)
         {
-            child_().Exec(context, r =>
+            child_().Exec(r =>
             {
                 var tablerow = r[0];
                 Debug.Assert(tablerow != null && tablerow is Row);
@@ -126,7 +127,7 @@ namespace adb.index
             return null;
         }
 
-        public override string Close(ExecContext context)
+        public override string Close()
         {
             var logic = (logic_ as LogicIndex);
             var def = logic.def_;

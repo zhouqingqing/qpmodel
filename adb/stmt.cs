@@ -26,6 +26,8 @@ namespace adb.logic
         public PhysicNode physicPlan_;
 
         // others
+        public bool explainOnly_ = false;
+        public ExplainOption explain_ = new ExplainOption();
         public QueryOption queryOpt_ = new QueryOption();
 
         // DEBUG support
@@ -50,20 +52,27 @@ namespace adb.logic
                 Optimizer.OptimizeRootPlan(this, null);
                 physicPlan_ = Optimizer.CopyOutOptimalPlan();
             }
+            if (explainOnly_)
+                return null;
 
-            var result = new PhysicCollect(physicPlan_);
+            // actual execution is needed
+            var finalplan = new PhysicCollect(physicPlan_);
+            physicPlan_ = finalplan;
             var context = new ExecContext(queryOpt_);
-            var code = result.Open(context);
-            code += result.Exec(context, null);
-            code += result.Close(context);
+            if (this is SelectStmt select)
+                select.OpenSubQueries(context);
+            var code = finalplan.Open(context);
+            code += finalplan.Exec(null);
+            code += finalplan.Close();
 
             if (queryOpt_.optimize_.use_codegen_)
             {
                 CodeWriter.WriteLine(code);
                 Compiler.Run(Compiler.Compile(), this, context);
             }
-            return result.rows_;
+            return finalplan.rows_;
         }
+
         public static List<Row> ExecSQL(string sql, out string physicplan, out string error, QueryOption option = null)
         {
             try
@@ -72,7 +81,9 @@ namespace adb.logic
                 if (option != null)
                     stmt.queryOpt_ = option;
                 var result = stmt.Exec();
-                physicplan = stmt.physicPlan_.PrintString(0);
+                physicplan = "";
+                if (stmt.physicPlan_ != null)
+                    physicplan = stmt.physicPlan_.Explain(0);
                 error = "";
                 return result;
             }
@@ -85,6 +96,7 @@ namespace adb.logic
             }
         }
 
+        // This function can also be used to execute a single SQL statement
         public static string ExecSQLList(string sqls, QueryOption option = null)
         {
             StatementList stmts = RawParser.ParseSqlStatements(sqls);
@@ -125,7 +137,8 @@ namespace adb.logic
                 // format: <sql> <plan> <result>
                 result += v.text_ + "\n";
                 result += plan;
-                result += string.Join("\n", rows) + "\n\n";
+                if (rows != null)
+                    result += string.Join("\n", rows) + "\n\n";
             }
             return result;
         }
@@ -428,6 +441,14 @@ namespace adb.logic
             }
 
             return logic;
+        }
+
+        internal void OpenSubQueries(ExecContext context) 
+        {
+            foreach (var v in Subqueries(true))
+                v.physicPlan_.Open(context);
+            foreach (var v in Subqueries(false))
+                v.OpenSubQueries(context);
         }
     }
 }

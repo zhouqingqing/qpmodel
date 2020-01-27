@@ -112,6 +112,20 @@ namespace adb.sqlparser
             => new LogicOrExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)));
         public override object VisitBoolEqualexpr([NotNull] SQLiteParser.BoolEqualexprContext context)
             => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
+        public override object VisitIsExpr([NotNull] SQLiteParser.IsExprContext context)
+        {
+            var text = "is";
+            if (context.K_NOT() != null)
+                text = "is not";
+            return new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), text);
+        }
+        public override object VisitLikeExpr([NotNull] SQLiteParser.LikeExprContext context)
+        {
+            var text = "like";
+            if (context.K_NOT() != null)
+                text = "not like";
+            return new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), text);
+        }
 
         public override object VisitCastExpr([NotNull] SQLiteParser.CastExprContext context)
             => new CastExpr((Expr)Visit(context.expr()), (ColumnType)Visit(context.type_name()));
@@ -361,6 +375,7 @@ namespace adb.sqlparser
                 {"int", typeof(int)}, {"integer", typeof(int)},
                 {"double", typeof(double)},{"double precision", typeof(double)},
                 {"char", typeof(string)}, {"varchar", typeof(string)},
+                {"text", typeof(string)},
                 {"datetime", typeof(DateTime)}, {"date", typeof(DateTime)},{"time", typeof(DateTime)},
                 {"numeric", typeof(decimal)}, {"decimal", typeof(decimal)},
             };
@@ -375,9 +390,16 @@ namespace adb.sqlparser
                 return new DateTimeType();
             else if (type == typeof(string))
             {
-                var numbers = context.signed_number();
-                adb.utils.Utils.Checks(numbers.Count() == 1);
-                return new CharType(int.Parse(numbers[0].NUMERIC_LITERAL().GetText()));
+                int len;
+                if (typename == "text")
+                    len = 1024 * 1024 * 1024;
+                else
+                {
+                    var numbers = context.signed_number();
+                    adb.utils.Utils.Checks(numbers.Count() == 1);
+                    len = int.Parse(numbers[0].NUMERIC_LITERAL().GetText());
+                }
+                return new CharType(len);
             }
             else if (type == typeof(decimal))
             {
@@ -411,17 +433,17 @@ namespace adb.sqlparser
             var cons = new List<TableConstraint>();
             foreach (var v in context.table_constraint())
                 cons.Add(VisitTable_constraint(v) as TableConstraint);
-            return new CreateTableStmt(context.table_name().GetText(), cols, cons, context.GetText());
+            return new CreateTableStmt(context.table_name().GetText(), cols, cons, GetRawText(context));
         }
 
         public override object VisitAnalyze_stmt([NotNull] SQLiteParser.Analyze_stmtContext context)
         {
             var tabref = new BaseTableRef(context.table_name().GetText());
-            return new AnalyzeStmt(tabref, context.GetText());
+            return new AnalyzeStmt(tabref, GetRawText(context));
         }
 
         public override object VisitDrop_table_stmt([NotNull] SQLiteParser.Drop_table_stmtContext context) 
-            => new DropTableStmt (context.table_name().GetText(), context.GetText());
+            => new DropTableStmt (context.table_name().GetText(), GetRawText(context));
 
         public override object VisitCreate_index_stmt([NotNull] SQLiteParser.Create_index_stmtContext context)
         {
@@ -434,7 +456,7 @@ namespace adb.sqlparser
                 columns.Add(v.GetText());
 
             Debug.Assert(columns.Count >= 1);
-            return new CreateIndexStmt(indexname, tableref, unique, columns, where, context.GetText());
+            return new CreateIndexStmt(indexname, tableref, unique, columns, where, GetRawText(context));
         }
 
         public override object VisitInsert_stmt([NotNull] SQLiteParser.Insert_stmtContext context)
@@ -449,7 +471,7 @@ namespace adb.sqlparser
             SelectStmt select = null;
             if (context.select_stmt() != null)
                 select = Visit(context.select_stmt()) as SelectStmt;
-            return new InsertStmt(tabref, cols, vals, select, context.GetText());
+            return new InsertStmt(tabref, cols, vals, select, GetRawText(context));
         }
 
         public override object VisitCopy_stmt([NotNull] SQLiteParser.Copy_stmtContext context)
@@ -461,12 +483,16 @@ namespace adb.sqlparser
             Expr where = null;
             if (context.K_WHERE() != null)
                 where = Visit(context.expr()) as Expr;
-            return new CopyStmt(tabref, cols, context.STRING_LITERAL().GetText(), where, context.GetText());
+            return new CopyStmt(tabref, cols, context.STRING_LITERAL().GetText(), where, GetRawText(context));
         }
 
         public override object VisitSql_stmt([NotNull] SQLiteParser.Sql_stmtContext context)
         {
             SQLStatement r = null;
+
+            bool isExplain = false;
+            if (context.K_EXPLAIN() != null)
+                isExplain = true;
 
             if (context.select_stmt() != null)
                 r = Visit(context.select_stmt()) as SQLStatement;
@@ -485,6 +511,9 @@ namespace adb.sqlparser
 
             if (r is null)
                 throw new NotImplementedException();
+
+            Debug.Assert(!r.explainOnly_);
+            r.explainOnly_ = isExplain;
             return r;
         }
 

@@ -601,6 +601,7 @@ namespace adb.expr
         {
             string[] supportops = { "+", "-" };
 
+            op = op.ToLower();
             if (!supportops.Contains(op))
                 throw new SemanticAnalyzeException($"{op} on {expr} is not supported");
             op_ = op;
@@ -649,7 +650,7 @@ namespace adb.expr
         {
             children_.Add(l);
             children_.Add(r);
-            op_ = op;
+            op_ = op.ToLower();
             Debug.Assert(Clone().Equals(this));
         }
 
@@ -674,6 +675,7 @@ namespace adb.expr
                 case "<=":
                 case "=":
                 case "<>":
+                case "!=":
                 case " and ":
                 case " or ":
                 case "like":
@@ -736,7 +738,7 @@ namespace adb.expr
                 case "<": return lv < rv;
                 case "<=": return lv <= rv;
                 case "=": return lv == rv;
-                case "<>": return lv != rv;
+                case "<>": case "!=": return lv != rv;
                 case "like": return Utils.StringLike(lv, rv);
                 case "not like": return !Utils.StringLike(lv, rv);
                 case " and ": return lv && rv;

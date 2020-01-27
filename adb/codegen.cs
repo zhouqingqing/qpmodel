@@ -79,9 +79,15 @@ namespace adb.codegen
         // format it and write it back to the same file
         internal static void FromatFile(string sourcePath)
         {
-            var str = File.ReadAllText(sourcePath);
-            var tree = CSharpSyntaxTree.ParseText(str);
-            File.WriteAllText(sourcePath, tree.GetRoot().NormalizeWhitespace().ToFullString());
+            try
+            {
+                var str = File.ReadAllText(sourcePath);
+                var tree = CSharpSyntaxTree.ParseText(str);
+                File.WriteAllText(sourcePath, tree.GetRoot().NormalizeWhitespace().ToFullString());
+            }
+            catch {
+                Debug.WriteLine("format code failed");
+            }
         }
 
         internal static CompilerResults Compile()
