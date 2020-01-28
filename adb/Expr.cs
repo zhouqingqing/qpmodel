@@ -752,6 +752,7 @@ namespace adb.expr
 
         public virtual string PrintString(int depth) => ToString();
         public virtual Value Exec(ExecContext context, Row input) => throw new Exception($"{this} subclass shall implment Exec()");
+        public virtual string ExecCode(ExecContext context, string input) => throw new Exception($"{this} subclass shall implment ExecCode()");
     }
 
     // Represents "*" or "table.*" - it is not in the tree after Bind(). 
@@ -943,6 +944,15 @@ namespace adb.expr
             else
                 return input[ordinal_];
         }
+
+        public override string ExecCode(ExecContext context, string input)
+        {
+            Debug.Assert(type_ != null);
+            if (isParameter_)
+                throw new NotImplementedException();
+            else
+                return $"{input}[{ordinal_}]";
+        }
     }
 
     public class SysColExpr : ColExpr {
@@ -1093,6 +1103,16 @@ namespace adb.expr
             return val_;
         }
 
+        public override string ExecCode(ExecContext context, string input) {
+            var str = str_.Replace("'", "\"");
+            if (type_ is DateTimeType)
+            {
+                var date = (DateTime)val_;
+                return $"(new DateTime({date.Ticks}))";
+            }
+            return str;
+        }
+
         public override int GetHashCode() => str_.GetHashCode();
         public override bool Equals(object obj)
         {
@@ -1155,6 +1175,12 @@ namespace adb.expr
         {
             Debug.Assert(type_ != null);
             return input[ordinal_];
+        }
+
+        public override string ExecCode(ExecContext context, string input)
+        {
+            Debug.Assert(type_ != null);
+            return $"{input}[{ordinal_}]";
         }
     }
 

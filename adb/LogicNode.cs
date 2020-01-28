@@ -675,7 +675,6 @@ namespace adb.logic
             //
             if (keys?.Count > 0)
             {
-                var constTrue = LiteralExpr.MakeLiteral("true", new BoolType());
                 reqList.ForEach(x =>
                 {
                     if (reqContainAggs.Contains(x))
@@ -823,6 +822,11 @@ namespace adb.logic
             List<int> ordinals = new List<int>();
             List<Expr> reqFromChild = new List<Expr>();
             reqFromChild.AddRange(reqOutput.CloneList());
+
+            // do not decompose order_ into ColRefs: the reason is that say GROUP BY 1 ORDER BY 1 where 1 
+            // is actully a3+a4, if we decompose it, then Aggregation will see a3 and a4 thus require them
+            // in the GROUP BY clause.
+            //
             reqFromChild.AddRange(orders_);
             child_().ResolveColumnOrdinal(reqFromChild);
             var childout = child_().output_;
