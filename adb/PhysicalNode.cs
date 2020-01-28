@@ -1000,8 +1000,8 @@ namespace adb.physic
 
     public class PhysicProfiling : PhysicNode
     {
-        internal Int64 nrows_ = 0;
-        internal Int64 nloops_= 0;
+        public Int64 nrows_ = 0;
+        public Int64 nloops_= 0;
 
         public override string ToString() => $"${child_()}";
 
@@ -1014,14 +1014,30 @@ namespace adb.physic
 
         public override string Exec(Func<Row, string> callback)
         {
-            nloops_++;
-            child_().Exec(l =>
+            string s = null;
+            ExecContext context = context_;
+
+            if (context.option_.optimize_.use_codegen_)
+                s = $"{_physic_}.nloops_ ++;";
+            else
+                nloops_++;
+            s += child_().Exec(l =>
             {
-                nrows_++;
-                callback(l);
-                return null;
+                string code = null;
+                if (context.option_.optimize_.use_codegen_) {
+                    code = $@"
+                    {_physic_}.nrows_++;
+                    var r{_} = r{child_()._};
+                    {callback(null)}";
+                }
+                else
+                {
+                    nrows_++;
+                    callback(l);
+                }
+                return code;
             });
-            return null;
+            return s;
         }
     }
 
