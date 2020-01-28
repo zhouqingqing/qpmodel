@@ -826,8 +826,18 @@ namespace adb.physic
         public PhysicOrder(LogicOrder logic, PhysicNode l) : base(logic) => children_.Add(l);
         public override string ToString() => $"POrder({child_()}: {Cost()})";
 
+        public override string Open(ExecContext context)
+        {
+            string cs = base.Open(context);
+            if (context.option_.optimize_.use_codegen_)
+            {
+                cs += $@"var set{_} = new List<Row>();";
+            }
+            return cs;
+        }
+
         // respect logic.orders_|descends_
-        private int compareRow(Row l, Row r)
+        public int compareRow(Row l, Row r)
         {
             var logic = logic_ as LogicOrder;
             var orders = logic.orders_;
@@ -837,28 +847,49 @@ namespace adb.physic
             var rkey = KeyList.ComputeKeys(context_, orders, r);
             return lkey.CompareTo(rkey, descends);
         }
+
         public override string Exec(Func<Row, string> callback)
         {
             ExecContext context = context_;
             var logic = logic_ as LogicOrder;
             var set = new List<Row>();
-            context_ = context;
 
-            child_().Exec(l =>
+            string s = child_().Exec(l =>
             {
-                set.Add(l);
-                return null;
+                string build = null;
+                if (context.option_.optimize_.use_codegen_) {
+                    build = $@"set{_}.Add(r{child_()._});";
+                }
+                else
+                    set.Add(l);
+                return build;
             });
             set.Sort(compareRow);
+            s += codegen($@"set{_}.Sort({_physic_}.compareRow);");
 
             // output sorted set
-            foreach (var v in set)
+            if (context.option_.optimize_.use_codegen_)
             {
-                if (context.stop_)
-                    break;
-                callback(v);
+                s += $@"
+                foreach (var rs{_} in set{_})
+                {{
+                    if (context.stop_)
+                        break;
+                    var r{_} = {_physic_}.ExecProject(rs{_});
+                    {callback(null)}
+                }}";
             }
-            return null;
+            else
+            {
+                foreach (var rs in set)
+                {
+                    if (context.stop_)
+                        break;
+                    var r = ExecProject(rs);
+                    callback(r);
+                }
+            }
+            return s;
         }
 
         public override double Cost()
