@@ -170,9 +170,7 @@ namespace test
 
             // make sure all queries can generate phase one opt plan
             QueryOption option = new QueryOption();
-            option.optimize_.enable_subquery_to_markjoin_ = true;
-            option.optimize_.remove_from = false;
-            option.optimize_.use_memo_ = false;
+            option.optimize_.TurnOnAllOptimizations();
             foreach (var v in files)
             {
                 var sql = File.ReadAllText(v);
@@ -639,19 +637,32 @@ namespace test
             sql = "select b4*b1+b2*b3 from (select 1 as b4, b3, count(*) as b1, sum(b1) b2 from b group by b3) a;";
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
             Assert.AreEqual("1;4;9", string.Join(";", result));
+            sql = "select sum(a1)+count(a1) from (select sum(a1) from a group by a2) c(a1);";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("6", string.Join(";", result));
+            sql = "select sum(c1*c2+c3) from (select a2, sum(a1), count(a1) from a group by a2) c(c1,c2,c3) group by c1;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("1;3;7", string.Join(";", result));
+            sql = "select sum(c1*c2+c3) from (select a2, sum(a1), count(a1) from a group by a2) c(c1,c2,c3);";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("11", string.Join(";", result));
+            sql = "select sum(e1+1) from (select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1)) b(e1);";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("9", string.Join(";", result));
+            sql = "select b4*b1+b2*b3 from (select 1 as b4, b3, count(*) as b1, sum(b1) b2 from b group by b3) a;"; // OK
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("1;4;9", string.Join(";", result));
+            sql = "select b1+b2,c100 from (select count(*) as b1, sum(b1) b2 from b) a, (select c1 c100 from c) c where c100>1;"; // OK
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("6,2", string.Join(";", result));
 
             // FIXME
-            sql = "select sum(e1+1) from (select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1)) b(e1);";
             sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;";
-            // sql = "select * from (select max(b3) maxb3 from b) b where maxb3>1";    // WRONG!
+            sql = "select * from (select max(b3) maxb3 from b) b where maxb3>1";    // WRONG!
             sql = "select a1 from a, (select max(b3) maxb3 from b) b where a1 < maxb3"; // WRONG!
             sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;"; // WRONG
-            sql = "select b1,c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;"; // OK
-            sql = "select b1,b2,c100 from (select count(*) as b1, sum(b1) b2 from b) a, (select c1 c100 from c) c where c100>1;"; // OK
-            sql = "select b1+b2,c100 from (select count(*) as b1, sum(b1) b2 from b) a, (select c1 c100 from c) c where c100>1;"; // OK
-            sql = "select b4*b1+b2*b3 from (select 1 as b4, b3, count(*) as b1, sum(b1) b2 from b group by b3) a;"; // OK
             sql = "select b1,c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where b1>1 and c100>1;"; // ANSWER WRONG
-
+            sql = "select sum(a1) from (select sum(a1) from (select sum(a1) from a )b(a1) )c(a1);"; // WRONG
 
             // FIXME: if we turn memo on, we have problems resolving columns
         }

@@ -20,17 +20,28 @@ namespace adb.logic
         {
             // rewrite controls
             public bool enable_subquery_to_markjoin_ = true;
-            public bool remove_from = false;
+            public bool remove_from = false;        // make it true by default
 
             // optimizer controls
             public bool enable_hashjoin_ = true;
             public bool enable_nljoin_ = true;
             public bool enable_indexseek = true;
-            public bool use_memo_ = false;
+            public bool use_memo_ = false;      // make it true by default
             public bool memo_disable_crossjoin = true;
 
             // codegen controls
             public bool use_codegen_ = false;
+
+            public void TurnOnAllOptimizations() {
+                enable_subquery_to_markjoin_ = true;
+                remove_from = true;
+
+                enable_hashjoin_ = true;
+                enable_nljoin_ = true;
+                enable_indexseek = true;
+                use_memo_ = true;
+                memo_disable_crossjoin = true;
+            }
         }
 
         public ProfileOption profile_ = new ProfileOption();

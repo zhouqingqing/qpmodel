@@ -16,9 +16,12 @@ namespace adb
         {
             string sql = "";
 
-            JOBench.CreateTables();
-            sql = File.ReadAllText("../../../jobench/1a.sql");
-            goto doit;
+            if (false)
+            {
+                JOBench.CreateTables();
+                sql = File.ReadAllText("../../../jobench/1a.sql");
+                goto doit;
+            }
 
             if (false)
             {
@@ -29,7 +32,8 @@ namespace adb
                 sql = File.ReadAllText("../../../tpch/q03.sql");
                 goto doit;
             }
-            else 
+
+            if (false)
             { 
                 Tpcds.CreateTables();
                 sql = File.ReadAllText("../../../tpcds/problem_queries/q64.sql");
@@ -144,23 +148,32 @@ namespace adb
             //sql = "select 1+2+3 from d where 1=d1 and 2<d1";
             //sql = "select * from d where 3<d1;";
             //sql = "select * from a, b, c where a1>b1 and a2>c2;";
-
+            sql = "select sum(a1), a2 from a group by a2;";
+            sql = "select b1,c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where b1>1 and c100>1;"; // ANSWER WRONG
+            sql = "select sum(e1+1) from (select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1)) b(e1);";
+            sql = "select sum(a1) from (select sum(a1) from (select sum(a1) from a )b(a1) )c(a1);"; // fail
+            sql = "select sum(e1+1) from (select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1)) b(e1);";
+            sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;";
+            sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c ;";
+            sql = "select * from (select count(b2), max(b3) maxb3 from b) b(b1,b2) where b1 < b2"; // WRONG!
+            sql = "select b1+b2,c100 from (select count(*) as b1, sum(b1) b2 from b) a, (select c1 c100 from c) c where c100>1;"; // OK
+            sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c;"; // WRONG
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
             a.queryOpt_.profile_.enabled_ = false;
             a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = true;
-            a.queryOpt_.optimize_.remove_from = true;
-            a.queryOpt_.optimize_.use_memo_ = true;
+            a.queryOpt_.optimize_.use_memo_ = false;
             a.queryOpt_.optimize_.use_codegen_ = false;
+            a.queryOpt_.optimize_.remove_from = true;
 
             // -- Semantic analysis:
             //  - bind the query
             a.Bind(null);
 
             // -- generate an initial plan
-            ExplainOption.show_tablename_ = false;
-            a.explain_.show_output_ = false;
+            ExplainOption.show_tablename_ = true;
+            a.explain_.show_output_ = true;
             a.explain_.show_cost_ =  a.queryOpt_.optimize_.use_memo_;
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.Explain(0));

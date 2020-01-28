@@ -31,7 +31,7 @@ namespace adb.expr
             List<Expr> r = new List<Expr>();
             args_().ForEach(x =>
             {
-                x.VisitEachExpr(y =>
+                x.VisitEachIgnoreRef<Expr>(y =>
                 {
                     if (y is FuncExpr yf)
                         r.AddRange(yf.GetNonFuncExprList());
@@ -42,6 +42,7 @@ namespace adb.expr
 
             return r;
         }
+
         static public FuncExpr BuildFuncExpr(string funcName, List<Expr> args)
         {
             FuncExpr r = null;
