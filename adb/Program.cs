@@ -144,7 +144,7 @@ namespace adb
             //sql = "select 1+2+3 from d where 1=d1 and 2<d1";
             //sql = "select * from d where 3<d1;";
             //sql = "select * from a, b, c where a1>b1 and a2>c2;";
-            sql = "select a2*2 from a, b, c where a1<=b2 and a2<=c3 limit 10;";
+            sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 limit 2;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);

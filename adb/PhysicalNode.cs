@@ -56,6 +56,21 @@ namespace adb.physic
         }
         // @context is to carray parameters etc, @callback.Row is current row for processing
         public abstract string Exec(Func<Row, string> callback);
+        public string ExecProjectCode(string input)
+        {
+            var output = logic_.output_;
+            string s = null;
+            s += $@"
+            {{
+            // projection on {_physic_}: {logic_.ExplainOutput(0)} 
+            Row rproj = new Row({output.Count});
+            for (int i = 0; i < {output.Count}; i++)
+                rproj[i] = output{_}[i].Exec(context, {input});
+            {input} = rproj;
+            }}";
+
+            return s;
+        }
 
         public Row ExecProject(Row input)
         {
@@ -107,7 +122,8 @@ namespace adb.physic
                 var logtype = logic_.GetType().Name;
                 logicfilter = $@"
                     {logtype} {_logic_} = {_physic_}.logic_ as {logtype};
-                    var filter{_} = {_logic_}.filter_;";
+                    var filter{_} = {_logic_}.filter_;
+                    var output{_} = {_logic_}.output_;";
             }
             string s = $@"
                 {phytype} {_physic_}  = stmt.physicPlan_.Locate(""{_}"") as {phytype};
@@ -217,7 +233,7 @@ namespace adb.physic
                             $@"context.AddParam({_logic_}.tabref_, r{_});")}
                     if ({(filter is null).ToLower()} || filter{_}.Exec(context, r{_}) is true)
                     {{
-                        r{_} = {_physic_}.ExecProject(r{_});
+                        {ExecProjectCode($"r{_}")}
                         {callback(null)}
                     }}
                 }}";
@@ -404,8 +420,8 @@ namespace adb.physic
                                 foundOneMatch{_} = true;
                                 {codegen_if(!antisemi, $@"
                                 {{
-                                    r{_} = {_physic_}.ExecProject(r{_});
-                                    {callback(null)}
+                                   {ExecProjectCode($"r{_}")}
+                                   {callback(null)}
                                 }}")}
                             }}
                         }}";
@@ -435,7 +451,7 @@ namespace adb.physic
                     if (!foundOneMatch{_})
                     {{
                         Row r{_} = new Row(r{l_()._}, null);
-                        r{_} = {_physic_}.ExecProject(r{_});
+                        {ExecProjectCode($"r{_}")}
                         {callback(null)}
                     }}");
                 }
@@ -582,7 +598,8 @@ namespace adb.physic
                         foundOneMatch{_} = true;
                         foreach (var v{_} in exist{_})
                         {{
-                            r{_} = {_physic_}.ExecProject(new Row(v{_}, {rname}));
+                            r{_} = new Row(v{_}, {rname});
+                            {ExecProjectCode($"r{_}")}
                             {callback(null)}
                             {codegen_if(semi, 
                                 "break;")}
@@ -595,7 +612,7 @@ namespace adb.physic
                         if (!foundOneMatch{_})
                         {{
                             r{_} = new Row(null, r{_});
-                            r{_} = {_physic_}.ExecProject(r{_});
+                            {ExecProjectCode($"r{_}")}
                             {callback(null)}
                         }}")}
                     }}
@@ -782,10 +799,10 @@ namespace adb.physic
                     Row aggvals{_} = v{_}.Value;
                     for (int i = 0; i < {aggrcore.Count}; i++)
                         aggvals{_}[i] = aggrcore{_}[i].Finalize(context, aggvals{_}[i]);
-                    var w{_} = new Row(keys{_}, aggvals{_});
-                    if ({(logic.having_ is null).ToLower()} || {_logic_}.having_.Exec(context, w{_}) is true)
+                    var r{_} = new Row(keys{_}, aggvals{_});
+                    if ({(logic.having_ is null).ToLower()} || {_logic_}.having_.Exec(context, r{_}) is true)
                     {{
-                        var r{_} = {_physic_}.ExecProject(w{_});
+                        {ExecProjectCode($"r{_}")}
                         {callback(null)}
                     }}
                 }}
