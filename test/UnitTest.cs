@@ -118,9 +118,9 @@ namespace test
 
             var result = TU.ExecuteSQL(sql, out string phyplan, option);
             Assert.AreEqual("4,1;6,4", string.Join(";", result));
-            sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2;";
+            sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 limit 2;";
             result = TU.ExecuteSQL(sql, out phyplan, option);
-            Assert.AreEqual("2,1;4,1;6,1", string.Join(";", result));
+            Assert.AreEqual("2,1;4,1", string.Join(";", result));
         }
     }
 

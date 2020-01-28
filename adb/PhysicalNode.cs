@@ -1085,22 +1085,45 @@ namespace adb.physic
         public PhysicLimit(LogicLimit logic, PhysicNode l) : base(logic) => children_.Add(l);
         public override string ToString() => $"PLIMIT({child_()}: {Cost()})";
 
+        public override string Open(ExecContext context)
+        {
+            string cs = base.Open(context);
+            if (context.option_.optimize_.use_codegen_)
+            {
+                cs += $@"var nrows{_} = 0;";
+            }
+            return cs;
+        }
+
         public override string Exec(Func<Row, string> callback)
         {
             ExecContext context = context_;
             int nrows = 0;
             int limit = (logic_ as LogicLimit).limit_;
 
-            child_().Exec(l =>
+            string s = child_().Exec(l =>
             {
-                nrows++;
-                Debug.Assert(nrows <= limit);
-                if (nrows == limit)
-                    context.stop_ = true;
-                callback(l);
-                return null;
+                string limitcode = null;
+                if (context.option_.optimize_.use_codegen_) {
+                    limitcode = $@"                    
+                    nrows{_}++;
+                    Debug.Assert(nrows{_} <= {limit});
+                    if (nrows{_} == {limit})
+                        context.stop_ = true;
+                    var r{_} = r{child_()._};
+                    {callback(null)}";
+                } else
+                {
+                    nrows++;
+                    Debug.Assert(nrows <= limit);
+                    if (nrows == limit)
+                        context.stop_ = true;
+                    callback(l);
+                }
+
+                return limitcode;
             });
-            return null;
+            return s;
         }
     }
 }
