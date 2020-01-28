@@ -178,8 +178,21 @@ namespace adb.logic
                     return new ExprRef(clone, ordinal);
             }
 
+            // let's first fix AggrRef as a whole epxression - there could be some combinations
+            // of AggrRef with aggregation keys (ColExpr), so we have to go thorough after it
+            //
+            clone.VisitEach<AggrRef>(target => {
+                Predicate<Expr> roughNameTest;
+                roughNameTest = z => target.Equals(z);
+                target.ordinal_ = source.FindIndex(roughNameTest);
+                if (target.ordinal_ != -1)
+                {
+                    Debug.Assert(source.FindAll(roughNameTest).Count == 1);
+                }
+            });
+
             // we have to use each ColExpr and fix its ordinal
-            clone.VisitEach<ColExpr>(target =>
+            clone.VisitEachIgnoreRef<ColExpr>(target =>
             {
                 // ignore system column, ordinal is known
                 if (target is SysColExpr)
@@ -200,8 +213,9 @@ namespace adb.logic
                     // we may hit more than one target, say t2.col1 matching {t1.col1, t2.col1}
                     // in this case, we shall redo the mapping with table name
                     //
-                    Debug.Assert (source.FindAll(roughNameTest).Count >= 1);
-                    if (source.FindAll(roughNameTest).Count > 1) {
+                    Debug.Assert(source.FindAll(roughNameTest).Count >= 1);
+                    if (source.FindAll(roughNameTest).Count > 1)
+                    {
                         Predicate<Expr> preciseNameTest = z => z is ColExpr zc
                                 && (target.colName_.Equals(z.outputName_) || target.colName_.Equals(zc.colName_))
                                 && target.tabRef_.Equals((z as ColExpr).tabRef_);
@@ -610,22 +624,48 @@ namespace adb.logic
             return false;
         }
 
+        bool ExprIsAggFnOnAggrRef(Expr expr)
+        {
+            return expr is AggFunc ea && ea.HasAggrRef();
+        }
+
+        List<AggFunc> reqlistGetAggrRefs(List<Expr> reqList)
+        {
+            List<AggFunc> list = new List<AggFunc>();
+            foreach (var v in reqList)
+            {
+                Debug.Assert(!(v is AggrRef));
+                v.VisitEach<AggrRef>(x =>
+                {
+                    list.Add(x.aggr_() as AggFunc);
+                });
+            }
+
+            Debug.Assert(!list.Contains(null));
+            return list.Distinct().ToList();
+        }
+
         // say 
         //  keys: k1+k2,k2+k3 
-        //  reqOutput: (k1+k2)+(k3+k2), count(*), sum(count(a1)*b1) 
-        //  => 0, a1, b1
+        //  reqOutput: (k1+k2)+(k3+k2), count(*), sum(a1*b1),  sum(count(a1)[0] as AggrRef + b3)
+        //  => 0; a1, b1; count(a1)[0], b3
         //
+        // we don't allow single count(a2)[0] as AggrRef form.
         List<Expr> removeAggFuncAndKeyExprsFromOutput(List<Expr> reqList, List<Expr> keys)
         {
             var reqContainAggs = new List<Expr>();
 
+            var fns = reqlistGetAggrRefs(reqList);
+
             // first let's find out all elements containing any AggFunc
-            reqList.ForEach(x =>
+            reqList.ForEach(x => {
+                Debug.Assert(!(x is AggrRef));
                 x.VisitEach<AggFunc>(y =>
                 {
                     // 1+abs(min(a))+max(b)
                     reqContainAggs.Add(x);
-                }));
+                });
+            });
 
             // we also remove expressions only with key computations - this non-trivial
             // consider this:
@@ -645,18 +685,19 @@ namespace adb.logic
                 });
             }
 
-            // now remove AggFunc but add back the dependent exprs
+            // now remove AggFunc but add back the dependent exprs, excluding AggrRef
+            // sum(b2*sum[0]+count[0]+b3) => b2, b3
             reqContainAggs.ForEach(x =>
             {
                 // remove the element from reqList
                 reqList.Remove(x);
 
                 // add back the dependent exprs back
-                x.VisitEach<AggFunc>(y =>
+                x.VisitEachIgnoreRef<AggFunc>(y =>
                 {
                     foreach (var z in y.GetNonFuncExprList())
                     {
-                        if (!exprConsistPureKeys(y, keys))
+                        if (!exprConsistPureKeys(y, keys) && !z.HasAggrRef())
                             reqList.Add(z);
                     }
                 });
@@ -664,6 +705,7 @@ namespace adb.logic
 
             reqList = reqList.Distinct().ToList();
             reqList.ForEach(x => Debug.Assert(!x.HasAggFunc()));
+            reqList.AddRange(fns);
             return reqList;
         }
 
@@ -715,7 +757,7 @@ namespace adb.logic
             if (keys_ != null) output_ = output_.SearchReplace(keys_);
             output_.ForEach(x =>
             {
-                x.VisitEach<AggFunc>(y =>
+                x.VisitEachIgnoreRef<AggFunc>(y =>
                 {
                     // remove the duplicates immediatley to avoid wrong ordinal in ExprRef
                     if (!aggrFns_.Contains(y))
@@ -726,7 +768,7 @@ namespace adb.logic
                 newoutput.Add(x);
             });
             if (having_ != null && keys_ != null) having_ = having_.SearchReplace(keys_);
-            having_?.VisitEach<AggFunc>(y =>
+            having_?.VisitEachIgnoreRef<AggFunc>(y =>
             {
                 // remove the duplicates immediatley to avoid wrong ordinal in ExprRef
                 if (!aggrFns_.Contains(y))

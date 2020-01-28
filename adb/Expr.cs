@@ -57,7 +57,7 @@ namespace adb.expr
                 }
                 return false;
             }
-            
+
             if (FindSameInParents(tab))
                 tab.alias_ = $"{tab.alias_}__{globalSubqCounter_}";
             boundFrom_.Add(boundFrom_.Count, tab);
@@ -164,7 +164,7 @@ namespace adb.expr
             return list.ToList();
         }
 
-        public static List<T> RetrieveAllType<T>(this Expr expr) where T: Expr
+        public static List<T> RetrieveAllType<T>(this Expr expr) where T : Expr
         {
             var list = new List<T>();
             expr.VisitEach<T>(x => list.Add(x));
@@ -178,7 +178,7 @@ namespace adb.expr
             return list.Distinct().ToList();
         }
 
-		// TODO: what about expr.tableRefs_?
+        // TODO: what about expr.tableRefs_?
         //  They shall be equal but our implmentation sometimes get them inconsistent
         //  for example, xc.tabRef_ can contain outerrefs but tableRefs_ does not.
         public static List<TableRef> CollectAllTableRef(this Expr expr, bool includingParameters = true)
@@ -218,12 +218,12 @@ namespace adb.expr
         public static void SubqueryDirectToPhysic(this Expr expr)
         {
             // append the subquery plan align with expr
-            expr.VisitEach< SubqueryExpr>(x =>
-            {
-                Debug.Assert(expr.HasSubQuery());
-                var query = x.query_;
-                query.physicPlan_ = query.logicPlan_.DirectToPhysical(query.TopStmt().queryOpt_);
-            });
+           expr.VisitEach<SubqueryExpr>(x =>
+           {
+               Debug.Assert(expr.HasSubQuery());
+               var query = x.query_;
+               query.physicPlan_ = query.logicPlan_.DirectToPhysical(query.TopStmt().queryOpt_);
+           });
         }
 
         public static bool IsBoolean(this Expr expr)
@@ -323,7 +323,7 @@ namespace adb.expr
         //   a.i =|>|< 5
         public static IndexDef FilterCanUseIndex(this Expr filter, BaseTableRef table)
         {
-            string[] indexops = {"=", ">=", "<=", ">", "<"};
+            string[] indexops = { "=", ">=", "<=", ">", "<" };
             Debug.Assert(filter.IsBoolean());
 
             IndexDef ret = null;
@@ -414,8 +414,8 @@ namespace adb.expr
             return results;
         }
 
-        public static List<Expr> FilterGetCorrelatedFilter(this Expr filter)=> FilterGetCorrelated(filter, false);
-        public static List<Expr> FilterGetCorrelatedCol(this Expr filter)=>FilterGetCorrelated(filter, true);
+        public static List<Expr> FilterGetCorrelatedFilter(this Expr filter) => FilterGetCorrelated(filter, false);
+        public static List<Expr> FilterGetCorrelatedCol(this Expr filter) => FilterGetCorrelated(filter, true);
 
         // c.c2=?b.b2 => b
         public static List<TableRef> FilterGetOuterRef(this Expr filter)
@@ -433,16 +433,16 @@ namespace adb.expr
         // e.g., filter: a.a1=?b.b1 and a.a2=?c.c1; tablrefs={b}
         //       then we shall only process 'b.b1'
         //
-		public static void DeParameter(this Expr filter, List<TableRef> tablerefs){
-			var cols = filter.FilterGetCorrelatedCol();
+        public static void DeParameter(this Expr filter, List<TableRef> tablerefs) {
+            var cols = filter.FilterGetCorrelatedCol();
             cols.ForEach(x =>
             {
                 var xc = x as ColExpr;
                 if (tablerefs.Contains(xc.tabRef_))
                     xc.DeParameter();
             });
-			filter.ResetAggregateTableRefs();
-		}
+            filter.ResetAggregateTableRefs();
+        }
     }
 
     public class Expr
@@ -492,7 +492,7 @@ namespace adb.expr
 
         public int TableRefCount()
         {
-        	Debug.Assert(bounded_);
+            Debug.Assert(bounded_);
             Debug.Assert(tableRefs_.Distinct().Count() == tableRefs_.Count);
             return tableRefs_.Count;
         }
@@ -507,15 +507,15 @@ namespace adb.expr
         public bool TableRefsContainedBy(List<TableRef> tableRefs)
         {
             Debug.Assert(bounded_);
-            return tableRefs.ContainsList( tableRefs_);
+            return tableRefs.ContainsList(tableRefs_);
         }
         public bool TableRefsEquals(List<TableRef> tableRefs)
         {
             Debug.Assert(bounded_);
-            return tableRefs.ListAEqualsB( tableRefs_);
+            return tableRefs.ListAEqualsB(tableRefs_);
         }
 
-        bool VisitEachExistsT<T>(Func<T, bool> check, List<Type> excluding = null) where T: Expr
+        bool VisitEachExistsT<T>(Func<T, bool> check, List<Type> excluding = null) where T : Expr
         {
             if (excluding?.Contains(GetType()) ?? false)
                 return false;
@@ -532,21 +532,32 @@ namespace adb.expr
             return r;
         }
 
-        public bool VisitEachExprExists(Func<Expr, bool> check, List<Type> excluding = null) 
+        public bool VisitEachExprExists(Func<Expr, bool> check, List<Type> excluding = null)
             => VisitEachExistsT<Expr>(check, excluding);
 
-        public void VisitEach<T>(Action<T> callback) where T: Expr
+        public void VisitEachIgnoreRef<T>(Action<T> callback) where T : Expr
         {
-            Func<T, bool> wrapCallbackAsCheck<T>(Action<T> callback)
+            if (!(this is ExprRef))
             {
-                return a => { if (a is T) callback(a); return false; };
+                if (this is T)
+                    callback(this as T);
+                foreach (var v in children_)
+                    v.VisitEachIgnoreRef<T>(callback);
             }
-            VisitEachExistsT(wrapCallbackAsCheck(callback));
+        }
+
+        public void VisitEach<T>(Action<T> callback) where T : Expr
+        {
+            if (this is T)
+                callback(this as T);
+            foreach (var v in children_)
+                v.VisitEach<T>(callback);
         }
         public void VisitEachExpr(Action<Expr> callback) => VisitEach<Expr>(callback);
 
         public bool HasSubQuery() => VisitEachExprExists(e => e is SubqueryExpr);
         public bool HasAggFunc() => VisitEachExprExists(e => e is AggFunc);
+        public bool HasAggrRef() => VisitEachExprExists(e => e is AggrRef);
         public bool IsConst()
         {
             return !VisitEachExprExists(e =>
@@ -617,14 +628,14 @@ namespace adb.expr
         }
 
         // In current expression, search all type T and replace with callback(T)
-        public Expr SearchReplace<T>(Func<T, Expr> replacefn) where T: Expr
+        public Expr SearchReplace<T>(Func<T, Expr> replacefn) where T : Expr
         {
             bool checkfn(Expr e) => e is T;
             return SearchReplace<T>(checkfn, replacefn);
         }
 
         // generic form of search with condition @checkfn and replace with @replacefn
-        public Expr SearchReplace<T>(Func<Expr, bool> checkfn, Func<T, Expr> replacefn) where T: Expr
+        public Expr SearchReplace<T>(Func<Expr, bool> checkfn, Func<T, Expr> replacefn) where T : Expr
         {
             if (checkfn(this))
                 return replacefn((T)this);
@@ -683,8 +694,8 @@ namespace adb.expr
                 children_.SequenceEqual(n.children_);
         }
 
-		public List<TableRef> ResetAggregateTableRefs ()
-		{
+        public List<TableRef> ResetAggregateTableRefs()
+        {
             if (children_.Count > 0)
             {
                 tableRefs_.Clear();
@@ -698,18 +709,18 @@ namespace adb.expr
             }
 
             return tableRefs_;
-		}
+        }
 
         public virtual void Bind(BindContext context)
         {
             for (int i = 0; i < children_.Count; i++) {
                 Expr x = children_[i];
-                
+
                 x.Bind(context);
                 x = x.ConstFolding();
                 children_[i] = x;
             }
-			ResetAggregateTableRefs ();
+            ResetAggregateTableRefs();
 
             markBounded();
         }
@@ -733,7 +744,8 @@ namespace adb.expr
 
         public Expr DeQueryRef()
         {
-            var expr = SearchReplace<ColExpr>(x => x.ExprOfQueryRef());
+            bool hasAggFunc = this.HasAggFunc();
+            var expr = SearchReplace<ColExpr>(x => x.ExprOfQueryRef(hasAggFunc));
             expr.ResetAggregateTableRefs();
             return expr;
         }
@@ -758,7 +770,7 @@ namespace adb.expr
             var targetrefs = new List<TableRef>();
             if (tabAlias_ is null)
                 targetrefs = context.AllTableRefs();
-            else { 
+            else {
                 var x = context.Table(tabAlias_);
                 targetrefs.Add(x);
             }
@@ -773,7 +785,7 @@ namespace adb.expr
                 // order is also important.
                 //
                 var list = x.AllColumnsRefs();
-                if (!(x is QueryRef)) { 
+                if (!(x is QueryRef)) {
                     list.ForEach(x => x.Bind(context));
                 }
                 exprs.AddRange(list);
@@ -814,13 +826,17 @@ namespace adb.expr
                 return tabName_;
         }
 
-        public Expr ExprOfQueryRef()
+        public Expr ExprOfQueryRef(bool hasAggFunc)
         {
             Expr expr = this;
             Debug.Assert(bounded_);
             if (tabRef_ is FromQueryRef tf)
             {
-                expr = tf.MapOutputName(outputName_);
+                var repl = tf.MapOutputName(outputName_);
+                if (hasAggFunc && repl.HasAggFunc())
+                    expr = new AggrRef(repl, -1);
+                else
+                    expr = repl;
             }
             return expr;
         }
@@ -914,9 +930,9 @@ namespace adb.expr
             string tablename = showTableName ? tableName_() + "." : "";
             para += isVisible_ ? "" : "#";
             if (colName_.Equals(outputName_))
-                return ordinal_==-1? $@"{para}{tablename}{colName_}":
+                return ordinal_ == -1 ? $@"{para}{tablename}{colName_}" :
                     $@"{para}{tablename}{colName_}[{ordinal_}]";
-            return ordinal_ == -1 ? $@"{para}{tablename}{colName_} (as {outputName_})":
+            return ordinal_ == -1 ? $@"{para}{tablename}{colName_} (as {outputName_})" :
                 $@"{para}{tablename}{colName_} (as {outputName_})[{ordinal_}]";
         }
         public override Value Exec(ExecContext context, Row input)
@@ -932,7 +948,7 @@ namespace adb.expr
     public class SysColExpr : ColExpr {
 
         public static List<string> SysCols_ = new List<string>() { "sysrid_" };
-        public SysColExpr(string dbName, string tabName, string colName, ColumnType type):base(dbName, tabName, colName, type)
+        public SysColExpr(string dbName, string tabName, string colName, ColumnType type) : base(dbName, tabName, colName, type)
         {
             Debug.Assert(SysCols_.Contains(colName));
         }
@@ -1139,6 +1155,19 @@ namespace adb.expr
         {
             Debug.Assert(type_ != null);
             return input[ordinal_];
+        }
+    }
+
+    // This is a special type of ExprRef: functionalities same as ExprRef but only for AggFunc
+    // count(*)[0] as AggrRef
+    public class AggrRef : ExprRef
+    {
+        public Expr aggr_() => child_();
+
+        public override string ToString() => $@"{{{aggr_().ToString().RemovePositions()}}}[{ordinal_}]";
+        public AggrRef(Expr expr, int ordinal) : base(expr, ordinal)
+        {
+           Debug.Assert(expr.HasAggFunc());
         }
     }
 }

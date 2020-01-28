@@ -380,8 +380,6 @@ namespace adb.expr
                 if (outside[i].outputName_ != null)
                 {
                     outputNameMap_[outside[i].outputName_] = inside[i];
-                    if (inside[i].HasAggFunc())
-                        outputNameMap_[outside[i].outputName_] = new ExprRef(inside[i], i);
                 }
             }
         }
