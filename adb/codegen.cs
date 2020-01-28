@@ -107,7 +107,7 @@ namespace adb.codegen
             var provider = new Microsoft.CodeDom.Providers.DotNetCompilerPlatform.CSharpCodeProvider();
 
             // compile it
-            string[] references = { "adb.exe" };
+            string[] references = { "adb.exe", "System.dll" };
             CompilerParameters cp = new CompilerParameters(references);
             cp.GenerateInMemory = true;
             cp.GenerateExecutable = false;
