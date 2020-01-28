@@ -144,7 +144,7 @@ namespace adb
             //sql = "select 1+2+3 from d where 1=d1 and 2<d1";
             //sql = "select * from d where 3<d1;";
             //sql = "select * from a, b, c where a1>b1 and a2>c2;";
-            sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 order by 1;";
+            sql = "select a2*2 from a, b, c where a1=b1 and a2=c2 limit 1;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
@@ -152,7 +152,7 @@ namespace adb
             a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = true;
             a.queryOpt_.optimize_.remove_from = true;
             a.queryOpt_.optimize_.use_memo_ = false;
-            a.queryOpt_.optimize_.use_codegen_ = false;
+            a.queryOpt_.optimize_.use_codegen_ = true;
 
             // -- Semantic analysis:
             //  - bind the query
