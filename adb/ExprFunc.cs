@@ -753,6 +753,29 @@ namespace adb.expr
             }
         }
 
+        public override string ExecCode(ExecContext context, string input)
+        {
+            string lv = "(dynamic)" + l_().ExecCode(context, input);
+            string rv = "(dynamic)" + r_().ExecCode(context, input);
+
+            string code = null;
+            switch (op_)
+            {
+                case "+": code = $"({lv} + {rv})"; break;
+                case "-": code = $"({lv} - {rv})"; break;
+                case "*": code = $"({lv} * {rv})"; break;
+                case "/": code = $"({lv} / {rv})"; break;
+                case ">": code = $"({lv} > {rv})"; break;
+                case ">=": code = $"({lv} >= {rv})"; break;
+                case "<": code = $"({lv} < {rv})"; break;
+                case "<=": code = $"({lv} <= {rv})"; break;
+                case "=": code = $"({lv} == {rv})"; break;
+                case " and ": code = $"((bool){lv} && (bool){rv})"; break;
+                default:
+                    throw new NotImplementedException();
+            }
+            return code;
+        }
     }
 
     public class LogicAndOrExpr : BinExpr

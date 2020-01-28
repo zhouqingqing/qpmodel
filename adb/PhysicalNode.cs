@@ -63,11 +63,10 @@ namespace adb.physic
             s += $@"
             {{
             // projection on {_physic_}: {logic_.ExplainOutput(0)} 
-            Row rproj = new Row({output.Count});
-            for (int i = 0; i < {output.Count}; i++)
-                rproj[i] = output{_}[i].Exec(context, {input});
-            {input} = rproj;
-            }}";
+            Row rproj = new Row({output.Count});";
+            for (int i = 0; i < output.Count; i++)
+                s+= $"rproj[{i}] = {output[i].ExecCode(context_, input)};";
+            s += $"{input} = rproj;}}";
 
             return s;
         }
@@ -229,9 +228,11 @@ namespace adb.physic
                         r{_} = heap{_}.Current;
                     else
                         break;
-                    {codegen_if(logic.tabref_.colRefedBySubq_.Count != 0, 
-                            $@"context.AddParam({_logic_}.tabref_, r{_});")}
-                    if ({(filter is null).ToLower()} || filter{_}.Exec(context, r{_}) is true)
+                    {codegen_if(logic.tabref_.colRefedBySubq_.Count != 0,
+                            $@"context.AddParam({_logic_}.tabref_, r{_});")}";
+                if (filter != null)
+                    cs += $"if ({filter.ExecCode(context, $"r{_}")} is true)";
+                cs += $@"
                     {{
                         {ExecProjectCode($"r{_}")}
                         {callback(null)}
@@ -414,8 +415,10 @@ namespace adb.physic
                         inner_code += $@"
                         if (!{semi.ToLower()} || !foundOneMatch{_})
                         {{
-                            Row r{_} = new Row(r{l_()._}, r{r_()._});
-                            if ({(filter is null).ToLower()} || filter{_}.Exec(context, r{_}) is true)
+                            Row r{_} = new Row(r{l_()._}, r{r_()._});";
+                        if (filter != null)
+                            inner_code += $"if ({filter.ExecCode(context, $"r{_}")} is true)";
+                        inner_code += $@"    
                             {{
                                 foundOneMatch{_} = true;
                                 {codegen_if(!antisemi, $@"
