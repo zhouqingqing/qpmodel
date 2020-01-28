@@ -1245,6 +1245,7 @@ namespace test
             sql = " select count(a2) as ca2 from a group by a1/2 order by 1;";
             result = ExecuteSQL(sql); Assert.AreEqual("1;2", string.Join(";", result));
             sql = "select -a1/2, -a2 from a order by -a1/2 desc, -a2 asc;"; TU.ExecuteSQL(sql, "0,-2;0,-1;-1,-3");
+            sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 order by 1 desc;"; TU.ExecuteSQL(sql, "6,1;4,1;2,1");
         }
 
         [TestMethod]
