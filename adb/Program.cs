@@ -144,14 +144,14 @@ namespace adb
             //sql = "select 1+2+3 from d where 1=d1 and 2<d1";
             //sql = "select * from d where 3<d1;";
             //sql = "select * from a, b, c where a1>b1 and a2>c2;";
-
+            sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 order by 1;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
             a.queryOpt_.profile_.enabled_ = false;
             a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = true;
             a.queryOpt_.optimize_.remove_from = true;
-            a.queryOpt_.optimize_.use_memo_ = true;
+            a.queryOpt_.optimize_.use_memo_ = false;
             a.queryOpt_.optimize_.use_codegen_ = false;
 
             // -- Semantic analysis:
@@ -160,7 +160,7 @@ namespace adb
 
             // -- generate an initial plan
             ExplainOption.show_tablename_ = false;
-            a.explain_.show_output_ = false;
+            a.explain_.show_output_ = true;
             a.explain_.show_cost_ =  a.queryOpt_.optimize_.use_memo_;
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.Explain(0));
