@@ -677,8 +677,6 @@ namespace adb.logic
             {
                 reqList.ForEach(x =>
                 {
-                    if (reqContainAggs.Contains(x))
-                        return;
                     if (exprConsistPureKeys(x, keys))
                         reqContainAggs.Add(x);
                 });
