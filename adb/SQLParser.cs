@@ -322,7 +322,7 @@ namespace adb.sqlparser
             }
 
             // -- binding stage
-            return new SelectStmt(resultCols, resultRels, where, groupby, having, null, null, null, null, context.GetText());
+            return new SelectStmt(resultCols, resultRels, where, groupby, having, null, null, null, null, GetRawText(context));
         }
 
         public override object VisitCommon_table_expression([NotNull] SQLiteParser.Common_table_expressionContext context)
@@ -345,9 +345,18 @@ namespace adb.sqlparser
                 Array.ForEach(context.common_table_expression(), x => ctes.Add(VisitCommon_table_expression(x) as CteExpr));
             }
 
-            // setqs may consists multiple core select statement
-            var setqs = new List<SelectStmt>();
-            Array.ForEach(context.select_core(), x => setqs.Add(VisitSelect_core(x) as SelectStmt));
+            // setops may consists multiple core select statement
+            SetOpTree setops = null;
+            var firststmt = VisitSelect_core(context.select_core()[0]) as SelectStmt;
+            Debug.Assert(context.select_core().Count()== context.compound_operator().Count() + 1);
+            for (int i = 1; i < context.select_core().Count(); i++)
+            {
+                if (setops is null)
+                    setops = new SetOpTree(firststmt);
+                var stmt = context.select_core()[i];
+                var op = context.compound_operator()[i - 1];
+                setops.Add(op.GetText(), VisitSelect_core(stmt) as SelectStmt);
+            }
 
             // ORDER BY clause
             List<OrderTerm> orders = null;
@@ -364,9 +373,12 @@ namespace adb.sqlparser
                 limit = Visit(context.expr(0)) as Expr;
             }
 
-            // seqts[0] is also expanded to main body
-            return new SelectStmt(setqs[0].selection_, setqs[0].from_, setqs[0].where_, setqs[0].groupby_, setqs[0].having_,
-                                    ctes, setqs, orders, limit, GetRawText(context));
+            if (setops is null)
+                return new SelectStmt(firststmt.selection_, firststmt.from_, firststmt.where_, firststmt.groupby_, firststmt.having_,
+                                        ctes, null, orders, limit, GetRawText(context));
+            else
+                return new SelectStmt(null, null, null, null, null,
+                                        ctes, setops, orders, limit, GetRawText(context));
         }
 
         public override object VisitType_name([NotNull] SQLiteParser.Type_nameContext context)

@@ -798,7 +798,7 @@ namespace test
                                 "order by 2, 1 desc";
             var stmt = RawParser.ParseSingleSqlStatement(sql) as SelectStmt;
             Assert.AreEqual(2, stmt.ctes_.Count);
-            Assert.AreEqual(2, stmt.setqs_.Count);
+            Assert.IsFalse(stmt.setqs_.IsLeaf());
             Assert.AreEqual(2, stmt.orders_.Count);
         }
 
@@ -1262,6 +1262,32 @@ namespace test
         [TestMethod]
         public void TestSetOps()
         {
+            var option = new QueryOption();
+            option.optimize_.TurnOnAllOptimizations();
+
+            var sql = "select a2,a3 from a union all select b1,b4 from b group by b1;";
+            var result = ExecuteSQL(sql); Assert.IsNull(result);
+            Assert.IsTrue(TU.error_.Contains("SemanticAnalyzeException"));
+            sql = "select a2,a3 from a union all select b1,b2 from b order by b1;"; // we allow a2
+            result = ExecuteSQL(sql); Assert.IsNull(result);
+            Assert.IsTrue(TU.error_.Contains("SemanticAnalyzeException"));
+
+            sql = "select * from a union all select * from b union all select * from c;";
+            result = TU.ExecuteSQL(sql, out _, option); Assert.AreEqual(9, result.Count);
+            sql = "select a2,a3 from a union all select b1,b1 from b;";
+            TU.ExecuteSQL(sql, "1,2;2,3;3,4;0,0;1,1;2,2", out _, option);
+            sql = "select a2,a3 from a union all select b1/2,b1/2 from b group by b1/2;";
+            TU.ExecuteSQL(sql, "1,2;2,3;3,4;0,0;1,1", out _, option);
+            sql = "select a2,a3 from a union all select b1/2,b1/2 from b limit 4;";
+            TU.ExecuteSQL(sql, "1,2;2,3;3,4;0,0", out _, option);
+            sql = "select a2,a3 from a union all select b1,b2 from b order by 1;";
+            TU.ExecuteSQL(sql, "0,1;1,2;1,2;2,3;2,3;3,4", out _, option);
+            sql = "select a2,a3 from a union all select b1,b2 from b order by a2;";
+            TU.ExecuteSQL(sql, "0,1;1,2;1,2;2,3;2,3;3,4", out _, option);
+            sql = "select * from a union all select *from b order by 1 limit 2;";
+            TU.ExecuteSQL(sql, "0,1,2,3;0,1,2,3", out _, option);
+            sql = "select * from a union all select *from b union all select * from c order by 1 limit 2;";
+            TU.ExecuteSQL(sql, "0,1,2,3;0,1,2,3", out _, option);
         }
 
         [TestMethod]

@@ -26,9 +26,11 @@ namespace adb.optimizer
             new Order2Sort(),
             new From2From(),
             new Limit2Limit(),
+            new Append2Append(),
             new JoinCommutativeRule(),  // intentionally add a duplicated rule
         };
 
+        // TBD: besides static controls, we can examine the plan and quick trim rules impossible to apply
         public static void Init(QueryOption option) {
             if (!option.optimize_.enable_indexseek)
                 ruleset_.RemoveAll(x => x is Scan2IndexSeek);

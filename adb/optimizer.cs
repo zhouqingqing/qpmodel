@@ -490,7 +490,7 @@ namespace adb.optimizer
             }
 
             // finally let's fix the output
-            stmt.logicPlan_.ResolveColumnOrdinal(select.selection_, select.parent_ != null);
+            (stmt as SelectStmt).ResolveOrdinals();
             return stmt.physicPlan_;
         }
 

@@ -378,6 +378,33 @@ namespace adb.logic
                 return new LiteralExpr("true", new BoolType());
         }
 
+        public override LogicNode CreatePlan()
+        {
+            LogicNode root;
+            if (setqs_ is null)
+                root = CreateSinglePlan();
+            else
+            {
+                root = setqs_.CreatePlan();
+
+                // setops plan can also have CTEs, LIMIT and ORDER support
+                // Notes: GROUPBY is with the individual clause
+                Debug.Assert(!hasAgg_);
+
+                // order by
+                if (orders_ != null)
+                    root = new LogicOrder(root, orders_, descends_);
+
+                // limit
+                if (limit_ != null)
+                    root = new LogicLimit(root, limit_);
+            }
+
+            // after this, setops are merged with main plan
+            logicPlan_ = root;
+            return root;
+        }
+
         /*
             SELECT is implemented as if a query was executed in the following order:
             1. CTEs: every one is evaluated and evaluted once as if it is served as temp table.
@@ -389,7 +416,7 @@ namespace adb.logic
             7. ORDER BY clause: sort the results with the specified order.
             8. LIMIT|FETCH|OFFSET clause: restrict amount of results output.
         */
-        public override LogicNode CreatePlan()
+        public LogicNode CreateSinglePlan()
         {
             LogicNode root = transformFromClause();
 
@@ -449,15 +476,34 @@ namespace adb.logic
             parent_ = parent?.stmt_ as SelectStmt;
             bindContext_ = context;
 
-            // optimizer option controls all plan behavior
             if (parent_ != null)
                 queryOpt_ = parent_.queryOpt_;
             Debug.Assert(!bounded_);
-            var ret = BindWithContext(context);
+            if (setqs_ is null)
+                BindWithContext(context);
+            else
+            {
+                setqs_.Bind(parent);
+
+                // setops plan can also have CTEs, LIMIT and ORDER support
+                // Notes: GROUPBY is with the individual clause
+                Debug.Assert(!hasAgg_);
+
+                var first = setqs_.first_;
+                if (orders_ != null) {
+                    orders_ = first.replaceOutputNameToExpr(orders_);
+                    orders_ = seq2selection(orders_, first.selection_);
+                    orders_.ForEach(x => {
+                        if (!x.bounded_)        // some items already bounded with seq2selection()
+                            x.Bind(context);
+                    });
+                }
+            }
             bounded_ = true;
-            return ret;
+
+            return context;
         }
-        internal BindContext BindWithContext(BindContext context)
+        internal void BindWithContext(BindContext context)
         {
             void bindSelectionList(BindContext context)
             {
@@ -559,8 +605,6 @@ namespace adb.logic
                         orders_[i] = orders_[i].DeQueryRef();
                 }
             }
-
-            return context;
         }
 
         void bindFrom(BindContext context)
@@ -647,7 +691,7 @@ namespace adb.logic
         // replace that with the true expression.
         // example:
         //      selection_: a1*5 as alias1, a2, b3
-        //      orders_: alias1+b =>  a1*5+b
+        //      orders_: alias1+b => a1*5+b
         //
         List<Expr> replaceOutputNameToExpr(List<Expr> list)
         {

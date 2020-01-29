@@ -1116,6 +1116,47 @@ namespace adb.physic
         }
     }
 
+    public class PhysicAppend: PhysicNode
+    {
+
+        public PhysicAppend(LogicAppend logic, PhysicNode l, PhysicNode r) : base(logic) { children_.Add(l); children_.Add(r); }
+        public override string ToString() => $"PAPPEND({l_()},{r_()}): {Cost()})";
+
+        public override string Open(ExecContext context)
+        {
+            string cs = base.Open(context);
+            if (context.option_.optimize_.use_codegen_)
+            {
+            }
+            return cs;
+        }
+
+        public override string Exec(Func<Row, string> callback)
+        {
+            ExecContext context = context_;
+
+            string s = null;
+            foreach (var child in children_)
+            {
+                s += child.Exec(r =>
+                {
+                    string appendcode = null;
+                    if (context.option_.optimize_.use_codegen_)
+                    {
+                        appendcode += $"{callback(null)}";
+                    }
+                    else
+                    {
+                        callback(r);
+                    }
+                    return appendcode;
+                });
+            }
+
+            return s;
+        }
+    }
+
     public class PhysicLimit : PhysicNode {
 
         public PhysicLimit(LogicLimit logic, PhysicNode l) : base(logic) => children_.Add(l);
@@ -1148,7 +1189,8 @@ namespace adb.physic
                         context.stop_ = true;
                     var r{_} = r{child_()._};
                     {callback(null)}";
-                } else
+                }
+                else
                 {
                     nrows++;
                     Debug.Assert(nrows <= limit);

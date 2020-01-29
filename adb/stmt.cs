@@ -144,6 +144,147 @@ namespace adb.logic
         }
     }
 
+    // setops are commutative but not associative in general
+    //    e.g., A UION ALL (B UNION C) not equal to (A UNION ALL B) UION C
+    // So we can use a tree structure to represent their relationship.
+    //
+    public class SetOpTree
+    {
+        // either as non-leaf
+        internal string op_;
+        internal SetOpTree left_;
+        internal SetOpTree right_;
+        // or as leaf
+        internal SelectStmt stmt_;
+
+        // first stmt is special: column resolution is aligned with it.
+        // example: select a1 union select b1 order by a1 works but
+        // not with 'b1'. The follows PostgreSQL tradition.
+        //
+        internal readonly SelectStmt first_;
+
+        public SetOpTree(SelectStmt stmt) {
+            first_ = stmt;
+            stmt_ = stmt;
+            Debug.Assert(IsLeaf());
+        }
+
+        public bool IsEmpty() => stmt_ is null && op_ is null;
+        public bool IsLeaf()
+        {
+            Debug.Assert(!IsEmpty());
+            if (stmt_ != null) {
+                Debug.Assert(op_ is null && left_ is null && right_ is null);
+                return true;
+            }
+            else
+            {
+                Debug.Assert(op_ != null && left_ != null && right_ != null);
+                return false;
+            }
+        }
+
+        public void Add(string op, SelectStmt stmt) {
+            List<string> allowed = new List<string> {"union", "unionall", "except", "intersect"};
+            Debug.Assert(allowed.Contains(op) || op is null);
+            Debug.Assert(stmt != null);
+
+            if (IsLeaf())
+            {
+                left_ = new SetOpTree(stmt_);
+                stmt_ = null;
+                right_ = new SetOpTree(stmt);
+                op_ = op;
+            }
+            else
+            {
+                left_ = (SetOpTree)this.MemberwiseClone();
+                right_ = new SetOpTree(stmt);
+                op_ = op;
+            }
+            Debug.Assert(!IsLeaf());
+        }
+
+        public void VisitEachStatement(Action<SelectStmt> action)
+        {
+            if (IsLeaf())
+                action(stmt_);
+            else
+            {
+                left_.VisitEachStatement(action);
+                right_.VisitEachStatement(action);
+            }
+        }
+
+        // all statements shall have same number of compatible outputs
+        List<Expr> VerifySelection(List<Expr> selection = null)
+        {
+            if (IsLeaf())
+            {
+                if (selection != null)
+                {
+                    // TBD: check data types as well
+                    if (stmt_.selection_.Count != selection.Count)
+                        throw new SemanticAnalyzeException("setop queries shall have matching column count");
+                }
+                return stmt_.selection_;
+            }
+            else
+            {
+                var lselect = left_.VerifySelection(selection);
+                var rselect = right_.VerifySelection(lselect);
+                return rselect;
+            }
+        }
+
+        public LogicNode CreatePlan(bool top = true)
+        {
+            if (IsLeaf())
+                return stmt_.CreatePlan();
+            else
+            {
+                LogicNode plan = null;
+                var lplan = left_.CreatePlan(false);
+                var rplan = right_.CreatePlan(false);
+                switch (op_)
+                {
+                    case "unionall":
+                        plan = new LogicAppend(lplan, rplan);
+                        break;
+                    case "union":
+                        break;
+                    case "except":
+                        break;
+                    case "intersect":
+                        break;
+                    default:
+                        throw new InvalidProgramException();
+                }
+
+                if (top)
+                {
+                    Debug.Assert(!IsLeaf());
+                    VerifySelection();
+                }
+                return plan;
+            }
+        }
+
+        public List<BindContext> Bind(BindContext parent)
+        {
+            List<BindContext> list = new List<BindContext>();
+            if (IsLeaf())
+                list.Add(stmt_.Bind(parent));
+            else
+            {
+                list.AddRange(left_.Bind(parent));
+                list.AddRange(right_.Bind(parent));
+            }
+
+            return list;
+        }
+    }
+
     public partial class SelectStmt : SQLStatement
     {
         // parse info
@@ -160,7 +301,7 @@ namespace adb.logic
         // this section can only show up in top query
         public readonly List<CteExpr> ctes_;
         public List<CTEQueryRef> ctefrom_;
-        public readonly List<SelectStmt> setqs_;
+        public readonly SetOpTree setqs_;
         public List<Expr> orders_;
         public readonly List<bool> descends_;   // order by DESC|ASC
         public Expr limit_;
@@ -215,7 +356,7 @@ namespace adb.logic
             // setops ok fields
             List<Expr> selection, List<TableRef> from, Expr where, List<Expr> groupby, Expr having,
             // top query only fields
-            List<CteExpr> ctes, List<SelectStmt> setqs, List<OrderTerm> orders, Expr limit,
+            List<CteExpr> ctes, SetOpTree setqs, List<OrderTerm> orders, Expr limit,
             string text) : base(text)
         {
             selection_ = selection;
@@ -387,6 +528,21 @@ namespace adb.logic
                 return (bindContext_.parent_.stmt_ as SelectStmt).stmtIsInCTEChain();
         }
 
+        internal void ResolveOrdinals()
+        {
+            if (setqs_ is null)
+                logicPlan_.ResolveColumnOrdinal(selection_, parent_ != null);
+            else
+            {
+                // resolve each and use the first one to resolve ordinal since all are compatible
+                var first = setqs_.first_;
+                setqs_.VisitEachStatement(x => {
+                    x.logicPlan_.ResolveColumnOrdinal(x.selection_, parent_ != null);
+                });
+                logicPlan_.ResolveColumnOrdinal(first.selection_, parent_ != null);
+            }
+        }
+
         public override LogicNode PhaseOneOptimize()
         {
             LogicNode logic = logicPlan_;
@@ -434,10 +590,10 @@ namespace adb.logic
             if (!queryOpt_.optimize_.use_memo_)
             {
                 physicPlan_ = logicPlan_.DirectToPhysical(queryOpt_);
-                selection_.ForEach(ExprHelper.SubqueryDirectToPhysic);
+                selection_?.ForEach(ExprHelper.SubqueryDirectToPhysic);
 
                 // finally we can physically resolve the columns ordinals
-                logicPlan_.ResolveColumnOrdinal(selection_, parent_ != null);
+                ResolveOrdinals();
             }
 
             return logic;
