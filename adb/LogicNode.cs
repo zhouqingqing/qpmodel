@@ -131,6 +131,9 @@ namespace adb.logic
                 case LogicLimit limit:
                     phy = new PhysicLimit(limit, child_().DirectToPhysical(option));
                     break;
+                case LogicAppend append:
+                    phy = new PhysicAppend(append, l_().DirectToPhysical(option), r_().DirectToPhysical(option));
+                    break;
                 default:
                     throw new NotImplementedException();
             }
@@ -965,6 +968,22 @@ namespace adb.logic
     {
         public override string ToString() => string.Join(",", output_);
         public LogicResult(List<Expr> exprs) => output_ = exprs;
+    }
+
+    public class LogicAppend : LogicNode
+    {
+        public override string ToString() => $"Append({l_()},{r_()})";
+        public LogicAppend(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
+
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
+        {
+            // limit is the top node and don't remove redundant
+            List<int> ordinals = new List<int>();
+
+            l_().ResolveColumnOrdinal(reqOutput, true);
+            output_ = l_().output_;
+            return ordinals;
+        }
     }
 
     public class LogicLimit : LogicNode {
