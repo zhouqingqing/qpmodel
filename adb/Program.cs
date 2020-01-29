@@ -33,11 +33,11 @@ namespace adb
                 goto doit;
             }
 
-            if (false)
+            if (true)
             { 
                 Tpcds.CreateTables();
                 sql = File.ReadAllText("../../../tpcds/problem_queries/q64.sql");
-                sql = File.ReadAllText("../../../tpcds/q1.sql");
+                sql = File.ReadAllText("../../../tpcds/q21.sql");
                 goto doit;
             }
 
@@ -150,7 +150,6 @@ namespace adb
             //sql = "select * from a, b, c where a1>b1 and a2>c2;";
             //sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 limit 2;";
             //sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
-            sql = "select a2*2 from a, b, c where a1=b1 and a2=c2 group by a2 order by 1;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);

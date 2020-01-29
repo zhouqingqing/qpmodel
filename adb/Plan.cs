@@ -188,6 +188,13 @@ namespace adb.logic
             return parents.Count;
         }
 
+        public int FindNodeTyped<T1>(List<T1> targets) where T1 : PlanNode<T>
+        {
+            var parents = new List<T>();
+            var indexes = new List<int>();
+            return FindNodeTyped<T1>(parents, indexes, targets);
+        }
+
         public int CountNodeTyped<T1>() where T1 : PlanNode<T>
         {
             var parents = new List<T>();
@@ -345,6 +352,32 @@ namespace adb.logic
             return root;
         }
 
+        // select * from (select max(b3) maxb3 from b) b where maxb3>1
+        // where => max(b3)>1 and this shall be moved to aggregation node
+        //
+        Expr moveFilterToAggNode(LogicNode root, Expr filter) {
+            // first find out the aggregation node shall take the filter
+            List<LogicAgg> aggNodes = new List<LogicAgg>();
+            if (root.FindNodeTyped<LogicAgg>(aggNodes) > 1)
+                throw new NotImplementedException("can handle one aggregation now");
+            var aggNode = aggNodes[0];
+
+            // make the filter and add to the node
+            var list = filter.FilterToAndList();
+            List<Expr> shallmove = new List<Expr>();
+            foreach (var v in list) {
+                if (v.HasAggFunc())
+                    shallmove.Add(v);
+            }
+            var moveExpr = shallmove.AndListToExpr();
+            aggNode.having_ = aggNode.having_.AddAndFilter(moveExpr);
+            var newfilter = list.Except(shallmove).ToList();
+            if (newfilter.Count > 0)
+                return newfilter.AndListToExpr();
+            else
+                return new LiteralExpr("true", new BoolType());
+        }
+
         /*
             SELECT is implemented as if a query was executed in the following order:
             1. CTEs: every one is evaluated and evaluted once as if it is served as temp table.
@@ -368,6 +401,11 @@ namespace adb.logic
                     root = new LogicFilter(root, where_);
                 else
                     lr.filter_ = lr.filter_.AddAndFilter(where_);
+                if (where_ != null && where_.HasAggFunc())
+                {
+                    where_ = moveFilterToAggNode(root, where_);
+                    root = new LogicFilter(root.child_(), where_);
+                }
             }
 
             // group by / having
@@ -489,8 +527,8 @@ namespace adb.logic
             {
                 where_.Bind(context);
                 where_ = where_.FilterNormalize();
-                if (!where_.IsBoolean())
-                    throw new SemanticAnalyzeException("WHERE condition must be a blooean expression");
+                if (!where_.IsBoolean() || where_.HasAggFunc())
+                    throw new SemanticAnalyzeException("WHERE condition must be a blooean expression and no aggregation is allowed");
                 if (queryOpt_.optimize_.remove_from)
                     where_ = where_.DeQueryRef();
             }

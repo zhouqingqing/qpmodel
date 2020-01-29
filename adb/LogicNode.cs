@@ -596,7 +596,7 @@ namespace adb.logic
             if (keys_ != null)
                 r += $"{(aggrFns_.Count > 0? "\n"+tabs: "")}Group by: {string.Join(", ", keys_)}";
             if (having_ != null)
-                r += $"{(keys_ != null ? "\n"+tabs: "")}{PrintFilter(having_, depth)}";
+                r += $"{("\n"+tabs)}{PrintFilter(having_, depth)}";
             return r;
         }
 
