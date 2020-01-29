@@ -514,12 +514,12 @@ namespace adb.logic
                     var colref = v.RetrieveAllColExpr();
                     colref.ForEach(x =>
                     {
-                        if (ltables.Contains(x.tabRef_))
+                        if (ltables.Contains(x.tableRefs_[0]))
                             lreq.Add(x);
-                        else if (rtables.Contains(x.tabRef_))
+                        else if (rtables.Contains(x.tableRefs_[0]))
                             rreq.Add(x);
                         else
-                            throw new InvalidProgramException($"requests contains invalid tableref {x.tabRef_}");
+                            throw new InvalidProgramException($"requests contains invalid tableref {x.tableRefs_[0]}");
                     });
                 }
             }

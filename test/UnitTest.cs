@@ -658,6 +658,15 @@ namespace test
             sql = "select * from (select max(b3) maxb3 from b group by b3) b where maxb3>1;";
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
             Assert.AreEqual("2;3;4", string.Join(";", result));
+            sql = "select b1+b2+b3 from (select sum(a1), sum(a2), sum(a1+a2)+a3 from a group by a3) b(b1,b2,b3)";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("4;9;14", string.Join(";", result));
+            sql = "select * from (select sum(a1), sum(a2),sum(a1+a2) from a group by a3) b(b1,b2,b3)";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("0,1,1;1,2,3;2,3,5", string.Join(";", result));
+            sql = "select * from (select sum(a1), sum(a2),sum(a1+a2)+a3 from a group by a3) b(b1,b2,b3)";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("0,1,3;1,2,6;2,3,9", string.Join(";", result));
 
             // FIXME
             sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;";

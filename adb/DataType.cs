@@ -385,6 +385,8 @@ namespace adb.expr
         }
 
         public Expr MapOutputName(string name) => outputNameMap_[name];
+
+        public List<Expr> GetInnerTableExprs() => outputNameMap_.Values.ToList();
     }
 
     // WITH <ctename> AS <query>
