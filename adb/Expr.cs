@@ -766,7 +766,7 @@ namespace adb.expr
         public override string ToString() => tabAlias_ + ".*";
 
         public override void Bind(BindContext context) => throw new InvalidProgramException("shall be expanded already");
-        internal List<Expr> Expand(BindContext context)
+        internal List<Expr> ExpandAndDeQuerRef(BindContext context)
         {
             var targetrefs = new List<TableRef>();
             if (tabAlias_ is null)
@@ -786,9 +786,19 @@ namespace adb.expr
                 // order is also important.
                 //
                 var list = x.AllColumnsRefs();
-                if (!(x is QueryRef)) {
+                if (!(x is QueryRef))
                     list.ForEach(x => x.Bind(context));
+                else
+                {
+                    if (context.stmt_.queryOpt_.optimize_.remove_from 
+                        && x is FromQueryRef xf)
+                    {
+                        list.Clear();
+                        list.AddRange(xf.GetInnerTableExprs());
+                    }
                 }
+
+                // add to the output
                 exprs.AddRange(list);
             });
             return exprs;

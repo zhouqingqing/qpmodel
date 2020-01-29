@@ -483,16 +483,7 @@ namespace adb.logic
                 selstars.ForEach(x =>
                 {
                     selection_.Remove(x);
-                    var list = x.Expand(context);
-
-                    for (int i = 0; i < list.Count; i++)
-                    {
-                        if (queryOpt_.optimize_.remove_from)
-                        {
-                            if (list[i] is ColExpr lc)
-                                list[i] = lc.DeQueryRef();
-                        }
-                    }
+                    var list = x.ExpandAndDeQuerRef(context);
                     selection_.AddRange(list);
                 });
                 Debug.Assert(selection_.Count(x => x is SelStar) == 0);
