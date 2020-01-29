@@ -461,32 +461,31 @@ namespace adb.logic
         {
             void bindSelectionList(BindContext context)
             {
-                List<SelStar> selstars = new List<SelStar>();
+                // keep the expansion order
+                List<Expr> newselection = new List<Expr>();
                 for (int i = 0; i < selection_.Count; i++)
                 {
                     Expr x = selection_[i];
                     if (x is SelStar xs)
-                        selstars.Add(xs);
+                    {
+                        // expand * into actual columns
+                        var list = xs.ExpandAndDeQuerRef(context);
+                        newselection.AddRange(list);
+                    }
                     else
                     {
                         x.Bind(context);
                         if (x.HasAggFunc())
                             hasAgg_ = true;
                         x = x.ConstFolding();
-                        selection_[i] = x;
                         if (queryOpt_.optimize_.remove_from)
-                            selection_[i] = selection_[i].DeQueryRef();
+                            x = x.DeQueryRef();
+                        newselection.Add(x);
                     }
                 }
-
-                // expand * into actual columns
-                selstars.ForEach(x =>
-                {
-                    selection_.Remove(x);
-                    var list = x.ExpandAndDeQuerRef(context);
-                    selection_.AddRange(list);
-                });
-                Debug.Assert(selection_.Count(x => x is SelStar) == 0);
+                Debug.Assert(newselection.Count(x => x is SelStar) == 0);
+                Debug.Assert(newselection.Count >= selection_.Count);
+                selection_ = newselection;
             }
 
             // bind stage is earlier than plan creation
