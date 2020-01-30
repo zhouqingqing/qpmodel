@@ -271,7 +271,7 @@ namespace adb.expr
                 query_.selection_.ForEach(x =>
                 {
                     var y = x.Clone();
-                    y.VisitEachExpr(z =>
+                    y.VisitEach(z =>
                     {
                         if (z is ColExpr cz)
                         {
@@ -340,7 +340,7 @@ namespace adb.expr
                         var outName = colOutputNames_[i];
                         var x = query_.selection_[i];
                         var y = x.Clone();
-                        y.VisitEachExpr(z =>
+                        y.VisitEach(z =>
                         {
                             if (z is ColExpr cz)
                             {

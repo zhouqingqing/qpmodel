@@ -114,6 +114,7 @@ namespace test
             string sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
             QueryOption option = new QueryOption();
             option.profile_.enabled_ = true;
+            option.optimize_.enable_subquery_to_markjoin_ = false;
             option.optimize_.use_codegen_ = true;
 
             var result = TU.ExecuteSQL(sql, out string phyplan, option);
@@ -121,6 +122,11 @@ namespace test
             sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 limit 2;";
             result = TU.ExecuteSQL(sql, out phyplan, option);
             Assert.AreEqual("2,1;4,1", string.Join(";", result));
+
+            // demonstrate we can fallback to any non-codegen execution
+            sql = "select a2*a1, repeat('a', a2) from a where a1>= (select b1 from b where a2=b2);";
+            result = TU.ExecuteSQL(sql, out phyplan, option);
+            Assert.AreEqual("0,a;2,aa;6,aaa", string.Join(";", result));
         }
     }
 
@@ -1186,7 +1192,6 @@ namespace test
                                 Output: a.a1[0],a.a1[0]+a.a2[1],a.a2[1],a.a3[2]
                         ";
             TU.PlanAssertEqual(answer, phyplan);
-            result = ExecuteSQL(sql);
             Assert.AreEqual("7,3,2;7,4,19", string.Join(";", result));
             sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1";
             result = ExecuteSQL(sql);

@@ -116,23 +116,16 @@ namespace adb.expr
 
     }
 
+    // TBD: make it per query
+    public class ExprSearch
+    {
+        public static Dictionary<string, Expr> table_ = new Dictionary<string, Expr>();
+
+        public static Expr Locate(string objectid) => table_[objectid];
+    }
+
     public static class ExprHelper
     {
-        // a List<Expr> conditions merge into a LogicAndExpr
-        public static Expr AndListToExpr(this List<Expr> andlist)
-        {
-            Debug.Assert(andlist.Count >= 1);
-            if (andlist.Count == 1)
-                return andlist[0];
-            else
-            {
-                var andexpr = new LogicAndExpr(andlist[0], andlist[1]);
-                for (int i = 2; i < andlist.Count; i++)
-                    andexpr.children_[0] = new LogicAndExpr(andexpr.l_(), andlist[i]);
-                return andexpr;
-            }
-        }
-
         public static List<Expr> CloneList(this List<Expr> source, List<Type> excludes = null)
         {
             var clone = new List<Expr>();
@@ -155,7 +148,7 @@ namespace adb.expr
         public static List<ColExpr> RetrieveAllColExpr(this Expr expr, bool includingParameters = false)
         {
             var list = new HashSet<ColExpr>();
-            expr.VisitEach<ColExpr>(x =>
+            expr.VisitEachT<ColExpr>(x =>
             {
                 if (includingParameters || !x.isParameter_)
                     list.Add(x);
@@ -167,7 +160,7 @@ namespace adb.expr
         public static List<T> RetrieveAllType<T>(this Expr expr) where T : Expr
         {
             var list = new List<T>();
-            expr.VisitEach<T>(x => list.Add(x));
+            expr.VisitEachT<T>(x => list.Add(x));
             return list;
         }
 
@@ -184,7 +177,7 @@ namespace adb.expr
         public static List<TableRef> CollectAllTableRef(this Expr expr, bool includingParameters = true)
         {
             var list = new HashSet<TableRef>();
-            expr.VisitEach<ColExpr>(x =>
+            expr.VisitEachT<ColExpr>(x =>
             {
                 if (!x.isParameter_ || includingParameters)
                     list.Add(x.tabRef_);
@@ -199,7 +192,7 @@ namespace adb.expr
             if (expr.HasSubQuery())
             {
                 r += "\n";
-                expr.VisitEach<SubqueryExpr>(x =>
+                expr.VisitEachT<SubqueryExpr>(x =>
                 {
                     string cached = x.IsCacheable() ? "cached " : "";
                     r += Utils.Tabs(depth + 2) + $"<{x.GetType().Name}> {cached}{x.subqueryid_}\n";
@@ -218,7 +211,7 @@ namespace adb.expr
         public static void SubqueryDirectToPhysic(this Expr expr)
         {
             // append the subquery plan align with expr
-           expr.VisitEach<SubqueryExpr>(x =>
+           expr.VisitEachT<SubqueryExpr>(x =>
            {
                Debug.Assert(expr.HasSubQuery());
                var query = x.query_;
@@ -231,9 +224,39 @@ namespace adb.expr
             Debug.Assert(expr.type_ != null);
             return expr.type_ is BoolType;
         }
+
+        public static Expr ConstFolding(this Expr expr)
+        {
+            Debug.Assert(expr.bounded_);
+            bool IsConstFn(Expr e) => !(e is LiteralExpr) && e.IsConst();
+            Expr EvalConstFn(Expr e)
+            {
+                e.TryEvalConst(out Value val);
+                return LiteralExpr.MakeLiteral(val, expr.type_);
+            }
+
+            if (expr is LiteralExpr)
+                return expr;
+            else
+                return expr.SearchReplace<Expr>(IsConstFn, EvalConstFn);
+        }
     }
 
     public static class FilterHelper {
+        // a List<Expr> conditions merge into a LogicAndExpr
+        public static Expr AndListToExpr(this List<Expr> andlist)
+        {
+            Debug.Assert(andlist.Count >= 1);
+            if (andlist.Count == 1)
+                return andlist[0];
+            else
+            {
+                var andexpr = new LogicAndExpr(andlist[0], andlist[1]);
+                for (int i = 2; i < andlist.Count; i++)
+                    andexpr.children_[0] = new LogicAndExpr(andexpr.l_(), andlist[i]);
+                return andexpr;
+            }
+        }
 
         // a > 3 or c > 1, b > 5 =>  (a > 3 or c > 1) and (b > 5)
         public static Expr AddAndFilter(this Expr basefilter, Expr newcond) {
@@ -294,7 +317,7 @@ namespace adb.expr
             Debug.Assert(filter.IsBoolean());
             Debug.Assert(filter.TableRefCount() >= 2);
 
-            return plan.VisitEachNodeExists(n =>
+            return plan.VisitEachExists(n =>
             {
                 if (n is LogicJoin nodeJoin)
                 {
@@ -349,7 +372,7 @@ namespace adb.expr
         {
             Debug.Assert(filter.IsBoolean());
 
-            filter.VisitEach<BinExpr>(x =>
+            filter.VisitEachT<BinExpr>(x =>
             {
                 if (x.IsBoolean() && x.l_() is LiteralExpr)
                     x.SwapSide();
@@ -400,7 +423,7 @@ namespace adb.expr
             var andlist = filter.FilterToAndList();
             foreach (var v in andlist)
             {
-                v.VisitEachExpr(x => {
+                v.VisitEach(x => {
                     if (x is SubqueryExpr xs && !shallowColExprOnly)
                         results.AddRange(xs.query_.logicPlan_.RetrieveCorrelated(shallowColExprOnly));
                     if (x is ColExpr xc && xc.isParameter_) {
@@ -421,7 +444,7 @@ namespace adb.expr
         public static List<TableRef> FilterGetOuterRef(this Expr filter)
         {
             List<TableRef> refs = new List<TableRef>();
-            filter.VisitEach<ColExpr>(x => {
+            filter.VisitEachT<ColExpr>(x => {
                 if (x.isParameter_)
                     refs.Add(x.tabRef_);
             });
@@ -447,6 +470,9 @@ namespace adb.expr
 
     public class Expr
     {
+        // unique identifier
+        internal string _;
+
         // Expression in selection list can have an output name 
         // e.g, a.i+b.i [[as] total]
         //
@@ -490,30 +516,14 @@ namespace adb.expr
 
         protected string outputName() => outputName_ != null ? $"(as {outputName_})" : null;
 
-        public int TableRefCount()
-        {
+        void validateAfterBound() {
             Debug.Assert(bounded_);
             Debug.Assert(tableRefs_.Distinct().Count() == tableRefs_.Count);
-            return tableRefs_.Count;
         }
 
-        public bool EqualTableRef(TableRef tableRef)
-        {
-            Debug.Assert(bounded_);
-            Debug.Assert(TableRefCount() == 1);
-            return tableRefs_[0].Equals(tableRef);
-        }
-
-        public bool TableRefsContainedBy(List<TableRef> tableRefs)
-        {
-            Debug.Assert(bounded_);
-            return tableRefs.ContainsList(tableRefs_);
-        }
-        public bool TableRefsEquals(List<TableRef> tableRefs)
-        {
-            Debug.Assert(bounded_);
-            return tableRefs.ListAEqualsB(tableRefs_);
-        }
+        public int TableRefCount() {validateAfterBound();return tableRefs_.Count;}
+        public bool EqualTableRef(TableRef tableRef){ validateAfterBound();Debug.Assert(TableRefCount() == 1);return tableRefs_[0].Equals(tableRef);}
+        public bool TableRefsContainedBy(List<TableRef> tableRefs){validateAfterBound();return tableRefs.ContainsList(tableRefs_);}
 
         bool VisitEachExistsT<T>(Func<T, bool> check, List<Type> excluding = null) where T : Expr
         {
@@ -531,10 +541,16 @@ namespace adb.expr
             }
             return r;
         }
-
-        public bool VisitEachExprExists(Func<Expr, bool> check, List<Type> excluding = null)
+        public bool VisitEachExists(Func<Expr, bool> check, List<Type> excluding = null)
             => VisitEachExistsT<Expr>(check, excluding);
-
+        public void VisitEachT<T>(Action<T> callback) where T : Expr
+        {
+            if (this is T)
+                callback(this as T);
+            foreach (var v in children_)
+                v.VisitEachT<T>(callback);
+        }
+        public void VisitEach(Action<Expr> callback) => VisitEachT<Expr>(callback);
         public void VisitEachIgnoreRef<T>(Action<T> callback) where T : Expr
         {
             if (!(this is ExprRef))
@@ -546,21 +562,13 @@ namespace adb.expr
             }
         }
 
-        public void VisitEach<T>(Action<T> callback) where T : Expr
-        {
-            if (this is T)
-                callback(this as T);
-            foreach (var v in children_)
-                v.VisitEach<T>(callback);
-        }
-        public void VisitEachExpr(Action<Expr> callback) => VisitEach<Expr>(callback);
+        public bool HasSubQuery() => VisitEachExists(e => e is SubqueryExpr);
+        public bool HasAggFunc() => VisitEachExists(e => e is AggFunc);
+        public bool HasAggrRef() => VisitEachExists(e => e is AggrRef);
 
-        public bool HasSubQuery() => VisitEachExprExists(e => e is SubqueryExpr);
-        public bool HasAggFunc() => VisitEachExprExists(e => e is AggFunc);
-        public bool HasAggrRef() => VisitEachExprExists(e => e is AggrRef);
         public bool IsConst()
         {
-            return !VisitEachExprExists(e =>
+            return !VisitEachExists(e =>
             {
                 // meaning has non-constantable (or we don't want to waste time try 
                 // to figure out if they are constant, say 'select 1' or sin(2))
@@ -570,7 +578,6 @@ namespace adb.expr
                 return nonconst;
             });
         }
-
         public bool TryEvalConst(out Value value)
         {
             value = null;
@@ -680,10 +687,6 @@ namespace adb.expr
             return true;
         }
 
-        protected void markBounded() {
-            Debug.Assert(!bounded_);
-            bounded_ = true;
-        }
         public override int GetHashCode() => tableRefs_.ListHashCode() ^ children_.ListHashCode();
         public override bool Equals(object obj)
         {
@@ -711,6 +714,17 @@ namespace adb.expr
             return tableRefs_;
         }
 
+        protected void markBounded()
+        {
+            Debug.Assert(!bounded_);
+            bounded_ = true;
+            _ = $"v{ObjectID.NewId()}";
+            validateAfterBound();
+
+            // register the expression in the search table
+            ExprSearch.table_.Add(_, this);
+        }
+
         public virtual void Bind(BindContext context)
         {
             for (int i = 0; i < children_.Count; i++) {
@@ -725,23 +739,6 @@ namespace adb.expr
             markBounded();
         }
 
-        public Expr ConstFolding()
-        {
-            Debug.Assert(bounded_);
-
-            bool IsConstFn(Expr e) => !(e is LiteralExpr) && e.IsConst();
-            Expr EvalConstFn(Expr e)
-            {
-                e.TryEvalConst(out Value val);
-                return LiteralExpr.MakeLiteral(val, type_);
-            }
-
-            if (this is LiteralExpr)
-                return this;
-            else
-                return SearchReplace<Expr>(IsConstFn, EvalConstFn);
-        }
-
         public Expr DeQueryRef()
         {
             bool hasAggFunc = this.HasAggFunc();
@@ -752,7 +749,9 @@ namespace adb.expr
 
         public virtual string PrintString(int depth) => ToString();
         public virtual Value Exec(ExecContext context, Row input) => throw new Exception($"{this} subclass shall implment Exec()");
-        public virtual string ExecCode(ExecContext context, string input) => throw new Exception($"{this} subclass shall implment ExecCode()");
+        public virtual string ExecCode(ExecContext context, string input) {
+            return $@"ExprSearch.Locate(""{_}"").Exec(context, {input}) /*{ToString()}*/";
+        }
     }
 
     // Represents "*" or "table.*" - it is not in the tree after Bind(). 
@@ -959,7 +958,7 @@ namespace adb.expr
         {
             Debug.Assert(type_ != null);
             if (isParameter_)
-                throw new NotImplementedException();
+                return base.ExecCode(context, input);
             else
                 return $"{input}[{ordinal_}]";
         }
@@ -1165,7 +1164,8 @@ namespace adb.expr
             if (expr is ExprRef ee)
                 expr = ee.expr_();
             Debug.Assert(!(expr is ExprRef));
-            children_.Add(expr); ordinal_ = ordinal;
+            children_.Add(expr); 
+            ordinal_ = ordinal;
             type_ = expr.type_;
             bounded_ = expr.bounded_;
         }

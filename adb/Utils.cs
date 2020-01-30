@@ -35,9 +35,11 @@ namespace adb.utils
         // a contains b?
         public static bool ContainsList<T>(this List<T> a, List<T> b) => !b.Except(a).Any();
         public static bool ListAEqualsB<T>(this List<T> a, List<T> b) => a.ContainsList(b) && b.ContainsList(a);
+
+        // order insensitive
+        //   if you need the list to be order sensitive compared, do it in Equals()
         public static int ListHashCode<T>(this List<T> l)
         {
-            //int hash = 0x72344ABC;
             int hash = 0;
             l.ForEach(x => hash ^= x.GetHashCode());
             return hash;
