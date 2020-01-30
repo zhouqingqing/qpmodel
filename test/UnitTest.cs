@@ -798,7 +798,7 @@ namespace test
                                 "order by 2, 1 desc";
             var stmt = RawParser.ParseSingleSqlStatement(sql) as SelectStmt;
             Assert.AreEqual(2, stmt.ctes_.Count);
-            Assert.IsFalse(stmt.setqs_.IsLeaf());
+            Assert.IsFalse(stmt.setops_.IsLeaf());
             Assert.AreEqual(2, stmt.orders_.Count);
         }
 
@@ -1109,6 +1109,8 @@ namespace test
             TU.PlanAssertEqual(answer, phyplan);
             result = ExecuteSQL(sql);
             Assert.AreEqual(6, result.Count);
+            sql = "select count(a.a1) from a, (select * from b, c) d where a2 > 1";
+            TU.ExecuteSQL(sql, "18");
 
             // hash join 
             sql = "select count(*) from a join b on a1 = b1;";
@@ -1288,6 +1290,13 @@ namespace test
             TU.ExecuteSQL(sql, "0,1,2,3;0,1,2,3", out _, option);
             sql = "select * from a union all select *from b union all select * from c order by 1 limit 2;";
             TU.ExecuteSQL(sql, "0,1,2,3;0,1,2,3", out _, option);
+
+            sql = "select count(c1), sum(c2) from (select * from a union all select * from b) c(c1,c2)";
+            TU.ExecuteSQL(sql, "6,12", out _, option);
+            sql = "select * from (select * from a union all select * from b) c(c1,c2) order by 1";
+            TU.ExecuteSQL(sql, "0,1;0,1;1,2;1,2;2,3;2,3", out _, option);
+            sql = "select max(c1), min(c2) from(select * from(select * from a union all select *from b) c(c1, c2))d order by 1;";
+            TU.ExecuteSQL(sql, "2,1", out _, option);
         }
 
         [TestMethod]

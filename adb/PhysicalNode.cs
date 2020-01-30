@@ -9,6 +9,7 @@ using adb.utils;
 using adb.optimizer;
 using adb.codegen;
 using adb.index;
+using adb.stat;
 
 using Value = System.Object;
 
@@ -35,6 +36,29 @@ namespace adb.physic
         public override string ExplainOutput(int depth) => logic_.ExplainOutput(depth);
         public override string ExplainInlineDetails(int depth) => logic_.ExplainInlineDetails(depth);
         public override string ExplainMoreDetails(int depth) => logic_.ExplainMoreDetails(depth);
+
+
+        public void Validate()
+        {
+            TraversEachNode(x =>
+            {
+                var phy = x as PhysicNode;
+                List<Type> nocheck = new List<Type> {typeof(PhysicCollect), typeof(PhysicProfiling), 
+                    typeof(PhysicIndex), typeof(PhysicInsert), typeof(PhysicAnalyze)};
+                if (!nocheck.Contains(phy.GetType()))
+                {
+                    var log = phy.logic_;
+
+                    // we may want to check log.output_.Count != 0 but a special case is cross join 
+                    // may have one side output empty row, so let's do a rough check
+                    if (log.output_.Count == 0)
+                    {
+                        if (!VisitEachNodeExists(x => x is PhysicNLJoin))
+                            Debug.Assert(false);
+                    }
+                }
+            });
+        }
 
         public virtual string Open(ExecContext context){
             string s = null;

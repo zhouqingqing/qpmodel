@@ -39,7 +39,6 @@ namespace adb
             { 
                 Tpcds.CreateTables();
                 sql = File.ReadAllText("../../../tpcds/problem_queries/q64.sql");
-                sql = File.ReadAllText("../../../tpcds/q2.sql");
                 goto doit;
             }
 
@@ -111,20 +110,17 @@ namespace adb
             //sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 limit 2;";
             //sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
             //sql = "select a1.*, a2.a1,a2.a2 from (select * from a) a1, (select * from a) a2;";
+            sql = "select a2, count(*), sum(a2) from (select a2 from a) b where a2*a2> 1 group by a2;";
+            sql = "select * from (select max(b3) maxb3 from b group by b3) b where maxb3>1;";
 
-            sql = "select * from a union all select b1, b1, b1, b2 from b limit 1;";
-            sql = "select * from (select * from a union all select b1,b1,b2,b2 from b) c;";
-            sql = "select a2,a3 from a union all select b1,b4 from b order by 1;";
-            sql = "select a2,a3 from a union all select b1,b2 from b order by a2;";
-            sql = "select * from a union all select *from b union all select * from c order by 1 limit 2;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
             a.queryOpt_.profile_.enabled_ = true;
             a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = true;
-            a.queryOpt_.optimize_.remove_from = false;
-            a.queryOpt_.optimize_.use_memo_ = true;
-            a.queryOpt_.optimize_.use_codegen_ = false;
+            a.queryOpt_.optimize_.remove_from = true;
+            a.queryOpt_.optimize_.use_memo_ = false;
+            a.queryOpt_.optimize_.use_codegen_ = true;
 
             // -- Semantic analysis:
             //  - bind the query
@@ -167,6 +163,8 @@ namespace adb
             var final = new PhysicCollect(phyplan);
             a.physicPlan_ = final;
             var context = new ExecContext(a.queryOpt_);
+
+            final.Validate();
             if (a is SelectStmt select)
                 select.OpenSubQueries(context);
             var code = final.Open(context);

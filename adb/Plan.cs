@@ -229,14 +229,11 @@ namespace adb.logic
         List<SelectStmt> subQueryExprCreatePlan(Expr expr)
         {
             var subplans = new List<SelectStmt>();
-            expr.VisitEachExpr(x =>
+            expr.VisitEach<SubqueryExpr>(x =>
             {
-                if (x is SubqueryExpr sx)
-                {
-                    Debug.Assert(expr.HasSubQuery());
-                    sx.query_.CreatePlan();
-                    subplans.Add(sx.query_);
-                }
+                Debug.Assert(expr.HasSubQuery());
+                x.query_.CreatePlan();
+                subplans.Add(x.query_);
             });
 
             subQueries_.AddRange(subplans);
@@ -381,11 +378,11 @@ namespace adb.logic
         public override LogicNode CreatePlan()
         {
             LogicNode root;
-            if (setqs_ is null)
+            if (setops_ is null)
                 root = CreateSinglePlan();
             else
             {
-                root = setqs_.CreatePlan();
+                root = setops_.CreatePlan();
 
                 // setops plan can also have CTEs, LIMIT and ORDER support
                 // Notes: GROUPBY is with the individual clause
@@ -418,6 +415,9 @@ namespace adb.logic
         */
         public LogicNode CreateSinglePlan()
         {
+            // we don't consider setops in this level
+            Debug.Assert(setops_ is null);
+
             LogicNode root = transformFromClause();
 
             // transform where clause - we only want one filter
@@ -436,7 +436,7 @@ namespace adb.logic
             }
 
             // group by / having
-            if (hasAgg_ || groupby_ != null)
+            if (hasAgg_)
             {
                 if (having_ != null)
                     subQueryExprCreatePlan(having_);
@@ -479,33 +479,54 @@ namespace adb.logic
             if (parent_ != null)
                 queryOpt_ = parent_.queryOpt_;
             Debug.Assert(!bounded_);
-            if (setqs_ is null)
+            if (setops_ is null)
                 BindWithContext(context);
             else
             {
-                setqs_.Bind(parent);
+                // FIXME: we can't enable all optimizations with this mode
+                queryOpt_.optimize_.remove_from = false;
+                queryOpt_.optimize_.use_memo_ = false;
+
+                setops_.Bind(parent);
+
+                // nowe we bound first statement's selection to current because
+                // later ORDER etc processing replies on selection list
+                Debug.Assert(selection_ is null);
+                selection_ = setops_.first_.selection_;
 
                 // setops plan can also have CTEs, LIMIT and ORDER support
                 // Notes: GROUPBY is with the individual clause
                 Debug.Assert(!hasAgg_);
-
-                var first = setqs_.first_;
                 if (orders_ != null) {
-                    orders_ = first.replaceOutputNameToExpr(orders_);
-                    orders_ = seq2selection(orders_, first.selection_);
-                    orders_.ForEach(x => {
-                        if (!x.bounded_)        // some items already bounded with seq2selection()
-                            x.Bind(context);
-                    });
+                    orders_ = bindOrderByOrGroupBy(context, orders_);
                 }
             }
-            bounded_ = true;
 
+            bounded_ = true;
             return context;
         }
+
+        // ORDER BY | GROUP BY list both can use sequence number and references selection list
+        List<Expr> bindOrderByOrGroupBy(BindContext context, List<Expr> byList)
+        {
+            byList = replaceOutputNameToExpr(byList);
+            byList = seq2selection(byList, selection_);
+            byList.ForEach(x => {
+                if (!x.bounded_)        // some items already bounded with seq2selection()
+                    x.Bind(context);
+            });
+            if (queryOpt_.optimize_.remove_from)
+            {
+                for (int i = 0; i < byList.Count; i++)
+                    byList[i] = byList[i].DeQueryRef();
+            }
+
+            return byList;
+        }
+
         internal void BindWithContext(BindContext context)
         {
-            void bindSelectionList(BindContext context)
+            List<Expr> bindSelectionList(BindContext context)
             {
                 // keep the expansion order
                 List<Expr> newselection = new List<Expr>();
@@ -531,8 +552,11 @@ namespace adb.logic
                 }
                 Debug.Assert(newselection.Count(x => x is SelStar) == 0);
                 Debug.Assert(newselection.Count >= selection_.Count);
-                selection_ = newselection;
+                return newselection;
             }
+
+            // we don't consider setops in this level
+            Debug.Assert(setops_ is null);
 
             // bind stage is earlier than plan creation
             Debug.Assert(logicPlan_ == null);
@@ -543,43 +567,25 @@ namespace adb.logic
             //    expand them first, but sequence item is handled after selection list bounded
             //
             bindFrom(context);
-            if (groupby_ != null)
-            {
-                groupby_ = replaceOutputNameToExpr(groupby_);
-                if (groupby_.Any(x => x.HasAggFunc()))
-                    throw new SemanticAnalyzeException("aggregation functions are not allowed in group by clause");
-            }
-            if (orders_ != null) 
-                orders_ = replaceOutputNameToExpr(orders_);
 
-            bindSelectionList(context);
-
-            if (groupby_ != null)
-                groupby_ = seq2selection(groupby_, selection_);
-            if (orders_ != null)
-                orders_ = seq2selection(orders_, selection_);
-
+            selection_ = bindSelectionList(context);
             if (where_ != null)
             {
                 where_.Bind(context);
                 where_ = where_.FilterNormalize();
                 if (!where_.IsBoolean() || where_.HasAggFunc())
-                    throw new SemanticAnalyzeException("WHERE condition must be a blooean expression and no aggregation is allowed");
+                    throw new SemanticAnalyzeException(
+                        "WHERE condition must be a blooean expression and no aggregation is allowed");
                 if (queryOpt_.optimize_.remove_from)
                     where_ = where_.DeQueryRef();
             }
 
             if (groupby_ != null)
             {
-                groupby_.ForEach(x => {
-                    if (!x.bounded_)        // some items already bounded with seq2selection()
-                        x.Bind(context);
-                });
-                if (queryOpt_.optimize_.remove_from)
-                {
-                    for (int i = 0; i < groupby_.Count; i++)
-                        groupby_[i] = groupby_[i].DeQueryRef();
-                }
+                hasAgg_ = true;
+                groupby_ = bindOrderByOrGroupBy(context, groupby_);
+                if (groupby_.Any(x => x.HasAggFunc()))
+                    throw new SemanticAnalyzeException("aggregation functions are not allowed in group by clause");
             }
 
             if (having_ != null) 
@@ -594,17 +600,7 @@ namespace adb.logic
             }
 
             if (orders_ != null)
-            {
-                orders_.ForEach(x => {
-                    if (!x.bounded_)        // some items already bounded with seq2selection()
-                        x.Bind(context);
-                });
-                if (queryOpt_.optimize_.remove_from)
-                {
-                    for (int i = 0; i < orders_.Count; i++)
-                        orders_[i] = orders_[i].DeQueryRef();
-                }
-            }
+                orders_ = bindOrderByOrGroupBy(context, orders_);
         }
 
         void bindFrom(BindContext context)

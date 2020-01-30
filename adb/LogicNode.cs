@@ -980,7 +980,7 @@ namespace adb.logic
             // limit is the top node and don't remove redundant
             List<int> ordinals = new List<int>();
 
-            l_().ResolveColumnOrdinal(reqOutput, true);
+            l_().ResolveColumnOrdinal(reqOutput, removeRedundant);
             output_ = l_().output_;
             return ordinals;
         }

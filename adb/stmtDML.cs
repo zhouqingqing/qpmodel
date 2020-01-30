@@ -130,7 +130,7 @@ namespace adb.dml
             }
             else
             {
-                select_?.BindWithContext(context);
+                select_.BindWithContext(context);
                 if (cols_ is null)
                     cols_ = select_.selection_;
                 Debug.Assert(select_.selection_.Count == cols_.Count);
@@ -152,6 +152,8 @@ namespace adb.dml
         {
             // convert to physical plan
             physicPlan_ = logicPlan_.DirectToPhysical(queryOpt_);
+            if (select_ != null)
+                select_.logicPlan_.ResolveColumnOrdinal(select_.selection_, false);
             return logicPlan_;
         }
     }
