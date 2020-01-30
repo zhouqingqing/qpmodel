@@ -642,9 +642,7 @@ namespace adb.expr
             if (obj is ExprRef oe)
                 return this.Equals(oe.expr_());
             else if (obj is BinExpr bo)
-            {
                 return exprEquals(l_(), bo.l_()) && exprEquals(r_(), bo.r_()) && op_.Equals(bo.op_);
-            }
             return false;
         }
         public BinExpr(Expr l, Expr r, string op)
@@ -663,27 +661,14 @@ namespace adb.expr
             Debug.Assert(l_().type_ != null && r_().type_ != null);
             switch (op_)
             {
-                case "+":
-                case "-":
-                case "*":
-                case "/":
-                case "||":
+                case "+": case "-": case "*": case "/": case "||":
                     type_ = ColumnType.CoerseType(op_, l_().type_, r_().type_);
                     break;
-                case ">":
-                case ">=":
-                case "<":
-                case "<=":
-                case "=":
-                case "<>":
-                case "!=":
-                case " and ":
-                case " or ":
-                case "like":
-                case "not like":
-                case "in":
-                case "is":
-                case "is not":
+                case ">": case ">=": case "<": case "<=": 
+                case "=":case "<>": case "!=":
+                case " and ": case " or ":
+                case "like": case "not like": case "in":
+                case "is": case "is not":
                     type_ = new BoolType();
                     break;
                 default:
@@ -694,14 +679,10 @@ namespace adb.expr
         public static string SwapSideOp(string op) {
             switch (op)
             {
-                case ">":
-                    return "<";
-                case ">=":
-                    return "<=";
-                case "<":
-                    return ">";
-                case "<=":
-                    return ">=";
+                case ">": return "<";
+                case ">=": return "<=";
+                case "<": return ">";
+                case "<=": return ">=";
                 case "in":
                     throw new Exception("not switchable");
                 default:
@@ -787,17 +768,16 @@ namespace adb.expr
             Debug.Assert(this.IsBoolean());
         }
     }
+
     public class LogicAndExpr : LogicAndOrExpr
     {
-        public LogicAndExpr(Expr l, Expr r) : base(l, r, " and ")
-        {
-        }
+        public LogicAndExpr(Expr l, Expr r) : base(l, r, " and "){}
 
         public static LogicAndExpr MakeExpr(Expr l, Expr r)
         {
             var and = new LogicAndExpr(l, r);
             and.ResetAggregateTableRefs();
-            and.bounded_ = true;
+            and.markBounded();
             return and;
         }
 

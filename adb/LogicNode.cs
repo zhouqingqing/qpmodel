@@ -184,7 +184,7 @@ namespace adb.logic
             // let's first fix AggrRef as a whole epxression - there could be some combinations
             // of AggrRef with aggregation keys (ColExpr), so we have to go thorough after it
             //
-            clone.VisitEach<AggrRef>(target => {
+            clone.VisitEachT<AggrRef>(target => {
                 Predicate<Expr> roughNameTest;
                 roughNameTest = z => target.Equals(z);
                 target.ordinal_ = source.FindIndex(roughNameTest);
@@ -272,7 +272,7 @@ namespace adb.logic
         public List<Expr> RetrieveCorrelated(bool returnColExprOnly)
         {
             List<Expr> results = new List<Expr>();
-            TraversEachNode(x => {
+            VisitEach(x => {
                 var logic = x as LogicNode;
                 var filterExpr = logic.filter_;
 
@@ -621,7 +621,7 @@ namespace adb.logic
             Expr xchanged = x.Clone();
             foreach (var v in keys)
                 xchanged = xchanged.SearchReplace(v, constTrue);
-            if (!xchanged.VisitEachExprExists(
+            if (!xchanged.VisitEachExists(
                     e => e.IsLeaf() && !(e is LiteralExpr) && !e.Equals(constTrue)))
                 return true;
             return false;
@@ -638,7 +638,7 @@ namespace adb.logic
             foreach (var v in reqList)
             {
                 Debug.Assert(!(v is AggrRef));
-                v.VisitEach<AggrRef>(x =>
+                v.VisitEachT<AggrRef>(x =>
                 {
                     list.Add(x.aggr_() as AggFunc);
                 });
@@ -663,7 +663,7 @@ namespace adb.logic
             // first let's find out all elements containing any AggFunc
             reqList.ForEach(x => {
                 Debug.Assert(!(x is AggrRef));
-                x.VisitEach<AggFunc>(y =>
+                x.VisitEachT<AggFunc>(y =>
                 {
                     // 1+abs(min(a))+max(b)
                     reqContainAggs.Add(x);
@@ -783,13 +783,13 @@ namespace adb.logic
             Expr offending = null;
             newoutput.ForEach(x =>
             {
-                if (x.VisitEachExprExists(y => y is ColExpr, new List<Type> { typeof(ExprRef) }))
+                if (x.VisitEachExists(y => y is ColExpr, new List<Type> { typeof(ExprRef) }))
                     offending = x;
             });
             if (offending != null)
                 throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
             output_ = newoutput;
-            if (having_?.VisitEachExprExists(y => y is ColExpr, new List<Type> { typeof(ExprRef) })??false)
+            if (having_?.VisitEachExists(y => y is ColExpr, new List<Type> { typeof(ExprRef) })??false)
                 throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
 
             return ordinals;
@@ -892,7 +892,7 @@ namespace adb.logic
         {
             reqOutput.ForEach(x =>
             {
-                x.VisitEachExpr(y =>
+                x.VisitEach(y =>
                 {
                     switch (y)
                     {

@@ -40,7 +40,7 @@ namespace adb.physic
 
         public void Validate()
         {
-            TraversEachNode(x =>
+            VisitEach(x =>
             {
                 var phy = x as PhysicNode;
                 List<Type> nocheck = new List<Type> {typeof(PhysicCollect), typeof(PhysicProfiling), 
@@ -53,7 +53,7 @@ namespace adb.physic
                     // may have one side output empty row, so let's do a rough check
                     if (log.output_.Count == 0)
                     {
-                        if (!VisitEachNodeExists(x => x is PhysicNLJoin))
+                        if (!VisitEachExists(x => x is PhysicNLJoin))
                             Debug.Assert(false);
                     }
                 }
@@ -117,9 +117,9 @@ namespace adb.physic
         // across callback boundaries are special: they have to be uniquely named and
         // use consistently.
         //
-        public PhysicNode Locate(string objectid) {
+        public PhysicNode LocateNode(string objectid) {
             PhysicNode target = null;
-            VisitEachNodeExists(x =>
+            VisitEachExists(x =>
             {
                 if ((x as PhysicNode)._ == objectid)
                 {
@@ -149,7 +149,7 @@ namespace adb.physic
                     var output{_} = {_logic_}.output_;";
             }
             string s = $@"
-                {phytype} {_physic_}  = stmt.physicPlan_.Locate(""{_}"") as {phytype};
+                {phytype} {_physic_}  = stmt.physicPlan_.LocateNode(""{_}"") as {phytype};
                 {logicfilter}";
             return s;
         }

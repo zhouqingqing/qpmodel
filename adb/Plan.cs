@@ -14,23 +14,23 @@ namespace adb.logic
     public class QueryOption {
         public class ProfileOption
         {
-            public bool enabled_ = true;
+            public bool enabled_ { get; set; } = true;
         }
         public class OptimizeOption
         {
             // rewrite controls
-            public bool enable_subquery_to_markjoin_ = true;
-            public bool remove_from = false;        // make it true by default
+            public bool enable_subquery_to_markjoin_ { get; set; } = true;
+            public bool remove_from { get; set; } = false;        // make it true by default
 
             // optimizer controls
-            public bool enable_hashjoin_ = true;
-            public bool enable_nljoin_ = true;
-            public bool enable_indexseek = true;
-            public bool use_memo_ = false;      // make it true by default
-            public bool memo_disable_crossjoin = true;
+            public bool enable_hashjoin_ { get; set; } = true;
+            public bool enable_nljoin_ { get; set; } = true;
+            public bool enable_indexseek { get; set; } = true;
+            public bool use_memo_ { get; set; } = false;      // make it true by default
+            public bool memo_disable_crossjoin { get; set; } = true;
 
             // codegen controls
-            public bool use_codegen_ = false;
+            public bool use_codegen_ { get; set; } = false;
 
             public void TurnOnAllOptimizations() {
                 enable_subquery_to_markjoin_ = true;
@@ -46,12 +46,20 @@ namespace adb.logic
 
         public ProfileOption profile_ = new ProfileOption();
         public OptimizeOption optimize_ = new OptimizeOption();
+
+        bool saved_use_codegen_;
+        public void PushCodeGenDisable() {
+            saved_use_codegen_ = optimize_.use_codegen_;
+            optimize_.use_codegen_ = false;
+        }
+
+        public void PopCodeGen() => optimize_.use_codegen_ = saved_use_codegen_;
     }
 
     public class ExplainOption {
-        public static bool show_tablename_ = true;
-        public bool show_cost_ = false;
-        public bool show_output_ = true;
+        public static bool show_tablename_ { get; set; } = true;
+        public bool show_cost_ { get; set; } = false;
+        public bool show_output_ { get; set; } = true;
     }
 
     public abstract class PlanNode<T> where T : PlanNode<T>
@@ -133,13 +141,13 @@ namespace adb.logic
         //  if any visit returns a true, stop recursion. So if you want to
         //  visit all nodes regardless, use TraverseEachNode(). 
         // 
-        public bool VisitEachNodeExists(Func<PlanNode<T>, bool> callback)
+        public bool VisitEachExists(Func<PlanNode<T>, bool> callback)
         {
             bool exists = callback(this);
             if (!exists)
             {
                 foreach (var c in children_)
-                    if (c.VisitEachNodeExists(callback))
+                    if (c.VisitEachExists(callback))
                         return true;
             }
 
@@ -147,11 +155,11 @@ namespace adb.logic
         }
 
         // traversal pattern FOR EACH
-        public void TraversEachNode(Action<PlanNode<T>> callback)
+        public void VisitEach(Action<PlanNode<T>> callback)
         {
             callback(this);
             foreach (var c in children_)
-                c.TraversEachNode(callback);
+                c.VisitEach(callback);
         }
 
         // lookup all T1 types in the tree and return the parent-target relationship
@@ -159,49 +167,40 @@ namespace adb.logic
         {
             if (this is T1 yf)
             {
-                parents.Add(null);
-                childIndex.Add(-1);
+                parents?.Add(null);
+                childIndex?.Add(-1);
                 targets.Add(yf);
             }
 
-            TraversEachNode(x =>
+            VisitEach(x =>
             {
                 for (int i = 0; i < x.children_.Count; i++)
                 {
                     var y = x.children_[i];
                     if (y is T1 yf)
                     {
-                        parents.Add(x as T);
-                        childIndex.Add(i);
+                        parents?.Add(x as T);
+                        childIndex?.Add(i);
                         targets.Add(yf);
                     }
                 }
             });
 
             // verify the parent-child relationship
-            Debug.Assert(parents.Count == targets.Count);
-            for (int i = 0; i < parents.Count; i++)
+            if (parents != null)
             {
-                var parent = parents[i];
-                Debug.Assert(parent is null || parent.children_[childIndex[i]] == targets[i]);
+                Debug.Assert(parents.Count == targets.Count);
+                for (int i = 0; i < parents.Count; i++)
+                {
+                    var parent = parents[i];
+                    Debug.Assert(parent is null || parent.children_[childIndex[i]] == targets[i]);
+                }
             }
-            return parents.Count;
+            return targets.Count;
         }
+        public int FindNodeTyped<T1>(List<T1> targets) where T1 : PlanNode<T> => FindNodeTyped<T1>(null, null, targets);
+        public int CountNodeTyped<T1>() where T1 : PlanNode<T> => FindNodeTyped<T1>(new List<T1>());
 
-        public int FindNodeTyped<T1>(List<T1> targets) where T1 : PlanNode<T>
-        {
-            var parents = new List<T>();
-            var indexes = new List<int>();
-            return FindNodeTyped<T1>(parents, indexes, targets);
-        }
-
-        public int CountNodeTyped<T1>() where T1 : PlanNode<T>
-        {
-            var parents = new List<T>();
-            var indexes = new List<int>();
-            var targets = new List<T1>();
-            return FindNodeTyped<T1>(parents, indexes, targets);
-        }
         public override int GetHashCode()
         {
             return GetType().GetHashCode() ^ children_.ListHashCode();
@@ -229,7 +228,7 @@ namespace adb.logic
         List<SelectStmt> subQueryExprCreatePlan(Expr expr)
         {
             var subplans = new List<SelectStmt>();
-            expr.VisitEach<SubqueryExpr>(x =>
+            expr.VisitEachT<SubqueryExpr>(x =>
             {
                 Debug.Assert(expr.HasSubQuery());
                 x.query_.CreatePlan();
@@ -247,7 +246,7 @@ namespace adb.logic
             var r = new List<Expr>();
             selection_.ForEach(x =>
             {
-                x.VisitEachExpr(y =>
+                x.VisitEach(y =>
                 {
                     if (y is AggFunc)
                         r.Add(x);
@@ -456,7 +455,7 @@ namespace adb.logic
 
             // let's make sure the plan is in good shape
             //  - there is no filter except filter node (ok to be multiple)
-            root.TraversEachNode(x => {
+            root.VisitEach(x => {
                 var log = x as LogicNode;
                 if (!(x is LogicFilter))
                     Debug.Assert(log.filter_ is null);
@@ -605,7 +604,7 @@ namespace adb.logic
 
         void bindFrom(BindContext context)
         {
-            CTEQueryRef wayUpToFindCte(BindContext context, string ctename, string alias)
+            CTEQueryRef chainUpToFindCte(BindContext context, string ctename, string alias)
             {
                 var parent = context;
                 do
@@ -638,7 +637,7 @@ namespace adb.logic
                 if (x is BaseTableRef bref &&
                     Catalog.systable_.TryTable(bref.relname_) is null)
                 {
-                    from_[i] = wayUpToFindCte(context, bref.relname_, bref.alias_);
+                    from_[i] = chainUpToFindCte(context, bref.relname_, bref.alias_);
                     if (from_[i] is null)
                         throw new Exception($@"table '{bref.relname_}' not exists");
                 }

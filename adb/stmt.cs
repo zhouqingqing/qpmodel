@@ -394,21 +394,21 @@ namespace adb.logic
         bool pushdownFilter(LogicNode plan, Expr filter)
         {
             // don't push down special expressions
-            if (filter.VisitEachExprExists(x => x is MarkerExpr))
+            if (filter.VisitEachExists(x => x is MarkerExpr))
                 return false;
 
             switch (filter.TableRefCount())
             {
                 case 0:
                     // say ?b.b1 = ?a.a1
-                    return plan.VisitEachNodeExists(n =>
+                    return plan.VisitEachExists(n =>
                     {
                         if (n is LogicScanTable nodeGet)
                             return nodeGet.AddFilter(filter);
                         return false;
                     });
                 case 1:
-                    return plan.VisitEachNodeExists(n =>
+                    return plan.VisitEachExists(n =>
                     {
                         if (n is LogicScanTable nodeGet &&
                             filter.EqualTableRef(nodeGet.tabref_))
@@ -580,7 +580,7 @@ namespace adb.logic
             }
 
             // now we can adjust join order
-            logic.TraversEachNode(x => {
+            logic.VisitEach(x => {
                 if (x is LogicJoin lx)
                     lx.SwapJoinSideIfNeeded();
             });
