@@ -59,6 +59,8 @@ namespace adb.logic
             var finalplan = new PhysicCollect(physicPlan_);
             physicPlan_ = finalplan;
             var context = new ExecContext(queryOpt_);
+
+            finalplan.Validate();
             if (this is SelectStmt select)
                 select.OpenSubQueries(context);
             var code = finalplan.Open(context);
@@ -161,7 +163,7 @@ namespace adb.logic
         // example: select a1 union select b1 order by a1 works but
         // not with 'b1'. The follows PostgreSQL tradition.
         //
-        internal readonly SelectStmt first_;
+        internal SelectStmt first_ { get; }
 
         public SetOpTree(SelectStmt stmt) {
             first_ = stmt;
@@ -252,10 +254,13 @@ namespace adb.logic
                         plan = new LogicAppend(lplan, rplan);
                         break;
                     case "union":
+                        plan = new LogicAppend(lplan, rplan);   // FIXME
                         break;
                     case "except":
+                        plan = new LogicAppend(lplan, rplan);   // FIXME
                         break;
                     case "intersect":
+                        plan = new LogicAppend(lplan, rplan);   // FIXME
                         break;
                     default:
                         throw new InvalidProgramException();
@@ -301,7 +306,7 @@ namespace adb.logic
         // this section can only show up in top query
         public readonly List<CteExpr> ctes_;
         public List<CTEQueryRef> ctefrom_;
-        public readonly SetOpTree setqs_;
+        public readonly SetOpTree setops_;
         public List<Expr> orders_;
         public readonly List<bool> descends_;   // order by DESC|ASC
         public Expr limit_;
@@ -366,7 +371,7 @@ namespace adb.logic
             groupby_ = groupby;
 
             ctes_ = ctes;
-            setqs_ = setqs;
+            setops_ = setqs;
             if (orders != null)
             {
                 orders_ = (from x in orders select x.orderby_()).ToList();
@@ -530,14 +535,14 @@ namespace adb.logic
 
         internal void ResolveOrdinals()
         {
-            if (setqs_ is null)
+            if (setops_ is null)
                 logicPlan_.ResolveColumnOrdinal(selection_, parent_ != null);
             else
             {
                 // resolve each and use the first one to resolve ordinal since all are compatible
-                var first = setqs_.first_;
-                setqs_.VisitEachStatement(x => {
-                    x.logicPlan_.ResolveColumnOrdinal(x.selection_, parent_ != null);
+                var first = setops_.first_;
+                setops_.VisitEachStatement(x => {
+                    x.logicPlan_.ResolveColumnOrdinal(x.selection_, false);
                 });
                 logicPlan_.ResolveColumnOrdinal(first.selection_, parent_ != null);
             }
