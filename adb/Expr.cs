@@ -243,6 +243,22 @@ namespace adb.expr
     }
 
     public static class FilterHelper {
+
+        public static Expr MakeFullComparator(List<Expr> left, List<Expr> right)
+        {
+            // a rough check here - caller's responsiblity to do a full check
+            Debug.Assert(left.Count == right.Count);
+
+            Expr result = BinExpr.MakeBooleanExpr(left[0], right[0], "=");
+            for (int i = 1; i < left.Count; i++)
+            {
+                Expr qual = BinExpr.MakeBooleanExpr(left[i], right[i], "=");
+                result = result.AddAndFilter(qual);
+            }
+
+            return result;
+        }
+
         // a List<Expr> conditions merge into a LogicAndExpr
         public static Expr AndListToExpr(this List<Expr> andlist)
         {
@@ -251,9 +267,9 @@ namespace adb.expr
                 return andlist[0];
             else
             {
-                var andexpr = new LogicAndExpr(andlist[0], andlist[1]);
+                var andexpr = LogicAndExpr.MakeExpr(andlist[0], andlist[1]);
                 for (int i = 2; i < andlist.Count; i++)
-                    andexpr.children_[0] = new LogicAndExpr(andexpr.l_(), andlist[i]);
+                    andexpr.children_[0] = LogicAndExpr.MakeExpr(andexpr.l_(), andlist[i]);
                 return andexpr;
             }
         }
@@ -507,6 +523,11 @@ namespace adb.expr
         // output type of the expression
         internal ColumnType type_;
 
+        // debug info
+        internal bool dbg_isCloneCopy_ = false;
+
+        public Expr() { _ = $"{ObjectID.NewId()}"; }
+
         public bool IsLeaf() => children_.Count == 0;
 
         // shortcut for conventional names
@@ -588,21 +609,23 @@ namespace adb.expr
         }
 
         // APIs children may implment
-        //  - we have to copy out expressions - consider the following query
+        //  Sometimes we have to copy out expressions, consider the following query
         // select a2 from(select a3, a1, a2 from a) b
         // PhysicSubquery <b>
         //    Output: b.a2[0]
         //  -> PhysicGet a
         //      Output: a.a2[1]
-        // notice b.a2 and a.a2 are the same column but have differenti ordinal.
+        // notice b.a2 and a.a2 are the same column but have different ordinal.
         // This means we have to copy ColExpr, so its parents, then everything.
         //
-        public virtual Expr Clone()
+        public Expr Clone()
         {
             Expr n = (Expr)MemberwiseClone();
             n.children_ = children_.CloneList();
             n.tableRefs_ = new List<TableRef>();
             tableRefs_.ForEach(n.tableRefs_.Add);
+            n.dbg_isCloneCopy_ = true;
+            n._ = _;
             Debug.Assert(Equals(n));
             return n;
         }
@@ -693,7 +716,7 @@ namespace adb.expr
             if (!(obj is Expr))
                 return false;
             var n = obj as Expr;
-            return tableRefs_.SequenceEqual(n.tableRefs_) &&
+            return object.Equals(_, n._) && tableRefs_.SequenceEqual(n.tableRefs_) &&
                 children_.SequenceEqual(n.children_);
         }
 
@@ -718,7 +741,6 @@ namespace adb.expr
         {
             Debug.Assert(!bounded_);
             bounded_ = true;
-            _ = $"v{ObjectID.NewId()}";
             validateAfterBound();
 
             // register the expression in the search table
@@ -761,7 +783,7 @@ namespace adb.expr
     {
         internal readonly string tabAlias_;
 
-        public SelStar(string tabAlias) => tabAlias_ = tabAlias;
+        public SelStar(string tabAlias):base() => tabAlias_ = tabAlias;
         public override string ToString() => tabAlias_ + ".*";
 
         public override void Bind(BindContext context) => throw new InvalidProgramException("shall be expanded already");
@@ -823,7 +845,7 @@ namespace adb.expr
 
         // -- execution section --
 
-        public ColExpr(string dbName, string tabName, string colName, ColumnType type)
+        public ColExpr(string dbName, string tabName, string colName, ColumnType type) : base()
         {
             dbName_ = dbName; tabName_ = tabName; colName_ = colName; outputName_ = colName; type_ = type;
             Debug.Assert(Clone().Equals(this));
@@ -996,7 +1018,7 @@ namespace adb.expr
         internal SQLStatement query_;
         internal List<string> colNames_;
 
-        public CteExpr(string cteName, List<string> colNames, SQLStatement query)
+        public CteExpr(string cteName, List<string> colNames, SQLStatement query) : base()
         {
             cteName_ = cteName;
             query_ = query;
@@ -1010,7 +1032,7 @@ namespace adb.expr
         internal Expr orderby_() => children_[0];
 
         public override string ToString() => $"{orderby_()} {(descend_ ? "[desc]" : "")}";
-        public OrderTerm(Expr expr, bool descend)
+        public OrderTerm(Expr expr, bool descend) : base()
         {
             children_.Add(expr); descend_ = descend;
         }
@@ -1021,7 +1043,7 @@ namespace adb.expr
         internal string str_;
         internal Value val_;
 
-        public LiteralExpr(string str, ColumnType type)
+        public LiteralExpr(string str, ColumnType type) : base()
         {
             str_ = str;
             type_ = type;
@@ -1159,7 +1181,7 @@ namespace adb.expr
         internal int ordinal_;
 
         public override string ToString() => $@"{{{expr_().ToString().RemovePositions()}}}[{ordinal_}]";
-        public ExprRef(Expr expr, int ordinal)
+        public ExprRef(Expr expr, int ordinal): base()
         {
             if (expr is ExprRef ee)
                 expr = ee.expr_();
@@ -1168,6 +1190,9 @@ namespace adb.expr
             ordinal_ = ordinal;
             type_ = expr.type_;
             bounded_ = expr.bounded_;
+
+            // reuse underlying expression's id
+            _ = expr._;
         }
 
         public override int GetHashCode() => expr_().GetHashCode();

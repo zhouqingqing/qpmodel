@@ -417,8 +417,8 @@ namespace adb.physic
             var logic = logic_ as LogicJoin;
             var type = logic.type_;
             var filter = logic.filter_;
-            bool semi = type == JoinType.SemiJoin;
-            bool antisemi = type == JoinType.AntiSemiJoin;
+            bool semi = type == JoinType.Semi;
+            bool antisemi = type == JoinType.AntiSemi;
 
             string s = l_().Exec(l =>
             {
@@ -554,8 +554,8 @@ namespace adb.physic
             var logic = logic_ as LogicJoin;
             var type = logic.type_;
             var hm = new Dictionary<KeyList, List<Row>>();
-            bool semi = type == JoinType.SemiJoin;
-            bool antisemi = type == JoinType.AntiSemiJoin;
+            bool semi = type == JoinType.Semi;
+            bool antisemi = type == JoinType.AntiSemi;
 
             // build hash table with left side 
             string s = l_().Exec(l => {

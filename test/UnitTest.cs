@@ -1302,6 +1302,31 @@ namespace test
             TU.ExecuteSQL(sql, "0,1;0,1;1,2;1,2;2,3;2,3", out _, option);
             sql = "select max(c1), min(c2) from(select * from(select * from a union all select *from b) c(c1, c2))d order by 1;";
             TU.ExecuteSQL(sql, "2,1", out _, option);
+
+            // union [all]
+            sql = "select a1.* from a, a a1 union select *from b where b1 > 1;";
+            TU.ExecuteSQL(sql, "0,1,2,3;1,2,3,4;2,3,4,5", out _, option);
+            sql = "select a1.a4,a1.a3,a1.a2,a1.a1 from a, a a1 union select *from b where b1 > 1;";
+            TU.ExecuteSQL(sql, "3,2,1,0;4,3,2,1;5,4,3,2;2,3,4,5", out _, option);
+
+            // except [all]
+            sql = "select a1.a4,a1.a3,a1.a2,a1.a1 from a, a a1, a a2 except select *from b where b1 > 1;";
+            TU.ExecuteSQL(sql, "3,2,1,0;4,3,2,1;5,4,3,2", out _, option);
+            sql = "select a1.* from a, a a1, a a2 except select *from b where b1 > 1;";
+            TU.ExecuteSQL(sql, "0,1,2,3;1,2,3,4", out _, option);
+
+            // intersect [all]
+            sql = "select a1.a4,a1.a3,a1.a2,a1.a1 from a, a a1 intersect select *from b where b1 > 1;";
+            TU.ExecuteSQL(sql, "", out _, option);
+            sql = "select a1.* from a, a a1, a a2 intersect select *from b where b1 > 1;";
+            TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
+
+            // mixed
+            // we currently does not support bracket or priority, and order based on sequence - so if you try on PG, use bracket
+            sql = "select a1.* from a, a a1, a a2 union select a1.* from a, a a1, a a2 intersect select *from b where b1 > 1;";
+            TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
+            sql = "select a1.* from a, a a1, a a2 union select a1.* from a, a a1, a a2 except select *from b where b1 > 1;";
+            TU.ExecuteSQL(sql, "0,1,2,3;1,2,3,4", out _, option);
         }
 
         [TestMethod]

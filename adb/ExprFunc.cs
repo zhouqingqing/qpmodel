@@ -19,7 +19,7 @@ namespace adb.expr
         internal Expr arg_() { Debug.Assert(argcnt_ == 1); return args_()[0]; }
         internal List<Expr> args_() => children_;
 
-        public FuncExpr(string funcName, List<Expr> args)
+        public FuncExpr(string funcName, List<Expr> args) : base()
         {
             funcName_ = funcName;
             children_.AddRange(args);
@@ -524,7 +524,7 @@ namespace adb.expr
         internal List<Expr> when_() => children_.GetRange(nEval_, nWhen_);
         internal List<Expr> then_() => children_.GetRange(nEval_ + nWhen_, nWhen_);
         internal Expr else_() => nElse_ != 0 ? children_[nEval_ + nWhen_ + nWhen_] : null;
-        public CaseExpr(Expr eval, List<Expr> when, List<Expr> then, Expr elsee)
+        public CaseExpr(Expr eval, List<Expr> when, List<Expr> then, Expr elsee) : base()
         {
             if (eval != null)
             {
@@ -598,7 +598,7 @@ namespace adb.expr
         internal string op_;
 
         internal Expr arg_() => children_[0];
-        public UnaryExpr(string op, Expr expr)
+        public UnaryExpr(string op, Expr expr) : base()
         {
             string[] supportops = { "+", "-" };
 
@@ -645,12 +645,22 @@ namespace adb.expr
                 return exprEquals(l_(), bo.l_()) && exprEquals(r_(), bo.r_()) && op_.Equals(bo.op_);
             return false;
         }
-        public BinExpr(Expr l, Expr r, string op)
+        public BinExpr(Expr l, Expr r, string op) : base()
         {
             children_.Add(l);
             children_.Add(r);
             op_ = op.ToLower();
             Debug.Assert(Clone().Equals(this));
+        }
+
+        public static BinExpr MakeBooleanExpr(Expr l, Expr r, string op)
+        {
+            Debug.Assert(l.bounded_ && r.bounded_);
+            var expr = new BinExpr(l, r, op);
+            expr.ResetAggregateTableRefs();
+            expr.markBounded();
+            expr.type_ = new BoolType();
+            return expr;
         }
 
         public override void Bind(BindContext context)
@@ -775,6 +785,7 @@ namespace adb.expr
 
         public static LogicAndExpr MakeExpr(Expr l, Expr r)
         {
+            Debug.Assert(l.bounded_ && r.bounded_);
             var and = new LogicAndExpr(l, r);
             and.ResetAggregateTableRefs();
             and.markBounded();
@@ -816,7 +827,7 @@ namespace adb.expr
 
     public class CastExpr : Expr {
         public override string ToString() => $"cast({child_()} to {type_})";
-        public CastExpr(Expr child, ColumnType coltype) { children_.Add(child); type_ = coltype; }
+        public CastExpr(Expr child, ColumnType coltype) : base() { children_.Add(child); type_ = coltype; }
         public override Value Exec(ExecContext context, Row input)
         {
             Value to = null;
