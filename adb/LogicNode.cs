@@ -88,7 +88,8 @@ namespace adb.logic
                             // subquries, we need to use NLJ to pass variables. It is can be fixed by changing
                             // the way we pass parameters though.
                             bool lhasSubqCol = TableRef.HasColsUsedBySubquries(l.InclusiveTableRefs());
-                            if (lc.filter_.FilterHashable() && !lhasSubqCol)
+                            if (lc.filter_.FilterHashable() && !lhasSubqCol
+                                &&  lc.type_ == JoinType.Inner)
                                 phy = new PhysicHashJoin(lc,
                                     l.DirectToPhysical(option),
                                     r.DirectToPhysical(option));
@@ -169,6 +170,8 @@ namespace adb.logic
 
         internal Expr CloneFixColumnOrdinal(Expr toclone, List<Expr> source)
         {
+            Debug.Assert(toclone.bounded_);
+            Debug.Assert(toclone._ != null);
             var clone = toclone.Clone();
 
             // first try to match the whole expression - don't do this for ColExpr
@@ -357,20 +360,20 @@ namespace adb.logic
 
     public enum JoinType {
         // ANSI SQL specified join types can show in SQL statement
-        InnerJoin,
-        LeftJoin,
-        RightJoin,
-        FullJoin,
-        CrossJoin
+        Inner,
+        Left,
+        Right,
+        Full,
+        Cross
             ,
         // these are used by subquery expansion or optimizations (say PK/FK join)
-        SemiJoin,
-        AntiSemiJoin,
+        Semi,
+        AntiSemi,
     };
 
     public partial class LogicJoin : LogicNode
     {
-        public JoinType type_ = JoinType.InnerJoin;
+        public JoinType type_ { get; set; } = JoinType.Inner;
 
         // dervided information from join condition
         // ab join cd on c1+d1=a1-b1 and a1+b1=c2+d2;
@@ -382,13 +385,14 @@ namespace adb.logic
         internal List<string> ops_ = new List<string>();
 
         public override string ToString() => $"({l_()} {type_} {r_()})";
+        public override string ExplainInlineDetails(int depth) { return type_ == JoinType.Inner ? "" : type_.ToString(); }
         public LogicJoin(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
         public LogicJoin(LogicNode l, LogicNode r, Expr filter): this(l, r) 
         { 
             filter_ = filter; 
         }
 
-        public bool IsInnerJoin() => type_ == JoinType.InnerJoin && !(this is LogicMarkJoin);
+        public bool IsInnerJoin() => type_ == JoinType.Inner && !(this is LogicMarkJoin);
 
         public override LogicSignature MemoLogicSign() {
             if (logicSign_ == -1)

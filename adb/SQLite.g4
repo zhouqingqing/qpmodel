@@ -417,7 +417,9 @@ compound_operator
  : K_UNION
  | K_UNION K_ALL
  | K_INTERSECT
+ | K_INTERSECT K_ALL
  | K_EXCEPT
+ | K_EXCEPT K_ALL
  ;
 
 cte_table_name

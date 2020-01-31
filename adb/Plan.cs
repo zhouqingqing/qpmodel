@@ -381,7 +381,7 @@ namespace adb.logic
                 root = CreateSinglePlan();
             else
             {
-                root = setops_.CreatePlan();
+                root = setops_.CreateSetOpPlan();
 
                 // setops plan can also have CTEs, LIMIT and ORDER support
                 // Notes: GROUPBY is with the individual clause

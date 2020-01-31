@@ -113,19 +113,14 @@ namespace adb
             //sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 limit 2;";
             //sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
             //sql = "select a1.*, a2.a1,a2.a2 from (select * from a) a1, (select * from a) a2;";
-            sql = "select a2, count(*), sum(a2) from (select a2 from a) b where a2*a2> 1 group by a2;";
-            sql = "select maxb3+2 from (select max(b3) maxb3 from b group by b3) b where maxb3>1;";
-            sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
-            sql = "select a2*a1, repeat('a', a2) from a where a1>= (select b1 from b where a2=b2);";
-            sql = @"with cte1 as (select b3, max(b2) maxb2 from b where b1<1 group by b3)
-                        select a1, maxb2 from a, cte1 where a.a3=cte1.b3 and a1<2;";
+            sql = "select * from a where a1>(select b1 from b where a1+1=b1);";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
             a.queryOpt_.profile_.enabled_ = true;
-            a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = true;
+            a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = false;
             a.queryOpt_.optimize_.remove_from = false;
-            a.queryOpt_.optimize_.use_memo_ = false;
+            a.queryOpt_.optimize_.use_memo_ = true;
             a.queryOpt_.optimize_.use_codegen_ = false;
 
             // -- Semantic analysis:

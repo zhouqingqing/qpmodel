@@ -186,22 +186,23 @@ namespace adb.logic
             }
         }
 
-        public void Add(string op, SelectStmt stmt) {
-            List<string> allowed = new List<string> {"union", "unionall", "except", "intersect"};
+        public void Add(string op, SelectStmt newstmt) {
+            List<string> allowed = new List<string> 
+                {"union", "unionall", "except", "exceptall", "intersect", "intersectall"};
             Debug.Assert(allowed.Contains(op) || op is null);
-            Debug.Assert(stmt != null);
+            Debug.Assert(newstmt != null);
 
             if (IsLeaf())
             {
                 left_ = new SetOpTree(stmt_);
                 stmt_ = null;
-                right_ = new SetOpTree(stmt);
+                right_ = new SetOpTree(newstmt);
                 op_ = op;
             }
             else
             {
                 left_ = (SetOpTree)this.MemberwiseClone();
-                right_ = new SetOpTree(stmt);
+                right_ = new SetOpTree(newstmt);
                 op_ = op;
             }
             Debug.Assert(!IsLeaf());
@@ -239,38 +240,64 @@ namespace adb.logic
             }
         }
 
-        public LogicNode CreatePlan(bool top = true)
+        public LogicNode CreateSetOpPlan(bool top = true)
         {
+            if (top)
+            {
+                // traversal on top node is the time to examine the setop tree
+                Debug.Assert(!IsLeaf());
+                VerifySelection();
+            }
+
             if (IsLeaf())
                 return stmt_.CreatePlan();
             else
             {
                 LogicNode plan = null;
-                var lplan = left_.CreatePlan(false);
-                var rplan = right_.CreatePlan(false);
+                var lplan = left_.CreateSetOpPlan(false);
+                var rplan = right_.CreateSetOpPlan(false);
+
+                // try to reuse existing operators to implment because users may write 
+                // SQL code like this and this helps reduce optimizer search space
+                //
                 switch (op_)
                 {
                     case "unionall":
+                        // union all keeps all rows, including duplicates
                         plan = new LogicAppend(lplan, rplan);
                         break;
                     case "union":
-                        plan = new LogicAppend(lplan, rplan);   // FIXME
+                        // union collect rows from both sides, and remove duplicates
+                        plan = new LogicAppend(lplan, rplan);
+                        var groupby = new List<Expr>(first_.selection_.CloneList());
+                        plan = new LogicAgg(plan, groupby, null, null);
                         break;
                     case "except":
-                        plan = new LogicAppend(lplan, rplan);   // FIXME
-                        break;
+                        // except keeps left rows not found in right
                     case "intersect":
-                        plan = new LogicAppend(lplan, rplan);   // FIXME
+                        // intersect keeps rows found in both sides
+                        var filter = FilterHelper.MakeFullComparator(
+                                        left_.first_.selection_, right_.first_.selection_);
+                        var join = new LogicJoin(lplan, rplan);
+                        if (op_.Contains("except"))
+                            join.type_ = JoinType.AntiSemi;
+                        if (op_.Contains("intersect"))
+                            join.type_ = JoinType.Semi;
+                        var logfilter = new LogicFilter(join, filter);
+                        groupby = new List<Expr>(first_.selection_.CloneList());
+                        plan = new LogicAgg(logfilter, groupby, null, null);
                         break;
+                    case "exceptall":
+                    case "intersectall":
+                        // the 'all' semantics is a bit confusing than intuition:
+                        //  {1,1,1} exceptall {1,1} => {1}
+                        //  {1,1,1} intersectall {1,1} => {1,1}
+                        //
+                        throw new NotImplementedException();
                     default:
                         throw new InvalidProgramException();
                 }
 
-                if (top)
-                {
-                    Debug.Assert(!IsLeaf());
-                    VerifySelection();
-                }
                 return plan;
             }
         }
