@@ -273,7 +273,7 @@ namespace test
                 // FIXME: agg on agg from
                 option.optimize_.remove_from = false;
                 result = TU.ExecuteSQL(File.ReadAllText(files[12]), out _, option);
-                Assert.AreEqual(26, result.Count);
+                Assert.AreEqual(27, result.Count);
                 option.optimize_.remove_from = true;
                 result = TU.ExecuteSQL(File.ReadAllText(files[13]), out _, option);
                 Assert.AreEqual(1, result.Count);
@@ -1155,6 +1155,10 @@ namespace test
             sql = "select a1+b1 from b join a on a1=b1 where a1 < (select a2 from a where a2=b2);"; TU.ExecuteSQL(sql, "0;2;4", out _, option);
             sql = "select a2+c3 from a join c on a1=c1 where a1 < (select b2 from a join b on a1=b1 where a1 < (select a2 from a where a2=b2) and a3 = c3)"; TU.ExecuteSQL(sql, "3;5;7", out _, option);
             sql = "select a2+c3 from c join a on a1=c1 where a1 < (select b2 from b join a on a1=b1 where a1 < (select a2 from a where a2=b2) and a3 = c3)"; TU.ExecuteSQL(sql, "3;5;7", out _, option);
+
+            // left join
+            sql = "select a1,b3 from a left join b on a.a1<b.b1;";
+            TU.ExecuteSQL(sql, "0,3;0,4;1,4;2,");
 
             // FAILED
             sql = "select * from (select * from a join b on a1=b1) ab join (select * from c join d on c1=d1) cd on a1+b1=c1+d1"; // FIXME

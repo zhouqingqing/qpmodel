@@ -311,6 +311,7 @@ namespace adb.logic
                                     children[1] = t;
                                 else
                                     subjoin = new LogicJoin(t, subjoin);
+                                subjoin.type_ = jref.joinops_[i - 1];
                                 filterexpr = filterexpr.AddAndFilter(jref.constraints_[i - 1]);
                             }
                         }

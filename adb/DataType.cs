@@ -407,17 +407,40 @@ namespace adb.expr
     public class JoinQueryRef : TableRef
     {
         public List<TableRef> tables_;
-        public List<string> joinops_;
+        public List<JoinType> joinops_;
         public List<Expr> constraints_;
 
+        public override string ToString() {
+            string str = tables_[0].ToString();
+            for (int i = 1; i < tables_.Count; i++) {
+                var joinpair = $" {joinops_[i-1]} {tables_[i]}";
+                str += joinpair;
+            }
+            return str;
+        }
         public JoinQueryRef(List<TableRef> tables, List<string> joinops, List<Expr> constraints)
         {
-            Debug.Assert(tables.Count == joinops.Count + 1);
             Debug.Assert(constraints.Count == joinops.Count);
             tables.ForEach(x => Debug.Assert(!(x is JoinQueryRef)));
             tables_ = tables;
-            joinops_ = joinops;
+            joinops_ = new List<JoinType>();
+            joinops.ForEach(x => {
+                JoinType type;
+                switch (x)
+                {
+                    case "join": type = JoinType.Inner; break;
+                    case "leftjoin": case "leftouterjoin": type = JoinType.Left; break;
+                    case "crossjoin": 
+                    case "rightjoin": case "rightouterjoin":
+                    case "fulljoin": case "fullouterjoin":
+                        throw new NotImplementedException();
+                    default:
+                        throw new SemanticAnalyzeException("not recognized join operation");
+                }
+                joinops_.Add(type);
+            });
             constraints_ = constraints;
+            Debug.Assert(tables.Count == joinops_.Count + 1);
         }
 
         public override List<Expr> AllColumnsRefs(bool refresh = false)
