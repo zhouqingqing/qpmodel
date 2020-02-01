@@ -419,6 +419,7 @@ namespace adb.physic
             var filter = logic.filter_;
             bool semi = type == JoinType.Semi;
             bool antisemi = type == JoinType.AntiSemi;
+            bool left = type == JoinType.Left;
 
             string s = l_().Exec(l =>
             {
@@ -481,12 +482,25 @@ namespace adb.physic
                         {ExecProjectCode($"r{_}")}
                         {callback(null)}
                     }}");
+                    out_code += codegen_if(left, $@"
+                    if (!foundOneMatch{_})
+                    {{
+                        Row r{_} = new Row(r{l_()._}, new Row{r_().logic_.output_.Count});
+                        {ExecProjectCode($"r{_}")}
+                        {callback(null)}
+                    }}");
                 }
                 else
                 {
                     if (antisemi && !foundOneMatch)
                     {
                         Row n = new Row(l, null);
+                        n = ExecProject(n);
+                        callback(n);
+                    }
+                    if (left && !foundOneMatch)
+                    {
+                        Row n = new Row(l, new Row(r_().logic_.output_.Count));
                         n = ExecProject(n);
                         callback(n);
                     }
@@ -523,6 +537,13 @@ namespace adb.physic
         }
     };
 
+    public class TaggedRow
+    {
+        public Row row_;
+        public bool matched_ = false;
+        public TaggedRow(Row row) { row_ = row; }
+    }
+
     public class PhysicHashJoin : PhysicNode
     {
         public PhysicHashJoin(LogicJoin logic, PhysicNode l, PhysicNode r) : base(logic)
@@ -543,7 +564,7 @@ namespace adb.physic
             logic.CreateKeyList(false);
             if (context.option_.optimize_.use_codegen_)
             {
-                cs += $@"var hm{_} = new Dictionary<KeyList, List<Row>>();";
+                cs += $@"var hm{_} = new Dictionary<KeyList, List<TaggedRow>>();";
             }
             return cs;
         }
@@ -553,9 +574,11 @@ namespace adb.physic
             ExecContext context = context_;
             var logic = logic_ as LogicJoin;
             var type = logic.type_;
-            var hm = new Dictionary<KeyList, List<Row>>();
+            var hm = new Dictionary<KeyList, List<TaggedRow>>();
             bool semi = type == JoinType.Semi;
             bool antisemi = type == JoinType.AntiSemi;
+            bool right = type == JoinType.Right;
+            bool left = type == JoinType.Left;
 
             // build hash table with left side 
             string s = l_().Exec(l => {
@@ -565,14 +588,14 @@ namespace adb.physic
                     var lname = $"r{l_()._}";
                     buildcode += $@"
                     var keys{_} = KeyList.ComputeKeys(context, {_logic_}.leftKeys_, {lname});
-                    if (hm{_}.TryGetValue(keys{_}, out List<Row> exist))
+                    if (hm{_}.TryGetValue(keys{_}, out List<TaggedRow> exist))
                     {{
-                        exist.Add({lname});
+                        exist.Add(new TaggedRow({lname}));
                     }}
                     else
                     {{
-                        List <Row> rows = new List<Row>();
-                        rows.Add({lname});
+                        var rows = new List<TaggedRow>();
+                        rows.Add(new TaggedRow({lname}));
                         hm{_}.Add(keys{_}, rows);
                     }}
                     ";
@@ -580,14 +603,14 @@ namespace adb.physic
                 else
                 {
                     var keys = KeyList.ComputeKeys(context, logic.leftKeys_, l);
-                    if (hm.TryGetValue(keys, out List<Row> exist))
+                    if (hm.TryGetValue(keys, out List<TaggedRow> exist))
                     {
-                        exist.Add(l);
+                        exist.Add(new TaggedRow(l));
                     }
                     else
                     {
-                        List<Row> rows = new List<Row>();
-                        rows.Add(l);
+                        var rows = new List<TaggedRow>();
+                        rows.Add(new TaggedRow(l));
                         hm.Add(keys, rows);
                     }
                 }
@@ -620,12 +643,12 @@ namespace adb.physic
                     var keys{_} = KeyList.ComputeKeys(context, {_logic_}.rightKeys_, r{_});
                     bool foundOneMatch{_} = false;
 
-                    if (hm{_}.TryGetValue(keys{_}, out List<Row> exist{_}))
+                    if (hm{_}.TryGetValue(keys{_}, out List<TaggedRow> exist{_}))
                     {{
                         foundOneMatch{_} = true;
                         foreach (var v{_} in exist{_})
                         {{
-                            r{_} = new Row(v{_}, {rname});
+                            r{_} = new Row(v{_}.row_, {rname});
                             {ExecProjectCode($"r{_}")}
                             {callback(null)}
                             {codegen_if(semi, 
@@ -642,6 +665,13 @@ namespace adb.physic
                             {ExecProjectCode($"r{_}")}
                             {callback(null)}
                         }}")}
+                        {codegen_if(right, $@"
+                        if (!foundOneMatch{_})
+                        {{
+                            r{_} = new Row(new Row{l_().logic_.output_.Count}, r{_});
+                            {ExecProjectCode($"r{_}")}
+                            {callback(null)}
+                        }}")}
                     }}
                     ";
                 }
@@ -655,12 +685,14 @@ namespace adb.physic
                     var keys = KeyList.ComputeKeys(context, logic.rightKeys_, n);
                     bool foundOneMatch = false;
 
-                    if (hm.TryGetValue(keys, out List<Row> exist))
+                    if (hm.TryGetValue(keys, out List<TaggedRow> exist))
                     {
                         foundOneMatch = true;
                         foreach (var v in exist)
                         {
-                            n = ExecProject(new Row(v, r));
+                            if (left)
+                                v.matched_ = true;
+                            n = ExecProject(new Row(v.row_, r));
                             callback(n);
                             if (semi)
                                 break;
@@ -675,10 +707,31 @@ namespace adb.physic
                             n = ExecProject(n);
                             callback(n);
                         }
+                        if (right && !foundOneMatch)
+                        {
+                            n = new Row(new Row(l_().logic_.output_.Count), r);
+                            n = ExecProject(n);
+                            callback(n);
+                        }
                     }
                 }
                 return probecode;
             });
+
+            // left join shall examine hash table and output all non-matched rows
+            if (left)
+            {
+                foreach (var v in hm)
+                    foreach (var r in v.Value) 
+                    {
+                        if (!r.matched_)
+                        {
+                            var n = new Row(r.row_, new Row(r_().logic_.output_.Count));
+                            n = ExecProject(n);
+                            callback(n);
+                        }
+                    }
+            }
 
             return s;
         }

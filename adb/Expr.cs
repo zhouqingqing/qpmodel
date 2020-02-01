@@ -103,10 +103,10 @@ namespace adb.expr
                 }
             }
 
-            if (Table(tabAlias) is BaseTableRef bt)
-                Debug.Assert(r == Catalog.systable_.Column(bt.relname_, colAlias).ordinal_);
             if (r != -1)
             {
+                if (Table(tabAlias) is BaseTableRef bt)
+                    Debug.Assert(r == Catalog.systable_.Column(bt.relname_, colAlias).ordinal_);
                 Debug.Assert(type != null);
                 return r;
             }

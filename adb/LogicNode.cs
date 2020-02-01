@@ -89,7 +89,7 @@ namespace adb.logic
                             // the way we pass parameters though.
                             bool lhasSubqCol = TableRef.HasColsUsedBySubquries(l.InclusiveTableRefs());
                             if (lc.filter_.FilterHashable() && !lhasSubqCol
-                                &&  lc.type_ == JoinType.Inner)
+                                &&  (lc.type_ == JoinType.Inner || lc.type_ == JoinType.Left))
                                 phy = new PhysicHashJoin(lc,
                                     l.DirectToPhysical(option),
                                     r.DirectToPhysical(option));
@@ -365,7 +365,7 @@ namespace adb.logic
         Right,
         Full,
         Cross
-            ,
+        ,
         // these are used by subquery expansion or optimizations (say PK/FK join)
         Semi,
         AntiSemi,

@@ -28,20 +28,21 @@ namespace adb
                 goto doit;
             }
 
-            if (false)
+            if (true)
             {
                 Tpch.CreateTables();
                 Tpch.LoadTables("0001");
                 Tpch.CreateIndexes();
                 Tpch.AnalyzeTables();
-                sql = File.ReadAllText("../../../tpch/q01.sql");
+                sql = File.ReadAllText("../../../tpch/q13.sql");
                 goto doit;
             }
 
-            if (false)
+            if (true)
             { 
                 Tpcds.CreateTables();
                 sql = File.ReadAllText("../../../tpcds/problem_queries/q64.sql");
+                sql = File.ReadAllText("../../../tpcds/q72.sql");
                 goto doit;
             }
 
@@ -109,11 +110,12 @@ namespace adb
 
         doit:
             //sql = "select * from d where 3<d1;";
-            //sql = "select * from a, b, c where a1>b1 and a2>c2;";
+
             //sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 limit 2;";
             //sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
             //sql = "select a1.*, a2.a1,a2.a2 from (select * from a) a1, (select * from a) a2;";
-            sql = "select * from a where a1>(select b1 from b where a1+1=b1);";
+            sql = "select * from a, b, c where a1>b1 and a2=c2;";
+            sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 limit 2;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
@@ -121,7 +123,7 @@ namespace adb
             a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = false;
             a.queryOpt_.optimize_.remove_from = false;
             a.queryOpt_.optimize_.use_memo_ = true;
-            a.queryOpt_.optimize_.use_codegen_ = false;
+            a.queryOpt_.optimize_.use_codegen_ = true;
 
             // -- Semantic analysis:
             //  - bind the query
