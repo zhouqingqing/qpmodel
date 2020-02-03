@@ -34,14 +34,14 @@ namespace adb.logic
         // it is possible to really have this value but ok to recompute
         protected LogicSignature logicSign_ = -1;
 
-        public override string ExplainMoreDetails(int depth) => PrintFilter(filter_, depth);
+        public override string ExplainMoreDetails(int depth, ExplainOption option) => PrintFilter(filter_, depth, option);
 
-        public override string ExplainOutput(int depth)
+        public override string ExplainOutput(int depth, ExplainOption option)
         {
             if (output_.Count != 0)
             {
                 string r = "Output: " + string.Join(",", output_);
-                output_.ForEach(x => r += x.PrintExprWithSubqueryExpanded(depth));
+                output_.ForEach(x => r += x.PrintExprWithSubqueryExpanded(depth, option));
                 return r;
             }
             return null;
@@ -594,7 +594,7 @@ namespace adb.logic
         public List<AggFunc> aggrFns_ = new List<AggFunc>();
         public override string ToString() => $"Agg({child_()})";
 
-        public override string ExplainMoreDetails(int depth)
+        public override string ExplainMoreDetails(int depth, ExplainOption option)
         {
             string r = null;
             string tabs = Utils.Tabs(depth + 2);
@@ -603,7 +603,7 @@ namespace adb.logic
             if (keys_ != null)
                 r += $"{(aggrFns_.Count > 0? "\n"+tabs: "")}Group by: {string.Join(", ", keys_)}";
             if (having_ != null)
-                r += $"{("\n"+tabs)}{PrintFilter(having_, depth)}";
+                r += $"{("\n"+tabs)}{PrintFilter(having_, depth, option)}";
             return r;
         }
 
@@ -808,7 +808,7 @@ namespace adb.logic
 
         public override string ToString() => $"Order({child_()})";
 
-        public override string ExplainMoreDetails(int depth)
+        public override string ExplainMoreDetails(int depth, ExplainOption option)
         {
             var r = $"Order by: {string.Join(", ", orders_)}\n";
             return r;

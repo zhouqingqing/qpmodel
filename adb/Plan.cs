@@ -73,17 +73,17 @@ namespace adb.logic
         public T r_() { Debug.Assert(children_.Count == 2); return children_[1]; }
 
         // print utilities
-        public virtual string ExplainOutput(int depth) => null;
+        public virtual string ExplainOutput(int depth, ExplainOption option) => null;
         public virtual string ExplainInlineDetails(int depth) => null;
-        public virtual string ExplainMoreDetails(int depth) => null;
-        protected string PrintFilter(Expr filter, int depth)
+        public virtual string ExplainMoreDetails(int depth, ExplainOption option) => null;
+        protected string PrintFilter(Expr filter, int depth, ExplainOption option)
         {
             string r = null;
             if (filter != null)
             {
                 r = "Filter: " + filter.PrintString(depth);
                 // append the subquery plan align with filter
-                r += filter.PrintExprWithSubqueryExpanded(depth);
+                r += filter.PrintExprWithSubqueryExpanded(depth, option);
             }
             return r;
         }
@@ -115,10 +115,10 @@ namespace adb.logic
                         r += $" (actual rows={profile.nrows_ / profile.nloops_}, loops={profile.nloops_})";
                 }
                 r += "\n";
-                var details = ExplainMoreDetails(depth);
+                var details = ExplainMoreDetails(depth, option);
 
                 // print current node's output
-                var output = exp_output ? ExplainOutput(depth): null;
+                var output = exp_output ? ExplainOutput(depth, option): null;
                 if (output != null)
                     r += Utils.Tabs(depth + 2) + output + "\n";
                 if (details != null)

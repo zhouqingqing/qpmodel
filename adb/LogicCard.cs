@@ -67,6 +67,9 @@ namespace adb.logic
 
                     card_ = distinct;
                 }
+
+                // it won't go beyond the number of output rows
+                card_ = Math.Min(card_, child_().EstCardinality());
             }
 
             return card_;
