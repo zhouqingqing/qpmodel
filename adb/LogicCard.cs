@@ -53,7 +53,20 @@ namespace adb.logic
                 if (keys_ is null)
                     card_ = 1;
                 else
-                    card_ = base.EstCardinality();
+                {
+                    long distinct = 1;
+                    foreach (var v in keys_) {
+                        long ndistinct = 1;
+                        if (v is ColExpr vc && vc.tabRef_ is BaseTableRef bvc)
+                        {
+                            var stat = Catalog.sysstat_.GetColumnStat(bvc.relname_, vc.colName_);
+                            ndistinct = stat.n_distinct_;
+                        }
+                        distinct *= ndistinct;
+                    }
+
+                    card_ = distinct;
+                }
             }
 
             return card_;
