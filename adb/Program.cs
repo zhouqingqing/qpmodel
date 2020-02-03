@@ -34,7 +34,7 @@ namespace adb
                 Tpch.LoadTables("0001");
                 Tpch.CreateIndexes();
                 Tpch.AnalyzeTables();
-                sql = File.ReadAllText("../../../tpch/q13.sql");
+                sql = File.ReadAllText("../../../tpch/q01.sql");
                 goto doit;
             }
 
@@ -114,8 +114,6 @@ namespace adb
             //sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 limit 2;";
             //sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
             //sql = "select a1.*, a2.a1,a2.a2 from (select * from a) a1, (select * from a) a2;";
-            sql = "select * from a, b, c where a1>b1 and a2=c2;";
-            sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 limit 2;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
@@ -130,8 +128,8 @@ namespace adb
             a.Bind(null);
 
             // -- generate an initial plan
-            ExplainOption.show_tablename_ = true;
-            a.explain_.show_output_ = true;
+            ExplainOption.show_tablename_ = false;
+            a.explain_.show_output_ = false;
             a.explain_.show_cost_ =  a.queryOpt_.optimize_.use_memo_;
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.Explain(0));
