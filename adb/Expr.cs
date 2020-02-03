@@ -185,7 +185,7 @@ namespace adb.expr
             return list.ToList();
         }
 
-        public static string PrintExprWithSubqueryExpanded(this Expr expr, int depth)
+        public static string PrintExprWithSubqueryExpanded(this Expr expr, int depth, ExplainOption option)
         {
             string r = "";
             // append the subquery plan align with expr
@@ -198,9 +198,9 @@ namespace adb.expr
                     r += Utils.Tabs(depth + 2) + $"<{x.GetType().Name}> {cached}{x.subqueryid_}\n";
                     Debug.Assert(x.query_.bindContext_ != null);
                     if (x.query_.physicPlan_ != null)
-                        r += $"{x.query_.physicPlan_.Explain(depth + 4)}";
+                        r += $"{x.query_.physicPlan_.Explain(depth + 4, option)}";
                     else
-                        r += $"{x.query_.logicPlan_.Explain(depth + 4)}";
+                        r += $"{x.query_.logicPlan_.Explain(depth + 4, option)}";
                 });
             }
 

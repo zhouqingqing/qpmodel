@@ -34,7 +34,7 @@ namespace adb
                 Tpch.LoadTables("0001");
                 Tpch.CreateIndexes();
                 Tpch.AnalyzeTables();
-                sql = File.ReadAllText("../../../tpch/q01.sql");
+                sql = File.ReadAllText("../../../tpch/q02.sql");
                 goto doit;
             }
 
@@ -114,14 +114,17 @@ namespace adb
             //sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 limit 2;";
             //sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
             //sql = "select a1.*, a2.a1,a2.a2 from (select * from a) a1, (select * from a) a2;";
+            //sql = "select * from a, b, c where a1=b1 and a2=c2 and b3=c3;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
             a.queryOpt_.profile_.enabled_ = true;
             a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = false;
-            a.queryOpt_.optimize_.remove_from = false;
+            a.queryOpt_.optimize_.remove_from = true;
             a.queryOpt_.optimize_.use_memo_ = true;
-            a.queryOpt_.optimize_.use_codegen_ = true;
+            a.queryOpt_.optimize_.use_codegen_ = false;
+
+            a.queryOpt_.optimize_.enable_nljoin_ = true;
 
             // -- Semantic analysis:
             //  - bind the query

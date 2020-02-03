@@ -33,9 +33,9 @@ namespace adb.physic
             logic_ = logic;
         }
 
-        public override string ExplainOutput(int depth) => logic_.ExplainOutput(depth);
+        public override string ExplainOutput(int depth, ExplainOption option) => logic_.ExplainOutput(depth, option);
         public override string ExplainInlineDetails(int depth) => logic_.ExplainInlineDetails(depth);
-        public override string ExplainMoreDetails(int depth) => logic_.ExplainMoreDetails(depth);
+        public override string ExplainMoreDetails(int depth, ExplainOption option) => logic_.ExplainMoreDetails(depth, option);
 
 
         public void Validate()
@@ -86,7 +86,7 @@ namespace adb.physic
             string s = null;
             s += $@"
             {{
-            // projection on {_physic_}: {logic_.ExplainOutput(0)} 
+            // projection on {_physic_}: {logic_.ExplainOutput(0, null)} 
             Row rproj = new Row({output.Count});";
             for (int i = 0; i < output.Count; i++)
                 s+= $"rproj[{i}] = {output[i].ExecCode(context_, input)};";
@@ -200,10 +200,10 @@ namespace adb.physic
         public LogicMemoRef Logic() => logic_ as LogicMemoRef;
         internal CMemoGroup Group() => Logic().group_;
         internal double MinCost() => Group().FindMinCostOfGroup();
-        public override string ExplainMoreDetails(int depth)
+        public override string ExplainMoreDetails(int depth, ExplainOption option)
         {
             // we want to see what's underneath
-            return $"{{{Logic().ExplainMoreDetails (depth + 1)}}}";
+            return $"{{{Logic().ExplainMoreDetails (depth + 1, option)}}}";
         }
     }
 

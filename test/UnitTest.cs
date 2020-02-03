@@ -252,19 +252,32 @@ namespace test
                 Assert.AreEqual(5, result.Count);
                 Assert.AreEqual("1-URGENT,9;2-HIGH,7;3-MEDIUM,9;4-NOT SPECIFIED,7;5-LOW,12", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[4]), out phyplan, option);
+                if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
                 Assert.AreEqual("", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[5]), out _, option);
                 Assert.AreEqual("77949.9186", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[6]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[7]), out _, option);
-                Assert.AreEqual("0,0", string.Join(";", result));
+                Assert.AreEqual("1995,0;1996,0", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[8]), out _, option);
-                Assert.AreEqual(9, result.Count);
-                Assert.AreEqual("ARGENTINA,0,121664.3574;ETHIOPIA,0,160941.78;IRAN,0,183368.022;IRAQ,0,179598.8939;KENYA,0,577214.8907;MOROCCO,0,1687292.0869;"+
-                    "PERU,0,564372.7491;UNITED KINGDOM,0,2309462.0142;UNITED STATES,0,274483.6167",
+                Assert.AreEqual(60, result.Count);
+                Assert.AreEqual("ARGENTINA,1998,17779.0697;ARGENTINA,1997,13943.9538;ARGENTINA,1996,7641.4227;" +
+                    "ARGENTINA,1995,20892.7525;ARGENTINA,1994,15088.3526;ARGENTINA,1993,17586.3446;ARGENTINA,1992,28732.4615;" +
+                    "ETHIOPIA,1998,28217.16;ETHIOPIA,1996,33970.65;ETHIOPIA,1995,37720.35;ETHIOPIA,1994,37251.01;ETHIOPIA,1993,23782.61;" +
+                    "IRAN,1997,23590.008;IRAN,1996,7428.2325;IRAN,1995,21000.9965;IRAN,1994,29408.13;IRAN,1993,49876.415;IRAN,1992,52064.24;"+
+                    "IRAQ,1998,11619.9604;IRAQ,1997,47910.246;IRAQ,1996,18459.5675;IRAQ,1995,32782.3701;IRAQ,1994,9041.2317;IRAQ,1993,30687.2625;"+
+                    "IRAQ,1992,29098.2557;KENYA,1998,33148.3345;KENYA,1997,54355.0165;KENYA,1996,53607.4854;KENYA,1995,85354.8738;"+
+                    "KENYA,1994,102904.2511;KENYA,1993,109310.8084;KENYA,1992,138534.121;MOROCCO,1998,157058.2328;MOROCCO,1997,88669.961;"+
+                    "MOROCCO,1996,236833.6672;MOROCCO,1995,381575.8668;MOROCCO,1994,243523.4336;MOROCCO,1993,232196.7803;MOROCCO,1992,347434.1452;"+
+                    "PERU,1998,101109.0196;PERU,1997,58073.0866;PERU,1996,30360.5218;PERU,1995,138451.78;PERU,1994,55023.0632;PERU,1993,110409.0863;"+
+                    "PERU,1992,70946.1916;UNITED KINGDOM,1998,139685.044;UNITED KINGDOM,1997,183502.0498;UNITED KINGDOM,1996,374085.2884;"+
+                    "UNITED KINGDOM,1995,548356.7984;UNITED KINGDOM,1994,266982.768;UNITED KINGDOM,1993,717309.464;UNITED KINGDOM,1992,79540.6016;"+
+                    "UNITED STATES,1998,32847.96;UNITED STATES,1997,30849.5;UNITED STATES,1996,56125.46;UNITED STATES,1995,15961.7977;"+
+                    "UNITED STATES,1994,31671.2;UNITED STATES,1993,55057.469;UNITED STATES,1992,51970.23",
                     string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[9]), out _, option);
+                if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
                 Assert.AreEqual(20, result.Count);
                 result = TU.ExecuteSQL(File.ReadAllText(files[10]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
@@ -314,8 +327,8 @@ namespace test
             var result = TU.ExecuteSQL(sql, out _, option);
             var memo = Optimizer.memoset_[0];
             memo.CalcStats(out int tlogics, out int tphysics);
-            Assert.AreEqual(9, memo.cgroups_.Count);
-            Assert.AreEqual(18, tlogics); Assert.AreEqual(26, tphysics);
+            Assert.AreEqual(11, memo.cgroups_.Count);
+            Assert.AreEqual(26, tlogics); Assert.AreEqual(42, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
 
             sql = "select * from b join a on a1=b1 where a1 < (select a2 from a where a2=b2);";
@@ -345,8 +358,8 @@ namespace test
             result = TU.ExecuteSQL(sql, out _, option);
             memo = Optimizer.memoset_[0];
             memo.CalcStats(out tlogics, out tphysics);
-            Assert.AreEqual(6, memo.cgroups_.Count);
-            Assert.AreEqual(11, tlogics); Assert.AreEqual(17, tphysics);
+            Assert.AreEqual(7, memo.cgroups_.Count);
+            Assert.AreEqual(15, tlogics); Assert.AreEqual(25, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
             option.optimize_.memo_disable_crossjoin = true;
             result = TU.ExecuteSQL(sql, out _, option);
@@ -360,8 +373,8 @@ namespace test
             result = TU.ExecuteSQL(sql, out _, option);
             memo = Optimizer.memoset_[0];
             memo.CalcStats(out tlogics, out tphysics);
-            Assert.AreEqual(9, memo.cgroups_.Count);
-            Assert.AreEqual(18, tlogics); Assert.AreEqual(26, tphysics);
+            Assert.AreEqual(11, memo.cgroups_.Count);
+            Assert.AreEqual(26, tlogics); Assert.AreEqual(42, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
 
             sql = "select count(b1) from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1";

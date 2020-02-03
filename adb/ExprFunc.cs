@@ -207,7 +207,8 @@ namespace adb.expr
         }
         public override Value Exec(ExecContext context, Row input)
         {
-            return 0;
+            var date = (DateTime)arg_().Exec(context, input);
+            return date.Year;
         }
     }
 
