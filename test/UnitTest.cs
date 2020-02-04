@@ -240,27 +240,30 @@ namespace test
                 Assert.IsTrue(option.optimize_.enable_subquery_to_markjoin_);
                 option.optimize_.remove_from = true;
 
-                var result = TU.ExecuteSQL(File.ReadAllText(files[0]), out _, option);
+                var result = TU.ExecuteSQL(File.ReadAllText(files[0]), out _, option);  // FIXME: projection too deep
                 Assert.AreEqual(4, result.Count);
-                result = TU.ExecuteSQL(File.ReadAllText(files[1]), out _, option);
+                result = TU.ExecuteSQL(File.ReadAllText(files[1]), out _, option);      // FIXME: decorelation
                 Assert.AreEqual("", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[2]), out phyplan, option);
                 Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicHashJoin"));
                 Assert.AreEqual(8, result.Count);
-                result = TU.ExecuteSQL(File.ReadAllText(files[3]), out phyplan, option);
+                result = TU.ExecuteSQL(File.ReadAllText(files[3]), out phyplan, option);// FIXME: decorelation
                 Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin")); Assert.AreEqual(0, TU.CountStr(phyplan, "Subquery"));
                 Assert.AreEqual(5, result.Count);
                 Assert.AreEqual("1-URGENT,9;2-HIGH,7;3-MEDIUM,9;4-NOT SPECIFIED,7;5-LOW,12", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[4]), out phyplan, option);
                 if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
                 Assert.AreEqual("", string.Join(";", result));
-                result = TU.ExecuteSQL(File.ReadAllText(files[5]), out _, option);
+                result = TU.ExecuteSQL(File.ReadAllText(files[5]), out _, option); // FIXME: sampling estimation
+                if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
                 Assert.AreEqual("77949.9186", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[6]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[7]), out _, option);
+                if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
                 Assert.AreEqual("1995,0;1996,0", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[8]), out _, option);
+                if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
                 Assert.AreEqual(60, result.Count);
                 Assert.AreEqual("ARGENTINA,1998,17779.0697;ARGENTINA,1997,13943.9538;ARGENTINA,1996,7641.4227;" +
                     "ARGENTINA,1995,20892.7525;ARGENTINA,1994,15088.3526;ARGENTINA,1993,17586.3446;ARGENTINA,1992,28732.4615;" +
@@ -280,12 +283,13 @@ namespace test
                 if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
                 Assert.AreEqual(20, result.Count);
                 result = TU.ExecuteSQL(File.ReadAllText(files[10]), out _, option);
+                if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
                 Assert.AreEqual("", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[11]), out _, option);
                 Assert.AreEqual("MAIL,5,5;SHIP,5,10", string.Join(";", result));
                 // FIXME: agg on agg from
                 option.optimize_.remove_from = false;
-                result = TU.ExecuteSQL(File.ReadAllText(files[12]), out _, option);
+                result = TU.ExecuteSQL(File.ReadAllText(files[12]), out _, option); // FIXME: remove_from
                 Assert.AreEqual(27, result.Count);
                 option.optimize_.remove_from = true;
                 result = TU.ExecuteSQL(File.ReadAllText(files[13]), out _, option);
@@ -294,18 +298,18 @@ namespace test
                 // q15 cte
                 result = TU.ExecuteSQL(File.ReadAllText(files[15]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
-                result = TU.ExecuteSQL(File.ReadAllText(files[16]), out _, option);
+                result = TU.ExecuteSQL(File.ReadAllText(files[16]), out _, option); // FIXME: parameteric ce estimiation
                 Assert.AreEqual("", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[17]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
-                result = TU.ExecuteSQL(File.ReadAllText(files[18]), out _, option);
+                result = TU.ExecuteSQL(File.ReadAllText(files[18]), out _, option); // FIXME: .. or ... or ...
                 Assert.AreEqual("", string.Join(";", result));
-                result = TU.ExecuteSQL(File.ReadAllText(files[19]), out _, option);
+                result = TU.ExecuteSQL(File.ReadAllText(files[19]), out _, option); // FIXME: decorelation
                 Assert.AreEqual("", string.Join(";", result));
                 // q21 plan too slow
-                //result = TU.ExecuteSQL(File.ReadAllText(files[20]), out _, option);
+                //result = TU.ExecuteSQL(File.ReadAllText(files[20]), out _, option); // FIXME: decorelation
                 //Assert.AreEqual("", string.Join(";", result));
-                result = TU.ExecuteSQL(File.ReadAllText(files[21]), out phyplan, option);
+                result = TU.ExecuteSQL(File.ReadAllText(files[21]), out phyplan, option); // FIXME: decorelation
                 Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
                 Assert.AreEqual(7, result.Count);
             }
