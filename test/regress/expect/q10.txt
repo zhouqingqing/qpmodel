@@ -30,3 +30,32 @@ group by
 order by
 	revenue desc
 limit 20
+PhysicLimit (20) (actual rows=0)
+    Output: customer.c_custkey[0],customer.c_name[1],{sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[2],customer.c_acctbal[3],nation.n_name[4],customer.c_address[5],customer.c_phone[6],customer.c_comment[7]
+    -> PhysicOrder  (actual rows=0)
+        Output: customer.c_custkey[0],customer.c_name[1],{sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[2],customer.c_acctbal[3],nation.n_name[4],customer.c_address[5],customer.c_phone[6],customer.c_comment[7]
+        Order by: {sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[2]
+        -> PhysicHashAgg  (actual rows=0)
+            Output: {customer.c_custkey}[0],{customer.c_name}[1],{sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[7],{customer.c_acctbal}[2],{nation.n_name}[4],{customer.c_address}[5],{customer.c_phone}[3],{customer.c_comment}[6]
+            Aggregates: sum(lineitem.l_extendedprice[8]*1-lineitem.l_discount[11])
+            Group by: customer.c_custkey[0], customer.c_name[1], customer.c_acctbal[2], customer.c_phone[5], nation.n_name[3], customer.c_address[4], customer.c_comment[6]
+            -> PhysicHashJoin  (actual rows=0)
+                Output: customer.c_custkey[0],customer.c_name[1],customer.c_acctbal[2],nation.n_name[8],customer.c_address[3],customer.c_phone[4],customer.c_comment[5],{lineitem.l_extendedprice*1-lineitem.l_discount}[9],lineitem.l_extendedprice[10],{1-lineitem.l_discount}[11],{1}[6],lineitem.l_discount[12]
+                Filter: customer.c_custkey[0]=orders.o_custkey[13] and customer.c_nationkey[7]=nation.n_nationkey[14]
+                -> PhysicScanTable customer (actual rows=0)
+                    Output: customer.c_custkey[0],customer.c_name[1],customer.c_acctbal[5],customer.c_address[2],customer.c_phone[4],customer.c_comment[7],1,customer.c_nationkey[3]
+                -> PhysicNLJoin  (actual rows=0)
+                    Output: nation.n_name[0],{lineitem.l_extendedprice*1-lineitem.l_discount}[2],lineitem.l_extendedprice[3],{1-lineitem.l_discount}[4],lineitem.l_discount[5],orders.o_custkey[6],nation.n_nationkey[1]
+                    -> PhysicScanTable nation (actual rows=0)
+                        Output: nation.n_name[1],nation.n_nationkey[0]
+                    -> PhysicHashJoin  (actual rows=0)
+                        Output: {lineitem.l_extendedprice*1-lineitem.l_discount}[0],lineitem.l_extendedprice[1],{1-lineitem.l_discount}[2],lineitem.l_discount[3],orders.o_custkey[5]
+                        Filter: lineitem.l_orderkey[4]=orders.o_orderkey[6]
+                        -> PhysicScanTable lineitem (actual rows=0)
+                            Output: lineitem.l_extendedprice[5]*1-lineitem.l_discount[6],lineitem.l_extendedprice[5],1-lineitem.l_discount[6],lineitem.l_discount[6],lineitem.l_orderkey[0]
+                            Filter: lineitem.l_returnflag[8]='R'
+                        -> PhysicScanTable orders (actual rows=0)
+                            Output: orders.o_custkey[1],orders.o_orderkey[0]
+                            Filter: orders.o_orderdate[4]>='1993-10-01' and orders.o_orderdate[4]<'12/30/1993 12:00:00 AM'
+
+

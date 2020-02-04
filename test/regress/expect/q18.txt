@@ -31,3 +31,35 @@ order by
 	o_totalprice desc,
 	o_orderdate
 limit 100
+PhysicLimit (100) (actual rows=0)
+    Output: customer.c_name[0],customer.c_custkey[1],orders.o_orderkey[2],orders.o_orderdate[3],orders.o_totalprice[4],{sum(lineitem.l_quantity)}[5]
+    -> PhysicOrder  (actual rows=0)
+        Output: customer.c_name[0],customer.c_custkey[1],orders.o_orderkey[2],orders.o_orderdate[3],orders.o_totalprice[4],{sum(lineitem.l_quantity)}[5]
+        Order by: orders.o_totalprice[4], orders.o_orderdate[3]
+        -> PhysicHashAgg  (actual rows=0)
+            Output: {customer.c_name}[0],{customer.c_custkey}[1],{orders.o_orderkey}[2],{orders.o_orderdate}[3],{orders.o_totalprice}[4],{sum(lineitem.l_quantity)}[5]
+            Aggregates: sum(lineitem.l_quantity[5])
+            Group by: customer.c_name[0], customer.c_custkey[1], orders.o_orderkey[2], orders.o_orderdate[3], orders.o_totalprice[4]
+            -> PhysicHashJoin  (actual rows=0)
+                Output: customer.c_name[0],customer.c_custkey[1],orders.o_orderkey[2],orders.o_orderdate[3],orders.o_totalprice[4],lineitem.l_quantity[5]
+                Filter: customer.c_custkey[1]=orders.o_custkey[6]
+                -> PhysicScanTable customer (actual rows=0)
+                    Output: customer.c_name[1],customer.c_custkey[0]
+                -> PhysicHashJoin  (actual rows=0)
+                    Output: orders.o_orderkey[2],orders.o_orderdate[3],orders.o_totalprice[4],lineitem.l_quantity[0],orders.o_custkey[5]
+                    Filter: orders.o_orderkey[2]=lineitem.l_orderkey[1]
+                    -> PhysicScanTable lineitem (actual rows=0)
+                        Output: lineitem.l_quantity[4],lineitem.l_orderkey[0]
+                    -> PhysicScanTable orders (actual rows=0)
+                        Output: orders.o_orderkey[0],orders.o_orderdate[4],orders.o_totalprice[3],orders.o_custkey[1]
+                        Filter: orders.o_orderkey[0] in @1
+                        <InSubqueryExpr> cached 1
+                            -> PhysicHashAgg  (actual rows=0)
+                                Output: {lineitem__1.l_orderkey}[0]
+                                Aggregates: sum(lineitem__1.l_quantity[1])
+                                Group by: lineitem__1.l_orderkey[0]
+                                Filter: {sum(lineitem__1.l_quantity)}[1]>300
+                                -> PhysicScanTable lineitem as lineitem__1 (actual rows=0)
+                                    Output: lineitem__1.l_orderkey[0],lineitem__1.l_quantity[4]
+
+

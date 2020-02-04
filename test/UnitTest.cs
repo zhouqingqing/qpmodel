@@ -113,14 +113,20 @@ namespace test
             //
             string sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
             QueryOption option = new QueryOption();
-            option.profile_.enabled_ = false;
+            option.profile_.enabled_ = true;
+            option.optimize_.enable_subquery_to_markjoin_ = false;
             option.optimize_.use_codegen_ = true;
 
             var result = TU.ExecuteSQL(sql, out string phyplan, option);
             Assert.AreEqual("4,1;6,4", string.Join(";", result));
-            sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2;";
+            sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 limit 2;";
             result = TU.ExecuteSQL(sql, out phyplan, option);
-            Assert.AreEqual("2,1;4,1;6,1", string.Join(";", result));
+            Assert.AreEqual("2,1;4,1", string.Join(";", result));
+
+            // demonstrate we can fallback to any non-codegen execution
+            sql = "select a2*a1, repeat('a', a2) from a where a1>= (select b1 from b where a2=b2);";
+            result = TU.ExecuteSQL(sql, out phyplan, option);
+            Assert.AreEqual("0,a;2,aa;6,aaa", string.Join(";", result));
         }
     }
 
@@ -170,9 +176,7 @@ namespace test
 
             // make sure all queries can generate phase one opt plan
             QueryOption option = new QueryOption();
-            option.optimize_.enable_subquery_to_markjoin_ = true;
-            option.optimize_.remove_from = false;
-            option.optimize_.use_memo_ = false;
+            option.optimize_.TurnOnAllOptimizations();
             foreach (var v in files)
             {
                 var sql = File.ReadAllText(v);
@@ -248,19 +252,32 @@ namespace test
                 Assert.AreEqual(5, result.Count);
                 Assert.AreEqual("1-URGENT,9;2-HIGH,7;3-MEDIUM,9;4-NOT SPECIFIED,7;5-LOW,12", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[4]), out phyplan, option);
+                if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
                 Assert.AreEqual("", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[5]), out _, option);
                 Assert.AreEqual("77949.9186", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[6]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[7]), out _, option);
-                Assert.AreEqual("0,0", string.Join(";", result));
+                Assert.AreEqual("1995,0;1996,0", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[8]), out _, option);
-                Assert.AreEqual(9, result.Count);
-                Assert.AreEqual("ARGENTINA,0,121664.3574;ETHIOPIA,0,160941.78;IRAN,0,183368.022;IRAQ,0,179598.8939;KENYA,0,577214.8907;MOROCCO,0,1687292.0869;"+
-                    "PERU,0,564372.7491;UNITED KINGDOM,0,2309462.0142;UNITED STATES,0,274483.6167",
+                Assert.AreEqual(60, result.Count);
+                Assert.AreEqual("ARGENTINA,1998,17779.0697;ARGENTINA,1997,13943.9538;ARGENTINA,1996,7641.4227;" +
+                    "ARGENTINA,1995,20892.7525;ARGENTINA,1994,15088.3526;ARGENTINA,1993,17586.3446;ARGENTINA,1992,28732.4615;" +
+                    "ETHIOPIA,1998,28217.16;ETHIOPIA,1996,33970.65;ETHIOPIA,1995,37720.35;ETHIOPIA,1994,37251.01;ETHIOPIA,1993,23782.61;" +
+                    "IRAN,1997,23590.008;IRAN,1996,7428.2325;IRAN,1995,21000.9965;IRAN,1994,29408.13;IRAN,1993,49876.415;IRAN,1992,52064.24;"+
+                    "IRAQ,1998,11619.9604;IRAQ,1997,47910.246;IRAQ,1996,18459.5675;IRAQ,1995,32782.3701;IRAQ,1994,9041.2317;IRAQ,1993,30687.2625;"+
+                    "IRAQ,1992,29098.2557;KENYA,1998,33148.3345;KENYA,1997,54355.0165;KENYA,1996,53607.4854;KENYA,1995,85354.8738;"+
+                    "KENYA,1994,102904.2511;KENYA,1993,109310.8084;KENYA,1992,138534.121;MOROCCO,1998,157058.2328;MOROCCO,1997,88669.961;"+
+                    "MOROCCO,1996,236833.6672;MOROCCO,1995,381575.8668;MOROCCO,1994,243523.4336;MOROCCO,1993,232196.7803;MOROCCO,1992,347434.1452;"+
+                    "PERU,1998,101109.0196;PERU,1997,58073.0866;PERU,1996,30360.5218;PERU,1995,138451.78;PERU,1994,55023.0632;PERU,1993,110409.0863;"+
+                    "PERU,1992,70946.1916;UNITED KINGDOM,1998,139685.044;UNITED KINGDOM,1997,183502.0498;UNITED KINGDOM,1996,374085.2884;"+
+                    "UNITED KINGDOM,1995,548356.7984;UNITED KINGDOM,1994,266982.768;UNITED KINGDOM,1993,717309.464;UNITED KINGDOM,1992,79540.6016;"+
+                    "UNITED STATES,1998,32847.96;UNITED STATES,1997,30849.5;UNITED STATES,1996,56125.46;UNITED STATES,1995,15961.7977;"+
+                    "UNITED STATES,1994,31671.2;UNITED STATES,1993,55057.469;UNITED STATES,1992,51970.23",
                     string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[9]), out _, option);
+                if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
                 Assert.AreEqual(20, result.Count);
                 result = TU.ExecuteSQL(File.ReadAllText(files[10]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
@@ -269,7 +286,7 @@ namespace test
                 // FIXME: agg on agg from
                 option.optimize_.remove_from = false;
                 result = TU.ExecuteSQL(File.ReadAllText(files[12]), out _, option);
-                Assert.AreEqual(26, result.Count);
+                Assert.AreEqual(27, result.Count);
                 option.optimize_.remove_from = true;
                 result = TU.ExecuteSQL(File.ReadAllText(files[13]), out _, option);
                 Assert.AreEqual(1, result.Count);
@@ -310,8 +327,8 @@ namespace test
             var result = TU.ExecuteSQL(sql, out _, option);
             var memo = Optimizer.memoset_[0];
             memo.CalcStats(out int tlogics, out int tphysics);
-            Assert.AreEqual(9, memo.cgroups_.Count);
-            Assert.AreEqual(18, tlogics); Assert.AreEqual(26, tphysics);
+            Assert.AreEqual(11, memo.cgroups_.Count);
+            Assert.AreEqual(26, tlogics); Assert.AreEqual(42, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
 
             sql = "select * from b join a on a1=b1 where a1 < (select a2 from a where a2=b2);";
@@ -341,8 +358,8 @@ namespace test
             result = TU.ExecuteSQL(sql, out _, option);
             memo = Optimizer.memoset_[0];
             memo.CalcStats(out tlogics, out tphysics);
-            Assert.AreEqual(6, memo.cgroups_.Count);
-            Assert.AreEqual(11, tlogics); Assert.AreEqual(17, tphysics);
+            Assert.AreEqual(7, memo.cgroups_.Count);
+            Assert.AreEqual(15, tlogics); Assert.AreEqual(25, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
             option.optimize_.memo_disable_crossjoin = true;
             result = TU.ExecuteSQL(sql, out _, option);
@@ -356,8 +373,8 @@ namespace test
             result = TU.ExecuteSQL(sql, out _, option);
             memo = Optimizer.memoset_[0];
             memo.CalcStats(out tlogics, out tphysics);
-            Assert.AreEqual(9, memo.cgroups_.Count);
-            Assert.AreEqual(18, tlogics); Assert.AreEqual(26, tphysics);
+            Assert.AreEqual(11, memo.cgroups_.Count);
+            Assert.AreEqual(26, tlogics); Assert.AreEqual(42, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
 
             sql = "select count(b1) from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1";
@@ -639,19 +656,43 @@ namespace test
             sql = "select b4*b1+b2*b3 from (select 1 as b4, b3, count(*) as b1, sum(b1) b2 from b group by b3) a;";
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
             Assert.AreEqual("1;4;9", string.Join(";", result));
+            sql = "select sum(a1)+count(a1) from (select sum(a1) from a group by a2) c(a1);";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("6", string.Join(";", result));
+            sql = "select sum(c1*c2+c3) from (select a2, sum(a1), count(a1) from a group by a2) c(c1,c2,c3) group by c1;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("1;3;7", string.Join(";", result));
+            sql = "select sum(c1*c2+c3) from (select a2, sum(a1), count(a1) from a group by a2) c(c1,c2,c3);";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("11", string.Join(";", result));
+            sql = "select sum(e1+1) from (select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1)) b(e1);";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("9", string.Join(";", result));
+            sql = "select b4*b1+b2*b3 from (select 1 as b4, b3, count(*) as b1, sum(b1) b2 from b group by b3) a;"; // OK
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("1;4;9", string.Join(";", result));
+            sql = "select b1+b2,c100 from (select count(*) as b1, sum(b1) b2 from b) a, (select c1 c100 from c) c where c100>1;"; // OK
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("6,2", string.Join(";", result));
+            sql = "select * from (select max(b3) maxb3 from b group by b3) b where maxb3>1;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("2;3;4", string.Join(";", result));
+            sql = "select b1+b2+b3 from (select sum(a1), sum(a2), sum(a1+a2)+a3 from a group by a3) b(b1,b2,b3)";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("4;9;14", string.Join(";", result));
+            sql = "select * from (select sum(a1), sum(a2),sum(a1+a2) from a group by a3) b(b1,b2,b3)";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("0,1,1;1,2,3;2,3,5", string.Join(";", result));
+            sql = "select * from (select sum(a1), sum(a2),sum(a1+a2)+a3 from a group by a3) b(b1,b2,b3)";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
+            Assert.AreEqual("0,1,3;1,2,6;2,3,9", string.Join(";", result));
 
             // FIXME
-            sql = "select sum(e1+1) from (select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1)) b(e1);";
             sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;";
-            // sql = "select * from (select max(b3) maxb3 from b) b where maxb3>1";    // WRONG!
             sql = "select a1 from a, (select max(b3) maxb3 from b) b where a1 < maxb3"; // WRONG!
             sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;"; // WRONG
-            sql = "select b1,c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;"; // OK
-            sql = "select b1,b2,c100 from (select count(*) as b1, sum(b1) b2 from b) a, (select c1 c100 from c) c where c100>1;"; // OK
-            sql = "select b1+b2,c100 from (select count(*) as b1, sum(b1) b2 from b) a, (select c1 c100 from c) c where c100>1;"; // OK
-            sql = "select b4*b1+b2*b3 from (select 1 as b4, b3, count(*) as b1, sum(b1) b2 from b group by b3) a;"; // OK
             sql = "select b1,c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where b1>1 and c100>1;"; // ANSWER WRONG
-
+            sql = "select sum(a1) from (select sum(a1) from (select sum(a1) from a )b(a1) )c(a1);"; // WRONG
 
             // FIXME: if we turn memo on, we have problems resolving columns
         }
@@ -776,7 +817,7 @@ namespace test
                                 "order by 2, 1 desc";
             var stmt = RawParser.ParseSingleSqlStatement(sql) as SelectStmt;
             Assert.AreEqual(2, stmt.ctes_.Count);
-            Assert.AreEqual(2, stmt.setqs_.Count);
+            Assert.IsFalse(stmt.setops_.IsLeaf());
             Assert.AreEqual(2, stmt.orders_.Count);
         }
 
@@ -1087,6 +1128,8 @@ namespace test
             TU.PlanAssertEqual(answer, phyplan);
             result = ExecuteSQL(sql);
             Assert.AreEqual(6, result.Count);
+            sql = "select count(a.a1) from a, (select * from b, c) d where a2 > 1";
+            TU.ExecuteSQL(sql, "18");
 
             // hash join 
             sql = "select count(*) from a join b on a1 = b1;";
@@ -1126,6 +1169,10 @@ namespace test
             sql = "select a2+c3 from a join c on a1=c1 where a1 < (select b2 from a join b on a1=b1 where a1 < (select a2 from a where a2=b2) and a3 = c3)"; TU.ExecuteSQL(sql, "3;5;7", out _, option);
             sql = "select a2+c3 from c join a on a1=c1 where a1 < (select b2 from b join a on a1=b1 where a1 < (select a2 from a where a2=b2) and a3 = c3)"; TU.ExecuteSQL(sql, "3;5;7", out _, option);
 
+            // left join
+            sql = "select a1,b3 from a left join b on a.a1<b.b1;";
+            TU.ExecuteSQL(sql, "0,3;0,4;1,4;2,");
+
             // FAILED
             sql = "select * from (select * from a join b on a1=b1) ab join (select * from c join d on c1=d1) cd on a1+b1=c1+d1"; // FIXME
             sql = "select * from (select * from a join b on a1=b1) ab join (select * from c join d on c1=d1) cd on a1+b1=c1 and a2+b2=d2;";
@@ -1162,7 +1209,6 @@ namespace test
                                 Output: a.a1[0],a.a1[0]+a.a2[1],a.a2[1],a.a3[2]
                         ";
             TU.PlanAssertEqual(answer, phyplan);
-            result = ExecuteSQL(sql);
             Assert.AreEqual("7,3,2;7,4,19", string.Join(";", result));
             sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1";
             result = ExecuteSQL(sql);
@@ -1234,11 +1280,70 @@ namespace test
             sql = " select count(a2) as ca2 from a group by a1/2 order by 1;";
             result = ExecuteSQL(sql); Assert.AreEqual("1;2", string.Join(";", result));
             sql = "select -a1/2, -a2 from a order by -a1/2 desc, -a2 asc;"; TU.ExecuteSQL(sql, "0,-2;0,-1;-1,-3");
+            sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 order by 1 desc;"; TU.ExecuteSQL(sql, "6,1;4,1;2,1");
         }
 
         [TestMethod]
         public void TestSetOps()
         {
+            var option = new QueryOption();
+            option.optimize_.TurnOnAllOptimizations();
+
+            var sql = "select a2,a3 from a union all select b1,b4 from b group by b1;";
+            var result = ExecuteSQL(sql); Assert.IsNull(result);
+            Assert.IsTrue(TU.error_.Contains("SemanticAnalyzeException"));
+            sql = "select a2,a3 from a union all select b1,b2 from b order by b1;"; // we allow a2
+            result = ExecuteSQL(sql); Assert.IsNull(result);
+            Assert.IsTrue(TU.error_.Contains("SemanticAnalyzeException"));
+
+            sql = "select * from a union all select * from b union all select * from c;";
+            result = TU.ExecuteSQL(sql, out _, option); Assert.AreEqual(9, result.Count);
+            sql = "select a2,a3 from a union all select b1,b1 from b;";
+            TU.ExecuteSQL(sql, "1,2;2,3;3,4;0,0;1,1;2,2", out _, option);
+            sql = "select a2,a3 from a union all select b1/2,b1/2 from b group by b1/2;";
+            TU.ExecuteSQL(sql, "1,2;2,3;3,4;0,0;1,1", out _, option);
+            sql = "select a2,a3 from a union all select b1/2,b1/2 from b limit 4;";
+            TU.ExecuteSQL(sql, "1,2;2,3;3,4;0,0", out _, option);
+            sql = "select a2,a3 from a union all select b1,b2 from b order by 1;";
+            TU.ExecuteSQL(sql, "0,1;1,2;1,2;2,3;2,3;3,4", out _, option);
+            sql = "select a2,a3 from a union all select b1,b2 from b order by a2;";
+            TU.ExecuteSQL(sql, "0,1;1,2;1,2;2,3;2,3;3,4", out _, option);
+            sql = "select * from a union all select *from b order by 1 limit 2;";
+            TU.ExecuteSQL(sql, "0,1,2,3;0,1,2,3", out _, option);
+            sql = "select * from a union all select *from b union all select * from c order by 1 limit 2;";
+            TU.ExecuteSQL(sql, "0,1,2,3;0,1,2,3", out _, option);
+
+            sql = "select count(c1), sum(c2) from (select * from a union all select * from b) c(c1,c2)";
+            TU.ExecuteSQL(sql, "6,12", out _, option);
+            sql = "select * from (select * from a union all select * from b) c(c1,c2) order by 1";
+            TU.ExecuteSQL(sql, "0,1;0,1;1,2;1,2;2,3;2,3", out _, option);
+            sql = "select max(c1), min(c2) from(select * from(select * from a union all select *from b) c(c1, c2))d order by 1;";
+            TU.ExecuteSQL(sql, "2,1", out _, option);
+
+            // union [all]
+            sql = "select a1.* from a, a a1 union select *from b where b1 > 1;";
+            TU.ExecuteSQL(sql, "0,1,2,3;1,2,3,4;2,3,4,5", out _, option);
+            sql = "select a1.a4,a1.a3,a1.a2,a1.a1 from a, a a1 union select *from b where b1 > 1;";
+            TU.ExecuteSQL(sql, "3,2,1,0;4,3,2,1;5,4,3,2;2,3,4,5", out _, option);
+
+            // except [all]
+            sql = "select a1.a4,a1.a3,a1.a2,a1.a1 from a, a a1, a a2 except select *from b where b1 > 1;";
+            TU.ExecuteSQL(sql, "3,2,1,0;4,3,2,1;5,4,3,2", out _, option);
+            sql = "select a1.* from a, a a1, a a2 except select *from b where b1 > 1;";
+            TU.ExecuteSQL(sql, "0,1,2,3;1,2,3,4", out _, option);
+
+            // intersect [all]
+            sql = "select a1.a4,a1.a3,a1.a2,a1.a1 from a, a a1 intersect select *from b where b1 > 1;";
+            TU.ExecuteSQL(sql, "", out _, option);
+            sql = "select a1.* from a, a a1, a a2 intersect select *from b where b1 > 1;";
+            TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
+
+            // mixed
+            // we currently does not support bracket or priority, and order based on sequence - so if you try on PG, use bracket
+            sql = "select a1.* from a, a a1, a a2 union select a1.* from a, a a1, a a2 intersect select *from b where b1 > 1;";
+            TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
+            sql = "select a1.* from a, a a1, a a2 union select a1.* from a, a a1, a a2 except select *from b where b1 > 1;";
+            TU.ExecuteSQL(sql, "0,1,2,3;1,2,3,4", out _, option);
         }
 
         [TestMethod]

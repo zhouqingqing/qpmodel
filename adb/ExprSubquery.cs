@@ -154,6 +154,7 @@ namespace adb.expr
             if (IsCacheable() && cachedValSet_)
                 return cachedVal_;
 
+            context.option_.PushCodeGenDisable();
             Row r = null;
             query_.physicPlan_.Exec(l =>
             {
@@ -163,6 +164,7 @@ namespace adb.expr
                     throw new SemanticExecutionException("subquery more than one row returned");
                 return null;
             });
+            context.option_.PopCodeGen();
 
             cachedVal_ = (r != null)? r[0] : null;
             cachedValSet_ = true;

@@ -25,3 +25,43 @@ group by
 		)
 order by
 	value desc
+PhysicOrder  (actual rows=0)
+    Output: partsupp.ps_partkey[0],{sum(partsupp.ps_supplycost*partsupp.ps_availqty)}[1]
+    Order by: {sum(partsupp.ps_supplycost*partsupp.ps_availqty)}[1]
+    -> PhysicHashAgg  (actual rows=0)
+        Output: {partsupp.ps_partkey}[0],{sum(partsupp.ps_supplycost*partsupp.ps_availqty)}[1]
+        Aggregates: sum(partsupp.ps_supplycost[2]*partsupp.ps_availqty[3])
+        Group by: partsupp.ps_partkey[0]
+        Filter: {sum(partsupp.ps_supplycost*partsupp.ps_availqty)}[1]>@1
+        <ScalarSubqueryExpr> cached 1
+            -> PhysicHashAgg  (actual rows=0)
+                Output: {sum(partsupp__1.ps_supplycost*partsupp__1.ps_availqty)}[0]*0.0001000000
+                Aggregates: sum(partsupp__1.ps_supplycost[1]*partsupp__1.ps_availqty[2])
+                -> PhysicHashJoin  (actual rows=0)
+                    Output: {partsupp__1.ps_supplycost*partsupp__1.ps_availqty}[0],partsupp__1.ps_supplycost[1],partsupp__1.ps_availqty[2]
+                    Filter: partsupp__1.ps_suppkey[3]=supplier__1.s_suppkey[4]
+                    -> PhysicScanTable partsupp as partsupp__1 (actual rows=0)
+                        Output: partsupp__1.ps_supplycost[3]*partsupp__1.ps_availqty[2],partsupp__1.ps_supplycost[3],partsupp__1.ps_availqty[2],partsupp__1.ps_suppkey[1]
+                    -> PhysicHashJoin  (actual rows=0)
+                        Output: supplier__1.s_suppkey[1]
+                        Filter: supplier__1.s_nationkey[2]=nation__1.n_nationkey[0]
+                        -> PhysicScanTable nation as nation__1 (actual rows=0)
+                            Output: nation__1.n_nationkey[0]
+                            Filter: nation__1.n_name[1]='GERMANY'
+                        -> PhysicScanTable supplier as supplier__1 (actual rows=0)
+                            Output: supplier__1.s_suppkey[0],supplier__1.s_nationkey[3]
+        -> PhysicHashJoin  (actual rows=0)
+            Output: partsupp.ps_partkey[0],{partsupp.ps_supplycost*partsupp.ps_availqty}[1],partsupp.ps_supplycost[2],partsupp.ps_availqty[3]
+            Filter: partsupp.ps_suppkey[4]=supplier.s_suppkey[5]
+            -> PhysicScanTable partsupp (actual rows=0)
+                Output: partsupp.ps_partkey[0],partsupp.ps_supplycost[3]*partsupp.ps_availqty[2],partsupp.ps_supplycost[3],partsupp.ps_availqty[2],partsupp.ps_suppkey[1]
+            -> PhysicHashJoin  (actual rows=0)
+                Output: supplier.s_suppkey[1]
+                Filter: supplier.s_nationkey[2]=nation.n_nationkey[0]
+                -> PhysicScanTable nation (actual rows=0)
+                    Output: nation.n_nationkey[0]
+                    Filter: nation.n_name[1]='GERMANY'
+                -> PhysicScanTable supplier (actual rows=0)
+                    Output: supplier.s_suppkey[0],supplier.s_nationkey[3]
+
+

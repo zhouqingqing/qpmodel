@@ -57,7 +57,7 @@ namespace adb.expr
                 }
                 return false;
             }
-            
+
             if (FindSameInParents(tab))
                 tab.alias_ = $"{tab.alias_}__{globalSubqCounter_}";
             boundFrom_.Add(boundFrom_.Count, tab);
@@ -103,10 +103,10 @@ namespace adb.expr
                 }
             }
 
-            if (Table(tabAlias) is BaseTableRef bt)
-                Debug.Assert(r == Catalog.systable_.Column(bt.relname_, colAlias).ordinal_);
             if (r != -1)
             {
+                if (Table(tabAlias) is BaseTableRef bt)
+                    Debug.Assert(r == Catalog.systable_.Column(bt.relname_, colAlias).ordinal_);
                 Debug.Assert(type != null);
                 return r;
             }
@@ -116,23 +116,16 @@ namespace adb.expr
 
     }
 
+    // TBD: make it per query
+    public class ExprSearch
+    {
+        public static Dictionary<string, Expr> table_ = new Dictionary<string, Expr>();
+
+        public static Expr Locate(string objectid) => table_[objectid];
+    }
+
     public static class ExprHelper
     {
-        // a List<Expr> conditions merge into a LogicAndExpr
-        public static Expr AndListToExpr(this List<Expr> andlist)
-        {
-            Debug.Assert(andlist.Count >= 1);
-            if (andlist.Count == 1)
-                return andlist[0];
-            else
-            {
-                var andexpr = new LogicAndExpr(andlist[0], andlist[1]);
-                for (int i = 2; i < andlist.Count; i++)
-                    andexpr.children_[0] = new LogicAndExpr(andexpr.l_(), andlist[i]);
-                return andexpr;
-            }
-        }
-
         public static List<Expr> CloneList(this List<Expr> source, List<Type> excludes = null)
         {
             var clone = new List<Expr>();
@@ -155,7 +148,7 @@ namespace adb.expr
         public static List<ColExpr> RetrieveAllColExpr(this Expr expr, bool includingParameters = false)
         {
             var list = new HashSet<ColExpr>();
-            expr.VisitEach<ColExpr>(x =>
+            expr.VisitEachT<ColExpr>(x =>
             {
                 if (includingParameters || !x.isParameter_)
                     list.Add(x);
@@ -164,10 +157,10 @@ namespace adb.expr
             return list.ToList();
         }
 
-        public static List<T> RetrieveAllType<T>(this Expr expr) where T: Expr
+        public static List<T> RetrieveAllType<T>(this Expr expr) where T : Expr
         {
             var list = new List<T>();
-            expr.VisitEach<T>(x => list.Add(x));
+            expr.VisitEachT<T>(x => list.Add(x));
             return list;
         }
 
@@ -178,13 +171,13 @@ namespace adb.expr
             return list.Distinct().ToList();
         }
 
-		// TODO: what about expr.tableRefs_?
+        // TODO: what about expr.tableRefs_?
         //  They shall be equal but our implmentation sometimes get them inconsistent
         //  for example, xc.tabRef_ can contain outerrefs but tableRefs_ does not.
         public static List<TableRef> CollectAllTableRef(this Expr expr, bool includingParameters = true)
         {
             var list = new HashSet<TableRef>();
-            expr.VisitEach<ColExpr>(x =>
+            expr.VisitEachT<ColExpr>(x =>
             {
                 if (!x.isParameter_ || includingParameters)
                     list.Add(x.tabRef_);
@@ -192,22 +185,22 @@ namespace adb.expr
             return list.ToList();
         }
 
-        public static string PrintExprWithSubqueryExpanded(this Expr expr, int depth)
+        public static string PrintExprWithSubqueryExpanded(this Expr expr, int depth, ExplainOption option)
         {
             string r = "";
             // append the subquery plan align with expr
             if (expr.HasSubQuery())
             {
                 r += "\n";
-                expr.VisitEach<SubqueryExpr>(x =>
+                expr.VisitEachT<SubqueryExpr>(x =>
                 {
                     string cached = x.IsCacheable() ? "cached " : "";
                     r += Utils.Tabs(depth + 2) + $"<{x.GetType().Name}> {cached}{x.subqueryid_}\n";
                     Debug.Assert(x.query_.bindContext_ != null);
                     if (x.query_.physicPlan_ != null)
-                        r += $"{x.query_.physicPlan_.Explain(depth + 4)}";
+                        r += $"{x.query_.physicPlan_.Explain(depth + 4, option)}";
                     else
-                        r += $"{x.query_.logicPlan_.Explain(depth + 4)}";
+                        r += $"{x.query_.logicPlan_.Explain(depth + 4, option)}";
                 });
             }
 
@@ -218,12 +211,12 @@ namespace adb.expr
         public static void SubqueryDirectToPhysic(this Expr expr)
         {
             // append the subquery plan align with expr
-            expr.VisitEach< SubqueryExpr>(x =>
-            {
-                Debug.Assert(expr.HasSubQuery());
-                var query = x.query_;
-                query.physicPlan_ = query.logicPlan_.DirectToPhysical(query.TopStmt().queryOpt_);
-            });
+           expr.VisitEachT<SubqueryExpr>(x =>
+           {
+               Debug.Assert(expr.HasSubQuery());
+               var query = x.query_;
+               query.physicPlan_ = query.logicPlan_.DirectToPhysical(query.TopStmt().queryOpt_);
+           });
         }
 
         public static bool IsBoolean(this Expr expr)
@@ -231,9 +224,55 @@ namespace adb.expr
             Debug.Assert(expr.type_ != null);
             return expr.type_ is BoolType;
         }
+
+        public static Expr ConstFolding(this Expr expr)
+        {
+            Debug.Assert(expr.bounded_);
+            bool IsConstFn(Expr e) => !(e is LiteralExpr) && e.IsConst();
+            Expr EvalConstFn(Expr e)
+            {
+                e.TryEvalConst(out Value val);
+                return LiteralExpr.MakeLiteral(val, expr.type_);
+            }
+
+            if (expr is LiteralExpr)
+                return expr;
+            else
+                return expr.SearchReplace<Expr>(IsConstFn, EvalConstFn);
+        }
     }
 
     public static class FilterHelper {
+
+        public static Expr MakeFullComparator(List<Expr> left, List<Expr> right)
+        {
+            // a rough check here - caller's responsiblity to do a full check
+            Debug.Assert(left.Count == right.Count);
+
+            Expr result = BinExpr.MakeBooleanExpr(left[0], right[0], "=");
+            for (int i = 1; i < left.Count; i++)
+            {
+                Expr qual = BinExpr.MakeBooleanExpr(left[i], right[i], "=");
+                result = result.AddAndFilter(qual);
+            }
+
+            return result;
+        }
+
+        // a List<Expr> conditions merge into a LogicAndExpr
+        public static Expr AndListToExpr(this List<Expr> andlist)
+        {
+            Debug.Assert(andlist.Count >= 1);
+            if (andlist.Count == 1)
+                return andlist[0];
+            else
+            {
+                var andexpr = LogicAndExpr.MakeExpr(andlist[0], andlist[1]);
+                for (int i = 2; i < andlist.Count; i++)
+                    andexpr.children_[0] = LogicAndExpr.MakeExpr(andexpr.l_(), andlist[i]);
+                return andexpr;
+            }
+        }
 
         // a > 3 or c > 1, b > 5 =>  (a > 3 or c > 1) and (b > 5)
         public static Expr AddAndFilter(this Expr basefilter, Expr newcond) {
@@ -294,7 +333,7 @@ namespace adb.expr
             Debug.Assert(filter.IsBoolean());
             Debug.Assert(filter.TableRefCount() >= 2);
 
-            return plan.VisitEachNodeExists(n =>
+            return plan.VisitEachExists(n =>
             {
                 if (n is LogicJoin nodeJoin)
                 {
@@ -323,7 +362,7 @@ namespace adb.expr
         //   a.i =|>|< 5
         public static IndexDef FilterCanUseIndex(this Expr filter, BaseTableRef table)
         {
-            string[] indexops = {"=", ">=", "<=", ">", "<"};
+            string[] indexops = { "=", ">=", "<=", ">", "<" };
             Debug.Assert(filter.IsBoolean());
 
             IndexDef ret = null;
@@ -349,7 +388,7 @@ namespace adb.expr
         {
             Debug.Assert(filter.IsBoolean());
 
-            filter.VisitEach<BinExpr>(x =>
+            filter.VisitEachT<BinExpr>(x =>
             {
                 if (x.IsBoolean() && x.l_() is LiteralExpr)
                     x.SwapSide();
@@ -400,7 +439,7 @@ namespace adb.expr
             var andlist = filter.FilterToAndList();
             foreach (var v in andlist)
             {
-                v.VisitEachExpr(x => {
+                v.VisitEach(x => {
                     if (x is SubqueryExpr xs && !shallowColExprOnly)
                         results.AddRange(xs.query_.logicPlan_.RetrieveCorrelated(shallowColExprOnly));
                     if (x is ColExpr xc && xc.isParameter_) {
@@ -414,14 +453,14 @@ namespace adb.expr
             return results;
         }
 
-        public static List<Expr> FilterGetCorrelatedFilter(this Expr filter)=> FilterGetCorrelated(filter, false);
-        public static List<Expr> FilterGetCorrelatedCol(this Expr filter)=>FilterGetCorrelated(filter, true);
+        public static List<Expr> FilterGetCorrelatedFilter(this Expr filter) => FilterGetCorrelated(filter, false);
+        public static List<Expr> FilterGetCorrelatedCol(this Expr filter) => FilterGetCorrelated(filter, true);
 
         // c.c2=?b.b2 => b
         public static List<TableRef> FilterGetOuterRef(this Expr filter)
         {
             List<TableRef> refs = new List<TableRef>();
-            filter.VisitEach<ColExpr>(x => {
+            filter.VisitEachT<ColExpr>(x => {
                 if (x.isParameter_)
                     refs.Add(x.tabRef_);
             });
@@ -433,20 +472,23 @@ namespace adb.expr
         // e.g., filter: a.a1=?b.b1 and a.a2=?c.c1; tablrefs={b}
         //       then we shall only process 'b.b1'
         //
-		public static void DeParameter(this Expr filter, List<TableRef> tablerefs){
-			var cols = filter.FilterGetCorrelatedCol();
+        public static void DeParameter(this Expr filter, List<TableRef> tablerefs) {
+            var cols = filter.FilterGetCorrelatedCol();
             cols.ForEach(x =>
             {
                 var xc = x as ColExpr;
                 if (tablerefs.Contains(xc.tabRef_))
                     xc.DeParameter();
             });
-			filter.ResetAggregateTableRefs();
-		}
+            filter.ResetAggregateTableRefs();
+        }
     }
 
     public class Expr
     {
+        // unique identifier
+        internal string _;
+
         // Expression in selection list can have an output name 
         // e.g, a.i+b.i [[as] total]
         //
@@ -481,6 +523,11 @@ namespace adb.expr
         // output type of the expression
         internal ColumnType type_;
 
+        // debug info
+        internal bool dbg_isCloneCopy_ = false;
+
+        public Expr() { _ = $"{ObjectID.NewId()}"; }
+
         public bool IsLeaf() => children_.Count == 0;
 
         // shortcut for conventional names
@@ -490,32 +537,16 @@ namespace adb.expr
 
         protected string outputName() => outputName_ != null ? $"(as {outputName_})" : null;
 
-        public int TableRefCount()
-        {
-        	Debug.Assert(bounded_);
+        void validateAfterBound() {
+            Debug.Assert(bounded_);
             Debug.Assert(tableRefs_.Distinct().Count() == tableRefs_.Count);
-            return tableRefs_.Count;
         }
 
-        public bool EqualTableRef(TableRef tableRef)
-        {
-            Debug.Assert(bounded_);
-            Debug.Assert(TableRefCount() == 1);
-            return tableRefs_[0].Equals(tableRef);
-        }
+        public int TableRefCount() {validateAfterBound();return tableRefs_.Count;}
+        public bool EqualTableRef(TableRef tableRef){ validateAfterBound();Debug.Assert(TableRefCount() == 1);return tableRefs_[0].Equals(tableRef);}
+        public bool TableRefsContainedBy(List<TableRef> tableRefs){validateAfterBound();return tableRefs.ContainsList(tableRefs_);}
 
-        public bool TableRefsContainedBy(List<TableRef> tableRefs)
-        {
-            Debug.Assert(bounded_);
-            return tableRefs.ContainsList( tableRefs_);
-        }
-        public bool TableRefsEquals(List<TableRef> tableRefs)
-        {
-            Debug.Assert(bounded_);
-            return tableRefs.ListAEqualsB( tableRefs_);
-        }
-
-        bool VisitEachExistsT<T>(Func<T, bool> check, List<Type> excluding = null) where T: Expr
+        bool VisitEachExistsT<T>(Func<T, bool> check, List<Type> excluding = null) where T : Expr
         {
             if (excluding?.Contains(GetType()) ?? false)
                 return false;
@@ -531,25 +562,34 @@ namespace adb.expr
             }
             return r;
         }
-
-        public bool VisitEachExprExists(Func<Expr, bool> check, List<Type> excluding = null) 
+        public bool VisitEachExists(Func<Expr, bool> check, List<Type> excluding = null)
             => VisitEachExistsT<Expr>(check, excluding);
-
-        public void VisitEach<T>(Action<T> callback) where T: Expr
+        public void VisitEachT<T>(Action<T> callback) where T : Expr
         {
-            Func<T, bool> wrapCallbackAsCheck<T>(Action<T> callback)
-            {
-                return a => { if (a is T) callback(a); return false; };
-            }
-            VisitEachExistsT(wrapCallbackAsCheck(callback));
+            if (this is T)
+                callback(this as T);
+            foreach (var v in children_)
+                v.VisitEachT<T>(callback);
         }
-        public void VisitEachExpr(Action<Expr> callback) => VisitEach<Expr>(callback);
+        public void VisitEach(Action<Expr> callback) => VisitEachT<Expr>(callback);
+        public void VisitEachIgnoreRef<T>(Action<T> callback) where T : Expr
+        {
+            if (!(this is ExprRef))
+            {
+                if (this is T)
+                    callback(this as T);
+                foreach (var v in children_)
+                    v.VisitEachIgnoreRef<T>(callback);
+            }
+        }
 
-        public bool HasSubQuery() => VisitEachExprExists(e => e is SubqueryExpr);
-        public bool HasAggFunc() => VisitEachExprExists(e => e is AggFunc);
+        public bool HasSubQuery() => VisitEachExists(e => e is SubqueryExpr);
+        public bool HasAggFunc() => VisitEachExists(e => e is AggFunc);
+        public bool HasAggrRef() => VisitEachExists(e => e is AggrRef);
+
         public bool IsConst()
         {
-            return !VisitEachExprExists(e =>
+            return !VisitEachExists(e =>
             {
                 // meaning has non-constantable (or we don't want to waste time try 
                 // to figure out if they are constant, say 'select 1' or sin(2))
@@ -559,7 +599,6 @@ namespace adb.expr
                 return nonconst;
             });
         }
-
         public bool TryEvalConst(out Value value)
         {
             value = null;
@@ -570,21 +609,23 @@ namespace adb.expr
         }
 
         // APIs children may implment
-        //  - we have to copy out expressions - consider the following query
+        //  Sometimes we have to copy out expressions, consider the following query
         // select a2 from(select a3, a1, a2 from a) b
         // PhysicSubquery <b>
         //    Output: b.a2[0]
         //  -> PhysicGet a
         //      Output: a.a2[1]
-        // notice b.a2 and a.a2 are the same column but have differenti ordinal.
+        // notice b.a2 and a.a2 are the same column but have different ordinal.
         // This means we have to copy ColExpr, so its parents, then everything.
         //
-        public virtual Expr Clone()
+        public Expr Clone()
         {
             Expr n = (Expr)MemberwiseClone();
             n.children_ = children_.CloneList();
             n.tableRefs_ = new List<TableRef>();
             tableRefs_.ForEach(n.tableRefs_.Add);
+            n.dbg_isCloneCopy_ = true;
+            n._ = _;
             Debug.Assert(Equals(n));
             return n;
         }
@@ -617,14 +658,14 @@ namespace adb.expr
         }
 
         // In current expression, search all type T and replace with callback(T)
-        public Expr SearchReplace<T>(Func<T, Expr> replacefn) where T: Expr
+        public Expr SearchReplace<T>(Func<T, Expr> replacefn) where T : Expr
         {
             bool checkfn(Expr e) => e is T;
             return SearchReplace<T>(checkfn, replacefn);
         }
 
         // generic form of search with condition @checkfn and replace with @replacefn
-        public Expr SearchReplace<T>(Func<Expr, bool> checkfn, Func<T, Expr> replacefn) where T: Expr
+        public Expr SearchReplace<T>(Func<Expr, bool> checkfn, Func<T, Expr> replacefn) where T : Expr
         {
             if (checkfn(this))
                 return replacefn((T)this);
@@ -669,22 +710,18 @@ namespace adb.expr
             return true;
         }
 
-        protected void markBounded() {
-            Debug.Assert(!bounded_);
-            bounded_ = true;
-        }
         public override int GetHashCode() => tableRefs_.ListHashCode() ^ children_.ListHashCode();
         public override bool Equals(object obj)
         {
             if (!(obj is Expr))
                 return false;
             var n = obj as Expr;
-            return tableRefs_.SequenceEqual(n.tableRefs_) &&
+            return object.Equals(_, n._) && tableRefs_.SequenceEqual(n.tableRefs_) &&
                 children_.SequenceEqual(n.children_);
         }
 
-		public List<TableRef> ResetAggregateTableRefs ()
-		{
+        public List<TableRef> ResetAggregateTableRefs()
+        {
             if (children_.Count > 0)
             {
                 tableRefs_.Clear();
@@ -698,48 +735,45 @@ namespace adb.expr
             }
 
             return tableRefs_;
-		}
+        }
+
+        protected void markBounded()
+        {
+            Debug.Assert(!bounded_);
+            bounded_ = true;
+            validateAfterBound();
+
+            // register the expression in the search table
+            ExprSearch.table_.Add(_, this);
+        }
 
         public virtual void Bind(BindContext context)
         {
             for (int i = 0; i < children_.Count; i++) {
                 Expr x = children_[i];
-                
+
                 x.Bind(context);
                 x = x.ConstFolding();
                 children_[i] = x;
             }
-			ResetAggregateTableRefs ();
+            ResetAggregateTableRefs();
 
             markBounded();
         }
 
-        public Expr ConstFolding()
-        {
-            Debug.Assert(bounded_);
-
-            bool IsConstFn(Expr e) => !(e is LiteralExpr) && e.IsConst();
-            Expr EvalConstFn(Expr e)
-            {
-                e.TryEvalConst(out Value val);
-                return LiteralExpr.MakeLiteral(val, type_);
-            }
-
-            if (this is LiteralExpr)
-                return this;
-            else
-                return SearchReplace<Expr>(IsConstFn, EvalConstFn);
-        }
-
         public Expr DeQueryRef()
         {
-            var expr = SearchReplace<ColExpr>(x => x.ExprOfQueryRef());
+            bool hasAggFunc = this.HasAggFunc();
+            var expr = SearchReplace<ColExpr>(x => x.ExprOfQueryRef(hasAggFunc));
             expr.ResetAggregateTableRefs();
             return expr;
         }
 
         public virtual string PrintString(int depth) => ToString();
         public virtual Value Exec(ExecContext context, Row input) => throw new Exception($"{this} subclass shall implment Exec()");
+        public virtual string ExecCode(ExecContext context, string input) {
+            return $@"ExprSearch.Locate(""{_}"").Exec(context, {input}) /*{ToString()}*/";
+        }
     }
 
     // Represents "*" or "table.*" - it is not in the tree after Bind(). 
@@ -749,16 +783,16 @@ namespace adb.expr
     {
         internal readonly string tabAlias_;
 
-        public SelStar(string tabAlias) => tabAlias_ = tabAlias;
+        public SelStar(string tabAlias):base() => tabAlias_ = tabAlias;
         public override string ToString() => tabAlias_ + ".*";
 
         public override void Bind(BindContext context) => throw new InvalidProgramException("shall be expanded already");
-        internal List<Expr> Expand(BindContext context)
+        internal List<Expr> ExpandAndDeQuerRef(BindContext context)
         {
             var targetrefs = new List<TableRef>();
             if (tabAlias_ is null)
                 targetrefs = context.AllTableRefs();
-            else { 
+            else {
                 var x = context.Table(tabAlias_);
                 targetrefs.Add(x);
             }
@@ -773,9 +807,19 @@ namespace adb.expr
                 // order is also important.
                 //
                 var list = x.AllColumnsRefs();
-                if (!(x is QueryRef)) { 
+                if (!(x is QueryRef))
                     list.ForEach(x => x.Bind(context));
+                else
+                {
+                    if (context.stmt_.queryOpt_.optimize_.remove_from 
+                        && x is FromQueryRef xf)
+                    {
+                        list.Clear();
+                        list.AddRange(xf.GetInnerTableExprs());
+                    }
                 }
+
+                // add to the output
                 exprs.AddRange(list);
             });
             return exprs;
@@ -801,7 +845,7 @@ namespace adb.expr
 
         // -- execution section --
 
-        public ColExpr(string dbName, string tabName, string colName, ColumnType type)
+        public ColExpr(string dbName, string tabName, string colName, ColumnType type) : base()
         {
             dbName_ = dbName; tabName_ = tabName; colName_ = colName; outputName_ = colName; type_ = type;
             Debug.Assert(Clone().Equals(this));
@@ -814,13 +858,17 @@ namespace adb.expr
                 return tabName_;
         }
 
-        public Expr ExprOfQueryRef()
+        public Expr ExprOfQueryRef(bool hasAggFunc)
         {
             Expr expr = this;
             Debug.Assert(bounded_);
             if (tabRef_ is FromQueryRef tf)
             {
-                expr = tf.MapOutputName(outputName_);
+                var repl = tf.MapOutputName(outputName_);
+                if (hasAggFunc && repl.HasAggFunc())
+                    expr = new AggrRef(repl, -1);
+                else
+                    expr = repl;
             }
             return expr;
         }
@@ -914,9 +962,9 @@ namespace adb.expr
             string tablename = showTableName ? tableName_() + "." : "";
             para += isVisible_ ? "" : "#";
             if (colName_.Equals(outputName_))
-                return ordinal_==-1? $@"{para}{tablename}{colName_}":
+                return ordinal_ == -1 ? $@"{para}{tablename}{colName_}" :
                     $@"{para}{tablename}{colName_}[{ordinal_}]";
-            return ordinal_ == -1 ? $@"{para}{tablename}{colName_} (as {outputName_})":
+            return ordinal_ == -1 ? $@"{para}{tablename}{colName_} (as {outputName_})" :
                 $@"{para}{tablename}{colName_} (as {outputName_})[{ordinal_}]";
         }
         public override Value Exec(ExecContext context, Row input)
@@ -927,12 +975,21 @@ namespace adb.expr
             else
                 return input[ordinal_];
         }
+
+        public override string ExecCode(ExecContext context, string input)
+        {
+            Debug.Assert(type_ != null);
+            if (isParameter_)
+                return base.ExecCode(context, input);
+            else
+                return $"{input}[{ordinal_}]";
+        }
     }
 
     public class SysColExpr : ColExpr {
 
         public static List<string> SysCols_ = new List<string>() { "sysrid_" };
-        public SysColExpr(string dbName, string tabName, string colName, ColumnType type):base(dbName, tabName, colName, type)
+        public SysColExpr(string dbName, string tabName, string colName, ColumnType type) : base(dbName, tabName, colName, type)
         {
             Debug.Assert(SysCols_.Contains(colName));
         }
@@ -961,7 +1018,7 @@ namespace adb.expr
         internal SQLStatement query_;
         internal List<string> colNames_;
 
-        public CteExpr(string cteName, List<string> colNames, SQLStatement query)
+        public CteExpr(string cteName, List<string> colNames, SQLStatement query) : base()
         {
             cteName_ = cteName;
             query_ = query;
@@ -975,7 +1032,7 @@ namespace adb.expr
         internal Expr orderby_() => children_[0];
 
         public override string ToString() => $"{orderby_()} {(descend_ ? "[desc]" : "")}";
-        public OrderTerm(Expr expr, bool descend)
+        public OrderTerm(Expr expr, bool descend) : base()
         {
             children_.Add(expr); descend_ = descend;
         }
@@ -986,7 +1043,7 @@ namespace adb.expr
         internal string str_;
         internal Value val_;
 
-        public LiteralExpr(string str, ColumnType type)
+        public LiteralExpr(string str, ColumnType type) : base()
         {
             str_ = str;
             type_ = type;
@@ -1077,6 +1134,16 @@ namespace adb.expr
             return val_;
         }
 
+        public override string ExecCode(ExecContext context, string input) {
+            var str = str_.Replace("'", "\"");
+            if (type_ is DateTimeType)
+            {
+                var date = (DateTime)val_;
+                return $"(new DateTime({date.Ticks}))";
+            }
+            return str;
+        }
+
         public override int GetHashCode() => str_.GetHashCode();
         public override bool Equals(object obj)
         {
@@ -1114,14 +1181,18 @@ namespace adb.expr
         internal int ordinal_;
 
         public override string ToString() => $@"{{{expr_().ToString().RemovePositions()}}}[{ordinal_}]";
-        public ExprRef(Expr expr, int ordinal)
+        public ExprRef(Expr expr, int ordinal): base()
         {
             if (expr is ExprRef ee)
                 expr = ee.expr_();
             Debug.Assert(!(expr is ExprRef));
-            children_.Add(expr); ordinal_ = ordinal;
+            children_.Add(expr); 
+            ordinal_ = ordinal;
             type_ = expr.type_;
             bounded_ = expr.bounded_;
+
+            // reuse underlying expression's id
+            _ = expr._;
         }
 
         public override int GetHashCode() => expr_().GetHashCode();
@@ -1139,6 +1210,25 @@ namespace adb.expr
         {
             Debug.Assert(type_ != null);
             return input[ordinal_];
+        }
+
+        public override string ExecCode(ExecContext context, string input)
+        {
+            Debug.Assert(type_ != null);
+            return $"{input}[{ordinal_}]";
+        }
+    }
+
+    // This is a special type of ExprRef: functionalities same as ExprRef but only for AggFunc
+    // count(*)[0] as AggrRef
+    public class AggrRef : ExprRef
+    {
+        public Expr aggr_() => child_();
+
+        public override string ToString() => $@"{{{aggr_().ToString().RemovePositions()}}}[{ordinal_}]";
+        public AggrRef(Expr expr, int ordinal) : base(expr, ordinal)
+        {
+           Debug.Assert(expr.HasAggFunc());
         }
     }
 }

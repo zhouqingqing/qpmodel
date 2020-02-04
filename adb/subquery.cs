@@ -16,7 +16,7 @@ namespace adb.logic
         public MarkerExpr() {
             Debug.Assert(Equals(Clone()));
             type_ = new BoolType();
-            bounded_ = true;
+            markBounded();
         }
 
         public override Value Exec(ExecContext context, Row input)

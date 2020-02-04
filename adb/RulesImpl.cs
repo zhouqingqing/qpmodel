@@ -173,6 +173,23 @@ namespace adb.optimizer
             return new CGroupMember(phy, expr.group_);
         }
     }
+
+    public class Append2Append : ImplmentationRule
+    {
+        public override bool Appliable(CGroupMember expr)
+        {
+            var log = expr.logic_ as LogicAppend;
+            return log != null;
+        }
+
+        public override CGroupMember Apply(CGroupMember expr)
+        {
+            var log = expr.logic_ as LogicAppend;
+            var phy = new PhysicAppend(log, new PhysicMemoRef(log.l_()), new PhysicMemoRef(log.r_()));
+            return new CGroupMember(phy, expr.group_);
+        }
+    }
+    
     public class From2From : ImplmentationRule
     {
         public override bool Appliable(CGroupMember expr)

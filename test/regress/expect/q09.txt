@@ -30,3 +30,42 @@ group by
 order by
 	nation,
 	o_year desc
+PhysicOrder  (actual rows=0)
+    Output: profit.nation[0],profit.o_year[1],{sum(profit.amount)}[2]
+    Order by: profit.nation[0], profit.o_year[1]
+    -> PhysicHashAgg  (actual rows=0)
+        Output: {profit.nation}[0],{profit.o_year}[1],{sum(profit.amount)}[2]
+        Aggregates: sum(profit.amount[2])
+        Group by: profit.nation[0], profit.o_year[1]
+        -> PhysicFromQuery <profit> (actual rows=0)
+            Output: profit.nation[0],profit.o_year[1],profit.amount[2]
+            -> PhysicHashJoin  (actual rows=0)
+                Output: nation.n_name (as nation)[1],{year(orders.o_orderdate)}[2],{lineitem.l_extendedprice*1-lineitem.l_discount-partsupp.ps_supplycost*lineitem.l_quantity(as amount)}[3]
+                Filter: part.p_partkey[0]=lineitem.l_partkey[4]
+                -> PhysicScanTable part (actual rows=0)
+                    Output: part.p_partkey[0]
+                    Filter: part.p_name[1]like'%green%'
+                -> PhysicHashJoin  (actual rows=0)
+                    Output: nation.n_name (as nation)[0],{year(orders.o_orderdate)}[2],{lineitem.l_extendedprice*1-lineitem.l_discount-partsupp.ps_supplycost*lineitem.l_quantity(as amount)}[3],lineitem.l_partkey[4]
+                    Filter: supplier.s_nationkey[5]=nation.n_nationkey[1]
+                    -> PhysicScanTable nation (actual rows=0)
+                        Output: nation.n_name (as nation)[1],nation.n_nationkey[0]
+                    -> PhysicHashJoin  (actual rows=0)
+                        Output: {year(orders.o_orderdate)}[0],{lineitem.l_extendedprice*1-lineitem.l_discount-partsupp.ps_supplycost*lineitem.l_quantity(as amount)}[2],lineitem.l_partkey[3],supplier.s_nationkey[4]
+                        Filter: orders.o_orderkey[1]=lineitem.l_orderkey[5]
+                        -> PhysicScanTable orders (actual rows=0)
+                            Output: year(orders.o_orderdate[4]),orders.o_orderkey[0]
+                        -> PhysicHashJoin  (actual rows=0)
+                            Output: lineitem.l_extendedprice[3]*1-lineitem.l_discount[4]-partsupp.ps_supplycost[0]*lineitem.l_quantity[5](as amount),lineitem.l_partkey[6],supplier.s_nationkey[7],lineitem.l_orderkey[8]
+                            Filter: partsupp.ps_suppkey[1]=lineitem.l_suppkey[9] and partsupp.ps_partkey[2]=lineitem.l_partkey[6]
+                            -> PhysicScanTable partsupp (actual rows=0)
+                                Output: partsupp.ps_supplycost[3],partsupp.ps_suppkey[1],partsupp.ps_partkey[0]
+                            -> PhysicHashJoin  (actual rows=0)
+                                Output: lineitem.l_extendedprice[0],lineitem.l_discount[1],lineitem.l_quantity[2],lineitem.l_partkey[3],supplier.s_nationkey[6],lineitem.l_orderkey[4],lineitem.l_suppkey[5]
+                                Filter: supplier.s_suppkey[7]=lineitem.l_suppkey[5]
+                                -> PhysicScanTable lineitem (actual rows=0)
+                                    Output: lineitem.l_extendedprice[5],lineitem.l_discount[6],lineitem.l_quantity[4],lineitem.l_partkey[1],lineitem.l_orderkey[0],lineitem.l_suppkey[2]
+                                -> PhysicScanTable supplier (actual rows=0)
+                                    Output: supplier.s_nationkey[3],supplier.s_suppkey[0]
+
+

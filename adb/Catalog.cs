@@ -178,5 +178,7 @@ namespace adb
             // be careful: any exception happened here will be swallowed without throw any exception
             createBuildInTestTables();
         }
+
+        static internal void Init() { }
     }
 }

@@ -26,9 +26,11 @@ namespace adb.optimizer
             new Order2Sort(),
             new From2From(),
             new Limit2Limit(),
+            new Append2Append(),
             new JoinCommutativeRule(),  // intentionally add a duplicated rule
         };
 
+        // TBD: besides static controls, we can examine the plan and quick trim rules impossible to apply
         public static void Init(QueryOption option) {
             if (!option.optimize_.enable_indexseek)
                 ruleset_.RemoveAll(x => x is Scan2IndexSeek);
@@ -124,15 +126,9 @@ namespace adb.optimizer
                     if (!bcj.IsInnerJoin())
                         return false;
 
-                    Expr abcfilter = a_bc.filter_;
-                    var abfilter = exactFilter(abcfilter,
-                        new List<LogicNode>(){
-                            a_bc.l_(), bc.l_()});
-
-                    // if there is no filter at all, we are fine but we don't
-                    // allow the case we may generate catersian product
-                    if (abfilter != null && bcfilter is null)
-                        return false;
+                    // we only reject cases that logically impossible to apply
+                    // association rule, but leave anything may generate worse
+                    // plan (say catersisan joins) to apply stage.
                     return true;
                 }
             }
