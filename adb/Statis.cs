@@ -39,6 +39,9 @@ namespace adb.stat
     //  and the boundaries are: 4, 11, 14, etc
     //  and the distincts are: 5, 3, 3, etc
     //
+    // Besides these, there are V-optimal and MaxDiff histogram.
+    // See Poosala et al SIGMOD 1996.
+    //
     public class Historgram {
         public const int NBuckets_ = 100;
 

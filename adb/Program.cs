@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using IronPython.Hosting;
 
 using adb.codegen;
 using adb.logic;
@@ -15,8 +16,19 @@ namespace adb
 {
     class Program
     {
+        private static void doPython()
+        {
+            var engine = Python.CreateEngine();
+            var scope = engine.CreateScope();
+            var libs  = new [] { @"D:\adb\packages\IronPython.2.7.9\lib\net45" };
+            engine.SetSearchPaths(libs);
+            var ret = engine.ExecuteFile(@"z:/source/naru/train_model.py", scope);
+            Console.WriteLine(ret);
+        }
+
         static void Main(string[] args)
         {
+            // doPython();
             Catalog.Init();
 
             string sql = "";
@@ -28,13 +40,13 @@ namespace adb
                 goto doit;
             }
 
-            if (true)
+            if (false)
             {
                 Tpch.CreateTables();
-                Tpch.LoadTables("0001");
+                Tpch.LoadTables("001");
                 Tpch.CreateIndexes();
                 Tpch.AnalyzeTables();
-                sql = File.ReadAllText("../../../tpch/q02.sql");
+                sql = File.ReadAllText("../../../tpch/q22.sql");
                 goto doit;
             }
 
@@ -107,6 +119,7 @@ namespace adb
             sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2;";
             sql = "select * from a where a1> (select sum(b2) from b where a1=b1);";
             sql = "select * from a where a1> (select b2 from b where a1<>b1);";
+            sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
 
         doit:
             //sql = "select * from d where 3<d1;";
@@ -115,6 +128,9 @@ namespace adb
             //sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
             //sql = "select a1.*, a2.a1,a2.a2 from (select * from a) a1, (select * from a) a2;";
             //sql = "select * from a, b, c where a1=b1 and a2=c2 and b3=c3;";
+            sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
+            sql = "select a2*a1, repeat('a', a2) from a where a1>= (select b1 from b where a2=b2);";
+            sql = "select a2*2 from a, b where a1=b1;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
@@ -122,7 +138,7 @@ namespace adb
             a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = false;
             a.queryOpt_.optimize_.remove_from = true;
             a.queryOpt_.optimize_.use_memo_ = true;
-            a.queryOpt_.optimize_.use_codegen_ = false;
+            a.queryOpt_.optimize_.use_codegen_ = true;
 
             a.queryOpt_.optimize_.enable_nljoin_ = true;
 
