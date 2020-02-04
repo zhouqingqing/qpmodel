@@ -34,14 +34,14 @@ namespace adb.logic
         // it is possible to really have this value but ok to recompute
         protected LogicSignature logicSign_ = -1;
 
-        public override string ExplainMoreDetails(int depth) => PrintFilter(filter_, depth);
+        public override string ExplainMoreDetails(int depth, ExplainOption option) => PrintFilter(filter_, depth, option);
 
-        public override string ExplainOutput(int depth)
+        public override string ExplainOutput(int depth, ExplainOption option)
         {
             if (output_.Count != 0)
             {
                 string r = "Output: " + string.Join(",", output_);
-                output_.ForEach(x => r += x.PrintExprWithSubqueryExpanded(depth));
+                output_.ForEach(x => r += x.PrintExprWithSubqueryExpanded(depth, option));
                 return r;
             }
             return null;
@@ -88,7 +88,8 @@ namespace adb.logic
                             // subquries, we need to use NLJ to pass variables. It is can be fixed by changing
                             // the way we pass parameters though.
                             bool lhasSubqCol = TableRef.HasColsUsedBySubquries(l.InclusiveTableRefs());
-                            if (lc.filter_.FilterHashable() && !lhasSubqCol)
+                            if (lc.filter_.FilterHashable() && !lhasSubqCol
+                                &&  (lc.type_ == JoinType.Inner || lc.type_ == JoinType.Left))
                                 phy = new PhysicHashJoin(lc,
                                     l.DirectToPhysical(option),
                                     r.DirectToPhysical(option));
@@ -131,6 +132,9 @@ namespace adb.logic
                 case LogicLimit limit:
                     phy = new PhysicLimit(limit, child_().DirectToPhysical(option));
                     break;
+                case LogicAppend append:
+                    phy = new PhysicAppend(append, l_().DirectToPhysical(option), r_().DirectToPhysical(option));
+                    break;
                 default:
                     throw new NotImplementedException();
             }
@@ -166,6 +170,8 @@ namespace adb.logic
 
         internal Expr CloneFixColumnOrdinal(Expr toclone, List<Expr> source)
         {
+            Debug.Assert(toclone.bounded_);
+            Debug.Assert(toclone._ != null);
             var clone = toclone.Clone();
 
             // first try to match the whole expression - don't do this for ColExpr
@@ -178,8 +184,21 @@ namespace adb.logic
                     return new ExprRef(clone, ordinal);
             }
 
+            // let's first fix AggrRef as a whole epxression - there could be some combinations
+            // of AggrRef with aggregation keys (ColExpr), so we have to go thorough after it
+            //
+            clone.VisitEachT<AggrRef>(target => {
+                Predicate<Expr> roughNameTest;
+                roughNameTest = z => target.Equals(z);
+                target.ordinal_ = source.FindIndex(roughNameTest);
+                if (target.ordinal_ != -1)
+                {
+                    Debug.Assert(source.FindAll(roughNameTest).Count == 1);
+                }
+            });
+
             // we have to use each ColExpr and fix its ordinal
-            clone.VisitEach<ColExpr>(target =>
+            clone.VisitEachIgnoreRef<ColExpr>(target =>
             {
                 // ignore system column, ordinal is known
                 if (target is SysColExpr)
@@ -200,8 +219,9 @@ namespace adb.logic
                     // we may hit more than one target, say t2.col1 matching {t1.col1, t2.col1}
                     // in this case, we shall redo the mapping with table name
                     //
-                    Debug.Assert (source.FindAll(roughNameTest).Count >= 1);
-                    if (source.FindAll(roughNameTest).Count > 1) {
+                    Debug.Assert(source.FindAll(roughNameTest).Count >= 1);
+                    if (source.FindAll(roughNameTest).Count > 1)
+                    {
                         Predicate<Expr> preciseNameTest = z => z is ColExpr zc
                                 && (target.colName_.Equals(z.outputName_) || target.colName_.Equals(zc.colName_))
                                 && target.tabRef_.Equals((z as ColExpr).tabRef_);
@@ -255,7 +275,7 @@ namespace adb.logic
         public List<Expr> RetrieveCorrelated(bool returnColExprOnly)
         {
             List<Expr> results = new List<Expr>();
-            TraversEachNode(x => {
+            VisitEach(x => {
                 var logic = x as LogicNode;
                 var filterExpr = logic.filter_;
 
@@ -340,20 +360,20 @@ namespace adb.logic
 
     public enum JoinType {
         // ANSI SQL specified join types can show in SQL statement
-        InnerJoin,
-        LeftJoin,
-        RightJoin,
-        FullJoin,
-        CrossJoin
-            ,
+        Inner,
+        Left,
+        Right,
+        Full,
+        Cross
+        ,
         // these are used by subquery expansion or optimizations (say PK/FK join)
-        SemiJoin,
-        AntiSemiJoin,
+        Semi,
+        AntiSemi,
     };
 
     public partial class LogicJoin : LogicNode
     {
-        public JoinType type_ = JoinType.InnerJoin;
+        public JoinType type_ { get; set; } = JoinType.Inner;
 
         // dervided information from join condition
         // ab join cd on c1+d1=a1-b1 and a1+b1=c2+d2;
@@ -365,13 +385,14 @@ namespace adb.logic
         internal List<string> ops_ = new List<string>();
 
         public override string ToString() => $"({l_()} {type_} {r_()})";
+        public override string ExplainInlineDetails(int depth) { return type_ == JoinType.Inner ? "" : type_.ToString(); }
         public LogicJoin(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
         public LogicJoin(LogicNode l, LogicNode r, Expr filter): this(l, r) 
         { 
             filter_ = filter; 
         }
 
-        public bool IsInnerJoin() => type_ == JoinType.InnerJoin && !(this is LogicMarkJoin);
+        public bool IsInnerJoin() => type_ == JoinType.Inner && !(this is LogicMarkJoin);
 
         public override LogicSignature MemoLogicSign() {
             if (logicSign_ == -1)
@@ -500,12 +521,12 @@ namespace adb.logic
                     var colref = v.RetrieveAllColExpr();
                     colref.ForEach(x =>
                     {
-                        if (ltables.Contains(x.tabRef_))
+                        if (ltables.Contains(x.tableRefs_[0]))
                             lreq.Add(x);
-                        else if (rtables.Contains(x.tabRef_))
+                        else if (rtables.Contains(x.tableRefs_[0]))
                             rreq.Add(x);
                         else
-                            throw new InvalidProgramException($"requests contains invalid tableref {x.tabRef_}");
+                            throw new InvalidProgramException($"requests contains invalid tableref {x.tableRefs_[0]}");
                     });
                 }
             }
@@ -573,7 +594,7 @@ namespace adb.logic
         public List<AggFunc> aggrFns_ = new List<AggFunc>();
         public override string ToString() => $"Agg({child_()})";
 
-        public override string ExplainMoreDetails(int depth)
+        public override string ExplainMoreDetails(int depth, ExplainOption option)
         {
             string r = null;
             string tabs = Utils.Tabs(depth + 2);
@@ -582,7 +603,7 @@ namespace adb.logic
             if (keys_ != null)
                 r += $"{(aggrFns_.Count > 0? "\n"+tabs: "")}Group by: {string.Join(", ", keys_)}";
             if (having_ != null)
-                r += $"{(keys_ != null ? "\n"+tabs: "")}{PrintFilter(having_, depth)}";
+                r += $"{("\n"+tabs)}{PrintFilter(having_, depth, option)}";
             return r;
         }
 
@@ -604,28 +625,54 @@ namespace adb.logic
             Expr xchanged = x.Clone();
             foreach (var v in keys)
                 xchanged = xchanged.SearchReplace(v, constTrue);
-            if (!xchanged.VisitEachExprExists(
+            if (!xchanged.VisitEachExists(
                     e => e.IsLeaf() && !(e is LiteralExpr) && !e.Equals(constTrue)))
                 return true;
             return false;
         }
 
+        bool ExprIsAggFnOnAggrRef(Expr expr)
+        {
+            return expr is AggFunc ea && ea.HasAggrRef();
+        }
+
+        List<AggFunc> reqlistGetAggrRefs(List<Expr> reqList)
+        {
+            List<AggFunc> list = new List<AggFunc>();
+            foreach (var v in reqList)
+            {
+                Debug.Assert(!(v is AggrRef));
+                v.VisitEachT<AggrRef>(x =>
+                {
+                    list.Add(x.aggr_() as AggFunc);
+                });
+            }
+
+            Debug.Assert(!list.Contains(null));
+            return list.Distinct().ToList();
+        }
+
         // say 
         //  keys: k1+k2,k2+k3 
-        //  reqOutput: (k1+k2)+(k3+k2), count(*), sum(count(a1)*b1) 
-        //  => 0, a1, b1
+        //  reqOutput: (k1+k2)+(k3+k2), count(*), sum(a1*b1),  sum(count(a1)[0] as AggrRef + b3)
+        //  => 0; a1, b1; count(a1)[0], b3
         //
+        // we don't allow single count(a2)[0] as AggrRef form.
         List<Expr> removeAggFuncAndKeyExprsFromOutput(List<Expr> reqList, List<Expr> keys)
         {
             var reqContainAggs = new List<Expr>();
 
+            var fns = reqlistGetAggrRefs(reqList);
+
             // first let's find out all elements containing any AggFunc
-            reqList.ForEach(x =>
-                x.VisitEach<AggFunc>(y =>
+            reqList.ForEach(x => {
+                Debug.Assert(!(x is AggrRef));
+                x.VisitEachT<AggFunc>(y =>
                 {
                     // 1+abs(min(a))+max(b)
                     reqContainAggs.Add(x);
-                }));
+                });
+            });
 
             // we also remove expressions only with key computations - this non-trivial
             // consider this:
@@ -635,28 +682,26 @@ namespace adb.logic
             //
             if (keys?.Count > 0)
             {
-                var constTrue = LiteralExpr.MakeLiteral("true", new BoolType());
                 reqList.ForEach(x =>
                 {
-                    if (reqContainAggs.Contains(x))
-                        return;
                     if (exprConsistPureKeys(x, keys))
                         reqContainAggs.Add(x);
                 });
             }
 
-            // now remove AggFunc but add back the dependent exprs
+            // now remove AggFunc but add back the dependent exprs, excluding AggrRef
+            // sum(b2*sum[0]+count[0]+b3) => b2, b3
             reqContainAggs.ForEach(x =>
             {
                 // remove the element from reqList
                 reqList.Remove(x);
 
                 // add back the dependent exprs back
-                x.VisitEach<AggFunc>(y =>
+                x.VisitEachIgnoreRef<AggFunc>(y =>
                 {
                     foreach (var z in y.GetNonFuncExprList())
                     {
-                        if (!exprConsistPureKeys(y, keys))
+                        if (!exprConsistPureKeys(y, keys) && !z.HasAggrRef())
                             reqList.Add(z);
                     }
                 });
@@ -664,6 +709,7 @@ namespace adb.logic
 
             reqList = reqList.Distinct().ToList();
             reqList.ForEach(x => Debug.Assert(!x.HasAggFunc()));
+            reqList.AddRange(fns);
             return reqList;
         }
 
@@ -715,7 +761,7 @@ namespace adb.logic
             if (keys_ != null) output_ = output_.SearchReplace(keys_);
             output_.ForEach(x =>
             {
-                x.VisitEach<AggFunc>(y =>
+                x.VisitEachIgnoreRef<AggFunc>(y =>
                 {
                     // remove the duplicates immediatley to avoid wrong ordinal in ExprRef
                     if (!aggrFns_.Contains(y))
@@ -726,7 +772,7 @@ namespace adb.logic
                 newoutput.Add(x);
             });
             if (having_ != null && keys_ != null) having_ = having_.SearchReplace(keys_);
-            having_?.VisitEach<AggFunc>(y =>
+            having_?.VisitEachIgnoreRef<AggFunc>(y =>
             {
                 // remove the duplicates immediatley to avoid wrong ordinal in ExprRef
                 if (!aggrFns_.Contains(y))
@@ -741,13 +787,13 @@ namespace adb.logic
             Expr offending = null;
             newoutput.ForEach(x =>
             {
-                if (x.VisitEachExprExists(y => y is ColExpr, new List<Type> { typeof(ExprRef) }))
+                if (x.VisitEachExists(y => y is ColExpr, new List<Type> { typeof(ExprRef) }))
                     offending = x;
             });
             if (offending != null)
                 throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
             output_ = newoutput;
-            if (having_?.VisitEachExprExists(y => y is ColExpr, new List<Type> { typeof(ExprRef) })??false)
+            if (having_?.VisitEachExists(y => y is ColExpr, new List<Type> { typeof(ExprRef) })??false)
                 throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
 
             return ordinals;
@@ -762,7 +808,7 @@ namespace adb.logic
 
         public override string ToString() => $"Order({child_()})";
 
-        public override string ExplainMoreDetails(int depth)
+        public override string ExplainMoreDetails(int depth, ExplainOption option)
         {
             var r = $"Order by: {string.Join(", ", orders_)}\n";
             return r;
@@ -781,6 +827,11 @@ namespace adb.logic
             List<int> ordinals = new List<int>();
             List<Expr> reqFromChild = new List<Expr>();
             reqFromChild.AddRange(reqOutput.CloneList());
+
+            // do not decompose order_ into ColRefs: the reason is that say GROUP BY 1 ORDER BY 1 where 1 
+            // is actully a3+a4, if we decompose it, then Aggregation will see a3 and a4 thus require them
+            // in the GROUP BY clause.
+            //
             reqFromChild.AddRange(orders_);
             child_().ResolveColumnOrdinal(reqFromChild);
             var childout = child_().output_;
@@ -845,7 +896,7 @@ namespace adb.logic
         {
             reqOutput.ForEach(x =>
             {
-                x.VisitEachExpr(y =>
+                x.VisitEach(y =>
                 {
                     switch (y)
                     {
@@ -921,6 +972,22 @@ namespace adb.logic
     {
         public override string ToString() => string.Join(",", output_);
         public LogicResult(List<Expr> exprs) => output_ = exprs;
+    }
+
+    public class LogicAppend : LogicNode
+    {
+        public override string ToString() => $"Append({l_()},{r_()})";
+        public LogicAppend(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
+
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
+        {
+            // limit is the top node and don't remove redundant
+            List<int> ordinals = new List<int>();
+
+            l_().ResolveColumnOrdinal(reqOutput, removeRedundant);
+            output_ = l_().output_;
+            return ordinals;
+        }
     }
 
     public class LogicLimit : LogicNode {

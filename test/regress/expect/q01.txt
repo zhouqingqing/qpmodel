@@ -19,3 +19,15 @@ group by
 order by
 	l_returnflag,
 	l_linestatus
+PhysicOrder  (actual rows=0)
+    Output: lineitem.l_returnflag[0],lineitem.l_linestatus[1],{sum(lineitem.l_quantity)}[2],{sum(lineitem.l_extendedprice)}[3],{sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[4],{sum(lineitem.l_extendedprice*1-lineitem.l_discount*1+lineitem.l_tax)}[5],{avg(lineitem.l_quantity)}[6],{avg(lineitem.l_extendedprice)}[7],{avg(lineitem.l_discount)}[8],{count(*)(0)}[9]
+    Order by: lineitem.l_returnflag[0], lineitem.l_linestatus[1]
+    -> PhysicHashAgg  (actual rows=0)
+        Output: {lineitem.l_returnflag}[0],{lineitem.l_linestatus}[1],{sum(lineitem.l_quantity)}[2],{sum(lineitem.l_extendedprice)}[3],{sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[4],{sum(lineitem.l_extendedprice*1-lineitem.l_discount*1+lineitem.l_tax)}[5],{avg(lineitem.l_quantity)}[6],{avg(lineitem.l_extendedprice)}[7],{avg(lineitem.l_discount)}[8],{count(*)(0)}[9]
+        Aggregates: sum(lineitem.l_quantity[2]), sum(lineitem.l_extendedprice[3]), sum(lineitem.l_extendedprice[3]*1-lineitem.l_discount[7]), sum(lineitem.l_extendedprice[3]*1-lineitem.l_discount[7]*1+lineitem.l_tax[10]), avg(lineitem.l_quantity[2]), avg(lineitem.l_extendedprice[3]), avg(lineitem.l_discount[7]), count(*)(0)
+        Group by: lineitem.l_returnflag[0], lineitem.l_linestatus[1]
+        -> PhysicScanTable lineitem (actual rows=0)
+            Output: lineitem.l_returnflag[8],lineitem.l_linestatus[9],lineitem.l_quantity[4],lineitem.l_extendedprice[5],lineitem.l_extendedprice[5]*1-lineitem.l_discount[6],1-lineitem.l_discount[6],1,lineitem.l_discount[6],lineitem.l_extendedprice[5]*1-lineitem.l_discount[6]*1+lineitem.l_tax[7],1+lineitem.l_tax[7],lineitem.l_tax[7]
+            Filter: lineitem.l_shipdate[10]<='9/2/1998 12:00:00 AM'
+
+

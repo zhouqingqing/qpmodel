@@ -21,3 +21,29 @@ order by
 	revenue desc,
 	o_orderdate
 limit 10
+PhysicLimit (10) (actual rows=0)
+    Output: lineitem.l_orderkey[0],{sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[1],orders.o_orderdate[2],orders.o_shippriority[3]
+    -> PhysicOrder  (actual rows=0)
+        Output: lineitem.l_orderkey[0],{sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[1],orders.o_orderdate[2],orders.o_shippriority[3]
+        Order by: {sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[1], orders.o_orderdate[2]
+        -> PhysicHashAgg  (actual rows=0)
+            Output: {lineitem.l_orderkey}[0],{sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[3],{orders.o_orderdate}[1],{orders.o_shippriority}[2]
+            Aggregates: sum(lineitem.l_extendedprice[4]*1-lineitem.l_discount[7])
+            Group by: lineitem.l_orderkey[0], orders.o_orderdate[1], orders.o_shippriority[2]
+            -> PhysicHashJoin  (actual rows=0)
+                Output: lineitem.l_orderkey[2],orders.o_orderdate[3],orders.o_shippriority[4],{lineitem.l_extendedprice*1-lineitem.l_discount}[5],lineitem.l_extendedprice[6],{1-lineitem.l_discount}[7],{1}[0],lineitem.l_discount[8]
+                Filter: customer.c_custkey[1]=orders.o_custkey[9]
+                -> PhysicScanTable customer (actual rows=0)
+                    Output: 1,customer.c_custkey[0]
+                    Filter: customer.c_mktsegment[6]='BUILDING'
+                -> PhysicHashJoin  (actual rows=0)
+                    Output: lineitem.l_orderkey[0],orders.o_orderdate[5],orders.o_shippriority[6],{lineitem.l_extendedprice*1-lineitem.l_discount}[1],lineitem.l_extendedprice[2],{1-lineitem.l_discount}[3],lineitem.l_discount[4],orders.o_custkey[7]
+                    Filter: lineitem.l_orderkey[0]=orders.o_orderkey[8]
+                    -> PhysicScanTable lineitem (actual rows=0)
+                        Output: lineitem.l_orderkey[0],lineitem.l_extendedprice[5]*1-lineitem.l_discount[6],lineitem.l_extendedprice[5],1-lineitem.l_discount[6],lineitem.l_discount[6]
+                        Filter: lineitem.l_shipdate[10]>'1995-03-15'
+                    -> PhysicScanTable orders (actual rows=0)
+                        Output: orders.o_orderdate[4],orders.o_shippriority[7],orders.o_custkey[1],orders.o_orderkey[0]
+                        Filter: orders.o_orderdate[4]<'1995-03-15'
+
+

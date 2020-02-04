@@ -28,3 +28,25 @@ order by
 	p_brand,
 	p_type,
 	p_size
+PhysicOrder  (actual rows=0)
+    Output: part.p_brand[0],part.p_type[1],part.p_size[2],{count(partsupp.ps_suppkey)}[3]
+    Order by: {count(partsupp.ps_suppkey)}[3], part.p_brand[0], part.p_type[1], part.p_size[2]
+    -> PhysicHashAgg  (actual rows=0)
+        Output: {part.p_brand}[0],{part.p_type}[1],{part.p_size}[2],{count(partsupp.ps_suppkey)}[3]
+        Aggregates: count(partsupp.ps_suppkey[3])
+        Group by: part.p_brand[0], part.p_type[1], part.p_size[2]
+        -> PhysicHashJoin  (actual rows=0)
+            Output: part.p_brand[2],part.p_type[3],part.p_size[4],partsupp.ps_suppkey[0]
+            Filter: part.p_partkey[5]=partsupp.ps_partkey[1]
+            -> PhysicScanTable partsupp (actual rows=0)
+                Output: partsupp.ps_suppkey[1],partsupp.ps_partkey[0]
+                Filter: partsupp.ps_suppkey[1] in @1
+                <InSubqueryExpr> cached 1
+                    -> PhysicScanTable supplier (actual rows=0)
+                        Output: supplier.s_suppkey[0]
+                        Filter: supplier.s_comment[6]like'%Customer%Complaints%'
+            -> PhysicScanTable part (actual rows=0)
+                Output: part.p_brand[3],part.p_type[4],part.p_size[5],part.p_partkey[0]
+                Filter: part.p_brand[3]<>'Brand#45' and part.p_type[4]not like'MEDIUM POLISHED%' and part.p_size[5] in (49,14,23,45,19,3,36,9)
+
+

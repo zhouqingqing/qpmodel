@@ -50,6 +50,8 @@ namespace psql
         {
             try
             {
+                Tpch.CreateTables();
+
                 // get a list of sql query fine names from the sql directory
                 DirectoryInfo sql_di = new DirectoryInfo(sql_dir_fn);
                 string[] sqlFiles = Directory.GetFiles(sql_dir_fn);

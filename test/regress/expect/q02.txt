@@ -42,3 +42,58 @@ order by
 	s_name,
 	p_partkey
 limit 100
+PhysicLimit (100) (actual rows=0)
+    Output: supplier.s_acctbal[0],supplier.s_name[1],nation.n_name[2],part.p_partkey[3],part.p_mfgr[4],supplier.s_address[5],supplier.s_phone[6],supplier.s_comment[7]
+    -> PhysicOrder  (actual rows=0)
+        Output: supplier.s_acctbal[0],supplier.s_name[1],nation.n_name[2],part.p_partkey[3],part.p_mfgr[4],supplier.s_address[5],supplier.s_phone[6],supplier.s_comment[7]
+        Order by: supplier.s_acctbal[0], nation.n_name[2], supplier.s_name[1], part.p_partkey[3]
+        -> PhysicNLJoin  (actual rows=0)
+            Output: supplier.s_acctbal[2],supplier.s_name[3],nation.n_name[4],part.p_partkey[0],part.p_mfgr[1],supplier.s_address[5],supplier.s_phone[6],supplier.s_comment[7]
+            Filter: part.p_partkey[0]=partsupp.ps_partkey[8]
+            -> PhysicScanTable part (actual rows=0)
+                Output: part.p_partkey[0],part.p_mfgr[2]
+                Filter: part.p_size[5]=15 and part.p_type[4]like'%BRASS'
+            -> PhysicHashJoin  (actual rows=0)
+                Output: supplier.s_acctbal[1],supplier.s_name[2],nation.n_name[3],supplier.s_address[4],supplier.s_phone[5],supplier.s_comment[6],partsupp.ps_partkey[7]
+                Filter: nation.n_regionkey[8]=region.r_regionkey[0]
+                -> PhysicScanTable region (actual rows=0)
+                    Output: region.r_regionkey[0]
+                    Filter: region.r_name[1]='EUROPE'
+                -> PhysicHashJoin  (actual rows=0)
+                    Output: supplier.s_acctbal[3],supplier.s_name[4],nation.n_name[0],supplier.s_address[5],supplier.s_phone[6],supplier.s_comment[7],partsupp.ps_partkey[8],nation.n_regionkey[1]
+                    Filter: supplier.s_nationkey[9]=nation.n_nationkey[2]
+                    -> PhysicScanTable nation (actual rows=0)
+                        Output: nation.n_name[1],nation.n_regionkey[2],nation.n_nationkey[0]
+                    -> PhysicHashJoin  (actual rows=0)
+                        Output: supplier.s_acctbal[2],supplier.s_name[3],supplier.s_address[4],supplier.s_phone[5],supplier.s_comment[6],partsupp.ps_partkey[0],supplier.s_nationkey[7]
+                        Filter: supplier.s_suppkey[8]=partsupp.ps_suppkey[1]
+                        -> PhysicScanTable partsupp (actual rows=0)
+                            Output: partsupp.ps_partkey[0],partsupp.ps_suppkey[1]
+                            Filter: partsupp.ps_supplycost[3]=@1
+                            <ScalarSubqueryExpr> 1
+                                -> PhysicHashAgg  (actual rows=0)
+                                    Output: {min(partsupp__1.ps_supplycost)}[0]
+                                    Aggregates: min(partsupp__1.ps_supplycost[0])
+                                    -> PhysicHashJoin  (actual rows=0)
+                                        Output: partsupp__1.ps_supplycost[0]
+                                        Filter: supplier__1.s_suppkey[2]=partsupp__1.ps_suppkey[1]
+                                        -> PhysicScanTable partsupp as partsupp__1 (actual rows=0)
+                                            Output: partsupp__1.ps_supplycost[3],partsupp__1.ps_suppkey[1]
+                                            Filter: ?part.p_partkey[0]=partsupp__1.ps_partkey[0]
+                                        -> PhysicHashJoin  (actual rows=0)
+                                            Output: supplier__1.s_suppkey[1]
+                                            Filter: nation__1.n_regionkey[2]=region__1.r_regionkey[0]
+                                            -> PhysicScanTable region as region__1 (actual rows=0)
+                                                Output: region__1.r_regionkey[0]
+                                                Filter: region__1.r_name[1]='EUROPE'
+                                            -> PhysicHashJoin  (actual rows=0)
+                                                Output: supplier__1.s_suppkey[2],nation__1.n_regionkey[0]
+                                                Filter: supplier__1.s_nationkey[3]=nation__1.n_nationkey[1]
+                                                -> PhysicScanTable nation as nation__1 (actual rows=0)
+                                                    Output: nation__1.n_regionkey[2],nation__1.n_nationkey[0]
+                                                -> PhysicScanTable supplier as supplier__1 (actual rows=0)
+                                                    Output: supplier__1.s_suppkey[0],supplier__1.s_nationkey[3]
+                        -> PhysicScanTable supplier (actual rows=0)
+                            Output: supplier.s_acctbal[5],supplier.s_name[1],supplier.s_address[2],supplier.s_phone[4],supplier.s_comment[6],supplier.s_nationkey[3],supplier.s_suppkey[0]
+
+

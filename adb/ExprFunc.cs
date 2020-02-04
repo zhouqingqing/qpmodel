@@ -19,7 +19,7 @@ namespace adb.expr
         internal Expr arg_() { Debug.Assert(argcnt_ == 1); return args_()[0]; }
         internal List<Expr> args_() => children_;
 
-        public FuncExpr(string funcName, List<Expr> args)
+        public FuncExpr(string funcName, List<Expr> args) : base()
         {
             funcName_ = funcName;
             children_.AddRange(args);
@@ -31,7 +31,7 @@ namespace adb.expr
             List<Expr> r = new List<Expr>();
             args_().ForEach(x =>
             {
-                x.VisitEachExpr(y =>
+                x.VisitEachIgnoreRef<Expr>(y =>
                 {
                     if (y is FuncExpr yf)
                         r.AddRange(yf.GetNonFuncExprList());
@@ -42,6 +42,7 @@ namespace adb.expr
 
             return r;
         }
+
         static public FuncExpr BuildFuncExpr(string funcName, List<Expr> args)
         {
             FuncExpr r = null;
@@ -206,7 +207,8 @@ namespace adb.expr
         }
         public override Value Exec(ExecContext context, Row input)
         {
-            return 0;
+            var date = (DateTime)arg_().Exec(context, input);
+            return date.Year;
         }
     }
 
@@ -523,7 +525,7 @@ namespace adb.expr
         internal List<Expr> when_() => children_.GetRange(nEval_, nWhen_);
         internal List<Expr> then_() => children_.GetRange(nEval_ + nWhen_, nWhen_);
         internal Expr else_() => nElse_ != 0 ? children_[nEval_ + nWhen_ + nWhen_] : null;
-        public CaseExpr(Expr eval, List<Expr> when, List<Expr> then, Expr elsee)
+        public CaseExpr(Expr eval, List<Expr> when, List<Expr> then, Expr elsee) : base()
         {
             if (eval != null)
             {
@@ -597,7 +599,7 @@ namespace adb.expr
         internal string op_;
 
         internal Expr arg_() => children_[0];
-        public UnaryExpr(string op, Expr expr)
+        public UnaryExpr(string op, Expr expr) : base()
         {
             string[] supportops = { "+", "-" };
 
@@ -641,17 +643,25 @@ namespace adb.expr
             if (obj is ExprRef oe)
                 return this.Equals(oe.expr_());
             else if (obj is BinExpr bo)
-            {
                 return exprEquals(l_(), bo.l_()) && exprEquals(r_(), bo.r_()) && op_.Equals(bo.op_);
-            }
             return false;
         }
-        public BinExpr(Expr l, Expr r, string op)
+        public BinExpr(Expr l, Expr r, string op) : base()
         {
             children_.Add(l);
             children_.Add(r);
             op_ = op.ToLower();
             Debug.Assert(Clone().Equals(this));
+        }
+
+        public static BinExpr MakeBooleanExpr(Expr l, Expr r, string op)
+        {
+            Debug.Assert(l.bounded_ && r.bounded_);
+            var expr = new BinExpr(l, r, op);
+            expr.ResetAggregateTableRefs();
+            expr.markBounded();
+            expr.type_ = new BoolType();
+            return expr;
         }
 
         public override void Bind(BindContext context)
@@ -662,27 +672,14 @@ namespace adb.expr
             Debug.Assert(l_().type_ != null && r_().type_ != null);
             switch (op_)
             {
-                case "+":
-                case "-":
-                case "*":
-                case "/":
-                case "||":
+                case "+": case "-": case "*": case "/": case "||":
                     type_ = ColumnType.CoerseType(op_, l_().type_, r_().type_);
                     break;
-                case ">":
-                case ">=":
-                case "<":
-                case "<=":
-                case "=":
-                case "<>":
-                case "!=":
-                case " and ":
-                case " or ":
-                case "like":
-                case "not like":
-                case "in":
-                case "is":
-                case "is not":
+                case ">": case ">=": case "<": case "<=": 
+                case "=":case "<>": case "!=":
+                case " and ": case " or ":
+                case "like": case "not like": case "in":
+                case "is": case "is not":
                     type_ = new BoolType();
                     break;
                 default:
@@ -693,14 +690,10 @@ namespace adb.expr
         public static string SwapSideOp(string op) {
             switch (op)
             {
-                case ">":
-                    return "<";
-                case ">=":
-                    return "<=";
-                case "<":
-                    return ">";
-                case "<=":
-                    return ">=";
+                case ">": return "<";
+                case ">=": return "<=";
+                case "<": return ">";
+                case "<=": return ">=";
                 case "in":
                     throw new Exception("not switchable");
                 default:
@@ -752,6 +745,29 @@ namespace adb.expr
             }
         }
 
+        public override string ExecCode(ExecContext context, string input)
+        {
+            string lv = "(dynamic)" + l_().ExecCode(context, input);
+            string rv = "(dynamic)" + r_().ExecCode(context, input);
+
+            string code = null;
+            switch (op_)
+            {
+                case "+": code = $"({lv} + {rv})"; break;
+                case "-": code = $"({lv} - {rv})"; break;
+                case "*": code = $"({lv} * {rv})"; break;
+                case "/": code = $"({lv} / {rv})"; break;
+                case ">": code = $"({lv} > {rv})"; break;
+                case ">=": code = $"({lv} >= {rv})"; break;
+                case "<": code = $"({lv} < {rv})"; break;
+                case "<=": code = $"({lv} <= {rv})"; break;
+                case "=": code = $"({lv} == {rv})"; break;
+                case " and ": code = $"((bool){lv} && (bool){rv})"; break;
+                default:
+                    throw new NotImplementedException();
+            }
+            return code;
+        }
     }
 
     public class LogicAndOrExpr : BinExpr
@@ -763,17 +779,17 @@ namespace adb.expr
             Debug.Assert(this.IsBoolean());
         }
     }
+
     public class LogicAndExpr : LogicAndOrExpr
     {
-        public LogicAndExpr(Expr l, Expr r) : base(l, r, " and ")
-        {
-        }
+        public LogicAndExpr(Expr l, Expr r) : base(l, r, " and "){}
 
         public static LogicAndExpr MakeExpr(Expr l, Expr r)
         {
+            Debug.Assert(l.bounded_ && r.bounded_);
             var and = new LogicAndExpr(l, r);
             and.ResetAggregateTableRefs();
-            and.bounded_ = true;
+            and.markBounded();
             return and;
         }
 
@@ -812,7 +828,7 @@ namespace adb.expr
 
     public class CastExpr : Expr {
         public override string ToString() => $"cast({child_()} to {type_})";
-        public CastExpr(Expr child, ColumnType coltype) { children_.Add(child); type_ = coltype; }
+        public CastExpr(Expr child, ColumnType coltype) : base() { children_.Add(child); type_ = coltype; }
         public override Value Exec(ExecContext context, Row input)
         {
             Value to = null;

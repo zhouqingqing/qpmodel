@@ -15,3 +15,24 @@ where
 		where
 			l_partkey = p_partkey
 	)
+PhysicHashAgg  (actual rows=1)
+    Output: {sum(lineitem.l_extendedprice)}[0]/7.0(as avg_yearly)
+    Aggregates: sum(lineitem.l_extendedprice[0])
+    -> PhysicNLJoin  (actual rows=0)
+        Output: lineitem.l_extendedprice[1]
+        Filter: part.p_partkey[0]=lineitem.l_partkey[2]
+        -> PhysicScanTable part (actual rows=0)
+            Output: part.p_partkey[0]
+            Filter: part.p_brand[3]='Brand#23' and part.p_container[6]='MED BOX'
+        -> PhysicScanTable lineitem (actual rows=0)
+            Output: lineitem.l_extendedprice[5],lineitem.l_partkey[1]
+            Filter: lineitem.l_quantity[4]<@1
+            <ScalarSubqueryExpr> 1
+                -> PhysicHashAgg  (actual rows=0)
+                    Output: 0.2*{avg(lineitem__1.l_quantity)}[0]
+                    Aggregates: avg(lineitem__1.l_quantity[0])
+                    -> PhysicScanTable lineitem as lineitem__1 (actual rows=0)
+                        Output: lineitem__1.l_quantity[4]
+                        Filter: lineitem__1.l_partkey[1]=?part.p_partkey[0]
+
+

@@ -123,18 +123,17 @@ namespace adb.dml
             {
                 if (cols_ is null)
                     cols_ = targetref_.AllColumnsRefs();
+                // verify selectStmt's selection list is compatible with insert target table's
                 if (vals_.Count != cols_.Count)
                     throw new SemanticAnalyzeException("insert has no equal expressions than target columns");
                 vals_.ForEach(x => x.Bind(context));
             }
             else
             {
+                select_.BindWithContext(context);
                 if (cols_ is null)
                     cols_ = select_.selection_;
-                select_?.BindWithContext(context);
-                // verify selectStmt's selection list is compatible with insert target table's
-                if (select_.selection_.Count != cols_.Count)
-                    throw new SemanticAnalyzeException("insert has no equal expressions than target columns");
+                Debug.Assert(select_.selection_.Count == cols_.Count);
             }
 
             bindContext_ = context;
@@ -153,6 +152,8 @@ namespace adb.dml
         {
             // convert to physical plan
             physicPlan_ = logicPlan_.DirectToPhysical(queryOpt_);
+            if (select_ != null)
+                select_.logicPlan_.ResolveColumnOrdinal(select_.selection_, false);
             return logicPlan_;
         }
     }

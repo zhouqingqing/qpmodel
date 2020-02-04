@@ -35,3 +35,32 @@ group by
 	cntrycode
 order by
 	cntrycode
+PhysicOrder  (actual rows=0)
+    Output: custsale.cntrycode[0],{count(*)(0)}[1],{sum(custsale.c_acctbal)}[2]
+    Order by: custsale.cntrycode[0]
+    -> PhysicHashAgg  (actual rows=0)
+        Output: {custsale.cntrycode}[0],{count(*)(0)}[1],{sum(custsale.c_acctbal)}[2]
+        Aggregates: count(*)(0), sum(custsale.c_acctbal[1])
+        Group by: custsale.cntrycode[0]
+        -> PhysicFromQuery <custsale> (actual rows=0)
+            Output: custsale.cntrycode[0],custsale.c_acctbal[1]
+            -> PhysicFilter  (actual rows=0)
+                Output: {substring(customer.c_phone,1,2)}[1],customer.c_acctbal[2]
+                Filter: {#marker}[0]
+                -> PhysicMarkJoin  (actual rows=0)
+                    Output: #marker,{substring(customer.c_phone,1,2)}[0],customer.c_acctbal[1]
+                    Filter: orders.o_custkey[3]=customer.c_custkey[2]
+                    -> PhysicScanTable customer (actual rows=0)
+                        Output: substring(customer.c_phone[4],1,2),customer.c_acctbal[5],customer.c_custkey[0]
+                        Filter: substring(customer.c_phone[4],1,2) in ('13','31','23','29','30','18','17') and customer.c_acctbal[5]>@1
+                        <ScalarSubqueryExpr> cached 1
+                            -> PhysicHashAgg  (actual rows=0)
+                                Output: {avg(customer__1.c_acctbal)}[0]
+                                Aggregates: avg(customer__1.c_acctbal[0])
+                                -> PhysicScanTable customer as customer__1 (actual rows=0)
+                                    Output: customer__1.c_acctbal[5]
+                                    Filter: customer__1.c_acctbal[5]>0.00 and substring(customer__1.c_phone[4],1,2) in ('13','31','23','29','30','18','17')
+                    -> PhysicScanTable orders (actual rows=0)
+                        Output: orders.o_custkey[1]
+
+
