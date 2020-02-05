@@ -10,11 +10,11 @@ using adb.expr;
 namespace adb.logic
 {
     public partial class LogicFilter {
-        public override long EstCardinality()
+        public override long Card()
         {
             if (card_ is CARD_INVALID)
             {
-                var nrows = child_().EstCardinality();
+                var nrows = child_().Card();
                 if (filter_ != null)
                 {
                     var selectivity = filter_.EstSelectivity();
@@ -28,7 +28,7 @@ namespace adb.logic
     }
 
     public partial class LogicScanTable {
-        public override long EstCardinality()
+        public override long Card()
         {
             if (card_ is CARD_INVALID)
             {
@@ -46,7 +46,7 @@ namespace adb.logic
     }
 
     public partial class LogicAgg {
-        public override long EstCardinality()
+        public override long Card()
         {
             if (card_ is CARD_INVALID)
             {
@@ -69,7 +69,7 @@ namespace adb.logic
                 }
 
                 // it won't go beyond the number of output rows
-                card_ = Math.Min(card_, child_().EstCardinality());
+                card_ = Math.Min(card_, child_().Card());
             }
 
             return card_;
@@ -82,13 +82,13 @@ namespace adb.logic
         // This however does not consider join key distribution. In SQL Server 2014, it introduced
         // histogram join to better the estimation.
         //
-        public override long EstCardinality()
+        public override long Card()
         {
             if (card_ is CARD_INVALID)
             {
                 CreateKeyList();
-                var cardl = l_().EstCardinality();
-                var cardr = r_().EstCardinality();
+                var cardl = l_().Card();
+                var cardr = r_().Card();
 
                 long dl = 0, dr = 0, mindlr = 1;
                 for (int i = 0; i < leftKeys_.Count; i++)
@@ -118,7 +118,7 @@ namespace adb.logic
                     card_ = Math.Max(1, (cardl * cardr) / mindlr);
                 else
                     // fall back to the old estimator
-                    card_ = base.EstCardinality();
+                    card_ = base.Card();
             }
 
             return card_;

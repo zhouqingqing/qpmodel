@@ -80,6 +80,7 @@ namespace adb.physic
         }
         // @context is to carray parameters etc, @callback.Row is current row for processing
         public abstract string Exec(Func<Row, string> callback);
+
         public string ExecProjectCode(string input)
         {
             var output = logic_.output_;
@@ -94,7 +95,6 @@ namespace adb.physic
 
             return s;
         }
-
         public Row ExecProject(Row input)
         {
             var output = logic_.output_;
@@ -110,6 +110,8 @@ namespace adb.physic
                 cost_ = 10.0;
             return cost_;
         }
+
+        public long Card() => logic_.Card();
 
         // codegen support seciton
         // -----------------------
@@ -344,7 +346,7 @@ namespace adb.physic
             {
                 // 2 means < 50% selection ratio will pick up index
                 var logic = (logic_) as LogicScanTable;
-                cost_ = logic.EstCardinality() * 2.0;
+                cost_ = logic.Card() * 2.0;
             }
             return cost_;
         }
@@ -514,8 +516,8 @@ namespace adb.physic
         public override double Cost()
         {
             if (double.IsNaN(cost_))
-                cost_ = ((l_() as PhysicMemoRef).Logic().EstCardinality() + 10) * 
-                    ((r_() as PhysicMemoRef).Logic().EstCardinality() + 10);
+                cost_ = ((l_() as PhysicMemoRef).Logic().Card() + 10) * 
+                    ((r_() as PhysicMemoRef).Logic().Card() + 10);
             return cost_;
         }
     }
@@ -740,9 +742,9 @@ namespace adb.physic
         {
             if (double.IsNaN(cost_))
             {
-                var buildcost = (l_() as PhysicMemoRef).Logic().EstCardinality() * 2.0;
-                var probecost = (r_() as PhysicMemoRef).Logic().EstCardinality() * 1.0;
-                var outputcost = logic_.EstCardinality() * 1.0;
+                var buildcost = (l_() as PhysicMemoRef).Logic().Card() * 2.0;
+                var probecost = (r_() as PhysicMemoRef).Logic().Card() * 1.0;
+                var outputcost = logic_.Card() * 1.0;
                 cost_ = buildcost + probecost + outputcost;
             }
             return cost_;
@@ -993,7 +995,7 @@ namespace adb.physic
         {
             if (double.IsNaN(cost_))
             {
-                var rowstosort = (child_() as PhysicMemoRef).Logic().EstCardinality() * 1.0;
+                var rowstosort = (child_() as PhysicMemoRef).Logic().Card() * 1.0;
                 cost_ = rowstosort * (0.1 + Math.Log(rowstosort));
             }
             return cost_;
