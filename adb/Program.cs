@@ -8,6 +8,7 @@ using adb.physic;
 using adb.test;
 using adb.sqlparser;
 using adb.optimizer;
+using adb.optimizer.test;
 
 // Visusal Studio tip: 
 //   when autocomplete box is shown, press crtl+alt+space to switch autocompletion mode
@@ -28,8 +29,15 @@ namespace adb
 
         static void Main(string[] args)
         {
+            JoinGraph.Test();
+            //return;
+
+            //DPBushy.Test();
+            Global.Init();
+            DPccp.Test();
             // doPython();
             Catalog.Init();
+            GC.Collect();
 
             string sql = "";
 
@@ -138,7 +146,7 @@ namespace adb
             a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = false;
             a.queryOpt_.optimize_.remove_from = true;
             a.queryOpt_.optimize_.use_memo_ = true;
-            a.queryOpt_.optimize_.use_codegen_ = true;
+            a.queryOpt_.optimize_.use_codegen_ = false;
 
             a.queryOpt_.optimize_.enable_nljoin_ = true;
 

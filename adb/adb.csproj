@@ -161,6 +161,8 @@
     <Compile Include="ExprFunc.cs" />
     <Compile Include="ExprSubquery.cs" />
     <Compile Include="Index.cs" />
+    <Compile Include="JoinOrder.cs" />
+    <Compile Include="JoinOrderUtils.cs" />
     <Compile Include="LogicCard.cs" />
     <Compile Include="PhysicalExec.cs" />
     <Compile Include="Plan.cs" />

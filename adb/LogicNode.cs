@@ -261,11 +261,11 @@ namespace adb.logic
         //
         public virtual List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true) => null;
 
-        public virtual long EstCardinality() {
+        public virtual long Card() {
             if (card_ == -1)
             {
                 long card = 1;
-                children_.ForEach(x => card = Math.Max(x.EstCardinality(), card));
+                children_.ForEach(x => card = Math.Max(x.Card(), card));
                 card_ = card;
             }
             return card_;

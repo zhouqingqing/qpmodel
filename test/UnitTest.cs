@@ -10,6 +10,7 @@ using adb.utils;
 using adb.logic;
 using adb.sqlparser;
 using adb.optimizer;
+using adb.optimizer.test;
 using adb.test;
 using adb.expr;
 using adb.dml;
@@ -319,6 +320,18 @@ namespace test
     [TestClass]
     public class OptimizerTest
     {
+        [TestMethod]
+        public void TestBasic()
+        {
+            VancePartition.Test();
+            SetOp.Test();
+            JoinGraph.Test();
+
+            Global.Init();
+            DPBushy.Test();
+            DPccp.Test();
+        }
+
         [TestMethod]
         public void TestMemo()
         {

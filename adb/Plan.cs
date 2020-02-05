@@ -106,7 +106,7 @@ namespace adb.logic
                 if (phynode != null && phynode.profile_ != null)
                 {
                     if (exp_showcost)
-                        r += $" (cost={phynode.Cost()}, rows={phynode.logic_.EstCardinality()})";
+                        r += $" (cost={phynode.Cost()}, rows={phynode.logic_.Card()})";
 
                     var profile = phynode.profile_;
                     if (profile.nloops_ == 1 || profile.nloops_==0)
