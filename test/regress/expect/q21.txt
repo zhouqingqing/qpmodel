@@ -62,21 +62,21 @@ PhysicLimit (100) (actual rows=0)
                             -> PhysicHashJoin  (actual rows=0)
                                 Output: supplier.s_name[0],l1.l_orderkey[3],l1.l_suppkey[4]
                                 Filter: supplier.s_suppkey[1]=l1.l_suppkey[4] and supplier.s_nationkey[2]=nation.n_nationkey[5]
-                                -> PhysicScanTable supplier (actual rows=0)
+                                -> PhysicScanTable supplier (actual rows=10)
                                     Output: supplier.s_name[1],supplier.s_suppkey[0],supplier.s_nationkey[3]
                                     Filter: true
-                                -> PhysicNLJoin  (actual rows=0)
+                                -> PhysicNLJoin  (actual rows=1783)
                                     Output: l1.l_orderkey[1],l1.l_suppkey[2],nation.n_nationkey[0]
-                                    -> PhysicScanTable nation (actual rows=0)
+                                    -> PhysicScanTable nation (actual rows=1)
                                         Output: nation.n_nationkey[0]
                                         Filter: nation.n_name[1]='SAUDI ARABIA'
-                                    -> PhysicHashJoin  (actual rows=0)
+                                    -> PhysicHashJoin  (actual rows=1783)
                                         Output: l1.l_orderkey[1],l1.l_suppkey[2]
                                         Filter: orders.o_orderkey[0]=l1.l_orderkey[1]
-                                        -> PhysicScanTable orders (actual rows=0)
+                                        -> PhysicScanTable orders (actual rows=726)
                                             Output: orders.o_orderkey[0]
                                             Filter: orders.o_orderstatus[2]='F'
-                                        -> PhysicScanTable lineitem as l1 (actual rows=0)
+                                        -> PhysicScanTable lineitem as l1 (actual rows=3752)
                                             Output: l1.l_orderkey[0],l1.l_suppkey[2]
                                             Filter: l1.l_receiptdate[12]>l1.l_commitdate[11]
                             -> PhysicScanTable lineitem as l2 (actual rows=0)
