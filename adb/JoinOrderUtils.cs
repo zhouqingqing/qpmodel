@@ -5,248 +5,11 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Numerics;
 using System.Diagnostics;
+using adb.optimizer.test;
 
 using BitVector = System.Int64;
 
-using adb.physic;
-
-// a small self-contained system for optimizer testing purpose
 namespace adb.optimizer.test
-{
-    class Stats
-    {
-        internal Dictionary<string, ulong> tables_ = new Dictionary<string, ulong>();
-
-        internal void AddTable(string table, ulong nrows)
-        {
-            tables_.Add(table, nrows);
-        }
-
-        public override string ToString()
-        {
-            string r = "";
-            foreach (var t in tables_)
-                r += t.Key + ": " + t.Value + "\n";
-            return r;
-        }
-    }
-
-    public static class Global
-    {
-        internal static Stats stat_;
-
-        public static void Init()
-        {
-            stat_ = new Stats();
-
-            // make the table cardinality a bit different so cost(T1, T2)!= cost (T5, T6) 
-            // to prevent us check the plan easily
-            //
-            stat_.AddTable("T1", 10);
-            stat_.AddTable("T2", 100);
-            stat_.AddTable("T3", 1000);
-            stat_.AddTable("T4", 200);
-            stat_.AddTable("T5", 20);
-
-            stat_.AddTable("T6", 11);
-            stat_.AddTable("T7", 110);
-            stat_.AddTable("T8", 1010);
-            stat_.AddTable("T9", 210);
-            stat_.AddTable("T10", 21);
-
-            stat_.AddTable("T11", 12);
-            stat_.AddTable("T12", 120);
-            stat_.AddTable("T13", 1020);
-            stat_.AddTable("T14", 220);
-            stat_.AddTable("T15", 22);
-
-            stat_.AddTable("T16", 13);
-            stat_.AddTable("T17", 130);
-            stat_.AddTable("T18", 1030);
-            stat_.AddTable("T19", 230);
-            stat_.AddTable("T20", 23);
-
-            stat_.AddTable("T21", 14);
-            stat_.AddTable("T22", 140);
-            stat_.AddTable("T23", 1040);
-            stat_.AddTable("T24", 240);
-            stat_.AddTable("T25", 24);
-
-            // tpch schema
-            stat_.AddTable("lineitem", 6 * 1024 * 1024);
-            stat_.AddTable("customer", (int)(0.15 * 1024 * 1024));
-            stat_.AddTable("orders", (int)(1.5 * 1024 * 1024));
-            stat_.AddTable("part", 200 * 1024);
-            stat_.AddTable("supplier", 10 * 1024);
-            stat_.AddTable("partsupp", 800 * 1024);
-            stat_.AddTable("nation", 25);
-            stat_.AddTable("region", 5);
-
-            // unnest paper tables
-            stat_.AddTable("students", 100);
-            stat_.AddTable("exams", 100 * 10);
-
-            // buildin tables
-            stat_.AddTable("a", 10);
-            stat_.AddTable("b", 100);
-            stat_.AddTable("c", 50);
-            stat_.AddTable("d", 300);
-        }
-    }
-
-    public abstract class TreeNode
-    {
-        CGroupMember member_;
-
-        // logical properties
-        // ---------------------
-        protected BitVector contained_ { get; set; }     // tables it contained (children recursively inclusive)
-        internal BitVector Contained { get { return contained_; } }
-        ulong card_ = long.MaxValue;        // output cardinality
-
-        // physical properities
-        // ---------------------
-        double cost_ = Double.NaN;
-
-
-        // exclusive cost of this node
-        internal double Cost()
-        {
-            // var cost = member_.physic_.Cost();
-            // use the computed value if possible
-            if (cost_ is Double.NaN)
-                cost_ = CalcCost();
-            return cost_;
-        }
-
-        protected string Tabs(int level)
-        {
-            return new string(' ', level * 4);
-        }
-        protected string CardCostString()
-        {
-            return " [#rows: " + Card() + ", cost: " + Cost() + "]";
-        }
-
-        // first ToString() is the default one, and the second is the one with level as argument
-        // derived class shall only override the second
-        public override string ToString() { return ToString(0); }
-
-        // abstract function every non-abstract Node implmentation shall implment
-        internal abstract string ToString(int level);
-        internal abstract double CalcCost();
-        internal abstract ulong Card();
-    }
-    class NodeGet : TreeNode
-    {
-        string table_;
-        internal NodeGet(string table, BitVector contained)
-        {
-            table_ = table;
-            contained_ = contained;
-        }
-
-        internal override double CalcCost() => Card() * 1;
-        internal override ulong Card() => Global.stat_.tables_[table_];
-        internal override string ToString(int level) => Tabs(level) + "Get(" + table_ + ")" + ":" + CardCostString() + "\n";
-        public override bool Equals(object obj)
-        {
-            NodeGet n = obj as NodeGet;
-            if (n == null)
-                return false;
-            return table_.Equals(n.table_);
-        }
-    }
-
-    class NodeJoin : TreeNode
-    {
-        protected TreeNode left_;
-        protected TreeNode right_;
-
-        public enum Implmentation
-        {
-            NLJoin,
-            HashJoin
-        }
-
-        internal NodeJoin(TreeNode left, TreeNode right)
-        {
-            Debug.Assert(left != null);
-            Debug.Assert(right != null);
-            left_ = left; right_ = right;
-
-            Debug.Assert(0 == (left.Contained & right.Contained));
-            contained_ = SetOp.Union(left.Contained, right.Contained);
-        }
-
-        static internal NodeJoin NewJoinImplmentation(Implmentation impl, TreeNode left, TreeNode right)
-        {
-            switch (impl)
-            {
-                case Implmentation.HashJoin:
-                    return new NodeHJ(left, right);
-                case Implmentation.NLJoin:
-                    return new NodeNLJ(left, right);
-                default:
-                    throw new InvalidProgramException();
-            }
-        }
-
-        internal override double CalcCost() => throw new InvalidProgramException("not cost before implmenetation");
-
-        internal override ulong Card() => (ulong)(left_.Card() * right_.Card() * 0.2);
-
-        internal override string ToString(int level)
-        {
-            string result = "";
-            result += Tabs(level) + "JOIN" + ":" + CardCostString() + "\n";
-            result += left_.ToString(level + 1);
-            result += right_.ToString(level + 1);
-
-            return result;
-        }
-
-        public override bool Equals(object obj)
-        {
-            NodeJoin n = obj as NodeJoin;
-            if (n == null)
-                return false;
-            return left_.Equals(n.left_) && right_.Equals(n.right_);
-        }
-    }
-
-    class NodeNLJ : NodeJoin
-    {
-        internal NodeNLJ(TreeNode left, TreeNode right) : base(left, right) { }
-        internal override double CalcCost() => left_.Card() * right_.Card() * 1.0;
-        internal override string ToString(int level)
-        {
-            string result = "";
-            result += Tabs(level) + "Nested Loop Join" + ":" + CardCostString() + "\n";
-            result += left_.ToString(level + 1);
-            result += right_.ToString(level + 1);
-
-            return result;
-        }
-    }
-
-    class NodeHJ : NodeJoin
-    {
-        internal NodeHJ(TreeNode left, TreeNode right) : base(left, right) { }
-        internal override double CalcCost() => left_.Card() * 1.1 + right_.Card() * 1.2;
-        internal override string ToString(int level)
-        {
-            string result = "";
-            result += Tabs(level) + "Hash Join" + ":" + CardCostString() + "\n";
-            result += left_.ToString(level + 1);
-            result += right_.ToString(level + 1);
-
-            return result;
-        }
-    }
-}
-
-namespace adb
 {
     static class Space
     {
@@ -514,7 +277,10 @@ namespace adb
             DoTest(new ClassRandom());
         }
     }
+}
 
+namespace adb.optimizer
+{
     static public class SetOp
     {
         static internal BitVector EmptySet
@@ -1022,12 +788,9 @@ namespace adb
 
         public override string ToString()
         {
-            string result = "";
-            foreach (var table in tables_)
-                result += table + " ";
+            var result = string.Join(",", tables_);
             result += "\n";
-            foreach (var j in joinbits_)
-                result += j + "\n";
+            result += string.Join(",", joinbits_);
 
             CheckInvariant();
             return result;

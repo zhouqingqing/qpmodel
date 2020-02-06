@@ -10,13 +10,9 @@ using adb.utils;
 using adb.logic;
 using adb.sqlparser;
 using adb.optimizer;
-using adb.optimizer.test;
 using adb.test;
 using adb.expr;
 using adb.dml;
-
-// failed tests:
-// sql = "select 5+5 as a1 from a where a1 > 2;";
 
 namespace test
 {
@@ -327,8 +323,6 @@ namespace test
             SetOp.Test();
             JoinGraph.Test();
 
-            Global.Init();
-            DPBushy.Test();
             DPccp.Test();
         }
 

@@ -12,6 +12,8 @@ using adb.index;
 using adb.stat;
 
 using Value = System.Object;
+using BitVector = System.Int64;
+
 
 namespace adb.physic
 {
@@ -112,6 +114,7 @@ namespace adb.physic
         }
 
         public long Card() => logic_.Card();
+        public BitVector tableContained_ { get => logic_.tableContained_; }
 
         // codegen support seciton
         // -----------------------
@@ -405,12 +408,37 @@ namespace adb.physic
         }
     }
 
-    public class PhysicNLJoin : PhysicNode
-    {
-        public PhysicNLJoin(LogicJoin logic, PhysicNode l, PhysicNode r) : base(logic)
+    public abstract class PhysicJoin: PhysicNode {
+        public enum Implmentation
+        {
+            NLJoin,
+            HashJoin
+        }
+
+        public PhysicJoin(LogicJoin logic, PhysicNode l, PhysicNode r) : base(logic)
         {
             children_.Add(l); children_.Add(r);
+            // Debug.Assert(tableContained_ != 0);
         }
+
+        static internal PhysicJoin NewJoinImplmentation(Implmentation impl, PhysicNode left, PhysicNode right)
+        {
+            var logic = new LogicJoin(left.logic_, right.logic_);
+            switch (impl)
+            {
+                case Implmentation.HashJoin:
+                    return new PhysicHashJoin(logic, left, right);
+                case Implmentation.NLJoin:
+                    return new PhysicNLJoin(logic, left, right);
+                default:
+                    throw new InvalidProgramException();
+            }
+        }
+    }
+
+    public class PhysicNLJoin : PhysicJoin
+    {
+        public PhysicNLJoin(LogicJoin logic, PhysicNode l, PhysicNode r) : base(logic, l, r) { }
         public override string ToString() => $"PNLJ({l_()},{r_()}: {Cost()})";
 
         public override string Exec(Func<Row, string> callback)
@@ -516,8 +544,7 @@ namespace adb.physic
         public override double Cost()
         {
             if (double.IsNaN(cost_))
-                cost_ = ((l_() as PhysicMemoRef).Logic().Card() + 10) * 
-                    ((r_() as PhysicMemoRef).Logic().Card() + 10);
+                cost_ = (l_().Card() + 10) * (r_().Card() + 10);
             return cost_;
         }
     }
@@ -546,18 +573,15 @@ namespace adb.physic
         public TaggedRow(Row row) { row_ = row; }
     }
 
-    public class PhysicHashJoin : PhysicNode
+    public class PhysicHashJoin : PhysicJoin
     {
-        public PhysicHashJoin(LogicJoin logic, PhysicNode l, PhysicNode r) : base(logic)
-        {
-            Debug.Assert(logic.filter_ != null);
-            children_.Add(l); children_.Add(r);
-        }
+        public PhysicHashJoin(LogicJoin logic, PhysicNode l, PhysicNode r) : base(logic, l, r) { }
         public override string ToString() => $"PHJ({l_()},{r_()}: {Cost()})";
 
         public override string Open(ExecContext context)
         {
             string cs = base.Open(context);
+            Debug.Assert(logic_.filter_ != null);
 
             // recreate the left side and right side key list - can't reuse old values 
             // because earlier optimization time keylist may have wrong bindings
@@ -742,8 +766,8 @@ namespace adb.physic
         {
             if (double.IsNaN(cost_))
             {
-                var buildcost = (l_() as PhysicMemoRef).Logic().Card() * 2.0;
-                var probecost = (r_() as PhysicMemoRef).Logic().Card() * 1.0;
+                var buildcost = l_().Card() * 2.0;
+                var probecost = r_().Card() * 1.0;
                 var outputcost = logic_.Card() * 1.0;
                 cost_ = buildcost + probecost + outputcost;
             }
@@ -995,7 +1019,7 @@ namespace adb.physic
         {
             if (double.IsNaN(cost_))
             {
-                var rowstosort = (child_() as PhysicMemoRef).Logic().Card() * 1.0;
+                var rowstosort = child_().Card() * 1.0;
                 cost_ = rowstosort * (0.1 + Math.Log(rowstosort));
             }
             return cost_;
