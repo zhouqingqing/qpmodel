@@ -133,6 +133,14 @@ namespace adb
         public static SysTable systable_ = new SysTable();
         public static SysStats sysstat_ = new SysStats();
 
+
+        static void createOptimizerTables()
+        {
+            List<ColumnDef> cols = new List<ColumnDef> { new ColumnDef("i", 0)};
+            for (int i = 0; i < 30; i++)
+                Catalog.systable_.CreateTable($"T{i}", cols);
+        }
+
         static void createBuildInTestTables()
         {
             // create tables
@@ -177,6 +185,7 @@ namespace adb
         {
             // be careful: any exception happened here will be swallowed without throw any exception
             createBuildInTestTables();
+            createOptimizerTables();
         }
 
         static internal void Init() { }

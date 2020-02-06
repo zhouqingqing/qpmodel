@@ -308,7 +308,7 @@ namespace adb.logic
         public override double Cost()
         {
             if (double.IsNaN(cost_))
-                cost_ = (l_() as PhysicMemoRef).MinCost() * (r_() as PhysicMemoRef).MinCost();
+                cost_ = l_().Card() * r_().Card();
             return cost_;
         }
     }
