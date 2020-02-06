@@ -8,7 +8,6 @@ using adb.physic;
 using adb.test;
 using adb.sqlparser;
 using adb.optimizer;
-using adb.optimizer.test;
 
 // Visusal Studio tip: 
 //   when autocomplete box is shown, press crtl+alt+space to switch autocompletion mode
@@ -33,7 +32,6 @@ namespace adb
             //return;
 
             //DPBushy.Test();
-            Global.Init();
             DPccp.Test();
             // doPython();
             Catalog.Init();
@@ -161,7 +159,7 @@ namespace adb
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.Explain(0));
 
-            PhysicNode phyplan = null;
+            physic.PhysicNode phyplan = null;
             if (a.queryOpt_.optimize_.use_memo_)
             {
                 Console.WriteLine("***************** optimized plan *************");

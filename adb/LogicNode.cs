@@ -10,6 +10,7 @@ using adb.optimizer;
 using adb.utils;
 
 using LogicSignature = System.Int64;
+using BitVector = System.Int64;
 
 namespace adb.logic
 {
@@ -31,6 +32,9 @@ namespace adb.logic
 
         // these fields are used to avoid recompute - be careful with stale caching
         protected List<TableRef> tableRefs_ = null;
+        // tables it contained (children recursively inclusive)
+        internal BitVector tableContained_ { get; set; }     
+
         // it is possible to really have this value but ok to recompute
         protected LogicSignature logicSign_ = -1;
 
@@ -386,7 +390,12 @@ namespace adb.logic
 
         public override string ToString() => $"({l_()} {type_} {r_()})";
         public override string ExplainInlineDetails(int depth) { return type_ == JoinType.Inner ? "" : type_.ToString(); }
-        public LogicJoin(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
+        public LogicJoin(LogicNode l, LogicNode r) { 
+            children_.Add(l); children_.Add(r);
+            //Debug.Assert(0 == (l.tableContained_ & r.tableContained_));
+            if (l != null && r != null)
+                tableContained_ = SetOp.Union(l.tableContained_, r.tableContained_);
+        }
         public LogicJoin(LogicNode l, LogicNode r, Expr filter): this(l, r) 
         { 
             filter_ = filter; 

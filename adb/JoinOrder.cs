@@ -9,9 +9,12 @@ using System.Numerics;
 using BitVector = System.Int64;
 
 using adb.utils;
-using adb.optimizer.test;
+using adb.logic;
+using adb.physic;
 using adb.optimizer;
 using adb.stat;
+using adb.expr;
+using adb.optimizer.test;
 
 // There are serveral major constructs in optimization:
 //   1. MEMO: where the plan is decomposed into groups and each group represents logic equal plan fragments.
@@ -34,17 +37,17 @@ namespace adb.optimizer
         // key:  the cgroup key
         // value: plan associated for the join
         //
-        Dictionary<BitVector, TreeNode> memo_ = new Dictionary<BitVector, TreeNode>();
-        Dictionary<BitVector, List<TreeNode>> candidates_ = new Dictionary<BitVector, List<TreeNode>>();
+        Dictionary<BitVector, PhysicNode> memo_ = new Dictionary<BitVector, PhysicNode>();
+        Dictionary<BitVector, List<PhysicNode>> candidates_ = new Dictionary<BitVector, List<PhysicNode>>();
 
-        internal TreeNode this[BitVector key]
+        internal PhysicNode this[BitVector key]
         {
             get
             {
                 // always starting from non-zero
                 Debug.Assert(key != 0);
 
-                TreeNode outvalue;
+                PhysicNode outvalue;
                 if (memo_.TryGetValue(key, out outvalue))
                     return outvalue;
                 return null;
@@ -58,13 +61,13 @@ namespace adb.optimizer
         }
 
         // debug purpose: save the existing one to candidate list
-        internal void AddToCandidate(BitVector key, TreeNode node)
+        internal void AddToCandidate(BitVector key, PhysicNode node)
         {
             Debug.Assert(node != null);
-            List<TreeNode> list;
+            List<PhysicNode> list;
             if (!candidates_.TryGetValue(key, out list))
             {
-                list = new List<TreeNode>();
+                list = new List<PhysicNode>();
                 candidates_[key] = list;
             }
             list.Add(node);
@@ -81,10 +84,10 @@ namespace adb.optimizer
             {
                 result += Convert.ToString(m.Key, 2).PadLeft(8, '0');
                 if (verbosity > 0)
-                    result += "\n" + m.Value.ToString(1) + "\n";
+                    result += "\n" + m.Value.ToString() + "\n";
                 result += "\tcandidates: "
                     + (candidates_.ContainsKey(m.Key) ? candidates_[m.Key].Count : 0);
-                result += "\tcost: " + m.Value.CalcCost() + "\n";
+                result += "\tcost: " + m.Value.Cost() + "\n";
             }
             return result;
         }
@@ -134,33 +137,35 @@ namespace adb.optimizer
             foreach (var table in graph.tables_)
             {
                 BitVector contained = 1 << graph.tables_.IndexOf(table);
-                bestTree_[contained] = new NodeGet(table, contained);
+                var logic = new LogicScanTable(new BaseTableRef(table));
+                logic.tableContained_ = contained;
+                bestTree_[contained] = new PhysicScanTable(logic);
             }
         }
 
-        internal abstract TreeNode Run(JoinGraph graph, BigInteger expectC1 = new BigInteger());
+        internal abstract PhysicNode Run(JoinGraph graph, BigInteger expectC1 = new BigInteger());
 
         // join T1 and T2 and return the minimal cost join tree
-        protected TreeNode MinimalJoinTree(TreeNode T1, TreeNode T2)
+        protected PhysicNode MinimalJoinTree(PhysicNode T1, PhysicNode T2)
         {
-            TreeNode bestJoin = null;
+            PhysicNode bestJoin = null;
 
             // for all join implmentations do
-            var implmentations = Enum.GetValues(typeof(NodeJoin.Implmentation));
-            foreach (NodeJoin.Implmentation impl1 in implmentations)
+            var implmentations = Enum.GetValues(typeof(PhysicJoin.Implmentation));
+            foreach (PhysicJoin.Implmentation impl1 in implmentations)
             {
-                foreach (NodeJoin.Implmentation impl2 in implmentations)
+                foreach (PhysicJoin.Implmentation impl2 in implmentations)
                 {
                     // right deep tree
                     //   Notes: we are suppposed to verify existing.Card equals plan.Card but
                     //   propogated round error prevent us to do so. 
                     //
-                    TreeNode plan = NodeJoin.NewJoinImplmentation(impl1, T1, T2);
+                    PhysicNode plan = PhysicJoin.NewJoinImplmentation(impl1, T1, T2);
                     if (bestJoin == null || bestJoin.Cost() > plan.Cost())
                         bestJoin = plan;
 
                     // left deep tree
-                    plan = NodeJoin.NewJoinImplmentation(impl2, T2, T1);
+                    plan = PhysicJoin.NewJoinImplmentation(impl2, T2, T1);
                     if (bestJoin == null || bestJoin.Cost() > plan.Cost())
                         bestJoin = plan;
                 }
@@ -172,11 +177,11 @@ namespace adb.optimizer
 
         // create join tree of (T1, T2) with commutative transform and record it in bestTree_
         //
-        protected TreeNode RemmberMinimalJoinTree(TreeNode T1, TreeNode T2)
+        protected PhysicNode RemmberMinimalJoinTree(PhysicNode T1, PhysicNode T2)
         {
-            TreeNode plan = MinimalJoinTree(T1, T2);
-            BitVector key = plan.Contained;
-            TreeNode existing = bestTree_[key];
+            PhysicNode plan = MinimalJoinTree(T1, T2);
+            BitVector key = plan.tableContained_;
+            PhysicNode existing = bestTree_[key];
             if (existing == null || existing.Cost() > plan.Cost())
                 bestTree_[key] = plan;
 
@@ -225,7 +230,7 @@ namespace adb.optimizer
     //
     public class DPBushy : JoinResolver
     {
-        override internal TreeNode Run(JoinGraph graph, BigInteger expectC1)
+        override internal PhysicNode Run(JoinGraph graph, BigInteger expectC1)
         {
             int ntables = graph.tables_.Count;
 
@@ -293,7 +298,6 @@ namespace adb.optimizer
 
         static public void Test()
         {
-            Global.Init();
             DoTest(new DPBushy());
         }
     }
@@ -391,7 +395,7 @@ namespace adb.optimizer
             }
         }
 
-        override internal TreeNode Run(JoinGraph graph, BigInteger expectC1)
+        override internal PhysicNode Run(JoinGraph graph, BigInteger expectC1)
         {
             int ntables = graph.tables_.Count;
 
@@ -422,7 +426,7 @@ namespace adb.optimizer
                 Debug.Assert(c1 == expectC1);
 
             var result = bestTree_[(1 << ntables) - 1];
-            Console.WriteLine(result);
+            Console.WriteLine(result.Explain());
             // Console.WriteLine(bestTree_);
 
             // verify that it generates same tree as DPBushy - we can't verify that the tree are 

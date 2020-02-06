@@ -28,6 +28,7 @@ namespace adb.logic
             public bool enable_indexseek { get; set; } = true;
             public bool use_memo_ { get; set; } = false;      // make it true by default
             public bool memo_disable_crossjoin { get; set; } = true;
+            public bool use_joinorder_solver { get; set; } = false;
 
             // codegen controls
             public bool use_codegen_ { get; set; } = false;
