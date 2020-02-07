@@ -7,6 +7,8 @@ using System.Numerics;
 using System.Diagnostics;
 using adb.optimizer.test;
 
+using adb.expr;
+
 using BitVector = System.Int64;
 
 namespace adb.optimizer.test
@@ -250,8 +252,9 @@ namespace adb.optimizer.test
 
             // first construct a random tree, then random add rest edges
             JoinGraph tree = (new ClassTree()).RandomGenerate(n);
-            var joins = tree.joins_.ToList();
-            for (int e = tree.joins_.Length; e < nedges;)
+            var tables = tree.tables_.Select(x => x.alias_).ToArray();
+            var joins = tree.preds_;
+            for (int e = tree.preds_.Count; e < nedges;)
             {
                 int i1 = rand.Next(0, n);
                 int i2 = rand.Next(0, n);
@@ -260,16 +263,18 @@ namespace adb.optimizer.test
                 if (i1 != i2)
                 {
                     string j1 = string.Format("{0}*{1}", tree.tables_[i1], tree.tables_[i2]);
+                    var join1 = JoinGraph.dbg_JoinStringToExpr(tables, j1);
                     string j2 = string.Format("{0}*{1}", tree.tables_[i2], tree.tables_[i1]);
-                    if (!joins.Contains(j1) && !joins.Contains(j2))
+                    var join2 = JoinGraph.dbg_JoinStringToExpr(tables, j2);
+                    if (!joins.Contains(join1) && !joins.Contains(join2))
                     {
-                        joins.Add(j1);
+                        joins.Add(join1);
                         e++;
                     }
                 }
             }
 
-            return new JoinGraph(tree.tables_.ToArray(), joins.ToArray());
+            return new JoinGraph(tables.Select(x => new BaseTableRef(x) as TableRef).ToList(), joins);
         }
 
         internal static void Test()
@@ -564,12 +569,12 @@ namespace adb.optimizer
     public class JoinGraph
     {
         // list of tables referenced
-        internal List<string> tables_;
+        internal List<TableRef> tables_ { get; set; }
         // per table join relationship
-        internal List<JoinContain> joinbits_ = new List<JoinContain>();
+        internal List<JoinContain> joinbits_;
 
-        // original join list
-        internal string[] joins_;
+        // original join predicates list
+        internal List<Expr> preds_;
 
         void CheckInvariant()
         {
@@ -577,37 +582,32 @@ namespace adb.optimizer
             Debug.Assert(joinbits_.Count == tables_.Count);
         }
 
-        // parse a join predicate like "T1 * T5" and returns index of T1 and T5
-        int[] ParseJoinPred(string j)
+        int[] ParseJoinPredExpr(Expr pred)
         {
-            Debug.Assert(j.Contains("*"));
-
+            Debug.Assert(pred.IsBoolean());
             int[] index = new int[2];
-            int split = j.IndexOf("*");
-            string j1 = j.Substring(0, split);
-            string j2 = j.Substring(split + 1);
-            int i1 = tables_.IndexOf(j1);
+            var j1 = pred.l_().tableRefs_[0];
+            var j2 = pred.r_().tableRefs_[0];
+            int i1 = tables_.FindIndex(x => j1.alias_ == x.alias_);
             index[0] = i1;
-            int i2 = tables_.IndexOf(j2);
+            int i2 = tables_.FindIndex(x => j2.alias_ == x.alias_);
             index[1] = i2;
 
             return index;
         }
 
-        // read through join strings and mark the contain join bits
-        //  say T2 * T5
+        // read through join exprs and mark the contain join bits
+        //  say T2.a = T5.a
         //  T2 is at tables_[3] and T5 is at tables_[7]
         //  then 
         //      joinbits_[3].bits_.Set(7)
         //      joinbits_[7].bits_.Set(3)
         //
-        void ProcessJoinList()
+        void markJoinBitsFromJoinPred(List<Expr> preds)
         {
-            var joins = joins_;
-
-            foreach (var j in joins)
+            foreach (var p in preds)
             {
-                var i12 = ParseJoinPred(j);
+                var i12 = ParseJoinPredExpr(p);
                 int i1 = i12[0], i2 = i12[1];
 
                 // verify no duplicated join pred
@@ -629,30 +629,22 @@ namespace adb.optimizer
         }
 
         // return if the subgraph S is connected
-        internal bool IsConnected(BitVector S)
-        {
-            return SubGraph(S).IsConnected();
-        }
+        internal bool IsConnected(BitVector S)=> SubGraph(S).IsConnected();
+        // given a table, enumerate all its neighbours
+        internal IEnumerable<int> NeighboursOf(int table) => joinbits_[table].Neighbours();
 
-        // example: {A,B,C}, {A*B, A*C}
-        internal JoinGraph(string[] tables, string[] joins)
+        internal JoinGraph(List<TableRef> tables, List<Expr> preds)
         {
-            var ntables = tables.Length;
+            var ntables = tables.Count;
 
-            tables_ = tables.ToList<string>();
-            joins_ = joins;
+            tables_ = tables;
+            preds_ = preds;
             joinbits_ = new List<JoinContain>(ntables);
             for (int i = 0; i < ntables; i++)
                 joinbits_.Add(new JoinContain(ntables));
 
-            ProcessJoinList();
+            markJoinBitsFromJoinPred(preds);
             CheckInvariant();
-        }
-
-        // given a table, enumerate all its neighbours
-        internal IEnumerable<int> NeighboursOf(int table)
-        {
-            return joinbits_[table].Neighbours();
         }
 
         // given a set of tables, returns the set of its neighbours
@@ -738,7 +730,7 @@ namespace adb.optimizer
             if (order.Length != ntables)
                 throw new InvalidProgramException();
 
-            List<string> newtables = new List<string>();
+            var newtables = new List<TableRef>();
             foreach (var o in order)
             {
                 newtables.Add(tables_[o]);
@@ -749,7 +741,7 @@ namespace adb.optimizer
                 joinbits_.Add(new JoinContain(ntables));
 
             // need to reprocess the join strings to reposition table references
-            ProcessJoinList();
+            markJoinBitsFromJoinPred(preds_);
             CheckInvariant();
         }
 
@@ -765,44 +757,92 @@ namespace adb.optimizer
         //
         internal JoinGraph SubGraph(BitVector S)
         {
-            List<string> subtables = new List<string>();
-            List<string> subjoins = new List<string>();
+            var subtables = new List<TableRef>();
 
             var subtablelist = SetOp.TablesAscending(S).ToList();
             foreach (var t in subtablelist)
             {
                 subtables.Add(tables_[t]);
             }
-            foreach (var j in joins_)
+            var subjoins = new List<Expr>();
+            foreach (var j in preds_)
             {
-                var i12 = ParseJoinPred(j);
+                var i12 = ParseJoinPredExpr(j);
                 int i1 = i12[0], i2 = i12[1];
 
                 if (subtablelist.Contains(i1) && subtablelist.Contains(i2))
                     subjoins.Add(j);
-
             }
-
-            return new JoinGraph(subtables.ToArray(), subjoins.ToArray());
+            return new JoinGraph(subtables, subjoins);
         }
 
         public override string ToString()
         {
             var result = string.Join(",", tables_);
-            result += "\n";
+            result += ";\n";
             result += string.Join(",", joinbits_);
 
             CheckInvariant();
             return result;
         }
 
+        // Test code interface to convert join string to Expr
+        //  with this function, we can write simpler join conditions like "T1*T2"
+        //
+        // example: {A,B,C}, {A.a=B.b, A.a=C.c}
+        internal JoinGraph(string[] tables, string[] preds) :
+            this(tables.Select(x => new BaseTableRef(x) as TableRef).ToList(), dbg_JoinStringToExpr(tables, preds))
+        { }
+        internal static Expr dbg_JoinStringToExpr(string[] tables, string v)
+        {
+            // parse a join predicate like "T1 * T5" and returns index of T1 and T5
+            static int[] dbg_ParseJoinPredString(List<string> tables, string j)
+            {
+                Debug.Assert(j.Contains("*"));
+
+                int[] index = new int[2];
+                int split = j.IndexOf("*");
+                string j1 = j.Substring(0, split);
+                string j2 = j.Substring(split + 1);
+                int i1 = tables.IndexOf(j1);
+                index[0] = i1;
+                int i2 = tables.IndexOf(j2);
+                index[1] = i2;
+
+                return index;
+            }
+
+            var i12 = dbg_ParseJoinPredString(tables.ToList(), v);
+            int i1 = i12[0], i2 = i12[1];
+
+            ColExpr l = new ColExpr(null, tables[i1], "a", new IntType());
+            var lref = new BaseTableRef(tables[i1]); l.tabRef_ = lref; l.tableRefs_.Add(lref);
+            l.bounded_ = true;
+            ColExpr r = new ColExpr(null, tables[i2], "a", new IntType());
+            var rref = new BaseTableRef(tables[i2]); r.tabRef_ = rref; r.tableRefs_.Add(rref);
+            r.bounded_ = true;
+            Expr pred = BinExpr.MakeBooleanExpr(l, r, "=");
+            return pred;
+        }
+        internal static List<Expr> dbg_JoinStringToExpr(string[] tables, string[] joins)
+        {
+            List<Expr> conds = new List<Expr>();
+            foreach (var v in joins)
+            {
+                conds.Add(dbg_JoinStringToExpr(tables, v));
+            }
+            return conds;
+        }
+
         static public void Test()
         {
             JoinGraph graph;
 
-            graph = new JoinGraph(new string[] { "A", "B", "C" }, new string[] { "A*B", "A*C" });
+            var tables = new string[] { "A", "B", "C" };
+            graph = new JoinGraph(tables, new string[] { "A*B", "A*C" });
             Console.WriteLine(graph);
-            graph = new JoinGraph(new string[] { "A", "B", "C", "D" }, new string[] { "A*B", "A*C", "A*D", "B*C" });
+            tables = new string[] { "A", "B", "C", "D" };
+            graph = new JoinGraph(tables, new string[] { "A*B", "A*C", "A*D", "B*C" });
             Console.WriteLine(graph);
 
             graph = new ClassTree().RandomGenerate(10);

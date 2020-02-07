@@ -1,8 +1,11 @@
 ﻿using System;
 using System.IO;
+using System.Collections.Generic;
+using System.Linq;
 using IronPython.Hosting;
 
 using adb.codegen;
+using adb.expr;
 using adb.logic;
 using adb.physic;
 using adb.test;
@@ -28,21 +31,15 @@ namespace adb
 
         static void Main(string[] args)
         {
-            JoinGraph.Test();
-            //return;
-
-            //DPBushy.Test();
-            DPccp.Test();
-            // doPython();
+            //DPccp.Test();
             Catalog.Init();
-            GC.Collect();
 
             string sql = "";
 
-            if (false)
+            if (true)
             {
                 JOBench.CreateTables();
-                sql = File.ReadAllText("../../../jobench/1a.sql");
+                sql = File.ReadAllText("../../../jobench/28b.sql");
                 goto doit;
             }
 
@@ -56,7 +53,7 @@ namespace adb
                 goto doit;
             }
 
-            if (true)
+            if (false)
             { 
                 Tpcds.CreateTables();
                 sql = File.ReadAllText("../../../tpcds/problem_queries/q64.sql");
@@ -128,15 +125,7 @@ namespace adb
             sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
 
         doit:
-            //sql = "select * from d where 3<d1;";
-
-            //sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 limit 2;";
-            //sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
-            //sql = "select a1.*, a2.a1,a2.a2 from (select * from a) a1, (select * from a) a2;";
-            //sql = "select * from a, b, c where a1=b1 and a2=c2 and b3=c3;";
-            sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
-            sql = "select a2*a1, repeat('a', a2) from a where a1>= (select b1 from b where a2=b2);";
-            sql = "select a2*2 from a, b where a1=b1;";
+            //sql = "select a2*2 from a, b, c, d where a1=b1 and c1=d1 and d2=b3";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
@@ -158,6 +147,10 @@ namespace adb
             a.explain_.show_cost_ =  a.queryOpt_.optimize_.use_memo_;
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.Explain(0));
+            JoinGraph graph = new JoinGraph(a.bindContext_.boundFrom_.Values.ToList(), 
+                a.logicPlan_.children_[0].filter_.FilterToAndList().Where(x=>x.tableRefs_.Count>=2).ToList());
+            DPccp solver = new DPccp();
+            solver.Reset().Run(graph);
 
             physic.PhysicNode phyplan = null;
             if (a.queryOpt_.optimize_.use_memo_)
