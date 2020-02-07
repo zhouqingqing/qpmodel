@@ -323,6 +323,7 @@ namespace test
             SetOp.Test();
             JoinGraph.Test();
 
+            DPBushy.Test();
             DPccp.Test();
         }
 

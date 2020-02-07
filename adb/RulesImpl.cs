@@ -221,5 +221,20 @@ namespace adb.optimizer
             return new CGroupMember(phy, expr.group_);
         }
     }
+    public class Nary2Nary : ImplmentationRule
+    {
+        public override bool Appliable(CGroupMember expr)
+        {
+            var log = expr.logic_ as LogicNaryJoin;
+            return log != null;
+        }
 
+        public override CGroupMember Apply(CGroupMember expr)
+        {
+            var log = expr.logic_ as LogicNaryJoin;
+            var solver = new DPccp();
+            var joinplan = solver.Reset().Run(log.graph_);
+            return new CGroupMember(joinplan, expr.group_);
+        }
+    }
 }

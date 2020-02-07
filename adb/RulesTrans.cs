@@ -27,6 +27,7 @@ namespace adb.optimizer
             new From2From(),
             new Limit2Limit(),
             new Append2Append(),
+            new Nary2Nary(),
             new JoinCommutativeRule(),  // intentionally add a duplicated rule
         };
 

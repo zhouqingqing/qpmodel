@@ -305,11 +305,10 @@ namespace adb.logic
             return null;
         }
 
-        public override double Cost()
+        public override double EstimateCost()
         {
-            if (double.IsNaN(cost_))
-                cost_ = l_().Card() * r_().Card();
-            return cost_;
+            double cost = l_().Card() * r_().Card();
+            return cost;
         }
     }
 
@@ -367,11 +366,10 @@ namespace adb.logic
             return null;
         }
 
-        public override double Cost()
+        public override double EstimateCost()
         {
-            if (double.IsNaN(cost_))
-                cost_ = (l_() as PhysicMemoRef).MinCost() * (r_() as PhysicMemoRef).MinCost();
-            return cost_;
+            double cost = l_().Card() * r_().Card();
+            return cost;
         }
     }
 }

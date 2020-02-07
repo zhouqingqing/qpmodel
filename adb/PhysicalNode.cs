@@ -20,10 +20,8 @@ namespace adb.physic
     public abstract class PhysicNode : PlanNode<PhysicNode>
     {
         public LogicNode logic_;
-        internal PhysicProfiling profile_;
-
         internal double cost_ = double.NaN;
-
+        internal PhysicProfiling profile_;
         internal ExecContext context_;
 
         protected PhysicNode(LogicNode logic)
@@ -40,7 +38,7 @@ namespace adb.physic
         public override string ExplainMoreDetails(int depth, ExplainOption option) => logic_.ExplainMoreDetails(depth, option);
 
 
-        public void Validate()
+        public void ValidateThis()
         {
             VisitEach(x =>
             {
@@ -107,11 +105,13 @@ namespace adb.physic
             return r;
         }
 
-        public virtual double Cost() {
+        public double Cost()
+        {
             if (double.IsNaN(cost_))
-                cost_ = 10.0;
+                cost_ = EstimateCost();
             return cost_;
         }
+        public virtual double EstimateCost() => 10.0;
 
         public long Card() => logic_.Card();
         public BitVector tableContained_ { get => logic_.tableContained_; }
@@ -297,15 +297,11 @@ namespace adb.physic
             return cs;
         }
 
-        public override double Cost()
+        public override double EstimateCost()
         {
-            if (double.IsNaN(cost_))
-            {
-                var logic = (logic_) as LogicScanTable;
-                var tablerows = Catalog.sysstat_.EstCardinality(logic.tabref_.relname_);
-                cost_ = tablerows * 1.0;
-            }
-            return cost_;
+            var logic = (logic_) as LogicScanTable;
+            var tablerows = Catalog.sysstat_.EstCardinality(logic.tabref_.relname_);
+            return tablerows * 1.0;
         }
     }
 
@@ -346,15 +342,11 @@ namespace adb.physic
             return null;
         }
 
-        public override double Cost()
+        public override double EstimateCost()
         {
-            if (double.IsNaN(cost_))
-            {
-                // 2 means < 50% selection ratio will pick up index
-                var logic = (logic_) as LogicScanTable;
-                cost_ = logic.Card() * 2.0;
-            }
-            return cost_;
+            // 2 means < 50% selection ratio will pick up index
+            var logic = (logic_) as LogicScanTable;
+            return logic.Card() * 2.0;
         }
     }
 
@@ -424,9 +416,9 @@ namespace adb.physic
             // Debug.Assert(tableContained_ != 0);
         }
 
-        static internal PhysicJoin NewJoinImplmentation(Implmentation impl, PhysicNode left, PhysicNode right)
+        static internal PhysicJoin CreatePhysicJoin(Implmentation impl, PhysicNode left, PhysicNode right, Expr pred)
         {
-            var logic = new LogicJoin(left.logic_, right.logic_);
+            var logic = new LogicJoin(left.logic_, right.logic_, pred);
             switch (impl)
             {
                 case Implmentation.HashJoin:
@@ -544,11 +536,10 @@ namespace adb.physic
             return s;
         }
 
-        public override double Cost()
+        public override double EstimateCost()
         {
-            if (double.IsNaN(cost_))
-                cost_ = (l_().Card() + 10) * (r_().Card() + 10);
-            return cost_;
+            double cost = (l_().Card() + 10) * (r_().Card() + 10);
+            return cost;
         }
     }
 
@@ -765,16 +756,12 @@ namespace adb.physic
             return s;
         }
 
-        public override double Cost()
+        public override double EstimateCost()
         {
-            if (double.IsNaN(cost_))
-            {
-                var buildcost = l_().Card() * 2.0;
-                var probecost = r_().Card() * 1.0;
-                var outputcost = logic_.Card() * 1.0;
-                cost_ = buildcost + probecost + outputcost;
-            }
-            return cost_;
+            var buildcost = l_().Card() * 2.0;
+            var probecost = r_().Card() * 1.0;
+            var outputcost = logic_.Card() * 1.0;
+            return buildcost + probecost + outputcost;
         }
     }
 
@@ -1018,14 +1005,11 @@ namespace adb.physic
             return s;
         }
 
-        public override double Cost()
+        public override double EstimateCost()
         {
-            if (double.IsNaN(cost_))
-            {
-                var rowstosort = child_().Card() * 1.0;
-                cost_ = rowstosort * (0.1 + Math.Log(rowstosort));
-            }
-            return cost_;
+            var rowstosort = child_().Card() * 1.0;
+            double cost = rowstosort * (0.1 + Math.Log(rowstosort));
+            return cost;
         }
     }
 

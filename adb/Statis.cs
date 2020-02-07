@@ -90,7 +90,7 @@ namespace adb.stat
 
             if (selectivity == 0)
                 selectivity = StatConst.sel_zero;
-            Estimator.validSelectivity(selectivity);
+            Estimator.validateSelectivity(selectivity);
             return selectivity;
         }
     }
@@ -102,7 +102,7 @@ namespace adb.stat
         public Value[] values_ = new Value[NValues_];
         public double[] freqs_ = new double[NValues_];
 
-        internal void Validate()
+        internal void validateThis()
         {
             Debug.Assert(nvalues_ <= NValues_);
             double total = 0;
@@ -144,7 +144,7 @@ namespace adb.stat
 
             if (selectivity == 0)
                 selectivity = StatConst.sel_zero;
-            Estimator.validSelectivity(selectivity);
+            Estimator.validateSelectivity(selectivity);
             return selectivity;
         }
     }
@@ -192,7 +192,7 @@ namespace adb.stat
                     i++;
                 }
                 mcv_.nvalues_ = i;
-                mcv_.Validate();
+                mcv_.validateThis();
             }
             else
             {
@@ -261,7 +261,7 @@ namespace adb.stat
 
     public static class Estimator
     {
-        public static void validSelectivity(double selectivity)
+        public static void validateSelectivity(double selectivity)
         {
             Debug.Assert(selectivity > 0 && selectivity <= 1.0 + StatConst.epsilon_);
         }
@@ -294,8 +294,6 @@ namespace adb.stat
         //   
         public static double EstSelectivity(this Expr filter)
         {
-            Debug.Assert(filter.IsBoolean());
-
             double selectivity = 1.0;
             var andlist = filter.FilterToAndList();
             if (andlist.Count == 1)
@@ -306,7 +304,7 @@ namespace adb.stat
                     selectivity *= EstSelectivity(v);
             }
 
-            validSelectivity(selectivity);
+            validateSelectivity(selectivity);
             return selectivity;
         }
     }

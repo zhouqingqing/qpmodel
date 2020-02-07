@@ -215,15 +215,9 @@ namespace adb.expr
         {
             if (allColumnsRefs_ is null || refresh)
             {
-                List<Expr> l = new List<Expr>();
                 var columns = Catalog.systable_.TableCols(relname_);
-                foreach (var c in columns)
-                {
-                    ColumnDef coldef = c.Value;
-                    l.Add(new ColExpr(null, alias_, coldef.name_, coldef.type_));
-                }
-
-                allColumnsRefs_ = l;
+                allColumnsRefs_ = columns.Select(x 
+                    => new ColExpr(null, alias_, x.Value.name_, x.Value.type_) as Expr).ToList();
             }
 
             return allColumnsRefs_;

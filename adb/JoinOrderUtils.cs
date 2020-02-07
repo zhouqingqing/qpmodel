@@ -8,8 +8,11 @@ using System.Diagnostics;
 using adb.optimizer.test;
 
 using adb.expr;
+using adb.logic;
+using adb.utils;
 
 using BitVector = System.Int64;
+using LogicSignature = System.Int64;
 
 namespace adb.optimizer.test
 {
@@ -252,7 +255,7 @@ namespace adb.optimizer.test
 
             // first construct a random tree, then random add rest edges
             JoinGraph tree = (new ClassTree()).RandomGenerate(n);
-            var tables = tree.tables_.Select(x => x.alias_).ToArray();
+            var tables = tree.vertices_.Select(x => (x as LogicScanTable).tabref_.alias_).ToArray();
             var joins = tree.preds_;
             for (int e = tree.preds_.Count; e < nedges;)
             {
@@ -262,9 +265,9 @@ namespace adb.optimizer.test
                 // no duplicates or self-join
                 if (i1 != i2)
                 {
-                    string j1 = string.Format("{0}*{1}", tree.tables_[i1], tree.tables_[i2]);
+                    string j1 = string.Format("{0}*{1}", tree.vertices_[i1], tree.vertices_[i2]);
                     var join1 = JoinGraph.dbg_JoinStringToExpr(tables, j1);
-                    string j2 = string.Format("{0}*{1}", tree.tables_[i2], tree.tables_[i1]);
+                    string j2 = string.Format("{0}*{1}", tree.vertices_[i2], tree.vertices_[i1]);
                     var join2 = JoinGraph.dbg_JoinStringToExpr(tables, j2);
                     if (!joins.Contains(join1) && !joins.Contains(join2))
                     {
@@ -274,7 +277,7 @@ namespace adb.optimizer.test
                 }
             }
 
-            return new JoinGraph(tables.Select(x => new BaseTableRef(x) as TableRef).ToList(), joins);
+            return new JoinGraph(tables.Select(x => new LogicScanTable(new BaseTableRef(x)) as LogicNode).ToList(), joins);
         }
 
         internal static void Test()
@@ -288,10 +291,7 @@ namespace adb.optimizer
 {
     static public class SetOp
     {
-        static internal BitVector EmptySet
-        {
-            get { return 0; }
-        }
+        static internal BitVector EmptySet { get { return 0; } }
 
         static internal BitVector SingletonSet(int table)
         {
@@ -323,17 +323,9 @@ namespace adb.optimizer
         }
 
         // returns interact of set S1 and S2
-        static internal BitVector Intersect(BitVector S1, BitVector S2)
-        {
-            return S1 & S2;
-        }
-
+        static internal BitVector Intersect(BitVector S1, BitVector S2) => S1 & S2;
         // returns union of set S1 and S2
-        static internal BitVector Union(BitVector S1, BitVector S2)
-        {
-            return S1 | S2;
-        }
-
+        static internal BitVector Union(BitVector S1, BitVector S2) => S1 | S2;
         // returns S1 \ S2
         //   case 1: if S1 is a cover set of S2 (like genereated by VancePartition), 
         //        eg. S1: 1001101 S2: 1000100 then S1\S2 = S1-S2 = 0001001
@@ -343,11 +335,7 @@ namespace adb.optimizer
         //        then S1 \ S2 shall ignore these elements:
         //        eg. S1: 1001101 S2: 0011111 then S1\S2 = 1000000
         //
-        static internal BitVector Substract(BitVector S1, BitVector S2)
-        {
-            return S1 & (~S2);
-        }
-
+        static internal BitVector Substract(BitVector S1, BitVector S2) => S1 & (~S2);
         static internal BitVector CoveredSubstract(BitVector S1, BitVector S2)
         {
             Debug.Assert((S1 | S2) == S1);
@@ -503,12 +491,12 @@ namespace adb.optimizer
 
     class JoinContain
     {
-        int ntables_;
+        int nvertices_;
         internal BitVector S_;
 
-        internal JoinContain(int ntables)
+        internal JoinContain(int nvertices)
         {
-            ntables_ = ntables;
+            nvertices_ = nvertices;
         }
 
         // set/get on low to high order
@@ -549,8 +537,8 @@ namespace adb.optimizer
         public override string ToString()
         {
             string result = "";
-            result = Convert.ToString(S_, 2).PadLeft(ntables_, '0');
-            Debug.Assert(result.Length == ntables_);
+            result = Convert.ToString(S_, 2).PadLeft(nvertices_, '0');
+            Debug.Assert(result.Length == nvertices_);
             return result;
         }
     }
@@ -560,7 +548,7 @@ namespace adb.optimizer
      *    A - B 
      *     \ C
      *  =>   
-     *     tables_[3] = {A, B, C}
+     *     vertices_[3] = {A, B, C}
      *     joinbits_[3] = {{110}, {001}, {001}} 
      *     
      *     Notes:
@@ -569,28 +557,38 @@ namespace adb.optimizer
     public class JoinGraph
     {
         // list of tables referenced
-        internal List<TableRef> tables_ { get; set; }
-        // per table join relationship
-        internal List<JoinContain> joinbits_;
+        internal List<LogicNode> vertices_ { get; set; }
+        // per vertice join relationship
+        internal List<JoinContain> joinbits_ { get; set; }
+        // per edge vertices coverage
+        internal List<BitVector> predContained_ { get; set; }
 
         // original join predicates list
-        internal List<Expr> preds_;
+        internal List<Expr> preds_ { get; set; }
 
-        void CheckInvariant()
+        // optional: memo associated with it
+        internal Memo memo_;
+
+        void validateThis()
         {
             // every table has exactly one join bit cover
-            Debug.Assert(joinbits_.Count == tables_.Count);
+            Debug.Assert(joinbits_.Count == vertices_.Count);
+            Debug.Assert(predContained_.Count == preds_.Count);
         }
 
+        // find the LogicNode the join predicates references
         int[] ParseJoinPredExpr(Expr pred)
         {
             Debug.Assert(pred.IsBoolean());
             int[] index = new int[2];
+
+            Utils.Assumes(pred.l_().tableRefs_.Count == 1);
             var j1 = pred.l_().tableRefs_[0];
+            Utils.Assumes(pred.r_().tableRefs_.Count == 1);
             var j2 = pred.r_().tableRefs_[0];
-            int i1 = tables_.FindIndex(x => j1.alias_ == x.alias_);
+            int i1 = vertices_.FindIndex(x => j1.alias_ == (x as LogicScanTable).tabref_.alias_);
             index[0] = i1;
-            int i2 = tables_.FindIndex(x => j2.alias_ == x.alias_);
+            int i2 = vertices_.FindIndex(x => j2.alias_ == (x as LogicScanTable).tabref_.alias_);
             index[1] = i2;
 
             return index;
@@ -605,8 +603,11 @@ namespace adb.optimizer
         //
         void markJoinBitsFromJoinPred(List<Expr> preds)
         {
-            foreach (var p in preds)
+            var npreds = preds.Count;
+            predContained_ = new List<BitVector>(npreds);
+            for (int i = 0; i < npreds; i++)
             {
+                var p = preds[i];
                 var i12 = ParseJoinPredExpr(p);
                 int i1 = i12[0], i2 = i12[1];
 
@@ -615,13 +616,16 @@ namespace adb.optimizer
                 joinbits_[i1][i2] = true;
                 Debug.Assert(!joinbits_[i2][i1]);
                 joinbits_[i2][i1] = true;
+
+                // mark predicate containage as well
+                predContained_.Add(SetOp.SingletonSet(i1) | SetOp.SingletonSet(i2));
             }
         }
 
         // return if current join graph is connected
         bool IsConnected()
         {
-            int ntables = tables_.Count;
+            int ntables = vertices_.Count;
 
             // BFS search will returns number of nodes connected
             var nodes = BFS();
@@ -629,29 +633,29 @@ namespace adb.optimizer
         }
 
         // return if the subgraph S is connected
-        internal bool IsConnected(BitVector S)=> SubGraph(S).IsConnected();
+        internal bool IsConnected(BitVector S) => SubGraph(S).IsConnected();
         // given a table, enumerate all its neighbours
         internal IEnumerable<int> NeighboursOf(int table) => joinbits_[table].Neighbours();
 
-        internal JoinGraph(List<TableRef> tables, List<Expr> preds)
+        internal JoinGraph(List<LogicNode> vertices, List<Expr> preds)
         {
-            var ntables = tables.Count;
+            var ntables = vertices.Count;
 
-            tables_ = tables;
+            vertices_ = vertices;
             preds_ = preds;
             joinbits_ = new List<JoinContain>(ntables);
             for (int i = 0; i < ntables; i++)
                 joinbits_.Add(new JoinContain(ntables));
 
             markJoinBitsFromJoinPred(preds);
-            CheckInvariant();
+            validateThis();
         }
 
         // given a set of tables, returns the set of its neighbours
         BitVector Neighbours(BitVector S)
         {
             BitVector result = 0;
-            int ntables = tables_.Count;
+            int ntables = vertices_.Count;
 
             foreach (var t in SetOp.TablesAscending(S))
             {
@@ -687,7 +691,7 @@ namespace adb.optimizer
         //                 Q.enqueue(w) 
         int[] BFS()
         {
-            int ntables = tables_.Count;
+            int ntables = vertices_.Count;
             var result = new List<int>();
             var discovered = new bool[ntables];
 
@@ -723,26 +727,26 @@ namespace adb.optimizer
         // record the tables per BFS order
         internal void ReorderBFS()
         {
-            int ntables = tables_.Count;
+            int ntables = vertices_.Count;
             var order = BFS();
 
             // it has to be connected
             if (order.Length != ntables)
                 throw new InvalidProgramException();
 
-            var newtables = new List<TableRef>();
+            var newverts = new List<LogicNode>();
             foreach (var o in order)
             {
-                newtables.Add(tables_[o]);
+                newverts.Add(vertices_[o]);
             }
-            tables_ = newtables;
+            vertices_ = newverts;
             joinbits_ = new List<JoinContain>();
             for (int i = 0; i < ntables; i++)
                 joinbits_.Add(new JoinContain(ntables));
 
             // need to reprocess the join strings to reposition table references
             markJoinBitsFromJoinPred(preds_);
-            CheckInvariant();
+            validateThis();
         }
 
         // extra a subgraph for the given nodes set S
@@ -757,12 +761,12 @@ namespace adb.optimizer
         //
         internal JoinGraph SubGraph(BitVector S)
         {
-            var subtables = new List<TableRef>();
+            var subvert = new List<LogicNode>();
 
             var subtablelist = SetOp.TablesAscending(S).ToList();
             foreach (var t in subtablelist)
             {
-                subtables.Add(tables_[t]);
+                subvert.Add(vertices_[t]);
             }
             var subjoins = new List<Expr>();
             foreach (var j in preds_)
@@ -773,16 +777,16 @@ namespace adb.optimizer
                 if (subtablelist.Contains(i1) && subtablelist.Contains(i2))
                     subjoins.Add(j);
             }
-            return new JoinGraph(subtables, subjoins);
+            return new JoinGraph(subvert, subjoins);
         }
 
         public override string ToString()
         {
-            var result = string.Join(",", tables_);
+            var result = string.Join(",", vertices_);
             result += ";\n";
             result += string.Join(",", joinbits_);
 
-            CheckInvariant();
+            validateThis();
             return result;
         }
 
@@ -790,10 +794,10 @@ namespace adb.optimizer
         //  with this function, we can write simpler join conditions like "T1*T2"
         //
         // example: {A,B,C}, {A.a=B.b, A.a=C.c}
-        internal JoinGraph(string[] tables, string[] preds) :
-            this(tables.Select(x => new BaseTableRef(x) as TableRef).ToList(), dbg_JoinStringToExpr(tables, preds))
-        { }
-        internal static Expr dbg_JoinStringToExpr(string[] tables, string v)
+        internal JoinGraph(string[] vertices, string[] preds) :
+            this(vertices.Select(x => new LogicScanTable(new BaseTableRef(x)) as LogicNode).ToList(),
+            dbg_JoinStringToExpr(vertices, preds)){ }
+        internal static Expr dbg_JoinStringToExpr(string[] vertices, string v)
         {
             // parse a join predicate like "T1 * T5" and returns index of T1 and T5
             static int[] dbg_ParseJoinPredString(List<string> tables, string j)
@@ -812,24 +816,24 @@ namespace adb.optimizer
                 return index;
             }
 
-            var i12 = dbg_ParseJoinPredString(tables.ToList(), v);
+            var i12 = dbg_ParseJoinPredString(vertices.ToList(), v);
             int i1 = i12[0], i2 = i12[1];
 
-            ColExpr l = new ColExpr(null, tables[i1], "a", new IntType());
-            var lref = new BaseTableRef(tables[i1]); l.tabRef_ = lref; l.tableRefs_.Add(lref);
+            ColExpr l = new ColExpr(null, vertices[i1], $"a{i1+1}", new IntType());
+            var lref = new BaseTableRef(vertices[i1]); l.tabRef_ = lref; l.tableRefs_.Add(lref);
             l.bounded_ = true;
-            ColExpr r = new ColExpr(null, tables[i2], "a", new IntType());
-            var rref = new BaseTableRef(tables[i2]); r.tabRef_ = rref; r.tableRefs_.Add(rref);
+            ColExpr r = new ColExpr(null, vertices[i2], $"a{i2+1}", new IntType());
+            var rref = new BaseTableRef(vertices[i2]); r.tabRef_ = rref; r.tableRefs_.Add(rref);
             r.bounded_ = true;
             Expr pred = BinExpr.MakeBooleanExpr(l, r, "=");
             return pred;
         }
-        internal static List<Expr> dbg_JoinStringToExpr(string[] tables, string[] joins)
+        internal static List<Expr> dbg_JoinStringToExpr(string[] vertices, string[] joins)
         {
             List<Expr> conds = new List<Expr>();
             foreach (var v in joins)
             {
-                conds.Add(dbg_JoinStringToExpr(tables, v));
+                conds.Add(dbg_JoinStringToExpr(vertices, v));
             }
             return conds;
         }
@@ -850,4 +854,25 @@ namespace adb.optimizer
         }
     }
 
+    // Naryjoin is essentially a combination of binary joins but since it is not binary join so no
+    // transformation works on it. An implmentation Nary2Nary directly translate it to the optimal
+    // form of physical plan with join order resolvers.
+    //
+    public class LogicNaryJoin : LogicNode
+    {
+        internal JoinGraph graph_;
+        internal LogicJoin join_;
+
+        public LogicNaryJoin(LogicJoin join, JoinGraph graph)
+        {
+            graph_ = graph;
+            join_ = join;
+            children_.AddRange(graph.vertices_);
+        }
+
+        public override string ToString() => $"NaryJoin({string.Join(",", children_)})";
+
+        // FIXME: signature shall consider join filter pushed down
+        public override LogicSignature MemoLogicSign() => join_.MemoLogicSign();
+    }
 }

@@ -37,8 +37,10 @@ namespace adb.optimizer
         // key:  the cgroup key
         // value: plan associated for the join
         //
-        Dictionary<BitVector, PhysicNode> memo_ = new Dictionary<BitVector, PhysicNode>();
-        Dictionary<BitVector, List<PhysicNode>> candidates_ = new Dictionary<BitVector, List<PhysicNode>>();
+        Dictionary<BitVector, PhysicNode> memo_ { get; set; } = new Dictionary<BitVector, PhysicNode>();
+
+        // debug info
+        Dictionary<BitVector, List<PhysicNode>> dbg_candidates_ = new Dictionary<BitVector, List<PhysicNode>>();
 
         internal PhysicNode this[BitVector key]
         {
@@ -55,29 +57,26 @@ namespace adb.optimizer
             set
             {
                 if (memo_.ContainsKey(key))
-                    AddToCandidate(key, memo_[key]);
+                    dbg_AddToCandidate(key, memo_[key]);
                 memo_[key] = value;
             }
         }
 
         // debug purpose: save the existing one to candidate list
-        internal void AddToCandidate(BitVector key, PhysicNode node)
+        internal void dbg_AddToCandidate(BitVector key, PhysicNode node)
         {
             Debug.Assert(node != null);
             List<PhysicNode> list;
-            if (!candidates_.TryGetValue(key, out list))
+            if (!dbg_candidates_.TryGetValue(key, out list))
             {
                 list = new List<PhysicNode>();
-                candidates_[key] = list;
+                dbg_candidates_[key] = list;
             }
             list.Add(node);
         }
 
-        public override string ToString()
-        {
-            return ToString(0);
-        }
-        internal string ToString(int verbosity)
+        public override string ToString()=> Explain(0);
+        internal string Explain(int verbosity)
         {
             string result = "BestTree: " + memo_.Count + "\n";
             foreach (var m in memo_)
@@ -86,7 +85,7 @@ namespace adb.optimizer
                 if (verbosity > 0)
                     result += "\n" + m.Value.ToString() + "\n";
                 result += "\tcandidates: "
-                    + (candidates_.ContainsKey(m.Key) ? candidates_[m.Key].Count : 0);
+                    + (dbg_candidates_.ContainsKey(m.Key) ? dbg_candidates_[m.Key].Count : 0);
                 result += "\tcost: " + m.Value.Cost() + "\n";
             }
             return result;
@@ -124,33 +123,113 @@ namespace adb.optimizer
     public abstract class JoinResolver
     {
         protected BestTree bestTree_ = new BestTree();
+        protected JoinGraph graph_;
+        protected Dictionary<ValueTuple<PhysicNode, PhysicNode>, Expr> joinpreds_ = new Dictionary<ValueTuple<PhysicNode, PhysicNode>, Expr>();
 
         internal JoinResolver Reset()
         {
             bestTree_ = new BestTree();
+            joinpreds_ = new Dictionary<ValueTuple<PhysicNode, PhysicNode>, Expr>();
             return this;
         }
 
-        // initialization: enqueue all single tables
+        // We assume plan is with normalized shape:
+        //    LogicFilter
+        //        LogicJoin
+        //               ...
+        // There shall be only 1 join filter on top. 
+        // Subqueries is not considered here.
+        //
+        internal static JoinGraph ExtractJoinGraph(LogicNode plan, out LogicFilter joinfilter)
+        {
+            // find the join filter
+            var filters = new List<LogicFilter>();
+            plan.FindNodeTyped<LogicFilter>(filters);
+            var joinfilters = filters.Where(x => x.child_() is LogicJoin).ToList();
+
+            Debug.Assert(joinfilters.Count <= 1);
+            if (joinfilters.Count == 1)
+            {
+                JoinGraph graph = null;
+                joinfilter = joinfilters[0];
+                var topjoin = joinfilter.child_() as LogicJoin;
+
+                // vertices are non-join nodes. We don't do any cross boundary optimization
+                // (say pull aggregation up thus we have bigger join space etc), which is 
+                // the job of upper layer.
+                //
+                var vertices = new List<LogicNode>();
+                topjoin.VisitEach(x => {
+                    if (!(x is LogicJoin))
+                        vertices.Add(x as LogicNode);
+                });
+
+                graph = new JoinGraph(vertices, joinfilters[0].filter_.FilterToAndList());
+                return graph;
+            }
+
+            // there is no join or we can't handle this query
+            joinfilter = null;
+            return null;
+        }
+
+        // initialization: enqueue all vertex nodes
         protected void InitByInsertBasicTables(JoinGraph graph)
         {
-            foreach (var table in graph.tables_)
+            graph_ = graph;
+            foreach (var logic in graph.vertices_)
             {
-                BitVector contained = 1 << graph.tables_.IndexOf(table);
-                var logic = new LogicScanTable(table as BaseTableRef);
+                BitVector contained = 1 << graph.vertices_.IndexOf(logic);
                 logic.tableContained_ = contained;
-                bestTree_[contained] = new PhysicScanTable(logic);
+                if (graph.memo_ is null)
+                    bestTree_[contained] = new PhysicScanTable(logic);
+                else
+                {
+                    // vertices are already inserted into memo
+                    var cgroup = graph.memo_.LookupCGroup(logic);
+                    var logicref = new LogicMemoRef(cgroup);
+                    bestTree_[contained] = new PhysicMemoRef(logicref);
+                }
             }
         }
 
         internal abstract PhysicNode Run(JoinGraph graph, BigInteger expectC1 = new BigInteger());
 
-        // join T1 and T2 and return the minimal cost join tree
-        protected PhysicNode MinimalJoinTree(PhysicNode T1, PhysicNode T2)
+        protected Expr identifyJoinPred(PhysicNode T1, PhysicNode T2)
         {
-            PhysicNode bestJoin = null;
+            var key = ValueTuple.Create(T1, T2);
+            if (!joinpreds_.ContainsKey(key))
+            {
+                var predContained = graph_.predContained_;
 
-            // for all join implmentations do
+                // decide the join predicate: they shall touch both T1 and T2
+                //  eg. T1 x (T3 x T4) predicate: T1.a = T4.b ok
+                //
+                var list = new List<Expr>();
+                for (int i = 0; i < predContained.Count; i++)
+                {
+                    var cover = predContained[i];
+                    if ((cover & T1.tableContained_) != 0 && (cover & T2.tableContained_) != 0)
+                        list.Add(graph_.preds_[i]);
+                }
+
+                // we shall be able to locate the predicate because we don't generate cross join here
+                Debug.Assert(list.Count != 0);
+                var expr = list.AndListToExpr();
+                joinpreds_.Add(key, expr);
+            }
+
+            return joinpreds_[key];
+        }
+
+        // create join tree of (T1, T2) with commutative transform and record it in bestTree_
+        //
+        protected PhysicNode CreateMinimalJoinTree(PhysicNode T1, PhysicNode T2)
+        {
+            Expr pred = identifyJoinPred(T1, T2);
+
+            // for all join implmentations identify the lowest cost one
+            PhysicNode bestJoin = null;
             var implmentations = Enum.GetValues(typeof(PhysicJoin.Implmentation));
             foreach (PhysicJoin.Implmentation impl1 in implmentations)
             {
@@ -160,30 +239,23 @@ namespace adb.optimizer
                     //   Notes: we are suppposed to verify existing.Card equals plan.Card but
                     //   propogated round error prevent us to do so. 
                     //
-                    PhysicNode plan = PhysicJoin.NewJoinImplmentation(impl1, T1, T2);
+                    PhysicNode plan = PhysicJoin.CreatePhysicJoin(impl1, T1, T2, pred);
                     if (bestJoin == null || bestJoin.Cost() > plan.Cost())
                         bestJoin = plan;
 
                     // left deep tree
-                    plan = PhysicJoin.NewJoinImplmentation(impl2, T2, T1);
+                    plan = PhysicJoin.CreatePhysicJoin(impl2, T2, T1, pred);
                     if (bestJoin == null || bestJoin.Cost() > plan.Cost())
                         bestJoin = plan;
                 }
             }
-
             Debug.Assert(bestJoin != null);
-            return bestJoin;
-        }
 
-        // create join tree of (T1, T2) with commutative transform and record it in bestTree_
-        //
-        protected PhysicNode RemmberMinimalJoinTree(PhysicNode T1, PhysicNode T2)
-        {
-            PhysicNode plan = MinimalJoinTree(T1, T2);
-            BitVector key = plan.tableContained_;
+            // remember this join in the bestTree_
+            BitVector key = bestJoin.tableContained_;
             PhysicNode existing = bestTree_[key];
-            if (existing == null || existing.Cost() > plan.Cost())
-                bestTree_[key] = plan;
+            if (existing == null || existing.Cost() > bestJoin.Cost())
+                bestTree_[key] = bestJoin;
 
             return bestTree_[key];
         }
@@ -232,7 +304,7 @@ namespace adb.optimizer
     {
         override internal PhysicNode Run(JoinGraph graph, BigInteger expectC1)
         {
-            int ntables = graph.tables_.Count;
+            int ntables = graph.vertices_.Count;
 
             Console.WriteLine("DP_Bushy #tables: " + ntables);
 
@@ -269,8 +341,9 @@ namespace adb.optimizer
                         if (!graph.IsConnected(S1) || !graph.IsConnected(S2))
                             continue;
 
+                        // find a connected pair, get the best join tree between them
                         c1++;
-                        var currTree = RemmberMinimalJoinTree(bestTree_[S1], bestTree_[S2]);
+                        var currTree = CreateMinimalJoinTree(bestTree_[S1], bestTree_[S2]);
                         Debug.Assert(bestTree_[S].Cost() == currTree.Cost());
                     }
                 }
@@ -291,8 +364,8 @@ namespace adb.optimizer
                 Debug.Assert(c1 == expectC1);
 
             var result = bestTree_[(1 << ntables) - 1];
-            // Console.WriteLine(result);
-            Console.WriteLine(bestTree_);
+            Console.WriteLine(result.Explain());
+            // Console.WriteLine(bestTree_);
             return result;
         }
 
@@ -328,7 +401,7 @@ namespace adb.optimizer
 
         IEnumerable<BitVector> enumerateCsg(JoinGraph graph)
         {
-            int ntables = graph.tables_.Count;
+            int ntables = graph.vertices_.Count;
 
             for (int i = ntables - 1; i >= 0; i--)
             {
@@ -350,7 +423,7 @@ namespace adb.optimizer
 
         IEnumerable<BitVector> enumerateCmp(JoinGraph graph, BitVector S1)
         {
-            int ntables = graph.tables_.Count;
+            int ntables = graph.vertices_.Count;
             Debug.Assert(S1 != SetOp.EmptySet);
 
             // min(S1) := min({i|v_i \in S1})
@@ -397,7 +470,7 @@ namespace adb.optimizer
 
         override internal PhysicNode Run(JoinGraph graph, BigInteger expectC1)
         {
-            int ntables = graph.tables_.Count;
+            int ntables = graph.vertices_.Count;
 
             Console.WriteLine("DPccp #tables: " + ntables);
 
@@ -415,7 +488,7 @@ namespace adb.optimizer
                 BitVector S2 = pair.S2_;
                 BitVector S = pair.S_;
 
-                var currTree = RemmberMinimalJoinTree(bestTree_[S1], bestTree_[S2]);
+                var currTree = CreateMinimalJoinTree(bestTree_[S1], bestTree_[S2]);
                 Debug.Assert(bestTree_[S].Cost() == currTree.Cost());
             }
 
@@ -427,14 +500,13 @@ namespace adb.optimizer
 
             var result = bestTree_[(1 << ntables) - 1];
             Console.WriteLine(result.Explain());
-            // Console.WriteLine(bestTree_);
 
             // verify that it generates same tree as DPBushy - we can't verify that the tree are 
             // the same because we may generate two different join trees with the same cost. So
             // we do cost verificaiton here.
             //
-            var bushy = (new DPBushy()).Run(graph, expectC1);
-            Debug.Assert(bushy.Cost().Equals(result.Cost()));
+            //var bushy = (new DPBushy()).Run(graph, expectC1);
+            //Debug.Assert(bushy.Cost().Equals(result.Cost()));
             return result;
         }
 
@@ -445,6 +517,7 @@ namespace adb.optimizer
             // book figure 3.12
             var tables = new string[] { "T1", "T2", "T3", "T4", "T5" };
             JoinGraph figure312 = new JoinGraph(tables, new string[] { "T1*T2", "T1*T3", "T1*T4", "T3*T4", "T5*T2", "T5*T3", "T5*T4" });
+            Debug.Assert(figure312.joinbits_.Count == 5 && figure312.preds_.Count == 7) ;
             solver.Reset().Run(figure312);
 
             // full test

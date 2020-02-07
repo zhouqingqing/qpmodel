@@ -32,24 +32,28 @@ namespace adb
         static void Main(string[] args)
         {
             //DPccp.Test();
+//            var tables = new string[] { "T1", "T2", "T3", "T4", "T5" };
+ //           JoinGraph figure312 = new JoinGraph(tables, new string[] { "T1*T2", "T1*T3", "T1*T4", "T3*T4", "T5*T2", "T5*T3", "T5*T4" });
+   //         (new DPBushy()).Reset().Run(figure312);
+
             Catalog.Init();
 
             string sql = "";
 
-            if (true)
+            if (false)
             {
                 JOBench.CreateTables();
                 sql = File.ReadAllText("../../../jobench/28b.sql");
                 goto doit;
             }
 
-            if (false)
+            if (true)
             {
                 Tpch.CreateTables();
-                Tpch.LoadTables("001");
+                Tpch.LoadTables("0001");
                 Tpch.CreateIndexes();
                 Tpch.AnalyzeTables();
-                sql = File.ReadAllText("../../../tpch/q22.sql");
+                sql = File.ReadAllText("../../../tpch/q05.sql");
                 goto doit;
             }
 
@@ -135,7 +139,7 @@ namespace adb
             a.queryOpt_.optimize_.use_memo_ = true;
             a.queryOpt_.optimize_.use_codegen_ = false;
 
-            a.queryOpt_.optimize_.enable_nljoin_ = true;
+            a.queryOpt_.optimize_.use_joinorder_solver = true;
 
             // -- Semantic analysis:
             //  - bind the query
@@ -147,16 +151,13 @@ namespace adb
             a.explain_.show_cost_ =  a.queryOpt_.optimize_.use_memo_;
             var rawplan = a.CreatePlan();
             Console.WriteLine(rawplan.Explain(0));
-            JoinGraph graph = new JoinGraph(a.bindContext_.boundFrom_.Values.ToList(), 
-                a.logicPlan_.children_[0].filter_.FilterToAndList().Where(x=>x.tableRefs_.Count>=2).ToList());
-            DPccp solver = new DPccp();
-            solver.Reset().Run(graph);
 
             physic.PhysicNode phyplan = null;
             if (a.queryOpt_.optimize_.use_memo_)
             {
                 Console.WriteLine("***************** optimized plan *************");
                 var optplan = a.PhaseOneOptimize();
+                Console.WriteLine(optplan.Explain(0, a.explain_));
                 Optimizer.InitRootPlan(a);
                 Optimizer.OptimizeRootPlan(a, null);
                 Console.WriteLine(Optimizer.PrintMemo());
@@ -183,7 +184,7 @@ namespace adb
             a.physicPlan_ = final;
             var context = new ExecContext(a.queryOpt_);
 
-            final.Validate();
+            final.ValidateThis();
             if (a is SelectStmt select)
                 select.OpenSubQueries(context);
             var code = final.Open(context);

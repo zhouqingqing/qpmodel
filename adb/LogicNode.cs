@@ -265,14 +265,18 @@ namespace adb.logic
         //
         public virtual List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true) => null;
 
-        public virtual long Card() {
-            if (card_ == -1)
-            {
-                long card = 1;
-                children_.ForEach(x => card = Math.Max(x.Card(), card));
-                card_ = card;
-            }
+        public long Card()
+        {
+            if (card_ == CARD_INVALID)
+                card_ = EstimateCard();
+            Debug.Assert(card_ != CARD_INVALID);
             return card_;
+        }
+
+        public virtual long EstimateCard() {
+            long card = 1;
+            children_.ForEach(x => card = Math.Max(x.Card(), card));
+            return card;
         }
 
         // retrieve all correlated filters on the subtree
@@ -345,6 +349,7 @@ namespace adb.logic
 
             children_.Add(child);
             group_ = group;
+            tableContained_ = child.tableContained_;
 
             Debug.Assert(filter_ is null);
             Debug.Assert(!(Deref() is LogicMemoRef));
@@ -392,9 +397,11 @@ namespace adb.logic
         public override string ExplainInlineDetails(int depth) { return type_ == JoinType.Inner ? "" : type_.ToString(); }
         public LogicJoin(LogicNode l, LogicNode r) { 
             children_.Add(l); children_.Add(r);
-            //Debug.Assert(0 == (l.tableContained_ & r.tableContained_));
             if (l != null && r != null)
+            {
+                Debug.Assert(0 == (l.tableContained_ & r.tableContained_));
                 tableContained_ = SetOp.Union(l.tableContained_, r.tableContained_);
+            }
         }
         public LogicJoin(LogicNode l, LogicNode r, Expr filter): this(l, r) 
         { 

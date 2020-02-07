@@ -42,6 +42,8 @@ namespace adb.logic
                 enable_indexseek = true;
                 use_memo_ = true;
                 memo_disable_crossjoin = true;
+
+                // use_joinorder_solver = true;
             }
         }
 

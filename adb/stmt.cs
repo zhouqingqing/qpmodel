@@ -60,7 +60,7 @@ namespace adb.logic
             physicPlan_ = finalplan;
             var context = new ExecContext(queryOpt_);
 
-            finalplan.Validate();
+            finalplan.ValidateThis();
             if (this is SelectStmt select)
                 select.OpenSubQueries(context);
             var code = finalplan.Open(context);
@@ -418,7 +418,7 @@ namespace adb.logic
 
             return allsubs;
         }
-        bool pushdownFilter(LogicNode plan, Expr filter)
+        bool pushdownFilter(LogicNode plan, Expr filter, bool pushJoinFilter)
         {
             // don't push down special expressions
             if (filter.VisitEachExists(x => x is MarkerExpr))
@@ -443,7 +443,9 @@ namespace adb.logic
                         return false;
                     });
                 default:
-					return plan.PushJoinFilter (filter);
+                    if (pushJoinFilter)
+					    return plan.PushJoinFilter (filter);
+                    return false;
             }
         }
 
@@ -467,7 +469,7 @@ namespace adb.logic
             return plan;
         }
 
-        LogicNode FilterPushDown(LogicNode plan)
+        LogicNode FilterPushDown(LogicNode plan, bool pushJoinFilter)
         {
             // locate the all filters
             var parents = new List<LogicNode>();
@@ -508,7 +510,7 @@ namespace adb.logic
                     {
                         // filter push down
                         andlist = filterexpr.FilterToAndList();
-                        andlist.RemoveAll(e => pushdownFilter(plan, e));
+                        andlist.RemoveAll(e => pushdownFilter(plan, e, pushJoinFilter));
                     }
 
                     // stich the new plan
@@ -590,7 +592,8 @@ namespace adb.logic
                 logic = subqueryToMarkJoin(logic);
 
             // push down filters
-            logic = FilterPushDown(logic);
+            bool pushJoinFilter = !queryOpt_.optimize_.use_joinorder_solver;
+            logic = FilterPushDown(logic, pushJoinFilter);
 
             // optimize for subqueries 
             //  fromquery needs some special handling to link the new plan
