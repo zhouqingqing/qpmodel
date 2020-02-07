@@ -180,8 +180,11 @@ namespace adb.physic
             return null;
         }
 
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)] 
         internal string _ = "<codegen: current node id>";
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         internal string _logic_ = "<codegen: logic node name>";
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         internal string _physic_ = "<codegen: physic node name>";
     }
 

@@ -65,6 +65,7 @@ namespace adb.logic
 
     public abstract class PlanNode<T> where T : PlanNode<T>
     {
+        [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
         public List<T> children_ = new List<T>();
         public bool IsLeaf() => children_.Count == 0;
 

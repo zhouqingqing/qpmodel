@@ -137,7 +137,7 @@ namespace adb.optimizer
             foreach (var table in graph.tables_)
             {
                 BitVector contained = 1 << graph.tables_.IndexOf(table);
-                var logic = new LogicScanTable(new BaseTableRef(table));
+                var logic = new LogicScanTable(table as BaseTableRef);
                 logic.tableContained_ = contained;
                 bestTree_[contained] = new PhysicScanTable(logic);
             }
@@ -443,8 +443,8 @@ namespace adb.optimizer
             DPccp solver = new DPccp();
 
             // book figure 3.12
-            JoinGraph figure312 = new JoinGraph(new string[] { "T1", "T2", "T3", "T4", "T5" },
-                new string[] { "T1*T2", "T1*T3", "T1*T4", "T3*T4", "T5*T2", "T5*T3", "T5*T4" });
+            var tables = new string[] { "T1", "T2", "T3", "T4", "T5" };
+            JoinGraph figure312 = new JoinGraph(tables, new string[] { "T1*T2", "T1*T3", "T1*T4", "T3*T4", "T5*T2", "T5*T3", "T5*T4" });
             solver.Reset().Run(figure312);
 
             // full test

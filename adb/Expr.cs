@@ -487,6 +487,7 @@ namespace adb.expr
     public class Expr
     {
         // unique identifier
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         internal string _;
 
         // Expression in selection list can have an output name 
@@ -503,6 +504,7 @@ namespace adb.expr
         internal string outputName_;
 
         // subclass shall only use children_ to contain Expr, otherwise, Bind() etc won't work
+        [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
         internal List<Expr> children_ = new List<Expr>();
 
         // we require some columns for query processing but user may not want 
