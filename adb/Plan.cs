@@ -101,7 +101,12 @@ namespace adb.logic
             if (!(this is PhysicProfiling) && !(this is PhysicCollect))
             {
                 r = Utils.Tabs(depth);
-                if (depth != 0)
+                if (depth == 0)
+                {
+                    if (exp_showcost && this is PhysicNode phytop)
+                        r += $"Total cost: {phytop.InclusiveCost()}\n";
+                }
+                else
                     r += "-> ";
 
                 // print line of <nodeName> : <Estimation> <Actual>

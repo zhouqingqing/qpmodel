@@ -31,11 +31,6 @@ namespace adb
 
         static void Main(string[] args)
         {
-            //DPccp.Test();
-//            var tables = new string[] { "T1", "T2", "T3", "T4", "T5" };
- //           JoinGraph figure312 = new JoinGraph(tables, new string[] { "T1*T2", "T1*T3", "T1*T4", "T3*T4", "T5*T2", "T5*T3", "T5*T4" });
-   //         (new DPBushy()).Reset().Run(figure312);
-
             Catalog.Init();
 
             string sql = "";
@@ -66,30 +61,6 @@ namespace adb
             }
 
             /*OptimizeOption option = new OptimizeOption();
-            option.remove_from = true;
-            sql = "select a1 from(select b1 as a1 from b) c;";
-            SQLStatement.ExecSQL(sql, out _, out _, option);
-            sql = "select b1 from (select count(*) as b1 from b) a;";
-            SQLStatement.ExecSQL(sql, out _, out _, option);
-            sql = "select c100 from (select c1 c100 from c) c where c100>1";
-            SQLStatement.ExecSQL(sql, out _, out _, option);
-            sql = "select * from (select a1*a2 a12, a1 a2 from a) b(a12);";
-            SQLStatement.ExecSQL(sql, out _, out _, option);
-            sql = "select * from (select a1*a2 a12, a1 a3 from a) b;";
-            SQLStatement.ExecSQL(sql, out _, out _, option);
-            sql = "select *, cd.* from (select a.* from a join b on a1=b1) ab , (select c1 , c3 from c join d on c1=d1) cd where ab.a1=cd.c1";
-            SQLStatement.ExecSQL(sql, out _, out _, option);
-            sql = "select * from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where ab.a1=cd.c1";
-            SQLStatement.ExecSQL(sql, out _, out _, option);
-            sql = "select a12*a12 from (select a1*a2 a12, a1 a3 from a) b;";
-            SQLStatement.ExecSQL(sql, out _, out _, option);
-            sql = "select b1,c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;";
-            SQLStatement.ExecSQL(sql, out _, out _, option);
-            sql = "select a2, count(*), sum(a2) from (select a2 from a) b where a2*a2> 1 group by a2;";
-            SQLStatement.ExecSQL(sql, out _, out _, option);
-            sql = "select b1+b1, b2+b2, c100 from (select b1, count(*) as b2 from b) a, (select c1 c100 from c) c where c100>1;";
-            SQLStatement.ExecSQL(sql, out _, out _, option);
-
             option.remove_from = false;
             sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;";
             SQLStatement.ExecSQL(sql, out _, out _, option);
@@ -104,32 +75,7 @@ namespace adb
             sql = "select a2, count(*) from (select a2 from a) b group by a2;";
           */
 
-            sql = "select count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b;";
-            sql = "select count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1)) b;";
-            sql = "select b1+b1, b2+b2+b1, c100 from (select b1, count(*) as b2 from b) a, (select c1 c100 from c) c where c100>1;";
-            sql = "select ca2 from (select sum(a1) as ca2 from a group by a2) b;";
-            sql = "select ca2 from (select count(a2) as ca2 from a group by a1) b ;";
-            sql = "select ca2 from (select count(a2) as ca2 from a group by a1) b group by ca2;";
-            sql = "select a1 from (select a1 from a where a2 > (select max(b1) from b)) c;";
-            sql = "select a1, count(a1) from a where exists (select *  from b where b1=a1) group by a1;";
-            sql = "select a1 from a where a2 > (select max(b1) from b);";
-            sql = "select a2 from a where a.a3 > (select min(b1*2) from b where b.b2 >= (select c2-1 from c where c.c2=b2) and b.b3 > ((select c2 from c where c.c2=b2)));";
-            sql = "select * from a, (select * from b) c";
-            sql = "select b.a1 + b.a2 from (select a1 from a) b";
-            sql = "select b1,c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where b1>1 and c100>1;"; // ANSWER WRONG
-
-      //  doit:
-            // sql = @"select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1)
-            //          and a2>1 and not exists (select * from a b where b.a2+7=a.a1+b.a1);";
-            // sql = " select a1, sum(a12) from (select a1, a1*a2 a12 from a) b where a1 >= (select c1 from c where c1=a1) group by a1;";
-            sql = "select a2 from a where a1 in (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1));";
-            sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2;";
-            sql = "select * from a where a1> (select sum(b2) from b where a1=b1);";
-            sql = "select * from a where a1> (select b2 from b where a1<>b1);";
-            sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
-
         doit:
-            //sql = "select a2*2 from a, b, c, d where a1=b1 and c1=d1 and d2=b3";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);

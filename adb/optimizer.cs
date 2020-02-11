@@ -272,8 +272,8 @@ namespace adb.optimizer
             explored_ = true;
         }
 
-        public double FindMinCostOfGroup() =>  FindMinCostMember().physic_.Cost();
-        public CGroupMember FindMinCostMember() {
+        // scan through the member list and return the least cost member
+        public CGroupMember locateMinCostMember() {
             CGroupMember min = null;
             double mincost = double.MaxValue;
             foreach (var v in exprList_)
@@ -296,7 +296,7 @@ namespace adb.optimizer
             if (physic is null)
             {
                 // get the lowest cost one from the member list
-                CGroupMember minmember = FindMinCostMember();
+                CGroupMember minmember = locateMinCostMember();
                 physic = minmember.physic_;
             }
 

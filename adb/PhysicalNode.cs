@@ -43,7 +43,7 @@ namespace adb.physic
             VisitEach(x =>
             {
                 var phy = x as PhysicNode;
-                List<Type> nocheck = new List<Type> {typeof(PhysicCollect), typeof(PhysicProfiling), 
+                List<Type> nocheck = new List<Type> {typeof(PhysicCollect), typeof(PhysicProfiling),
                     typeof(PhysicIndex), typeof(PhysicInsert), typeof(PhysicAnalyze)};
                 if (!nocheck.Contains(phy.GetType()))
                 {
@@ -60,7 +60,7 @@ namespace adb.physic
             });
         }
 
-        public virtual string Open(ExecContext context){
+        public virtual string Open(ExecContext context) {
             string s = null;
             context_ = context;
             if (context.option_.optimize_.use_codegen_)
@@ -90,7 +90,7 @@ namespace adb.physic
             // projection on {_physic_}: {logic_.ExplainOutput(0, null)} 
             Row rproj = new Row({output.Count});";
             for (int i = 0; i < output.Count; i++)
-                s+= $"rproj[{i}] = {output[i].ExecCode(context_, input)};";
+                s += $"rproj[{i}] = {output[i].ExecCode(context_, input)};";
             s += $"{input} = rproj;}}";
 
             return s;
@@ -112,12 +112,18 @@ namespace adb.physic
             return cost_;
         }
         public virtual double EstimateCost() => 10.0;
+        public double InclusiveCost()
+        {
+            var cost = 0.0;
+            cost += Cost();
+            VisitEach(x => cost += (x as PhysicNode).Cost());
+            return cost;
+        }
 
         public long Card() => logic_.Card();
         public BitVector tableContained_ { get => logic_.tableContained_; }
 
-        // codegen support seciton
-        // -----------------------
+        #region codegen support
         // local varialbes are named locally by append the local hmid. Record r passing
         // across callback boundaries are special: they have to be uniquely named and
         // use consistently.
@@ -186,6 +192,7 @@ namespace adb.physic
         internal string _logic_ = "<codegen: logic node name>";
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         internal string _physic_ = "<codegen: physic node name>";
+        #endregion
     }
 
     // PhysicMemoRef wrap a LogicMemoRef as a physical node (so LogicMemoRef can be 
@@ -207,7 +214,6 @@ namespace adb.physic
 
         public LogicMemoRef Logic() => logic_ as LogicMemoRef;
         internal CMemoGroup Group() => Logic().group_;
-        internal double MinCost() => Group().FindMinCostOfGroup();
         public override string ExplainMoreDetails(int depth, ExplainOption option)
         {
             // we want to see what's underneath

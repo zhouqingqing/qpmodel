@@ -365,7 +365,6 @@ namespace adb.optimizer
 
             var result = bestTree_[(1 << ntables) - 1];
             Console.WriteLine(result.Explain());
-            // Console.WriteLine(bestTree_);
             return result;
         }
 
@@ -505,8 +504,8 @@ namespace adb.optimizer
             // the same because we may generate two different join trees with the same cost. So
             // we do cost verificaiton here.
             //
-            //var bushy = (new DPBushy()).Run(graph, expectC1);
-            //Debug.Assert(bushy.Cost().Equals(result.Cost()));
+            var bushy = (new DPBushy()).Run(graph, expectC1);
+            Debug.Assert(bushy.InclusiveCost().Equals(result.InclusiveCost()));
             return result;
         }
 
