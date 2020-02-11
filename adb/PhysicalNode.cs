@@ -37,7 +37,6 @@ namespace adb.physic
         public override string ExplainInlineDetails(int depth) => logic_.ExplainInlineDetails(depth);
         public override string ExplainMoreDetails(int depth, ExplainOption option) => logic_.ExplainMoreDetails(depth, option);
 
-
         public void ValidateThis()
         {
             VisitEach(x =>
@@ -111,13 +110,24 @@ namespace adb.physic
                 cost_ = EstimateCost();
             return cost_;
         }
-        public virtual double EstimateCost() => 10.0;
+        public virtual double EstimateCost() => 1000000000000.0;
+        
+        // inclusive cost summarize its own cost and its children cost. During 
+        // optimiztaion it is a dynamic measurement, we do so by summarize its
+        // best children's.
         public double InclusiveCost()
         {
-            var cost = 0.0;
-            cost += Cost();
-            VisitEach(x => cost += (x as PhysicNode).Cost());
-            return cost;
+            var incCost = 0.0;
+            incCost += Cost();
+            children_.ForEach(x => {
+                if (x is PhysicMemoRef xp)
+                    incCost += xp.Group().minIncCost_;
+                else
+                    incCost += x.InclusiveCost();
+            });
+
+            Debug.Assert(double.IsNaN(incCost) || (incCost > Cost() || children_.Count == 0));
+            return incCost;
         }
 
         public long Card() => logic_.Card();
@@ -306,7 +316,7 @@ namespace adb.physic
         public override double EstimateCost()
         {
             var logic = (logic_) as LogicScanTable;
-            var tablerows = Catalog.sysstat_.EstCardinality(logic.tabref_.relname_);
+            var tablerows = logic.Card();
             return tablerows * 1.0;
         }
     }
@@ -440,7 +450,7 @@ namespace adb.physic
     public class PhysicNLJoin : PhysicJoin
     {
         public PhysicNLJoin(LogicJoin logic, PhysicNode l, PhysicNode r) : base(logic, l, r) { }
-        public override string ToString() => $"PNLJ({l_()},{r_()}: {Cost()})";
+        public override string ToString() => $"PNLJ({l_()},{r_()}: {Cost()},{InclusiveCost()})";
 
         public override string Exec(Func<Row, string> callback)
         {
@@ -576,7 +586,7 @@ namespace adb.physic
     public class PhysicHashJoin : PhysicJoin
     {
         public PhysicHashJoin(LogicJoin logic, PhysicNode l, PhysicNode r) : base(logic, l, r) { }
-        public override string ToString() => $"PHJ({l_()},{r_()}: {Cost()})";
+        public override string ToString() => $"PHJ({l_()},{r_()}: {Cost()},{InclusiveCost()})";
 
         public override string Open(ExecContext context)
         {
@@ -783,6 +793,11 @@ namespace adb.physic
             return r;
         }
 
+        public override double EstimateCost()
+        {
+            return child_().Card() * 1.0 + logic_.Card() * 2.0;
+        }
+
         public override string Open(ExecContext context)
         {
             string cs = base.Open(context);
@@ -943,7 +958,7 @@ namespace adb.physic
     public class PhysicOrder : PhysicNode
     {
         public PhysicOrder(LogicOrder logic, PhysicNode l) : base(logic) => children_.Add(l);
-        public override string ToString() => $"POrder({child_()}: {Cost()})";
+        public override string ToString() => $"POrder({child_()}: {Cost()},{InclusiveCost()})";
 
         public override string Open(ExecContext context)
         {
@@ -1155,6 +1170,8 @@ namespace adb.physic
             });
             return s;
         }
+
+        public override double EstimateCost() => 0;
     }
 
     public class PhysicCollect : PhysicNode
@@ -1257,6 +1274,11 @@ namespace adb.physic
 
         public PhysicLimit(LogicLimit logic, PhysicNode l) : base(logic) => children_.Add(l);
         public override string ToString() => $"PLIMIT({child_()}: {Cost()})";
+
+        public override double EstimateCost()
+        {
+            return logic_.Card() * 1.0;
+        }
 
         public override string Open(ExecContext context)
         {

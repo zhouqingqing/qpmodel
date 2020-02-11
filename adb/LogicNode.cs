@@ -365,6 +365,8 @@ namespace adb.logic
                 return lo.MemoLogicSign() == MemoLogicSign();
             return false;
         }
+
+        public override long EstimateCard() => Deref().EstimateCard();
     }
 
     public enum JoinType {
@@ -1033,5 +1035,7 @@ namespace adb.logic
             output_ = child_().output_;
             return ordinals;
         }
+
+        public override long EstimateCard() => limit_;
     }
 }

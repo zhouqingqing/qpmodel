@@ -140,18 +140,21 @@ namespace adb.optimizer
         // There shall be only 1 join filter on top. 
         // Subqueries is not considered here.
         //
-        internal static JoinGraph ExtractJoinGraph(LogicNode plan, out LogicFilter joinfilter)
+        internal static JoinGraph ExtractJoinGraph(LogicNode plan, 
+                out LogicNode filterNodeParent, out int index, out LogicFilter filterNode)
         {
             // find the join filter
+            var parents = new List<LogicNode>();
+            var indexes = new List<int>();
             var filters = new List<LogicFilter>();
-            plan.FindNodeTyped<LogicFilter>(filters);
+            plan.FindNodeTyped<LogicFilter>(parents, indexes, filters);
             var joinfilters = filters.Where(x => x.child_() is LogicJoin).ToList();
 
             Debug.Assert(joinfilters.Count <= 1);
             if (joinfilters.Count == 1)
             {
                 JoinGraph graph = null;
-                joinfilter = joinfilters[0];
+                var joinfilter = joinfilters[0];
                 var topjoin = joinfilter.child_() as LogicJoin;
 
                 // vertices are non-join nodes. We don't do any cross boundary optimization
@@ -165,11 +168,17 @@ namespace adb.optimizer
                 });
 
                 graph = new JoinGraph(vertices, joinfilters[0].filter_.FilterToAndList());
+                index = indexes[0];
+                filterNodeParent = parents[0];
+                filterNode = joinfilter;
+                Debug.Assert(filterNodeParent is null || filterNodeParent.children_[index] == filterNode);
                 return graph;
             }
 
             // there is no join or we can't handle this query
-            joinfilter = null;
+            filterNodeParent = null;
+            index = -1;
+            filterNode = null;
             return null;
         }
 
@@ -498,7 +507,7 @@ namespace adb.optimizer
                 Debug.Assert(c1 == expectC1);
 
             var result = bestTree_[(1 << ntables) - 1];
-            Console.WriteLine(result.Explain());
+            // Console.WriteLine(result.Explain());
 
             // verify that it generates same tree as DPBushy - we can't verify that the tree are 
             // the same because we may generate two different join trees with the same cost. So

@@ -17,10 +17,6 @@ using LogicSignature = System.Int64;
 
 namespace adb.optimizer
 {
-    public class JoinOrderResolver
-    {
-    }
-
     public class Property { }
 
     // ordering, distribution
@@ -68,7 +64,7 @@ namespace adb.optimizer
                 // the node itself is a non-memo node
                 Debug.Assert(!(Logic() is LogicMemoRef));
 
-                if (group_.exprList_[0].Logic() is LogicNaryJoin)
+                if (group_.IsSolverOptimizedGroup())
                     return;
 
                 // all its children shall be memo nodes and can be deref'ed to non-memo node
@@ -133,9 +129,12 @@ namespace adb.optimizer
                     if (newmember == this)
                         continue;
 
-                    // enqueue the new member
+                    // enqueue the new member - the exception is solver optimized group
+                    // they will do the whole optimization themselves without insert
+                    // new groups in memo.
+                    //
                     var newlogic = newmember.Logic();
-                    if (!(group_.exprList_[0].logic_ is LogicNaryJoin))
+                    if (!(group_.IsSolverOptimizedGroup()))
                         memo.EnquePlan(newlogic);
                     if (!list.Contains(newmember))
                         list.Add(newmember);
@@ -190,7 +189,8 @@ namespace adb.optimizer
         public List<CGroupMember> exprList_ = new List<CGroupMember>();
 
         public bool explored_ = false;
-        public CGroupMember minMember_;
+        public CGroupMember minMember_ { get; set; }
+        public double minIncCost_ = double.NaN;
 
         // debug info
         internal Memo memo_;
@@ -253,9 +253,15 @@ namespace adb.optimizer
         public string Print()
         {
             CountMembers(out int clogics, out int cphysics);
-            var str = $"{clogics}, {cphysics}, [{logicSign_}]: ";
+            var str = $"{clogics}, {cphysics}, [{logicSign_}][{minIncCost_}]: ";
             str += string.Join(",", exprList_);
             return str;
+        }
+
+        // Solver (say DPccp) optimized group don't expand in MEMO
+        internal bool IsSolverOptimizedGroup()
+        {
+            return exprList_[0].Logic() is LogicJoinBlock;
         }
 
         // loop through optimize members of the group
@@ -274,7 +280,6 @@ namespace adb.optimizer
 
         // scan through the member list and return the least cost member
         public CGroupMember locateMinCostMember() {
-            CGroupMember min = null;
             double mincost = double.MaxValue;
             foreach (var v in exprList_)
             {
@@ -282,21 +287,79 @@ namespace adb.optimizer
                 if (physic != null && physic.Cost() < mincost)
                 {
                     mincost = physic.Cost();
-                    min = v;
+                    minMember_ = v;
                 }
             }
 
-            Debug.Assert(min.physic_ != null);
-            minMember_ = min;
-            return min;
+            minIncCost_ = mincost;
+            Debug.Assert(minMember_.physic_.InclusiveCost() == minIncCost_);
+            return minMember_;
+        }
+
+        public CGroupMember CalculateMinInclusiveCostMember()
+        {
+            // inclusive cost is only possible after exploration done
+            Debug.Assert(explored_);
+            Debug.Assert(exprList_.Count >= 2);
+
+            if (minMember_ != null)
+                return minMember_;
+
+            if (exprList_[0].Logic().children_.Count == 0 || IsSolverOptimizedGroup())
+            {
+                // if this group has no children node, simply locate the lowest one
+                locateMinCostMember();
+            }
+            else
+            {
+                // there are children. So for each member in the list, we calculate the inclusive
+                // cost and return the lowest one
+                var incCost = new List<double>();
+                for (int i  = 0; i < exprList_.Count; i++) {
+                    var physic = exprList_[i].physic_;
+                    var cost = double.MaxValue;
+                    if (physic != null)
+                    {
+                        cost = physic.Cost();
+                        foreach (var child in physic.children_)
+                        {
+                            var childgroup = (child as PhysicMemoRef).Group();
+                            childgroup.CalculateMinInclusiveCostMember();
+                            cost += childgroup.minIncCost_;
+                        }
+                    }
+                    incCost.Add(cost);
+                }
+
+                // now find the lowest
+                Debug.Assert(incCost.Count == exprList_.Count);
+                double mincost = double.MaxValue;
+                int minindex = -1;
+                for (int i = 0; i < incCost.Count; i++)
+                {
+                    if (incCost[i] < mincost)
+                    {
+                        mincost = incCost[i];
+                        minindex = i;
+                    }
+                }
+                Debug.Assert(minindex != -1);
+                minMember_ = exprList_[minindex];
+                minIncCost_ = mincost;
+                Debug.Assert(minMember_.physic_.InclusiveCost() == minIncCost_);
+            }
+
+            Debug.Assert(minMember_.physic_ != null);
+            Debug.Assert(!double.IsNaN(minIncCost_));
+            return minMember_;
         }
 
         public PhysicNode CopyOutMinLogicPhysicPlan(PhysicNode physic = null)
         {
             if (physic is null)
             {
-                // get the lowest cost one from the member list
-                CGroupMember minmember = locateMinCostMember();
+                // get the lowest inclusive cost one from the member list
+                var minmember = CalculateMinInclusiveCostMember();
                 physic = minmember.physic_;
             }
 
@@ -418,11 +481,14 @@ namespace adb.optimizer
                 // other non-join nodes, which includes vertices in join graph and
                 // plan node before join filter (say aggregation, sort etc).
                 // All non-join nodes are enqueued as usual and join graphs are enqueued
-                // as a one memo group disallowing optimization.
+                // as a one memo group disallowing optimization. In this way, we leverage 
+                // both power of join solver and memo.
                 //
-                // In this way, we leverage both power of join solver and memo.
-                //
-                var graph = JoinResolver.ExtractJoinGraph(plan, out LogicFilter joinfilter);
+                JoinGraph graph = null;
+                LogicFilter filterNode = null;
+                LogicNode filterNodeParent = null; int index = -1;
+                graph = JoinResolver.ExtractJoinGraph(plan, 
+                                        out filterNodeParent, out index, out filterNode);
 
                 // if join solver can't handle it, fallback
                 if (graph != null)
@@ -431,16 +497,22 @@ namespace adb.optimizer
 
                     // though it is not logically needed because we generate join filter according
                     // to the plan on the fly, we still do a join filter push down to keep the 
-                    // logic signature consistent
+                    // logic signature consistent. The join filter can be skipped since all its 
+                    // predicates are removed.
                     //
-                    var andlist = joinfilter.filter_.FilterToAndList();
-                    andlist.RemoveAll(e => joinfilter.PushJoinFilter(e));
+                    var andlist = filterNode.filter_.FilterToAndList();
+                    andlist.RemoveAll(e => filterNode.PushJoinFilter(e));
                     Debug.Assert(andlist.Count == 0);
-                    joinfilter.NullifyFilter();
 
-                    // enqueue the nary-join as a new node
-                    var naryjoin = new LogicNaryJoin(joinfilter.child_() as LogicJoin, graph);
-                    joinfilter.children_[0] = naryjoin;
+                    // enqueue the joinblock as a new node - need do enqueue nary join now to get the group
+                    var joinblock = new LogicJoinBlock(filterNode.child_() as LogicJoin, graph);
+                    joinblock.SetGroup(doEnquePlan(joinblock));
+
+                    // stich the whole plan with new joinblock
+                    if (filterNodeParent is null)
+                        plan = joinblock;
+                    else
+                        filterNodeParent.children_[index] = joinblock;
                 }
             }
 

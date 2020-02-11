@@ -138,7 +138,12 @@ namespace adb
         {
             List<ColumnDef> cols = new List<ColumnDef> { new ColumnDef("i", 0)};
             for (int i = 0; i < 30; i++)
+            {
                 Catalog.systable_.CreateTable($"T{i}", cols);
+                var stat = new ColumnStat();
+                stat.n_rows_ = 1 + i * 10;
+                Catalog.sysstat_.AddOrUpdate($"T{i}", "i", stat);
+            }
         }
 
         static void createBuildInTestTables()

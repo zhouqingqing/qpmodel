@@ -567,7 +567,7 @@ namespace adb.optimizer
         internal List<Expr> preds_ { get; set; }
 
         // optional: memo associated with it
-        internal Memo memo_;
+        internal Memo memo_ { get; set; }
 
         void validateThis()
         {
@@ -611,10 +611,9 @@ namespace adb.optimizer
                 var i12 = ParseJoinPredExpr(p);
                 int i1 = i12[0], i2 = i12[1];
 
-                // verify no duplicated join pred
-                Debug.Assert(!joinbits_[i1][i2]);
+                // there could be multiple join predicates between two relations
+                // so no need to verify duplicates here (!joinbits_[i1][i2])
                 joinbits_[i1][i2] = true;
-                Debug.Assert(!joinbits_[i2][i1]);
                 joinbits_[i2][i1] = true;
 
                 // mark predicate containage as well
@@ -854,23 +853,33 @@ namespace adb.optimizer
         }
     }
 
-    // Naryjoin is essentially a combination of binary joins but since it is not binary join so no
-    // transformation works on it. An implmentation Nary2Nary directly translate it to the optimal
+    // JoinBlock is essentially a combination of binary joins but since it is not binary join so no
+    // transformation works on it. An implmentation JoinBLock2Join directly translate it to the optimal
     // form of physical plan with join order resolvers.
     //
-    public class LogicNaryJoin : LogicNode
+    public class LogicJoinBlock : LogicNode
     {
         internal JoinGraph graph_;
         internal LogicJoin join_;
+        internal CMemoGroup group_;
 
-        public LogicNaryJoin(LogicJoin join, JoinGraph graph)
+        public LogicJoinBlock(LogicJoin join, JoinGraph graph)
         {
             graph_ = graph;
             join_ = join;
             children_.AddRange(graph.vertices_);
         }
 
-        public override string ToString() => $"NaryJoin({string.Join(",", children_)})";
+        public void SetGroup(CMemoGroup group) => group_ = group;
+
+        public override long EstimateCard()
+        {
+            Debug.Assert(group_.explored_);
+            Debug.Assert(group_.exprList_.Count == 2);
+            return group_.exprList_[1].physic_.logic_.EstimateCard();
+        }
+
+        public override string ToString() => $"JoinBlock({string.Join(",", children_)})";
 
         // FIXME: signature shall consider join filter pushed down
         public override LogicSignature MemoLogicSign() => join_.MemoLogicSign();

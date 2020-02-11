@@ -38,8 +38,9 @@ namespace adb.logic
     public partial class LogicAgg {
         public override long EstimateCard()
         {
+            long card = 1;
             if (keys_ is null)
-                card_ = 1;
+                card = 1;
             else
             {
                 long distinct = 1;
@@ -53,11 +54,11 @@ namespace adb.logic
                     distinct *= ndistinct;
                 }
 
-                card_ = distinct;
+                card = distinct;
             }
 
             // it won't go beyond the number of output rows
-            return Math.Min(card_, child_().Card());
+            return Math.Min(card, child_().Card());
         }
     }
 

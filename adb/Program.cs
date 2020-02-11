@@ -3,6 +3,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using IronPython.Hosting;
+using System.Diagnostics;
 
 using adb.codegen;
 using adb.expr;
@@ -19,7 +20,7 @@ namespace adb
 {
     class Program
     {
-        private static void doPython()
+        static void doPython()
         {
             var engine = Python.CreateEngine();
             var scope = engine.CreateScope();
@@ -29,11 +30,31 @@ namespace adb
             Console.WriteLine(ret);
         }
 
+        static void TestJobench()
+        {
+            var files = Directory.GetFiles(@"../../../jobench");
+
+            JOBench.CreateTables();
+
+            // make sure all queries can generate phase one opt plan
+            QueryOption option = new QueryOption();
+            option.optimize_.TurnOnAllOptimizations();
+            option.optimize_.use_joinorder_solver = true;
+            foreach (var v in files)
+            {
+                var sql = File.ReadAllText(v);
+                var result = SQLStatement.ExecSQL(sql, out string phyplan, out _, option);
+                Debug.Assert(result != null);
+                Debug.Assert(phyplan != null);
+            }
+        }
+
         static void Main(string[] args)
         {
             Catalog.Init();
 
             string sql = "";
+            //TestJobench();
 
             if (false)
             {
@@ -46,7 +67,7 @@ namespace adb
             {
                 Tpch.CreateTables();
                 Tpch.LoadTables("0001");
-                Tpch.CreateIndexes();
+                //Tpch.CreateIndexes();
                 Tpch.AnalyzeTables();
                 sql = File.ReadAllText("../../../tpch/q05.sql");
                 goto doit;
@@ -60,22 +81,8 @@ namespace adb
                 goto doit;
             }
 
-            /*OptimizeOption option = new OptimizeOption();
-            option.remove_from = false;
-            sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;";
-            SQLStatement.ExecSQL(sql, out _, out _, option);
-            sql = "select sum(e1) from (select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1)) d(e1);";
-            SQLStatement.ExecSQL(sql, out _, out _, option);
-            sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
-            SQLStatement.ExecSQL(sql, out _, out _, option);
-            sql = "select d1, sum(d2) from (select c1/2, sum(c1) from (select b1, count(*) as a1 from b group by b1)c(c1, c2) group by c1/2) d(d1, d2) group by d1;";
-            SQLStatement.ExecSQL(sql, out _, out _, option);
-            sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
-            sql = "select a2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2;";
-            sql = "select a2, count(*) from (select a2 from a) b group by a2;";
-          */
-
         doit:
+          //  sql = "select * from nation, region where n_regionkey = r_regionkey";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
@@ -85,7 +92,8 @@ namespace adb
             a.queryOpt_.optimize_.use_memo_ = true;
             a.queryOpt_.optimize_.use_codegen_ = false;
 
-            a.queryOpt_.optimize_.use_joinorder_solver = true;
+            a.queryOpt_.optimize_.memo_disable_crossjoin = false;
+            a.queryOpt_.optimize_.use_joinorder_solver = false;
 
             // -- Semantic analysis:
             //  - bind the query
@@ -108,9 +116,9 @@ namespace adb
                 Optimizer.OptimizeRootPlan(a, null);
                 Console.WriteLine(Optimizer.PrintMemo());
                 phyplan = Optimizer.CopyOutOptimalPlan();
+                Console.WriteLine(Optimizer.PrintMemo());
                 Console.WriteLine("***************** Memo plan *************");
                 Console.WriteLine(phyplan.Explain(0, a.explain_));
-                Optimizer.PrintMemo();
             }
             else
             {

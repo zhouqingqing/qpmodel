@@ -104,7 +104,7 @@ namespace adb.logic
                 if (depth == 0)
                 {
                     if (exp_showcost && this is PhysicNode phytop)
-                        r += $"Total cost: {phytop.InclusiveCost()}\n";
+                        r += $"Total cost: {Math.Truncate(phytop.InclusiveCost()*100)/100}\n";
                 }
                 else
                     r += "-> ";
@@ -115,7 +115,11 @@ namespace adb.logic
                 if (phynode != null && phynode.profile_ != null)
                 {
                     if (exp_showcost)
-                        r += $" (cost={phynode.Cost()}, rows={phynode.logic_.Card()})";
+                    {
+                        var incCost = Math.Truncate(phynode.InclusiveCost()*100)/100;
+                        var cost = Math.Truncate(phynode.Cost()*100)/100;
+                        r += $" (inccost={incCost}, cost={cost}, rows={phynode.logic_.Card()})";
+                    }
 
                     var profile = phynode.profile_;
                     if (profile.nloops_ == 1 || profile.nloops_==0)

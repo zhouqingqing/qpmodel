@@ -27,7 +27,7 @@ namespace adb.optimizer
             new From2From(),
             new Limit2Limit(),
             new Append2Append(),
-            new Nary2Nary(),
+            new JoinBLock2Join(),
             new JoinCommutativeRule(),  // intentionally add a duplicated rule
         };
 
@@ -47,6 +47,15 @@ namespace adb.optimizer
 
     public class ExplorationRule : Rule { }
 
+    // There are two join exploration rules are used:
+    //  1. Join commutative rule: AB => BA
+    //  2. Left Join association rule: A(BC) => (AB)C
+    //
+    // Above two is RS-B1 in https://anilshanbhag.in/static/papers/rsgraph_vldb14.pdf
+    // It is complete to exhaust search space but with duplicates with
+    // the condition cross-join shall not be suppressed.
+    // Another more efficient complete and duplicates free set is RS-B2.
+    //
     public class JoinCommutativeRule : ExplorationRule {
 
         public override bool Appliable(CGroupMember expr)
@@ -162,19 +171,22 @@ namespace adb.optimizer
                     ab_c.filter_ = andlist.AndListToExpr();
             }
 
-            // if there is no cross join in the given plan but cross join generated
-            // in the new plan, we return the original plan
+            // Ideally if there is no cross join in the given plan but cross join 
+            // in the new plan, we shall return the original plan. However, stop
+            // exploration now will prevent generating other promising plans. So 
+            // we have to return the new plan.
             //
             if (expr.QueryOption().optimize_.memo_disable_crossjoin)
             {
-                if (a_bc.filter_ != null && bcfilter != null) {
+                if (a_bc.filter_ != null && bcfilter != null)
+                {
                     if (ab_c.filter_ is null || ab.filter_ is null)
                         return expr;
                 }
             }
 
+
             return new CGroupMember(ab_c, expr.group_);
         }
     }
-
 }
