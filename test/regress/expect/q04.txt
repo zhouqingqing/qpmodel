@@ -19,24 +19,28 @@ group by
 	o_orderpriority
 order by
 	o_orderpriority
-PhysicOrder  (actual rows=0)
+PhysicOrder  (actual rows=5)
     Output: orders.o_orderpriority[0],{count(*)(0)}[1]
     Order by: orders.o_orderpriority[0]
-    -> PhysicHashAgg  (actual rows=0)
+    -> PhysicHashAgg  (actual rows=5)
         Output: {orders.o_orderpriority}[0],{count(*)(0)}[1]
         Aggregates: count(*)(0)
         Group by: orders.o_orderpriority[0]
-        -> PhysicFilter  (actual rows=0)
+        -> PhysicFilter  (actual rows=44)
             Output: orders.o_orderpriority[1]
             Filter: {#marker}[0]
-            -> PhysicMarkJoin  (actual rows=0)
+            -> PhysicMarkJoin  (actual rows=48)
                 Output: #marker,orders.o_orderpriority[0]
                 Filter: lineitem.l_orderkey[2]=orders.o_orderkey[1]
-                -> PhysicScanTable orders (actual rows=0)
+                -> PhysicScanTable orders (actual rows=48)
                     Output: orders.o_orderpriority[5],orders.o_orderkey[0]
                     Filter: orders.o_orderdate[4]>='1993-07-01' and orders.o_orderdate[4]<'9/29/1993 12:00:00 AM'
-                -> PhysicScanTable lineitem (actual rows=0)
+                -> PhysicScanTable lineitem (actual rows=3752, loops=48)
                     Output: lineitem.l_orderkey[0]
                     Filter: lineitem.l_commitdate[11]<lineitem.l_receiptdate[12]
-
+1-URGENT,9
+2-HIGH,7
+3-MEDIUM,9
+4-NOT SPECIFIED,7
+5-LOW,12
 

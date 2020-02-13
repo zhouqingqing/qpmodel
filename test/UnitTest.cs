@@ -14,6 +14,8 @@ using adb.test;
 using adb.expr;
 using adb.dml;
 
+using psql;
+
 namespace test
 {
     // Test Utils
@@ -187,6 +189,12 @@ namespace test
         {
             TestTpcds();
             TestTpch();
+
+            string sql_dir_fn =    "../../../test/regress/sql";
+            string write_dir_fn =  "../../../test/regress/output";
+            string expect_dir_fn = "../../../test/regress/expect";
+
+            VerifyTpch(sql_dir_fn, write_dir_fn, expect_dir_fn);
         }
 
         void TestTpcds()
@@ -206,6 +214,12 @@ namespace test
                 var result = TU.ExecuteSQL(sql, out string phyplan, option);
                 Assert.IsNotNull(phyplan); Assert.IsNotNull(result);
             }
+        }
+
+        void VerifyTpch(string sql_dir_fn, string write_dir_fn, string expect_dir_fn)
+        {
+            QueryVerify qv = new QueryVerify();
+            Assert.IsTrue( qv.SQLQueryVerify(sql_dir_fn, write_dir_fn, expect_dir_fn) );
         }
 
         void TestTpch()

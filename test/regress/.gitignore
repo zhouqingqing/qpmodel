@@ -1,0 +1,4 @@
+output/*
+
+# exception 
+!output/readme.md

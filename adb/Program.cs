@@ -93,7 +93,7 @@ namespace adb
             a.queryOpt_.optimize_.use_codegen_ = false;
 
             a.queryOpt_.optimize_.memo_disable_crossjoin = false;
-            a.queryOpt_.optimize_.use_joinorder_solver = false;
+            a.queryOpt_.optimize_.use_joinorder_solver = true;
 
             // -- Semantic analysis:
             //  - bind the query
