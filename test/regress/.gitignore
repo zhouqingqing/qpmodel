@@ -1,4 +1,6 @@
 output/*
 
-# exception 
-!output/readme.md
+# exception - keep the folders
+!output/tpch0001/.gitkeep
+!output/.gitkeep
+

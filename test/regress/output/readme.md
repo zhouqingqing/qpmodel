@@ -1,1 +1,0 @@
-This is where test generated files sit.

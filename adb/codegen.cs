@@ -41,10 +41,11 @@ namespace adb.codegen
     {
         static string path_ = "gen.cs";
 
-        static internal void Reset()
+        static internal void Reset(string header)
         {
             using (StreamWriter file = new StreamWriter(path_))
             {
+                file.WriteLine(header);
                 file.WriteLine(@"
                 using System;
 				using System.Collections.Generic;

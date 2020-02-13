@@ -264,8 +264,30 @@ namespace adb.optimizer
             return exprList_[0].Logic() is LogicJoinBlock;
         }
 
+        internal void OptimizeSolverOptimizedGroupChildren(Memo memo, PhysicProperty required)
+        {
+            Debug.Assert(IsSolverOptimizedGroup());
+            CGroupMember member = exprList_[0];
+            var joinblock = member.Logic() as LogicJoinBlock;
+
+            // optimize all children group and newly generated groups
+            var prevGroupCount = memo.cgroups_.Count;
+            joinblock.children_.ForEach(x => 
+                    (x as LogicMemoRef).group_.OptimizeGroup(memo, required));
+            while (memo.stack_.Count > prevGroupCount)
+                memo.stack_.Pop().OptimizeGroup(memo, required);
+
+            // calculate the lowest inclusive members
+            foreach (var c in joinblock.children_)
+                (c as LogicMemoRef).group_.CalculateMinInclusiveCostMember();
+        }
+
         // loop through optimize members of the group
         public void OptimizeGroup(Memo memo, PhysicProperty required) {
+            // solver group shall optimize all its children before it can start
+            if (IsSolverOptimizedGroup())
+                OptimizeSolverOptimizedGroupChildren(memo, required);
+
             for (int i = 0; i < exprList_.Count; i++)
             {
                 CGroupMember member = exprList_[i];
@@ -292,7 +314,8 @@ namespace adb.optimizer
             }
 
             minIncCost_ = mincost;
-            Debug.Assert(minMember_.physic_.InclusiveCost() == minIncCost_);
+            Debug.Assert(IsSolverOptimizedGroup() || 
+                minMember_.physic_.InclusiveCost() == minIncCost_);
             return minMember_;
         }
 
@@ -307,7 +330,7 @@ namespace adb.optimizer
 
             if (exprList_[0].Logic().children_.Count == 0 || IsSolverOptimizedGroup())
             {
-                // if this group has no children node, simply locate the lowest one
+                // if this group has no children node or a block optimization, simply locate the lowest one
                 locateMinCostMember();
             }
             else

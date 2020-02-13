@@ -191,10 +191,9 @@ namespace test
             TestTpch();
 
             string sql_dir_fn =    "../../../test/regress/sql";
-            string write_dir_fn =  "../../../test/regress/output";
-            string expect_dir_fn = "../../../test/regress/expect";
-
-            VerifyTpch(sql_dir_fn, write_dir_fn, expect_dir_fn);
+            string write_dir_fn =  "../../../test/regress/output/tpch0001";
+            string expect_dir_fn = "../../../test/regress/expect/tpch0001";
+            RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn);
         }
 
         void TestTpcds()
@@ -216,7 +215,7 @@ namespace test
             }
         }
 
-        void VerifyTpch(string sql_dir_fn, string write_dir_fn, string expect_dir_fn)
+        void RunFolderAndVerify(string sql_dir_fn, string write_dir_fn, string expect_dir_fn)
         {
             QueryVerify qv = new QueryVerify();
             Assert.IsTrue( qv.SQLQueryVerify(sql_dir_fn, write_dir_fn, expect_dir_fn) );

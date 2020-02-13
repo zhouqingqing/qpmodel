@@ -1195,7 +1195,15 @@ namespace adb.physic
             var ncolumns = output.Count(x => x.isVisible_);
 
             if (context.option_.optimize_.use_codegen_)
-                CodeWriter.Reset();
+            {
+                string header = $@"
+/*
+--- plan ---
+{this.Explain()}
+*/
+                ";
+                CodeWriter.Reset(header);
+            }
             context.Reset();
             string s = child_().Exec(r =>
             {

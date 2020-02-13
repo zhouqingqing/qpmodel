@@ -46,6 +46,8 @@ namespace adb
                 var result = SQLStatement.ExecSQL(sql, out string phyplan, out _, option);
                 Debug.Assert(result != null);
                 Debug.Assert(phyplan != null);
+                Console.WriteLine(v);
+                Console.WriteLine(phyplan);
             }
         }
 
@@ -55,11 +57,12 @@ namespace adb
 
             string sql = "";
             //TestJobench();
+            //return;
 
             if (false)
             {
                 JOBench.CreateTables();
-                sql = File.ReadAllText("../../../jobench/28b.sql");
+                sql = File.ReadAllText("../../../jobench/29a.sql");
                 goto doit;
             }
 

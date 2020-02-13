@@ -240,30 +240,29 @@ namespace adb.optimizer
             // for all join implmentations identify the lowest cost one
             PhysicNode bestJoin = null;
             var implmentations = Enum.GetValues(typeof(PhysicJoin.Implmentation));
-            foreach (PhysicJoin.Implmentation impl1 in implmentations)
+            foreach (PhysicJoin.Implmentation impl in implmentations)
             {
-                foreach (PhysicJoin.Implmentation impl2 in implmentations)
-                {
-                    // right deep tree
-                    //   Notes: we are suppposed to verify existing.Card equals plan.Card but
-                    //   propogated round error prevent us to do so. 
-                    //
-                    PhysicNode plan = PhysicJoin.CreatePhysicJoin(impl1, T1, T2, pred);
-                    if (bestJoin == null || bestJoin.Cost() > plan.Cost())
-                        bestJoin = plan;
+                // right deep tree
+                //   Notes: we are suppposed to verify existing.Card equals plan.Card but
+                //   propogated round error prevent us to do so. 
+                //
+                PhysicNode plan = PhysicJoin.CreatePhysicJoin(impl, T1, T2, pred);
+                Debug.Assert(!double.IsNaN(plan.InclusiveCost()));
+                if (bestJoin == null || bestJoin.InclusiveCost() > plan.InclusiveCost())
+                    bestJoin = plan;
 
-                    // left deep tree
-                    plan = PhysicJoin.CreatePhysicJoin(impl2, T2, T1, pred);
-                    if (bestJoin == null || bestJoin.Cost() > plan.Cost())
-                        bestJoin = plan;
-                }
+                // left deep tree
+                plan = PhysicJoin.CreatePhysicJoin(impl, T2, T1, pred);
+                Debug.Assert(!double.IsNaN(plan.InclusiveCost()));
+                if (bestJoin == null || bestJoin.InclusiveCost() > plan.InclusiveCost())
+                    bestJoin = plan;
             }
             Debug.Assert(bestJoin != null);
 
             // remember this join in the bestTree_
             BitVector key = bestJoin.tableContained_;
             PhysicNode existing = bestTree_[key];
-            if (existing == null || existing.Cost() > bestJoin.Cost())
+            if (existing == null || existing.InclusiveCost() > bestJoin.InclusiveCost())
                 bestTree_[key] = bestJoin;
 
             return bestTree_[key];
@@ -509,12 +508,16 @@ namespace adb.optimizer
             var result = bestTree_[(1 << ntables) - 1];
             // Console.WriteLine(result.Explain());
 
-            // verify that it generates same tree as DPBushy - we can't verify that the tree are 
-            // the same because we may generate two different join trees with the same cost. So
-            // we do cost verificaiton here.
-            //
-            var bushy = (new DPBushy()).Run(graph, expectC1);
-            Debug.Assert(bushy.InclusiveCost().Equals(result.InclusiveCost()));
+            bool verify = false;
+            if (verify)
+            {
+                // verify that it generates same tree as DPBushy - we can't verify that the tree are 
+                // the same because we may generate two different join trees with the same cost. So
+                // we do cost verificaiton here.
+                //
+                var bushy = (new DPBushy()).Run(graph, expectC1);
+                Debug.Assert(bushy.InclusiveCost().Equals(result.InclusiveCost()));
+            }
             return result;
         }
 
