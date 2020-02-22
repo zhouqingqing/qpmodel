@@ -20,6 +20,18 @@ namespace adb
 {
     class Program
     {
+        static void TestDataFrame()
+        {
+            SQLContext sqlContext = new SQLContext();
+
+            var a = sqlContext.Read("a");
+            var b = sqlContext.Read("b");
+
+            a.filter("a1>1").join(b, "b2=a2").select("a1","b1*a1+5").show();
+            string s = a.physicPlan_.Explain();
+            Console.WriteLine(s);
+        }
+
         static void doPython()
         {
             var engine = Python.CreateEngine();
@@ -56,6 +68,8 @@ namespace adb
             Catalog.Init();
 
             string sql = "";
+            TestDataFrame();
+            return;
             //TestJobench();
             //return;
 
@@ -72,7 +86,7 @@ namespace adb
                 Tpch.LoadTables("0001");
                 //Tpch.CreateIndexes();
                 Tpch.AnalyzeTables();
-                sql = File.ReadAllText("../../../tpch/q05.sql");
+                sql = File.ReadAllText("../../../tpch/q02.sql");
                 goto doit;
             }
 
@@ -90,7 +104,7 @@ namespace adb
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
             a.queryOpt_.profile_.enabled_ = true;
-            a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = false;
+            a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = true;
             a.queryOpt_.optimize_.remove_from = true;
             a.queryOpt_.optimize_.use_memo_ = true;
             a.queryOpt_.optimize_.use_codegen_ = false;

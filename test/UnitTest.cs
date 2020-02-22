@@ -1204,6 +1204,18 @@ namespace test
         }
 
         [TestMethod]
+        public void TestDataFrame()
+        {
+            SQLContext sqlContext = new SQLContext();
+
+            var a = sqlContext.Read("a");
+            var b = sqlContext.Read("b");
+
+            var rows = a.filter("a1>1").join(b, "b2=a2").select("a1", "b1*a1+5").show();
+            Assert.AreEqual(string.Join(",", rows), "2,9");
+        }
+
+        [TestMethod]
         public void TestAggregation()
         {
             var sql = "select a1, sum(a1) from a group by a2";

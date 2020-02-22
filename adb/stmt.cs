@@ -642,4 +642,92 @@ namespace adb.logic
                 v.OpenSubQueries(context);
         }
     }
+
+    public class DataFrame
+    {
+        internal LogicNode logicPlan_;
+        internal List<Expr> outputs_ = new List<Expr>();
+        internal List<Expr> exprs_ = new List<Expr>();  // this includes outputs_
+        internal PhysicNode physicPlan_;
+
+        // helper functions
+        Expr parseExpr(string str)
+        {
+            var expr = RawParser.ParseExpr(str);
+            exprs_.Add(expr);
+            return expr;
+        }
+
+        public DataFrame Scan(string tableName)
+        {
+            Debug.Assert(logicPlan_ is null);
+            logicPlan_ = new LogicScanTable(new BaseTableRef(tableName));
+            return this;
+        }
+
+        public DataFrame filter(string condition)
+        {
+            logicPlan_ = new LogicFilter(logicPlan_, parseExpr(condition));
+            return this;
+        }
+
+        public DataFrame join(DataFrame other, string condition)
+        {
+            logicPlan_ = new LogicJoin(logicPlan_, other.logicPlan_, parseExpr(condition));
+            return this;
+        }
+
+        public DataFrame select(params string[] colNames)
+        {
+            foreach (var v in colNames)
+                outputs_.Add(parseExpr(v));
+            return this;
+        }
+
+        void bind(BindContext parent)
+        {
+            BindContext context = new BindContext(null, parent);
+            logicPlan_.VisitEach(x =>
+            {
+                if (x is LogicScanTable xs)
+                    context.RegisterTable(xs.tabref_);
+            });
+
+            foreach (var v in exprs_)
+                v.Bind(context);
+        }
+
+        public List<Row> show()
+        {
+            bind(null);
+
+            // TBD: add optimization code here
+            QueryOption queryOpt = new QueryOption();
+            physicPlan_ = logicPlan_.DirectToPhysical(queryOpt);
+            logicPlan_.ResolveColumnOrdinal(outputs_);
+
+            // actual execution
+            var finalplan = new PhysicCollect(physicPlan_);
+            physicPlan_ = finalplan;
+            var context = new ExecContext(queryOpt);
+            Console.WriteLine(physicPlan_.Explain());
+
+            finalplan.ValidateThis();
+            var code = finalplan.Open(context);
+            code += finalplan.Exec(null);
+            code += finalplan.Close();
+
+            return finalplan.rows_;
+        }
+    }
+
+    public class SQLContext
+    {
+        public DataFrame Read(string tableName)
+        {
+            return new DataFrame().Scan(tableName);
+        }
+    }
+
+
 }

@@ -20,22 +20,34 @@ namespace adb.sqlparser
 
     public class RawParser
     {
+        static SQLiteVisitor visitor_;
+        static SQLiteParser sqlParser_;
+
+        public static void Init(string sql)
+        {
+            AntlrInputStream inputStream = new AntlrInputStream(sql);
+            SQLiteLexer sqlLexer = new SQLiteLexer(inputStream);
+            CommonTokenStream commonTokenStream = new CommonTokenStream(sqlLexer);
+            sqlParser_ = new SQLiteParser(commonTokenStream);
+            visitor_ = new SQLiteVisitor();
+        }
+
         // sqlbatch can also be a single sql statement - however, it won't allow you to 
         // directly retrieve phyplan_ etc without go through list
         //
         public static StatementList ParseSqlStatements(string sqlbatch)
         {
-            AntlrInputStream inputStream = new AntlrInputStream(sqlbatch);
-            SQLiteLexer sqlLexer = new SQLiteLexer(inputStream);
-            CommonTokenStream commonTokenStream = new CommonTokenStream(sqlLexer);
-            SQLiteParser sqlParser = new SQLiteParser(commonTokenStream);
-            SQLiteVisitor visitor = new SQLiteVisitor();
-
-            SQLiteParser.Sql_stmt_listContext stmtCxt = sqlParser.sql_stmt_list();
-            return visitor.VisitSql_stmt_list(stmtCxt) as StatementList;
+            Init(sqlbatch);
+            SQLiteParser.Sql_stmt_listContext stmtCxt = sqlParser_.sql_stmt_list();
+            return visitor_.VisitSql_stmt_list(stmtCxt) as StatementList;
         }
 
         public static SQLStatement ParseSingleSqlStatement(string sql) => ParseSqlStatements(sql).list_[0];
+        public static Expr ParseExpr(string expr) {
+            Init(expr);
+            SQLiteParser.ExprContext exprContext = sqlParser_.expr();
+            return visitor_.Visit(exprContext) as Expr;
+        }
     }
 
     // antlr visitor pattern parser
