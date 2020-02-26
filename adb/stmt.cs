@@ -352,6 +352,7 @@ namespace adb.logic
 
         internal bool isCorrelated_ = false;
         internal List<SelectStmt> correlatedWhich_ = new List<SelectStmt>();
+        internal bool shallExpandSelection_ = false;
 
         internal SelectStmt TopStmt()
         {
@@ -489,7 +490,7 @@ namespace adb.logic
                 if (parent is LogicFromQuery)
                     return plan;
 
-                if (filter?.filter_ != null)
+                if (filter?.filter_ != null && filter?.movable_ is true)
                 {
                     List<Expr> andlist = new List<Expr>();
                     var filterexpr = filter.filter_;
@@ -510,7 +511,16 @@ namespace adb.logic
                     {
                         // filter push down
                         andlist = filterexpr.FilterToAndList();
-                        andlist.RemoveAll(e => pushdownFilter(plan, e, pushJoinFilter));
+                        andlist.RemoveAll(e =>
+                        {
+                            var isConst = e.FilterIsConst(out bool trueOrFalse);
+                            if (isConst)
+                            {
+                                Debug.Assert(trueOrFalse);
+                                return true;
+                            }
+                            return pushdownFilter(plan, e, pushJoinFilter);
+                        });
                     }
 
                     // stich the new plan
@@ -562,15 +572,39 @@ namespace adb.logic
                 return (bindContext_.parent_.stmt_ as SelectStmt).stmtIsInCTEChain();
         }
 
+        // a1,5+@1 (select b2 ...) => a1, 5+b2
+        List<Expr> selectionRemoveSubquery(List<Expr> selection)
+        {
+            bool IsSubquery(Expr e) => e is SubqueryExpr;
+            Expr RepalceSuquerySelection(Expr e)
+            {
+                return (e as SubqueryExpr).query_.selection_[0];
+            }
+            List<Expr> newselection = new List<Expr>();
+            selection.ForEach(x =>
+            {
+                if (x.HasSubQuery())
+                    x = x.SearchReplace<Expr>(IsSubquery, RepalceSuquerySelection);
+                x.ResetAggregateTableRefs();
+                newselection.Add(x);
+            });
+            return newselection;
+        }
+
         internal void ResolveOrdinals()
         {
             if (setops_ is null)
+            {
+                if (shallExpandSelection_)
+                    selection_ = selectionRemoveSubquery(selection_);
                 logicPlan_.ResolveColumnOrdinal(selection_, parent_ != null);
+            }
             else
             {
                 // resolve each and use the first one to resolve ordinal since all are compatible
                 var first = setops_.first_;
-                setops_.VisitEachStatement(x => {
+                setops_.VisitEachStatement(x =>
+                {
                     x.logicPlan_.ResolveColumnOrdinal(x.selection_, false);
                 });
                 logicPlan_.ResolveColumnOrdinal(first.selection_, parent_ != null);
@@ -584,15 +618,8 @@ namespace adb.logic
             // remove LogicFromQuery node
             logic = removeFromQuery(logic);
 
-            // decorrelate subqureis - we do it before filter push down because we 
-            // have more normalized plan shape before push down. And we may generate
-            // some unnecessary filter to clean up.
-            //
-            if (queryOpt_.optimize_.enable_subquery_to_markjoin_ && subQueries_.Count > 0)
-                logic = subqueryToMarkJoin(logic);
-
             // push down filters
-            bool pushJoinFilter = !queryOpt_.optimize_.use_joinorder_solver;
+            bool pushJoinFilter = !queryOpt_.optimize_.memo_use_joinorder_solver;
             logic = FilterPushDown(logic, pushJoinFilter);
 
             // optimize for subqueries 

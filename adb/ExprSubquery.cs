@@ -52,6 +52,24 @@ namespace adb.expr
             }
         }
 
+        public bool Max1Row()
+        {
+            var plan = query_.logicPlan_;
+
+            // aggregation without groupby
+            if (plan is LogicAgg && query_.groupby_ is null)
+                return true;
+
+            // limit 1 query
+            List<LogicLimit> limits = new List<LogicLimit>();
+            if (plan.FindNodeTyped<LogicLimit>(limits) > 0)
+            {
+                if (limits[0].limit_ <= 1)
+                    return true;
+            }
+            return false;
+        }
+
         public bool IsCorrelated() {
             Debug.Assert(bounded_);
             return query_.isCorrelated_;

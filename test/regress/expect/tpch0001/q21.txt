@@ -50,21 +50,20 @@ PhysicLimit (100) (actual rows=0)
             -> PhysicFilter  (actual rows=0)
                 Output: supplier.s_name[1]
                 Filter: {#marker}[0]
-                -> PhysicMarkJoin  (actual rows=0)
+                -> PhysicMarkJoin Left (actual rows=0)
                     Output: #marker,supplier.s_name[0]
-                    Filter: l3.l_orderkey[3]=l1.l_orderkey[1] and l3.l_suppkey[4]<>l1.l_suppkey[2]
+                    Filter: l2.l_orderkey[3]=l1.l_orderkey[1] and l2.l_suppkey[4]<>l1.l_suppkey[2]
                     -> PhysicFilter  (actual rows=0)
                         Output: supplier.s_name[1],l1.l_orderkey[2],l1.l_suppkey[3]
                         Filter: {#marker}[0]
-                        -> PhysicMarkJoin  (actual rows=0)
+                        -> PhysicMarkJoin Left (actual rows=0)
                             Output: #marker,supplier.s_name[0],l1.l_orderkey[1],l1.l_suppkey[2]
-                            Filter: l2.l_orderkey[3]=l1.l_orderkey[1] and l2.l_suppkey[4]<>l1.l_suppkey[2]
+                            Filter: l3.l_orderkey[3]=l1.l_orderkey[1] and l3.l_suppkey[4]<>l1.l_suppkey[2]
                             -> PhysicHashJoin  (actual rows=0)
                                 Output: supplier.s_name[0],l1.l_orderkey[3],l1.l_suppkey[4]
                                 Filter: supplier.s_suppkey[1]=l1.l_suppkey[4] and supplier.s_nationkey[2]=nation.n_nationkey[5]
                                 -> PhysicScanTable supplier (actual rows=10)
                                     Output: supplier.s_name[1],supplier.s_suppkey[0],supplier.s_nationkey[3]
-                                    Filter: true
                                 -> PhysicNLJoin  (actual rows=1783)
                                     Output: l1.l_orderkey[1],l1.l_suppkey[2],nation.n_nationkey[0]
                                     -> PhysicScanTable nation (actual rows=1)
@@ -79,10 +78,10 @@ PhysicLimit (100) (actual rows=0)
                                         -> PhysicScanTable lineitem as l1 (actual rows=3752)
                                             Output: l1.l_orderkey[0],l1.l_suppkey[2]
                                             Filter: l1.l_receiptdate[12]>l1.l_commitdate[11]
-                            -> PhysicScanTable lineitem as l2 (actual rows=0)
-                                Output: l2.l_orderkey[0],l2.l_suppkey[2]
-                    -> PhysicScanTable lineitem as l3 (actual rows=0)
-                        Output: l3.l_orderkey[0],l3.l_suppkey[2]
-                        Filter: l3.l_receiptdate[12]>l3.l_commitdate[11]
+                            -> PhysicScanTable lineitem as l3 (actual rows=0)
+                                Output: l3.l_orderkey[0],l3.l_suppkey[2]
+                                Filter: l3.l_receiptdate[12]>l3.l_commitdate[11]
+                    -> PhysicScanTable lineitem as l2 (actual rows=0)
+                        Output: l2.l_orderkey[0],l2.l_suppkey[2]
 
 

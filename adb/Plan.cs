@@ -28,7 +28,7 @@ namespace adb.logic
             public bool enable_indexseek { get; set; } = true;
             public bool use_memo_ { get; set; } = false;      // make it true by default
             public bool memo_disable_crossjoin { get; set; } = true;
-            public bool use_joinorder_solver { get; set; } = false;
+            public bool memo_use_joinorder_solver { get; set; } = false;
 
             // codegen controls
             public bool use_codegen_ { get; set; } = false;
@@ -44,6 +44,12 @@ namespace adb.logic
                 memo_disable_crossjoin = true;
 
                 // use_joinorder_solver = true;
+            }
+
+            public void ValidateOptions()
+            {
+                if (memo_use_joinorder_solver)
+                    Debug.Assert(use_memo_);
             }
         }
 
@@ -214,6 +220,40 @@ namespace adb.logic
         public int FindNodeTyped<T1>(List<T1> targets) where T1 : PlanNode<T> => FindNodeTyped<T1>(null, null, targets);
         public int CountNodeTyped<T1>() where T1 : PlanNode<T> => FindNodeTyped<T1>(new List<T1>());
 
+        public PlanNode<T> SearchAndReplace(PlanNode<T> target, PlanNode<T> replacement)
+        {
+            if (this == target)
+                return replacement;
+            else
+            {
+                for (int i = 0; i < children_.Count; i++) {
+                    if (children_[i] == target)
+                        children_[i] = (T)replacement;
+                    else
+                        children_[i].SearchAndReplace(target, replacement);
+                }
+
+                return this;
+            }
+        }
+
+        public PlanNode<T> SearchReturnParent(PlanNode<T> target)
+        {
+            if (this == target)
+                return null;
+            else
+            {
+                for (int i = 0; i < children_.Count; i++)
+                {
+                    if (children_[i] == target)
+                        return this;
+                    else
+                        return children_[i].SearchReturnParent(target);
+                }
+                return null;
+            }
+        }
+
         public override int GetHashCode()
         {
             return GetType().GetHashCode() ^ children_.ListHashCode();
@@ -237,19 +277,30 @@ namespace adb.logic
 
     public partial class SelectStmt : SQLStatement
     {
-        // locate subqueries in given expr
-        List<SelectStmt> subQueryExprCreatePlan(Expr expr)
+        // locate subqueries in given expr and create plan for each
+        // subquery, no change on the expr itself.
+        LogicNode subQueryExprCreatePlan(LogicNode root, Expr expr)
         {
+            var newroot = root;
             var subplans = new List<SelectStmt>();
             expr.VisitEachT<SubqueryExpr>(x =>
             {
                 Debug.Assert(expr.HasSubQuery());
                 x.query_.CreatePlan();
                 subplans.Add(x.query_);
+
+                // functionally we don't have to do rewrite since above
+                // plan is already runnable
+                if (queryOpt_.optimize_.enable_subquery_to_markjoin_)
+                {
+                    var replacement = oneSubqueryToJoin(root, x);
+                    newroot = (LogicNode)newroot.SearchAndReplace(root,
+                                                            replacement);
+                }
             });
 
             subQueries_.AddRange(subplans);
-            return subplans.Count > 0 ? subplans : null;
+            return newroot;
         }
 
         // select i, min(i/2), 2+min(i)+max(i) from A group by i
@@ -365,7 +416,7 @@ namespace adb.logic
         // select * from (select max(b3) maxb3 from b) b where maxb3>1
         // where => max(b3)>1 and this shall be moved to aggregation node
         //
-        Expr moveFilterToAggNode(LogicNode root, Expr filter) {
+        Expr moveFilterToInsideAggNode(LogicNode root, Expr filter) {
             // first find out the aggregation node shall take the filter
             List<LogicAgg> aggNodes = new List<LogicAgg>();
             if (root.FindNodeTyped<LogicAgg>(aggNodes) > 1)
@@ -436,25 +487,37 @@ namespace adb.logic
             // transform where clause - we only want one filter
             if (where_ != null)
             {
-                subQueryExprCreatePlan(where_);
                 if (!(root is LogicFilter lr))
                     root = new LogicFilter(root, where_);
                 else
                     lr.filter_ = lr.filter_.AddAndFilter(where_);
                 if (where_ != null && where_.HasAggFunc())
                 {
-                    where_ = moveFilterToAggNode(root, where_);
+                    where_ = moveFilterToInsideAggNode(root, where_);
                     root = new LogicFilter(root.child_(), where_);
                 }
+
+                root = subQueryExprCreatePlan(root, where_);
             }
 
             // group by / having
             if (hasAgg_)
             {
-                if (having_ != null)
-                    subQueryExprCreatePlan(having_);
                 root = new LogicAgg(root, groupby_, getAggFuncFromSelection(), having_);
+                if (having_ != null)
+                    root = subQueryExprCreatePlan(root, having_);
+                if (groupby_ != null)
+                    groupby_.ForEach(x => {
+                        root = subQueryExprCreatePlan(root, x);
+                    });
             }
+
+            // selection list
+            selection_.ForEach(x => {
+                var oldroot = root;
+                root = subQueryExprCreatePlan(root, x);
+                shallExpandSelection_ |= root != oldroot;
+            });
 
             // order by
             if (orders_ != null)
@@ -463,9 +526,6 @@ namespace adb.logic
 			// limit
 			if (limit_ != null)
 				root = new LogicLimit (root, limit_);
-
-            // selection list
-            selection_.ForEach(x => subQueryExprCreatePlan(x));
 
             // let's make sure the plan is in good shape
             //  - there is no filter except filter node (ok to be multiple)

@@ -17,7 +17,7 @@ namespace adb.optimizer
         public override bool Appliable(CGroupMember expr)
         {
             LogicJoin join = expr.logic_ as LogicJoin;
-            if (join is null || join is LogicMarkJoin)
+            if (join is null || join is LogicMarkJoin || join is LogicSingleJoin)
                 return false;
 
             if (join.filter_.FilterHashable()) {
@@ -43,7 +43,7 @@ namespace adb.optimizer
         public override bool Appliable(CGroupMember expr)
         {
             LogicJoin log = expr.logic_ as LogicJoin;
-            if (log is null || log is LogicMarkJoin)
+            if (log is null || log is LogicMarkJoin || log is LogicSingleJoin)
                 return false;
             return true;
         }
@@ -74,9 +74,6 @@ namespace adb.optimizer
             PhysicNode phy = null;
             switch (log)
             {
-                case LogicSingleMarkJoin lsmj:
-                    phy = new PhysicSingleMarkJoin(lsmj, l, r);
-                    break;
                 case LogicMarkJoin lmj:
                     phy = new PhysicMarkJoin(lmj, l, r);
                     break;
@@ -88,6 +85,32 @@ namespace adb.optimizer
         }
     }
 
+    public class Join2SingleJoin : ImplmentationRule
+    {
+        public override bool Appliable(CGroupMember expr)
+        {
+            var log = expr.logic_ as LogicSingleJoin;
+            return !(log is null);
+        }
+
+        public override CGroupMember Apply(CGroupMember expr)
+        {
+            var log = expr.logic_ as LogicSingleJoin;
+            var l = new PhysicMemoRef(log.l_());
+            var r = new PhysicMemoRef(log.r_());
+            PhysicNode phy = null;
+            switch (log)
+            {
+                case LogicSingleJoin lsj:
+                    phy = new PhysicSingleJoin(lsj, l, r);
+                    break;
+                default:
+                    phy = null;
+                    break;
+            }
+            return new CGroupMember(phy, expr.group_);
+        }
+    }
     public class Scan2Scan : ImplmentationRule
     {
         public override bool Appliable(CGroupMember expr)

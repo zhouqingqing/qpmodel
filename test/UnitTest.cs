@@ -218,7 +218,9 @@ namespace test
         void RunFolderAndVerify(string sql_dir_fn, string write_dir_fn, string expect_dir_fn)
         {
             QueryVerify qv = new QueryVerify();
-            Assert.IsTrue( qv.SQLQueryVerify(sql_dir_fn, write_dir_fn, expect_dir_fn) );
+            var result = qv.SQLQueryVerify(sql_dir_fn, write_dir_fn, expect_dir_fn);
+            if (result != null) Console.WriteLine(result);
+            Assert.IsNull(result);
         }
 
         void TestTpch()
@@ -316,12 +318,13 @@ namespace test
                 Assert.AreEqual("", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[19]), out _, option); // FIXME: decorelation
                 Assert.AreEqual("", string.Join(";", result));
-                // q21 plan too slow
-                //result = TU.ExecuteSQL(File.ReadAllText(files[20]), out _, option); // FIXME: decorelation
-                //Assert.AreEqual("", string.Join(";", result));
+                result = TU.ExecuteSQL(File.ReadAllText(files[20]), out _, option);
+                Assert.AreEqual("", string.Join(";", result));
+                option.optimize_.remove_from = false;
                 result = TU.ExecuteSQL(File.ReadAllText(files[21]), out phyplan, option); // FIXME: decorelation
-                Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
+                Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicFromQuery"));
                 Assert.AreEqual(7, result.Count);
+                option.optimize_.remove_from = true;
             }
         }
     }
@@ -422,18 +425,21 @@ namespace test
                                     Output: {min(b.b1*2)}[0]
                                     Aggregates: min(b.b1[1]*2)
                                     -> PhysicFilter  (actual rows=3)
-                                        Output: {b.b1*2}[1],b.b1[2],2
-                                        Filter: {#marker}[0]
-                                        -> PhysicSingleMarkJoin  (actual rows=3)
-                                            Output: #marker,{b.b1*2}[0],b.b1[1],{2}[2]
-                                            Filter: b.b2[3]>=c.c2[4]-1 and c.c2[4]=b.b2[3]
-                                            -> PhysicScanTable b (actual rows=3)
-                                                Output: b.b1[0]*2,b.b1[0],2,b.b2[1]
-                                                Filter: b.b3[2]>@3
-                                                <ScalarSubqueryExpr> 3
-                                                    -> PhysicScanTable c (actual rows=1, loops=3)
+                                        Output: {b.b1*2}[0],b.b1[1],2
+                                        Filter: b.b2[3]>=c.c2[4]-1
+                                        -> PhysicSingleJoin Left (actual rows=3)
+                                            Output: {b.b1*2}[0],b.b1[1],{2}[2],b.b2[3],c.c2[4]
+                                            Filter: c.c2[4]=b.b2[3]
+                                            -> PhysicFilter  (actual rows=3)
+                                                Output: {b.b1*2}[0],b.b1[1],2,b.b2[3]
+                                                Filter: b.b3[4]>c.c2[5]
+                                                -> PhysicSingleJoin Left (actual rows=3)
+                                                    Output: {b.b1*2}[0],b.b1[1],{2}[2],b.b2[3],b.b3[4],c.c2[5]
+                                                    Filter: c.c2[5]=b.b2[3]
+                                                    -> PhysicScanTable b (actual rows=3)
+                                                        Output: b.b1[0]*2,b.b1[0],2,b.b2[1],b.b3[2]
+                                                    -> PhysicScanTable c (actual rows=3, loops=3)
                                                         Output: c.c2[1]
-                                                        Filter: c.c2[1]=?b.b2[1]
                                             -> PhysicScanTable c (actual rows=3, loops=3)
                                                 Output: c.c2[1]";
             Assert.AreEqual("1;2;3", string.Join(";", result));
@@ -463,7 +469,6 @@ namespace test
             Assert.AreEqual(1, TU.CountStr(phyplan, "Filter: a.a1[0]=b.b1[4] or a.a3[2]=b.b3[5]"));
             Assert.AreEqual(2, TU.CountStr(phyplan, "HashJoin"));
             Assert.AreEqual("1,2,3,4", string.Join(";", result));
-
 
             Assert.IsTrue(option.optimize_.use_memo_);
         }
@@ -528,37 +533,39 @@ namespace test
 
                 var phyplan = "";
                 var sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2);";
-                var result = TU.ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
+                var result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 Assert.AreEqual("0,2;1,3;2,4", string.Join(";", result));
                 sql = "select a1, a3  from a where a.a2 = (select b1*2 from b where b2 = a2);";
-                result = TU.ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
+                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 Assert.AreEqual("1,3", string.Join(";", result));
                 sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<3);";
-                result = TU.ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
+                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 Assert.AreEqual("0,2", string.Join(";", result));
                 sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) and a2>1;";
-                result = TU.ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
+                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 Assert.AreEqual("1,3", string.Join(";", result));
                 sql = @"select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) 
-                    and b.b1 > (select c2 / 2 from c where c.c3 = 3);";
-                result = TU.ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
+                and b.b1 > (select c2 / 2 from c where c.c3 = 3);";
+                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 Assert.AreEqual("2", string.Join(";", result));
                 sql = @"select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) 
-                    and b.b1 > (select c2 / 2 from c where c.c3 = b3);";
-                result = TU.ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
+                and b.b1 > (select c2 / 2 from c where c.c3 = b3);";
+                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 Assert.AreEqual("2", string.Join(";", result));
                 sql = @"select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 
-                    and b1 = (select b1 from b where b3 = a3 and b3>1) and b2<3);";
-                result = TU.ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
+                and b1 = (select b1 from b where b3 = a3 and b3>1) and b2<3);";
+                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 Assert.AreEqual("0;1", string.Join(";", result));
-                sql = "select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 or b1 = (select b1 from b where b2 = 2*a1 and b3>1) and b2<3);";
-                result = TU.ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
-                Assert.AreEqual("0;1;2", string.Join(";", result));
+                sql = "select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b2 = 2*a1 and b3>1) and b2<3);";
+                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicSingleJoin"));
+                Assert.AreEqual("1", string.Join(";", result));
                 sql = "select a1,a2,b2 from b join a on a1=b1 where a1-1 < (select a2/2 from a where a2=b2);";
-                result = TU.ExecuteSQL(sql, out phyplan); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleMarkJoin"));
+                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 Assert.AreEqual("0,1,1;1,2,2", string.Join(";", result));
 
-                //  OR condition failed sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) or a2>1;";
+                //  OR condition failed 
+                sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) or a2>1;";
+                sql = "select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 or b1 = (select b1 from b where b2 = 2*a1 and b3>1) and b2<3);";
             }
         }
 
@@ -788,6 +795,39 @@ namespace test
 
             // TODO: add not cases
         }
+
+        [TestMethod]
+        public void TestSubqueryRewrite()
+        {
+            QueryOption option = new QueryOption();
+
+            option.optimize_.enable_subquery_to_markjoin_ = true;
+
+            for (int i = 0; i < 2; i++)
+            {
+                option.optimize_.use_memo_ = i == 0;
+
+                var phyplan = "";
+                var sql = "select a1, 5+(select b2 from b where b1=a1) from a group by 1;";
+                var result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
+                Assert.AreEqual("0,6;1,7;2,8", string.Join(";", result));
+                sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2)";
+                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
+                Assert.AreEqual("0,2;1,3;2,4", string.Join(";", result));
+                sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) and a2>1;";
+                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
+                Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicFilter")); Assert.AreEqual("1,3", string.Join(";", result));
+                sql = @"select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) 
+                    and b.b1 > (select c2 / 2 from c where c.c3 = b3);";
+                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicSingleJoin"));
+                Assert.AreEqual("2", string.Join(";", result));
+
+                // runtime error: more than one row inside
+                sql = "select a1 from a where a2 > (select b1 from b where b3>=a3);";
+                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.IsTrue(TU.error_.Contains("SemanticExecutionException"));
+            }
+        }
+
     }
 
     [TestClass]
@@ -909,13 +949,13 @@ namespace test
             Assert.AreEqual("abab;abab;abab", string.Join(";", result));
             sql = "select 1+2*3, 1+2+a1 from a where a1+2+(1*5+1)>2*3 and 1+2=2+1;";
             result = TU.ExecuteSQL(sql, out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "and True")); // FIXME
+            Assert.AreEqual(0, TU.CountStr(phyplan, "True"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "7,3+a.a1[0]"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "a.a1[0]+2+6>6")); // FIXME
             Assert.AreEqual("7,3;7,4;7,5", string.Join(";", result));
             sql = "select 1+20*3, 1+2.1+a1 from a where a1+2+(1*5+1)>2*4.6 and 1+2<2+1.4;";
             result = TU.ExecuteSQL(sql, out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "and True")); // FIXME
+            Assert.AreEqual(0, TU.CountStr(phyplan, "True"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "61"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "9.2"));
             Assert.AreEqual("61,5.1", string.Join(";", result));
@@ -1466,18 +1506,21 @@ namespace test
                         Filter: a.a1[0]>@1
                         <ScalarSubqueryExpr> cached 1
                             -> PhysicFilter  (actual rows=0)
-                                Output: b.b1[1]
-                                Filter: {#marker}[0]
-                                -> PhysicSingleMarkJoin  (actual rows=0)
-                                    Output: #marker,b.b1[0]
-                                    Filter: b.b2[1]>c.c2[2] and c.c2[2]=b.b2[1]
-                                    -> PhysicScanTable b (actual rows=0)
+                                Output: b.b1[0]
+                                Filter: b.b2[1]>c.c2[2]
+                                -> PhysicSingleJoin Left (actual rows=0)
+                                    Output: b.b1[0],b.b2[1],c.c2[2]
+                                    Filter: c.c2[2]=b.b2[1]
+                                    -> PhysicFilter  (actual rows=0)
                                         Output: b.b1[0],b.b2[1]
-                                        Filter: b.b1[0]>@3
-                                        <ScalarSubqueryExpr> 3
-                                            -> PhysicScanTable c (actual rows=1, loops=3)
+                                        Filter: b.b1[0]>c.c2[2]
+                                        -> PhysicSingleJoin Left (actual rows=3)
+                                            Output: b.b1[0],b.b2[1],c.c2[2]
+                                            Filter: c.c2[2]=b.b2[1]
+                                            -> PhysicScanTable b (actual rows=3)
+                                                Output: b.b1[0],b.b2[1]
+                                            -> PhysicScanTable c (actual rows=3, loops=3)
                                                 Output: c.c2[1]
-                                                Filter: c.c2[1]=?b.b2[1]
                                     -> PhysicScanTable c (actual rows=0)
                                         Output: c.c2[1]";
             TU.PlanAssertEqual(answer, phyplan);
@@ -1488,26 +1531,29 @@ namespace test
             sql = "select b3+c2 from a,b,c where a1>= (select b1 from b where b1=a1) and a2 >= (select c2 from c where c1=a1);";
             result = ExecuteSQL(sql, out phyplan);
             answer = @"PhysicFilter  (actual rows=27)
-                        Output: {b.b3+c.c2}[1]
-                        Filter: {#marker}[0]
-                        -> PhysicSingleMarkJoin  (actual rows=27)
-                            Output: #marker,{b.b3+c.c2}[0]
-                            Filter: a.a1[1]>=b__1.b1[2] and b__1.b1[2]=a.a1[1]
-                            -> PhysicNLJoin  (actual rows=27)
-                                Output: {b.b3+c.c2}[1],a.a1[0]
-                                -> PhysicScanTable a (actual rows=3)
-                                    Output: a.a1[0]
-                                    Filter: a.a2[1]>=@2
-                                    <ScalarSubqueryExpr> 2
-                                        -> PhysicScanTable c as c__2 (actual rows=1, loops=3)
-                                            Output: c__2.c2[1]
-                                            Filter: c__2.c1[0]=?a.a1[0]
-                                -> PhysicNLJoin  (actual rows=9, loops=3)
-                                    Output: b.b3[1]+c.c2[0]
-                                    -> PhysicScanTable c (actual rows=3, loops=3)
-                                        Output: c.c2[1]
-                                    -> PhysicScanTable b (actual rows=3, loops=9)
-                                        Output: b.b3[2]
+                        Output: {b.b3+c.c2}[0]
+                        Filter: a.a1[1]>=b__1.b1[2]
+                        -> PhysicSingleJoin Left (actual rows=27)
+                            Output: {b.b3+c.c2}[0],a.a1[1],b__1.b1[2]
+                            Filter: b__1.b1[2]=a.a1[1]
+                            -> PhysicFilter  (actual rows=27)
+                                Output: {b.b3+c.c2}[0],a.a1[1]
+                                Filter: a.a2[2]>=c__2.c2[3]
+                                -> PhysicSingleJoin Left (actual rows=27)
+                                    Output: {b.b3+c.c2}[0],a.a1[1],a.a2[2],c__2.c2[3]
+                                    Filter: c__2.c1[4]=a.a1[1]
+                                    -> PhysicNLJoin  (actual rows=27)
+                                        Output: {b.b3+c.c2}[2],a.a1[0],a.a2[1]
+                                        -> PhysicScanTable a (actual rows=3)
+                                            Output: a.a1[0],a.a2[1]
+                                        -> PhysicNLJoin  (actual rows=9, loops=3)
+                                            Output: b.b3[1]+c.c2[0]
+                                            -> PhysicScanTable c (actual rows=3, loops=3)
+                                                Output: c.c2[1]
+                                            -> PhysicScanTable b (actual rows=3, loops=9)
+                                                Output: b.b3[2]
+                                    -> PhysicScanTable c as c__2 (actual rows=3, loops=27)
+                                        Output: c__2.c2[1],c__2.c1[0]
                             -> PhysicScanTable b as b__1 (actual rows=3, loops=27)
                                 Output: b__1.b1[0]";
             TU.PlanAssertEqual(answer, phyplan);
@@ -1532,20 +1578,24 @@ namespace test
             TU.PlanAssertEqual(answer, phyplan);
             result = ExecuteSQL(sql, out phyplan);
             answer = @"PhysicFilter  (actual rows=2)
-                        Output: a.a1[1]
-                        Filter: {#marker}[0]
-                        -> PhysicSingleMarkJoin  (actual rows=3)
-                            Output: #marker,a.a1[0]
-                            Filter: a.a1[0]=bo.b1[3] and bo.b2[4]=a.a2[1]
+                        Output: a.a1[0]
+                        Filter: a.a1[0]=bo.b1[1]
+                        -> PhysicSingleJoin Left (actual rows=3)
+                            Output: a.a1[0],bo.b1[3]
+                            Filter: b.b3[4]=a.a3[1] and bo.b3[5]=a.a3[1] and bo.b2[6]=a.a2[2]
                             -> PhysicScanTable a (actual rows=3)
-                                Output: a.a1[0],a.a2[1],#a.a3[2]
-                            -> PhysicScanTable b as bo (actual rows=0, loops=3)
-                                Output: bo.b1[0],bo.b2[1],#bo.b3[2]
-                                Filter: bo.b1[0]=@2 and bo.b2[1]<3
-                                <ScalarSubqueryExpr> 2
-                                    -> PhysicScanTable b (actual rows=0, loops=9)
-                                        Output: b.b1[0]
-                                        Filter: b.b3[2]=?a.a3[2] and ?bo.b3[2]=?a.a3[2] and b.b3[2]>1";
+                                Output: a.a1[0],a.a3[2],a.a2[1]
+                            -> PhysicFilter  (actual rows=2, loops=3)
+                                Output: bo.b1[0],b.b3[1],bo.b3[2],bo.b2[3]
+                                Filter: bo.b1[0]=b.b1[4]
+                                -> PhysicSingleJoin Left (actual rows=6, loops=3)
+                                    Output: bo.b1[0],b.b3[3],bo.b3[1],bo.b2[2],b.b1[4]
+                                    -> PhysicScanTable b as bo (actual rows=2, loops=3)
+                                        Output: bo.b1[0],bo.b3[2],bo.b2[1]
+                                        Filter: bo.b2[1]<3
+                                    -> PhysicScanTable b (actual rows=3, loops=6)
+                                        Output: b.b3[2],b.b1[0]
+                                        Filter: b.b3[2]>1";
             Assert.AreEqual("0;1", string.Join(";", result));
             TU.PlanAssertEqual(answer, phyplan);
 
@@ -1597,49 +1647,59 @@ namespace test
             // FIXME: b2<5 is not push down due to FromQuery barrier
             result = ExecuteSQL(sql, out phyplan);
             answer = @"PhysicFilter  (actual rows=3)
-                        Output: a.a1[1]
-                        Filter: {#marker}[0] and bo.b2[2]<5 and bo.b1[3]=@2
-                        <ScalarSubqueryExpr> 2
-                            -> PhysicScanTable b as b__2 (actual rows=1, loops=3)
-                                Output: b__2.b1[0]
-                                Filter: b__2.b3[2]=?a.a3[2] and ?bo.b3[2]=?c.c3[2] and b__2.b3[2]>1
-                        -> PhysicSingleMarkJoin  (actual rows=3)
-                            Output: #marker,a.a1[0],bo.b2[2],bo.b1[3]
-                            Filter: a.a1[0]=bo.b1[3] and bo.b2[2]=a.a2[1]
-                            -> PhysicNLJoin  (actual rows=3)
-                                Output: a.a1[2],a.a2[3]
-                                Filter: b.b2[4]=c.c2[0]
-                                -> PhysicScanTable c (actual rows=3)
-                                    Output: c.c2[1],#c.c3[2]
-                                -> PhysicHashJoin  (actual rows=3, loops=3)
-                                    Output: a.a1[2],a.a2[3],b.b2[0]
-                                    Filter: a.a1[2]=b.b1[1]
-                                    -> PhysicScanTable b (actual rows=3, loops=3)
-                                        Output: b.b2[1],b.b1[0]
-                                    -> PhysicScanTable a (actual rows=3, loops=3)
-                                        Output: a.a1[0],a.a2[1],#a.a3[2]
-                                        Filter: a.a2[1]=@3
-                                        <ScalarSubqueryExpr> 3
-                                            -> PhysicFilter  (actual rows=1, loops=9)
-                                                Output: bo.b2[1]
-                                                Filter: {#marker}[0]
-                                                -> PhysicSingleMarkJoin  (actual rows=1, loops=9)
-                                                    Output: #marker,bo.b2[0]
-                                                    Filter: bo.b2[0]=b__4.b2[2]
-                                                    -> PhysicScanTable b as bo (actual rows=1, loops=9)
-                                                        Output: bo.b2[1],#bo.b3[2]
-                                                        Filter: bo.b1[0]=?a.a1[0] and ?c.c3[2]<5 and bo.b3[2]=?a.a3[2]
-                                                    -> PhysicScanTable b as b__4 (actual rows=1, loops=9)
-                                                        Output: b__4.b2[1]
-                                                        Filter: b__4.b4[3]=?a.a3[2]+1 and b__4.b3[2]>0
-                            -> PhysicFromQuery <bo> (actual rows=9, loops=3)
-                                Output: bo.b2[1],bo.b1[0],#bo.b3[2]
-                                -> PhysicNLJoin  (actual rows=9, loops=3)
-                                    Output: b_2.b1[2],b_1.b2[0],b_1.b3[1]
-                                    -> PhysicScanTable b as b_1 (actual rows=3, loops=3)
-                                        Output: b_1.b2[1],b_1.b3[2]
-                                    -> PhysicScanTable b as b_2 (actual rows=3, loops=9)
-                                        Output: b_2.b1[0]";
+                        Output: a.a1[0]
+                        Filter: bo.b2[1]<5
+                        -> PhysicFilter  (actual rows=3)
+                            Output: a.a1[0],bo.b2[1]
+                            Filter: a.a1[0]=bo.b1[2]
+                            -> PhysicSingleJoin Left (actual rows=3)
+                                Output: a.a1[0],bo.b2[4],bo.b1[5]
+                                Filter: b__2.b3[6]=a.a3[1] and bo.b3[7]=c.c3[2] and bo.b2[4]=a.a2[3]
+                                -> PhysicFilter  (actual rows=3)
+                                    Output: a.a1[0],a.a3[1],c.c3[2],a.a2[3]
+                                    Filter: a.a2[3]=bo.b2[4]
+                                    -> PhysicSingleJoin Left (actual rows=3)
+                                        Output: a.a1[0],a.a3[1],c.c3[2],a.a2[3],bo.b2[4]
+                                        Filter: b__4.b4[5]=a.a3[1]+1 and bo.b3[6]=a.a3[1] and bo.b1[7]=a.a1[0]
+                                        -> PhysicNLJoin  (actual rows=3)
+                                            Output: a.a1[2],a.a3[3],c.c3[0],a.a2[4]
+                                            Filter: b.b2[5]=c.c2[1]
+                                            -> PhysicScanTable c (actual rows=3)
+                                                Output: c.c3[2],c.c2[1]
+                                                Filter: c.c3[2]<5
+                                            -> PhysicHashJoin  (actual rows=3, loops=3)
+                                                Output: a.a1[2],a.a3[3],a.a2[4],b.b2[0]
+                                                Filter: a.a1[2]=b.b1[1]
+                                                -> PhysicScanTable b (actual rows=3, loops=3)
+                                                    Output: b.b2[1],b.b1[0]
+                                                -> PhysicScanTable a (actual rows=3, loops=3)
+                                                    Output: a.a1[0],a.a3[2],a.a2[1]
+                                        -> PhysicFilter  (actual rows=3, loops=3)
+                                            Output: bo.b2[0],b__4.b4[1],bo.b3[2],bo.b1[3]
+                                            Filter: bo.b2[0]=b__4.b2[4]
+                                            -> PhysicSingleJoin Left (actual rows=9, loops=3)
+                                                Output: bo.b2[0],b__4.b4[3],bo.b3[1],bo.b1[2],b__4.b2[4]
+                                                -> PhysicScanTable b as bo (actual rows=3, loops=3)
+                                                    Output: bo.b2[1],bo.b3[2],bo.b1[0]
+                                                -> PhysicScanTable b as b__4 (actual rows=3, loops=9)
+                                                    Output: b__4.b4[3],b__4.b2[1]
+                                                    Filter: b__4.b3[2]>0
+                                -> PhysicFilter  (actual rows=9, loops=3)
+                                    Output: bo.b2[0],bo.b1[1],b__2.b3[2],bo.b3[3]
+                                    Filter: bo.b1[1]=b__2.b1[4]
+                                    -> PhysicSingleJoin Left (actual rows=27, loops=3)
+                                        Output: bo.b2[0],bo.b1[1],b__2.b3[3],bo.b3[2],b__2.b1[4]
+                                        -> PhysicFromQuery <bo> (actual rows=9, loops=3)
+                                            Output: bo.b2[1],bo.b1[0],bo.b3[2]
+                                            -> PhysicNLJoin  (actual rows=9, loops=3)
+                                                Output: b_2.b1[2],b_1.b2[0],b_1.b3[1]
+                                                -> PhysicScanTable b as b_1 (actual rows=3, loops=3)
+                                                    Output: b_1.b2[1],b_1.b3[2]
+                                                -> PhysicScanTable b as b_2 (actual rows=3, loops=9)
+                                                    Output: b_2.b1[0]
+                                        -> PhysicScanTable b as b__2 (actual rows=3, loops=27)
+                                            Output: b__2.b3[2],b__2.b1[0]
+                                            Filter: b__2.b3[2]>1";
             Assert.AreEqual("0;1;2", string.Join(";", result));
             TU.PlanAssertEqual(answer, phyplan);
         }

@@ -50,7 +50,7 @@ namespace adb.logic
         LogicNode existsToMarkJoin(LogicNode nodeA, ExistSubqueryExpr existExpr)
         {
             var nodeAIsOnMarkJoin = 
-                nodeA is LogicFilter && nodeA.child_() is LogicMarkJoin;
+                nodeA is LogicFilter && (nodeA.child_() is LogicMarkJoin || nodeA.child_() is LogicSingleJoin);
 
             // nodeB contains the join filter
             var nodeB = existExpr.query_.logicPlan_;
@@ -64,8 +64,29 @@ namespace adb.logic
             if (nodeAIsOnMarkJoin)
                 nodeA.filter_ = markerFilter;
             else
-                nodeA.NullifyFilter();
-
+            {
+                if (nodeAFilter != null)
+                {
+                    // a1 > @1 and a2 > @2 and a3 > 2, scalarExpr = @1
+                    //   keeplist: a1 > @1 and a3 > 2
+                    //   andlist after removal: a2 > @2
+                    //   nodeAFilter = a1 > @1 and a3 > 2
+                    //
+                    var andlist = nodeAFilter.FilterToAndList();
+                    var keeplist = andlist.Where(x => x.VisitEachExists(e => e.Equals(existExpr))).ToList();
+                    andlist.RemoveAll(x => x.VisitEachExists(e => e.Equals(existExpr)));
+                    if (andlist.Count == 0)
+                        nodeA.NullifyFilter();
+                    else
+                    {
+                        nodeA.filter_ = andlist.AndListToExpr();
+                        if (keeplist.Count > 0)
+                            nodeAFilter = keeplist.AndListToExpr();
+                        else
+                            nodeAFilter = markerFilter;
+                    }
+                }
+            }
             // make a mark join
             LogicMarkJoin markjoin;
             if (existExpr.hasNot_)
@@ -96,24 +117,24 @@ namespace adb.logic
         // =>
         //  LogicFilter
         //      Filter: (#marker AND a.a2 = singleValueExpr) AND|OR <others1>
-        //      MarkJoin
+        //      SingleJoin
         //          Outpu: singleValueExpr
         //          Filter:  (b.b1[0]=a.a1[0]) AND|OR <others2>
         //          LogicNode_A
         //          LogicNode_B
         //
-        LogicNode scalarToMarkJoin(LogicNode nodeA, ScalarSubqueryExpr scalarExpr)
+        LogicNode scalarToSingleJoin(LogicNode nodeA, ScalarSubqueryExpr scalarExpr)
         {
             var nodeAIsOnMarkJoin =
-                nodeA is LogicFilter && nodeA.child_() is LogicMarkJoin;
+                nodeA is LogicFilter && (nodeA.child_() is LogicMarkJoin || nodeA.child_() is LogicSingleJoin);
 
             // FIXME: temp disable it
             if (nodeAIsOnMarkJoin)
                 return nodeA;
 
             // nodeB contains the join filter
-            var nodeB = scalarExpr.query_.logicPlan_;
-            var nodeBFilter = nodeB.filter_;
+            var nodeSubquery = scalarExpr.query_.logicPlan_;
+            var nodeSubqueryFilter = nodeSubquery.filter_;
 
             // some plan may hide the correlation filter deep, say:
             // Filter: a.a1[0] =@1
@@ -123,41 +144,84 @@ namespace adb.logic
             //               Filter: b.b2[1]=?a.a2[1] ...
             // Let's ignore this case for now
             //
-            if (nodeBFilter is null)
+            if (nodeSubqueryFilter is null)
                 return nodeA;
 
             Debug.Assert(scalarExpr.query_.selection_.Count == 1);
             var singleValueExpr = scalarExpr.query_.selection_[0];
-            nodeB.NullifyFilter();
+            nodeSubquery.NullifyFilter();
 
             // nullify nodeA's filter: the rest is push to top filter. However,
             // if nodeA is a Filter|MarkJoin, keep its mark filter.
-            var markerFilter = new ExprRef(new MarkerExpr(), 0);
+            var trueCondition = LiteralExpr.MakeLiteral("true", new BoolType());
             var nodeAFilter = nodeA.filter_;
             if (nodeAIsOnMarkJoin)
-                nodeA.filter_ = markerFilter;
-            else
-                nodeA.NullifyFilter();
-
-            // make a mark join
-            var markjoin = new LogicSingleMarkJoin(nodeA, nodeB);
-
-            // make a filter on top of the mark join collecting all filters
-            Expr topfilter;
-            if (nodeAIsOnMarkJoin)
-                topfilter = nodeAFilter.SearchReplace(scalarExpr, LiteralExpr.MakeLiteral($"{int.MinValue}", new IntType()));
+                nodeA.filter_ = trueCondition;
             else
             {
-                topfilter = markerFilter.AddAndFilter(nodeAFilter);
-                topfilter = topfilter.SearchReplace(scalarExpr, singleValueExpr);
+                if (nodeAFilter != null)
+                {
+                    // a1 > @1 and a2 > @2 and a3 > 2, scalarExpr = @1
+                    //   keeplist: a1 > @1 and a3 > 2
+                    //   andlist after removal: a2 > @2
+                    //   nodeAFilter = a1 > @1 and a3 > 2
+                    //
+                    var andlist = nodeAFilter.FilterToAndList();
+                    var keeplist = andlist.Where(x => x.VisitEachExists(e => e.Equals(scalarExpr))).ToList();
+                    andlist.RemoveAll(x => x.VisitEachExists(e => e.Equals(scalarExpr)));
+                    if (andlist.Count == 0)
+                        nodeA.NullifyFilter();
+                    else
+                    {
+                        nodeA.filter_ = andlist.AndListToExpr();
+                        if (keeplist.Count > 0)
+                            nodeAFilter = keeplist.AndListToExpr();
+                        else
+                            nodeAFilter = trueCondition;
+                    }
+                }
             }
-            nodeBFilter.DeParameter(nodeA.InclusiveTableRefs());
-            topfilter = topfilter.AddAndFilter(nodeBFilter);
-            LogicFilter Filter = new LogicFilter(markjoin, topfilter);
+
+            // make a single join
+            //    nodeA 
+            //      <Subquery> 
+            //            nodeSubquery
+            // =>
+            //    SingleJoin
+            //        nodeA
+            //        nodeSubquery
+            //
+            var singJoinNode = new LogicSingleJoin(nodeA, nodeSubquery);
+
+            // make a non-movable filter on top of the single join to replace a1 > @1
+            LogicFilter nonMovableFilter = null;
+            if (nodeAFilter != null)
+            {
+                // @1 => <select> c1
+                var decExpr = nodeAFilter.SearchReplace(scalarExpr, singleValueExpr);
+                nonMovableFilter = new LogicFilter(singJoinNode, decExpr);
+                nonMovableFilter.movable_ = false;
+            }
+
+            // b1 = ?outsideRef => b1 = outsideRef
+            nodeSubqueryFilter.DeParameter(nodeA.InclusiveTableRefs());
+
+            // join filter within sbuquery
+            Expr pullupFilter = nodeSubqueryFilter;
+            if (nodeA.filter_ != null && !nodeA.filter_.HasSubQuery())
+            {
+                pullupFilter = pullupFilter.AddAndFilter(nodeA.filter_);
+                nodeA.NullifyFilter();
+            }
+            LogicFilter Filter = new LogicFilter(nonMovableFilter !=null? 
+                                    (LogicNode)nonMovableFilter: singJoinNode, pullupFilter);
             return Filter;
         }
 
-        LogicNode oneSubqueryToMarkJoin(LogicNode subplan, SubqueryExpr subexpr)
+        // exists|quantified subquery => mark join
+        // scalar subquery => single join or LOJ if max1row output is assured
+        //
+        LogicNode oneSubqueryToJoin(LogicNode subplan, SubqueryExpr subexpr)
         {
             LogicNode oldplan = subplan;
             LogicNode newplan = null;
@@ -170,7 +234,7 @@ namespace adb.logic
                     newplan = existsToMarkJoin(subplan, se);
                     break;
                 case ScalarSubqueryExpr ss:
-                    newplan = scalarToMarkJoin(subplan, ss);
+                    newplan = scalarToSingleJoin(subplan, ss);
                     break;
                 default:
                     break;
@@ -178,39 +242,6 @@ namespace adb.logic
             if (oldplan != newplan)
                 decorrelatedSubs_.Add(subexpr.query_);
             return newplan;
-        }
-
-        LogicNode subqueryToMarkJoin(LogicNode plan)
-        {
-            // before the filter push down, there shall be at most one filter
-            // except for from query. 
-            var parentNodes = new List<LogicNode>();
-            var indexes = new List<int>();
-            var logFilterNodes = new List<LogicFilter>();
-            var cntFilter = plan.FindNodeTyped(parentNodes, indexes, logFilterNodes);
-            Debug.Assert(cntFilter <= 1 || plan.CountNodeTyped<LogicFromQuery>() > 0);
-
-            if (cntFilter == 0)
-                return plan;
-
-            if (parentNodes[0] is LogicFromQuery)
-                return plan;
-
-            LogicNode subplan = logFilterNodes[0];
-            var filterExpr = subplan.filter_;
-            if (filterExpr != null)
-            {
-                foreach (var ef in filterExpr.RetrieveAllType<SubqueryExpr>())
-                    subplan = oneSubqueryToMarkJoin(subplan, ef);
-
-                // merge back to the root plan
-                if (parentNodes[0] is null)
-                    plan = subplan;
-                else
-                    parentNodes[0].children_[indexes[0]] = subplan;
-            }
-
-            return plan;
         }
     }
 
@@ -220,8 +251,8 @@ namespace adb.logic
     public class LogicMarkJoin : LogicJoin 
     {
         public override string ToString() => $"{l_()} markX {r_()}";
-        public LogicMarkJoin(LogicNode l, LogicNode r) : base(l, r) { }
-        public LogicMarkJoin(LogicNode l, LogicNode r, Expr f) : base(l, r, f) { }
+        public LogicMarkJoin(LogicNode l, LogicNode r) : base(l, r) { type_ = JoinType.Left; }
+        public LogicMarkJoin(LogicNode l, LogicNode r, Expr f) : base(l, r, f) { type_ = JoinType.Left; }
 
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
@@ -230,7 +261,6 @@ namespace adb.logic
             return list;
         }
     }
-    
     public class LogicMarkSemiJoin : LogicMarkJoin
     {
         public override string ToString() => $"{l_()} markSemiX {r_()}";
@@ -242,13 +272,6 @@ namespace adb.logic
         public override string ToString() => $"{l_()} markAntisemiX {r_()}";
         public LogicMarkAntiSemiJoin(LogicNode l, LogicNode r) : base(l, r) { }
         public LogicMarkAntiSemiJoin(LogicNode l, LogicNode r, Expr f) : base(l, r, f) { }
-    }
-
-    public class LogicSingleMarkJoin : LogicMarkJoin
-    {
-        public override string ToString() => $"{l_()} singlemarkX {r_()}";
-        public LogicSingleMarkJoin(LogicNode l, LogicNode r) : base(l, r) { }
-        public LogicSingleMarkJoin(LogicNode l, LogicNode r, Expr f ) : base(l, r, f) { }
     }
 
     public class PhysicMarkJoin : PhysicNode
@@ -297,7 +320,7 @@ namespace adb.logic
                 if (!foundOneMatch)
                 {
                     Row n = ExecProject(l);
-                    fixMarkerValue(n, semi ? false: true);
+                    fixMarkerValue(n, semi ? false : true);
                     callback(n);
                 }
                 return null;
@@ -312,25 +335,36 @@ namespace adb.logic
         }
     }
 
-    public class PhysicSingleMarkJoin : PhysicNode
+    // FIXME: it shall be derived from LogicJoin
+    public class LogicSingleJoin : LogicJoin
     {
-        public PhysicSingleMarkJoin(LogicMarkJoin logic, PhysicNode l, PhysicNode r) : base(logic)
+        public override string ToString() => $"{l_()} singleX {r_()}";
+        public LogicSingleJoin(LogicNode l, LogicNode r) : base(l, r) { type_ = JoinType.Left; }
+        public LogicSingleJoin(LogicNode l, LogicNode r, Expr f ) : base(l, r, f) { type_ = JoinType.Left; }
+    }
+
+    public class PhysicSingleJoin : PhysicNode
+    {
+        public PhysicSingleJoin(LogicSingleJoin logic, PhysicNode l, PhysicNode r) : base(logic)
         {
             children_.Add(l); children_.Add(r);
+
+            // we can't assert logic filter is not null because in some cases we can't adjust join order
+            // then we have to bear with it.
+            // Example:
+            //     select a1  from a where a.a1 = (
+            //            select c1 from c where c2 = a2 and c1 = (select b1 from b where b3=a3));
+            //
         }
-        public override string ToString() => $"PSingleMarkJOIN({l_()},{r_()}: {Cost()})";
+        public override string ToString() => $"PSingleJOIN({l_()},{r_()}: {Cost()})";
 
         // always the first column
-        void fixMarkerValue(Row r, Value value) => r[0] = value;
-
         public override string Exec(Func<Row, string> callback)
         {
             ExecContext context = context_;
-            var logic = logic_ as LogicMarkJoin;
+            var logic = logic_ as LogicSingleJoin;
             var filter = logic.filter_;
-            Debug.Assert(logic is LogicSingleMarkJoin);
-
-            Debug.Assert(filter != null);
+            Debug.Assert(logic is LogicSingleJoin);
 
             l_().Exec(l =>
             {
@@ -338,15 +372,14 @@ namespace adb.logic
                 r_().Exec(r =>
                 {
                     Row n = new Row(l, r);
-                    if (filter.Exec(context, n) is true)
+                    if (filter is null || filter.Exec(context, n) is true)
                     {
-                        if (foundOneMatch)
+                        if (foundOneMatch && filter != null)
                             throw new SemanticExecutionException("more than one row matched");
                         foundOneMatch = true;
 
                         // there is at least one match, mark true
                         n = ExecProject(n);
-                        fixMarkerValue(n, true);
                         callback(n);
                     }
                     return null;
@@ -358,7 +391,6 @@ namespace adb.logic
                     var nNulls = r_().logic_.output_.Count;
                     Row n = new Row(l, new Row(nNulls));
                     n = ExecProject(n);
-                    fixMarkerValue(n, false);
                     callback(n);
                 }
                 return null;

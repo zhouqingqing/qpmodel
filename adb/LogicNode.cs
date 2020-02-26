@@ -77,8 +77,8 @@ namespace adb.logic
                     Debug.Assert(!l.LeftReferencesRight(r));
                     switch (lc)
                     {
-                        case LogicSingleMarkJoin lsmj:
-                            phy = new PhysicSingleMarkJoin(lsmj,
+                        case LogicSingleJoin lsmj:
+                            phy = new PhysicSingleJoin(lsmj,
                                 l.DirectToPhysical(option),
                                 r.DirectToPhysical(option));
                             break;
@@ -567,12 +567,10 @@ namespace adb.logic
 
     public partial class LogicFilter : LogicNode
     {
+        public bool movable_ = true;
         public override string ToString() => $"filter({child_()}): {filter_}";
 
-        public override int GetHashCode()
-        {
-            return base.GetHashCode() ^ filter_.GetHashCode();
-        }
+        public override int GetHashCode()=> base.GetHashCode() ^ filter_.GetHashCode();
         public override bool Equals(object obj)
         {
             if (obj is LogicFilter lo)
@@ -605,6 +603,7 @@ namespace adb.logic
 
     public partial class LogicAgg : LogicNode
     {
+        public List<Expr> aggrs_; // original aggregations
         public List<Expr> keys_;
         public Expr having_;
 
@@ -627,7 +626,7 @@ namespace adb.logic
 
         public LogicAgg(LogicNode child, List<Expr> groupby, List<Expr> aggrs, Expr having)
         {
-            children_.Add(child); keys_ = groupby; having_ = having;
+            children_.Add(child); keys_ = groupby; aggrs_ = aggrs; having_ = having;
         }
 
         // key: b1+b2

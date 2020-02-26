@@ -498,7 +498,7 @@ namespace adb.optimizer
             if (plan is LogicMemoRef lp)
                 return lp.group_;
 
-            if (stmt_.queryOpt_.optimize_.use_joinorder_solver)
+            if (stmt_.queryOpt_.optimize_.memo_use_joinorder_solver)
             {
                 // In this mode, we decompose the plan into multiple join graph with
                 // other non-join nodes, which includes vertices in join graph and

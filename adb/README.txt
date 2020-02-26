@@ -1,20 +1,16 @@
 ﻿TODO items:
 ======================================
-3. tpch data types, sql syntax, null handling
 6. parallel query/ctes etc
-7. [Executor] codegen
 
 Small items:
 P1: 
-1. join side dependency (subquery)
 2. between ...
 
 P2:
-1. implement sort
-2. not in/ not exists etc
-3. subquery expansion bound issue
-5. select * as nation from ... parse error
-
+1. not in/ not exists etc
+2. subquery expansion bound issue
+3. select * as nation from ... parse error
+ 
 
 Known issues:
 ======================================

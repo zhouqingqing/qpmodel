@@ -19,6 +19,7 @@ namespace adb.optimizer
             new Join2NLJoin(),
             new Join2HashJoin(),
             new Join2MarkJoin(),
+            new Join2SingleJoin(),
             new Scan2Scan(),
             new Scan2IndexSeek(),
             new Filter2Filter(),
@@ -124,23 +125,19 @@ namespace adb.optimizer
         public override bool Appliable(CGroupMember expr)
         {
             LogicJoin a_bc = expr.logic_ as LogicJoin;
+            if (a_bc is null || !a_bc.IsInnerJoin())
+                return false;
 
-            if (a_bc != null)
-            {
-                if (!a_bc.IsInnerJoin())
+            var bc = (a_bc.r_() as LogicMemoRef).Deref();
+            var bcfilter = bc.filter_;
+            if (bc is LogicJoin bcj) {
+                if (!bcj.IsInnerJoin())
                     return false;
 
-                var bc = (a_bc.r_() as LogicMemoRef).Deref();
-                var bcfilter = bc.filter_;
-                if (bc is LogicJoin bcj) {
-                    if (!bcj.IsInnerJoin())
-                        return false;
-
-                    // we only reject cases that logically impossible to apply
-                    // association rule, but leave anything may generate worse
-                    // plan (say catersisan joins) to apply stage.
-                    return true;
-                }
+                // we only reject cases that logically impossible to apply
+                // association rule, but leave anything may generate worse
+                // plan (say catersisan joins) to apply stage.
+                return true;
             }
             return false;
         }

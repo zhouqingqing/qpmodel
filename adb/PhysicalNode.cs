@@ -1057,6 +1057,10 @@ namespace adb.physic
             });
             return null;
         }
+        public override double EstimateCost()
+        {
+            return child_().Card() * 1.0;
+        }
     }
 
     // this class shall be removed after filter associated with each node
@@ -1098,6 +1102,11 @@ namespace adb.physic
                 return base.Equals(lo) && (filter?.Equals((lo.logic_ as LogicFilter)?.filter_) ?? true);
             }
             return false;
+        }
+
+        public override double EstimateCost()
+        {
+            return child_().Card() * 1.0;
         }
     }
 

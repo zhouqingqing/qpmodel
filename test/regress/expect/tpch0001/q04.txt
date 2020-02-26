@@ -29,7 +29,7 @@ PhysicOrder  (actual rows=5)
         -> PhysicFilter  (actual rows=44)
             Output: orders.o_orderpriority[1]
             Filter: {#marker}[0]
-            -> PhysicMarkJoin  (actual rows=48)
+            -> PhysicMarkJoin Left (actual rows=48)
                 Output: #marker,orders.o_orderpriority[0]
                 Filter: lineitem.l_orderkey[2]=orders.o_orderkey[1]
                 -> PhysicScanTable orders (actual rows=48)

@@ -24,7 +24,7 @@ namespace psql
         }
 
 
-        public Boolean SQLQueryVerify(string sql_dir_fn, string write_dir_fn, string expect_dir_fn)
+        public string SQLQueryVerify(string sql_dir_fn, string write_dir_fn, string expect_dir_fn)
         {
             // get a list of sql query fine names from the sql directory
             string[] sqlFiles = Directory.GetFiles(sql_dir_fn);
@@ -48,10 +48,10 @@ namespace psql
                // verify query result against the expected result
                if (!resultVerify(write_fn, expect_fn))
                {
-                   return false;
+                   return write_fn;
                }
             }
-            return (true);
+            return null;
         }
 
     }

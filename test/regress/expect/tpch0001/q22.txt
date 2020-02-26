@@ -47,7 +47,7 @@ PhysicOrder  (actual rows=7)
             -> PhysicFilter  (actual rows=9)
                 Output: {substring(customer.c_phone,1,2)}[1],customer.c_acctbal[2]
                 Filter: {#marker}[0]
-                -> PhysicMarkJoin  (actual rows=17)
+                -> PhysicMarkJoin Left (actual rows=17)
                     Output: #marker,{substring(customer.c_phone,1,2)}[0],customer.c_acctbal[1]
                     Filter: orders.o_custkey[3]=customer.c_custkey[2]
                     -> PhysicScanTable customer (actual rows=17)
