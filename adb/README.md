@@ -30,4 +30,5 @@ In order to verify plan correctness, the project also implements a data centric 
 Open the project with Visual Studio 2019 community version. Run unnitest project. The unittest come up with multiple tests:
 - TPCH with small data set
 - TPCDS, JoBench only exercise the optimizer
-- Other grouped unittest
+- Other grouped unitttest
+
