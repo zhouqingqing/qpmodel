@@ -188,7 +188,6 @@
       <Generator>MSBuild:Compile</Generator>
       <CustomToolNamespace>adb.sqlparser</CustomToolNamespace>
     </Antlr4>
-    <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.6.1">
