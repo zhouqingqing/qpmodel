@@ -68,6 +68,8 @@ namespace adb
             Catalog.Init();
 
             string sql = "";
+            TDBasic.Test();
+            return;
             //TestDataFrame();
             //TestJobench();
             //return;

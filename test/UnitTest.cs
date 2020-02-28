@@ -341,6 +341,8 @@ namespace test
 
             DPBushy.Test();
             DPccp.Test();
+            GOO.Test();
+            TDBasic.Test();
         }
 
         [TestMethod]

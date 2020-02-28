@@ -204,7 +204,7 @@ namespace adb.optimizer
 
         internal abstract PhysicNode Run(JoinGraph graph, BigInteger expectC1 = new BigInteger());
 
-        protected Expr identifyJoinPred(PhysicNode T1, PhysicNode T2)
+        protected Expr identifyJoinPred(PhysicNode T1, PhysicNode T2, bool canBeCrossJoin=false)
         {
             var key = ValueTuple.Create(T1, T2);
             if (!joinpreds_.ContainsKey(key))
@@ -223,19 +223,23 @@ namespace adb.optimizer
                 }
 
                 // we shall be able to locate the predicate because we don't generate cross join here
-                Debug.Assert(list.Count != 0);
-                var expr = list.AndListToExpr();
-                joinpreds_.Add(key, expr);
+                Debug.Assert(canBeCrossJoin || list.Count != 0);
+                if (list.Count > 0)
+                {
+                    var expr = list.AndListToExpr();
+                    joinpreds_.Add(key, expr);
+                }
             }
 
-            return joinpreds_[key];
+            Debug.Assert(canBeCrossJoin || joinpreds_.ContainsKey(key));
+            return joinpreds_.ContainsKey(key) ? joinpreds_[key] : null;
         }
 
         // create join tree of (T1, T2) with commutative transform and record it in bestTree_
         //
-        protected PhysicNode CreateMinimalJoinTree(PhysicNode T1, PhysicNode T2)
+        protected PhysicNode CreateMinimalJoinTree(PhysicNode T1, PhysicNode T2, bool canBeCrossJoin = false)
         {
-            Expr pred = identifyJoinPred(T1, T2);
+            Expr pred = identifyJoinPred(T1, T2, canBeCrossJoin);
 
             // for all join implmentations identify the lowest cost one
             PhysicNode bestJoin = null;
@@ -382,6 +386,7 @@ namespace adb.optimizer
         }
     }
 
+    // DPccp search the non-cross-join space exhaustly
     public class DPccp : JoinResolver
     {
         IEnumerable<BitVector> enumerateCsgRecursive(JoinGraph graph, BitVector S, BitVector X)
@@ -533,6 +538,197 @@ namespace adb.optimizer
 
             // full test
             DoTest(new DPccp());
+        }
+    }
+
+    // GOO is a heuristic algorithm generating bushy tree
+    //    It is not cross product avoiding
+    public class GOO : JoinResolver
+    {
+        override internal PhysicNode Run(JoinGraph graph, BigInteger expectC1)
+        {
+            int ntables = graph.vertices_.Count;
+            var Trees = new List<PhysicNode>();
+
+            Console.WriteLine("GOO #tables: " + ntables);
+
+            // Treees = {R1, R2, ..., Rn}
+            graph_ = graph;
+            foreach (var logic in graph.vertices_)
+            {
+                BitVector contained = 1 << graph.vertices_.IndexOf(logic);
+                logic.tableContained_ = contained;
+                if (graph.memo_ is null)
+                    Trees.Add(new PhysicScanTable(logic));
+                else
+                {
+                    // vertices are already inserted into memo
+                    var cgroup = graph.memo_.LookupCGroup(logic);
+                    var logicref = new LogicMemoRef(cgroup);
+                    Trees.Add(new PhysicMemoRef(logicref));
+                }
+            }
+
+            while (Trees.Count != 1)
+            {
+                PhysicNode Ti = null, Tj = null;
+                PhysicNode bestJoin = null;
+
+                // find Ti, Tj in Trees s.t. i < j (avoid duplicates) and TixTj is minimal
+                for (int i = 0; i < Trees.Count; i++)
+                    for (int j = i + 1; j < Trees.Count; j++)
+                    {
+                        var join = CreateMinimalJoinTree(Trees[i], Trees[j], true);
+                        if (bestJoin == null || join.Cost() < bestJoin.Cost())
+                        {
+                            bestJoin = join;
+                            Ti = Trees[i];
+                            Tj = Trees[j];
+                        }
+                    }
+
+                Debug.Assert(Ti != null && Tj != null);
+                Trees.Remove(Ti); Trees.Remove(Tj);
+                Trees.Add(bestJoin);
+            }
+
+            // compare with DPccp solver
+            //   ideally, DPccp shall always generate better plans since GOO is heuristic - but DPccp does not consider
+            //   CP, so in some cases where CP is beneficial, GOO can win
+            //
+            var result = Trees[0];
+            var dpccp = new DPccp().Run(graph, expectC1);
+            Console.WriteLine(result);
+            if (dpccp.InclusiveCost() < result.InclusiveCost())
+                Console.WriteLine("warning: GOO non optimal plan: {0} vs. {1}", dpccp.InclusiveCost(), result.InclusiveCost());
+            if (dpccp.Cost() > result.Cost())
+                Console.WriteLine("warning: DPCC shall consider CP in the case: {0} vs. {1}", dpccp.InclusiveCost(), result.InclusiveCost());
+
+            return result;
+        }
+        static public void Test()
+        {
+            var solver = new GOO();
+
+            // book figure 3.12
+            var tables = new string[] { "T1", "T2", "T3", "T4", "T5" };
+            JoinGraph figure312 = new JoinGraph(tables, new string[] { "T1*T2", "T1*T3", "T1*T4", "T3*T4", "T5*T2", "T5*T3", "T5*T4" });
+            Debug.Assert(figure312.joinbits_.Count == 5 && figure312.preds_.Count == 7);
+            solver.Reset().Run(figure312);
+
+            // full test
+            DoTest(new GOO());
+        }
+    }
+
+    // Top down plan enumerator with naive partitioning
+    public class TDBasic : JoinResolver
+    {
+        ulong c1_ = 0;
+
+        // TDBasic uses naive partition algorithm. Phd table 2.7.
+        // Its complexity is essentially the same as DP_bushy but it does not has the hard
+        // requirements like DP algorithm that it has to enumerate bottom up but more like
+        // on-demand driven, so it is more flexible and looks natural.
+        //
+        override internal PhysicNode Run(JoinGraph graph, BigInteger expectC1)
+        {
+            int ntables = graph.vertices_.Count;
+            BitVector S = (1 << ntables) - 1;
+
+            Console.WriteLine("TDBasic(naive) #tables: " + ntables);
+
+            // initialization: enqueue all single tables
+            InitByInsertBasicTables(graph);
+
+            c1_ = 0;
+            var result = TDPGSub(graph, S, expectC1);
+            var expectC2 = BigInteger.Pow(3, ntables) - BigInteger.Pow(2, ntables + 1) + 1;
+            Console.WriteLine("dp: {0}, expected c1: {1} == c1: {2}",
+                                    expectC2, expectC1, c1_);
+            if (!expectC1.IsZero)
+                Debug.Assert(c1_ == expectC1);
+            Console.WriteLine(result);
+
+            // verify that it generates same tree as DPBushy
+            Debug.Assert((new DPBushy()).Run(graph, BigInteger.Zero).Equals(result));
+            return result;
+        }
+
+        // Naive partitioning
+        //   Similar to DPBushy algorithm
+        IEnumerable<CsgCmpPair> NaiveNext(JoinGraph graph, BitVector S)
+        {
+            // it is connected because the 1st iteration is connected and when
+            // we generate for next iteration, we checked S1,S2.
+            //
+            Debug.Assert(graph.IsConnected(S));
+
+            VancePartition partitioner = new VancePartition(S);
+            foreach (var S1 in partitioner.Next())
+            {
+                c1_++;
+                BitVector S2 = SetOp.Substract(S, S1);
+                if (S1 < S2)
+                {
+                    if (!graph.IsConnected(S1) || !graph.IsConnected(S2))
+                        continue;
+
+                    yield return new CsgCmpPair(graph, S1, S2);
+                }
+            }
+        }
+
+        PhysicNode TDPGSub(JoinGraph graph, BitVector S, BigInteger expectC1)
+        {
+            if (bestTree_[S] == null)
+            {
+                // for all partitioning S1, S2, build tree (TDPGSub(G|S1), TDPGSub(G|S2))
+                foreach (var ccp in NaiveNext(graph, S))
+                {
+                    CreateMinimalJoinTree(TDPGSub(graph, ccp.S1_, 0),
+                                    TDPGSub(graph, ccp.S2_, 0));
+                }
+            }
+
+            return bestTree_[S];
+        }
+
+        static public void Test()
+        {
+            var solver = new TDBasic();
+
+            // loop through all graph class - can't use DPAlgorithm's DoTest() since the 
+            // expected numbers are not the same
+            //
+            for (int n = 2; n <= 10; n++)
+            {
+                JoinGraph graph;
+                BigInteger expectC1;
+
+                // expected nubmer are from Phd 2.2.4 - shall be the same as DPSub
+                expectC1 = BigInteger.Pow(2, n + 2) - n * n - 3 * n - 4;
+                graph = new ClassChain().RandomGenerate(n);
+                solver.Reset().Run(graph, expectC1);
+
+                expectC1 = (1 + n) * BigInteger.Pow(2, n) - 2 * n * n - 2;
+                graph = new ClassCycle().RandomGenerate(n);
+                solver.Reset().Run(graph, expectC1);
+
+                expectC1 = 2 * BigInteger.Pow(3, n - 1) - BigInteger.Pow(2, n);
+                graph = new ClassStar().RandomGenerate(n);
+                solver.Reset().Run(graph, expectC1);
+
+                expectC1 = BigInteger.Pow(3, n) - BigInteger.Pow(2, n + 1) + 1;
+                graph = new ClassClique().RandomGenerate(n);
+                solver.Reset().Run(graph, expectC1);
+
+                // no theoretic number
+                graph = new ClassTree().RandomGenerate(n);
+                solver.Reset().Run(graph);
+                graph = new ClassRandom().RandomGenerate(n);
+                solver.Reset().Run(graph);
+            }
         }
     }
 }
