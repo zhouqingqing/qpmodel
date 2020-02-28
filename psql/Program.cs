@@ -26,6 +26,14 @@ namespace psql
 
         public string SQLQueryVerify(string sql_dir_fn, string write_dir_fn, string expect_dir_fn)
         {
+            QueryOption option = new QueryOption();
+            option.optimize_.TurnOnAllOptimizations();
+            option.optimize_.remove_from = false;
+
+            ExplainOption.show_tablename_ = true;
+            option.explain_.show_output_ = true;
+            option.explain_.show_cost_ = option.optimize_.use_memo_;
+
             // get a list of sql query fine names from the sql directory
             string[] sqlFiles = Directory.GetFiles(sql_dir_fn);
 
@@ -34,7 +42,7 @@ namespace psql
             {
                 // execute query
                 var sql = File.ReadAllText(sqlFn);
-                var test_result = SQLStatement.ExecSQLList(sql);
+                var test_result = SQLStatement.ExecSQLList(sql, option);
 
                 // construct file name for result file and write result
                 string f_name = Path.GetFileNameWithoutExtension(sqlFn);

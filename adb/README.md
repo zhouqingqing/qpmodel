@@ -18,7 +18,7 @@ The optimizer exercise following constructs:
             var rows = a.filter("a1>1").join(b, "b2=a2").select("a1", "b1*a1+5").show();
             Assert.AreEqual(string.Join(",", rows), "2,9");
 ```
-- We verify the optimizer by some unittests and TPCH/DS. All TPCH queries are runnable. TPCDS we don't support window function and rolling groups.
+- We verify the optimizer by some unittests and TPCH/DS. All TPCH queries are runnable. TPCDS we don't support window function and rolling groups. You can find TPCH plan in test/regress/expect folder.
 
 ## Executor
 In order to verify plan correctness, the project also implements a data centric callback style executor following paper ["How to Architect a query compiler, Revisited"](https://www.cs.purdue.edu/homes/rompf/papers/tahboub-sigmod18.pdf) by R.Y.Tahboub et al. 

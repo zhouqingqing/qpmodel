@@ -147,8 +147,8 @@ namespace adb
 
             // -- generate an initial plan
             ExplainOption.show_tablename_ = true;
-            a.explain_.show_output_ = true;
-            a.explain_.show_cost_ =  a.queryOpt_.optimize_.use_memo_;
+            a.queryOpt_.explain_.show_output_ = true;
+            a.queryOpt_.explain_.show_cost_ =  a.queryOpt_.optimize_.use_memo_;
             var rawplan = a.CreatePlan();
             Console.WriteLine("***************** raw plan *************");
             Console.WriteLine(rawplan.Explain(0));
@@ -158,26 +158,26 @@ namespace adb
             {
                 Console.WriteLine("***************** optimized plan *************");
                 var optplan = a.PhaseOneOptimize();
-                Console.WriteLine(optplan.Explain(0, a.explain_));
+                Console.WriteLine(optplan.Explain(0, a.queryOpt_.explain_));
                 Optimizer.InitRootPlan(a);
                 Optimizer.OptimizeRootPlan(a, null);
                 Console.WriteLine(Optimizer.PrintMemo());
                 phyplan = Optimizer.CopyOutOptimalPlan();
                 Console.WriteLine(Optimizer.PrintMemo());
                 Console.WriteLine("***************** Memo plan *************");
-                Console.WriteLine(phyplan.Explain(0, a.explain_));
+                Console.WriteLine(phyplan.Explain(0, a.queryOpt_.explain_));
             }
             else
             {
                 // -- optimize the plan
                 Console.WriteLine("-- optimized plan --");
                 var optplan = a.PhaseOneOptimize();
-                Console.WriteLine(optplan.Explain(0, a.explain_));
+                Console.WriteLine(optplan.Explain(0, a.queryOpt_.explain_));
 
                 // -- physical plan
                 Console.WriteLine("-- physical plan --");
                 phyplan = a.physicPlan_;
-                Console.WriteLine(phyplan.Explain(0, a.explain_));
+                Console.WriteLine(phyplan.Explain(0, a.queryOpt_.explain_));
             }
 
             Console.WriteLine("-- profiling plan --");
@@ -198,7 +198,7 @@ namespace adb
                 Compiler.Run(Compiler.Compile(), a, context);
             }
 
-            Console.WriteLine(phyplan.Explain(0, a.explain_));
+            Console.WriteLine(phyplan.Explain(0, a.queryOpt_.explain_));
         }
     }
 }

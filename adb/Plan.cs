@@ -55,6 +55,7 @@ namespace adb.logic
 
         public ProfileOption profile_ = new ProfileOption();
         public OptimizeOption optimize_ = new OptimizeOption();
+        public ExplainOption explain_ = new ExplainOption();
 
         bool saved_use_codegen_;
         public void PushCodeGenDisable() {

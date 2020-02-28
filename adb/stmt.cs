@@ -27,7 +27,6 @@ namespace adb.logic
 
         // others
         public bool explainOnly_ = false;
-        public ExplainOption explain_ = new ExplainOption();
         public QueryOption queryOpt_ = new QueryOption();
 
         // DEBUG support
@@ -85,7 +84,7 @@ namespace adb.logic
                 var result = stmt.Exec();
                 physicplan = "";
                 if (stmt.physicPlan_ != null)
-                    physicplan = stmt.physicPlan_.Explain(0);
+                    physicplan = stmt.physicPlan_.Explain(0, option?.explain_);
                 error = "";
                 return result;
             }
@@ -134,7 +133,7 @@ namespace adb.logic
             foreach (var v in list_)
             {
                 v.queryOpt_ = queryOpt_;
-                var rows = ExecSQL(v.text_, out string plan, out _);
+                var rows = ExecSQL(v.text_, out string plan, out _, queryOpt_);
 
                 // format: <sql> <plan> <result>
                 result += v.text_ + "\n";
