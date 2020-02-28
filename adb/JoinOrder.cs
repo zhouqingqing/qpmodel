@@ -608,15 +608,6 @@ namespace adb.optimizer
         }
         static public void Test()
         {
-            var solver = new GOO();
-
-            // book figure 3.12
-            var tables = new string[] { "T1", "T2", "T3", "T4", "T5" };
-            JoinGraph figure312 = new JoinGraph(tables, new string[] { "T1*T2", "T1*T3", "T1*T4", "T3*T4", "T5*T2", "T5*T3", "T5*T4" });
-            Debug.Assert(figure312.joinbits_.Count == 5 && figure312.preds_.Count == 7);
-            solver.Reset().Run(figure312);
-
-            // full test
             DoTest(new GOO());
         }
     }

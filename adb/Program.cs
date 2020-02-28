@@ -68,8 +68,6 @@ namespace adb
             Catalog.Init();
 
             string sql = "";
-            TDBasic.Test();
-            return;
             //TestDataFrame();
             //TestJobench();
             //return;
@@ -130,6 +128,7 @@ namespace adb
             sql = @"select a1  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 
                         and bo.b3 = a3 and b3> 1) and b2<3);";
             sql = @"select a1  from a where a.a1 = (select c1 from c where c2 = a2 and c1 = (select b1 from b where b3=a3));";
+            sql = "select a2*2, count(a1), repeat('a', a2) from a, b, c where a1=b1 and a2=c2 group by a2 limit 2;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
@@ -137,7 +136,7 @@ namespace adb
             a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = true;
             a.queryOpt_.optimize_.remove_from = false;
             a.queryOpt_.optimize_.use_memo_ = true;
-            //a.queryOpt_.optimize_.use_codegen_ = false;
+            a.queryOpt_.optimize_.use_codegen_ = true;
 
             //a.queryOpt_.optimize_.memo_disable_crossjoin = false;
             //a.queryOpt_.optimize_.use_joinorder_solver = true;

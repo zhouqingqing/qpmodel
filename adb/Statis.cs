@@ -159,10 +159,10 @@ namespace adb.stat
     //
     public class ColumnStat
     {
-        public long n_rows_;                // number of rows
-        public double nullfrac_;            // null value percentage
+        public long n_rows_;        // number of rows
+        public double nullfrac_;    // null value percentage
         public long n_distinct_;
-        public Historgram hist_; // value historgram
+        public Historgram hist_;    // value historgram
         public MCVList mcv_;
 
         public ColumnStat() { }

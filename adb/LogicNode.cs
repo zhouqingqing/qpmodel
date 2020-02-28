@@ -239,6 +239,12 @@ namespace adb.logic
             return clone;
         }
 
+        // output_ may adjust column ordinals after ordinal fixing, so we have to re-register them for codeGen
+        protected void RefreshOutputRegisteration()
+        {
+            output_.ForEach(x=> ExprSearch.table_[x._] = x);
+        }
+
         // fix each expression by using source's ordinal and make a copy
         internal List<Expr> CloneFixColumnOrdinal(List<Expr> toclone, List<Expr> source, bool removeRedundant)
         {
@@ -561,6 +567,8 @@ namespace adb.logic
             if (filter_ != null)
                 filter_ = CloneFixColumnOrdinal(filter_, childrenout);
             output_ = CloneFixColumnOrdinal(reqOutput, childrenout, removeRedundant);
+
+            RefreshOutputRegisteration();
             return ordinals;
         }
     }
@@ -597,6 +605,7 @@ namespace adb.logic
 
             filter_ = CloneFixColumnOrdinal(filter_, childout);
             output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
+            RefreshOutputRegisteration();
             return ordinals;
         }
     }
@@ -813,6 +822,7 @@ namespace adb.logic
             if (having_?.VisitEachExists(y => y is ColExpr, new List<Type> { typeof(ExprRef) })??false)
                 throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
 
+            RefreshOutputRegisteration();
             return ordinals;
         }
 
@@ -855,6 +865,7 @@ namespace adb.logic
 
             orders_ = CloneFixColumnOrdinal(orders_, childout, false);
             output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
+            RefreshOutputRegisteration();
             return ordinals;
         }
     }
@@ -882,6 +893,7 @@ namespace adb.logic
             output_ = queryRef_.AddOuterRefsToOutput(output_);
             if (removeRedundant)
                 output_ = output_.Distinct().ToList();
+            RefreshOutputRegisteration();
             return ordinals;
         }
     }
@@ -949,6 +961,7 @@ namespace adb.logic
             output_ = tabref_.AddOuterRefsToOutput(output_);
             if (removeRedundant)
                 output_ = output_.Distinct().ToList();
+            RefreshOutputRegisteration();
             return ordinals;
         }
     }
@@ -1003,6 +1016,7 @@ namespace adb.logic
 
             l_().ResolveColumnOrdinal(reqOutput, removeRedundant);
             output_ = l_().output_;
+            RefreshOutputRegisteration();
             return ordinals;
         }
     }
@@ -1032,6 +1046,7 @@ namespace adb.logic
 
             child_().ResolveColumnOrdinal(reqOutput, false);
             output_ = child_().output_;
+            RefreshOutputRegisteration();
             return ordinals;
         }
 
