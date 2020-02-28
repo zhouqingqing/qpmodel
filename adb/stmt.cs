@@ -728,7 +728,7 @@ namespace adb.logic
         {
             bind(null);
 
-            // TBD: add optimization code here
+            // TBD: route to optimizer here
             QueryOption queryOpt = new QueryOption();
             physicPlan_ = logicPlan_.DirectToPhysical(queryOpt);
             logicPlan_.ResolveColumnOrdinal(outputs_);

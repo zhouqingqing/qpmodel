@@ -293,6 +293,7 @@ namespace adb.logic
                 // plan is already runnable
                 if (queryOpt_.optimize_.enable_subquery_to_markjoin_)
                 {
+                    // use the plan 'root' containing the subexpr 'x'
                     var replacement = oneSubqueryToJoin(root, x);
                     newroot = (LogicNode)newroot.SearchAndReplace(root,
                                                             replacement);

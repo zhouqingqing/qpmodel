@@ -109,17 +109,18 @@ namespace adb.logic
         // expands scalar subquery filter to mark join
         //
         //  LogicNode_A
-        //     Filter: a.a2 = @1 AND|OR <others1>
+        //     Filter: a.a2 = @1 AND <others1>
         //     <ExistSubqueryExpr> 1
         //          -> LogicNode_B
         //             Output: singleValueExpr
-        //             Filter: b.b1[0]=?a.a1[0] AND|OR <others2>
+        //             Filter: b.b1[0]=?a.a1[0] AND <others2>
         // =>
-        //  LogicFilter
-        //      Filter: (#marker AND a.a2 = singleValueExpr) AND|OR <others1>
+        // LogicFilter-Movable
+        //     Filter:  (b.b1[0]=a.a1[0]) AND <others1> <others2>
+        //  LogicFilter-NonMovable
+        //      Filter: a.a2 = singleValueExpr
         //      SingleJoin
-        //          Outpu: singleValueExpr
-        //          Filter:  (b.b1[0]=a.a1[0]) AND|OR <others2>
+        //          Output: singleValueExpr
         //          LogicNode_A
         //          LogicNode_B
         //
@@ -221,20 +222,20 @@ namespace adb.logic
         // exists|quantified subquery => mark join
         // scalar subquery => single join or LOJ if max1row output is assured
         //
-        LogicNode oneSubqueryToJoin(LogicNode subplan, SubqueryExpr subexpr)
+        LogicNode oneSubqueryToJoin(LogicNode planWithSubExpr, SubqueryExpr subexpr)
         {
-            LogicNode oldplan = subplan;
+            LogicNode oldplan = planWithSubExpr;
             LogicNode newplan = null;
 
             if (!subexpr.IsCorrelated())
-                return subplan;
+                return planWithSubExpr;
 
             switch (subexpr) {
                 case ExistSubqueryExpr se:
-                    newplan = existsToMarkJoin(subplan, se);
+                    newplan = existsToMarkJoin(planWithSubExpr, se);
                     break;
                 case ScalarSubqueryExpr ss:
-                    newplan = scalarToSingleJoin(subplan, ss);
+                    newplan = scalarToSingleJoin(planWithSubExpr, ss);
                     break;
                 default:
                     break;
