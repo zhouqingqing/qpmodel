@@ -5,12 +5,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 
-using adb.expr;
-using adb.logic;
-using adb.index;
-using adb.dml;
+using qpmodel.expr;
+using qpmodel.logic;
+using qpmodel.index;
+using qpmodel.dml;
 
-namespace adb.sqlparser
+namespace qpmodel.sqlparser
 {
     // antlr requires user defined exception with this name
     public class RuntimeException : Exception
@@ -420,7 +420,7 @@ namespace adb.sqlparser
                 else
                 {
                     var numbers = context.signed_number();
-                    adb.utils.Utils.Checks(numbers.Count() == 1);
+                    qpmodel.utils.Utils.Checks(numbers.Count() == 1);
                     len = int.Parse(numbers[0].NUMERIC_LITERAL().GetText());
                 }
                 return new CharType(len);
@@ -428,7 +428,7 @@ namespace adb.sqlparser
             else if (type == typeof(decimal))
             {
                 var numbers = context.signed_number();
-                adb.utils.Utils.Checks(numbers.Any() && numbers.Count() <= 2);
+                qpmodel.utils.Utils.Checks(numbers.Any() && numbers.Count() <= 2);
                 int prec = int.Parse(context.signed_number()[0].NUMERIC_LITERAL().GetText());
                 int scale = 0;
                 if (numbers.Count() > 1)

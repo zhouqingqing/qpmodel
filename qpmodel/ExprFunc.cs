@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
 
-using adb.logic;
-using adb.physic;
-using adb.utils;
+using qpmodel.logic;
+using qpmodel.physic;
+using qpmodel.utils;
 
 using Value = System.Object;
 
-namespace adb.expr
+namespace qpmodel.expr
 {
     public class FuncExpr : Expr
     {

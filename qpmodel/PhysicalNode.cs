@@ -3,19 +3,19 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 
-using adb.expr;
-using adb.logic;
-using adb.utils;
-using adb.optimizer;
-using adb.codegen;
-using adb.index;
-using adb.stat;
+using qpmodel.expr;
+using qpmodel.logic;
+using qpmodel.utils;
+using qpmodel.optimizer;
+using qpmodel.codegen;
+using qpmodel.index;
+using qpmodel.stat;
 
 using Value = System.Object;
 using BitVector = System.Int64;
 
 
-namespace adb.physic
+namespace qpmodel.physic
 {
     public abstract class PhysicNode : PlanNode<PhysicNode>
     {

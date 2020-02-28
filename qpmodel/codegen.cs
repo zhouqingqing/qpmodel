@@ -9,8 +9,8 @@ using System.CodeDom.Compiler;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
-using adb.logic;
-using adb.physic;
+using qpmodel.logic;
+using qpmodel.physic;
 
 // Code Generation Targets:
 //  1. specialization with all possible without breaking code structure.
@@ -35,7 +35,7 @@ using adb.physic;
 //     rows, handling of null value of rows etc.
 //
 
-namespace adb.codegen
+namespace qpmodel.codegen
 {
     class CodeWriter
     {
@@ -52,12 +52,13 @@ namespace adb.codegen
 				using System.Diagnostics;
 				using System.IO;
 
-                using adb.physic;
-                using adb.utils;
-                using adb.logic;
-                using adb.test;
-                using adb.expr;
-                using adb.dml;");
+                using qpmodel.physic;
+                using qpmodel.utils;
+                using qpmodel.logic;
+                using qpmodel.test;
+                using qpmodel.expr;
+                using qpmodel.dml;");
+
                 file.WriteLine(@"
                 // entrance of query execution
                 public class QueryCode
@@ -108,7 +109,7 @@ namespace adb.codegen
             var provider = new Microsoft.CodeDom.Providers.DotNetCompilerPlatform.CSharpCodeProvider();
 
             // compile it
-            string[] references = { "adb.exe", "System.dll", "Microsoft.CSharp.dll", "System.Core.dll"};
+            string[] references = { "qpmodel.exe", "System.dll", "Microsoft.CSharp.dll", "System.Core.dll"};
             CompilerParameters cp = new CompilerParameters(references);
             cp.GenerateInMemory = true;
             cp.GenerateExecutable = false;

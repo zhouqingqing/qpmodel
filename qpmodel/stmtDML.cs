@@ -2,14 +2,14 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using adb.stat;
-using adb.sqlparser;
-using adb.expr;
-using adb.logic;
-using adb.physic;
-using adb.utils;
+using qpmodel.stat;
+using qpmodel.sqlparser;
+using qpmodel.expr;
+using qpmodel.logic;
+using qpmodel.physic;
+using qpmodel.utils;
 
-namespace adb.dml
+namespace qpmodel.dml
 {
     public abstract class TableConstraint { 
     }

@@ -8,13 +8,13 @@ using System.Numerics;
 
 using BitVector = System.Int64;
 
-using adb.utils;
-using adb.logic;
-using adb.physic;
-using adb.optimizer;
-using adb.stat;
-using adb.expr;
-using adb.optimizer.test;
+using qpmodel.utils;
+using qpmodel.logic;
+using qpmodel.physic;
+using qpmodel.optimizer;
+using qpmodel.stat;
+using qpmodel.expr;
+using qpmodel.optimizer.test;
 
 // There are serveral major constructs in optimization:
 //   1. MEMO: where the plan is decomposed into groups and each group represents logic equal plan fragments.
@@ -29,7 +29,7 @@ using adb.optimizer.test;
 //        process with aggregations move around (eager/lazy).
 //     2) what if the join part contains subqueries? It is handled separately in another memo already.
 //
-namespace adb.optimizer
+namespace qpmodel.optimizer
 {
     // Dynamic programming BestTree, which maps a BitVector key to a tree (thus the cost)
     public class BestTree

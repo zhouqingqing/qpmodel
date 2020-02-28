@@ -5,10 +5,10 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
 
-using adb.logic;
-using adb.physic;
+using qpmodel.logic;
+using qpmodel.physic;
 
-namespace adb.expr
+namespace qpmodel.expr
 {
     public class ColumnType
     {

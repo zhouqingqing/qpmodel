@@ -4,17 +4,17 @@ using System.Linq;
 using System.Collections.Generic;
 using System.IO;
 
-using adb.stat;
-using adb.sqlparser;
-using adb.expr;
-using adb.logic;
-using adb.physic;
-using adb.index;
-using adb.test;
+using qpmodel.stat;
+using qpmodel.sqlparser;
+using qpmodel.expr;
+using qpmodel.logic;
+using qpmodel.physic;
+using qpmodel.index;
+using qpmodel.test;
 
 using TableColumn = System.Tuple<string, string>;
 
-namespace adb
+namespace qpmodel
 {
     public class ColumnDef
     {

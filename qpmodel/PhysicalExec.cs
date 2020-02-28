@@ -5,12 +5,12 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
 
-using adb.expr;
-using adb.logic;
+using qpmodel.expr;
+using qpmodel.logic;
 
 using Value = System.Object;
 
-namespace adb.physic
+namespace qpmodel.physic
 {
     public class SemanticExecutionException : Exception
     {

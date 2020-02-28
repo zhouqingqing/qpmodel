@@ -41,9 +41,9 @@
     <Compile Include="Program.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\adb\adb.csproj">
+    <ProjectReference Include="..\qpmodel\qpmodel.csproj">
       <Project>{e06a2982-3807-40dc-b025-878745e5c98a}</Project>
-      <Name>adb</Name>
+      <Name>qpmodel</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

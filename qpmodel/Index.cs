@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using Value = System.Object;
 
-using adb.sqlparser;
-using adb.logic;
-using adb.physic;
-using adb.expr;
+using qpmodel.sqlparser;
+using qpmodel.logic;
+using qpmodel.physic;
+using qpmodel.expr;
 
-namespace adb.index
+namespace qpmodel.index
 {
     public class CreateIndexStmt : SQLStatement
     {

@@ -4,12 +4,12 @@ using System.Diagnostics;
 using System.Linq;
 using Value = System.Object;
 
-using adb.logic;
-using adb.physic;
-using adb.utils;
-using adb.index;
+using qpmodel.logic;
+using qpmodel.physic;
+using qpmodel.utils;
+using qpmodel.index;
 
-namespace adb.expr
+namespace qpmodel.expr
 {
     // It carries info needed by expression binding, it includes
     //  - tablerefs, so we can lookup column names

@@ -5,9 +5,9 @@ using System.Linq;
 using Microsoft.VisualBasic.FileIO;
 using System.Text.RegularExpressions;
 
-using adb.expr;
+using qpmodel.expr;
 
-namespace adb.utils
+namespace qpmodel.utils
 {
     class ObjectID
     {

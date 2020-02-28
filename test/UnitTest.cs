@@ -1,18 +1,18 @@
-﻿using adb;
+﻿using qpmodel;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Linq;
 using System.IO;
 using System.Collections.Generic;
 
-using adb.physic;
-using adb.utils;
-using adb.logic;
-using adb.sqlparser;
-using adb.optimizer;
-using adb.test;
-using adb.expr;
-using adb.dml;
+using qpmodel.physic;
+using qpmodel.utils;
+using qpmodel.logic;
+using qpmodel.sqlparser;
+using qpmodel.optimizer;
+using qpmodel.test;
+using qpmodel.expr;
+using qpmodel.dml;
 
 using psql;
 

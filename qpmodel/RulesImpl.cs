@@ -4,11 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using adb.expr;
-using adb.logic;
-using adb.physic;
+using qpmodel.expr;
+using qpmodel.logic;
+using qpmodel.physic;
 
-namespace adb.optimizer
+namespace qpmodel.optimizer
 {
     public class ImplmentationRule : Rule { }
 

@@ -2,17 +2,17 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
-using adb.stat;
-using adb.expr;
-using adb.physic;
-using adb.index;
-using adb.optimizer;
-using adb.utils;
+using qpmodel.stat;
+using qpmodel.expr;
+using qpmodel.physic;
+using qpmodel.index;
+using qpmodel.optimizer;
+using qpmodel.utils;
 
 using LogicSignature = System.Int64;
 using BitVector = System.Int64;
 
-namespace adb.logic
+namespace qpmodel.logic
 {
     public class SemanticAnalyzeException : Exception
     {

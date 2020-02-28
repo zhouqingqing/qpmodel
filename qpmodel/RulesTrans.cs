@@ -5,11 +5,11 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
 
-using adb.logic;
-using adb.expr;
-using adb.utils;
+using qpmodel.logic;
+using qpmodel.expr;
+using qpmodel.utils;
 
-namespace adb.optimizer
+namespace qpmodel.optimizer
 {
     public class Rule
     {

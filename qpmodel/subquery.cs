@@ -6,10 +6,10 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using Value = System.Object;
 
-using adb.expr;
-using adb.physic;
+using qpmodel.expr;
+using qpmodel.physic;
 
-namespace adb.logic
+namespace qpmodel.logic
 {
     public class MarkerExpr : Expr
     {

@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
 
-using adb.logic;
-using adb.physic;
-using adb.expr;
+using qpmodel.logic;
+using qpmodel.physic;
+using qpmodel.expr;
 
 using LogicSignature = System.Int64;
 
@@ -15,7 +15,7 @@ using LogicSignature = System.Int64;
 //  - aggregation/ctes: by generate multiple memo
 //
 
-namespace adb.optimizer
+namespace qpmodel.optimizer
 {
     public class Property { }
 

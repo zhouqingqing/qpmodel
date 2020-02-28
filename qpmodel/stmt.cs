@@ -3,18 +3,18 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-using adb.sqlparser;
-using adb.expr;
-using adb.physic;
-using adb.codegen;
-using adb.optimizer;
+using qpmodel.sqlparser;
+using qpmodel.expr;
+using qpmodel.physic;
+using qpmodel.codegen;
+using qpmodel.optimizer;
 
 //
 // Parser is the only place shall deal with antlr 
 // do NOT using any antlr structure here
 //
 
-namespace adb.logic
+namespace qpmodel.logic
 {
     public abstract class SQLStatement
     {

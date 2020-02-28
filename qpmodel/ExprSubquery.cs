@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using Value = System.Object;
 
-using adb.logic;
-using adb.physic;
-using adb.utils;
+using qpmodel.logic;
+using qpmodel.physic;
+using qpmodel.utils;
 
-namespace adb.expr
+namespace qpmodel.expr
 {
     public abstract class SubqueryExpr : Expr
     {

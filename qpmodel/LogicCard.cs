@@ -4,10 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
-using adb.stat;
-using adb.expr;
+using qpmodel.stat;
+using qpmodel.expr;
 
-namespace adb.logic
+namespace qpmodel.logic
 {
     public partial class LogicFilter {
         public override long EstimateCard()

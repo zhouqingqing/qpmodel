@@ -5,16 +5,16 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Numerics;
 using System.Diagnostics;
-using adb.optimizer.test;
+using qpmodel.optimizer.test;
 
-using adb.expr;
-using adb.logic;
-using adb.utils;
+using qpmodel.expr;
+using qpmodel.logic;
+using qpmodel.utils;
 
 using BitVector = System.Int64;
 using LogicSignature = System.Int64;
 
-namespace adb.optimizer.test
+namespace qpmodel.optimizer.test
 {
     static class Space
     {
@@ -287,7 +287,7 @@ namespace adb.optimizer.test
     }
 }
 
-namespace adb.optimizer
+namespace qpmodel.optimizer
 {
     static public class SetOp
     {

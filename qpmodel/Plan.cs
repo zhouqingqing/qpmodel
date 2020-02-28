@@ -5,11 +5,11 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
 
-using adb.expr;
-using adb.physic;
-using adb.utils;
+using qpmodel.expr;
+using qpmodel.physic;
+using qpmodel.utils;
 
-namespace adb.logic
+namespace qpmodel.logic
 {
     public class QueryOption {
         public class ProfileOption

@@ -1,5 +1,4 @@
 # An Relational Optimizer and Executor Modeling
-
 This project models a relational optimizer and executor in c#. The purpose of the modeling is to prepare for a more serious implementation of database optimizer and execution.
 
 ## Why C#
@@ -12,38 +11,33 @@ The optimizer exercise following constructs:
 - Cardinality estimation, costing: currently this follows text book implementation but due to its locality, later improvements shall have no impact on the architecture.
 - The optimizer also expose a DataFrame like interface.
 ```c#
-            // SELECT a1, b1*a1+5 from a join b on b2=a2 where a1>1;
-            var a = sqlContext.Read("a");
-            var b = sqlContext.Read("b");
-            var rows = a.filter("a1>1").join(b, "b2=a2").select("a1", "b1*a1+5").show();
-            Assert.AreEqual(string.Join(",", rows), "2,9");
+	// SELECT a1, b1*a1+5 from a join b on b2=a2 where a1>1;
+	var a = sqlContext.Read("a");
+	var b = sqlContext.Read("b");
+	var rows = a.filter("a1>1").join(b, "b2=a2").select("a1", "b1*a1+5").show();
+	Assert.AreEqual(string.Join(",", rows), "2,9");
 ```
 - Verify the optimizer by some unittests and TPCH/DS. All TPCH queries are runnable. TPCDS we don't support window function and rolling groups. You can find TPCH plan [here](https://github.com/zhouqingqing/adb/tree/master/test/regress/expect/tpch0001).
 
 ## Executor
 In order to verify plan correctness, the project also implements a data centric callback style executor following paper ["How to Architect a query compiler, Revisited"](https://www.cs.purdue.edu/homes/rompf/papers/tahboub-sigmod18.pdf) by R.Y.Tahboub et al. 
-- Because it does't have a LMS underneath, so the codeGen is still string template implementation. But thanks for c#'s interpolated string support, the template is easy to read and construct.
-- To support incremental codeGen improvement, it supports a generic expression evaluation function which can fallback to the interpreted implementation if codeGen of that specific expression is not supported.
-- The executor utilizes Object and dynamic types to simplify implementation.  
+- It does't use a LMS underneath, the codeGen still string template based. But thanks for c#'s interpolated string support, the template is easy to read and construct side by side with interpreted code.
+- To support incremental codeGen improvement, meaning we can ship partial codeGen implmenetation, it supports a generic expression evaluation function which can fallback to the interpreted implementation if that specific expression is not codeGen ready.
+- The executor utilizes Object and dynamic types to simplify implementation.
 
-You can see an example generated code for this query [here](https://github.com/zhouqingqing/adb/tree/master/test/gen_example.cs)
-```sql
-select a2*2, count(a1), repeat('a', a2) from a, b, c where a1=b1 and a2=c2 group by a2 limit 2;
-```
-Generic expression evaluation is in this code snippet:
+You can see an example generated code for this query [here](https://github.com/zhouqingqing/adb/tree/master/test/gen_example.cs) with generic expression evaluation is in this code snippet:
 
 ```c#
-                    // projection on PhysicHashAgg112: Output: {a.a2}[0]*2,{count(a.a1)}[1],repeat('a',{a.a2}[0]) 
-                    Row rproj = new Row(3);
-                    rproj[0] = ((dynamic)r112[0] * (dynamic)2);
-                    rproj[1] = r112[1];
-                    rproj[2] = ExprSearch.Locate("74").Exec(context, r112) /*repeat('a',{a.a2}[0])*/;
-                    r112 = rproj;
-
+	// projection on PhysicHashAgg112: Output: {a.a2}[0]*2,{count(a.a1)}[1],repeat('a',{a.a2}[0]) 
+	Row rproj = new Row(3);
+	rproj[0] = ((dynamic)r112[0] * (dynamic)2);
+	rproj[1] = r112[1];
+	rproj[2] = ExprSearch.Locate("74").Exec(context, r112) /*repeat('a',{a.a2}[0])*/;
+	r112 = rproj;
 ```
 
-## How to Run
+## How to Play
 Open the project with Visual Studio 2019 community version. Run unnitest project. The unittest come up with multiple tests:
 - TPCH with small data set
 - TPCDS, JoBench only exercise the optimizer
-- Other grouped unitttest
+- Other grouped unittest

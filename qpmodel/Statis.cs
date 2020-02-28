@@ -4,16 +4,16 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
-using adb;
-using adb.expr;
-using adb.logic;
-using adb.physic;
-using adb.sqlparser;
+using qpmodel;
+using qpmodel.expr;
+using qpmodel.logic;
+using qpmodel.physic;
+using qpmodel.sqlparser;
 
 using Value = System.Object;
 using TableColumn = System.Tuple<string, string>;
 
-namespace adb.stat
+namespace qpmodel.stat
 {
     class StatConst 
     {

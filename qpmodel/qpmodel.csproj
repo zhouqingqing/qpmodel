@@ -9,8 +9,8 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{E06A2982-3807-40DC-B025-878745E5C98A}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>adb</RootNamespace>
-    <AssemblyName>adb</AssemblyName>
+    <RootNamespace>qpmodel</RootNamespace>
+    <AssemblyName>qpmodel</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -186,7 +186,7 @@
     <None Include="packages.config" />
     <Antlr4 Include="SQLite.g4">
       <Generator>MSBuild:Compile</Generator>
-      <CustomToolNamespace>adb.sqlparser</CustomToolNamespace>
+      <CustomToolNamespace>qpmodel.sqlparser</CustomToolNamespace>
     </Antlr4>
   </ItemGroup>
   <ItemGroup>

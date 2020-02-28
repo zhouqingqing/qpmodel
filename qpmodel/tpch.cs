@@ -5,10 +5,10 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 
-using adb.sqlparser;
-using adb.logic;
+using qpmodel.sqlparser;
+using qpmodel.logic;
 
-namespace adb.test
+namespace qpmodel.test
 {
     public class Tpch
     {

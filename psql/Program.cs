@@ -2,7 +2,7 @@
 using System;
 using System.IO;
 
-using adb.logic;
+using qpmodel.logic;
 
 namespace psql
 {

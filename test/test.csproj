@@ -81,13 +81,13 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\adb\adb.csproj">
-      <Project>{e06a2982-3807-40dc-b025-878745e5c98a}</Project>
-      <Name>adb</Name>
-    </ProjectReference>
     <ProjectReference Include="..\psql\psql.csproj">
       <Project>{50bb43fb-34f4-4892-bfab-2d80ef2ea6dd}</Project>
       <Name>psql</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\qpmodel\qpmodel.csproj">
+      <Project>{e06a2982-3807-40dc-b025-878745e5c98a}</Project>
+      <Name>qpmodel</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VSToolsPath)\TeamTest\Microsoft.TestTools.targets" Condition="Exists('$(VSToolsPath)\TeamTest\Microsoft.TestTools.targets')" />
