@@ -475,7 +475,7 @@ namespace qpmodel.logic
             var parents = new List<LogicNode>();
             var indexes = new List<int>();
             var filters = new List<LogicFilter>();
-            var cntFilter = plan.FindNodeTyped(parents, indexes, filters);
+            var cntFilter = plan.FindNodeTypeMatch(parents, indexes, filters);
 
             for (int i = 0; i < cntFilter; i++)
             {

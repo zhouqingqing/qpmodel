@@ -147,7 +147,7 @@ namespace qpmodel.optimizer
             var parents = new List<LogicNode>();
             var indexes = new List<int>();
             var filters = new List<LogicFilter>();
-            plan.FindNodeTyped<LogicFilter>(parents, indexes, filters);
+            plan.FindNodeTypeMatch<LogicFilter>(parents, indexes, filters);
             var joinfilters = filters.Where(x => x.child_() is LogicJoin).ToList();
 
             Debug.Assert(joinfilters.Count <= 1);

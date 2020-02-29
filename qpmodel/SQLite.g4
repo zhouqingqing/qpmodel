@@ -28,8 +28,9 @@
  *                https://github.com/bkiers/sqlite-parser
  * Developed by : Bart Kiers, bart@big-o.nl
  */
+ 
  /*
-  * Further modified and simplified by moi
+  * Further simplified and modified and simplified by moi
   */
 grammar SQLite;
 
@@ -40,7 +41,7 @@ parse
 error
  : UNEXPECTED_CHAR 
    { 
-     throw new RuntimeException("UNEXPECTED_CHAR=" + $UNEXPECTED_CHAR.text); 
+     throw new AntlrCompileException("UNEXPECTED_CHAR=" + $UNEXPECTED_CHAR.text); 
    }
  ;
 
@@ -49,57 +50,23 @@ sql_stmt_list
  ;
 
 sql_stmt
- : ( K_EXPLAIN ( K_ANALYZE K_VERBOSE )? )? ( alter_table_stmt
-                                      | analyze_stmt
-                                      | attach_stmt
-                                      | begin_stmt
-                                      | commit_stmt
+ : ( K_EXPLAIN ( K_ANALYZE K_VERBOSE )? )? (
+                                      analyze_stmt
                                       | create_index_stmt
                                       | create_table_stmt
-                                      | create_trigger_stmt
-                                      | create_view_stmt
-                                      | create_virtual_table_stmt
                                       | delete_stmt
-                                      | delete_stmt_limited
-                                      | detach_stmt
                                       | drop_index_stmt
                                       | drop_table_stmt
-                                      | drop_trigger_stmt
-                                      | drop_view_stmt
                                       | insert_stmt
-									  | copy_stmt
+                                      | copy_stmt
                                       | pragma_stmt
-                                      | reindex_stmt
-                                      | release_stmt
-                                      | rollback_stmt
-                                      | savepoint_stmt
                                       | select_stmt
                                       | update_stmt
-                                      | update_stmt_limited
-                                      | vacuum_stmt )
- ;
-
-alter_table_stmt
- : K_ALTER K_TABLE ( database_name '.' )? table_name
-   ( K_RENAME K_TO new_table_name
-   | K_ADD K_COLUMN? column_def
-   )
+                                      )
  ;
 
 analyze_stmt
  : K_ANALYZE table_name?
- ;
-
-attach_stmt
- : K_ATTACH K_DATABASE? expr K_AS database_name
- ;
-
-begin_stmt
- : K_BEGIN ( K_DEFERRED | K_IMMEDIATE | K_EXCLUSIVE )? ( K_TRANSACTION transaction_name? )?
- ;
-
-commit_stmt
- : ( K_COMMIT | K_END ) ( K_TRANSACTION transaction_name? )?
  ;
 
 create_index_stmt
@@ -109,47 +76,16 @@ create_index_stmt
  ;
 
 create_table_stmt
- : K_CREATE ( K_TEMP | K_TEMPORARY )? K_TABLE ( K_IF K_NOT K_EXISTS )?
+ : K_CREATE K_TABLE ( K_IF K_NOT K_EXISTS )?
    ( database_name '.' )? table_name
    ( '(' column_def ( ',' column_def )* ( ',' table_constraint )* ')' ( K_WITHOUT IDENTIFIER )?
    | K_AS select_stmt 
    )
  ;
 
-create_trigger_stmt
- : K_CREATE ( K_TEMP | K_TEMPORARY )? K_TRIGGER ( K_IF K_NOT K_EXISTS )?
-   ( database_name '.' )? trigger_name ( K_BEFORE  | K_AFTER | K_INSTEAD K_OF )? 
-   ( K_DELETE | K_INSERT | K_UPDATE ( K_OF column_name ( ',' column_name )* )? ) K_ON ( database_name '.' )? table_name
-   ( K_FOR K_EACH K_ROW )? ( K_WHEN expr )?
-   K_BEGIN ( ( update_stmt | insert_stmt | delete_stmt | select_stmt ) ';' )+ K_END
- ;
-
-create_view_stmt
- : K_CREATE ( K_TEMP | K_TEMPORARY )? K_VIEW ( K_IF K_NOT K_EXISTS )?
-   ( database_name '.' )? view_name K_AS select_stmt
- ;
-
-create_virtual_table_stmt
- : K_CREATE K_VIRTUAL K_TABLE ( K_IF K_NOT K_EXISTS )?
-   ( database_name '.' )? table_name
-   K_USING module_name ( '(' module_argument ( ',' module_argument )* ')' )?
- ;
-
 delete_stmt
  : with_clause? K_DELETE K_FROM qualified_table_name 
    ( K_WHERE expr )?
- ;
-
-delete_stmt_limited
- : with_clause? K_DELETE K_FROM qualified_table_name 
-   ( K_WHERE expr )?
-   ( ( K_ORDER K_BY ordering_term ( ',' ordering_term )* )?
-     K_LIMIT expr ( ( K_OFFSET | ',' ) expr )?
-   )?
- ;
-
-detach_stmt
- : K_DETACH K_DATABASE? database_name
  ;
 
 drop_index_stmt
@@ -160,22 +96,8 @@ drop_table_stmt
  : K_DROP K_TABLE ( K_IF K_EXISTS )? ( database_name '.' )? table_name
  ;
 
-drop_trigger_stmt
- : K_DROP K_TRIGGER ( K_IF K_EXISTS )? ( database_name '.' )? trigger_name
- ;
-
-drop_view_stmt
- : K_DROP K_VIEW ( K_IF K_EXISTS )? ( database_name '.' )? view_name
- ;
-
 insert_stmt
- : with_clause? ( K_INSERT 
-                | K_REPLACE
-                | K_INSERT K_OR K_REPLACE
-                | K_INSERT K_OR K_ROLLBACK
-                | K_INSERT K_OR K_ABORT
-                | K_INSERT K_OR K_FAIL
-                | K_INSERT K_OR K_IGNORE ) K_INTO
+ : with_clause? K_INSERT K_INTO
    ( database_name '.' )? table_name ( '(' column_name ( ',' column_name )* ')' )?
    ( K_VALUES '(' expr ( ',' expr )* ')' ( ',' '(' expr ( ',' expr )* ')' )*
    | select_stmt
@@ -194,24 +116,6 @@ pragma_stmt
                                                | '(' pragma_value ')' )?
  ;
 
-reindex_stmt
- : K_REINDEX ( collation_name
-             | ( database_name '.' )? ( table_name | index_name )
-             )?
- ;
-
-release_stmt
- : K_RELEASE K_SAVEPOINT? savepoint_name
- ;
-
-rollback_stmt
- : K_ROLLBACK ( K_TRANSACTION transaction_name? )? ( K_TO K_SAVEPOINT? savepoint_name )?
- ;
-
-savepoint_stmt
- : K_SAVEPOINT savepoint_name
- ;
-
 select_stmt
  : ( K_WITH K_RECURSIVE? common_table_expression ( ',' common_table_expression )* )?
    select_core ( compound_operator select_core )*
@@ -220,28 +124,8 @@ select_stmt
  ;
 
 update_stmt
- : with_clause? K_UPDATE ( K_OR K_ROLLBACK
-                         | K_OR K_ABORT
-                         | K_OR K_REPLACE
-                         | K_OR K_FAIL
-                         | K_OR K_IGNORE )? qualified_table_name
+ : with_clause? K_UPDATE qualified_table_name
    K_SET column_name '=' expr ( ',' column_name '=' expr )* ( K_WHERE expr )?
- ;
-
-update_stmt_limited
- : with_clause? K_UPDATE ( K_OR K_ROLLBACK
-                         | K_OR K_ABORT
-                         | K_OR K_REPLACE
-                         | K_OR K_FAIL
-                         | K_OR K_IGNORE )? qualified_table_name
-   K_SET column_name '=' expr ( ',' column_name '=' expr )* ( K_WHERE expr )?
-   ( ( K_ORDER K_BY ordering_term ( ',' ordering_term )* )?
-     K_LIMIT expr ( ( K_OFFSET | ',' ) expr )? 
-   )?
- ;
-
-vacuum_stmt
- : K_VACUUM
  ;
 
 column_def
@@ -255,9 +139,9 @@ type_name
 
 column_constraint
  : ( K_CONSTRAINT name )?
-   ( K_PRIMARY K_KEY ( K_ASC | K_DESC )? conflict_clause K_AUTOINCREMENT?
-   | K_NOT? K_NULL conflict_clause
-   | K_UNIQUE conflict_clause
+   ( K_PRIMARY K_KEY ( K_ASC | K_DESC )? K_AUTOINCREMENT?
+   | K_NOT? K_NULL 
+   | K_UNIQUE 
    | K_CHECK '(' expr ')'
    | K_DEFAULT (signed_number | literal_value | '(' expr ')')
    | K_COLLATE collation_name
@@ -265,15 +149,6 @@ column_constraint
    )
  ;
 
-conflict_clause
- : ( K_ON K_CONFLICT ( K_ROLLBACK
-                     | K_ABORT
-                     | K_FAIL
-                     | K_IGNORE
-                     | K_REPLACE
-                     )
-   )?
- ;
 
 /*
     SQLite understands the following binary operators, in order from highest to
@@ -324,18 +199,11 @@ foreign_key_clause
    ( ( K_ON ( K_DELETE | K_UPDATE ) ( K_SET K_NULL
                                     | K_SET K_DEFAULT
                                     | K_CASCADE
-                                    | K_RESTRICT
-                                    | K_NO K_ACTION )
+                                    | K_RESTRICT)
      | K_MATCH name
      ) 
    )*
    ( K_NOT? K_DEFERRABLE ( K_INITIALLY K_DEFERRED | K_INITIALLY K_IMMEDIATE )? )?
- ;
-
-raise_function
- : K_RAISE '(' ( K_IGNORE 
-               | ( K_ROLLBACK | K_ABORT | K_FAIL ) ',' error_message )
-           ')'
  ;
 
 indexed_column
@@ -343,9 +211,9 @@ indexed_column
  ;
  
 table_constraint
-: ( K_PRIMARY K_KEY | K_UNIQUE )  '(' indexed_column ( ',' indexed_column )* ')' conflict_clause    #PrimaryKeyConstraint
-   | K_CHECK '(' expr ')'                                                                       #CheckConstraint
-   | K_FOREIGN K_KEY '(' column_name ( ',' column_name )* ')' foreign_key_clause                #ForeignKeyConstraint
+: ( K_PRIMARY K_KEY | K_UNIQUE )  '(' indexed_column ( ',' indexed_column )* ')'    #PrimaryKeyConstraint
+   | K_CHECK '(' expr ')'                                                           #CheckConstraint
+   | K_FOREIGN K_KEY '(' column_name ( ',' column_name )* ')' foreign_key_clause    #ForeignKeyConstraint
  ;
 
 with_clause
@@ -470,9 +338,7 @@ column_alias
  ;
 
 keyword
- : K_ABORT
- | K_ACTION
- | K_ADD
+ : K_ADD
  | K_AFTER
  | K_ALL
  | K_ALTER
@@ -558,7 +424,6 @@ keyword
  | K_OR
  | K_ORDER
  | K_OUTER
- | K_PLAN
  | K_PRAGMA
  | K_PRIMARY
  | K_QUERY
@@ -566,36 +431,22 @@ keyword
  | K_RECURSIVE
  | K_REFERENCES
  | K_REGEXP
- | K_REINDEX
- | K_RELEASE
- | K_RENAME
- | K_REPLACE
- | K_RESTRICT
  | K_RIGHT
- | K_ROLLBACK
  | K_ROW
- | K_SAVEPOINT
  | K_SELECT
  | K_SET
  | K_TABLE
- | K_TEMP
- | K_TEMPORARY
  | K_THEN
  | K_TO
- | K_TRANSACTION
- | K_TRIGGER
  | K_UNION
  | K_UNIQUE
  | K_UPDATE
  | K_USING
- | K_VACUUM
  | K_VALUES
  | K_VIEW
- | K_VIRTUAL
  | K_WHEN
  | K_WHERE
  | K_WITH
- | K_WITHOUT
  ;
 
 // TODO check all names below
@@ -637,18 +488,6 @@ foreign_table
  ;
 
 index_name 
- : any_name
- ;
-
-trigger_name
- : any_name
- ;
-
-view_name 
- : any_name
- ;
-
-module_name 
  : any_name
  ;
 
@@ -705,8 +544,6 @@ NOT_EQ1 : '!=';
 NOT_EQ2 : '<>';
 
 // http://www.sqlite.org/lang_keywords.html
-K_ABORT : A B O R T;
-K_ACTION : A C T I O N;
 K_ADD : A D D;
 K_AFTER : A F T E R;
 K_ALL : A L L;
@@ -802,24 +639,16 @@ K_RAISE : R A I S E;
 K_RECURSIVE : R E C U R S I V E;
 K_REFERENCES : R E F E R E N C E S;
 K_REGEXP : R E G E X P;
-K_REINDEX : R E I N D E X;
-K_RELEASE : R E L E A S E;
 K_RENAME : R E N A M E;
 K_REPLACE : R E P L A C E;
 K_RESTRICT : R E S T R I C T;
 K_RIGHT : R I G H T;
-K_ROLLBACK : R O L L B A C K;
 K_ROW : R O W;
-K_SAVEPOINT : S A V E P O I N T;
 K_SELECT : S E L E C T;
 K_SET : S E T;
 K_TABLE : T A B L E;
-K_TEMP : T E M P;
-K_TEMPORARY : T E M P O R A R Y;
 K_THEN : T H E N;
 K_TO : T O;
-K_TRANSACTION : T R A N S A C T I O N;
-K_TRIGGER : T R I G G E R;
 K_UNION : U N I O N;
 K_UNIQUE : U N I Q U E;
 K_UPDATE : U P D A T E;

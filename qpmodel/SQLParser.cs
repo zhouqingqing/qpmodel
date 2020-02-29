@@ -12,10 +12,10 @@ using qpmodel.dml;
 
 namespace qpmodel.sqlparser
 {
-    // antlr requires user defined exception with this name
-    public class RuntimeException : Exception
+    // antlr requires user defined exception
+    public class AntlrCompileException : Exception
     {
-        public RuntimeException(string msg) => Console.WriteLine($"ERROR[Antlr]: {msg }");
+        public AntlrCompileException(string msg) => Console.WriteLine($"ERROR[Antlr]: {msg }");
     }
 
     public class RawParser

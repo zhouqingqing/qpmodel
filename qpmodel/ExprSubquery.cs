@@ -62,7 +62,7 @@ namespace qpmodel.expr
 
             // limit 1 query
             List<LogicLimit> limits = new List<LogicLimit>();
-            if (plan.FindNodeTyped<LogicLimit>(limits) > 0)
+            if (plan.FindNodeTypeMatch<LogicLimit>(limits) > 0)
             {
                 if (limits[0].limit_ <= 1)
                     return true;

@@ -100,6 +100,7 @@ namespace qpmodel
         doit:
             //  sql = "select * from nation, region where n_regionkey = r_regionkey";
             sql = "select * from a where a1*2 = (select max(b3) from b where b2=a2);";
+            sql = "select * from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where ab.a1=cd.c1";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);

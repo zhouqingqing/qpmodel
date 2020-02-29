@@ -182,77 +182,61 @@ namespace qpmodel.logic
                 c.VisitEach(callback);
         }
 
-        // lookup all T1 types in the tree and return the parent-target relationship
-        public int FindNodeTyped<T1>(List<T> parents, List<int> childIndex, List<T1> targets) where T1 : PlanNode<T>
+        // traversal pattern FOR EACH with parent-child relationship
+        public void VisitEach(Action<PlanNode<T>, int, PlanNode<T>> callback)
         {
-            if (this is T1 yf)
+            void visitChildren(PlanNode<T> parent, Action<PlanNode<T>, int, PlanNode<T>> callback)
             {
-                parents?.Add(null);
-                childIndex?.Add(-1);
-                targets.Add(yf);
+                for (int i = 0; i < parent.children_.Count; i++)
+                {
+                    var child = parent.children_[i];
+                    callback(parent, i, child);
+                    visitChildren(child, callback);
+                }
             }
 
-            VisitEach(x =>
-            {
-                for (int i = 0; i < x.children_.Count; i++)
+            callback(null, -1, this);
+            visitChildren(this, callback);
+        }
+
+        // lookup all T1 types in the tree and return the parent-target relationship
+        public int FindNodeTypeMatch<T1>(List<T> parents, List<int> childIndex, List<T1> targets) where T1 : PlanNode<T>
+        {
+            VisitEach((parent, index, child)=> {
+                if (child is T1 ct)
                 {
-                    var y = x.children_[i];
-                    if (y is T1 yf)
+                    parents?.Add((T)parent);
+                    childIndex?.Add(index);
+                    targets.Add(ct);
+
+                    // verify the parent-child relationship
+                    Debug.Assert(parent is null || parent.children_[index] == child);
+                }
+            });
+
+            return targets.Count;
+        }
+        public int FindNodeTypeMatch<T1>(List<T1> targets) where T1 : PlanNode<T> => FindNodeTypeMatch<T1>(null, null, targets);
+        public int CountNodeTypeMatch<T1>() where T1 : PlanNode<T> => FindNodeTypeMatch<T1>(new List<T1>());
+
+        public PlanNode<T> SearchAndReplace(PlanNode<T> target, PlanNode<T> replacement)
+        {
+            PlanNode<T> ret = null;
+            VisitEach((parent, index, child) =>
+            {
+                if (child == target)
+                {
+                    if (parent is null)
+                        ret = replacement;
+                    else
                     {
-                        parents?.Add(x as T);
-                        childIndex?.Add(i);
-                        targets.Add(yf);
+                        parent.children_[index] = (T)replacement;
+                        ret = this;
                     }
                 }
             });
 
-            // verify the parent-child relationship
-            if (parents != null)
-            {
-                Debug.Assert(parents.Count == targets.Count);
-                for (int i = 0; i < parents.Count; i++)
-                {
-                    var parent = parents[i];
-                    Debug.Assert(parent is null || parent.children_[childIndex[i]] == targets[i]);
-                }
-            }
-            return targets.Count;
-        }
-        public int FindNodeTyped<T1>(List<T1> targets) where T1 : PlanNode<T> => FindNodeTyped<T1>(null, null, targets);
-        public int CountNodeTyped<T1>() where T1 : PlanNode<T> => FindNodeTyped<T1>(new List<T1>());
-
-        public PlanNode<T> SearchAndReplace(PlanNode<T> target, PlanNode<T> replacement)
-        {
-            if (this == target)
-                return replacement;
-            else
-            {
-                for (int i = 0; i < children_.Count; i++) {
-                    if (children_[i] == target)
-                        children_[i] = (T)replacement;
-                    else
-                        children_[i].SearchAndReplace(target, replacement);
-                }
-
-                return this;
-            }
-        }
-
-        public PlanNode<T> SearchReturnParent(PlanNode<T> target)
-        {
-            if (this == target)
-                return null;
-            else
-            {
-                for (int i = 0; i < children_.Count; i++)
-                {
-                    if (children_[i] == target)
-                        return this;
-                    else
-                        return children_[i].SearchReturnParent(target);
-                }
-                return null;
-            }
+            return ret;
         }
 
         public override int GetHashCode()
@@ -421,7 +405,7 @@ namespace qpmodel.logic
         Expr moveFilterToInsideAggNode(LogicNode root, Expr filter) {
             // first find out the aggregation node shall take the filter
             List<LogicAgg> aggNodes = new List<LogicAgg>();
-            if (root.FindNodeTyped<LogicAgg>(aggNodes) > 1)
+            if (root.FindNodeTypeMatch<LogicAgg>(aggNodes) > 1)
                 throw new NotImplementedException("can handle one aggregation now");
             var aggNode = aggNodes[0];
 
