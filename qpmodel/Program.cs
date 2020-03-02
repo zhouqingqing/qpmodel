@@ -85,7 +85,7 @@ namespace qpmodel
                 Tpch.LoadTables("0001");
                 //Tpch.CreateIndexes();
                 Tpch.AnalyzeTables();
-                sql = File.ReadAllText("../../../tpch/q22.sql");
+                sql = File.ReadAllText("../../../tpch/q20.sql");
                 goto doit;
             }
 
@@ -93,21 +93,25 @@ namespace qpmodel
             { 
                 Tpcds.CreateTables();
                 sql = File.ReadAllText("../../../tpcds/problem_queries/q64.sql");
-                sql = File.ReadAllText("../../../tpcds/q72.sql");
+                sql = File.ReadAllText("../../../tpcds/q1.sql");
                 goto doit;
             }
 
         doit:
             //  sql = "select * from nation, region where n_regionkey = r_regionkey";
-            sql = "select * from a where a1*2 = (select max(b3) from b where b2=a2);";
-            sql = "select * from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where ab.a1=cd.c1";
+            //sql = "select * from a where a1*2 = (select b3 from b where b2=a2);";
+            //sql = "select a3, a1+a2 from a where a1*2 = (select max(b3) from b where b2=a2 and b1>0);";
+            sql = "select a1, a2  from a where a.a1 = (select sum(b1) from b where b2 = a2 and b3<4);";
+            sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
+                and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
+                and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
             a.queryOpt_.profile_.enabled_ = true;
-            a.queryOpt_.optimize_.enable_subquery_to_markjoin_ = true;
+            a.queryOpt_.optimize_.enable_subquery_unnest_ = false;
             a.queryOpt_.optimize_.remove_from = false;
-            a.queryOpt_.optimize_.use_memo_ = true;
+            a.queryOpt_.optimize_.use_memo_ = false;
             a.queryOpt_.optimize_.use_codegen_ = false;
 
             //a.queryOpt_.optimize_.memo_disable_crossjoin = false;

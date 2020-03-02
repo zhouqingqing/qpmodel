@@ -39,12 +39,12 @@ namespace qpmodel.logic
         public override long EstimateCard()
         {
             long card = 1;
-            if (keys_ is null)
+            if (groupby_ is null)
                 card = 1;
             else
             {
                 long distinct = 1;
-                foreach (var v in keys_) {
+                foreach (var v in groupby_) {
                     long ndistinct = 1;
                     if (v is ColExpr vc && vc.tabRef_ is BaseTableRef bvc)
                     {

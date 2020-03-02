@@ -113,7 +113,7 @@ namespace test
             string sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
             QueryOption option = new QueryOption();
             option.profile_.enabled_ = true;
-            option.optimize_.enable_subquery_to_markjoin_ = false;
+            option.optimize_.enable_subquery_unnest_ = false;
             option.optimize_.use_codegen_ = true;
 
             var result = TU.ExecuteSQL(sql, out string phyplan, option);
@@ -187,8 +187,17 @@ namespace test
         [TestMethod]
         public void TestBenchmarks()
         {
+            bool runTpchStandaloneFirst = true;
+
             TestTpcds();
-            TestTpch();
+            if (runTpchStandaloneFirst)
+                TestTpch();
+            else
+            {
+                Tpch.CreateTables();
+                Tpch.LoadTables("0001");
+                Tpch.AnalyzeTables();
+            }
 
             string sql_dir_fn =    "../../../test/regress/sql";
             string write_dir_fn =  "../../../test/regress/output/tpch0001";
@@ -204,7 +213,7 @@ namespace test
 
             // make sure all queries can generate phase one opt plan
             QueryOption option = new QueryOption();
-            option.optimize_.enable_subquery_to_markjoin_ = true;
+            option.optimize_.enable_subquery_unnest_ = true;
             option.optimize_.remove_from = false;
             option.optimize_.use_memo_ = false;
             foreach (var v in files)
@@ -249,12 +258,12 @@ namespace test
             for (int i = 0; i < 2; i++)
             {
                 option.optimize_.use_memo_ = i == 0;
-                Assert.IsTrue(option.optimize_.enable_subquery_to_markjoin_);
+                Assert.IsTrue(option.optimize_.enable_subquery_unnest_);
                 option.optimize_.remove_from = true;
 
                 var result = TU.ExecuteSQL(File.ReadAllText(files[0]), out _, option);  // FIXME: projection too deep
                 Assert.AreEqual(4, result.Count);
-                result = TU.ExecuteSQL(File.ReadAllText(files[1]), out _, option);      // FIXME: decorelation
+                result = TU.ExecuteSQL(File.ReadAllText(files[1]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[2]), out phyplan, option);
                 Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicHashJoin"));
@@ -310,18 +319,18 @@ namespace test
                 // q15 cte
                 result = TU.ExecuteSQL(File.ReadAllText(files[15]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
-                result = TU.ExecuteSQL(File.ReadAllText(files[16]), out _, option); // FIXME: parameteric ce estimiation
+                result = TU.ExecuteSQL(File.ReadAllText(files[16]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[17]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[18]), out _, option); // FIXME: .. or ... or ...
                 Assert.AreEqual("", string.Join(";", result));
-                result = TU.ExecuteSQL(File.ReadAllText(files[19]), out _, option); // FIXME: decorelation
+                result = TU.ExecuteSQL(File.ReadAllText(files[19]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[20]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
                 option.optimize_.remove_from = false;
-                result = TU.ExecuteSQL(File.ReadAllText(files[21]), out phyplan, option); // FIXME: decorelation
+                result = TU.ExecuteSQL(File.ReadAllText(files[21]), out phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicFromQuery"));
                 Assert.AreEqual(7, result.Count);
                 option.optimize_.remove_from = true;
@@ -351,7 +360,7 @@ namespace test
             string phyplan = "";
             QueryOption option = new QueryOption();
             option.optimize_.use_memo_ = true;
-            option.optimize_.enable_subquery_to_markjoin_ = true;
+            option.optimize_.enable_subquery_unnest_ = true;
 
             var sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
             var result = TU.ExecuteSQL(sql, out _, option);
@@ -362,10 +371,10 @@ namespace test
             Assert.AreEqual("0;1;2", string.Join(";", result));
 
             sql = "select * from b join a on a1=b1 where a1 < (select a2 from a where a2=b2);";
-            option.optimize_.enable_subquery_to_markjoin_ = false; // FIXME: they shall work together
+            option.optimize_.enable_subquery_unnest_ = false; // FIXME: they shall work together
             result = TU.ExecuteSQL(sql, out _, option);
             Assert.AreEqual("0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5", string.Join(";", result));
-            option.optimize_.enable_subquery_to_markjoin_ = true;
+            option.optimize_.enable_subquery_unnest_ = true;
 
             sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3 and c.c1 = a.a1";
             result = TU.ExecuteSQL(sql, out _, option);
@@ -803,7 +812,7 @@ namespace test
         {
             QueryOption option = new QueryOption();
 
-            option.optimize_.enable_subquery_to_markjoin_ = true;
+            option.optimize_.enable_subquery_unnest_ = true;
 
             for (int i = 0; i < 2; i++)
             {
@@ -1230,7 +1239,7 @@ namespace test
 
             // these queries depends on we can decide left/right side parameter dependencies
             var option = new QueryOption();
-            option.optimize_.enable_subquery_to_markjoin_ = false;
+            option.optimize_.enable_subquery_unnest_ = false;
             sql = "select a1+b1 from a join b on a1=b1 where a1 < (select a2 from a where a2=b2);"; TU.ExecuteSQL(sql, "0;2;4", out _, option);
             sql = "select a1+b1 from b join a on a1=b1 where a1 < (select a2 from a where a2=b2);"; TU.ExecuteSQL(sql, "0;2;4", out _, option);
             sql = "select a2+c3 from a join c on a1=c1 where a1 < (select b2 from a join b on a1=b1 where a1 < (select a2 from a where a2=b2) and a3 = c3)"; TU.ExecuteSQL(sql, "3;5;7", out _, option);
@@ -1484,7 +1493,7 @@ namespace test
             TU.PlanAssertEqual(answer, phyplan);
 
             sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b1 > ((select c2 from c where c.c2=b2)))";
-            option.optimize_.enable_subquery_to_markjoin_ = false;
+            option.optimize_.enable_subquery_unnest_ = false;
             result = TU.ExecuteSQL(sql, out phyplan, option);
             answer = @"PhysicScanTable a (actual rows=0)
                         Output: 1
@@ -1563,7 +1572,7 @@ namespace test
             // key here is bo.b3=a3 show up in 3rd subquery
             sql = @"select a1  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 
                         and bo.b3 = a3 and b3> 1) and b2<3);";
-            option.optimize_.enable_subquery_to_markjoin_ = false;
+            option.optimize_.enable_subquery_unnest_ = false;
             result = TU.ExecuteSQL(sql, out phyplan, option);
             answer = @"PhysicScanTable a (actual rows=2)
                         Output: a.a1[0],#a.a2[1],#a.a3[2]
@@ -1604,7 +1613,7 @@ namespace test
             sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
-            option.optimize_.enable_subquery_to_markjoin_ = false;
+            option.optimize_.enable_subquery_unnest_ = false;
             result = TU.ExecuteSQL(sql, out phyplan, option);
             answer = @"PhysicNLJoin  (actual rows=3)
                         Output: a.a1[2]

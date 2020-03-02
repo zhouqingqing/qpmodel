@@ -275,7 +275,7 @@ namespace qpmodel.optimizer
         static protected void DoTest(JoinResolver solver)
         {
             // loop through all graph class
-            for (int n = 2; n <= 10; n++)
+            for (int n = 2; n <= 9; n++)
             {
                 JoinGraph graph;
                 BigInteger expectC1;
