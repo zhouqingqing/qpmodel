@@ -188,7 +188,7 @@ namespace qpmodel.logic
                     return new ExprRef(clone, ordinal);
             }
 
-            // let's first fix AggrRef as a whole epxression - there could be some combinations
+            // let's first fix Aggregation as a whole epxression - there could be some combinations
             // of AggrRef with aggregation keys (ColExpr), so we have to go thorough after it
             //
             clone.VisitEachT<AggrRef>(target => {
@@ -200,35 +200,43 @@ namespace qpmodel.logic
                     Debug.Assert(source.FindAll(roughNameTest).Count == 1);
                 }
             });
+            clone.VisitEachT<AggFunc>(target => {
+                Predicate<Expr> roughNameTest;
+                roughNameTest = z => target.Equals(z);
+                int ordinal = source.FindIndex(roughNameTest);
+                if (ordinal != -1)
+                    clone = clone.SearchReplace(target, new ExprRef(target, ordinal));
+            });
 
             // we have to use each ColExpr and fix its ordinal
             clone.VisitEachIgnoreRef<ColExpr>(target =>
             {
-                // ignore system column, ordinal is known
-                if (target is SysColExpr)
-                    return;
+            // ignore system column, ordinal is known
+            if (target is SysColExpr)
+                return;
 
-                Predicate<Expr> roughNameTest;
-                roughNameTest = z => target.Equals(z) ||
-                            target.colName_.Equals(z.outputName_);
+            Predicate<Expr> roughNameTest;
+            roughNameTest = z => target.Equals(z) || target.colName_.Equals(z.outputName_);
 
-                // using source's matching index for ordinal
-                // fix colexpr's ordinal - leave the outerref as it is already decided in ColExpr.Bind()
-                // During execution, the bottom node will be responsible to fill the value via AddParam().
+            // using source's matching index for ordinal
+            // fix colexpr's ordinal - leave the outerref as it is already decided in ColExpr.Bind()
+            // During execution, the bottom node will be responsible to fill the value via AddParam().
+            //
+            if (!target.isParameter_)
+            {
+                target.ordinal_ = source.FindIndex(roughNameTest);
+
+                // we may hit more than one target, say t2.col1 matching {t1.col1, t2.col1}
+                // in this case, we shall redo the mapping with table name
                 //
-                if (!target.isParameter_)
-                {
-                    target.ordinal_ = source.FindIndex(roughNameTest);
-
-                    // we may hit more than one target, say t2.col1 matching {t1.col1, t2.col1}
-                    // in this case, we shall redo the mapping with table name
-                    //
-                    Debug.Assert(source.FindAll(roughNameTest).Count >= 1);
+                Debug.Assert(source.FindAll(roughNameTest).Count >= 1);
                     if (source.FindAll(roughNameTest).Count > 1)
                     {
-                        Predicate<Expr> preciseNameTest = z => z is ColExpr zc
-                                && (target.colName_.Equals(z.outputName_) || target.colName_.Equals(zc.colName_))
-                                && target.tabRef_.Equals((z as ColExpr).tabRef_);
+                        Predicate<ColExpr> nameAndTableMatch = z =>
+                            (target.colName_.Equals(z.outputName_) || target.colName_.Equals(z.colName_))
+                                && target.tabRef_.Equals(z.tabRef_);
+                        Predicate<Expr> preciseNameTest = z => (z is ColExpr zc && nameAndTableMatch(zc))
+                            || (z is ExprRef ze && ze.expr_() is ColExpr zec && nameAndTableMatch(zec));
                         target.ordinal_ = source.FindIndex(preciseNameTest);
                         Debug.Assert(source.FindAll(preciseNameTest).Count == 1);
                     }
@@ -578,6 +586,7 @@ namespace qpmodel.logic
         public bool movable_ = true;
         public override string ToString() => $"filter({child_()}): {filter_}";
 
+        // public override string ExplainInlineDetails(int depth) => movable_ ? "" : "***";
         public override int GetHashCode()=> base.GetHashCode() ^ filter_.GetHashCode();
         public override bool Equals(object obj)
         {
@@ -595,11 +604,34 @@ namespace qpmodel.logic
 
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
+            // a1 = max(b1) => a1, max(b1)
+            void addColumnAndAggFuncs(Expr expr, HashSet<Expr> list)
+            {
+                if (!(expr is AggFunc))
+                {
+                    if (expr is ColExpr ec && !ec.isParameter_)
+                        list.Add(expr);
+                    foreach (var v in expr.children_)
+                        addColumnAndAggFuncs(v, list);
+                }
+                else
+                    list.Add(expr);
+            }
+
             List<int> ordinals = new List<int>();
+
             // request from child including reqOutput and filter
             List<Expr> reqFromChild = new List<Expr>();
             reqFromChild.AddRange(reqOutput.CloneList());
-            reqFromChild.AddRange(filter_.RetrieveAllColExpr());
+
+            // filter may carray ordinary columns and aggregations - aggregation won't show up
+            // by SQL syntax, but subquery transformation may introduce them. We want to all 
+            // aggfuncs, all columns except those inside aggfuncs.
+            //
+            var list = new HashSet<Expr>();
+            addColumnAndAggFuncs(filter_, list);
+            reqFromChild.AddRange(list);
+
             child_().ResolveColumnOrdinal(reqFromChild);
             var childout = child_().output_;
 
@@ -612,11 +644,16 @@ namespace qpmodel.logic
 
     public partial class LogicAgg : LogicNode
     {
-        public List<Expr> aggrs_; // original aggregations
-        public List<Expr> keys_;
+        public List<Expr> raw_aggrs_; // original aggregations
+
+        public List<Expr> groupby_;
         public Expr having_;
 
-        // runtime info: derived from output request
+        // runtime info: derived from output request, a subset of raw_aggrs_[]
+        //  Example:
+        //      raw_aggrs_ may include max(i), max(i), max(i)+sum(j)
+        //      aggrFns_ => max(i), sum(j)
+        //
         public List<AggFunc> aggrFns_ = new List<AggFunc>();
         public override string ToString() => $"Agg({child_()})";
 
@@ -626,8 +663,8 @@ namespace qpmodel.logic
             string tabs = Utils.Tabs(depth + 2);
             if (aggrFns_.Count > 0)
                 r += $"Aggregates: {string.Join(", ", aggrFns_)}";
-            if (keys_ != null)
-                r += $"{(aggrFns_.Count > 0? "\n"+tabs: "")}Group by: {string.Join(", ", keys_)}";
+            if (groupby_ != null)
+                r += $"{(aggrFns_.Count > 0? "\n"+tabs: "")}Group by: {string.Join(", ", groupby_)}";
             if (having_ != null)
                 r += $"{("\n"+tabs)}{PrintFilter(having_, depth, option)}";
             return r;
@@ -635,7 +672,7 @@ namespace qpmodel.logic
 
         public LogicAgg(LogicNode child, List<Expr> groupby, List<Expr> aggrs, Expr having)
         {
-            children_.Add(child); keys_ = groupby; aggrs_ = aggrs; having_ = having;
+            children_.Add(child); groupby_ = groupby; raw_aggrs_ = aggrs; having_ = having;
         }
 
         // key: b1+b2
@@ -751,7 +788,7 @@ namespace qpmodel.logic
             // aggregation only projection values from hash table(key, value).
             //
             List<Expr> reqFromChild = new List<Expr>();
-            reqFromChild.AddRange(removeAggFuncAndKeyExprsFromOutput(reqList, keys_));
+            reqFromChild.AddRange(removeAggFuncAndKeyExprsFromOutput(reqList, groupby_));
 
             // It is ideal to add keys_ directly to reqFromChild but matching can be harder.
             // Consider the following case:
@@ -759,15 +796,15 @@ namespace qpmodel.logic
             //   reqOutput: a1+a3+a2+a4
             // Let's fix this later
             //
-            if (keys_ != null)
-                reqFromChild.AddRange(keys_.RetrieveAllColExpr());
+            if (groupby_ != null)
+                reqFromChild.AddRange(groupby_.RetrieveAllColExpr());
             if (having_ != null)
                 reqFromChild.AddRange(having_.RetrieveAllColExpr());
             child_().ResolveColumnOrdinal(reqFromChild);
             var childout = child_().output_;
 
-            if (keys_ != null) 
-                keys_ = CloneFixColumnOrdinal(keys_, childout, true);
+            if (groupby_ != null) 
+                groupby_ = CloneFixColumnOrdinal(groupby_, childout, true);
             if (having_ != null)
                 having_ = CloneFixColumnOrdinal(having_, childout);
             output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
@@ -782,9 +819,9 @@ namespace qpmodel.logic
             // =>
             //  output_: <literal>, cos(ref[0]*7)+ref[1],  ref[1]+ref[2]*2
             //
-            var nkeys = keys_?.Count ?? 0;
+            var nkeys = groupby_?.Count ?? 0;
             var newoutput = new List<Expr>();
-            if (keys_ != null) output_ = output_.SearchReplace(keys_);
+            if (groupby_ != null) output_ = output_.SearchReplace(groupby_);
             output_.ForEach(x =>
             {
                 x.VisitEachIgnoreRef<AggFunc>(y =>
@@ -797,7 +834,7 @@ namespace qpmodel.logic
 
                 newoutput.Add(x);
             });
-            if (having_ != null && keys_ != null) having_ = having_.SearchReplace(keys_);
+            if (having_ != null && groupby_ != null) having_ = having_.SearchReplace(groupby_);
             having_?.VisitEachIgnoreRef<AggFunc>(y =>
             {
                 // remove the duplicates immediatley to avoid wrong ordinal in ExprRef

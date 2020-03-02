@@ -625,7 +625,8 @@ namespace qpmodel.logic
             //  fromquery needs some special handling to link the new plan
             subQueries_.ForEach(x => {
                 Debug.Assert (x.queryOpt_ == queryOpt_);
-                x.PhaseOneOptimize();
+                if (!decorrelatedSubs_.Contains(x))
+                    x.PhaseOneOptimize();
             });
             foreach (var x in fromQueries_) {
                 var stmt = x.Key as SelectStmt;

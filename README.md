@@ -20,7 +20,7 @@ The optimizer exercise following constructs:
 - Verify the optimizer by some unittests and TPCH/DS. All TPCH queries are runnable. TPCDS we don't support window function and rolling groups. You can find TPCH plan [here](https://github.com/zhouqingqing/adb/tree/master/test/regress/expect/tpch0001).
 
 ## Executor
-In order to verify plan correctness, the project also implements a data centric callback style executor following paper ["How to Architect a query compiler, Revisited"](https://www.cs.purdue.edu/homes/rompf/papers/tahboub-sigmod18.pdf) by R.Y.Tahboub et al. 
+The executor is implemented for two purpose: (1) verify plan correctness; (2) demonstrate callback style codeGen following paper ["How to Architect a query compiler, Revisited"](https://www.cs.purdue.edu/homes/rompf/papers/tahboub-sigmod18.pdf) by R.Y.Tahboub et al. It does not demonstrate how to implments specific operator efficiently.
 - It does't use a LMS underneath, the codeGen still string template based. But thanks for c#'s interpolated string support, the template is easy to read and construct side by side with interpreted code.
 - To support incremental codeGen improvement, meaning we can ship partial codeGen implmenetation, it supports a generic expression evaluation function which can fallback to the interpreted implementation if that specific expression is not codeGen ready.
 - The executor utilizes Object and dynamic types to simplify implementation.

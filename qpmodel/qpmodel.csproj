@@ -187,6 +187,7 @@
     <Antlr4 Include="SQLite.g4">
       <Generator>MSBuild:Compile</Generator>
       <CustomToolNamespace>qpmodel.sqlparser</CustomToolNamespace>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Antlr4>
   </ItemGroup>
   <ItemGroup>

@@ -19,7 +19,7 @@ namespace qpmodel.logic
         public class OptimizeOption
         {
             // rewrite controls
-            public bool enable_subquery_to_markjoin_ { get; set; } = true;
+            public bool enable_subquery_unnest_ { get; set; } = true;
             public bool remove_from { get; set; } = false;        // make it true by default
 
             // optimizer controls
@@ -34,7 +34,7 @@ namespace qpmodel.logic
             public bool use_codegen_ { get; set; } = false;
 
             public void TurnOnAllOptimizations() {
-                enable_subquery_to_markjoin_ = true;
+                enable_subquery_unnest_ = true;
                 remove_from = true;
 
                 enable_hashjoin_ = true;
@@ -276,7 +276,7 @@ namespace qpmodel.logic
 
                 // functionally we don't have to do rewrite since above
                 // plan is already runnable
-                if (queryOpt_.optimize_.enable_subquery_to_markjoin_)
+                if (queryOpt_.optimize_.enable_subquery_unnest_)
                 {
                     // use the plan 'root' containing the subexpr 'x'
                     var replacement = oneSubqueryToJoin(root, x);

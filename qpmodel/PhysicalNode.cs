@@ -851,7 +851,7 @@ namespace qpmodel.physic
                 {
                     var lrow = $"r{child_()._}";
                     buildcode += $@" 
-                        var keys = KeyList.ComputeKeys(context, {_logic_}.keys_, {lrow});";
+                        var keys = KeyList.ComputeKeys(context, {_logic_}.groupby_, {lrow});";
                     buildcode += $@"
                         if (hm{_}.TryGetValue(keys, out Row exist))
                         {{
@@ -871,7 +871,7 @@ namespace qpmodel.physic
                 }
                 else
                 {
-                    var keys = KeyList.ComputeKeys(context, logic.keys_, l);
+                    var keys = KeyList.ComputeKeys(context, logic.groupby_, l);
                     if (hm.TryGetValue(keys, out Row exist))
                     {
                         for (int i = 0; i < aggrcore.Count; i++)
@@ -895,7 +895,7 @@ namespace qpmodel.physic
             // stitch keys+aggcore into final output
             if (context.option_.optimize_.use_codegen_)
             {
-                if (logic.keys_ is null)
+                if (logic.groupby_ is null)
                     s += $@"
                     if (hm{_}.Count == 0)
                     {{
@@ -927,7 +927,7 @@ namespace qpmodel.physic
             }
             else
             {
-                if (logic.keys_ is null && hm.Count == 0)
+                if (logic.groupby_ is null && hm.Count == 0)
                 {
                     Row row = HandleEmptyResult(context);
                     if (row != null)
