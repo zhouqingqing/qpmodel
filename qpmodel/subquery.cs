@@ -10,6 +10,22 @@ using qpmodel.expr;
 using qpmodel.physic;
 using qpmodel.utils;
 
+// To remove FromQuery, we essentially remove all references to the related 
+// FromQueryRef, which shall include selection (ColExpr, Aggs, Orders etc),
+// filters and any constructs may references a TableRef (say subquery outerref).
+//
+// If we remove FromQuery before binding, we can do it on SQL text level but 
+// it is considered very early and error proning. We can do it after binding
+// then we need to find out all references to the FromQuery and replace them
+// with underlying non-from TableRefs.
+//
+// FromQuery in subquery is even more complicated, because far away there
+// could be some references of its name and we shall fix them. When we remove
+// filter, we redo columnordinal fixing but this does not work for FromQuery
+// because naming reference. PostgreSQL actually puts a Result node with a 
+// name, so it is similar to FromQuery.
+//
+
 namespace qpmodel.logic
 {
     public class MarkerExpr : Expr
@@ -285,35 +301,36 @@ namespace qpmodel.logic
         //  - It is a conjunction containing a null-rejected condition as a conjunct
         //  - It is a disjunction of null-rejected conditions
         //
-        LogicJoin outerJoinSimplification(LogicJoin join) 
+        LogicJoin trySimplifyOuterJoin(LogicJoin join, Expr extraFilter) 
         {
             bool nullRejectingSingleCondition(Expr condition)
             {
                 // FIXME: for now, assuming any predicate is null-rejecting unless it is IS NULL
                 Debug.Assert(condition.IsBoolean());
                 var bcond = condition as BinExpr;
-                if (bcond.op_ == "is")
+                if (bcond?.op_ == "is")
                     return false;
-                return true;
+                return false;
             }
 
-            LogicJoin newjoin = join;
+            // if no extra filters, can't convert
+            if (extraFilter is null)
+                return join;
             if (join.type_ != JoinType.Left)
                 return join;
 
-            var joinpred = join.filter_;
-            var andlist = joinpred.FilterToAndList();
-
             // It is a conjunction containing a null-rejected condition as a conjunct
+            var andlist = extraFilter.FilterToAndList();
             bool nullreject = andlist.Where(x => nullRejectingSingleCondition(x)).Count() > 0;
             if (nullreject)
-            {
-                newjoin = new LogicJoin(join.l_(), join.r_(), join.filter_);
-                newjoin.type_ = JoinType.Inner;
-            }
+                goto convert_inner;
 
             // It is a conjunction containing a null-rejected condition as a conjunct
-            return newjoin;
+            return join;
+
+        convert_inner:
+            join.type_ = JoinType.Inner;
+            return join;
         }
 
         // exists|quantified subquery => mark join
@@ -463,6 +480,7 @@ namespace qpmodel.logic
             var logic = logic_ as LogicSingleJoin;
             var filter = logic.filter_;
             Debug.Assert(logic is LogicSingleJoin);
+            bool outerJoin = logic.type_ == JoinType.Left;
 
             l_().Exec(l =>
             {
@@ -483,8 +501,8 @@ namespace qpmodel.logic
                     return null;
                 });
 
-                // if there is no match, mark false
-                if (!foundOneMatch)
+                // if there is no match, output it if outer join
+                if (!foundOneMatch && outerJoin)
                 {
                     var nNulls = r_().logic_.output_.Count;
                     Row n = new Row(l, new Row(nNulls));

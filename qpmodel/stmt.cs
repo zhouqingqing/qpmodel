@@ -449,26 +449,6 @@ namespace qpmodel.logic
             }
         }
 
-        // To remove FromQuery, we essentially remove all references to the related 
-        // FromQueryRef, which shall include selection (ColExpr, Aggs, Orders etc),
-        // filters and any constructs may references a TableRef (say subquery outerref).
-        //
-        // If we remove FromQuery before binding, we can do it on SQL text level but 
-        // it is considered very early and error proning. We can do it after binding
-        // then we need to find out all references to the FromQuery and replace them
-        // with underlying non-from TableRefs.
-        //
-        // FromQuery in subquery is even more complicated, because far away there
-        // could be some references of its name and we shall fix them. When we remove
-        // filter, we redo columnordinal fixing but this does not work for FromQuery
-        // because naming reference. PostgreSQL actually puts a Result node with a 
-        // name, so it is similar to FromQuery.
-        //
-        LogicNode removeFromQuery(LogicNode plan)
-        {
-            return plan;
-        }
-
         LogicNode FilterPushDown(LogicNode plan, bool pushJoinFilter)
         {
             // locate the all filters
@@ -610,16 +590,38 @@ namespace qpmodel.logic
             }
         }
 
+        LogicNode outerJoinSimplication(LogicNode root)
+        {
+            Expr extraFilter = null;
+            if (root is LogicFilter rf)
+                extraFilter = rf.filter_;
+
+            LogicNode ret = root;
+            root.VisitEach((parent, index, node) => {
+                if (node is LogicJoin) {
+                    if (parent != null)
+                        parent.children_[index] = trySimplifyOuterJoin(node as LogicJoin, extraFilter);
+                    else
+                        ret = trySimplifyOuterJoin(node as LogicJoin, extraFilter);
+                }
+            });
+
+            return ret;
+        }
+
         public override LogicNode PhaseOneOptimize()
         {
             LogicNode logic = logicPlan_;
 
-            // remove LogicFromQuery node
-            logic = removeFromQuery(logic);
-
             // push down filters
+            //   join solver will do the join filter push down in its own way
             bool pushJoinFilter = !queryOpt_.optimize_.memo_use_joinorder_solver;
             logic = FilterPushDown(logic, pushJoinFilter);
+
+            // outerjoin to inner join 
+            //   it depends on join filter push to the right place
+            if (pushJoinFilter)
+                logic = outerJoinSimplication(logic);
 
             // optimize for subqueries 
             //  fromquery needs some special handling to link the new plan
