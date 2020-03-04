@@ -143,6 +143,8 @@ namespace qpmodel.logic
         //
         LogicNode scalarToSingleJoin(LogicNode planWithSubExpr, ScalarSubqueryExpr scalarExpr)
         {
+            var newplan = planWithSubExpr;
+
             // nodeB contains the join filter
             var nodeSubquery = scalarExpr.query_.logicPlan_;
 
@@ -164,12 +166,37 @@ namespace qpmodel.logic
                     //      ->PhysicHashAgg(rows = 2)
                     //            -> PhysicFilter(rows = 2)
                     //               Filter: b.b2[1]=?a.a2[1] ...
-                    return djoinOnRightAggregation(singleJoinNode, scalarExpr);
+                    newplan = djoinOnRightAggregation(singleJoinNode, scalarExpr);
+                    break;
                 case LogicFilter lf:
-                    return djoinOnRightFilter(singleJoinNode, scalarExpr);
+                    newplan = djoinOnRightFilter(singleJoinNode, scalarExpr);
+                    break;
                 default:
-                    return planWithSubExpr;
+                    break;
             }
+
+            // see if we can convert to an ordinary LOJ
+            newplan.VisitEach((parent, index, node) => { 
+                if (node is LogicSingleJoin sn)
+                {
+                    Debug.Assert(parent != null);
+                    parent.children_[index] = singleJoin2OuterJoin(sn);
+                }
+            });
+            return newplan;
+        }
+
+        // A Xs B => A LOJ B if max1row is assured
+        LogicJoin singleJoin2OuterJoin(LogicSingleJoin singJoinNode)
+        {
+            LogicJoin newjoin = singJoinNode;
+            if (!singJoinNode.max1rowCheck_)
+            {
+                newjoin = new LogicJoin(singJoinNode.l_(), singJoinNode.r_(), singJoinNode.filter_);
+                newjoin.type_ = JoinType.Left;
+            }
+
+            return newjoin;
         }
 
         // D Xs (Filter(T)) => Filter(D Xs T) 
@@ -265,8 +292,12 @@ namespace qpmodel.logic
             }
 
             // group by b.k => group by b.k, b.j
+            Debug.Assert(singleJoinNode.max1rowCheck_);
             if (aggNode.groupby_ is null)
+            {
                 aggNode.groupby_ = extraGroubyVars;
+                singleJoinNode.max1rowCheck_ = false;
+            }
             else
                 aggNode.groupby_.AddRange(extraGroubyVars);
 
@@ -450,9 +481,11 @@ namespace qpmodel.logic
         }
     }
 
-    // FIXME: it shall be derived from LogicJoin
     public class LogicSingleJoin : LogicJoin
     {
+        // if we can prove at most one row return, it is essentially an ordinary LOJ
+        internal bool max1rowCheck_ = true;
+
         public override string ToString() => $"{l_()} singleX {r_()}";
         public LogicSingleJoin(LogicNode l, LogicNode r) : base(l, r) { type_ = JoinType.Left; }
         public LogicSingleJoin(LogicNode l, LogicNode r, Expr f ) : base(l, r, f) { type_ = JoinType.Left; }
@@ -482,6 +515,9 @@ namespace qpmodel.logic
             Debug.Assert(logic is LogicSingleJoin);
             bool outerJoin = logic.type_ == JoinType.Left;
 
+            // if max1row is gauranteed, it is converted to regular LOJ
+            Debug.Assert(logic.max1rowCheck_);
+
             l_().Exec(l =>
             {
                 bool foundOneMatch = false;
@@ -490,7 +526,9 @@ namespace qpmodel.logic
                     Row n = new Row(l, r);
                     if (filter is null || filter.Exec(context, n) is true)
                     {
-                        if (foundOneMatch && filter != null)
+                        bool foundDups = foundOneMatch && filter != null;
+
+                        if (foundDups)
                             throw new SemanticExecutionException("more than one row matched");
                         foundOneMatch = true;
 

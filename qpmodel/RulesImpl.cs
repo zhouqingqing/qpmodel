@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Diagnostics;
 
 using qpmodel.expr;
 using qpmodel.logic;
@@ -21,7 +22,9 @@ namespace qpmodel.optimizer
                 return false;
 
             if (join.filter_.FilterHashable()) {
-                bool lhasSubqCol = TableRef.HasColsUsedBySubquries(join.l_().InclusiveTableRefs());
+                var stmt = expr.Stmt() as SelectStmt;
+                bool lhasSubqCol = stmt.PlanContainsCorrelatedSubquery() && 
+                    TableRef.HasColsUsedBySubquries(join.l_().InclusiveTableRefs());
                 if (!lhasSubqCol)
                     return true;
             }
@@ -102,6 +105,7 @@ namespace qpmodel.optimizer
             switch (log)
             {
                 case LogicSingleJoin lsj:
+                    Debug.Assert(lsj.max1rowCheck_);
                     phy = new PhysicSingleJoin(lsj, l, r);
                     break;
                 default:

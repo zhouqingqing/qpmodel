@@ -32,6 +32,7 @@ namespace qpmodel.optimizer
         internal CMemoGroup group_;
 
         internal QueryOption QueryOption() => group_.memo_.stmt_.queryOpt_;
+        internal SQLStatement Stmt() => group_.memo_.stmt_;
 
         internal LogicNode Logic() {
             LogicNode logic;

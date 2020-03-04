@@ -342,6 +342,7 @@ namespace qpmodel.logic
 
         // details of outerrefs are recorded in referenced TableRef
         internal SelectStmt parent_;
+
         // subqueries at my level (children level excluded)
         internal List<SelectStmt> subQueries_ = new List<SelectStmt>();
         internal List<SelectStmt> decorrelatedSubs_ = new List<SelectStmt>();
@@ -349,6 +350,9 @@ namespace qpmodel.logic
         internal bool hasAgg_ = false;
         internal bool bounded_ = false;
 
+        // true if this query is a correlated subquery - if later this query is 
+        // decorrelated, we don't change this status
+        //
         internal bool isCorrelated_ = false;
         internal List<SelectStmt> correlatedWhich_ = new List<SelectStmt>();
         internal bool shallExpandSelection_ = false;
@@ -360,6 +364,18 @@ namespace qpmodel.logic
                 top = top.parent_;
             Debug.Assert(top != null);
             return top;
+        }
+
+        // after all optimization, if the plan still contains correlated subquries
+        internal bool PlanContainsCorrelatedSubquery()
+        {
+            bool hasCorrelated = false;
+            Subqueries(excludeFromAndDecorrelated: true).ForEach(x => {
+                if (x.isCorrelated_)
+                    hasCorrelated = true;
+            });
+
+            return hasCorrelated;
         }
 
         // group|order by 2 => selection_[2-1]
@@ -527,10 +543,12 @@ namespace qpmodel.logic
             return r;
         }
 
-        public List<SelectStmt> Subqueries(bool excludeFromQuery = false)
+        public List<SelectStmt> Subqueries(bool excludeFromAndDecorrelated = false)
         {
             List<SelectStmt> ret = new List<SelectStmt>();
-            if (excludeFromQuery)
+            Debug.Assert(subQueries_.Count >= 
+                    fromQueries_.Count  + decorrelatedSubs_.Count);
+            if (excludeFromAndDecorrelated)
             {
                 foreach (var x in subQueries_)
                     if (!SubqueryIsWithMainQuery(x))
