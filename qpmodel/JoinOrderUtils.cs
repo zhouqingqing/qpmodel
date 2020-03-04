@@ -852,36 +852,4 @@ namespace qpmodel.optimizer
             graph.ReorderBFS();
         }
     }
-
-    // JoinBlock is essentially a combination of binary joins but since it is not binary join so no
-    // transformation works on it. An implmentation JoinBLock2Join directly translate it to the optimal
-    // form of physical plan with join order resolvers.
-    //
-    public class LogicJoinBlock : LogicNode
-    {
-        internal JoinGraph graph_;
-        internal LogicJoin join_;
-        internal CMemoGroup group_;
-
-        public LogicJoinBlock(LogicJoin join, JoinGraph graph)
-        {
-            graph_ = graph;
-            join_ = join;
-            children_.AddRange(graph.vertices_);
-        }
-
-        public void SetGroup(CMemoGroup group) => group_ = group;
-
-        public override long EstimateCard()
-        {
-            Debug.Assert(group_.explored_);
-            Debug.Assert(group_.exprList_.Count == 2);
-            return group_.exprList_[1].physic_.logic_.EstimateCard();
-        }
-
-        public override string ToString() => $"JoinBlock({string.Join(",", children_)})";
-
-        // FIXME: signature shall consider join filter pushed down
-        public override LogicSignature MemoLogicSign() => join_.MemoLogicSign();
-    }
 }

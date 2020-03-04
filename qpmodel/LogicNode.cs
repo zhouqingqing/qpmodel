@@ -287,10 +287,8 @@ namespace qpmodel.logic
             return card_;
         }
 
-        public virtual long EstimateCard() {
-            long card = 1;
-            children_.ForEach(x => card = Math.Max(x.Card(), card));
-            return card;
+        public long EstimateCard() {
+            return CardEstimator.DoEstimation(this);
         }
 
         // retrieve all correlated filters on the subtree
@@ -379,8 +377,6 @@ namespace qpmodel.logic
                 return lo.MemoLogicSign() == MemoLogicSign();
             return false;
         }
-
-        public override long EstimateCard() => Deref().EstimateCard();
     }
 
     public enum JoinType {
@@ -1086,7 +1082,5 @@ namespace qpmodel.logic
             RefreshOutputRegisteration();
             return ordinals;
         }
-
-        public override long EstimateCard() => limit_;
     }
 }
