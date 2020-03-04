@@ -633,7 +633,7 @@ namespace qpmodel.logic
 
             // push down filters
             //   join solver will do the join filter push down in its own way
-            bool pushJoinFilter = !queryOpt_.optimize_.memo_use_joinorder_solver;
+            bool pushJoinFilter = !queryOpt_.optimize_.memo_use_joinorder_solver_;
             logic = FilterPushDown(logic, pushJoinFilter);
 
             // outerjoin to inner join 

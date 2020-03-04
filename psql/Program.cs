@@ -28,9 +28,9 @@ namespace psql
         {
             QueryOption option = new QueryOption();
             option.optimize_.TurnOnAllOptimizations();
-            option.optimize_.remove_from = false;
+            option.optimize_.remove_from_ = false;
 
-            ExplainOption.show_tablename_ = true;
+            ExplainOption.show_tablename_ = false;
             option.explain_.show_output_ = true;
             option.explain_.show_cost_ = option.optimize_.use_memo_;
 
@@ -56,7 +56,7 @@ namespace psql
                // verify query result against the expected result
                if (!resultVerify(write_fn, expect_fn))
                {
-                   return write_fn;
+                  return write_fn;
                }
             }
             return null;

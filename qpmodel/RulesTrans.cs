@@ -34,7 +34,7 @@ namespace qpmodel.optimizer
 
         // TBD: besides static controls, we can examine the plan and quick trim rules impossible to apply
         public static void Init(QueryOption option) {
-            if (!option.optimize_.enable_indexseek)
+            if (!option.optimize_.enable_indexseek_)
                 ruleset_.RemoveAll(x => x is Scan2IndexSeek);
             if (!option.optimize_.enable_hashjoin_)
                 ruleset_.RemoveAll(x => x is Join2HashJoin);
@@ -173,7 +173,7 @@ namespace qpmodel.optimizer
             // exploration now will prevent generating other promising plans. So 
             // we have to return the new plan.
             //
-            if (expr.QueryOption().optimize_.memo_disable_crossjoin)
+            if (expr.QueryOption().optimize_.memo_disable_crossjoin_)
             {
                 if (a_bc.filter_ != null && bcfilter != null)
                 {

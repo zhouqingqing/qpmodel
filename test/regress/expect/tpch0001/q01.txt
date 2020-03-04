@@ -21,15 +21,15 @@ order by
 	l_linestatus
 Total cost: 11791.35
 PhysicOrder  (inccost=11791.35, cost=11.35, rows=6) (actual rows=4)
-    Output: lineitem.l_returnflag[0],lineitem.l_linestatus[1],{sum(lineitem.l_quantity)}[2],{sum(lineitem.l_extendedprice)}[3],{sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[4],{sum(lineitem.l_extendedprice*1-lineitem.l_discount*1+lineitem.l_tax)}[5],{avg(lineitem.l_quantity)}[6],{avg(lineitem.l_extendedprice)}[7],{avg(lineitem.l_discount)}[8],{count(*)(0)}[9]
-    Order by: lineitem.l_returnflag[0], lineitem.l_linestatus[1]
+    Output: l_returnflag[0],l_linestatus[1],{sum(l_quantity)}[2],{sum(l_extendedprice)}[3],{sum(l_extendedprice*1-l_discount)}[4],{sum(l_extendedprice*1-l_discount*1+l_tax)}[5],{avg(l_quantity)}[6],{avg(l_extendedprice)}[7],{avg(l_discount)}[8],{count(*)(0)}[9]
+    Order by: l_returnflag[0], l_linestatus[1]
     -> PhysicHashAgg  (inccost=11780, cost=5896, rows=6) (actual rows=4)
-        Output: {lineitem.l_returnflag}[0],{lineitem.l_linestatus}[1],{sum(lineitem.l_quantity)}[2],{sum(lineitem.l_extendedprice)}[3],{sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[4],{sum(lineitem.l_extendedprice*1-lineitem.l_discount*1+lineitem.l_tax)}[5],{avg(lineitem.l_quantity)}[6],{avg(lineitem.l_extendedprice)}[7],{avg(lineitem.l_discount)}[8],{count(*)(0)}[9]
-        Aggregates: sum(lineitem.l_quantity[2]), sum(lineitem.l_extendedprice[3]), sum(lineitem.l_extendedprice[3]*1-lineitem.l_discount[7]), sum(lineitem.l_extendedprice[3]*1-lineitem.l_discount[7]*1+lineitem.l_tax[10]), avg(lineitem.l_quantity[2]), avg(lineitem.l_extendedprice[3]), avg(lineitem.l_discount[7]), count(*)(0)
-        Group by: lineitem.l_returnflag[0], lineitem.l_linestatus[1]
+        Output: {l_returnflag}[0],{l_linestatus}[1],{sum(l_quantity)}[2],{sum(l_extendedprice)}[3],{sum(l_extendedprice*1-l_discount)}[4],{sum(l_extendedprice*1-l_discount*1+l_tax)}[5],{avg(l_quantity)}[6],{avg(l_extendedprice)}[7],{avg(l_discount)}[8],{count(*)(0)}[9]
+        Aggregates: sum(l_quantity[2]), sum(l_extendedprice[3]), sum(l_extendedprice[3]*1-l_discount[7]), sum(l_extendedprice[3]*1-l_discount[7]*1+l_tax[10]), avg(l_quantity[2]), avg(l_extendedprice[3]), avg(l_discount[7]), count(*)(0)
+        Group by: l_returnflag[0], l_linestatus[1]
         -> PhysicScanTable lineitem (inccost=5884, cost=5884, rows=5884) (actual rows=5914)
-            Output: lineitem.l_returnflag[8],lineitem.l_linestatus[9],lineitem.l_quantity[4],lineitem.l_extendedprice[5],lineitem.l_extendedprice[5]*1-lineitem.l_discount[6],1-lineitem.l_discount[6],1,lineitem.l_discount[6],lineitem.l_extendedprice[5]*1-lineitem.l_discount[6]*1+lineitem.l_tax[7],1+lineitem.l_tax[7],lineitem.l_tax[7]
-            Filter: lineitem.l_shipdate[10]<='9/2/1998 12:00:00 AM'
+            Output: l_returnflag[8],l_linestatus[9],l_quantity[4],l_extendedprice[5],l_extendedprice[5]*1-l_discount[6],1-l_discount[6],1,l_discount[6],l_extendedprice[5]*1-l_discount[6]*1+l_tax[7],1+l_tax[7],l_tax[7]
+            Filter: l_shipdate[10]<='9/2/1998 12:00:00 AM'
 A,F,37474,37569624.64,35676192.097,37101416.222424,25.3918277382163,25457.011449644,0.050008477449983,1478
 N,F,1041,1041301.07,999060.898,1036450.80228,25.3918277382163,25457.011449644,0.050008477449983,38
 N,O,75168,75384955.3699997,71653166.3034002,74498798.1330728,25.3918277382163,25457.011449644,0.050008477449983,2941

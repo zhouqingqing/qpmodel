@@ -813,7 +813,7 @@ namespace qpmodel.expr
                     list.ForEach(x => x.Bind(context));
                 else
                 {
-                    if (context.stmt_.queryOpt_.optimize_.remove_from 
+                    if (context.stmt_.queryOpt_.optimize_.remove_from_ 
                         && x is FromQueryRef xf)
                     {
                         list.Clear();

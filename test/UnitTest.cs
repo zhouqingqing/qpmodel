@@ -214,7 +214,7 @@ namespace test
             // make sure all queries can generate phase one opt plan
             QueryOption option = new QueryOption();
             option.optimize_.enable_subquery_unnest_ = true;
-            option.optimize_.remove_from = false;
+            option.optimize_.remove_from_ = false;
             option.optimize_.use_memo_ = false;
             foreach (var v in files)
             {
@@ -259,7 +259,7 @@ namespace test
             {
                 option.optimize_.use_memo_ = i == 0;
                 Assert.IsTrue(option.optimize_.enable_subquery_unnest_);
-                option.optimize_.remove_from = true;
+                option.optimize_.remove_from_ = true;
 
                 var result = TU.ExecuteSQL(File.ReadAllText(files[0]), out _, option);  // FIXME: projection too deep
                 Assert.AreEqual(4, result.Count);
@@ -309,10 +309,10 @@ namespace test
                 result = TU.ExecuteSQL(File.ReadAllText(files[11]), out _, option);
                 Assert.AreEqual("MAIL,5,5;SHIP,5,10", string.Join(";", result));
                 // FIXME: agg on agg from
-                option.optimize_.remove_from = false;
+                option.optimize_.remove_from_ = false;
                 result = TU.ExecuteSQL(File.ReadAllText(files[12]), out _, option); // FIXME: remove_from
                 Assert.AreEqual(27, result.Count);
-                option.optimize_.remove_from = true;
+                option.optimize_.remove_from_ = true;
                 result = TU.ExecuteSQL(File.ReadAllText(files[13]), out _, option);
                 Assert.AreEqual(1, result.Count);
                 Assert.AreEqual(true, result[0].ToString().Contains("15.23"));
@@ -329,11 +329,11 @@ namespace test
                 Assert.AreEqual("", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[20]), out _, option);
                 Assert.AreEqual("", string.Join(";", result));
-                option.optimize_.remove_from = false;
+                option.optimize_.remove_from_ = false;
                 result = TU.ExecuteSQL(File.ReadAllText(files[21]), out phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicFromQuery"));
                 Assert.AreEqual(7, result.Count);
-                option.optimize_.remove_from = true;
+                option.optimize_.remove_from_ = true;
             }
         }
     }
@@ -393,14 +393,14 @@ namespace test
             Assert.AreEqual("0;1;2", string.Join(";", result));
 
             sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3";
-            option.optimize_.memo_disable_crossjoin = false;
+            option.optimize_.memo_disable_crossjoin_ = false;
             result = TU.ExecuteSQL(sql, out _, option);
             memo = Optimizer.memoset_[0];
             memo.CalcStats(out tlogics, out tphysics);
             Assert.AreEqual(7, memo.cgroups_.Count);
             Assert.AreEqual(15, tlogics); Assert.AreEqual(25, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
-            option.optimize_.memo_disable_crossjoin = true;
+            option.optimize_.memo_disable_crossjoin_ = true;
             result = TU.ExecuteSQL(sql, out _, option);
             memo = Optimizer.memoset_[0];
             memo.CalcStats(out tlogics, out tphysics);
@@ -655,7 +655,7 @@ namespace test
 
             // these queries we can remove from
             QueryOption option = new QueryOption();
-            option.optimize_.remove_from = true;
+            option.optimize_.remove_from_ = true;
             sql = "select a1 from(select b1 as a1 from b) c;";
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
             sql = "select b1 from (select count(*) as b1 from b) a;";

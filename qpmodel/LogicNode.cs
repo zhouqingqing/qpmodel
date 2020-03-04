@@ -62,7 +62,7 @@ namespace qpmodel.logic
                     IndexDef index = null;
                     if (ln.filter_ != null)
                     {
-                        if (option.optimize_.enable_indexseek)
+                        if (option.optimize_.enable_indexseek_)
                             index = ln.filter_.FilterCanUseIndex(ln.tabref_);
                         ln.filter_.SubqueryDirectToPhysic();
                     }

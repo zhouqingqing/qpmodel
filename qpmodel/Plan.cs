@@ -20,35 +20,35 @@ namespace qpmodel.logic
         {
             // rewrite controls
             public bool enable_subquery_unnest_ { get; set; } = true;
-            public bool remove_from { get; set; } = false;        // make it true by default
+            public bool remove_from_ { get; set; } = false;        // make it true by default
 
             // optimizer controls
             public bool enable_hashjoin_ { get; set; } = true;
             public bool enable_nljoin_ { get; set; } = true;
-            public bool enable_indexseek { get; set; } = true;
+            public bool enable_indexseek_ { get; set; } = true;
             public bool use_memo_ { get; set; } = false;      // make it true by default
-            public bool memo_disable_crossjoin { get; set; } = true;
-            public bool memo_use_joinorder_solver { get; set; } = false;
+            public bool memo_disable_crossjoin_ { get; set; } = true;
+            public bool memo_use_joinorder_solver_ { get; set; } = false;   // make it true by default
 
             // codegen controls
             public bool use_codegen_ { get; set; } = false;
 
             public void TurnOnAllOptimizations() {
                 enable_subquery_unnest_ = true;
-                remove_from = true;
+                remove_from_ = true;
 
                 enable_hashjoin_ = true;
                 enable_nljoin_ = true;
-                enable_indexseek = true;
-                use_memo_ = true;
-                memo_disable_crossjoin = true;
+                enable_indexseek_ = true;
 
-                // use_joinorder_solver = true;
+                use_memo_ = true;
+                memo_disable_crossjoin_ = true;
+                memo_use_joinorder_solver_ = false; // FIXME
             }
 
             public void ValidateOptions()
             {
-                if (memo_use_joinorder_solver)
+                if (memo_use_joinorder_solver_)
                     Debug.Assert(use_memo_);
             }
         }
@@ -325,7 +325,7 @@ namespace qpmodel.logic
                         break;
                     case QueryRef sref:
                         var plan = sref.query_.CreatePlan();
-                        if (sref is FromQueryRef && queryOpt_.optimize_.remove_from)
+                        if (sref is FromQueryRef && queryOpt_.optimize_.remove_from_)
                         {
                             from = plan;
                             subQueries_.AddRange(sref.query_.subQueries_);
@@ -543,7 +543,7 @@ namespace qpmodel.logic
             else
             {
                 // FIXME: we can't enable all optimizations with this mode
-                queryOpt_.optimize_.remove_from = false;
+                queryOpt_.optimize_.remove_from_ = false;
                 queryOpt_.optimize_.use_memo_ = false;
 
                 setops_.Bind(parent);
@@ -574,7 +574,7 @@ namespace qpmodel.logic
                 if (!x.bounded_)        // some items already bounded with seq2selection()
                     x.Bind(context);
             });
-            if (queryOpt_.optimize_.remove_from)
+            if (queryOpt_.optimize_.remove_from_)
             {
                 for (int i = 0; i < byList.Count; i++)
                     byList[i] = byList[i].DeQueryRef();
@@ -604,7 +604,7 @@ namespace qpmodel.logic
                         if (x.HasAggFunc())
                             hasAgg_ = true;
                         x = x.ConstFolding();
-                        if (queryOpt_.optimize_.remove_from)
+                        if (queryOpt_.optimize_.remove_from_)
                             x = x.DeQueryRef();
                         newselection.Add(x);
                     }
@@ -635,7 +635,7 @@ namespace qpmodel.logic
                 if (!where_.IsBoolean() || where_.HasAggFunc())
                     throw new SemanticAnalyzeException(
                         "WHERE condition must be a blooean expression and no aggregation is allowed");
-                if (queryOpt_.optimize_.remove_from)
+                if (queryOpt_.optimize_.remove_from_)
                     where_ = where_.DeQueryRef();
             }
 
@@ -654,7 +654,7 @@ namespace qpmodel.logic
                 having_ = having_.FilterNormalize();
                 if (!having_.IsBoolean())
                     throw new SemanticAnalyzeException("HAVING condition must be a blooean expression");
-                if (queryOpt_.optimize_.remove_from)
+                if (queryOpt_.optimize_.remove_from_)
                     having_ = having_.DeQueryRef();
             }
 

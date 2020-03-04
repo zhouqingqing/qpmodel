@@ -30,24 +30,24 @@ order by
 	p_size
 Total cost: 10827.68
 PhysicOrder  (inccost=10827.68, cost=5427.68, rows=800) (actual rows=0)
-    Output: part.p_brand[0],part.p_type[1],part.p_size[2],{count(partsupp.ps_suppkey)}[3]
-    Order by: {count(partsupp.ps_suppkey)}[3], part.p_brand[0], part.p_type[1], part.p_size[2]
+    Output: p_brand[0],p_type[1],p_size[2],{count(ps_suppkey)}[3]
+    Order by: {count(ps_suppkey)}[3], p_brand[0], p_type[1], p_size[2]
     -> PhysicHashAgg  (inccost=5400, cost=2400, rows=800) (actual rows=0)
-        Output: {part.p_brand}[0],{part.p_type}[1],{part.p_size}[2],{count(partsupp.ps_suppkey)}[3]
-        Aggregates: count(partsupp.ps_suppkey[3])
-        Group by: part.p_brand[0], part.p_type[1], part.p_size[2]
+        Output: {p_brand}[0],{p_type}[1],{p_size}[2],{count(ps_suppkey)}[3]
+        Aggregates: count(ps_suppkey[3])
+        Group by: p_brand[0], p_type[1], p_size[2]
         -> PhysicHashJoin  (inccost=3000, cost=2000, rows=800) (actual rows=0)
-            Output: part.p_brand[0],part.p_type[1],part.p_size[2],partsupp.ps_suppkey[4]
-            Filter: part.p_partkey[3]=partsupp.ps_partkey[5]
+            Output: p_brand[0],p_type[1],p_size[2],ps_suppkey[4]
+            Filter: p_partkey[3]=ps_partkey[5]
             -> PhysicScanTable part (inccost=200, cost=200, rows=200) (actual rows=34)
-                Output: part.p_brand[3],part.p_type[4],part.p_size[5],part.p_partkey[0]
-                Filter: part.p_brand[3]<>'Brand#45' and part.p_type[4]not like'MEDIUM POLISHED%' and part.p_size[5] in (49,14,23,45,19,3,36,9)
+                Output: p_brand[3],p_type[4],p_size[5],p_partkey[0]
+                Filter: p_brand[3]<>'Brand#45' and p_type[4]not like'MEDIUM POLISHED%' and p_size[5] in (49,14,23,45,19,3,36,9)
             -> PhysicScanTable partsupp (inccost=800, cost=800, rows=800) (actual rows=0)
-                Output: partsupp.ps_suppkey[1],partsupp.ps_partkey[0]
-                Filter: partsupp.ps_suppkey[1] in @1
+                Output: ps_suppkey[1],ps_partkey[0]
+                Filter: ps_suppkey[1] in @1
                 <InSubqueryExpr> cached 1
                     -> PhysicScanTable supplier (inccost=1, cost=1, rows=1) (actual rows=0)
-                        Output: supplier.s_suppkey[0]
-                        Filter: supplier.s_comment[6]like'%Customer%Complaints%'
+                        Output: s_suppkey[0]
+                        Filter: s_comment[6]like'%Customer%Complaints%'
 
 

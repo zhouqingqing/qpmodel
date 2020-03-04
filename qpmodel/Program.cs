@@ -51,7 +51,7 @@ namespace qpmodel
             // make sure all queries can generate phase one opt plan
             QueryOption option = new QueryOption();
             option.optimize_.TurnOnAllOptimizations();
-            option.optimize_.memo_use_joinorder_solver = true;
+            option.optimize_.memo_use_joinorder_solver_ = true;
             foreach (var v in files)
             {
                 var sql = File.ReadAllText(v);
@@ -103,12 +103,13 @@ namespace qpmodel
             //sql = "select a3, a1+a2 from a where a1*2 = (select max(b3) from b where b2=a2 and b1>0);";
             //sql = "select a1, a2  from a where a.a1 = (select sum(b1) from b where b2 = a2 and b3<4);";
             //sql = "select a1,a2,b2 from b join a on a1=b1 where a1-1 < (select a2/2 from a where a2=b2);";
+            sql = "with cte1 as (select * from a) select * from cte1 where a1> 0;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
             a.queryOpt_.profile_.enabled_ = true;
             a.queryOpt_.optimize_.enable_subquery_unnest_ = true;
-            a.queryOpt_.optimize_.remove_from = false;
+            a.queryOpt_.optimize_.remove_from_ = true;
             a.queryOpt_.optimize_.use_memo_ = true;
             a.queryOpt_.optimize_.use_codegen_ = false;
 
