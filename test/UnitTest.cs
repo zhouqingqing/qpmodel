@@ -371,10 +371,11 @@ namespace test
             Assert.AreEqual("0;1;2", string.Join(";", result));
 
             sql = "select * from b join a on a1=b1 where a1 < (select a2 from a where a2=b2);";
-            option.optimize_.enable_subquery_unnest_ = false; // FIXME: they shall work together
             result = TU.ExecuteSQL(sql, out _, option);
             Assert.AreEqual("0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5", string.Join(";", result));
-            option.optimize_.enable_subquery_unnest_ = true;
+            sql = "select * from b , a where a1=b1 and a1 < (select a2 from a a_1 where a2=b2);";
+            result = TU.ExecuteSQL(sql, out _, option);
+            Assert.AreEqual("0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5", string.Join(";", result));
 
             sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3 and c.c1 = a.a1";
             result = TU.ExecuteSQL(sql, out _, option);
@@ -655,80 +656,88 @@ namespace test
 
             // these queries we can remove from
             QueryOption option = new QueryOption();
-            option.optimize_.remove_from_ = true;
-            sql = "select a1 from(select b1 as a1 from b) c;";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            sql = "select b1 from (select count(*) as b1 from b) a;";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            sql = "select c100 from (select c1 c100 from c) c where c100>1";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            sql = "select * from (select a1*a2 a12, a1 a7 from a) b(a12);";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            sql = "select * from (select a1*a2 a12, a1 a7 from a) b;";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            sql = "select *, cd.* from (select a.* from a join b on a1=b1) ab , (select c1 , c3 from c join d on c1=d1) cd where ab.a1=cd.c1";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            sql = "select * from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where ab.a1=cd.c1";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            sql = "select a12*a12 from (select a1*a2 a12, a1 a7 from a) b;";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            sql = "select a2, count(*), sum(a2) from (select a2 from a) b where a2*a2> 1 group by a2;";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            Assert.AreEqual("2,1,2;3,1,3", string.Join(";", result));
-            sql = "select b1, b2+b2, c100 from (select b1, count(*) as b2 from b group by b1) a, (select c1 c100 from c) c where c100>1;";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            Assert.AreEqual("0,2,2;1,2,2;2,2,2", string.Join(";", result));
-            sql = "select b1+b1, b2+b2, c100 from (select b1, count(*) as b2 from b group by b1) a, (select c1 c100 from c) c where c100>1;";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            Assert.AreEqual("0,2,2;2,2,2;4,2,2", string.Join(";", result));
-            sql = "select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1);";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            Assert.AreEqual("8", string.Join(";", result));
-            sql = "select e1 from (select d1 from (select sum(a12) from (select a1*a2 a12 from a) b) c(d1)) d(e1);";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            Assert.AreEqual("8", string.Join(";", result));
-            sql = "select sum(e1+1) from (select a1, a2, a1*a2 a12 from a) b(e1);";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            Assert.AreEqual("6", string.Join(";", result));
-            sql = "select ca2 from (select count(a2) as ca2 from a group by a1) b ;";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            Assert.AreEqual("1;1;1", string.Join(";", result));
-            sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            Assert.AreEqual("0,1;1,2", string.Join(";", result));
-            sql = "select b4*b1+b2*b3 from (select 1 as b4, b3, count(*) as b1, sum(b1) b2 from b group by b3) a;";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            Assert.AreEqual("1;4;9", string.Join(";", result));
-            sql = "select sum(a1)+count(a1) from (select sum(a1) from a group by a2) c(a1);";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            Assert.AreEqual("6", string.Join(";", result));
-            sql = "select sum(c1*c2+c3) from (select a2, sum(a1), count(a1) from a group by a2) c(c1,c2,c3) group by c1;";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            Assert.AreEqual("1;3;7", string.Join(";", result));
-            sql = "select sum(c1*c2+c3) from (select a2, sum(a1), count(a1) from a group by a2) c(c1,c2,c3);";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            Assert.AreEqual("11", string.Join(";", result));
-            sql = "select sum(e1+1) from (select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1)) b(e1);";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            Assert.AreEqual("9", string.Join(";", result));
-            sql = "select b4*b1+b2*b3 from (select 1 as b4, b3, count(*) as b1, sum(b1) b2 from b group by b3) a;"; // OK
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            Assert.AreEqual("1;4;9", string.Join(";", result));
-            sql = "select b1+b2,c100 from (select count(*) as b1, sum(b1) b2 from b) a, (select c1 c100 from c) c where c100>1;"; // OK
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            Assert.AreEqual("6,2", string.Join(";", result));
-            sql = "select * from (select max(b3) maxb3 from b group by b3) b where maxb3>1;";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            Assert.AreEqual("2;3;4", string.Join(";", result));
-            sql = "select b1+b2+b3 from (select sum(a1), sum(a2), sum(a1+a2)+a3 from a group by a3) b(b1,b2,b3)";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            Assert.AreEqual("4;9;14", string.Join(";", result));
-            sql = "select * from (select sum(a1), sum(a2),sum(a1+a2) from a group by a3) b(b1,b2,b3)";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            Assert.AreEqual("0,1,1;1,2,3;2,3,5", string.Join(";", result));
-            sql = "select * from (select sum(a1), sum(a2),sum(a1+a2)+a3 from a group by a3) b(b1,b2,b3)";
-            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFromQuery"));
-            Assert.AreEqual("0,1,3;1,2,6;2,3,9", string.Join(";", result));
+            for (int j = 0; j < 2; j++)
+            {
+                option.optimize_.remove_from_ = j == 0;
+                for (int i = 0; i < 2; i++)
+                {
+                    option.optimize_.use_memo_ = i == 0;
+
+                    sql = "select a1 from(select b1 as a1 from b) c;";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    sql = "select b1 from (select count(*) as b1 from b) a;";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    sql = "select c100 from (select c1 c100 from c) c where c100>1";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    sql = "select * from (select a1*a2 a12, a1 a7 from a) b(a12);";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    sql = "select * from (select a1*a2 a12, a1 a7 from a) b;";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    sql = "select *, cd.* from (select a.* from a join b on a1=b1) ab , (select c1 , c3 from c join d on c1=d1) cd where ab.a1=cd.c1";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j == 0 ? 0 : 2, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    sql = "select * from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where ab.a1=cd.c1";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j == 0 ? 0 : 2, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    sql = "select a12*a12 from (select a1*a2 a12, a1 a7 from a) b;";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    sql = "select a2, count(*), sum(a2) from (select a2 from a) b where a2*a2> 1 group by a2;";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    Assert.AreEqual("2,1,2;3,1,3", string.Join(";", result));
+                    sql = "select b1, b2+b2, c100 from (select b1, count(*) as b2 from b group by b1) a, (select c1 c100 from c) c where c100>1;";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j == 0 ? 0 : 2, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    Assert.AreEqual("0,2,2;1,2,2;2,2,2", string.Join(";", result));
+                    sql = "select b1+b1, b2+b2, c100 from (select b1, count(*) as b2 from b group by b1) a, (select c1 c100 from c) c where c100>1;";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j == 0 ? 0 : 2, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    Assert.AreEqual("0,2,2;2,2,2;4,2,2", string.Join(";", result));
+                    sql = "select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1);";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j == 0 ? 0 : 2, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    Assert.AreEqual("8", string.Join(";", result));
+                    sql = "select e1 from (select d1 from (select sum(a12) from (select a1*a2 a12 from a) b) c(d1)) d(e1);";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j == 0 ? 0 : 3, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    Assert.AreEqual("8", string.Join(";", result));
+                    sql = "select sum(e1+1) from (select a1, a2, a1*a2 a12 from a) b(e1);";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    Assert.AreEqual("6", string.Join(";", result));
+                    sql = "select ca2 from (select count(a2) as ca2 from a group by a1) b ;";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    Assert.AreEqual("1;1;1", string.Join(";", result));
+                    sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    Assert.AreEqual("0,1;1,2", string.Join(";", result));
+                    sql = "select b4*b1+b2*b3 from (select 1 as b4, b3, count(*) as b1, sum(b1) b2 from b group by b3) a;";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    Assert.AreEqual("1;4;9", string.Join(";", result));
+                    sql = "select sum(a1)+count(a1) from (select sum(a1) from a group by a2) c(a1);";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    Assert.AreEqual("6", string.Join(";", result));
+                    sql = "select sum(c1*c2+c3) from (select a2, sum(a1), count(a1) from a group by a2) c(c1,c2,c3) group by c1;";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    Assert.AreEqual("1;3;7", string.Join(";", result));
+                    sql = "select sum(c1*c2+c3) from (select a2, sum(a1), count(a1) from a group by a2) c(c1,c2,c3);";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    Assert.AreEqual("11", string.Join(";", result));
+                    sql = "select sum(e1+1) from (select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1)) b(e1);";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j == 0 ? 0 : 3, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    Assert.AreEqual("9", string.Join(";", result));
+                    sql = "select b4*b1+b2*b3 from (select 1 as b4, b3, count(*) as b1, sum(b1) b2 from b group by b3) a;";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    Assert.AreEqual("1;4;9", string.Join(";", result));
+                    sql = "select b1+b2,c100 from (select count(*) as b1, sum(b1) b2 from b) a, (select c1 c100 from c) c where c100>1;";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j == 0 ? 0 : 2, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    Assert.AreEqual("6,2", string.Join(";", result));
+                    sql = "select * from (select max(b3) maxb3 from b group by b3) b where maxb3>1;";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    Assert.AreEqual("2;3;4", string.Join(";", result));
+                    sql = "select b1+b2+b3 from (select sum(a1), sum(a2), sum(a1+a2)+a3 from a group by a3) b(b1,b2,b3)";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    Assert.AreEqual("4;9;14", string.Join(";", result));
+                    sql = "select * from (select sum(a1), sum(a2),sum(a1+a2) from a group by a3) b(b1,b2,b3)";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    Assert.AreEqual("0,1,1;1,2,3;2,3,5", string.Join(";", result));
+                    sql = "select * from (select sum(a1), sum(a2),sum(a1+a2)+a3 from a group by a3) b(b1,b2,b3)";
+                    result = SQLStatement.ExecSQL(sql, out phyplan, out _, option); Assert.AreEqual(j, TU.CountStr(phyplan, "PhysicFromQuery"));
+                    Assert.AreEqual("0,1,3;1,2,6;2,3,9", string.Join(";", result));
+                }
+            }
 
             // FIXME
             sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;";
@@ -1030,15 +1039,23 @@ namespace test
         [TestMethod]
         public void TestCTE()
         {
-            var sql = @"with cte1 as (select* from a) select * from a where a1>1;"; TU.ExecuteSQL(sql, "2,3,4,5");
-            sql = @"with cte1 as (select* from a) select * from cte1 where a1>1;"; TU.ExecuteSQL(sql, "2,3,4,5");
-            sql = @"with cte1 as (select * from a),cte3 as (select * from cte1) select * from cte3 where a1>1"; TU.ExecuteSQL(sql, "2,3,4,5");
-            sql = @"with cte1 as (select b3, max(b2) maxb2 from b where b1<1 group by b3)
+            QueryOption option = new QueryOption();
+            for (int i = 0; i < 2; i++)
+            {
+                option.optimize_.use_memo_ = i == 0;
+
+                var sql = @"with cte1 as (select* from a) select * from a where a1>1;"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
+                sql = @"with cte1 as (select* from a) select * from cte1 where a1>1;"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
+                sql = @"with cte1 as (select * from a),cte3 as (select * from cte1) select * from cte3 where a1>1"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
+                sql = @"with cte1 as (select b3, max(b2) maxb2 from b where b1<1 group by b3)
                         select a1, maxb2 from a, cte1 where a.a3=cte1.b3 and a1<2;"; TU.ExecuteSQL(sql, "0,1");
-            sql = @"with cte1 as (select* from a),	cte2 as (select* from b),
+                sql = @"with cte1 as (select* from a),	cte2 as (select* from b),
                     	cte3 as (with cte31 as (select* from c)
                                 select* from cte2 , cte31 where b1 = c1)
-                    select max(cte3.b1) from cte3;"; TU.ExecuteSQL(sql, "2");
+                    select max(cte3.b1) from cte3;"; TU.ExecuteSQL(sql, "2", out _, option);
+                sql = "with cte as (select * from a) select * from cte cte1, cte cte2 where cte1.a2=cte2.a3 and cte1.a1> 0;";
+                TU.ExecuteSQL(sql, "1,2,3,4,0,1,2,3;2,3,4,5,1,2,3,4", out _, option);
+            }
         }
 
         [TestMethod]

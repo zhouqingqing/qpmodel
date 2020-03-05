@@ -41,7 +41,8 @@ namespace qpmodel.utils
         public static int ListHashCode<T>(this List<T> l)
         {
             int hash = 0;
-            l.ForEach(x => hash ^= x.GetHashCode());
+            if (l != null)
+                l.ForEach(x => hash ^= x.GetHashCode());
             return hash;
         }
 
@@ -63,32 +64,6 @@ namespace qpmodel.utils
         public static bool StringLike(this string s, string pattern) {
             var regpattern = pattern.Replace("%", ".*");
             return Regex.IsMatch(s, regpattern);
-        }
-
-        // for each element in @source, if there is a matching k in @target of its sub expression, 
-        // replace that element as ExprRef(k, index_of_k_in_target)
-        //
-        public static Expr SearchReplace(this Expr source, List<Expr> target)
-        {
-            for (int i = 0; i < target.Count; i++)
-            {
-                var e = target[i];
-                source = source.SearchReplace(e, new ExprRef(e, i));
-            }
-
-            return source;
-        }
-
-        public static List<Expr> SearchReplace(this List<Expr> source, List<Expr> target)
-        {
-            var r = new List<Expr>();
-            source.ForEach(x =>
-            {
-                r.Add(x.SearchReplace(target));
-            });
-
-            Debug.Assert(r.Count == source.Count);
-            return r;
         }
 
         // a[0]+b[1] => a+b 

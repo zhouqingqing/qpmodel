@@ -2,7 +2,7 @@
 This project models a relational optimizer and executor in c#. The purpose of the modeling is to prepare for a more serious implementation of database optimizer and execution.
 
 ## Why C#
-Since the major target is optimizer and it is logic centric, so it need a high level language.  After modeling, later it might want to turn it into some C/C++ code, so the language has to be a close relative to them.  C# provides some good features like LINQ, dynamic types to make modeling easy, and it is close enough to C++ (that's why not python).
+The major target is optimizer and it is logic centric, so it a high level language needed. After modeling, production may want to turn it into some C/C++ code, so the language has to be a close relative of C/C++.  C# provides some good features like LINQ, dynamic types to make modeling easy, and it is close enough to C++ (and that's why not python).
 
 ## Optimizer
 The optimizer exercise following constructs:

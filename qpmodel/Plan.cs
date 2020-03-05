@@ -323,21 +323,18 @@ namespace qpmodel.logic
                     case ExternalTableRef eref:
                         from = new LogicScanFile(eref);
                         break;
-                    case QueryRef sref:
-                        var plan = sref.query_.CreatePlan();
-                        if (sref is FromQueryRef && queryOpt_.optimize_.remove_from_)
-                        {
+                    case QueryRef qref:
+                        var plan = qref.query_.CreatePlan();
+                        if (qref is FromQueryRef && queryOpt_.optimize_.remove_from_)
                             from = plan;
-                            subQueries_.AddRange(sref.query_.subQueries_);
-                        }
                         else
                         {
-                            from = new LogicFromQuery(sref, plan);
-                            subQueries_.Add(sref.query_);
+                            from = new LogicFromQuery(qref, plan);
+                            subQueries_.Add(qref.query_);
 
                             // if from CTE, then it could be duplicates
-                            if (!fromQueries_.ContainsKey(sref.query_))
-                                fromQueries_.Add(sref.query_, from as LogicFromQuery);
+                            if (!fromQueries_.ContainsKey(qref.query_))
+                                fromQueries_.Add(qref.query_, from as LogicFromQuery);
                         }
                         break;
                     case JoinQueryRef jref:

@@ -47,9 +47,9 @@ namespace qpmodel.index
             return logicPlan_;
         }
 
-        public override LogicNode PhaseOneOptimize()
+        public override LogicNode SubstitutionOptimize()
         {
-            var scan = select_.PhaseOneOptimize();
+            var scan = select_.SubstitutionOptimize();
             logicPlan_ = new LogicIndex(scan, def_);
             // convert to physical plan
             physicPlan_ = logicPlan_.DirectToPhysical(queryOpt_);

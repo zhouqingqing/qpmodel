@@ -82,9 +82,9 @@ namespace qpmodel.dml
             return logicPlan_;
         }
 
-        public override LogicNode PhaseOneOptimize()
+        public override LogicNode SubstitutionOptimize()
         {
-            var scan = select_.PhaseOneOptimize();
+            var scan = select_.SubstitutionOptimize();
             logicPlan_ = new LogicAnalyze(scan);
             // convert to physical plan
             physicPlan_ = logicPlan_.DirectToPhysical(queryOpt_);
@@ -148,7 +148,7 @@ namespace qpmodel.dml
             return logicPlan_;
         }
 
-        public override LogicNode PhaseOneOptimize()
+        public override LogicNode SubstitutionOptimize()
         {
             // convert to physical plan
             physicPlan_ = logicPlan_.DirectToPhysical(queryOpt_);
@@ -186,9 +186,9 @@ namespace qpmodel.dml
 
         public override BindContext Bind(BindContext parent) => insert_.Bind(parent);
         public override LogicNode CreatePlan() => insert_.CreatePlan();
-        public override LogicNode PhaseOneOptimize()
+        public override LogicNode SubstitutionOptimize()
         {
-            logicPlan_ = insert_.PhaseOneOptimize();
+            logicPlan_ = insert_.SubstitutionOptimize();
             physicPlan_ = insert_.physicPlan_;
             return logicPlan_;
         }

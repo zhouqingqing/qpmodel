@@ -36,14 +36,14 @@ namespace qpmodel.logic
 
         public override string ToString() => text_;
         public virtual BindContext Bind(BindContext parent) => null;
-        public virtual LogicNode PhaseOneOptimize() => logicPlan_;
+        public virtual LogicNode SubstitutionOptimize() => logicPlan_;
         public virtual LogicNode CreatePlan() => logicPlan_;
 
         public virtual List<Row> Exec()
         {
             Bind(null);
             CreatePlan();
-            PhaseOneOptimize();
+            SubstitutionOptimize();
 
             if (queryOpt_.optimize_.use_memo_)
             {
@@ -627,7 +627,7 @@ namespace qpmodel.logic
             return ret;
         }
 
-        public override LogicNode PhaseOneOptimize()
+        public override LogicNode SubstitutionOptimize()
         {
             LogicNode logic = logicPlan_;
 
@@ -646,7 +646,7 @@ namespace qpmodel.logic
             subQueries_.ForEach(x => {
                 Debug.Assert (x.queryOpt_ == queryOpt_);
                 if (!decorrelatedSubs_.Contains(x))
-                    x.PhaseOneOptimize();
+                    x.SubstitutionOptimize();
             });
             foreach (var x in fromQueries_) {
                 var stmt = x.Key as SelectStmt;

@@ -424,23 +424,7 @@ namespace qpmodel.logic
 
         public override LogicSignature MemoLogicSign() {
             if (logicSign_ == -1)
-            {
-                var filterhash = 0;
-                if (filter_ != null)
-                {
-                    // consider the case:
-                    //   A X (B X C on f3) on f1 AND f2
-                    // is equal to commutative transformation
-                    //   (A X B on f1) X C on f3 AND f2
-                    // The filter signature generation has to be able to accomomdate this difference.
-                    //
-                    var andlist = filter_.FilterToAndList();
-                    filterhash = andlist.ListHashCode();
-                }
-
-                logicSign_ = l_().MemoLogicSign() ^ r_().MemoLogicSign() ^ filterhash;
-            }
-
+                logicSign_ = l_().MemoLogicSign() ^ r_().MemoLogicSign() ^ filter_.FilterHashCode();
             return logicSign_;
         }
 
@@ -653,6 +637,13 @@ namespace qpmodel.logic
         public List<AggFunc> aggrFns_ = new List<AggFunc>();
         public override string ToString() => $"Agg({child_()})";
 
+        public override LogicSignature MemoLogicSign()
+        {
+            if (logicSign_ == -1)
+                logicSign_ = child_().MemoLogicSign() ^ having_.FilterHashCode() 
+                    ^ Utils.ListHashCode(raw_aggrs_) ^ Utils.ListHashCode(groupby_);
+            return logicSign_;
+        }
         public override string ExplainMoreDetails(int depth, ExplainOption option)
         {
             string r = null;
@@ -772,6 +763,36 @@ namespace qpmodel.logic
             return reqList;
         }
 
+        List<Expr> sourceListSearchReplaceWithGroupBy(List<Expr> sourceList)
+        {
+            bool IsGroupByElement(Expr e) => groupby_.Contains(e) || e is AggFunc;
+            Expr RepalceWithGroupbyRef(Expr e)
+            {
+                if (e is AggFunc) {
+                    return e;
+                }
+                else
+                {
+                    for (int i = 0; i < groupby_.Count; i++)
+                    {
+                        var g = groupby_[i];
+                        e = e.SearchReplace(g, new ExprRef(g, i));
+                    }
+                }
+
+                return e;
+            }
+
+            List<Expr> newlist = new List<Expr>();
+            sourceList.ForEach(x =>
+            {
+                x = x.SearchReplace<Expr>(IsGroupByElement, RepalceWithGroupbyRef);
+                x.ResetAggregateTableRefs();
+                newlist.Add(x);
+            });
+            return newlist;
+        }
+
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             List<int> ordinals = new List<int>();
@@ -810,14 +831,21 @@ namespace qpmodel.logic
             //  output_: <literal>, cos(a1*7)+sum(a1),  sum(a1) + sum(a2+a3)*2
             //                       |           \       /          |   
             //                       |            \     /           |   
-            //  keys_:               a1            \   /            |
+            //  groupby_:            a1            \   /            |
             //  aggrFns_:                        sum(a1),      sum(a2+a3)
             // =>
             //  output_: <literal>, cos(ref[0]*7)+ref[1],  ref[1]+ref[2]*2
             //
             var nkeys = groupby_?.Count ?? 0;
             var newoutput = new List<Expr>();
-            if (groupby_ != null) output_ = output_.SearchReplace(groupby_);
+            if (groupby_ != null)
+            {
+                // output_ shall use exprRef of groupby_ expressions but do not do so for any
+                // aggregation functions since they directly work on child input row. Same to
+                // having_ expressions.
+                //
+                output_ = sourceListSearchReplaceWithGroupBy(output_);
+            }
             output_.ForEach(x =>
             {
                 x.VisitEachIgnoreRef<AggFunc>(y =>
@@ -830,7 +858,8 @@ namespace qpmodel.logic
 
                 newoutput.Add(x);
             });
-            if (having_ != null && groupby_ != null) having_ = having_.SearchReplace(groupby_);
+            if (having_ != null && groupby_ != null)
+                having_ = sourceListSearchReplaceWithGroupBy(new List<Expr>() { having_})[0];
             having_?.VisitEachIgnoreRef<AggFunc>(y =>
             {
                 // remove the duplicates immediatley to avoid wrong ordinal in ExprRef
@@ -928,6 +957,14 @@ namespace qpmodel.logic
                 output_ = output_.Distinct().ToList();
             RefreshOutputRegisteration();
             return ordinals;
+        }
+
+        public override int GetHashCode() => queryRef_.GetHashCode();
+        public override bool Equals(object obj)
+        {
+            if (obj is LogicFromQuery fo)
+                return fo.queryRef_.Equals(queryRef_);
+            return false;
         }
     }
 

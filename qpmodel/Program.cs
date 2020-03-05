@@ -98,12 +98,7 @@ namespace qpmodel
             }
 
         doit:
-            //  sql = "select * from nation, region where n_regionkey = r_regionkey";
-            //sql = "select * from a where a1*2 = (select b3 from b where b2=a2);";
-            //sql = "select a3, a1+a2 from a where a1*2 = (select max(b3) from b where b2=a2 and b1>0);";
-            //sql = "select a1, a2  from a where a.a1 = (select sum(b1) from b where b2 = a2 and b3<4);";
-            //sql = "select a1,a2,b2 from b join a on a1=b1 where a1-1 < (select a2/2 from a where a2=b2);";
-            sql = "with cte1 as (select * from a) select * from cte1 where a1> 0;";
+            sql = "with cte as (select * from a) select * from cte cte1, cte cte2 where cte1.a2=cte2.a3 and cte1.a1> 0;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
@@ -122,7 +117,7 @@ namespace qpmodel
             a.Bind(null);
 
             // -- generate an initial plan
-            ExplainOption.show_tablename_ = true;
+            ExplainOption.show_tablename_ = false;
             a.queryOpt_.explain_.show_output_ = true;
             a.queryOpt_.explain_.show_cost_ =  a.queryOpt_.optimize_.use_memo_;
             var rawplan = a.CreatePlan();
@@ -133,7 +128,7 @@ namespace qpmodel
             if (a.queryOpt_.optimize_.use_memo_)
             {
                 Console.WriteLine("***************** optimized plan *************");
-                var optplan = a.PhaseOneOptimize();
+                var optplan = a.SubstitutionOptimize();
                 Console.WriteLine(optplan.Explain(0, a.queryOpt_.explain_));
                 Optimizer.InitRootPlan(a);
                 Optimizer.OptimizeRootPlan(a, null);
@@ -147,7 +142,7 @@ namespace qpmodel
             {
                 // -- optimize the plan
                 Console.WriteLine("-- optimized plan --");
-                var optplan = a.PhaseOneOptimize();
+                var optplan = a.SubstitutionOptimize();
                 Console.WriteLine(optplan.Explain(0, a.queryOpt_.explain_));
 
                 // -- physical plan

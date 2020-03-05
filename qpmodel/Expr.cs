@@ -259,6 +259,19 @@ namespace qpmodel.expr
             return result;
         }
 
+        public static int FilterHashCode(this Expr filter) {
+            // consider the case:
+            //   A X (B X C on f3) on f1 AND f2
+            // is equal to commutative transformation
+            //   (A X B on f1) X C on f3 AND f2
+            // The filter signature generation has to be able to accomomdate this difference.
+            //
+            if (filter is null)
+                return 0;
+            var andlist = filter.FilterToAndList();
+            return andlist.ListHashCode();
+        }
+
         // a List<Expr> conditions merge into a LogicAndExpr
         public static Expr AndListToExpr(this List<Expr> andlist)
         {
@@ -575,13 +588,16 @@ namespace qpmodel.expr
         }
         public void VisitEach(Action<Expr> callback) => VisitEachT<Expr>(callback);
         public void VisitEachIgnoreRef<T>(Action<T> callback) where T : Expr
+            => VisitEachIgnore<ExprRef, T>(callback);
+
+        public void VisitEachIgnore<T1, T2>(Action<T2> callback) where T1: Expr where T2: Expr
         {
-            if (!(this is ExprRef))
+            if (!(this is T1))
             {
-                if (this is T)
-                    callback(this as T);
+                if (this is T2)
+                    callback(this as T2);
                 foreach (var v in children_)
-                    v.VisitEachIgnoreRef<T>(callback);
+                    v.VisitEachIgnore<T1, T2>(callback);
             }
         }
 

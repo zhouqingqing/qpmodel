@@ -558,4 +558,10 @@ namespace qpmodel.logic
             return cost;
         }
     }
+
+    public class LogicSequence : LogicNode {
+
+        // last child is the output node
+        public LogicNode OutputChild() => children_[children_.Count - 1];
+    }
 }
