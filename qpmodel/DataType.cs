@@ -383,18 +383,17 @@ namespace qpmodel.expr
         public List<Expr> GetInnerTableExprs() => outputNameMap_.Values.ToList();
     }
 
-    // WITH <ctename> AS <query>
+    // a reference to CTE
     public class CTEQueryRef : QueryRef
     {
-        public string ctename_;
+        public CteExpr cte_;
 
         public override string ToString()
-            => (ctename_.Equals(alias_)) ? $"{alias_}" : $"{ctename_} as {alias_}";
-        public CTEQueryRef(SelectStmt query, string ctename, string alias) : base(query, alias)
+            => (cte_.cteName_.Equals(alias_)) ? $"{alias_}" : $"{cte_.cteName_} as {alias_}";
+        public CTEQueryRef(CteExpr cte, string alias) : base(cte.query_, alias)
         {
-            query.isCtebody_ = true;
-            Debug.Assert(ctename != null);
-            ctename_ = ctename;
+            cte.refcnt_++;
+            cte_ = cte;
         }
     }
 

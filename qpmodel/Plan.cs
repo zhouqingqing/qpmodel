@@ -21,6 +21,7 @@ namespace qpmodel.logic
             // rewrite controls
             public bool enable_subquery_unnest_ { get; set; } = true;
             public bool remove_from_ { get; set; } = false;        // make it true by default
+            public bool enable_cte_plan_ { get; set; } = false; // make it true by default
 
             // optimizer controls
             public bool enable_hashjoin_ { get; set; } = true;
@@ -510,6 +511,10 @@ namespace qpmodel.logic
 			if (limit_ != null)
 				root = new LogicLimit (root, limit_);
 
+            // ctes
+            if (ctes_ != null)
+                root = tryCteToSequencePlan(root);
+
             // let's make sure the plan is in good shape
             //  - there is no filter except filter node (ok to be multiple)
             root.VisitEach(x => {
@@ -666,25 +671,15 @@ namespace qpmodel.logic
                 var parent = context;
                 do
                 {
-                    var topctes = (parent.stmt_ as SelectStmt).ctefrom_;
-                    CTEQueryRef cte;
+                    CteExpr cte;
+                    var topctes = (parent.stmt_ as SelectStmt).ctes_;
                     if (topctes != null &&
-                        null != (cte = topctes.Find(x => x.ctename_.Equals(ctename))))
+                        null != (cte = topctes.Find(x => x.cteName_.Equals(ctename))))
                     {
-                        return new CTEQueryRef(cte.query_, ctename, alias);
+                        return new CTEQueryRef(cte, alias);
                     }
                 } while ((parent = parent.parent_) != null);
                 return null;
-            }
-
-            // We enumerate all CTEs first
-            if (ctes_ != null)
-            {
-                ctefrom_ = new List<CTEQueryRef>();
-                ctes_.ForEach(x => {
-                    var cte = new CTEQueryRef(x.query_ as SelectStmt, x.cteName_, x.cteName_);
-                    ctefrom_.Add(cte);
-                });
             }
 
             // replace any BaseTableRef that can't find in system to CTE

@@ -1030,17 +1030,25 @@ namespace qpmodel.expr
         }
     }
 
+    // WITH cteName_ AS <query_>[colNames_]
     public class CteExpr : Expr
     {
         internal string cteName_;
-        internal SQLStatement query_;
+        internal SelectStmt query_;
         internal List<string> colNames_;
+
+        internal int refcnt_;
 
         public CteExpr(string cteName, List<string> colNames, SQLStatement query) : base()
         {
+            Utils.Assumes(query is SelectStmt);
+
+            query_ = query as SelectStmt;
+            Debug.Assert(!query_.isCteDefinition_);
+            query_.isCteDefinition_ = true;
             cteName_ = cteName;
-            query_ = query;
             colNames_ = colNames;
+            refcnt_ = 0;
         }
     }
 

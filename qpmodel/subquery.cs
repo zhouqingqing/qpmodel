@@ -389,6 +389,23 @@ namespace qpmodel.logic
                 decorrelatedSubs_.Add(subexpr.query_);
             return newplan;
         }
+
+        // if there is a CteExpr referenced more than once, we can use a sequence plan
+        LogicNode tryCteToSequencePlan(LogicNode root)
+        {
+            if (!queryOpt_.optimize_.enable_cte_plan_)
+                return root;
+
+            var list = ctes_.Where(x => x.refcnt_ > 1).ToList();
+            if (list.Count == 0)
+                return root;
+
+            var seqNode = new LogicSequence();
+            seqNode.children_.AddRange(list.Select(x=> 
+                    new LogicCteProducer (x.query_.logicPlan_, x)));
+            seqNode.children_.Add(root);
+            return seqNode;
+        }
     }
 
     // mark join is like semi-join form with an extra boolean column ("mark") indicating join 
@@ -563,5 +580,87 @@ namespace qpmodel.logic
 
         // last child is the output node
         public LogicNode OutputChild() => children_[children_.Count - 1];
+
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
+        {
+            List<int> ordinals = new List<int>();
+
+            base.ResolveColumnOrdinal(reqOutput, removeRedundant);
+            output_ = OutputChild().output_;
+            RefreshOutputRegisteration();
+            return ordinals;
+        }
+    }
+
+    public class PhysicSequence : PhysicNode {
+
+        public PhysicSequence(LogicNode logic, List<PhysicNode> children): base(logic)
+        {
+            Debug.Assert(children.Count >= 2);
+            children_ = children;
+        }
+
+        PhysicNode OutputChild() => children_[children_.Count - 2];
+        public override string Exec(Func<Row, string> callback)
+        {
+            ExecContext context = context_;
+            var logic = logic_ as LogicSequence;
+
+            string s = null;
+            s += OutputChild().Exec(r =>
+            {
+                string code = null;
+                if (context.option_.optimize_.use_codegen_)
+                {
+                }
+                else
+                {
+                    callback(r);
+                }
+                return code;
+            });
+
+            return s;
+        }
+    }
+
+    public class LogicCteProducer : LogicNode {
+        internal CteExpr cte_;
+
+        public LogicCteProducer(LogicNode child, CteExpr cte)
+        {
+            children_.Add(child);
+            cte_ = cte;
+        }
+    }
+
+    public class PhysicCteProducer: PhysicNode
+    {
+        public PhysicCteProducer(LogicNode logic, PhysicNode child) : base(logic)
+        {
+            children_.Add(child);
+        }
+
+        public override string Exec(Func<Row, string> callback)
+        {
+            ExecContext context = context_;
+            var logic = logic_ as LogicSequence;
+
+            string s = null;
+            s += child_().Exec(r =>
+            {
+                string code = null;
+                if (context.option_.optimize_.use_codegen_)
+                {
+                }
+                else
+                {
+                    // cache the results
+                }
+                return code;
+            });
+
+            return s;
+        }
     }
 }

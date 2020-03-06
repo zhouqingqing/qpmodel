@@ -139,6 +139,13 @@ namespace qpmodel.logic
                 case LogicAppend append:
                     phy = new PhysicAppend(append, l_().DirectToPhysical(option), r_().DirectToPhysical(option));
                     break;
+                case LogicCteProducer cteproducer:
+                    phy = new PhysicCteProducer(cteproducer, child_().DirectToPhysical(option));
+                    break;
+                case LogicSequence sequence:
+                    List<PhysicNode> children = sequence.children_.Select(x => x.DirectToPhysical(option)).ToList();
+                    phy = new PhysicSequence(sequence, children);
+                    break;
                 default:
                     throw new NotImplementedException();
             }
@@ -277,7 +284,16 @@ namespace qpmodel.logic
         // 2. compute children's output by requesting reqOutput from them
         // 3. find mapping from children's output
         //
-        public virtual List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true) => null;
+        // this parent class implments a default one for using first child output without any change
+        public virtual List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
+        {
+            List<int> ordinals = new List<int>();
+
+            children_[0].ResolveColumnOrdinal(reqOutput, removeRedundant);
+            output_ = children_[0].output_;
+            RefreshOutputRegisteration();
+            return ordinals;
+        }
 
         public long Card()
         {
@@ -1072,23 +1088,13 @@ namespace qpmodel.logic
     {
         public override string ToString() => string.Join(",", output_);
         public LogicResult(List<Expr> exprs) => output_ = exprs;
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true) => null;
     }
 
     public class LogicAppend : LogicNode
     {
         public override string ToString() => $"Append({l_()},{r_()})";
         public LogicAppend(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
-
-        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
-        {
-            // limit is the top node and don't remove redundant
-            List<int> ordinals = new List<int>();
-
-            l_().ResolveColumnOrdinal(reqOutput, removeRedundant);
-            output_ = l_().output_;
-            RefreshOutputRegisteration();
-            return ordinals;
-        }
     }
 
     public class LogicLimit : LogicNode {
@@ -1112,12 +1118,7 @@ namespace qpmodel.logic
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             // limit is the top node and don't remove redundant
-            List<int> ordinals = new List<int>();
-
-            child_().ResolveColumnOrdinal(reqOutput, false);
-            output_ = child_().output_;
-            RefreshOutputRegisteration();
-            return ordinals;
+            return base.ResolveColumnOrdinal(reqOutput, false);
         }
     }
 }

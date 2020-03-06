@@ -322,16 +322,22 @@ namespace qpmodel.logic
         // ---------------
 
         // this section can show up in setops
+        //
         internal List<TableRef> from_;
         internal Expr where_;
         internal List<Expr> groupby_;
         internal Expr having_;
         internal List<Expr> selection_;
-        internal bool isCtebody_ = false;
+        internal bool isCteDefinition_ = false;
 
         // this section can only show up in top query
+        //
+        // ctes_ are the WITH definitions and cterefs_ are the references
+        // there could be 3 ctes_ but 5 cterefs_ but user is allowed to 
+        // define a cte but not use it
+        //
         public readonly List<CteExpr> ctes_;
-        public List<CTEQueryRef> ctefrom_;
+        public List<CTEQueryRef> cterefs_;
         public readonly SetOpTree setops_;
         public List<Expr> orders_;
         public readonly List<bool> descends_;   // order by DESC|ASC
@@ -561,7 +567,7 @@ namespace qpmodel.logic
         }
 
         bool stmtIsInCTEChain() {
-            if ((bindContext_.stmt_ as SelectStmt).isCtebody_)
+            if ((bindContext_.stmt_ as SelectStmt).isCteDefinition_)
                 return true;
            if (bindContext_.parent_ is null)
                 return false;
