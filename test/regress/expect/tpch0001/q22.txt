@@ -55,10 +55,10 @@ PhysicOrder  (inccost=233402.1, cost=0.1, rows=1) (actual rows=7)
                         Output: substring(c_phone[4],1,2),c_acctbal[5],c_custkey[0]
                         Filter: substring(c_phone[4],1,2) in ('13','31','23','29','30','18','17') and c_acctbal[5]>@1
                         <ScalarSubqueryExpr> cached 1
-                            -> PhysicHashAgg  (inccost=266, cost=134, rows=1) (actual rows=1)
+                            -> PhysicHashAgg  (inccost=284, cost=134, rows=1) (actual rows=1)
                                 Output: {avg(c_acctbal)}[0]
                                 Aggregates: avg(c_acctbal[0])
-                                -> PhysicScanTable customer as customer__1 (inccost=132, cost=132, rows=132) (actual rows=35)
+                                -> PhysicScanTable customer as customer__1 (inccost=150, cost=150, rows=132) (actual rows=35)
                                     Output: c_acctbal[5]
                                     Filter: c_acctbal[5]>0.00 and substring(c_phone[4],1,2) in ('13','31','23','29','30','18','17')
                     -> PhysicScanTable orders (inccost=1500, cost=1500, rows=1500) (actual rows=1500, loops=17)

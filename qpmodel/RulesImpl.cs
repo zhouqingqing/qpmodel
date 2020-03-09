@@ -13,6 +13,52 @@ namespace qpmodel.optimizer
 {
     public class ImplmentationRule : Rule { }
 
+    public class NumberArgs {
+        public class N0 : NumberArgs { }
+        public class N1 : NumberArgs { }
+        public class N2 : NumberArgs { }
+        public class NList : NumberArgs { }
+    }
+
+    // A simple rule verify logic is T1 and convert to T2 with T3 specified children
+    public class SimpleImplementationRule<T1, T2, T3> : ImplmentationRule where T1: LogicNode where T2: PhysicNode where T3: NumberArgs, new()
+    {
+        public override bool Appliable(CGroupMember expr)
+        {
+            var log = expr.logic_ as T1;
+            return log != null;
+        }
+
+        public override CGroupMember Apply(CGroupMember expr)
+        {
+            var log = expr.logic_ as T1;
+
+            Object[] args = null;
+            T3 nArgs = new T3();
+            switch (nArgs)
+            {
+                case NumberArgs.N0 n0:
+                    args = new Object[] {log};
+                    break;
+                case NumberArgs.N1 n1:
+                    args = new Object[] {log, new PhysicMemoRef(log.child_())};
+                    break;
+                case NumberArgs.N2 n2:
+                    args = new Object[] {log, new PhysicMemoRef(log.l_()), new PhysicMemoRef(log.r_())};
+                    break;
+                case NumberArgs.NList nlist:
+                    List<PhysicNode> children = log.children_.Select(x => new PhysicMemoRef(x) as PhysicNode).ToList();
+                    args = new Object[] {log, children};
+                    break;
+                default:
+                    Debug.Assert(false);
+                    break;
+            }
+            var phy = (T2)Activator.CreateInstance(typeof(T2), args);
+            return new CGroupMember(phy, expr.group_);
+        }
+    }
+
     public class Join2HashJoin : ImplmentationRule
     {
         public override bool Appliable(CGroupMember expr)
@@ -61,76 +107,6 @@ namespace qpmodel.optimizer
         }
     }
 
-    public class Join2MarkJoin : ImplmentationRule
-    {
-        public override bool Appliable(CGroupMember expr)
-        {
-            LogicMarkJoin log = expr.logic_ as LogicMarkJoin;
-            return !(log is null);
-        }
-
-        public override CGroupMember Apply(CGroupMember expr)
-        {
-            LogicMarkJoin log = expr.logic_ as LogicMarkJoin;
-            var l = new PhysicMemoRef(log.l_());
-            var r = new PhysicMemoRef(log.r_());
-            PhysicNode phy = null;
-            switch (log)
-            {
-                case LogicMarkJoin lmj:
-                    phy = new PhysicMarkJoin(lmj, l, r);
-                    break;
-                default:
-                    phy = null;
-                    break;
-            }
-            return new CGroupMember(phy, expr.group_);
-        }
-    }
-
-    public class Join2SingleJoin : ImplmentationRule
-    {
-        public override bool Appliable(CGroupMember expr)
-        {
-            var log = expr.logic_ as LogicSingleJoin;
-            return !(log is null);
-        }
-
-        public override CGroupMember Apply(CGroupMember expr)
-        {
-            var log = expr.logic_ as LogicSingleJoin;
-            var l = new PhysicMemoRef(log.l_());
-            var r = new PhysicMemoRef(log.r_());
-            PhysicNode phy = null;
-            switch (log)
-            {
-                case LogicSingleJoin lsj:
-                    Debug.Assert(lsj.max1rowCheck_);
-                    phy = new PhysicSingleJoin(lsj, l, r);
-                    break;
-                default:
-                    phy = null;
-                    break;
-            }
-            return new CGroupMember(phy, expr.group_);
-        }
-    }
-    public class Scan2Scan : ImplmentationRule
-    {
-        public override bool Appliable(CGroupMember expr)
-        {
-            LogicScanTable log = expr.logic_ as LogicScanTable;
-            return log != null;
-        }
-
-        public override CGroupMember Apply(CGroupMember expr)
-        {
-            LogicScanTable log = expr.logic_ as LogicScanTable;
-            var phy = new PhysicScanTable(log);
-            return new CGroupMember(phy, expr.group_);
-        }
-    }
-
     public class Scan2IndexSeek : ImplmentationRule
     {
         public override bool Appliable(CGroupMember expr)
@@ -155,99 +131,6 @@ namespace qpmodel.optimizer
         }
     }
 
-    public class Filter2Filter : ImplmentationRule
-    {
-        public override bool Appliable(CGroupMember expr)
-        {
-            var log = expr.logic_ as LogicFilter;
-            return log != null;
-        }
-
-        public override CGroupMember Apply(CGroupMember expr)
-        {
-            var log = expr.logic_ as LogicFilter;
-            var phy = new PhysicFilter(log, new PhysicMemoRef(log.child_()));
-            return new CGroupMember(phy, expr.group_);
-        }
-    }
-    public class Agg2HashAgg : ImplmentationRule
-    {
-        public override bool Appliable(CGroupMember expr)
-        {
-            var log = expr.logic_ as LogicAgg;
-            return log != null;
-        }
-
-        public override CGroupMember Apply(CGroupMember expr)
-        {
-            var log = expr.logic_ as LogicAgg;
-            var phy = new PhysicHashAgg(log, new PhysicMemoRef(log.child_()));
-            return new CGroupMember(phy, expr.group_);
-        }
-    }
-    public class Order2Sort : ImplmentationRule
-    {
-        public override bool Appliable(CGroupMember expr)
-        {
-            var log = expr.logic_ as LogicOrder;
-            return log != null;
-        }
-
-        public override CGroupMember Apply(CGroupMember expr)
-        {
-            var log = expr.logic_ as LogicOrder;
-            var phy = new PhysicOrder(log, new PhysicMemoRef(log.child_()));
-            return new CGroupMember(phy, expr.group_);
-        }
-    }
-
-    public class Append2Append : ImplmentationRule
-    {
-        public override bool Appliable(CGroupMember expr)
-        {
-            var log = expr.logic_ as LogicAppend;
-            return log != null;
-        }
-
-        public override CGroupMember Apply(CGroupMember expr)
-        {
-            var log = expr.logic_ as LogicAppend;
-            var phy = new PhysicAppend(log, new PhysicMemoRef(log.l_()), new PhysicMemoRef(log.r_()));
-            return new CGroupMember(phy, expr.group_);
-        }
-    }
-    
-    public class From2From : ImplmentationRule
-    {
-        public override bool Appliable(CGroupMember expr)
-        {
-            var log = expr.logic_ as LogicFromQuery;
-            return log != null;
-        }
-
-        public override CGroupMember Apply(CGroupMember expr)
-        {
-            var log = expr.logic_ as LogicFromQuery;
-            var phy = new PhysicFromQuery(log, new PhysicMemoRef(log.child_()));
-            return new CGroupMember(phy, expr.group_);
-        }
-    }
-
-    public class Limit2Limit: ImplmentationRule
-    {
-        public override bool Appliable(CGroupMember expr)
-        {
-            var log = expr.logic_ as LogicLimit;
-            return log != null;
-        }
-
-        public override CGroupMember Apply(CGroupMember expr)
-        {
-            var log = expr.logic_ as LogicLimit;
-            var phy = new PhysicLimit(log, new PhysicMemoRef(log.child_()));
-            return new CGroupMember(phy, expr.group_);
-        }
-    }
     public class JoinBLock2Join : ImplmentationRule
     {
         public override bool Appliable(CGroupMember expr)
@@ -264,4 +147,16 @@ namespace qpmodel.optimizer
             return new CGroupMember(joinplan, expr.group_);
         }
     }
+
+    public class Scan2Scan : SimpleImplementationRule<LogicScanTable, PhysicScanTable, NumberArgs.N0> { }
+    public class Filter2Filter : SimpleImplementationRule<LogicFilter, PhysicFilter, NumberArgs.N1> { }
+    public class Agg2HashAgg : SimpleImplementationRule<LogicAgg, PhysicHashAgg, NumberArgs.N1> { }
+    public class Order2Sort : SimpleImplementationRule<LogicOrder, PhysicOrder, NumberArgs.N1> { }
+    public class Append2Append : SimpleImplementationRule<LogicAppend, PhysicAppend, NumberArgs.N1> { }
+    public class From2From : SimpleImplementationRule<LogicFromQuery, PhysicFromQuery, NumberArgs.N1> { }
+    public class Limit2Limit: SimpleImplementationRule<LogicLimit, PhysicLimit, NumberArgs.N1> { }
+    public class Join2MarkJoin : SimpleImplementationRule<LogicMarkJoin, PhysicMarkJoin, NumberArgs.N2> { }
+    public class Join2SingleJoin : SimpleImplementationRule<LogicSingleJoin, PhysicSingleJoin, NumberArgs.N2> { }
+    public class Seq2Seq: SimpleImplementationRule<LogicSequence, PhysicSequence, NumberArgs.NList> { }
+    public class CteProd2CteProd: SimpleImplementationRule<LogicCteProducer, PhysicCteProducer, NumberArgs.N1> { }
 }

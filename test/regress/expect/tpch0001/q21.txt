@@ -38,43 +38,43 @@ order by
 	numwait desc,
 	s_name
 limit 100
-Total cost: 38044120.02
-PhysicLimit (100) (inccost=38044120.02, cost=100, rows=100) (actual rows=0)
+Total cost: 38044918.02
+PhysicLimit (100) (inccost=38044918.02, cost=100, rows=100) (actual rows=0)
     Output: s_name[0],{count(*)(0)}[1]
-    -> PhysicOrder  (inccost=38044020.02, cost=24.02, rows=10) (actual rows=0)
+    -> PhysicOrder  (inccost=38044818.02, cost=24.02, rows=10) (actual rows=0)
         Output: s_name[0],{count(*)(0)}[1]
         Order by: {count(*)(0)}[1], s_name[0]
-        -> PhysicHashAgg  (inccost=38043996, cost=6025, rows=10) (actual rows=0)
+        -> PhysicHashAgg  (inccost=38044794, cost=6025, rows=10) (actual rows=0)
             Output: {s_name}[0],{count(*)(0)}[1]
             Aggregates: count(*)(0)
             Group by: s_name[0]
-            -> PhysicFilter  (inccost=38037971, cost=6005, rows=6005) (actual rows=0)
+            -> PhysicFilter  (inccost=38038769, cost=6005, rows=6005) (actual rows=0)
                 Output: s_name[1]
                 Filter: {#marker}[0]
-                -> PhysicMarkJoin Left (inccost=38031966, cost=36060025, rows=6005) (actual rows=0)
+                -> PhysicMarkJoin Left (inccost=38032764, cost=36060025, rows=6005) (actual rows=0)
                     Output: #marker,s_name[0]
                     Filter: l_orderkey[3]=l_orderkey[1] and l_suppkey[4]<>l_suppkey[2]
-                    -> PhysicFilter  (inccost=1965936, cost=6005, rows=6005) (actual rows=0)
+                    -> PhysicFilter  (inccost=1966734, cost=6005, rows=6005) (actual rows=0)
                         Output: s_name[1],l_orderkey[2],l_suppkey[3]
                         Filter: {#marker}[0]
-                        -> PhysicMarkJoin Left (inccost=1959931, cost=1933610, rows=6005) (actual rows=0)
+                        -> PhysicMarkJoin Left (inccost=1960729, cost=1933610, rows=6005) (actual rows=0)
                             Output: #marker,s_name[0],l_orderkey[1],l_suppkey[2]
                             Filter: l_orderkey[3]=l_orderkey[1] and l_suppkey[4]<>l_suppkey[2]
-                            -> PhysicHashJoin  (inccost=20316, cost=3198, rows=290) (actual rows=0)
+                            -> PhysicHashJoin  (inccost=21114, cost=3198, rows=290) (actual rows=0)
                                 Output: s_name[0],l_orderkey[2],l_suppkey[3]
                                 Filter: s_suppkey[1]=l_suppkey[3]
-                                -> PhysicHashJoin  (inccost=24, cost=13, rows=1) (actual rows=0)
+                                -> PhysicHashJoin  (inccost=48, cost=13, rows=1) (actual rows=0)
                                     Output: s_name[1],s_suppkey[2]
                                     Filter: s_nationkey[3]=n_nationkey[0]
-                                    -> PhysicScanTable nation (inccost=1, cost=1, rows=1) (actual rows=1)
+                                    -> PhysicScanTable nation (inccost=25, cost=25, rows=1) (actual rows=1)
                                         Output: n_nationkey[0]
                                         Filter: n_name[1]='SAUDI ARABIA'
                                     -> PhysicScanTable supplier (inccost=10, cost=10, rows=10) (actual rows=10)
                                         Output: s_name[1],s_suppkey[0],s_nationkey[3]
-                                -> PhysicHashJoin  (inccost=17094, cost=10363, rows=2906) (actual rows=0)
+                                -> PhysicHashJoin  (inccost=17868, cost=10363, rows=2906) (actual rows=0)
                                     Output: l_orderkey[1],l_suppkey[2]
                                     Filter: o_orderkey[0]=l_orderkey[1]
-                                    -> PhysicScanTable orders (inccost=726, cost=726, rows=726) (actual rows=0)
+                                    -> PhysicScanTable orders (inccost=1500, cost=1500, rows=726) (actual rows=0)
                                         Output: o_orderkey[0]
                                         Filter: o_orderstatus[2]='F'
                                     -> PhysicScanTable lineitem as l1 (inccost=6005, cost=6005, rows=6005) (actual rows=0)

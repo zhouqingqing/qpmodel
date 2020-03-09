@@ -46,7 +46,7 @@ PhysicOrder  (inccost=10827.68, cost=5427.68, rows=800) (actual rows=0)
                 Output: ps_suppkey[1],ps_partkey[0]
                 Filter: ps_suppkey[1] in @1
                 <InSubqueryExpr> cached 1
-                    -> PhysicScanTable supplier (inccost=1, cost=1, rows=1) (actual rows=0)
+                    -> PhysicScanTable supplier (inccost=10, cost=10, rows=1) (actual rows=0)
                         Output: s_suppkey[0]
                         Filter: s_comment[6]like'%Customer%Complaints%'
 

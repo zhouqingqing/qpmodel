@@ -577,6 +577,7 @@ namespace qpmodel.logic
     }
 
     public class LogicSequence : LogicNode {
+        public override string ToString() => $"Sequence({children_.Count - 1},{OutputChild()})";
 
         // last child is the output node
         public LogicNode OutputChild() => children_[children_.Count - 1];
@@ -585,7 +586,12 @@ namespace qpmodel.logic
         {
             List<int> ordinals = new List<int>();
 
-            base.ResolveColumnOrdinal(reqOutput, removeRedundant);
+            for (int i = 0; i < children_.Count - 1; i++)
+            {
+                var child = children_[i] as LogicCteProducer;
+                child.ResolveColumnOrdinal(child.cte_.query_.selection_, false);
+            }
+            OutputChild().ResolveColumnOrdinal(reqOutput, removeRedundant);
             output_ = OutputChild().output_;
             RefreshOutputRegisteration();
             return ordinals;
@@ -593,6 +599,7 @@ namespace qpmodel.logic
     }
 
     public class PhysicSequence : PhysicNode {
+        public override string ToString() => $"Sequence({string.Join(",", children_)}: {Cost()})";
 
         public PhysicSequence(LogicNode logic, List<PhysicNode> children): base(logic)
         {
@@ -600,7 +607,7 @@ namespace qpmodel.logic
             children_ = children;
         }
 
-        PhysicNode OutputChild() => children_[children_.Count - 2];
+        PhysicNode OutputChild() => children_[children_.Count - 1];
         public override string Exec(Func<Row, string> callback)
         {
             ExecContext context = context_;
@@ -622,10 +629,15 @@ namespace qpmodel.logic
 
             return s;
         }
+        public override double EstimateCost()
+        {
+            return logic_.Card() * 0.5;
+        }
     }
 
     public class LogicCteProducer : LogicNode {
         internal CteExpr cte_;
+        public override string ToString() => $"CteProducer({child_()})";
 
         public LogicCteProducer(LogicNode child, CteExpr cte)
         {
@@ -636,6 +648,7 @@ namespace qpmodel.logic
 
     public class PhysicCteProducer: PhysicNode
     {
+        public override string ToString() => $"PCteProducer({child_()}: {Cost()})";
         public PhysicCteProducer(LogicNode logic, PhysicNode child) : base(logic)
         {
             children_.Add(child);
@@ -661,6 +674,10 @@ namespace qpmodel.logic
             });
 
             return s;
+        }
+        public override double EstimateCost()
+        {
+            return logic_.Card() * 0.5;
         }
     }
 }

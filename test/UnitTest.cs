@@ -4,6 +4,7 @@ using System;
 using System.Linq;
 using System.IO;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 using qpmodel.physic;
 using qpmodel.utils;
@@ -228,7 +229,7 @@ namespace test
         {
             QueryVerify qv = new QueryVerify();
             var result = qv.SQLQueryVerify(sql_dir_fn, write_dir_fn, expect_dir_fn);
-            if (result != null) Console.WriteLine(result);
+            if (result != null) Debug.WriteLine(result);
             Assert.IsNull(result);
         }
 
@@ -1043,18 +1044,22 @@ namespace test
             for (int i = 0; i < 2; i++)
             {
                 option.optimize_.use_memo_ = i == 0;
+                for (int j = 0; j < 2; j++)
+                {
+                    option.optimize_.enable_cte_plan_ = j == 0;
 
-                var sql = @"with cte1 as (select* from a) select * from a where a1>1;"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
-                sql = @"with cte1 as (select* from a) select * from cte1 where a1>1;"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
-                sql = @"with cte1 as (select * from a),cte3 as (select * from cte1) select * from cte3 where a1>1"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
-                sql = @"with cte1 as (select b3, max(b2) maxb2 from b where b1<1 group by b3)
+                    var sql = @"with cte1 as (select* from a) select * from a where a1>1;"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
+                    sql = @"with cte1 as (select* from a) select * from cte1 where a1>1;"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
+                    sql = @"with cte1 as (select * from a),cte3 as (select * from cte1) select * from cte3 where a1>1"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
+                    sql = @"with cte1 as (select b3, max(b2) maxb2 from b where b1<1 group by b3)
                         select a1, maxb2 from a, cte1 where a.a3=cte1.b3 and a1<2;"; TU.ExecuteSQL(sql, "0,1");
-                sql = @"with cte1 as (select* from a),	cte2 as (select* from b),
+                    sql = @"with cte1 as (select* from a),	cte2 as (select* from b),
                     	cte3 as (with cte31 as (select* from c)
                                 select* from cte2 , cte31 where b1 = c1)
                     select max(cte3.b1) from cte3;"; TU.ExecuteSQL(sql, "2", out _, option);
-                sql = "with cte as (select * from a) select * from cte cte1, cte cte2 where cte1.a2=cte2.a3 and cte1.a1> 0;";
-                TU.ExecuteSQL(sql, "1,2,3,4,0,1,2,3;2,3,4,5,1,2,3,4", out _, option);
+                    sql = "with cte as (select * from a) select * from cte cte1, cte cte2 where cte1.a2=cte2.a3 and cte1.a1> 0;";
+                    TU.ExecuteSQL(sql, "1,2,3,4,0,1,2,3;2,3,4,5,1,2,3,4", out _, option);
+                }
             }
         }
 
@@ -1462,8 +1467,7 @@ namespace test
         public void TestIndex()
         {
             string phyplan;
-            var option =new QueryOption();
-            option.optimize_.use_memo_ = false; // because of costs
+            var option = new QueryOption();
 
             var sql = "select * from d where 1*3-1=d1;";
             var result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);

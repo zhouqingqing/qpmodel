@@ -27,6 +27,8 @@ namespace qpmodel.optimizer
             new Order2Sort(),
             new From2From(),
             new Limit2Limit(),
+            new Seq2Seq(),
+            new CteProd2CteProd(),
             new Append2Append(),
             new JoinBLock2Join(),
             new JoinCommutativeRule(),  // intentionally add a duplicated rule

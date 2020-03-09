@@ -316,7 +316,8 @@ namespace qpmodel.physic
         public override double EstimateCost()
         {
             var logic = (logic_) as LogicScanTable;
-            var tablerows = logic.Card();
+            var tablerows = Math.Max(1, 
+                        Catalog.sysstat_.EstCardinality(logic.tabref_.relname_));
             return tablerows * 1.0;
         }
     }
@@ -1206,10 +1207,10 @@ namespace qpmodel.physic
             if (context.option_.optimize_.use_codegen_)
             {
                 string header = $@"
-/*
---- plan ---
-{this.Explain()}
-*/
+                    /*
+                    --- plan ---
+                    {this.Explain()}
+                    */
                 ";
                 CodeWriter.Reset(header);
             }

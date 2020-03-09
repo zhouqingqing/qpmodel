@@ -7,8 +7,9 @@ The major target is optimizer and it is logic centric, so it a high level langua
 ## Optimizer
 The optimizer exercise following constructs:
 - Top down/bottom up structure: the optimizer does utilize a top down cascades style optimizer structure but optionally you can choose to use bottom up join order resolver.  It currently use DPccp (["Analysis of Two Existing and One New Dynamic Programming Algorithm"](http://www.vldb.org/conf/2006/p930-moerkotte.pdf)) by G. Moerkotte, et al. It also implments some other join order resolver like DPBushy, mainly for the purpose of correctness verification. A more generic join resolver DPHyper ([Dynamic Programming Strikes Back](https://15721.courses.cs.cmu.edu/spring2017/papers/14-optimizer1/p539-moerkotte.pdf)) is in preparation. Implemented join resolver: DPccp, TDBasic, GOO and DPBushy.
-- Subquery decorrelation: it follow the ["Unnesting Arbitrary Queries"](https://pdfs.semanticscholar.org/1596/d282b7b6e8723a9780a511c87481df070f7d.pdf) and ["The Complete Story of Joins (in Hyper)"](http://btw2017.informatik.uni-stuttgart.de/slidesandpapers/F1-10-37/paper_web.pdf) by T. Neumann et al. 
-- Cardinality estimation, costing: currently this follows text book implementation but due to its locality, later improvements shall have no impact on the architecture. CE also demonstrate upgrade management.
+- Subquery decorrelation: it follows the ["Unnesting Arbitrary Queries"](https://pdfs.semanticscholar.org/1596/d282b7b6e8723a9780a511c87481df070f7d.pdf) and ["The Complete Story of Joins (in Hyper)"](http://btw2017.informatik.uni-stuttgart.de/slidesandpapers/F1-10-37/paper_web.pdf) by T. Neumann et al. 
+- CTE inline/noninline: it follows the [Optimization of Common Table Expressions in MPP Database Systems](http://www.vldb.org/pvldb/vol8/p1704-elhelw.pdf) by A. El-Helw et al.
+- Cardinality estimation, costing: currently this follows "as-is" text book implementation. We didn't spend much time here due to its locality, later improvements shall have no impact on the architecture. CE also demonstrate upgrade management.
 - The optimizer also expose a DataFrame like interface.
 ```c#
 	// SELECT a1, b1*a1+5 from a join b on b2=a2 where a1>1;

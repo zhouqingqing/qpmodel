@@ -1030,7 +1030,13 @@ namespace qpmodel.expr
         }
     }
 
-    // WITH cteName_ AS <query_>[colNames_]
+    // WITH cteName_[colNames_] AS <query_>
+    // Example:
+    //  WITH cte(a4, a3, a2) from select * from a where a4 > 0 will rename 
+    //  (* = a1,a2,a3,a4) to (a4,a3,a2,a4) with a4 show up twice. But notice
+    //  this won't change output content but only output names. Say WHERE a4>0
+    //  shall give you an error of "ambigous column 'a4'". 
+    // 
     public class CteExpr : Expr
     {
         internal string cteName_;
@@ -1049,6 +1055,14 @@ namespace qpmodel.expr
             cteName_ = cteName;
             colNames_ = colNames;
             refcnt_ = 0;
+        }
+
+        public void VerifyColNames()
+        {
+            // this is done after star expanded
+            if (colNames_.Count > query_.selection_.Count)
+                throw new SemanticAnalyzeException(
+                    $"WITH query '{cteName_}' only have {query_.selection_.Count} columns but {colNames_.Count} specified");
         }
     }
 

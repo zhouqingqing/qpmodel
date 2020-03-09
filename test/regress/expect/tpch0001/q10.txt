@@ -30,17 +30,17 @@ group by
 order by
 	revenue desc
 limit 20
-Total cost: 10627.61
-PhysicLimit (20) (inccost=10627.61, cost=20, rows=20) (actual rows=20)
+Total cost: 16331.61
+PhysicLimit (20) (inccost=16331.61, cost=20, rows=20) (actual rows=20)
     Output: c_custkey[0],c_name[1],{sum(l_extendedprice*1-l_discount)}[2],c_acctbal[3],n_name[4],c_address[5],c_phone[6],c_comment[7]
-    -> PhysicOrder  (inccost=10607.61, cost=3164.61, rows=501) (actual rows=20)
+    -> PhysicOrder  (inccost=16311.61, cost=3164.61, rows=501) (actual rows=20)
         Output: c_custkey[0],c_name[1],{sum(l_extendedprice*1-l_discount)}[2],c_acctbal[3],n_name[4],c_address[5],c_phone[6],c_comment[7]
         Order by: {sum(l_extendedprice*1-l_discount)}[2]
-        -> PhysicHashAgg  (inccost=7443, cost=1503, rows=501) (actual rows=43)
+        -> PhysicHashAgg  (inccost=13147, cost=1503, rows=501) (actual rows=43)
             Output: {c_custkey}[0],{c_name}[1],{sum(l_extendedprice*1-l_discount)}[7],{c_acctbal}[2],{n_name}[4],{c_address}[5],{c_phone}[3],{c_comment}[6]
             Aggregates: sum(l_extendedprice[8]*1-l_discount[11])
             Group by: c_custkey[0], c_name[1], c_acctbal[2], c_phone[5], n_name[3], c_address[4], c_comment[6]
-            -> PhysicHashJoin  (inccost=5940, cost=1135, rows=501) (actual rows=140)
+            -> PhysicHashJoin  (inccost=11644, cost=1135, rows=501) (actual rows=140)
                 Output: c_custkey[0],c_name[1],c_acctbal[2],n_name[3],c_address[4],c_phone[5],c_comment[6],{l_extendedprice*1-l_discount}[8],l_extendedprice[9],{1-l_discount}[10],1,l_discount[11]
                 Filter: c_custkey[0]=o_custkey[12]
                 -> PhysicHashJoin  (inccost=525, cost=350, rows=150) (actual rows=150)
@@ -50,13 +50,13 @@ PhysicLimit (20) (inccost=10627.61, cost=20, rows=20) (actual rows=20)
                         Output: n_name[1],1,n_nationkey[0]
                     -> PhysicScanTable customer (inccost=150, cost=150, rows=150) (actual rows=150)
                         Output: c_custkey[0],c_name[1],c_acctbal[5],c_address[2],c_phone[4],c_comment[7],c_nationkey[3]
-                -> PhysicHashJoin  (inccost=4280, cost=2479, rows=334) (actual rows=140)
+                -> PhysicHashJoin  (inccost=9984, cost=2479, rows=334) (actual rows=140)
                     Output: {l_extendedprice*1-l_discount}[2],l_extendedprice[3],{1-l_discount}[4],l_discount[5],o_custkey[0]
                     Filter: l_orderkey[6]=o_orderkey[1]
-                    -> PhysicScanTable orders (inccost=344, cost=344, rows=344) (actual rows=64)
+                    -> PhysicScanTable orders (inccost=1500, cost=1500, rows=344) (actual rows=64)
                         Output: o_custkey[1],o_orderkey[0]
                         Filter: o_orderdate[4]>='1993-10-01' and o_orderdate[4]<'12/30/1993 12:00:00 AM'
-                    -> PhysicScanTable lineitem (inccost=1457, cost=1457, rows=1457) (actual rows=1457)
+                    -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=1457) (actual rows=1457)
                         Output: l_extendedprice[5]*1-l_discount[6],l_extendedprice[5],1-l_discount[6],l_discount[6],l_orderkey[0]
                         Filter: l_returnflag[8]='R'
 121,Customer#000000121,282635.1719,6428.32,PERU,tv nCR2YKupGN73mQudO,27-411-990-2959,uriously stealthy ideas. carefully final courts use carefully

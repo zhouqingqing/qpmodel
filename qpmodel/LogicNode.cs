@@ -1094,7 +1094,11 @@ namespace qpmodel.logic
     public class LogicAppend : LogicNode
     {
         public override string ToString() => $"Append({l_()},{r_()})";
+
         public LogicAppend(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
+
+        // LogicAppend only needs to resolve column ordinals of its first child because others
+        // already solved in ResolveOrdinals().
     }
 
     public class LogicLimit : LogicNode {
