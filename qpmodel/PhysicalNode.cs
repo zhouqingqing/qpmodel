@@ -34,7 +34,7 @@ namespace qpmodel.physic
         }
 
         public override string ExplainOutput(int depth, ExplainOption option) => logic_.ExplainOutput(depth, option);
-        public override string ExplainInlineDetails(int depth) => logic_.ExplainInlineDetails(depth);
+        public override string ExplainInlineDetails() => logic_.ExplainInlineDetails();
         public override string ExplainMoreDetails(int depth, ExplainOption option) => logic_.ExplainMoreDetails(depth, option);
 
         public void ValidateThis()
@@ -328,7 +328,7 @@ namespace qpmodel.physic
 
         public PhysicIndexSeek(LogicNode logic, IndexDef index) : base(logic) { index_ = index; }
 
-        public override string ExplainInlineDetails(int depth) => $"{index_}";
+        public override string ExplainInlineDetails() => $"{index_}";
         public override string ToString() => $"ISeek({index_}: {Cost()})";
 
         public override string Exec(Func<Row, string> callback)

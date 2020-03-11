@@ -36,7 +36,7 @@ PhysicFilter  (inccost=7670, cost=10, rows=10) (actual rows=1)
         -> PhysicHashAgg  (inccost=7622, cost=12, rows=1) (actual rows=1)
             Output: {max(total_revenue)}[0]
             Aggregates: max(total_revenue[0])
-            -> PhysicFromQuery <revenue0__1> (inccost=7610, cost=10, rows=10) (actual rows=10)
+            -> PhysicFromQuery <revenue0 as revenue0__1> (inccost=7610, cost=10, rows=10) (actual rows=10)
                 Output: total_revenue[1]
                 -> PhysicHashAgg  (inccost=7600, cost=1595, rows=10) (actual rows=10)
                     Output: {l_suppkey}[0],{sum(l_extendedprice*1-l_discount)}[1]

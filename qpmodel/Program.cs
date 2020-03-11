@@ -98,15 +98,15 @@ namespace qpmodel
             }
 
         doit:
-            //sql = "with cte as (select * from a) select * from cte cte1, cte cte2 where cte1.a2=cte2.a3 and cte1.a1> 0 order by 1;";
             sql = "with cte as (select * from d) select * from cte where d1=1;";
+            sql = "with cte as (select * from a) select * from cte cte1, cte cte2 where cte1.a2=cte2.a3 and cte1.a1> 0 order by 1;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
             a.queryOpt_.profile_.enabled_ = true;
             a.queryOpt_.optimize_.enable_subquery_unnest_ = true;
             a.queryOpt_.optimize_.remove_from_ = true;
-            a.queryOpt_.optimize_.use_memo_ = true;
+            a.queryOpt_.optimize_.use_memo_ = false;
             a.queryOpt_.optimize_.enable_cte_plan_ = true;
             a.queryOpt_.optimize_.use_codegen_ = false;
 

@@ -644,6 +644,8 @@ namespace qpmodel.logic
             children_.Add(child);
             cte_ = cte;
         }
+
+        public override string ExplainInlineDetails() => cte_.cteName_;
     }
 
     public class PhysicCteProducer: PhysicNode

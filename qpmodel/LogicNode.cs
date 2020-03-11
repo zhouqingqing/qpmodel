@@ -422,7 +422,7 @@ namespace qpmodel.logic
         internal List<string> ops_ = new List<string>();
 
         public override string ToString() => $"({l_()} {type_} {r_()})";
-        public override string ExplainInlineDetails(int depth) { return type_ == JoinType.Inner ? "" : type_.ToString(); }
+        public override string ExplainInlineDetails() { return type_ == JoinType.Inner ? "" : type_.ToString(); }
         public LogicJoin(LogicNode l, LogicNode r) { 
             children_.Add(l); children_.Add(r);
             if (l != null && r != null)
@@ -953,7 +953,19 @@ namespace qpmodel.logic
         public QueryRef queryRef_;
 
         public override string ToString() => $"<{queryRef_.alias_}>({child_()})";
-        public override string ExplainInlineDetails(int depth) => $"<{queryRef_.alias_}>";
+        public override string ExplainInlineDetails()
+        {
+            string str;
+            if (queryRef_ is CTEQueryRef cq)
+            {
+                str = cq.cte_.cteName_;
+                if (!cq.cte_.cteName_.Equals(queryRef_.alias_))
+                    str += $" as {queryRef_.alias_}";
+            }
+            else
+                str = queryRef_.alias_;
+            return $"<{str}>";
+        }
         public LogicFromQuery(QueryRef query, LogicNode child) { queryRef_ = query; children_.Add(child); }
 
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
@@ -990,7 +1002,7 @@ namespace qpmodel.logic
 
         public LogicGet(T tab) => tabref_ = tab;
         public override string ToString() => tabref_.ToString();
-        public override string ExplainInlineDetails(int depth) => ToString();
+        public override string ExplainInlineDetails() => ToString();
         public override int GetHashCode() => base.GetHashCode() ^ (filter_?.GetHashCode()??0) ^ tabref_.GetHashCode();
         public override bool Equals(object obj)
         {
@@ -1072,7 +1084,7 @@ namespace qpmodel.logic
             children_.Add(child);
         }
         public override string ToString() => targetref_.ToString();
-        public override string ExplainInlineDetails(int depth) => ToString();
+        public override string ExplainInlineDetails() => ToString();
 
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
@@ -1106,7 +1118,7 @@ namespace qpmodel.logic
         internal int limit_;
 
         public override string ToString() => $"Limit({child_()})";
-        public override string ExplainInlineDetails(int depth) => $"({limit_})";
+        public override string ExplainInlineDetails() => $"({limit_})";
 
         public LogicLimit(LogicNode child, Expr expr)
         {

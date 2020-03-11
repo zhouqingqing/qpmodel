@@ -86,7 +86,7 @@ namespace qpmodel.logic
 
         // print utilities
         public virtual string ExplainOutput(int depth, ExplainOption option) => null;
-        public virtual string ExplainInlineDetails(int depth) => null;
+        public virtual string ExplainInlineDetails() => null;
         public virtual string ExplainMoreDetails(int depth, ExplainOption option) => null;
         protected string PrintFilter(Expr filter, int depth, ExplainOption option)
         {
@@ -118,7 +118,7 @@ namespace qpmodel.logic
                     r += "-> ";
 
                 // print line of <nodeName> : <Estimation> <Actual>
-                r += $"{this.GetType().Name} {ExplainInlineDetails(depth)}";
+                r += $"{this.GetType().Name} {ExplainInlineDetails()}";
                 var phynode = this as PhysicNode;
                 if (phynode != null && phynode.profile_ != null)
                 {
