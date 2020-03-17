@@ -608,10 +608,22 @@ namespace qpmodel.logic
         }
 
         PhysicNode OutputChild() => children_[children_.Count - 1];
+
+        void ExecNonOutputChildren()
+        {
+            for (int i = 0; i < children_.Count - 1; i++)
+            {
+                var child = children_[i];
+                child.Exec(null);
+            }
+        }
+
         public override string Exec(Func<Row, string> callback)
         {
             ExecContext context = context_;
             var logic = logic_ as LogicSequence;
+
+            ExecNonOutputChildren();
 
             string s = null;
             s += OutputChild().Exec(r =>
@@ -650,16 +662,26 @@ namespace qpmodel.logic
 
     public class PhysicCteProducer: PhysicNode
     {
+        internal List<Row> heap_ = new List<Row>();
+
         public override string ToString() => $"PCteProducer({child_()}: {Cost()})";
         public PhysicCteProducer(LogicNode logic, PhysicNode child) : base(logic)
         {
             children_.Add(child);
         }
 
+        public override string Open(ExecContext context)
+        {
+            string cs = base.Open(context);
+            var logic = logic_ as LogicCteProducer;
+            context.RegisterCteProducer(logic.cte_.cteName_, heap_);
+            return cs;
+        }
+
         public override string Exec(Func<Row, string> callback)
         {
             ExecContext context = context_;
-            var logic = logic_ as LogicSequence;
+            var logic = logic_ as LogicCteProducer;
 
             string s = null;
             s += child_().Exec(r =>
@@ -671,12 +693,14 @@ namespace qpmodel.logic
                 else
                 {
                     // cache the results
+                    heap_.Add(r);
                 }
                 return code;
             });
 
             return s;
         }
+
         public override double EstimateCost()
         {
             return logic_.Card() * 0.5;

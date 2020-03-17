@@ -259,7 +259,7 @@ namespace qpmodel.physic
             ExecContext context = context_;
             var logic = logic_ as LogicScanTable;
             var filter = logic.filter_;
-            var heap = (logic.tabref_).Table().heap_.GetEnumerator();
+            var heap = (logic.tabref_).Table().heap_;
 
             string cs = null;
             if (context.option_.optimize_.use_codegen_)
@@ -289,22 +289,16 @@ namespace qpmodel.physic
             }
             else
             {
-                Row r = null;
-                for (; ; )
+                foreach (var l in heap)
                 {
                     if (context.stop_)
                         break;
 
-                    if (heap.MoveNext())
-                        r = heap.Current;
-                    else
-                        break;
-
                     if (logic.tabref_.colRefedBySubq_.Count != 0)
-                        context.AddParam(logic.tabref_, r);
-                    if (filter is null || filter.Exec(context, r) is true)
+                        context.AddParam(logic.tabref_, l);
+                    if (filter is null || filter.Exec(context, l) is true)
                     {
-                        r = ExecProject(r);
+                        var r = ExecProject(l);
                         callback(r);
                     }
                 }
@@ -1037,14 +1031,32 @@ namespace qpmodel.physic
 
     public class PhysicFromQuery : PhysicNode
     {
+        List<Row> cteCache_ = null;
+
         public override string ToString() => $"PFrom({(logic_ as LogicFromQuery)}: {Cost()})";
 
         public PhysicFromQuery(LogicFromQuery logic, PhysicNode l) : base(logic) => children_.Add(l);
+
+        public bool IsCteConsumer(out CTEQueryRef qref) => (logic_ as LogicFromQuery).IsCteConsumer(out qref);
+
+        public override string Open(ExecContext context)
+        {
+            string s = base.Open(context);
+
+            var logic = logic_ as LogicFromQuery;
+            if (logic.IsCteConsumer(out CTEQueryRef qref))
+                cteCache_ = context.TryGetCteProducer(qref.cte_.cteName_);
+            return s;
+        }
 
         public override string Exec(Func<Row, string> callback)
         {
             ExecContext context = context_;
             var logic = logic_ as LogicFromQuery;
+
+            if (cteCache_ != null)
+                return ExecAsCteConsumer(callback);
+
             child_().Exec(l =>
             {
                 if (context.stop_)
@@ -1058,6 +1070,26 @@ namespace qpmodel.physic
             });
             return null;
         }
+
+        public string ExecAsCteConsumer(Func<Row, string> callback)
+        {
+            ExecContext context = context_;
+            var logic = logic_ as LogicFromQuery;
+
+            foreach (Row l in cteCache_)
+            {
+                if (context.stop_)
+                    break;
+
+                if (logic.queryRef_.colRefedBySubq_.Count != 0)
+                    context.AddParam(logic.queryRef_, l);
+                var r = ExecProject(l);
+                callback(r);
+            }
+
+            return null;
+        }
+
         public override double EstimateCost()
         {
             return child_().Card() * 1.0;
@@ -1190,6 +1222,13 @@ namespace qpmodel.physic
 
         public PhysicCollect(PhysicNode child): base(null) => children_.Add(child);
 
+        public override string Open(ExecContext context)
+        {
+            context.Reset();
+            string s = base.Open(context);
+            return s;
+        }
+
         public override string Close()
         {
             string s = "}}";
@@ -1214,7 +1253,7 @@ namespace qpmodel.physic
                 ";
                 CodeWriter.Reset(header);
             }
-            context.Reset();
+
             string s = child_().Exec(r =>
             {
                 string cs = null;

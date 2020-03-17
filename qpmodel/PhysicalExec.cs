@@ -134,11 +134,15 @@ namespace qpmodel.physic
 
         public bool stop_ = false;
 
+        // subquery parameter passing
         public List<Parameter> params_ = new List<Parameter>();
+
+        // cte resultset passing
+        public Dictionary<string, List<Row>> results_ = new Dictionary<string, List<Row>>();
 
         public ExecContext(QueryOption option) { option_ = option; }
 
-        public void Reset() { params_.Clear(); }
+        public void Reset() { params_.Clear(); results_.Clear(); }
         public Value GetParam(TableRef tabref, int ordinal)
         {
         	Debug.Assert (!stop_);
@@ -151,6 +155,17 @@ namespace qpmodel.physic
             Debug.Assert(params_.FindAll(x => x.tabref_.Equals(tabref)).Count <= 1);
             params_.Remove(params_.Find(x => x.tabref_.Equals(tabref)));
             params_.Add(new Parameter(tabref, row));
+        }
+
+        public void RegisterCteProducer(string ctename, List<Row> heap)
+        {
+            results_.Add(ctename, heap);
+        }
+        public List<Row> TryGetCteProducer(string ctename)
+        {
+            if (results_.ContainsKey(ctename))
+                return results_[ctename];
+            return null;
         }
     }
 }

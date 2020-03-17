@@ -154,7 +154,9 @@ namespace qpmodel.logic
                 depth += 2;
             }
 
-            children_.ForEach(x => r += x.Explain(depth, option));
+            bool printAsConsumer = false;
+            if (!printAsConsumer)
+                children_.ForEach(x => r += x.Explain(depth, option));
             return r;
         }
 

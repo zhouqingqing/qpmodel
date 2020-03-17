@@ -106,7 +106,7 @@ namespace qpmodel
             a.queryOpt_.profile_.enabled_ = true;
             a.queryOpt_.optimize_.enable_subquery_unnest_ = true;
             a.queryOpt_.optimize_.remove_from_ = true;
-            a.queryOpt_.optimize_.use_memo_ = false;
+            a.queryOpt_.optimize_.use_memo_ = true;
             a.queryOpt_.optimize_.enable_cte_plan_ = true;
             a.queryOpt_.optimize_.use_codegen_ = false;
 
