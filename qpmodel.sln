@@ -12,8 +12,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "test", "test\test.csproj", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "psql", "psql\psql.csproj", "{50BB43FB-34F4-4892-BFAB-2D80EF2EA6DD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "stat_fmt_cnvt", "stat_fmt_cnvt\stat_fmt_cnvt.csproj", "{A16EE9F4-BD28-4FAF-BCE9-4CF4A7D709BD}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -46,14 +44,6 @@ Global
 		{50BB43FB-34F4-4892-BFAB-2D80EF2EA6DD}.Release|Any CPU.Build.0 = Release|Any CPU
 		{50BB43FB-34F4-4892-BFAB-2D80EF2EA6DD}.Release|x64.ActiveCfg = Release|Any CPU
 		{50BB43FB-34F4-4892-BFAB-2D80EF2EA6DD}.Release|x64.Build.0 = Release|Any CPU
-		{A16EE9F4-BD28-4FAF-BCE9-4CF4A7D709BD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A16EE9F4-BD28-4FAF-BCE9-4CF4A7D709BD}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A16EE9F4-BD28-4FAF-BCE9-4CF4A7D709BD}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{A16EE9F4-BD28-4FAF-BCE9-4CF4A7D709BD}.Debug|x64.Build.0 = Debug|Any CPU
-		{A16EE9F4-BD28-4FAF-BCE9-4CF4A7D709BD}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A16EE9F4-BD28-4FAF-BCE9-4CF4A7D709BD}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A16EE9F4-BD28-4FAF-BCE9-4CF4A7D709BD}.Release|x64.ActiveCfg = Release|Any CPU
-		{A16EE9F4-BD28-4FAF-BCE9-4CF4A7D709BD}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

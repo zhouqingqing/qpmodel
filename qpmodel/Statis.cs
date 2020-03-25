@@ -45,10 +45,10 @@ namespace qpmodel.stat
     public class Historgram {
         public const int NBuckets_ = 100;
 
-        public int depth_;
-        public int nbuckets_;
-        public Value[] buckets_ = new Value[NBuckets_];
-        public int[] distincts_ = new int[NBuckets_];
+        public int depth_ { get; set; }
+        public int nbuckets_ { get; set; }
+        public Value[] buckets_ { get; set; } = new Value[NBuckets_];
+        public int[] distincts_ { get; set; } = new int[NBuckets_];
 
         int whichBucket(Value val) {
             dynamic value = val;
@@ -98,9 +98,9 @@ namespace qpmodel.stat
     public class MCVList {
         public const int NValues_ = 100;
 
-        public int nvalues_;
-        public Value[] values_ = new Value[NValues_];
-        public double[] freqs_ = new double[NValues_];
+        public int nvalues_ { get; set; }
+        public Value[] values_ { get; set; } = new Value[NValues_];
+        public double[] freqs_ { get; set; } = new double[NValues_];
 
         internal void validateThis()
         {
@@ -159,11 +159,11 @@ namespace qpmodel.stat
     //
     public class ColumnStat
     {
-        public long n_rows_;        // number of rows
-        public double nullfrac_;    // null value percentage
-        public long n_distinct_;
-        public Historgram hist_;    // value historgram
-        public MCVList mcv_;
+        public long n_rows_ { get; set; }        // number of rows
+        public double nullfrac_ { get; set; }    // null value percentage
+        public long n_distinct_ { get; set; }
+        public Historgram hist_ { get; set; }    // value historgram
+        public MCVList mcv_   {get;  set; }
 
         public ColumnStat() { }
 
