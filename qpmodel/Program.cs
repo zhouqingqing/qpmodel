@@ -20,7 +20,7 @@ namespace qpmodel
 {
     class Program
     {
-        static void TestDataFrame()
+        static void TestDataSet()
         {
             SQLContext sqlContext = new SQLContext();
 

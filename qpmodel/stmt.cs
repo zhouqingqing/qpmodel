@@ -696,7 +696,7 @@ namespace qpmodel.logic
         }
     }
 
-    public class DataFrame
+    public class DataSet
     {
         internal LogicNode logicPlan_;
         internal List<Expr> outputs_ = new List<Expr>();
@@ -711,26 +711,26 @@ namespace qpmodel.logic
             return expr;
         }
 
-        public DataFrame Scan(string tableName)
+        public DataSet Scan(string tableName)
         {
             Debug.Assert(logicPlan_ is null);
             logicPlan_ = new LogicScanTable(new BaseTableRef(tableName));
             return this;
         }
 
-        public DataFrame filter(string condition)
+        public DataSet filter(string condition)
         {
             logicPlan_ = new LogicFilter(logicPlan_, parseExpr(condition));
             return this;
         }
 
-        public DataFrame join(DataFrame other, string condition)
+        public DataSet join(DataSet other, string condition)
         {
             logicPlan_ = new LogicJoin(logicPlan_, other.logicPlan_, parseExpr(condition));
             return this;
         }
 
-        public DataFrame select(params string[] colNames)
+        public DataSet select(params string[] colNames)
         {
             foreach (var v in colNames)
                 outputs_.Add(parseExpr(v));
@@ -776,9 +776,9 @@ namespace qpmodel.logic
 
     public class SQLContext
     {
-        public DataFrame Read(string tableName)
+        public DataSet Read(string tableName)
         {
-            return new DataFrame().Scan(tableName);
+            return new DataSet().Scan(tableName);
         }
     }
 

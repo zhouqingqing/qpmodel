@@ -1277,7 +1277,7 @@ namespace test
         }
 
         [TestMethod]
-        public void TestDataFrame()
+        public void TestDataSet()
         {
             SQLContext sqlContext = new SQLContext();
 
