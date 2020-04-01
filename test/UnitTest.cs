@@ -33,6 +33,8 @@ using qpmodel.dml;
 
 using psql;
 
+using statistics_fmt_cvnt;
+
 namespace test
 {
     // Test Utils
@@ -227,8 +229,13 @@ namespace test
         void TestTpcds()
         {
             var files = Directory.GetFiles(@"../../../tpcds");
+            string stats_dir = "../../../tpcds/statistics/presto/sf1";
+
+            //read_cnvt_presto_stats(string stats_dir_fn) 
+            refmt_presto_stats.read_cnvt_presto_stats(stats_dir);
 
             Tpcds.CreateTables();
+
 
             // make sure all queries can generate phase one opt plan
             QueryOption option = new QueryOption();
