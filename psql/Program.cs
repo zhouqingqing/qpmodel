@@ -30,7 +30,6 @@ namespace psql
             option.optimize_.TurnOnAllOptimizations();
             option.optimize_.remove_from_ = false;
 
-            ExplainOption.show_tablename_ = false;
             option.explain_.show_output_ = true;
             option.explain_.show_cost_ = option.optimize_.use_memo_;
 

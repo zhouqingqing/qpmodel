@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-using qpmodel;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Linq;
@@ -220,7 +219,9 @@ namespace test
             string sql_dir_fn =    "../../../test/regress/sql";
             string write_dir_fn =  "../../../test/regress/output/tpch0001";
             string expect_dir_fn = "../../../test/regress/expect/tpch0001";
+            ExplainOption.show_tablename_ = false;
             RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn);
+            ExplainOption.show_tablename_ = true;
         }
 
         void TestTpcds()
