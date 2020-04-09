@@ -80,6 +80,7 @@ create_table_stmt
    ( database_name '.' )? table_name
    ( '(' column_def ( ',' column_def )* ( ',' table_constraint )* ')' ( K_WITHOUT IDENTIFIER )?
    | K_AS select_stmt 
+   ( K_PARTITION K_BY column_name)?
    )
  ;
 
@@ -634,6 +635,7 @@ K_OUTER : O U T E R;
 K_PLAN : P L A N;
 K_PRAGMA : P R A G M A;
 K_PRIMARY : P R I M A R Y;
+K_PARTITION: P A R T I T I O N;
 K_QUERY : Q U E R Y;
 K_RAISE : R A I S E;
 K_RECURSIVE : R E C U R S I V E;

@@ -286,23 +286,19 @@ namespace qpmodel.physic
             ExecContext context = context_;
             var logic = logic_ as LogicScanTable;
             var filter = logic.filter_;
-            var heap = (logic.tabref_).Table().heap_;
+            var heap = (logic.tabref_).Table().partions_[0].heap_;
 
             string cs = null;
             if (context.option_.optimize_.use_codegen_)
             {
                 cs += $@"
-                var heap{_} = ({_logic_}.tabref_).Table().heap_.GetEnumerator();
-                for (; ; )
+                var heap{_} = ({_logic_}.tabref_).Table().partions_[0].heap_;
+                foreach (var l{_} in heap{_})
                 {{
-                    Row r{_} = null;
+                    Row r{_} = l{_};
                     if (context.stop_)
                         break;
 
-                    if (heap{_}.MoveNext())
-                        r{_} = heap{_}.Current;
-                    else
-                        break;
                     {codegen_if(logic.tabref_.colRefedBySubq_.Count != 0,
                             $@"context.AddParam({_logic_}.tabref_, r{_});")}";
                 if (filter != null)
@@ -1179,7 +1175,10 @@ namespace qpmodel.physic
             child_().Exec(l =>
             {
                 var table = (logic_ as LogicInsert).targetref_.Table();
-                table.heap_.Add(l);
+                int partid = 0;
+                if (table.partitionBy_ != null)
+                    partid = 0;
+                table.partions_[partid].heap_.Add(l);
                 return null;
             });
             return null;

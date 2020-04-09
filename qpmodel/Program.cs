@@ -95,11 +95,11 @@ namespace qpmodel
             Catalog.Init();
 
             string sql = "";
-            //TestDataFrame();
+            //TestDataSet();
             //TestJobench();
             //return;
 
-            if (true)
+            if (false)
             {
                 JOBench.CreateTables();
                 sql = File.ReadAllText("../../../jobench/10a.sql");
@@ -125,8 +125,9 @@ namespace qpmodel
             }
 
         doit:
-            sql = "with cte as (select * from d) select * from cte where d1=1;";
-            sql = "with cte as (select * from a) select * from cte cte1, cte cte2 where cte1.a2=cte2.a3 and cte1.a1> 0 order by 1;";
+            //sql = "with cte as (select * from d) select * from cte where d1=1;";
+            //sql = "with cte as (select * from a) select * from cte cte1, cte cte2 where cte1.a2=cte2.a3 and cte1.a1> 0 order by 1;";
+            sql = "select * from ap;";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);

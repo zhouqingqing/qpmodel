@@ -58,6 +58,8 @@ namespace qpmodel.logic
             public bool memo_disable_crossjoin_ { get; set; } = true;
             public bool memo_use_joinorder_solver_ { get; set; } = false;   // make it true by default
 
+            public int query_dop_ { get; set; } = 4;
+
             // codegen controls
             public bool use_codegen_ { get; set; } = false;
 
@@ -81,6 +83,9 @@ namespace qpmodel.logic
             }
         }
 
+        // global static variables
+        public static int num_table_partitions_ = 4;
+        // options
         public ProfileOption profile_ = new ProfileOption();
         public OptimizeOption optimize_ = new OptimizeOption();
         public ExplainOption explain_ = new ExplainOption();

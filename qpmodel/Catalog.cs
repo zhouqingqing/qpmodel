@@ -55,21 +55,41 @@ namespace qpmodel
         public override string ToString() => $"{name_} {type_} [{ordinal_}]";
     }
 
+    public class Partition {
+        public TableDef tableDef_;
+
+        public List<Row> heap_ = new List<Row>();
+        public List<IndexDef> indexes_ = new List<IndexDef>(); // local indexes
+    }
+
     public class TableDef
     {
         public string name_;
         public Dictionary<string, ColumnDef> columns_;
+        public ColumnDef partitionBy_;
         public List<IndexDef> indexes_ = new List<IndexDef>();
 
         // storage
-        public List<Row> heap_ = new List<Row>();
+        public List<Partition> partions_ = new List<Partition>();
 
-        public TableDef(string tabName, List<ColumnDef> columns)
+        public TableDef(string tabName, List<ColumnDef> columns, string partitionBy)
         {
+            int npart = 1;
             Dictionary<string, ColumnDef> cols = new Dictionary<string, ColumnDef>();
             foreach (var c in columns)
                 cols.Add(c.name_, c);
             name_ = tabName; columns_ = cols;
+
+            if (partitionBy != null)
+            {
+                cols.TryGetValue(partitionBy, out var partcol);
+                if (partcol is null)
+                    throw new SemanticAnalyzeException($"can't find partition column '{partitionBy}'");
+                partitionBy_ = partcol;
+                npart = QueryOption.num_table_partitions_;
+            }
+            for (int i = 0; i < npart; i++)
+                partions_.Add(new Partition());
         }
 
         public List<ColumnDef> ColumnsInOrder() {
@@ -102,10 +122,10 @@ namespace qpmodel
     {
         readonly Dictionary<string, TableDef> records_ = new Dictionary<string, TableDef>();
 
-        public void CreateTable(string tabName, List<ColumnDef> columns)
+        public void CreateTable(string tabName, List<ColumnDef> columns, string partitionBy)
         {
             records_.Add(tabName,
-                new TableDef(tabName, columns));
+                new TableDef(tabName, columns, partitionBy));
         }
         public void DropTable(string tabName)
         {
@@ -160,13 +180,12 @@ namespace qpmodel
         public static SysTable systable_ = new SysTable();
         public static SysStats sysstat_ = new SysStats();
 
-
         static void createOptimizerTables()
         {
             List<ColumnDef> cols = new List<ColumnDef> { new ColumnDef("i", 0)};
             for (int i = 0; i < 30; i++)
             {
-                Catalog.systable_.CreateTable($"T{i}", cols);
+                Catalog.systable_.CreateTable($"T{i}", cols, null);
                 var stat = new ColumnStat();
                 stat.n_rows_ = 1 + i * 10;
                 Catalog.sysstat_.AddOrUpdate($"T{i}", "i", stat);
@@ -185,13 +204,16 @@ namespace qpmodel
                 @"create table d (d1 int, d2 int, d3 int, d4 int);",
                 // nullable tables
                 @"create table r (r1 int, r2 int, r3 int, r4 int);",
+                // partition tables
+                @"create table ap(a1 int, a2 int, a3 int, a4 int) partition by a1;",
             };
             SQLStatement.ExecSQLList(string.Join("", createtables));
 
             // load tables
-            string curdir = Directory.GetCurrentDirectory();
-            string folder = $@"{curdir}\..\..\..\data";
-            foreach (var v in new List<char>(){ 'a', 'b', 'c', 'd', 'r' })
+            var curdir = Directory.GetCurrentDirectory();
+            var folder = $@"{curdir}\..\..\..\data";
+            var tables = new List<string>() { "a", "b", "c", "d", "r", "ap" };
+            foreach (var v in tables)
             {
                 string filename = $@"'{folder}\{v}.tbl'";
                 var sql = $"copy {v} from {filename};";
@@ -206,7 +228,7 @@ namespace qpmodel
             SQLStatement.ExecSQLList(string.Join("", createindexes));
 
             // analyze tables
-            foreach (var v in new List<char>() { 'a', 'b', 'c', 'd', 'r' })
+            foreach (var v in tables)
             {
                 var sql = $"analyze {v};";
                 var result = SQLStatement.ExecSQL(sql, out _, out _);

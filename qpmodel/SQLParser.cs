@@ -484,7 +484,10 @@ namespace qpmodel.sqlparser
             var cons = new List<TableConstraint>();
             foreach (var v in context.table_constraint())
                 cons.Add(VisitTable_constraint(v) as TableConstraint);
-            return new CreateTableStmt(context.table_name().GetText(), cols, cons, GetRawText(context));
+            string partitionby = null;
+            if (context.K_PARTITION() != null)
+                partitionby = context.column_name().GetText();
+            return new CreateTableStmt(context.table_name().GetText(), cols, cons, partitionby, GetRawText(context));
         }
 
         public override object VisitAnalyze_stmt([NotNull] SQLiteParser.Analyze_stmtContext context)
