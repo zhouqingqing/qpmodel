@@ -238,7 +238,7 @@ namespace test
 
         void TestTpcds()
         {
-            var files = Directory.GetFiles(@"../../../tpcds");
+            var files = Directory.GetFiles(@"../../../tpcds", "*.sql");
             string stats_dir = "../../../tpcds/statistics/presto/sf1";
 
             //read_cnvt_presto_stats(string stats_dir_fn) 
@@ -273,7 +273,7 @@ namespace test
             Tpch.CreateTables();
 
             // make sure all queries parsed
-            var files = Directory.GetFiles(@"../../../tpch");
+            var files = Directory.GetFiles(@"../../../tpch", "*.sql");
             foreach (var v in files)
             {
                 var sql = File.ReadAllText(v);
