@@ -8,21 +8,27 @@ The major target is optimizer and it is logic centric, so it a high level langua
 The optimizer exercise following constructs:
 - Top down/bottom up structure: the optimizer does utilize a top down cascades style optimizer structure but optionally you can choose to use bottom up join order resolver.  It currently use DPccp (["Analysis of Two Existing and One New Dynamic Programming Algorithm"](http://www.vldb.org/conf/2006/p930-moerkotte.pdf)) by G. Moerkotte, et al. It also implments some other join order resolver like DPBushy, mainly for the purpose of correctness verification. A more generic join resolver DPHyper ([Dynamic Programming Strikes Back](https://15721.courses.cs.cmu.edu/spring2017/papers/14-optimizer1/p539-moerkotte.pdf)) is in preparation. Implemented join resolver: DPccp, TDBasic, GOO and DPBushy.
 - Subquery decorrelation: it follows the ["Unnesting Arbitrary Queries"](https://pdfs.semanticscholar.org/1596/d282b7b6e8723a9780a511c87481df070f7d.pdf) and ["The Complete Story of Joins (in Hyper)"](http://btw2017.informatik.uni-stuttgart.de/slidesandpapers/F1-10-37/paper_web.pdf) by T. Neumann et al. 
-- CTE inline/noninline: it follows the [Optimization of Common Table Expressions in MPP Database Systems](http://www.vldb.org/pvldb/vol8/p1704-elhelw.pdf) by A. El-Helw et al.
+- CTE inline/noninline (ongoing): it follows the [Optimization of Common Table Expressions in MPP Database Systems](http://www.vldb.org/pvldb/vol8/p1704-elhelw.pdf) by A. El-Helw et al.
 - Cardinality estimation, costing: currently this follows "as-is" text book implementation. We didn't spend much time here due to its locality, later improvements shall have no impact on the architecture. CE also demonstrate upgrade management.
 - The optimizer also expose a DataSet like interface.
 ```c#
-	// SELECT a1, b1*a1+5 from a join b on b2=a2 where a1>1;
+	// register c#'s sqrt as an external function
+	string sqroot(double d) => Math.Sqrt(d).ToString("#.###");
+	
+	SQLContext sqlContext = new SQLContext();
+	SQLContext.Register<double, string>("sqroot", sqroot);
+
+	// SELECT a1, sqroot(b1*a1+5) from a join b on b2=a2 where a1>1;
 	var a = sqlContext.Read("a");
 	var b = sqlContext.Read("b");
-	var rows = a.filter("a1>1").join(b, "b2=a2").select("a1", "b1*a1+5").show();
-	Assert.AreEqual(string.Join(",", rows), "2,9");
+	var rows = a.filter("a1>1").join(b, "b2=a2").select("a1", "sqroot(b1*a1+2)").show();
+	Assert.AreEqual(string.Join(",", rows), "2,2.449");
 ```
 - Verify the optimizer by some unittests and TPCH/DS. All TPCH queries are runnable. TPCDS we don't support window function and rolling groups. You can find TPCH plan [here](https://github.com/zhouqingqing/adb/tree/master/test/regress/expect/tpch0001).
 
 ## Executor
 The executor is implemented for two purpose: (1) verify plan correctness; (2) demonstrate callback style codeGen following paper ["How to Architect a query compiler, Revisited"](https://www.cs.purdue.edu/homes/rompf/papers/tahboub-sigmod18.pdf) by R.Y.Tahboub et al. It does not demonstrate how to implments specific operator efficiently.
-- It does't use a LMS underneath, the codeGen still string template based. But thanks for c#'s interpolated string support, the template is easy to read and construct side by side with interpreted code.
+- It does't use a LMS underneath, but thanks for c#'s interpolated string support, the template is easy to read and construct side by side with interpreted code.
 - To support incremental codeGen improvement, meaning we can ship partial codeGen implmenetation, it supports a generic expression evaluation function which can fallback to the interpreted implementation if that specific expression is not codeGen ready.
 - The executor utilizes Object and dynamic types to simplify implementation.
 

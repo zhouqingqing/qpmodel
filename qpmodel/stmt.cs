@@ -807,7 +807,12 @@ namespace qpmodel.logic
         {
             return new DataSet().Scan(tableName);
         }
+
+        public static void Register<T1, TResult>(string name, Func<T1, TResult> fn)
+            => ExternalFunctions.Register(name, fn, 1, typeof(TResult));
+        public static void Register<T1, T2, TResult>(string name, Func<T1, T2, TResult> fn)
+            => ExternalFunctions.Register(name, fn, 2, typeof(TResult));
+        public static void Register<T1, T2, T3, TResult>(string name, Func<T1, T2, T3, TResult> fn)
+            => ExternalFunctions.Register(name, fn, 3, typeof(TResult));
     }
-
-
 }

@@ -1314,13 +1314,17 @@ namespace test
         [TestMethod]
         public void TestDataSet()
         {
-            SQLContext sqlContext = new SQLContext();
+            // register c#'s sqrt as an external function
+            string sqroot(double d) => Math.Sqrt(d).ToString("#.###");
 
+            SQLContext sqlContext = new SQLContext();
+            SQLContext.Register<double, string>("sqroot", sqroot);
+
+            // SELECT a1, sqroot(b1*a1+5) from a join b on b2=a2 where a1>1;
             var a = sqlContext.Read("a");
             var b = sqlContext.Read("b");
-
-            var rows = a.filter("a1>1").join(b, "b2=a2").select("a1", "b1*a1+5").show();
-            Assert.AreEqual(string.Join(",", rows), "2,9");
+            var rows = a.filter("a1>1").join(b, "b2=a2").select("a1", "sqroot(b1*a1+2)").show();
+            Assert.AreEqual(string.Join(",", rows), "2,2.449");
         }
 
         [TestMethod]

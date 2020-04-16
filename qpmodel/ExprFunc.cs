@@ -38,6 +38,42 @@ using Value = System.Object;
 
 namespace qpmodel.expr
 {
+    static public class ExternalFunctions
+    {
+        public class FunctionDesc {
+            internal int argcnt_;
+            internal ColumnType rettype_;
+            internal object fn_;
+        }
+        static public Dictionary<string, FunctionDesc> set_ = new Dictionary<string, FunctionDesc>();
+
+        static ColumnType externalType2ColumnType(Type type)
+        {
+            ColumnType ctype = null;
+
+            if (type == typeof(double))
+                ctype = new DoubleType();
+            else if (type == typeof(int))
+                ctype = new IntType();
+            else if (type == typeof(string))
+                ctype = new VarCharType(64*1024);
+            else
+                throw new NotImplementedException();
+
+            return ctype;
+        }
+        static public void Register(string name, object fn, int argcnt, Type rettype)
+        {
+            FunctionDesc desc = new FunctionDesc();
+
+            Utils.Assumes(argcnt <= 3);
+            desc.fn_ = fn;
+            desc.argcnt_ = argcnt;
+            desc.rettype_ = externalType2ColumnType(rettype);
+            set_.Add(name, desc);
+        }
+    }
+
     public class FuncExpr : Expr
     {
         internal string funcName_;
@@ -95,7 +131,10 @@ namespace qpmodel.expr
                 case "round": r = new RoundFunc(args); break;
                 case "coalesce": r = new CoalesceFunc(args); break;
                 default:
-                    r = new FuncExpr(funcName, args);
+                    if (ExternalFunctions.set_.ContainsKey(funcName))
+                        r = new ExternalFunc(func, args);
+                    else
+                        r = new FuncExpr(funcName, args);
                     break;
             }
 
@@ -119,6 +158,44 @@ namespace qpmodel.expr
             return false;
         }
         public override string ToString() => $"{funcName_}({string.Join(",", args_())})";
+    }
+
+    // As a wrapper of external functions
+    public class ExternalFunc : FuncExpr {
+        public ExternalFunc(string funcName, List<Expr> args) : base(funcName, args) {
+            // TBD: we shall verify with register signature
+            var desc = ExternalFunctions.set_[funcName_];
+            if (desc.argcnt_ != args.Count)
+                throw new SemanticAnalyzeException("argcnt not match");
+            argcnt_ = args.Count;
+        }
+
+        public override void Bind(BindContext context)
+        {
+            base.Bind(context);
+            var desc = ExternalFunctions.set_[funcName_];
+            type_ = desc.rettype_;
+        }
+
+        public override object Exec(ExecContext context, Row input)
+        {
+            var desc = ExternalFunctions.set_[funcName_];
+
+            Debug.Assert(argcnt_ == desc.argcnt_);
+            dynamic fncode = desc.fn_;
+            List<dynamic> args = new List<dynamic>();
+            for (int i = 0; i < argcnt_; i++)
+                args.Add(args_()[i].Exec(context, input));
+            switch (argcnt_)
+            {
+                case 0: return fncode();
+                case 1: return fncode(args[0]);
+                case 2: return fncode(args[0], args[1]);
+                case 3: return fncode(args[0], args[1], args[2]);
+                default:
+                    throw new NotImplementedException();
+            }
+        }
     }
 
     public class SubstringFunc : FuncExpr {

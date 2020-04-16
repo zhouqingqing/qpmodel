@@ -49,12 +49,15 @@ namespace qpmodel
     {
         static void TestDataSet()
         {
-            SQLContext sqlContext = new SQLContext();
+            // register c#'s sqrt as an external function
+            string sqroot(double d) => Math.Sqrt(d).ToString("#.###");
 
+            SQLContext sqlContext = new SQLContext();
+            SQLContext.Register<double, string>("sqroot", sqroot);
             var a = sqlContext.Read("a");
             var b = sqlContext.Read("b");
-
-            a.filter("a1>1").join(b, "b2=a2").select("a1","b1*a1+5").show();
+            
+            a.filter("a1>1").join(b, "b2=a2").select("a1", "sqroot(b1*a1+2)").show();
             string s = a.physicPlan_.Explain();
             Console.WriteLine(s);
         }
@@ -95,9 +98,9 @@ namespace qpmodel
             Catalog.Init();
 
             string sql = "";
-            //TestDataSet();
+            TestDataSet();
             //TestJobench();
-            //return;
+            return;
 
             if (false)
             {
