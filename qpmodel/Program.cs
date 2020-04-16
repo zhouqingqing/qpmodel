@@ -60,6 +60,9 @@ namespace qpmodel
             a.filter("a1>1").join(b, "b2=a2").select("a1", "sqroot(b1*a1+2)").show();
             string s = a.physicPlan_.Explain();
             Console.WriteLine(s);
+
+            var sql = "SELECT a1, sqroot(b1*a1+2) from a join b on b2=a2 where a1>1";
+            var rows = SQLStatement.ExecSQL(sql, out string plan, out _);
         }
 
         static void doPython()

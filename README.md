@@ -10,15 +10,18 @@ The optimizer exercise following constructs:
 - Subquery decorrelation: it follows the ["Unnesting Arbitrary Queries"](https://pdfs.semanticscholar.org/1596/d282b7b6e8723a9780a511c87481df070f7d.pdf) and ["The Complete Story of Joins (in Hyper)"](http://btw2017.informatik.uni-stuttgart.de/slidesandpapers/F1-10-37/paper_web.pdf) by T. Neumann et al. 
 - CTE inline/noninline (ongoing): it follows the [Optimization of Common Table Expressions in MPP Database Systems](http://www.vldb.org/pvldb/vol8/p1704-elhelw.pdf) by A. El-Helw et al.
 - Cardinality estimation, costing: currently this follows "as-is" text book implementation. We didn't spend much time here due to its locality, later improvements shall have no impact on the architecture. CE also demonstrate upgrade management.
-- The optimizer also expose a DataSet like interface.
+- The optimizer also expose a DataSet like interface which demonstrates language intergration:
 ```c#
+	SQLContext sqlContext = new SQLContext();
+
 	// register c#'s sqrt as an external function
 	string sqroot(double d) => Math.Sqrt(d).ToString("#.###");
-	
-	SQLContext sqlContext = new SQLContext();
 	SQLContext.Register<double, string>("sqroot", sqroot);
 
-	// SELECT a1, sqroot(b1*a1+5) from a join b on b2=a2 where a1>1;
+	var sql = "SELECT a1, sqroot(b1*a1+2) from a join b on b2=a2 where a1>1";
+	TU.ExecuteSQL(sql, "2,2.449");
+
+	// above query in DataSet form
 	var a = sqlContext.Read("a");
 	var b = sqlContext.Read("b");
 	var rows = a.filter("a1>1").join(b, "b2=a2").select("a1", "sqroot(b1*a1+2)").show();
