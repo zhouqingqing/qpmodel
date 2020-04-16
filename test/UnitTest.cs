@@ -219,6 +219,7 @@ namespace test
             bool runTpchStandaloneFirst = true;
 
             TestTpcds();
+            TestTpcds_LoadData();
             if (runTpchStandaloneFirst)
                 TestTpch();
             else
@@ -236,6 +237,13 @@ namespace test
             ExplainOption.show_tablename_ = true;
         }
 
+        void TestTpcds_LoadData()
+        {
+            Tpcds.CreateTables();
+            Tpcds.LoadTables("tiny");
+            Tpcds.AnalyzeTables();
+        }
+
         void TestTpcds()
         {
             var files = Directory.GetFiles(@"../../../tpcds", "*.sql");
@@ -245,7 +253,6 @@ namespace test
             refmt_presto_stats.read_cnvt_presto_stats(stats_dir);
 
             Tpcds.CreateTables();
-
 
             // make sure all queries can generate phase one opt plan
             QueryOption option = new QueryOption();

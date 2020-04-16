@@ -91,6 +91,18 @@ namespace qpmodel.test
     }
 
     public class Tpcds {
+
+        static public string[] tabnames_ = {
+            "call_center",            "catalog_page", "catalog_returns",
+            "catalog_sales",          "customer.dat", "customer_address",
+            "customer_demographics",  "date_dim",     "dbgen_version",
+            "household_demographics", "income_band",  "inventory",
+            "item.dat",               "promotion",    "reason",
+            "ship_mode",              "store.dat",    "store_returns",
+            "store_sales",            "time_dim",     "warehouse",
+            "web_page",               "web_returns",  "web_sales",
+            "web_site"
+        };
         static public void CreateTables()
         {
             // hack: drop tpch table customer
@@ -105,10 +117,25 @@ namespace qpmodel.test
 
         static public void LoadTables(string subfolder)
         {
+            string curdir = Directory.GetCurrentDirectory();
+            string folder = $@"{curdir}\..\..\..\tpcds\data\{subfolder}";
+
+            foreach (var v in tabnames_)
+            {
+                string filename = $@"'{folder}\{v}.tbl'";
+                var sql = $"copy {v} from {filename};";
+                SQLStatement.ExecSQL(sql, out _, out _);
+            }
+
         }
 
         static public void AnalyzeTables()
         {
+            foreach (var v in tabnames_)
+            {
+                var sql = $"analyze {v};";
+                SQLStatement.ExecSQL(sql, out _, out _);
+            }
         }
     }
 
