@@ -1328,6 +1328,21 @@ namespace test
             var b = sqlContext.Read("b");
             var rows = a.filter("a1>1").join(b, "b2=a2").select("a1", "sqroot(b1*a1+2)").show();
             Assert.AreEqual(string.Join(",", rows), "2,2.449");
+
+            // Pi Monte-carlo evaluation 
+            Random rand = new Random();
+            int inside(int d)
+            {
+                var x = rand.NextDouble();
+                var y = rand.NextDouble();
+                var ret = x * x + y * y <= 1 ? 1 : 0;
+                return ret;
+            }
+
+            SQLContext.Register<int, int>("inside", inside);
+            sql = "SELECT 4.0*sum(inside(a1.a1))/count(*) from a a1, a a2, a a3, a a4, a a5, a a6, a a7, a a8, a a9, a a10";
+            rows = SQLStatement.ExecSQL(sql, out _, out _);
+            Assert.IsTrue((double)rows[0][0] > 3.12 && (double)rows[0][0] < 3.16);
         }
 
         [TestMethod]

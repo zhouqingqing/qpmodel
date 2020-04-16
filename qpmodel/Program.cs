@@ -65,6 +65,22 @@ namespace qpmodel
             var rows = SQLStatement.ExecSQL(sql, out string plan, out _);
         }
 
+        static void TestDataSet2()
+        {
+            Random rand = new Random();
+            int inside(int d) {
+                var x = rand.NextDouble();
+                var y = rand.NextDouble();
+                var ret = x * x + y * y <= 1 ? 1 : 0;
+                return ret;
+            }
+
+            SQLContext sqlContext = new SQLContext();
+            SQLContext.Register<int, int>("inside", inside);
+            var sql = "SELECT 4.0*sum(inside(a1.a1))/count(*) from a a1, a a2, a a3, a a4, a a5, a a6, a a7, a a8, a a9, a a10";
+            var rows = SQLStatement.ExecSQL(sql, out string plan, out _);
+        }
+
         static void doPython()
         {
             var engine = Python.CreateEngine();
@@ -101,7 +117,7 @@ namespace qpmodel
             Catalog.Init();
 
             string sql = "";
-            TestDataSet();
+            TestDataSet2();
             //TestJobench();
             return;
 
