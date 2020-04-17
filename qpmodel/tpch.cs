@@ -94,11 +94,11 @@ namespace qpmodel.test
 
         static public string[] tabnames_ = {
             "call_center",            "catalog_page", "catalog_returns",
-            "catalog_sales",          "customer.dat", "customer_address",
+            "catalog_sales",          "customer",     "customer_address",
             "customer_demographics",  "date_dim",     "dbgen_version",
             "household_demographics", "income_band",  "inventory",
-            "item.dat",               "promotion",    "reason",
-            "ship_mode",              "store.dat",    "store_returns",
+            "item",                   "promotion",    "reason",
+            "ship_mode",              "store",        "store_returns",
             "store_sales",            "time_dim",     "warehouse",
             "web_page",               "web_returns",  "web_sales",
             "web_site"
@@ -126,7 +126,6 @@ namespace qpmodel.test
                 var sql = $"copy {v} from {filename};";
                 SQLStatement.ExecSQL(sql, out _, out _);
             }
-
         }
 
         static public void AnalyzeTables()

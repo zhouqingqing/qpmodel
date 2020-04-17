@@ -219,7 +219,7 @@ namespace test
             bool runTpchStandaloneFirst = true;
 
             TestTpcds();
-            TestTpcds_LoadData();
+            // TestTpcds_LoadData();
             if (runTpchStandaloneFirst)
                 TestTpch();
             else

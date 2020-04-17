@@ -112,13 +112,32 @@ namespace qpmodel
             }
         }
 
+        static void TestTpcds_LoadData()
+        {
+            var files = Directory.GetFiles(@"../../../tpcds", "*.sql");
+
+            Tpcds.CreateTables();
+            Tpcds.LoadTables("tiny");
+            Tpcds.AnalyzeTables();
+
+            // make sure all queries can generate phase one opt plan
+            QueryOption option = new QueryOption();
+            option.optimize_.enable_subquery_unnest_ = true;
+            option.optimize_.remove_from_ = false;
+            option.optimize_.use_memo_ = false;
+            foreach (var v in files)
+            {
+                var sql = File.ReadAllText(v);
+                var result = SQLStatement.ExecSQL(sql, out string phyplan, out _, option);
+            }
+        }
+
         static void Main(string[] args)
         {
             Catalog.Init();
 
             string sql = "";
-            TestDataSet2();
-            //TestJobench();
+            TestTpcds_LoadData();
             return;
 
             if (false)
