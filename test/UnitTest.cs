@@ -1101,6 +1101,9 @@ namespace test
                     select max(cte3.b1) from cte3;"; TU.ExecuteSQL(sql, "2", out _, option);
                     sql = "with cte as (select * from a) select * from cte cte1, cte cte2 where cte1.a2=cte2.a3 and cte1.a1> 0;";
                     TU.ExecuteSQL(sql, "1,2,3,4,0,1,2,3;2,3,4,5,1,2,3,4", out _, option);
+
+                    sql = "with cte as (select * from a) select cte1.a1, cte2.a2 from cte cte1, cte cte2 where cte2.a3<3";
+                    TU.ExecuteSQL(sql, "0,1;1,1;2,1", out _, option);
                 }
             }
         }

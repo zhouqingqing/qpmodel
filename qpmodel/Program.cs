@@ -177,6 +177,7 @@ namespace qpmodel
             sql = "with cte as (select * from a) select * from cte cte1, cte cte2 where cte1.a2=cte2.a3 and cte1.a1> 0 order by 1;";
             sql = "with cte as (select * from a join b on a1=b1) select * from cte cte1, cte cte2;";
             sql = "with cte as (select * from a where a1=1) select * from cte cte1, cte cte2";
+            sql = "with cte as (select * from a) select cte1.a1, cte2.a2 from cte cte1, cte cte2 where cte2.a3<3";  // ok
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
