@@ -345,6 +345,26 @@ namespace qpmodel.logic
 
     public partial class SelectStmt : SQLStatement
     {
+        // representing a query by CTE or FROM
+        public class NamedQuery
+        {
+            internal SelectStmt query_;
+            internal string alias_;
+
+            internal NamedQuery(SelectStmt query, string alias) 
+            { 
+                query_ = query;
+                alias_ = alias;
+            }
+
+            public override bool Equals(object obj)
+            {
+                if (obj is NamedQuery on)
+                    return on.query_.Equals(query_) && string.Equals(alias_, on.alias_);
+                return false;
+            }
+        }
+
         // parse info
         // ---------------
 
@@ -377,9 +397,9 @@ namespace qpmodel.logic
         internal SelectStmt parent_;
 
         // subqueries at my level (children level excluded)
-        internal List<SelectStmt> subQueries_ = new List<SelectStmt>();
-        internal List<SelectStmt> decorrelatedSubs_ = new List<SelectStmt>();
-        internal Dictionary<SelectStmt, LogicFromQuery> fromQueries_ = new Dictionary<SelectStmt, LogicFromQuery>();
+        internal List<NamedQuery> subQueries_ = new List<NamedQuery>();
+        internal List<NamedQuery> decorrelatedSubs_ = new List<NamedQuery>();
+        internal Dictionary<NamedQuery, LogicFromQuery> fromQueries_ = new Dictionary<NamedQuery, LogicFromQuery>();
         internal bool hasAgg_ = false;
         internal bool bounded_ = false;
 
@@ -404,7 +424,7 @@ namespace qpmodel.logic
         {
             bool hasCorrelated = false;
             Subqueries(excludeFromAndDecorrelated: true).ForEach(x => {
-                if (x.isCorrelated_)
+                if (x.query_.isCorrelated_)
                     hasCorrelated = true;
             });
 
@@ -462,7 +482,7 @@ namespace qpmodel.logic
             allsubs.Add(this);
             Subqueries(true).ForEach(x =>
             {
-                allsubs.AddRange(x.InclusiveAllSubquries());
+                allsubs.AddRange(x.query_.InclusiveAllSubquries());
             });
 
             return allsubs;
@@ -514,7 +534,7 @@ namespace qpmodel.logic
 
 
                 // we shall ignore FromQuery as it will be optimized by subquery optimization
-                // and this will cause double predicate push down (a1>1 && a1 > 1)
+                // and this will cause double predicate push down (e.g., a1>1 && a1>1)
                 if (parent is LogicFromQuery)
                     return plan;
 
@@ -568,7 +588,7 @@ namespace qpmodel.logic
             return plan;
         }
 
-        public bool SubqueryIsWithMainQuery(SelectStmt subquery)
+        public bool SubqueryIsWithMainQuery(NamedQuery subquery)
         {
             // FromQuery or decorrelated subqueries are merged with main plan
             var r = (fromQueries_.ContainsKey(subquery) ||
@@ -576,9 +596,9 @@ namespace qpmodel.logic
             return r;
         }
 
-        public List<SelectStmt> Subqueries(bool excludeFromAndDecorrelated = false)
+        public List<NamedQuery> Subqueries(bool excludeFromAndDecorrelated = false)
         {
-            List<SelectStmt> ret = new List<SelectStmt>();
+            var ret = new List<NamedQuery>();
             Debug.Assert(subQueries_.Count >= 
                     fromQueries_.Count  + decorrelatedSubs_.Count);
             if (excludeFromAndDecorrelated)
@@ -677,16 +697,15 @@ namespace qpmodel.logic
             // optimize for subqueries 
             //  fromquery needs some special handling to link the new plan
             subQueries_.ForEach(x => {
-                Debug.Assert (x.queryOpt_ == queryOpt_);
+                Debug.Assert (x.query_.queryOpt_ == queryOpt_);
                 if (!decorrelatedSubs_.Contains(x))
-                    x.SubstitutionOptimize();
+                    x.query_.SubstitutionOptimize();
             });
             foreach (var x in fromQueries_) {
-                var stmt = x.Key as SelectStmt;
                 var fromQuery = x.Value as LogicFromQuery;
-                var newplan = subQueries_.Find(stmt.Equals);
+                var newplan = subQueries_.Find(y => y.Equals(x.Key));
                 if (newplan != null)
-                    fromQuery.children_[0] = newplan.logicPlan_;
+                    fromQuery.children_[0] = newplan.query_.logicPlan_;
             }
 
             // now we can adjust join order
@@ -717,9 +736,9 @@ namespace qpmodel.logic
         internal void OpenSubQueries(ExecContext context) 
         {
             foreach (var v in Subqueries(true))
-                v.physicPlan_.Open(context);
+                v.query_.physicPlan_.Open(context);
             foreach (var v in Subqueries(false))
-                v.OpenSubQueries(context);
+                v.query_.OpenSubQueries(context);
         }
     }
 

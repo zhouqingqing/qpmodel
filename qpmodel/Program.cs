@@ -166,18 +166,19 @@ namespace qpmodel
             if (true)
             { 
                 Tpcds.CreateTables();
-               // Tpcds.LoadTables("tiny");
-               // Tpcds.AnalyzeTables();
+                //Tpcds.LoadTables("tiny");
+                //Tpcds.AnalyzeTables();
                 sql = File.ReadAllText("../../../tpcds/q1.sql");
                 goto doit;
             }
 
         doit:
             //sql = "with cte as (select * from d) select * from cte where d1=1;";
-            sql = "with cte as (select * from a) select * from cte cte1, cte cte2 where cte1.a2=cte2.a3 and cte1.a1> 0 order by 1;";
             sql = "with cte as (select * from a join b on a1=b1) select * from cte cte1, cte cte2;";
-            sql = "with cte as (select * from a where a1=1) select * from cte cte1, cte cte2";
             sql = "with cte as (select * from a) select cte1.a1, cte2.a2 from cte cte1, cte cte2 where cte2.a3<3";  // ok
+            sql = "with cte as (select * from a where a1=1) select * from cte cte1, cte cte2;";
+            sql = "with cte as (select * from a) select * from cte cte1, cte cte2 where cte1.a2=cte2.a3 and cte1.a1> 0 order by 1;";
+            sql = "select ab.a1, cd.c1 from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where ab.a1=cd.c1";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);

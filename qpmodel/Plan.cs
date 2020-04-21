@@ -302,12 +302,12 @@ namespace qpmodel.logic
         LogicNode subQueryExprCreatePlan(LogicNode root, Expr expr)
         {
             var newroot = root;
-            var subplans = new List<SelectStmt>();
+            var subplans = new List<NamedQuery>();
             expr.VisitEachT<SubqueryExpr>(x =>
             {
                 Debug.Assert(expr.HasSubQuery());
                 x.query_.CreatePlan();
-                subplans.Add(x.query_);
+                subplans.Add(new NamedQuery(x.query_, null));
 
                 // functionally we don't have to do rewrite since above
                 // plan is already runnable
@@ -364,12 +364,18 @@ namespace qpmodel.logic
                             from = plan;
                         else
                         {
+                            string alias = null;
+                            if (qref is CTEQueryRef cq)
+                                alias = cq.alias_;
+                            else if (qref is FromQueryRef fq)
+                                alias = fq.alias_;
+                            var key = new NamedQuery(qref.query_, alias);
                             from = new LogicFromQuery(qref, plan);
-                            subQueries_.Add(qref.query_);
+                            subQueries_.Add(key);
 
                             // if from CTE, then it could be duplicates
-                            if (!fromQueries_.ContainsKey(qref.query_))
-                                fromQueries_.Add(qref.query_, from as LogicFromQuery);
+                            if (!fromQueries_.ContainsKey(key))
+                                fromQueries_.Add(key, from as LogicFromQuery);
                         }
                         break;
                     case JoinQueryRef jref:

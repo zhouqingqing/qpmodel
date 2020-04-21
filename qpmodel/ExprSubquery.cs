@@ -124,8 +124,8 @@ namespace qpmodel.expr
                     bool childCorrelated = false;
                     query_.subQueries_.ForEach(x =>
                     {
-                        if (x.isCorrelated_) { 
-                            if (!queriesOkToRef.ContainsList(x.correlatedWhich_))
+                        if (x.query_.isCorrelated_) { 
+                            if (!queriesOkToRef.ContainsList(x.query_.correlatedWhich_))
                                 childCorrelated = true;
                         }
                     });

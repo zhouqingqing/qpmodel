@@ -638,7 +638,7 @@ namespace qpmodel.optimizer
             foreach (var v in subqueries)
             {
                 enqueueit = !select.SubqueryIsWithMainQuery(v);
-                Optimizer.OptimizeRootPlan(v, required, enqueueit);
+                Optimizer.OptimizeRootPlan(v.query_, required, enqueueit);
             }
 
             // loop through the stack, optimize each one until empty
@@ -665,7 +665,7 @@ namespace qpmodel.optimizer
             // by column ordinal resolution. Physical node however is not needed.
             //
             foreach (var v in select.fromQueries_) {
-                var fromQuery = (v.Key as SelectStmt);
+                var fromQuery = (v.Key.query_ as SelectStmt);
                 var generatedPlan = (v.Value as LogicFromQuery).child_();
 
                 fromQuery.logicPlan_ = generatedPlan;
@@ -685,7 +685,7 @@ namespace qpmodel.optimizer
                 phyplan = CopyOutOnePlan(stmt, memoset_[copyoutCounter_++]);
             var subqueries = select.Subqueries();
             foreach (var v in subqueries)
-                CopyOutOptimalPlan(v, !select.SubqueryIsWithMainQuery(v));
+                CopyOutOptimalPlan(v.query_, !select.SubqueryIsWithMainQuery(v));
             return phyplan;
         }
 

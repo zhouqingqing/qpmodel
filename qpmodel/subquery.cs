@@ -413,7 +413,7 @@ namespace qpmodel.logic
                     break;
             }
             if (oldplan != newplan)
-                decorrelatedSubs_.Add(subexpr.query_);
+                decorrelatedSubs_.Add(new NamedQuery(subexpr.query_, null));
             return newplan;
         }
 

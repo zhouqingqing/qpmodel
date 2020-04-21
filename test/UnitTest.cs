@@ -1110,6 +1110,10 @@ namespace test
 
                     sql = "with cte as (select * from a) select cte1.a1, cte2.a2 from cte cte1, cte cte2 where cte2.a3<3";
                     TU.ExecuteSQL(sql, "0,1;1,1;2,1", out _, option);
+                    sql = "with cte as (select * from a where a1=1) select * from cte cte1, cte cte2;";
+                    TU.ExecuteSQL(sql, "1,2,3,4,1,2,3,4", out _, option);
+                    sql = "select ab.a1, cd.c1 from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where ab.a1=cd.c1";
+                    TU.ExecuteSQL(sql, "0,0;1,1;2,2", out _, option);
                 }
             }
         }
