@@ -420,6 +420,9 @@ namespace qpmodel.physic
                             case DoubleType bt:
                                 r[i] = Double.Parse(f);
                                 break;
+                            case NumericType nt:
+                                r[i] = decimal.Parse(f);
+                                break;
                             default:
                                 r[i] = f;
                                 break;

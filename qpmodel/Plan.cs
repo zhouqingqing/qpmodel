@@ -186,9 +186,15 @@ namespace qpmodel.logic
                 depth += 2;
             }
 
-            bool printAsConsumer = false;
-            if (!printAsConsumer)
-                children_.ForEach(x => r += x.Explain(depth, option));
+            // guard against endless plan: 255 is an arbitrary number. Instead of
+            // throwing here, we choose to print the plan for debugging.
+            //
+            if (depth <= 255)
+            {
+                bool printAsConsumer = false;
+                if (!printAsConsumer)
+                    children_.ForEach(x => r += x.Explain(depth, option));
+            }
             return r;
         }
 

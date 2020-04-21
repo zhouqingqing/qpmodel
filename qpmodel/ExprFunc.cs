@@ -215,6 +215,8 @@ namespace qpmodel.expr
             int start = (int)args_()[1].Exec(context, input) - 1;
             int end = (int)args_()[2].Exec(context, input) - 1;
 
+            if (str is null)
+                return null;
             return str.Substring(start, end - start + 1);
         }
     }
@@ -277,6 +279,8 @@ namespace qpmodel.expr
             dynamic number = args_()[0].Exec(context, input);
             int decimals = (int)args_()[1].Exec(context, input);
 
+            if (number is null)
+                return null;
             return Math.Round(number, decimals);
         }
     }

@@ -415,7 +415,7 @@ namespace qpmodel.optimizer
             }
 
             // recursively repeat the process for all its children
-            if (physic.children_.Count > 0)
+            if (physic.children_.Count > 0 && !(physic is PhysicProfiling))
             {
                 var phychildren = new List<PhysicNode>();
                 var logchildren = new List<LogicNode>();
@@ -442,6 +442,11 @@ namespace qpmodel.optimizer
             physic.logic_ = RetrieveLogicTree(physic.logic_);
             Debug.Assert(!(physic is PhysicMemoRef));
             Debug.Assert(!(physic.logic_ is LogicMemoRef));
+
+            // enable profiling: we want to do it here instead of mark at the
+            // end of plan copy out to avoid revisit plan tree (including expr
+            // tree again)
+            //
             if (Optimizer.topstmt_.queryOpt_.profile_.enabled_)
                 physic = new PhysicProfiling(physic);
             return physic;

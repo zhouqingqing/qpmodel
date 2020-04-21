@@ -286,12 +286,22 @@ namespace qpmodel.expr
         public override Value Exec(ExecContext context, Row input)
         {
             var v = expr_().Exec(context, input);
+            if (v is null)
+                return null;
             List<Value> inlist = new List<Value>();
             inlist_().ForEach(x => { inlist.Add(x.Exec(context, input)); });
             return inlist.Exists(v.Equals);
         }
 
-        public override string ToString() => $"{expr_()} in ({string.Join(",", inlist_())})";
+        public override string ToString()
+        {
+            var inlist = inlist_();
+            if (inlist_().Count < 5)
+                return $"{expr_()} in ({string.Join(",", inlist)})";
+            else {
+                return $"{expr_()} in ({string.Join(",", inlist.GetRange(0, 3))}, ... <Total: {inlist.Count}> )";
+            }
+        }
     }
 
 }

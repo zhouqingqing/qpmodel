@@ -1114,6 +1114,8 @@ namespace test
                     TU.ExecuteSQL(sql, "1,2,3,4,1,2,3,4", out _, option);
                     sql = "select ab.a1, cd.c1 from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where ab.a1=cd.c1";
                     TU.ExecuteSQL(sql, "0,0;1,1;2,2", out _, option);
+                    sql = "with cte as (select avg(a2) from a join b on a1=b1) select * from cte cte1, cte cte2;";
+                    TU.ExecuteSQL(sql, "2,2", out _, option);
                 }
             }
         }

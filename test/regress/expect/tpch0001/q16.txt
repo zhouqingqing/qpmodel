@@ -41,7 +41,7 @@ PhysicOrder  (inccost=10827.68, cost=5427.68, rows=800) (actual rows=0)
             Filter: p_partkey[3]=ps_partkey[5]
             -> PhysicScanTable part (inccost=200, cost=200, rows=200) (actual rows=34)
                 Output: p_brand[3],p_type[4],p_size[5],p_partkey[0]
-                Filter: p_brand[3]<>'Brand#45' and p_type[4]not like'MEDIUM POLISHED%' and p_size[5] in (49,14,23,45,19,3,36,9)
+                Filter: p_brand[3]<>'Brand#45' and p_type[4]not like'MEDIUM POLISHED%' and p_size[5] in (49,14,23, ... <Total: 8> )
             -> PhysicScanTable partsupp (inccost=800, cost=800, rows=800) (actual rows=0)
                 Output: ps_suppkey[1],ps_partkey[0]
                 Filter: ps_suppkey[1] in @1
