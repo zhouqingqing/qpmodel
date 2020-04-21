@@ -40,6 +40,7 @@ using qpmodel.optimizer;
 using qpmodel.test;
 using qpmodel.expr;
 using qpmodel.dml;
+using qpmodel;
 
 using psql;
 
@@ -239,9 +240,14 @@ namespace test
 
         void TestTpcds_LoadData()
         {
+            //string curdir = Directory.GetCurrentDirectory();
+            //string file = $@"{curdir}\..\..\..\tpcds\data\stats\dump";
             Tpcds.CreateTables();
             Tpcds.LoadTables("tiny");
             Tpcds.AnalyzeTables();
+            //seriaize_and_write(file);
+            //Catalog.sysstat_.read_serialized_stats(file);
+
         }
 
         void TestTpcds()

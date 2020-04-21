@@ -24,8 +24,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-
 using System;
+using System.IO;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -337,24 +339,37 @@ namespace qpmodel.stat
     }
 
     // format: (tableName, colName):key, column stat
-    public class SysStats : SystemTable {
-        readonly Dictionary<TableColumn, ColumnStat> records_ = new Dictionary<TableColumn, ColumnStat>();
+    public class SysStats : SystemTable
+    {
+        readonly Dictionary<string, ColumnStat> records_ = new Dictionary<string, ColumnStat>();
 
         public void AddOrUpdate(string tabName, string colName, ColumnStat stat)
         {
-            var tabcol = new TableColumn(tabName, colName);
-            if (GetColumnStat(tabName, colName) is null)
+            string tabcol = tabName + colName;
+            SysStatsAddOrUpdate(tabcol, stat);
+        }
+
+        void SysStatsAddOrUpdate(string tabcol, ColumnStat stat)
+        {
+            if (RetrieveColumnStat(tabcol) is null)
                 records_.Add(tabcol, stat);
             else
                 records_[tabcol] = stat;
         }
 
+
         public ColumnStat GetColumnStat(string tabName, string colName)
         {
-            if (records_.TryGetValue(new TableColumn(tabName, colName), out ColumnStat value))
+            return RetrieveColumnStat(tabName + colName);
+        }
+
+        ColumnStat RetrieveColumnStat(string tabcol)
+        {
+            if (records_.TryGetValue(tabcol, out ColumnStat value))
                 return value;
             return null;
         }
+
 
         public List<ColumnStat> GetOrCreateTableStats(string tabName)
         {
@@ -371,7 +386,7 @@ namespace qpmodel.stat
                     stat = new ColumnStat();
                     AddOrUpdate(tabName, colName, stat);
                 }
-                  
+
                 stats.Add(stat);
             }
 
@@ -379,17 +394,46 @@ namespace qpmodel.stat
             return stats;
         }
 
-        public void ComputeStats(List<Row> samples, List<ColumnStat> stats) {
+        public void ComputeStats(List<Row> samples, List<ColumnStat> stats)
+        {
             // A full row is presented here, since we generate per column 
             // stats and full row needed for correlation analysis
-            for (int i = 0; i < stats.Count; i++) {
+            for (int i = 0; i < stats.Count; i++)
+            {
                 stats[i].ComputeStats(i, samples);
             }
         }
 
         // stats getters
-        public long EstCardinality(string tabName) {
+        public long EstCardinality(string tabName)
+        {
             return GetOrCreateTableStats(tabName)[0].n_rows_;
+        }
+
+         public void read_serialized_stats(string statsFn)
+        {
+            string jsonStr = File.ReadAllText(statsFn);
+            Dictionary<string, ColumnStat> records;
+
+
+            string trimmedJsonStr = Regex.Replace(jsonStr, "\\n", "");
+            trimmedJsonStr = Regex.Replace(trimmedJsonStr, "\\r", "");
+
+            //Catalog.sysstat_ = JsonSerializer.Deserialize<Dictionary<string, ColumnStat>>(jsonStr);
+            records = JsonSerializer.Deserialize<Dictionary<string, ColumnStat>>(trimmedJsonStr);
+
+            foreach (KeyValuePair<string, ColumnStat> elem in records)
+            {
+                //void SysStatsAddOrUpdate(string tabcol, ColumnStat stat)
+                SysStatsAddOrUpdate(elem.Key,  elem.Value);
+            }
+        }
+
+        public void seriaize_and_write(string stats_output_fn)
+        {
+            var serial_stats_fmt = JsonSerializer.Serialize<Dictionary<string, ColumnStat>>(records_);
+
+            File.WriteAllText(stats_output_fn, serial_stats_fmt);
         }
     }
 
