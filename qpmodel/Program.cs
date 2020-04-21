@@ -115,6 +115,7 @@ namespace qpmodel
         static void TestTpcds_LoadData()
         {
             var files = Directory.GetFiles(@"../../../tpcds", "*.sql");
+            string[] norun = {"q1", "q10"};
 
             Tpcds.CreateTables();
             Tpcds.LoadTables("tiny");
@@ -127,6 +128,12 @@ namespace qpmodel
             option.optimize_.use_memo_ = false;
             foreach (var v in files)
             {
+                char[] splits = { '.', '/', '\\' };
+                var tokens = v.Split(splits, StringSplitOptions.RemoveEmptyEntries);
+
+                if (norun.Contains(tokens[1]))
+                    continue;
+
                 var sql = File.ReadAllText(v);
                 var result = SQLStatement.ExecSQL(sql, out string phyplan, out _, option);
             }
@@ -137,8 +144,7 @@ namespace qpmodel
             Catalog.Init();
 
             string sql = "";
-            TestTpcds_LoadData();
-            return;
+            //TestTpcds_LoadData();
 
             if (false)
             {
@@ -157,26 +163,28 @@ namespace qpmodel
                 goto doit;
             }
 
-            if (false)
+            if (true)
             { 
                 Tpcds.CreateTables();
-                sql = File.ReadAllText("../../../tpcds/problem_queries/q64.sql");
+               // Tpcds.LoadTables("tiny");
+               // Tpcds.AnalyzeTables();
                 sql = File.ReadAllText("../../../tpcds/q1.sql");
                 goto doit;
             }
 
         doit:
             //sql = "with cte as (select * from d) select * from cte where d1=1;";
-            //sql = "with cte as (select * from a) select * from cte cte1, cte cte2 where cte1.a2=cte2.a3 and cte1.a1> 0 order by 1;";
-            sql = "select * from ap;";
+            sql = "with cte as (select * from a) select * from cte cte1, cte cte2 where cte1.a2=cte2.a3 and cte1.a1> 0 order by 1;";
+            sql = "with cte as (select * from a join b on a1=b1) select * from cte cte1, cte cte2;";
+            sql = "with cte as (select * from a where a1=1) select * from cte cte1, cte cte2";
 
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
             a.queryOpt_.profile_.enabled_ = true;
             a.queryOpt_.optimize_.enable_subquery_unnest_ = true;
-            a.queryOpt_.optimize_.remove_from_ = true;
-            a.queryOpt_.optimize_.use_memo_ = true;
-            a.queryOpt_.optimize_.enable_cte_plan_ = true;
+            a.queryOpt_.optimize_.remove_from_ = false;
+            a.queryOpt_.optimize_.use_memo_ = false;
+            a.queryOpt_.optimize_.enable_cte_plan_ = false;
             a.queryOpt_.optimize_.use_codegen_ = false;
 
             //a.queryOpt_.optimize_.memo_disable_crossjoin = false;

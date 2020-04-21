@@ -802,7 +802,7 @@ namespace qpmodel.physic
     public class PhysicHashAgg : PhysicNode
     {
         public PhysicHashAgg(LogicAgg logic, PhysicNode l) : base(logic) => children_.Add(l);
-        public override string ToString() => $"PHAgg({(logic_ as LogicAgg)}: {Cost()})";
+        public override string ToString() => $"PHAgg({child_()}: {Cost()})";
 
         public Row AggrCoreToRow(Row input)
         {
