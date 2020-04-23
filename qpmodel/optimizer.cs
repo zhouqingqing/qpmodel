@@ -609,8 +609,11 @@ namespace qpmodel.optimizer
 
     public static class Optimizer
     {
+        [ThreadStatic]
         public static List<Memo> memoset_ = new List<Memo>();
+        [ThreadStatic]
         public static SQLStatement topstmt_;
+        [ThreadStatic]
         public static int copyoutCounter_ = 0;
 
         public static void InitRootPlan(SQLStatement stmt)

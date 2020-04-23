@@ -84,7 +84,7 @@ namespace qpmodel.logic
         }
 
         // global static variables
-        public static int num_table_partitions_ = 4;
+        public const int num_table_partitions_ = 4;
         // options
         public ProfileOption profile_ = new ProfileOption();
         public OptimizeOption optimize_ = new OptimizeOption();
@@ -100,7 +100,9 @@ namespace qpmodel.logic
     }
 
     public class ExplainOption {
-        public static bool show_tablename_ { get; set; } = true;
+
+        [ThreadStatic]
+        public static bool show_tablename_ = true;
         public bool show_cost_ { get; set; } = false;
         public bool show_output_ { get; set; } = true;
     }

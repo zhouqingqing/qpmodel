@@ -45,6 +45,7 @@ namespace qpmodel.expr
     public class BindContext
     {
         // number of subqueries in the whole query
+        [ThreadStatic]
         internal static int globalSubqCounter_;
 
         // bounded tables/subqueries: <seq#, tableref>
@@ -146,6 +147,7 @@ namespace qpmodel.expr
     // TBD: make it per query
     public class ExprSearch
     {
+        [ThreadStatic]
         public static Dictionary<string, Expr> table_ = new Dictionary<string, Expr>();
 
         public static Expr Locate(string objectid) => table_[objectid];

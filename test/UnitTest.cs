@@ -217,18 +217,9 @@ namespace test
         [TestMethod]
         public void TestBenchmarks()
         {
-            bool runTpchStandaloneFirst = true;
-
-            TestTpcds();
-            // TestTpcds_LoadData();
-            if (runTpchStandaloneFirst)
-                TestTpch();
-            else
-            {
-                Tpch.CreateTables();
-                Tpch.LoadTables("0001");
-                Tpch.AnalyzeTables();
-            }
+            TestTpcdsPlanOnly();
+            TestTpcdsWithData();
+            TestTpch();
 
             string sql_dir_fn =    "../../../test/regress/sql";
             string write_dir_fn =  "../../../test/regress/output/tpch0001";
@@ -238,19 +229,39 @@ namespace test
             ExplainOption.show_tablename_ = true;
         }
 
-        void TestTpcds_LoadData()
+        void TestTpcdsWithData()
         {
-            //string curdir = Directory.GetCurrentDirectory();
-            //string file = $@"{curdir}\..\..\..\tpcds\data\stats\dump";
-            Tpcds.CreateTables();
+            // table already created
             Tpcds.LoadTables("tiny");
             Tpcds.AnalyzeTables();
-            //seriaize_and_write(file);
-            //Catalog.sysstat_.read_serialized_stats(file);
 
+            var files = Directory.GetFiles(@"../../../tpcds", "*.sql");
+            // long time: 4 bad plan
+            // 6: distinct not supported, causing wrong result
+            // 10: subquery memo not copy out
+            string[] runnable = { "q1", "q2", "q3"};
+
+            // make sure all queries can generate phase one opt plan
+            QueryOption option = new QueryOption();
+            option.optimize_.enable_subquery_unnest_ = true;
+            option.optimize_.remove_from_ = false;
+            option.optimize_.use_memo_ = true;
+            foreach (var v in files)
+            {
+                char[] splits = { '.', '/', '\\' };
+                var tokens = v.Split(splits, StringSplitOptions.RemoveEmptyEntries);
+
+                Debug.Assert(tokens[1][0] == 'q');
+                if (!runnable.Contains(tokens[1]))
+                    continue;
+
+                var sql = File.ReadAllText(v);
+                var result = SQLStatement.ExecSQL(sql, out string phyplan, out _, option);
+                Assert.IsNotNull(result);
+            }
         }
 
-        void TestTpcds()
+        void TestTpcdsPlanOnly()
         {
             var files = Directory.GetFiles(@"../../../tpcds", "*.sql");
             string stats_dir = "../../../tpcds/statistics/presto/sf1";
@@ -259,6 +270,7 @@ namespace test
             refmt_presto_stats.read_cnvt_presto_stats(stats_dir);
 
             Tpcds.CreateTables();
+            // TBD: load persisted stats here
 
             // make sure all queries can generate phase one opt plan
             QueryOption option = new QueryOption();

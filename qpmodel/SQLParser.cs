@@ -47,7 +47,9 @@ namespace qpmodel.sqlparser
 
     public class RawParser
     {
+        [ThreadStatic]
         static SQLiteVisitor visitor_;
+        [ThreadStatic]
         static SQLiteParser sqlParser_;
 
         public static void Init(string sql)

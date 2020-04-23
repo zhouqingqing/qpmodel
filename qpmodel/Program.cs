@@ -171,12 +171,11 @@ namespace qpmodel
                 // 1, 2,3,7,10,
                 // long time: 4 bad plan
                 // 6: distinct not supported, causing wrong result
-                sql = File.ReadAllText("../../../tpcds/q4.sql");
+                sql = File.ReadAllText("../../../tpcds/q7.sql");
                 goto doit;
             }
 
-       // doit:
-            //sql = "with cte as (select * from d) select * from cte where d1=1;";
+            sql = "with cte as (select * from d) select * from cte where d1=1;";
             sql = "with cte as (select * from a) select cte1.a1, cte2.a2 from cte cte1, cte cte2 where cte2.a3<3";  // ok
             sql = "with cte as (select * from a where a1=1) select * from cte cte1, cte cte2;";
             sql = "with cte as (select * from a) select * from cte cte1, cte cte2 where cte1.a2=cte2.a3 and cte1.a1> 0 order by 1;";
@@ -185,8 +184,11 @@ namespace qpmodel
             sql = "with cte as (select * from a join b on a1=b1 join c on a2=c2) select * from cte cte1, cte cte2;"; // ok
             sql = "with cte as (select count(*) from a join b on a1=b1) select * from cte cte1;"; // ok
             sql = "with cte as (select count(*) from a join b on a1=b1) select * from cte cte1, cte cte2;";
+        doit:
 
-            doit:
+            var stopWatch = new Stopwatch();
+            stopWatch.Start();
+
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
             a.queryOpt_.profile_.enabled_ = true;
@@ -256,9 +258,10 @@ namespace qpmodel
                 CodeWriter.WriteLine(code);
                 Compiler.Run(Compiler.Compile(), a, context);
             }
-
             Console.WriteLine(phyplan.Explain(0, a.queryOpt_.explain_));
 
+            stopWatch.Stop();
+            Console.WriteLine("RunTime: " + stopWatch.Elapsed); 
             Console.ReadKey();
         }
     }
