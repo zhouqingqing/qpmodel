@@ -18,7 +18,7 @@ The optimizer exercise following constructs:
 	string sqroot(double d) => Math.Sqrt(d).ToString("#.###");
 	SQLContext.Register<double, string>("sqroot", sqroot);
 
-    // use sqroot in SQL
+	// use sqroot in SQL
 	var sql = "SELECT a1, sqroot(b1*a1+2) from a join b on b2=a2 where a1>1";
 
 	// above query in DataSet form

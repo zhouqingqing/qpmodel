@@ -166,27 +166,30 @@ namespace qpmodel
             if (true)
             { 
                 Tpcds.CreateTables();
-                Tpcds.LoadTables("tiny");
-                Tpcds.AnalyzeTables();
+                //Tpcds.LoadTables("tiny");
+                //Tpcds.AnalyzeTables();
                 // 1, 2,3,7,10,
-                // long time: 4 bad plan
+                // long time: 4 bad plan, 1 lost join predicates
                 // 6: distinct not supported, causing wrong result
                 sql = File.ReadAllText("../../../tpcds/q1.sql");
                 goto doit;
             }
 
-        //doit:
+        doit:
             //sql = "with cte as (select * from d) select * from cte where d1=1;";
             sql = "with cte as (select * from a) select cte1.a1, cte2.a2 from cte cte1, cte cte2 where cte2.a3<3";  // ok
             sql = "with cte as (select * from a where a1=1) select * from cte cte1, cte cte2;";
             sql = "with cte as (select * from a) select * from cte cte1, cte cte2 where cte1.a2=cte2.a3 and cte1.a1> 0 order by 1;";
             sql = "select ab.a1, cd.c1 from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where ab.a1=cd.c1";
-            sql = "with cte as (select avg(a2) from a join b on a1=b1) select * from cte cte1, cte cte2;";
+            sql = "select * from (select avg(a2) from a join b on a1=b1) a (a1) join b on a1=b1;";
+            sql = "with cte as (select * from a join b on a1=b1 join c on a2=c2) select * from cte cte1, cte cte2;"; // ok
+            sql = "with cte as (select count(*) from a join b on a1=b1) select * from cte cte1;"; // ok
+            sql = "with cte as (select count(*) from a join b on a1=b1) select * from cte cte1, cte cte2;";
 
-            doit:
+            //doit:
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
-            a.queryOpt_.profile_.enabled_ = true;
+            a.queryOpt_.profile_.enabled_ = false;
             a.queryOpt_.optimize_.enable_subquery_unnest_ = true;
             a.queryOpt_.optimize_.remove_from_ = false;
             a.queryOpt_.optimize_.use_memo_ = true;

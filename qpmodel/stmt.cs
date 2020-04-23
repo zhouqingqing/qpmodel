@@ -520,11 +520,15 @@ namespace qpmodel.logic
 
         LogicNode FilterPushDown(LogicNode plan, bool pushJoinFilter)
         {
-            // locate the all filters
+            // locate the all filters ingoring any within FromQuery as it will 
+            // be optimized by subquery optimization and this will cause double 
+            // predicate push down (e.g., a1>1 && a1>1)
+            //
             var parents = new List<LogicNode>();
             var indexes = new List<int>();
             var filters = new List<LogicFilter>();
-            var cntFilter = plan.FindNodeTypeMatch(parents, indexes, filters);
+            var cntFilter = plan.FindNodeTypeMatch(parents, 
+                                    indexes, filters, skipFromQuery: true);
 
             for (int i = 0; i < cntFilter; i++)
             {
@@ -532,12 +536,7 @@ namespace qpmodel.logic
                 var filter = filters[i];
                 var index = indexes[i];
 
-
-                // we shall ignore FromQuery as it will be optimized by subquery optimization
-                // and this will cause double predicate push down (e.g., a1>1 && a1>1)
-                if (parent is LogicFromQuery)
-                    return plan;
-
+                Debug.Assert(!(parent is LogicFromQuery));
                 if (filter?.filter_ != null && filter?.movable_ is true)
                 {
                     List<Expr> andlist = new List<Expr>();

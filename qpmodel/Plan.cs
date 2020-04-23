@@ -224,24 +224,30 @@ namespace qpmodel.logic
         }
 
         // traversal pattern FOR EACH with parent-child relationship
-        public void VisitEach(Action<PlanNode<T>, int, PlanNode<T>> callback)
+        public void VisitEach(Action<PlanNode<T>, int, PlanNode<T>> callback, bool skipFromQuery = false)
         {
-            void visitChildren(PlanNode<T> parent, Action<PlanNode<T>, int, PlanNode<T>> callback)
+            void visitParentAndChildren(PlanNode<T> parent,
+                        Action<PlanNode<T>, int, PlanNode<T>> callback, bool skipFromQuery = false)
             {
+                if (skipFromQuery && parent is LogicFromQuery)
+                    return;
+
+                if (parent == this)
+                    callback(null, -1, this);
                 for (int i = 0; i < parent.children_.Count; i++)
                 {
                     var child = parent.children_[i];
                     callback(parent, i, child);
-                    visitChildren(child, callback);
+                    visitParentAndChildren(child, callback, skipFromQuery);
                 }
             }
 
-            callback(null, -1, this);
-            visitChildren(this, callback);
+            visitParentAndChildren(this, callback, skipFromQuery);
         }
 
         // lookup all T1 types in the tree and return the parent-target relationship
-        public int FindNodeTypeMatch<T1>(List<T> parents, List<int> childIndex, List<T1> targets) where T1 : PlanNode<T>
+        public int FindNodeTypeMatch<T1>(List<T> parents,
+            List<int> childIndex, List<T1> targets, bool skipFromQuery = false) where T1 : PlanNode<T>
         {
             VisitEach((parent, index, child)=> {
                 if (child is T1 ct)
@@ -253,7 +259,7 @@ namespace qpmodel.logic
                     // verify the parent-child relationship
                     Debug.Assert(parent is null || parent.children_[index] == child);
                 }
-            });
+            }, skipFromQuery);
 
             return targets.Count;
         }
