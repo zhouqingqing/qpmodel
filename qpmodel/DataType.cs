@@ -50,14 +50,31 @@ namespace qpmodel.expr
         }
 
         // 5/2.0 => 2.5
-        public static ColumnType CoerseType(string op, ColumnType l, ColumnType r)
+        public static ColumnType CoerseType(string op, Expr el, Expr er)
         {
             ColumnType result = null;
+            ColumnType l = el.type_;
+            ColumnType r = er.type_;
+
             if (l.Equals(r))
                 return l;
             else
             {
-                if (l is DoubleType || r is DoubleType)
+                if (l is DoubleType && r is NumericType rnum)
+                {
+                    result = new NumericType(rnum.len_, rnum.scale_);
+                    el.type_ = result;
+                    if (el is LiteralExpr ell)
+                        ell.val_ = Convert.ToDecimal(ell.val_);
+                }
+                else if (r is DoubleType && l is NumericType lnum)
+                {
+                    result = new NumericType(lnum.len_, lnum.scale_);
+                    er.type_ = result;
+                    if (er is LiteralExpr erl)
+                        erl.val_ = Convert.ToDecimal(erl.val_);
+                }
+                else if (l is DoubleType || r is DoubleType)
                     result = new DoubleType();
                 else if (l is AnyType || r is AnyType)
                     result = new AnyType();

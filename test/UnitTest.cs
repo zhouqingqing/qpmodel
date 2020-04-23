@@ -1083,6 +1083,11 @@ namespace test
             result = ExecuteSQL(sql, out phyplan);
             Assert.AreEqual("3", string.Join(";", result));
             TU.PlanAssertEqual(answer, phyplan);
+
+            // type coerce
+            sql = "select 1 + 1.5, 1.75+1.5, 1*1.5, 1.75*1.5";
+            TU.ExecuteSQL(sql, "2.5,3.25,1.5,2.625");
+            // TBD: add numeric types
         }
 
         [TestMethod]

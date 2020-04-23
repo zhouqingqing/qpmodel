@@ -781,7 +781,8 @@ namespace qpmodel.expr
             switch (op_)
             {
                 case "+": case "-": case "*": case "/": case "||":
-                    type_ = ColumnType.CoerseType(op_, l_().type_, r_().type_);
+                    // notice that CoerseType() may change l/r underneath
+                    type_ = ColumnType.CoerseType(op_, l_(), r_());
                     break;
                 case ">": case ">=": case "<": case "<=": 
                 case "=":case "<>": case "!=":
