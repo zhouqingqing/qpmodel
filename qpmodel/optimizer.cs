@@ -86,7 +86,7 @@ namespace qpmodel.optimizer
             Debug.Assert(Logic() != null);
 
             // TODO: copy out destroy the memo so we can't apply checks here
-            bool beforeCopyOut = Optimizer.copyoutCounter_ == 0;
+            bool beforeCopyOut = Stmt().optimizer_.copyoutCounter_ == 0;
             if (beforeCopyOut)
             {
                 // the node itself is a non-memo node
@@ -447,7 +447,7 @@ namespace qpmodel.optimizer
             // end of plan copy out to avoid revisit plan tree (including expr
             // tree again)
             //
-            if (Optimizer.topstmt_.queryOpt_.profile_.enabled_)
+            if (memo_.stmt_.queryOpt_.profile_.enabled_)
                 physic = new PhysicProfiling(physic);
             return physic;
         }
@@ -607,16 +607,13 @@ namespace qpmodel.optimizer
 
     }
 
-    public static class Optimizer
+    public class Optimizer
     {
-        [ThreadStatic]
-        public static List<Memo> memoset_ = new List<Memo>();
-        [ThreadStatic]
-        public static SQLStatement topstmt_;
-        [ThreadStatic]
-        public static int copyoutCounter_ = 0;
+        public List<Memo> memoset_ = new List<Memo>();
+        public SQLStatement topstmt_;
+        public int copyoutCounter_ = 0;
 
-        public static void InitRootPlan(SQLStatement stmt)
+        public void InitRootPlan(SQLStatement stmt)
         {
             // call once
             Rule.Init(stmt.queryOpt_);
@@ -624,7 +621,7 @@ namespace qpmodel.optimizer
             memoset_.Clear();
         }
 
-        public static void OptimizeRootPlan(SQLStatement stmt, PhysicProperty required, bool enqueueit = true)
+        public void OptimizeRootPlan(SQLStatement stmt, PhysicProperty required, bool enqueueit = true)
         {
             var select = stmt as SelectStmt;
 
@@ -646,7 +643,7 @@ namespace qpmodel.optimizer
             foreach (var v in subqueries)
             {
                 enqueueit = !select.SubqueryIsWithMainQuery(v);
-                Optimizer.OptimizeRootPlan(v.query_, required, enqueueit);
+                OptimizeRootPlan(v.query_, required, enqueueit);
             }
 
             // loop through the stack, optimize each one until empty
@@ -659,7 +656,7 @@ namespace qpmodel.optimizer
             memo.ValidateMemo();
         }
 
-        public static PhysicNode CopyOutOnePlan(SQLStatement stmt, Memo memo)
+        public PhysicNode CopyOutOnePlan(SQLStatement stmt, Memo memo)
         {
             var select = stmt as SelectStmt;
 
@@ -685,7 +682,7 @@ namespace qpmodel.optimizer
             return stmt.physicPlan_;
         }
 
-        public static PhysicNode CopyOutOptimalPlan(SQLStatement stmt, bool dequeueit = true)
+        public PhysicNode CopyOutOptimalPlan(SQLStatement stmt, bool dequeueit = true)
         {
             var select = stmt as SelectStmt;
             PhysicNode phyplan = null;
@@ -697,13 +694,13 @@ namespace qpmodel.optimizer
             return phyplan;
         }
 
-        public static PhysicNode CopyOutOptimalPlan()
+        public PhysicNode CopyOutOptimalPlan()
         {
             copyoutCounter_ = 0;
             return CopyOutOptimalPlan(topstmt_);
         }
 
-        public static string PrintMemo() {
+        public string PrintMemo() {
             string str = "";
             memoset_.ForEach(x => str += x.Print());
             return str;

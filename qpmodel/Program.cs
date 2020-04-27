@@ -166,8 +166,8 @@ namespace qpmodel
             if (true)
             { 
                 Tpcds.CreateTables();
-                Tpcds.LoadTables("tiny");
-                Tpcds.AnalyzeTables();
+                //Tpcds.LoadTables("tiny");
+                //Tpcds.AnalyzeTables();
                 // 1, 2,3,7,10,
                 // long time: 4 bad plan
                 // 6: distinct not supported, causing wrong result
@@ -175,16 +175,17 @@ namespace qpmodel
                 goto doit;
             }
 
+        doit:
             sql = "with cte as (select * from d) select * from cte where d1=1;";
             sql = "with cte as (select * from a) select cte1.a1, cte2.a2 from cte cte1, cte cte2 where cte2.a3<3";  // ok
-            sql = "with cte as (select * from a where a1=1) select * from cte cte1, cte cte2;";
             sql = "with cte as (select * from a) select * from cte cte1, cte cte2 where cte1.a2=cte2.a3 and cte1.a1> 0 order by 1;";
             sql = "select ab.a1, cd.c1 from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where ab.a1=cd.c1";
             sql = "select * from (select avg(a2) from a join b on a1=b1) a (a1) join b on a1=b1;";
             sql = "with cte as (select * from a join b on a1=b1 join c on a2=c2) select * from cte cte1, cte cte2;"; // ok
             sql = "with cte as (select count(*) from a join b on a1=b1) select * from cte cte1;"; // ok
             sql = "with cte as (select count(*) from a join b on a1=b1) select * from cte cte1, cte cte2;";
-        doit:
+            sql = "with cte as (select * from d where d1=1) select * from cte cte1, cte cte2;";
+            sql = "with cte as (select * from a where a1=1) select * from cte cte1, cte cte2;";
 
             var stopWatch = new Stopwatch();
             stopWatch.Start();
@@ -220,11 +221,11 @@ namespace qpmodel
                 Console.WriteLine("***************** optimized plan *************");
                 var optplan = a.SubstitutionOptimize();
                 Console.WriteLine(optplan.Explain(0, a.queryOpt_.explain_));
-                Optimizer.InitRootPlan(a);
-                Optimizer.OptimizeRootPlan(a, null);
-                Console.WriteLine(Optimizer.PrintMemo());
-                phyplan = Optimizer.CopyOutOptimalPlan();
-                Console.WriteLine(Optimizer.PrintMemo());
+                a.optimizer_.InitRootPlan(a);
+                a.optimizer_.OptimizeRootPlan(a, null);
+                Console.WriteLine(a.optimizer_.PrintMemo());
+                phyplan = a.optimizer_.CopyOutOptimalPlan();
+                Console.WriteLine(a.optimizer_.PrintMemo());
                 Console.WriteLine("***************** Memo plan *************");
                 Console.WriteLine(phyplan.Explain(0, a.queryOpt_.explain_));
             }

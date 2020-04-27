@@ -54,6 +54,7 @@ namespace qpmodel.logic
 
         // others
         public bool explainOnly_ = false;
+        public Optimizer optimizer_ = new Optimizer();
         public QueryOption queryOpt_ = new QueryOption();
 
         // DEBUG support
@@ -74,9 +75,9 @@ namespace qpmodel.logic
 
             if (queryOpt_.optimize_.use_memo_)
             {
-                Optimizer.InitRootPlan(this);
-                Optimizer.OptimizeRootPlan(this, null);
-                physicPlan_ = Optimizer.CopyOutOptimalPlan();
+                optimizer_.InitRootPlan(this);
+                optimizer_.OptimizeRootPlan(this, null);
+                physicPlan_ = optimizer_.CopyOutOptimalPlan();
             }
             if (explainOnly_)
                 return null;
@@ -101,11 +102,11 @@ namespace qpmodel.logic
             return finalplan.rows_;
         }
 
-        public static List<Row> ExecSQL(string sql, out string physicplan, out string error, QueryOption option = null)
+        public static List<Row> ExecSQL(string sql, out SQLStatement stmt, out string physicplan, out string error, QueryOption option = null)
         {
             try
             {
-                var stmt = RawParser.ParseSingleSqlStatement(sql);
+                stmt = RawParser.ParseSingleSqlStatement(sql);
                 if (option != null)
                     stmt.queryOpt_ = option;
                 var result = stmt.Exec();
@@ -119,10 +120,14 @@ namespace qpmodel.logic
             {
                 error = e.Message;
                 Console.WriteLine(error);
+                stmt = null;
                 physicplan = null;
                 return null;
             }
         }
+
+        public static List<Row> ExecSQL(string sql, out string physicplan, out string error, QueryOption option = null)
+        =>  ExecSQL(sql, out _, out physicplan, out error, option);
 
         // This function can also be used to execute a single SQL statement
         public static string ExecSQLList(string sqls, QueryOption option = null)

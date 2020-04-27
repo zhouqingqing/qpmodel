@@ -47,12 +47,10 @@ namespace qpmodel.sqlparser
 
     public class RawParser
     {
-        [ThreadStatic]
-        static SQLiteVisitor visitor_;
-        [ThreadStatic]
-        static SQLiteParser sqlParser_;
+        SQLiteVisitor visitor_;
+        SQLiteParser sqlParser_;
 
-        public static void Init(string sql)
+        public void Init(string sql)
         {
             AntlrInputStream inputStream = new AntlrInputStream(sql);
             SQLiteLexer sqlLexer = new SQLiteLexer(inputStream);
@@ -66,16 +64,18 @@ namespace qpmodel.sqlparser
         //
         public static StatementList ParseSqlStatements(string sqlbatch)
         {
-            Init(sqlbatch);
-            SQLiteParser.Sql_stmt_listContext stmtCxt = sqlParser_.sql_stmt_list();
-            return visitor_.VisitSql_stmt_list(stmtCxt) as StatementList;
+            RawParser parser = new RawParser();
+            parser.Init(sqlbatch);
+            SQLiteParser.Sql_stmt_listContext stmtCxt = parser.sqlParser_.sql_stmt_list();
+            return parser.visitor_.VisitSql_stmt_list(stmtCxt) as StatementList;
         }
 
         public static SQLStatement ParseSingleSqlStatement(string sql) => ParseSqlStatements(sql).list_[0];
         public static Expr ParseExpr(string expr) {
-            Init(expr);
-            SQLiteParser.ExprContext exprContext = sqlParser_.expr();
-            return visitor_.Visit(exprContext) as Expr;
+            RawParser parser = new RawParser();
+            parser.Init(expr);
+            SQLiteParser.ExprContext exprContext = parser.sqlParser_.expr();
+            return parser.visitor_.Visit(exprContext) as Expr;
         }
     }
 

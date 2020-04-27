@@ -60,7 +60,7 @@ namespace qpmodel.expr
         protected void bindQuery(BindContext context)
         {
             // subquery id is global, so accumulating at top
-            subqueryid_ = ++BindContext.globalSubqCounter_;
+            subqueryid_ = ++context.TopContext().globalSubqCounter_;
 
             // query will use a new query context inside
             var mycontext = query_.Bind(context);

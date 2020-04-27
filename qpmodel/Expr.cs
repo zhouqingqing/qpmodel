@@ -44,9 +44,8 @@ namespace qpmodel.expr
     // 
     public class BindContext
     {
-        // number of subqueries in the whole query
-        [ThreadStatic]
-        internal static int globalSubqCounter_;
+        // number of subqueries in the whole query, only useable for top context
+        internal int globalSubqCounter_;
 
         // bounded tables/subqueries: <seq#, tableref>
         internal readonly Dictionary<int, TableRef> boundFrom_ = new Dictionary<int, TableRef>();
@@ -65,6 +64,13 @@ namespace qpmodel.expr
                 globalSubqCounter_ = 0;
         }
 
+        public BindContext TopContext()
+        {
+            var context = this;
+            while (context.parent_ != null)
+                context = context.parent_;
+            return context;
+        }
         // table APIs
         //
         public void RegisterTable(TableRef tab)
@@ -87,7 +93,7 @@ namespace qpmodel.expr
             }
 
             if (FindSameInParents(tab))
-                tab.alias_ = $"{tab.alias_}__{globalSubqCounter_}";
+                tab.alias_ = $"{tab.alias_}__{TopContext().globalSubqCounter_}";
             boundFrom_.Add(boundFrom_.Count, tab);
         }
         public List<TableRef> AllTableRefs() => boundFrom_.Values.ToList();
@@ -140,8 +146,6 @@ namespace qpmodel.expr
             }
             throw new SemanticAnalyzeException($"column not exists {tabAlias}.{colAlias}");
         }
-
-
     }
 
     // TBD: make it per query
