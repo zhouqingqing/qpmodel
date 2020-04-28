@@ -530,7 +530,11 @@ namespace qpmodel.expr
         }
     }
 
-    public class Expr
+    // Expr: root class of expression
+    //     subclass shall only use children_ to contain Expr, otherwise
+    //      Bind() etc won't work.
+    //
+    public class Expr: TreeNode<Expr>
     {
         // unique identifier
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
@@ -548,10 +552,6 @@ namespace qpmodel.expr
         //    4. Output name can be refered by ORDER BY|GROUP BY but not WHERE|HAVING.
         //
         internal string outputName_;
-
-        // subclass shall only use children_ to contain Expr, otherwise, Bind() etc won't work
-        [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-        internal List<Expr> children_ = new List<Expr>();
 
         // we require some columns for query processing but user may not want 
         // them in the final output, so they are marked as invisible.
@@ -576,13 +576,6 @@ namespace qpmodel.expr
 
         public Expr() { _ = $"{ObjectID.NewId()}"; }
 
-        public bool IsLeaf() => children_.Count == 0;
-
-        // shortcut for conventional names
-        public Expr child_() { Debug.Assert(children_.Count == 1); return children_[0]; }
-        public Expr l_() { Debug.Assert(children_.Count == 2); return children_[0]; }
-        public Expr r_() { Debug.Assert(children_.Count == 2); return children_[1]; }
-
         protected string outputName() => outputName_ != null ? $"(as {outputName_})" : null;
 
         void validateAfterBound() {
@@ -594,31 +587,6 @@ namespace qpmodel.expr
         public bool EqualTableRef(TableRef tableRef){ validateAfterBound();Debug.Assert(TableRefCount() == 1);return tableRefs_[0].Equals(tableRef);}
         public bool TableRefsContainedBy(List<TableRef> tableRefs){validateAfterBound();return tableRefs.ContainsList(tableRefs_);}
 
-        bool VisitEachExistsT<T>(Func<T, bool> check, List<Type> excluding = null) where T : Expr
-        {
-            if (excluding?.Contains(GetType()) ?? false)
-                return false;
-
-            bool r = check(this as T);
-            if (!r)
-            {
-                foreach (var v in children_)
-                {
-                    if (v.VisitEachExistsT(check, excluding))
-                        return true;
-                }
-            }
-            return r;
-        }
-        public bool VisitEachExists(Func<Expr, bool> check, List<Type> excluding = null)
-            => VisitEachExistsT<Expr>(check, excluding);
-        public void VisitEachT<T>(Action<T> callback) where T : Expr
-        {
-            if (this is T)
-                callback(this as T);
-            foreach (var v in children_)
-                v.VisitEachT<T>(callback);
-        }
         public void VisitEach(Action<Expr> callback) => VisitEachT<Expr>(callback);
         public void VisitEachIgnoreRef<T>(Action<T> callback) where T : Expr
             => VisitEachIgnore<ExprRef, T>(callback);

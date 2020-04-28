@@ -357,7 +357,8 @@ namespace qpmodel.logic
             internal string alias_;
 
             internal NamedQuery(SelectStmt query, string alias) 
-            { 
+            {
+                Debug.Assert(query != null);
                 query_ = query;
                 alias_ = alias;
             }
@@ -368,6 +369,8 @@ namespace qpmodel.logic
                     return on.query_.Equals(query_) && string.Equals(alias_, on.alias_);
                 return false;
             }
+
+            public override int GetHashCode() => query_.GetHashCode() ^ alias_?.GetHashCode()??0;
         }
 
         // parse info
@@ -533,7 +536,7 @@ namespace qpmodel.logic
             var indexes = new List<int>();
             var filters = new List<LogicFilter>();
             var cntFilter = plan.FindNodeTypeMatch(parents, 
-                                    indexes, filters, skipFromQuery: true);
+                                    indexes, filters, skipParentType: typeof(LogicFromQuery));
 
             for (int i = 0; i < cntFilter; i++)
             {

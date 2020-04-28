@@ -107,17 +107,8 @@ namespace qpmodel.logic
         public bool show_output_ { get; set; } = true;
     }
 
-    public abstract class PlanNode<T> where T : PlanNode<T>
+    public abstract class PlanNode<T>: TreeNode<T> where T : PlanNode<T>
     {
-        [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-        public List<T> children_ = new List<T>();
-        public bool IsLeaf() => children_.Count == 0;
-
-        // shortcut for conventional names
-        public T child_() { Debug.Assert(children_.Count == 1); return children_[0]; }
-        public T l_() { Debug.Assert(children_.Count == 2); return children_[0]; }
-        public T r_() { Debug.Assert(children_.Count == 2); return children_[1]; }
-
         // print utilities
         public virtual string ExplainOutput(int depth, ExplainOption option) => null;
         public virtual string ExplainInlineDetails() => null;
@@ -200,56 +191,9 @@ namespace qpmodel.logic
             return r;
         }
 
-        // traversal pattern EXISTS
-        //  if any visit returns a true, stop recursion. So if you want to
-        //  visit all nodes regardless, use TraverseEachNode(). 
-        // 
-        public bool VisitEachExists(Func<PlanNode<T>, bool> callback)
-        {
-            bool exists = callback(this);
-            if (!exists)
-            {
-                foreach (var c in children_)
-                    if (c.VisitEachExists(callback))
-                        return true;
-            }
-
-            return exists;
-        }
-
-        // traversal pattern FOR EACH
-        public void VisitEach(Action<PlanNode<T>> callback)
-        {
-            callback(this);
-            foreach (var c in children_)
-                c.VisitEach(callback);
-        }
-
-        // traversal pattern FOR EACH with parent-child relationship
-        public void VisitEach(Action<PlanNode<T>, int, PlanNode<T>> callback, bool skipFromQuery = false)
-        {
-            void visitParentAndChildren(PlanNode<T> parent,
-                        Action<PlanNode<T>, int, PlanNode<T>> callback, bool skipFromQuery = false)
-            {
-                if (skipFromQuery && parent is LogicFromQuery)
-                    return;
-
-                if (parent == this)
-                    callback(null, -1, this);
-                for (int i = 0; i < parent.children_.Count; i++)
-                {
-                    var child = parent.children_[i];
-                    callback(parent, i, child);
-                    visitParentAndChildren(child, callback, skipFromQuery);
-                }
-            }
-
-            visitParentAndChildren(this, callback, skipFromQuery);
-        }
-
         // lookup all T1 types in the tree and return the parent-target relationship
         public int FindNodeTypeMatch<T1>(List<T> parents,
-            List<int> childIndex, List<T1> targets, bool skipFromQuery = false) where T1 : PlanNode<T>
+            List<int> childIndex, List<T1> targets, Type skipParentType = null) where T1 : PlanNode<T>
         {
             VisitEach((parent, index, child)=> {
                 if (child is T1 ct)
@@ -261,7 +205,7 @@ namespace qpmodel.logic
                     // verify the parent-child relationship
                     Debug.Assert(parent is null || parent.children_[index] == child);
                 }
-            }, skipFromQuery);
+            }, skipParentType);
 
             return targets.Count;
         }
