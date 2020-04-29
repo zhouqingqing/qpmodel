@@ -1,4 +1,4 @@
-# An Relational Optimizer and Executor Modeling
+# A Relational Optimizer and Executor Modeling
 This project models a relational optimizer and executor in c#. The purpose of the modeling is to prepare for a more serious implementation of database optimizer and execution. See github project "issues" for bugs and todo items.
 
 ## Why C#
@@ -44,7 +44,9 @@ You can see an example generated code for this query [here](https://github.com/z
 ```
 
 ## How to Play
-Load the project with Visual Studio 2019 community edition (free). Program.Main() mainly for debugging purpose. So run unittest project. The unittest come up with multiple tests:
-- TPCH with small data set
+Load the project with Visual Studio 2019 community edition (it is free). Program.Main() mainly for debugging purpose. There are several builtin tables like 'a', 'b', 'c', 'd' for testing purpose, and you can find their definition in Catalog.createBuildInTestTables(). 
+
+Unittest comes up with multiple tests covering major functionalities:
+- TPCH end to end power run with small data set
 - TPCDS, JoBench only exercise the optimizer
-- Other grouped unittest
+- Other grouped unittest stressing different aspects
