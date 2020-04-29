@@ -152,16 +152,13 @@ namespace test
             option.optimize_.enable_subquery_unnest_ = false;
             option.optimize_.use_codegen_ = true;
 
-            var result = TU.ExecuteSQL(sql, out string phyplan, option);
-            Assert.AreEqual("4,1;6,4", string.Join(";", result));
+            TU.ExecuteSQL(sql, "4,1;6,4", out string phyplan, option);
             sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 limit 2;";
-            result = TU.ExecuteSQL(sql, out phyplan, option);
-            Assert.AreEqual("2,1;4,1", string.Join(";", result));
+            TU.ExecuteSQL(sql, "2,1;4,1", out phyplan, option);
 
             // demonstrate we can fallback to any non-codegen execution
             sql = "select a2*a1, repeat('a', a2) from a where a1>= (select b1 from b where a2=b2);";
-            result = TU.ExecuteSQL(sql, out phyplan, option);
-            Assert.AreEqual("0,a;2,aa;6,aaa", string.Join(";", result));
+            TU.ExecuteSQL(sql, "0,a;2,aa;6,aaa", out phyplan, option);
         }
     }
 
@@ -330,8 +327,7 @@ namespace test
 
                 var result = TU.ExecuteSQL(File.ReadAllText(files[0]), out _, option);  // FIXME: projection too deep
                 Assert.AreEqual(4, result.Count);
-                result = TU.ExecuteSQL(File.ReadAllText(files[1]), out _, option);
-                Assert.AreEqual("", string.Join(";", result));
+                TU.ExecuteSQL(File.ReadAllText(files[1]), "", out _, option);
                 result = TU.ExecuteSQL(File.ReadAllText(files[2]), out phyplan, option);
                 Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicHashJoin"));
                 Assert.AreEqual(8, result.Count);
@@ -339,17 +335,13 @@ namespace test
                 Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin")); Assert.AreEqual(0, TU.CountStr(phyplan, "Subquery"));
                 Assert.AreEqual(5, result.Count);
                 Assert.AreEqual("1-URGENT,9;2-HIGH,7;3-MEDIUM,9;4-NOT SPECIFIED,7;5-LOW,12", string.Join(";", result));
-                result = TU.ExecuteSQL(File.ReadAllText(files[4]), out phyplan, option);
+                TU.ExecuteSQL(File.ReadAllText(files[4]), "", out phyplan, option);
                 if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
-                Assert.AreEqual("", string.Join(";", result));
-                result = TU.ExecuteSQL(File.ReadAllText(files[5]), out _, option); // FIXME: sampling estimation
+                TU.ExecuteSQL(File.ReadAllText(files[5]), "77949.9186", out _, option); // FIXME: sampling estimation
                 if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
-                Assert.AreEqual("77949.9186", string.Join(";", result));
-                result = TU.ExecuteSQL(File.ReadAllText(files[6]), out _, option);
-                Assert.AreEqual("", string.Join(";", result));
-                result = TU.ExecuteSQL(File.ReadAllText(files[7]), out _, option);
+                TU.ExecuteSQL(File.ReadAllText(files[6]), "", out _, option);
+                TU.ExecuteSQL(File.ReadAllText(files[7]), "1995,0;1996,0", out _, option);
                 if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
-                Assert.AreEqual("1995,0;1996,0", string.Join(";", result));
                 result = TU.ExecuteSQL(File.ReadAllText(files[8]), out _, option);
                 if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
                 Assert.AreEqual(60, result.Count);
@@ -370,11 +362,9 @@ namespace test
                 result = TU.ExecuteSQL(File.ReadAllText(files[9]), out _, option);
                 if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
                 Assert.AreEqual(20, result.Count);
-                result = TU.ExecuteSQL(File.ReadAllText(files[10]), out _, option);
+                TU.ExecuteSQL(File.ReadAllText(files[10]), "",  out _, option);
                 if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
-                Assert.AreEqual("", string.Join(";", result));
-                result = TU.ExecuteSQL(File.ReadAllText(files[11]), out _, option);
-                Assert.AreEqual("MAIL,5,5;SHIP,5,10", string.Join(";", result));
+                TU.ExecuteSQL(File.ReadAllText(files[11]), "MAIL,5,5;SHIP,5,10", out _, option);
                 // FIXME: agg on agg from
                 option.optimize_.remove_from_ = false;
                 result = TU.ExecuteSQL(File.ReadAllText(files[12]), out _, option); // FIXME: remove_from
@@ -384,18 +374,12 @@ namespace test
                 Assert.AreEqual(1, result.Count);
                 Assert.AreEqual(true, result[0].ToString().Contains("15.23"));
                 // q15 cte
-                result = TU.ExecuteSQL(File.ReadAllText(files[15]), out _, option);
-                Assert.AreEqual("", string.Join(";", result));
-                result = TU.ExecuteSQL(File.ReadAllText(files[16]), out _, option);
-                Assert.AreEqual("", string.Join(";", result));
-                result = TU.ExecuteSQL(File.ReadAllText(files[17]), out _, option);
-                Assert.AreEqual("", string.Join(";", result));
-                result = TU.ExecuteSQL(File.ReadAllText(files[18]), out _, option); // FIXME: .. or ... or ...
-                Assert.AreEqual("", string.Join(";", result));
-                result = TU.ExecuteSQL(File.ReadAllText(files[19]), out _, option);
-                Assert.AreEqual("", string.Join(";", result));
-                result = TU.ExecuteSQL(File.ReadAllText(files[20]), out _, option);
-                Assert.AreEqual("", string.Join(";", result));
+                TU.ExecuteSQL(File.ReadAllText(files[15]), "", out _, option);
+                TU.ExecuteSQL(File.ReadAllText(files[16]), "", out _, option);
+                TU.ExecuteSQL(File.ReadAllText(files[17]), "", out _, option);
+                TU.ExecuteSQL(File.ReadAllText(files[18]),  out _, option); // FIXME: .. or ... or ...
+                TU.ExecuteSQL(File.ReadAllText(files[19]), "", out _, option);
+                TU.ExecuteSQL(File.ReadAllText(files[20]), "", out _, option);
                 option.optimize_.remove_from_ = false;
                 result = TU.ExecuteSQL(File.ReadAllText(files[21]), out phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicFromQuery"));
@@ -489,13 +473,13 @@ namespace test
             Assert.AreEqual("3", string.Join(";", result));
 
             sql = "select count(*) from a where a1 in (select b2 from b where b1 > 0) and a2 in (select b3 from b where b1 > 0);";
-            result = TU.ExecuteSQL(sql, out phyplan, option); TU.CountOccurrences(phyplan, "PhysicFilter", 0); Assert.AreEqual("1", string.Join(";", result));
+            TU.ExecuteSQL(sql, "1",out phyplan, option); TU.CountOccurrences(phyplan, "PhysicFilter", 0);
 
             sql = "select count(*) from (select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1 and a1>0) v;";
-            result = TU.ExecuteSQL(sql, out phyplan, option); TU.CountOccurrences(phyplan, "PhysicFilter", 0); Assert.AreEqual("2", string.Join(";", result));
+            TU.ExecuteSQL(sql, "2", out phyplan, option); TU.CountOccurrences(phyplan, "PhysicFilter", 0);
 
             sql = "select a2 from a where a.a3 > (select min(b1*2) from b where b.b2 >= (select c2-1 from c where c.c2=b2) and b.b3 > ((select c2 from c where c.c2=b2)));"; 
-            result = TU.ExecuteSQL(sql, out phyplan, option);
+            TU.ExecuteSQL(sql, "1;2;3", out phyplan, option);
             var answer = @"PhysicScanTable a (actual rows=3)
                             Output: a.a2[1]
                             Filter: a.a3[2]>@1
@@ -521,33 +505,28 @@ namespace test
                                                         Output: c.c2[1]
                                             -> PhysicScanTable c (actual rows=3, loops=3)
                                                 Output: c.c2[1]";
-            Assert.AreEqual("1;2;3", string.Join(";", result));
             TU.PlanAssertEqual(answer, phyplan);
 
             sql = "select count(*) from a, b,c,d where a1+b1+c1+d1=1;";
-            result = TU.ExecuteSQL(sql, out phyplan, option);
+            TU.ExecuteSQL(sql, "4", out phyplan, option);
             Assert.AreEqual(0, TU.CountStr(phyplan, "HashJoin"));
-            Assert.AreEqual("4", string.Join(";", result));
 
             // FIXME: a.a1+b.a1=5-c.a1, a.a1+b.a1+c.a1=5
             sql = "select a.a1,b.a1,c.a1, a.a1+b.a1+c.a1 from a, a b, a c where a.a1=5-b.a1-c.a1;";
-            result = TU.ExecuteSQL(sql, out phyplan, option);
+            TU.ExecuteSQL(sql, "2,2,1,5;2,1,2,5;1,2,2,5", out phyplan, option);
             Assert.AreEqual(1, TU.CountStr(phyplan, "a.a1[0]=5-b.a1[1]-c.a1[2]"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "HashJoin"));
-            Assert.AreEqual("2,2,1,5;2,1,2,5;1,2,2,5", string.Join(";", result));
 
             sql = "select a.* from a join b on a1=b1 or a3=b3 join c on a2=c2;";
-            result = TU.ExecuteSQL(sql, out phyplan, option);
+            TU.ExecuteSQL(sql, "0,1,2,3;1,2,3,4;2,3,4,5", out phyplan, option);
             Assert.AreEqual(1, TU.CountStr(phyplan, "NLJoin"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "HashJoin"));
-            Assert.AreEqual("0,1,2,3;1,2,3,4;2,3,4,5", string.Join(";", result));
 
             sql = "select a.* from a join b on a1=b1 or a3=b3 join c on a2=c2 join d on a4=2*d3;";
-            result = TU.ExecuteSQL(sql, out phyplan, option);
+            TU.ExecuteSQL(sql, "1,2,3,4", out phyplan, option);
             Assert.AreEqual(1, TU.CountStr(phyplan, "NLJoin"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "Filter: a.a1[0]=b.b1[4] or a.a3[2]=b.b3[5]"));
             Assert.AreEqual(2, TU.CountStr(phyplan, "HashJoin"));
-            Assert.AreEqual("1,2,3,4", string.Join(";", result));
 
             Assert.IsTrue(option.optimize_.use_memo_);
         }
@@ -570,34 +549,28 @@ namespace test
                 // exist-subquery
                 var phyplan = "";
                 var sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1);";
-                var result = TU.ExecuteSQL(sql, out phyplan, option);
+                TU.ExecuteSQL(sql, "1;2", out phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin"));
-                Assert.AreEqual("1;2", string.Join(";", result));
                 sql = "select a2 from a where exists (select * from a);";
-                result = TU.ExecuteSQL(sql, out phyplan, option);
+                TU.ExecuteSQL(sql, "1;2;3", out phyplan, option);
                 Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicMarkJoin"));
-                Assert.AreEqual("1;2;3", string.Join(";", result));
                 sql = "select a2 from a where not exists (select * from a b where b.a3>=a.a1+b.a1+1);";
-                result = TU.ExecuteSQL(sql, out phyplan, option);
+                TU.ExecuteSQL(sql, "3", out phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin"));
-                Assert.AreEqual("3", string.Join(";", result));
                 sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and a2>2;";
-                result = TU.ExecuteSQL(sql, out phyplan);
+                var result = TU.ExecuteSQL(sql, out phyplan);
                 Assert.AreEqual(0, result.Count);
                 sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2;";
-                result = TU.ExecuteSQL(sql, out phyplan, option);
+                TU.ExecuteSQL(sql, "1;2;3", out phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin"));
-                Assert.AreEqual("1;2;3", string.Join(";", result));
                 sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
-                result = TU.ExecuteSQL(sql, out phyplan, option);
+                TU.ExecuteSQL(sql, "0,1;1,2", out phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin"));
-                Assert.AreEqual("0,1;1,2", string.Join(";", result));
                 // multiple subquery - FIXME: shall be two mark join
                 sql = @"select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1)
                      and a2>1 and not exists (select * from a b where b.a2+7=a.a1+b.a1);";
-                result = TU.ExecuteSQL(sql, out phyplan, option);
+                TU.ExecuteSQL(sql, "2", out phyplan, option);
                 Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicMarkJoin"));
-                Assert.AreEqual("2", string.Join(";", result));
             }
         }
 
@@ -612,35 +585,26 @@ namespace test
 
                 var phyplan = "";
                 var sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2);";
-                var result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
-                Assert.AreEqual("0,2;1,3;2,4", string.Join(";", result));
+                TU.ExecuteSQL(sql, "0,2;1,3;2,4", out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 sql = "select a1, a3  from a where a.a2 = (select b1*2 from b where b2 = a2);";
-                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
-                Assert.AreEqual("1,3", string.Join(";", result));
+                TU.ExecuteSQL(sql, "1,3", out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<3);";
-                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
-                Assert.AreEqual("0,2", string.Join(";", result));
+                TU.ExecuteSQL(sql, "0,2", out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) and a2>1;";
-                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
-                Assert.AreEqual("1,3", string.Join(";", result));
+                TU.ExecuteSQL(sql, "1,3", out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 sql = @"select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) 
                 and b.b1 > (select c2 / 2 from c where c.c3 = 3);";
-                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
-                Assert.AreEqual("2", string.Join(";", result));
+                TU.ExecuteSQL(sql, "2", out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 sql = @"select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) 
                 and b.b1 > (select c2 / 2 from c where c.c3 = b3);";
-                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicSingleJoin"));
-                Assert.AreEqual("2", string.Join(";", result));
+                TU.ExecuteSQL(sql, "2", out phyplan, option); Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 sql = @"select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 
                 and b1 = (select b1 from b where b3 = a3 and b3>1) and b2<3);";
-                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicSingleJoin"));
-                Assert.AreEqual("0;1", string.Join(";", result));
+                TU.ExecuteSQL(sql, "0;1", out phyplan, option); Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 sql = "select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b2 = 2*a1 and b3>1) and b2<3);";
-                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicSingleJoin"));
-                Assert.AreEqual("1", string.Join(";", result));
+                TU.ExecuteSQL(sql, "1", out phyplan, option); Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 sql = "select a1,a2,b2 from b join a on a1=b1 where a1-1 < (select a2/2 from a where a2=b2);";
-                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
-                Assert.AreEqual("0,1,1;1,2,2", string.Join(";", result));
+                TU.ExecuteSQL(sql, "0,1,1;1,2,2", out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
 
                 //  OR condition failed 
                 sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) or a2>1;";
@@ -665,14 +629,11 @@ namespace test
             Assert.IsNull(result);
             Assert.IsTrue(TU.error_.Contains("SemanticAnalyzeException"));
             sql = "select b.a1 + a2 from (select a1,a2 from a) b";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual("1;3;5", string.Join(";", result));
+            TU.ExecuteSQL(sql, "1;3;5");
             sql = "select a3 from (select a1,a3 from a) b";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual("2;3;4", string.Join(";", result));
+            TU.ExecuteSQL(sql, "2;3;4");
             sql = "select b1+c1 from (select b1 from b) a, (select c1 from c) c where c1>1";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual("2;3;4", string.Join(";", result));
+            TU.ExecuteSQL(sql, "2;3;4");
             sql = "select count(*) from (select * from a where a1 > 1) b;";
             result = ExecuteSQL(sql, out string phyplan);
             var answer = @"PhysicHashAgg  (actual rows=1)
@@ -691,34 +652,34 @@ namespace test
             sql = "select b2 from (select a3, a4 from a) b(b2,b3,b4);";
             result = ExecuteSQL(sql); Assert.IsNull(result); Assert.IsTrue(TU.error_.Contains("SemanticAnalyzeException"));
             sql = "select sum(a12) from (select a1*a2 a12 from a);";
-            result = ExecuteSQL(sql); Assert.AreEqual("8", string.Join(";", result));
+            TU.ExecuteSQL(sql, "8");
             sql = "select sum(a12) from (select a1*a2 a12 from a) b;";
-            result = ExecuteSQL(sql); Assert.AreEqual("8", string.Join(";", result));
+            TU.ExecuteSQL(sql, "8");
             sql = "select a4 from (select a3, a4 from a) b(a4);"; 
-            result = ExecuteSQL(sql); Assert.AreEqual("2;3;4", string.Join(";", result));
+            TU.ExecuteSQL(sql, "2;3;4");
             sql = "select c.d1 from (select sum(a12) from (select a1*a2 a12 from a) b) c(d1);";
-            result = ExecuteSQL(sql); Assert.AreEqual("8", string.Join(";", result));
+            TU.ExecuteSQL(sql, "8");
             sql = "select sum(e1) from (select d1 from (select sum(a12) from (select a1, a2, a1*a2 a12 from a) b) c(d1)) d(e1);";
-            result = ExecuteSQL(sql); Assert.AreEqual("8", string.Join(";", result));
+            TU.ExecuteSQL(sql, "8");
             sql = "select e1 from (select * from (select sum(a12) from (select a1*a2 as a12, a1, a2 from a) b) c(d1)) d(e1);";
-            result = ExecuteSQL(sql); Assert.AreEqual("8", string.Join(";", result));
+            TU.ExecuteSQL(sql, "8");
             sql = "select e1 from (select e1 from (select sum(a12) from (select a1*a2 a12 from a) b) c(e1)) d;";
-            result = ExecuteSQL(sql); Assert.AreEqual("8", string.Join(";", result));
+            TU.ExecuteSQL(sql, "8");
             sql = "select e1 from(select d1 from (select sum(ab12) from (select a1* b2 ab12 from a join b on a1= b1) b) c(d1)) d(e1);";
-            result = ExecuteSQL(sql); Assert.AreEqual("8", string.Join(";", result));
+            TU.ExecuteSQL(sql, "8");
             sql = " select a1, sum(a12) from (select a1, a1*a2 a12 from a) b where a1 >= (select c1 from c where c1=a1) group by a1;";
-            result = ExecuteSQL(sql); Assert.AreEqual("0,0;1,2;2,6", string.Join(";", result));
+            TU.ExecuteSQL(sql, "0,0;1,2;2,6");
             sql = "select a1, sum(a12) as a2 from (select a1, a1*a2 a12 from a) b where a1 >= (select c1 from c where c1=a12) group by a1;";
-            result = ExecuteSQL(sql); Assert.AreEqual("0,0", string.Join(";", result));
+            TU.ExecuteSQL(sql, "0,0");
             sql = @"SELECT e1  FROM   (SELECT d1 FROM   (SELECT Sum(ab12) 
                                         FROM   (SELECT e1 * b2 ab12 FROM   (SELECT e1 FROM   (SELECT d1 
                                                                 FROM   (SELECT Sum(ab12) 
                                                                         FROM   (SELECT a1 * b2 ab12 FROM  a  JOIN b ON a1 = b1) b) 
                                                                        c(d1)) 
                                                                d(e1)) a JOIN b ON e1 = 8*b1) b) c(d1)) d(e1); ";
-            result = ExecuteSQL(sql); Assert.AreEqual("16", string.Join(";", result));
+            TU.ExecuteSQL(sql, "16");
             sql = "select *, cd.* from (select a.* from a join b on a1=b1) ab , (select c1 , c3 from c join d on c1=d1) cd where ab.a1=cd.c1";
-            result = ExecuteSQL(sql); Assert.AreEqual("0,1,2,3,0,2,0,2;1,2,3,4,1,3,1,3;2,3,4,5,2,4,2,4", string.Join(";", result));
+            TU.ExecuteSQL(sql, "0,1,2,3,0,2,0,2;1,2,3,4,1,3,1,3;2,3,4,5,2,4,2,4");
             #endregion
 
             // these queries we can remove from
@@ -836,7 +797,7 @@ namespace test
 
             // scalar subquery
             sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = 3)";
-            result = ExecuteSQL(sql); Assert.AreEqual("2,4", string.Join(";", result));
+            TU.ExecuteSQL(sql, "2,4");
             sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = 4)";
             result = ExecuteSQL(sql); Assert.AreEqual(0, result.Count);
 
@@ -851,22 +812,22 @@ namespace test
             sql = "select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3 = a3 and b3>1) and b2<4);"; TU.ExecuteSQL(sql, "0;1;2");
             // test4: deep/ref 2+ outside vars
             sql = "select a1,a2,a3  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b3<4);";
-            result = ExecuteSQL(sql); Assert.AreEqual("0,1,2;1,2,3", string.Join(";", result));
+            TU.ExecuteSQL(sql, "0,1,2;1,2,3");
             sql = @" select a1+a2+a3  from a where a.a1 = (select b1 from b bo where b4 = a4 and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 2) and b3<5)
             and a.a2 = (select b2 from b bo where b1 = a1 and b2 >= (select b2 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b3<4);";
-            result = ExecuteSQL(sql); Assert.AreEqual("6", string.Join(";", result));
+            TU.ExecuteSQL(sql, "6");
             sql = @"select a4  from a where a.a1 = (select b1 from (select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2
             and b1 = (select b1 from b where b3=a3 and bo.b3 = a3 and b3> 1) and b2<5)
             and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b3=a3 and bo.b3 = a3 and b3> 0) and b3<5);";
-            result = ExecuteSQL(sql); Assert.AreEqual("3;4;5", string.Join(";", result));
+            TU.ExecuteSQL(sql, "3;4;5");
             sql = @"select a1 from a, b where a1=b1 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
             and b1 = (select b1 from b where b3 = a3 and bo.b3 = a3 and b3> 1) and b2<5)
             and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and b3<5);";
-            result = ExecuteSQL(sql); Assert.AreEqual("0;1;2", string.Join(";", result));
+            TU.ExecuteSQL(sql, "0;1;2");
             sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
             and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
             and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
-            result = ExecuteSQL(sql); Assert.AreEqual("0;1;2", string.Join(";", result));
+            TU.ExecuteSQL(sql, "0;1;2");
             sql = "select b3+c2 from a, b, c where (select b1+b2 from b where b1=a1)>4 and (select c2+c3 from c where c1=b1)>6 and c1<1"; TU.ExecuteSQL(sql, "5");
 
             // in-list and in-subquery
@@ -896,22 +857,19 @@ namespace test
 
                 var phyplan = "";
                 var sql = "select a1, 5+(select b2 from b where b1=a1) from a group by 1;";
-                var result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
-                Assert.AreEqual("0,6;1,7;2,8", string.Join(";", result));
+                TU.ExecuteSQL(sql, "0,6;1,7;2,8", out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2)";
-                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
-                Assert.AreEqual("0,2;1,3;2,4", string.Join(";", result));
+                TU.ExecuteSQL(sql, "0,2;1,3;2,4", out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) and a2>1;";
-                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
-                Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicFilter")); Assert.AreEqual("1,3", string.Join(";", result));
+                TU.ExecuteSQL(sql, "1,3", out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
+                Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicFilter"));
                 sql = @"select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) 
                     and b.b1 > (select c2 / 2 from c where c.c3 = b3);";
-                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicSingleJoin"));
-                Assert.AreEqual("2", string.Join(";", result));
+                TU.ExecuteSQL(sql, "2", out phyplan, option); Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicSingleJoin"));
 
                 // runtime error: more than one row inside
                 sql = "select a1 from a where a2 > (select b1 from b where b3>=a3);";
-                result = TU.ExecuteSQL(sql, out phyplan, option); Assert.IsTrue(TU.error_.Contains("SemanticExecutionException"));
+                var result = TU.ExecuteSQL(sql, out phyplan, option); Assert.IsTrue(TU.error_.Contains("SemanticExecutionException"));
             }
         }
 
@@ -977,9 +935,9 @@ namespace test
         public void TestOutputName()
         {
             var sql = "select a1 from(select b1 as a1 from b) c;";
-            var result = TU.ExecuteSQL(sql); Assert.AreEqual("0;1;2", string.Join(";", result));
+            TU.ExecuteSQL(sql, "0;1;2");
             sql = "select b1 from(select b1 as a1 from b) c;";
-            result = TU.ExecuteSQL(sql); Assert.IsNull(result); Assert.IsTrue(TU.error_.Contains("SemanticAnalyzeException"));
+            var result = TU.ExecuteSQL(sql); Assert.IsNull(result); Assert.IsTrue(TU.error_.Contains("SemanticAnalyzeException"));
             sql = "select b1 from(select b1 as a1 from b) c(b1);"; TU.ExecuteSQL(sql, "0;1;2");
 
             sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1"; TU.ExecuteSQL(sql, "5");
@@ -1031,21 +989,18 @@ namespace test
         {
             var phyplan = "";
             var sql = "select repeat('ab', 2) from a;";
-            var result = TU.ExecuteSQL(sql, out phyplan);
+            TU.ExecuteSQL(sql, "abab;abab;abab", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "abab"));
-            Assert.AreEqual("abab;abab;abab", string.Join(";", result));
             sql = "select 1+2*3, 1+2+a1 from a where a1+2+(1*5+1)>2*3 and 1+2=2+1;";
-            result = TU.ExecuteSQL(sql, out phyplan);
+            TU.ExecuteSQL(sql, "7,3;7,4;7,5", out phyplan);
             Assert.AreEqual(0, TU.CountStr(phyplan, "True"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "7,3+a.a1[0]"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "a.a1[0]+2+6>6")); // FIXME
-            Assert.AreEqual("7,3;7,4;7,5", string.Join(";", result));
             sql = "select 1+20*3, 1+2.1+a1 from a where a1+2+(1*5+1)>2*4.6 and 1+2<2+1.4;";
-            result = TU.ExecuteSQL(sql, out phyplan);
+            TU.ExecuteSQL(sql, "61,5.1", out phyplan);
             Assert.AreEqual(0, TU.CountStr(phyplan, "True"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "61"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "9.2"));
-            Assert.AreEqual("61,5.1", string.Join(";", result));
         }
     }
 
@@ -1070,7 +1025,7 @@ namespace test
             result = ExecuteSQL(sql);
             Assert.AreEqual(1 * 3, result.Count);
             sql = "select a.a2,a.a2,a3,a.a1+b2 from a,b where a.a1 > 1";
-            result = ExecuteSQL(sql); Assert.AreEqual("3,3,4,3;3,3,4,4;3,3,4,5", string.Join(";", result));
+            TU.ExecuteSQL(sql, "3,3,4,3;3,3,4,4;3,3,4,5");
             sql = @"select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2;";
             result = ExecuteSQL(sql);
             Assert.AreEqual(9, result.Count);
@@ -1091,15 +1046,14 @@ namespace test
         {
             string phyplan;
             var sql = "select a2 from a where a1 between (1 , 2);";
-            var result = ExecuteSQL(sql); Assert.AreEqual("2;3", string.Join(";", result));
+            TU.ExecuteSQL(sql, "2;3");
             sql = "select count(a1) from a where 3>2 or 2<5";
             var answer = @"PhysicHashAgg   (actual rows=1)
                             Output: {count(a.a1)}[0]
                                Aggregates: count(a.a1[0])
                             -> PhysicScanTable a  (actual rows=3)
                                 Output: a.a1[0]";
-            result = ExecuteSQL(sql, out phyplan);
-            Assert.AreEqual("3", string.Join(";", result));
+            TU.ExecuteSQL(sql, "3", out phyplan);
             TU.PlanAssertEqual(answer, phyplan);
 
             // type coerce
@@ -1149,24 +1103,23 @@ namespace test
         public void TestExecSelectFilter()
         {
             var sql = "select a1+a2,a1-a2,a1*a2 from a;";
-            var result = ExecuteSQL(sql); Assert.AreEqual(3, result.Count);
+            var result = ExecuteSQL(sql);
             sql = "select a1 from a where a2>1;";
-            result = ExecuteSQL(sql); Assert.AreEqual("1;2", string.Join(";", result));
+            TU.ExecuteSQL(sql, "1;2");
             sql = "select a.a1 from a where a2 > 1 and a3> 3;";
-            result = ExecuteSQL(sql); Assert.AreEqual("2", string.Join(";", result));
+            TU.ExecuteSQL(sql, "2");
             sql = "select a.a1 from a where a2 > 1 or a3> 3;";
-            result = ExecuteSQL(sql); Assert.AreEqual("1;2", string.Join(";", result));
+            TU.ExecuteSQL(sql, "1;2");
             sql = "select a.a1 from a where a2 > 1 and a3> 3;";
-            result = ExecuteSQL("select a1 from a where a2>2");
-            Assert.AreEqual("2", string.Join(";", result));
+            TU.ExecuteSQL("select a1 from a where a2>2", "2");
             sql = "select a1,a1,a3,a3 from a where a1>1;";
-            result = ExecuteSQL(sql); Assert.AreEqual("2,2,4,4", string.Join(";", result));
+            TU.ExecuteSQL(sql, "2,2,4,4");
             sql = "select a1,a1,a4,a4 from a where a1+a2>2;";
-            result = ExecuteSQL(sql); Assert.AreEqual("1,1,4,4;2,2,5,5", string.Join(";", result));
+            TU.ExecuteSQL(sql, "1,1,4,4;2,2,5,5");
             sql = "select a1,a1,a3,a3 from a where a1+a2+a3>2;";
-            result = ExecuteSQL(sql); Assert.AreEqual("0,0,2,2;1,1,3,3;2,2,4,4", string.Join(";", result));
+            TU.ExecuteSQL(sql, "0,0,2,2;1,1,3,3;2,2,4,4");
             sql = "select a1 from a where a1+a2>2;";
-            result = ExecuteSQL(sql); Assert.AreEqual("1;2", string.Join(";", result));
+            TU.ExecuteSQL(sql, "1;2");
         }
 
         [TestMethod]
@@ -1177,8 +1130,7 @@ namespace test
             Assert.AreEqual(1, result.Count);
             Assert.AreEqual(32, result[0][0]);
             sql = "select substring('abc', 1, 2);";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual("ab", string.Join(";", result));
+            TU.ExecuteSQL(sql, "ab");
         }
 
         [TestMethod]
@@ -1252,8 +1204,7 @@ namespace test
                             -> PhysicScanTable c (actual rows=3, loops=3)
                                 Output: c.c1[0],c.c2[1]";
             TU.PlanAssertEqual(answer, phyplan);
-            result = ExecuteSQL(sql);
-            Assert.AreEqual("1;2;3", string.Join(";", result));
+            TU.ExecuteSQL(sql, "1;2;3");
         }
 
         [TestMethod]
@@ -1269,8 +1220,7 @@ namespace test
                             -> PhysicScanTable b  (actual rows=3)
                                 Output: b.b1[0]";
             TU.PlanAssertEqual(answer, phyplan);
-            result = ExecuteSQL(sql);
-            Assert.AreEqual("0,0;1,1;2,2", string.Join(";", result));
+            TU.ExecuteSQL(sql, "0,0;1,1;2,2");
             sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2=c.c2;";
             result = ExecuteSQL(sql, out phyplan);
             answer = @"PhysicHashJoin   (actual rows=3)
@@ -1313,14 +1263,12 @@ namespace test
 
             // hash join 
             sql = "select count(*) from a join b on a1 = b1;";
-            result = ExecuteSQL(sql, out phyplan);
+            TU.ExecuteSQL(sql, "3", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicHashJoin"));
-            Assert.AreEqual("3", string.Join(";", result));
             sql = "select count(*) from a join b on a1 = b1 and a2 = b2;";
-            result = ExecuteSQL(sql, out phyplan);
+            TU.ExecuteSQL(sql, "3", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "HashJoin"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "Filter: a.a1[1]=b.b1[3] and a.a2[2]=b.b2[4]"));
-            Assert.AreEqual("3", string.Join(";", result));
             sql = "select * from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where ab.a1=cd.c1";
             result = ExecuteSQL(sql, out phyplan);
             Assert.AreEqual(3, TU.CountStr(phyplan, "PhysicHashJoin"));
@@ -1332,14 +1280,12 @@ namespace test
 
             // FIXME: becuase join order prevents push down - comparing below 2 cases
             sql = "select * from a, b, c where a1 = b1 and b2 = c2;";
-            result = ExecuteSQL(sql, out phyplan);
+            TU.ExecuteSQL(sql, "0,1,2,3,0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5,2,3,4,5", out phyplan);
             Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicHashJoin"));
-            Assert.AreEqual("0,1,2,3,0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5,2,3,4,5", string.Join(";", result));
             sql = "select * from a, b, c where a1 = b1 and a1 = c1;";
-            result = ExecuteSQL(sql, out phyplan);
+            TU.ExecuteSQL(sql, "0,1,2,3,0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5,2,3,4,5", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "HashJoin"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "Filter: a.a1[0]=b.b1[4] and a.a1[0]=c.c1[8]"));
-            Assert.AreEqual("0,1,2,3,0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5,2,3,4,5", string.Join(";", result));
 
             // these queries depends on we can decide left/right side parameter dependencies
             var option = new QueryOption();
@@ -1414,7 +1360,7 @@ namespace test
             TU.ExecuteSQL(sql, "");
 
             sql = "select 7, (4-a3)/2*2+1+sum(a1), sum(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";
-            result = ExecuteSQL(sql, out string phyplan);
+            TU.ExecuteSQL(sql, "7,3,2;7,4,19", out string phyplan);
             var answer = @"PhysicHashAgg  (actual rows=2)
                             Output: 7,{4-a.a3/2}[0]*2+1+{sum(a.a1)}[1],{sum(a.a1)}[1]+{sum(a.a1+a.a2)}[2]*2
                             Aggregates: sum(a.a1[0]), sum(a.a1[0]+a.a2[2])
@@ -1423,44 +1369,38 @@ namespace test
                                 Output: a.a1[0],a.a1[0]+a.a2[1],a.a2[1],a.a3[2]
                         ";
             TU.PlanAssertEqual(answer, phyplan);
-            Assert.AreEqual("7,3,2;7,4,19", string.Join(";", result));
             sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual("1,3,4,2;0,2,6,18", string.Join(";", result));
+            TU.ExecuteSQL(sql, "1,3,4,2;0,2,6,18");
             sql = "select a1, a2  from a where a.a1 = (select sum(b1) from b where b2 = a2 and b3<4);";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual("0,1;1,2", string.Join(";", result));
+            TU.ExecuteSQL(sql, "0,1;1,2");
             sql = "select a2, sum(a1) from a where a1>0 group by a2";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual("2,1;3,2", string.Join(";", result));
+            TU.ExecuteSQL(sql, "2,1;3,2");
             sql = "select a3/2*2, sum(a3), count(a3), stddev_samp(a3) from a group by 1;";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual("2,5,2,0.707106781186548;4,4,1,", string.Join(";", result));
+            TU.ExecuteSQL(sql, "2,5,2,0.707106781186548;4,4,1,");
             sql = "select count(*)+1 from (select b1+c1 from (select b1 from b) a, (select c1,c2 from c) c where c2>1) a;";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual("7", string.Join(";", result));
+            TU.ExecuteSQL(sql, "7");
             sql = "select d1, sum(d2) from (select c1/2, sum(c1) from (select b1, count(*) as a1 from b group by b1)c(c1, c2) group by c1/2) d(d1, d2) group by d1;";
-            result = ExecuteSQL(sql); Assert.AreEqual("0,1;1,2", string.Join(";", result));
+            TU.ExecuteSQL(sql, "0,1;1,2");
             sql = "select b1+b1 from b group by b1;";
-            result = ExecuteSQL(sql); Assert.AreEqual("0;2;4", string.Join(";", result));
+            TU.ExecuteSQL(sql, "0;2;4");
             sql = "select sum(b1+b1) from b group by b1;";
-            result = ExecuteSQL(sql); Assert.AreEqual("0;2;4", string.Join(";", result));
+            TU.ExecuteSQL(sql, "0;2;4");
             sql = "select 2+b1+b1+b2 from b group by b1,b2;";
-            result = ExecuteSQL(sql); Assert.AreEqual("3;6;9", string.Join(";", result));
+            TU.ExecuteSQL(sql, "3;6;9");
             sql = "select sum(2+b1+b1+b2) from b group by b1,b2;";
-            result = ExecuteSQL(sql); Assert.AreEqual("3;6;9", string.Join(";", result));
+            TU.ExecuteSQL(sql, "3;6;9");
             sql = "select max(b1) from (select sum(a1) from a)b(b1);";
-            result = ExecuteSQL(sql); Assert.AreEqual("3", string.Join(";", result));
+            TU.ExecuteSQL(sql, "3");
             sql = "select sum(e1+e1*3) from (select sum(a1) a12 from a) d(e1);";
-            result = ExecuteSQL(sql); Assert.AreEqual("12", string.Join(";", result));
+            TU.ExecuteSQL(sql, "12");
             sql = "select a1 from a group by a1 having sum(a2) > 2;";
-            result = ExecuteSQL(sql); Assert.AreEqual("2", string.Join(";", result));
+            TU.ExecuteSQL(sql, "2");
             sql = "select a1, sum(a1) from a group by a1 having sum(a2) > 2;";
-            result = ExecuteSQL(sql); Assert.AreEqual("2,2", string.Join(";", result));
+            TU.ExecuteSQL(sql, "2,2");
             sql = "select max(b1) from b having max(b1)>1;";
-            result = ExecuteSQL(sql); Assert.AreEqual("2", string.Join(";", result));
+            TU.ExecuteSQL(sql, "2");
             sql = "select a3, sum(a1) from a group by a3 having sum(a2) > a3/2;";
-            result = ExecuteSQL(sql); Assert.AreEqual("3,1;4,2", string.Join(";", result));
+            TU.ExecuteSQL(sql, "3,1;4,2");
 
             // failed:
             // sql = "select a1, sum(a1) from a group by a1 having sum(a2) > a3;";
@@ -1486,13 +1426,13 @@ namespace test
                                 -> PhysicScanTable a  (actual rows=3)
                                     Output: 4-a.a3[2]/2,a.a1[0],a.a4[3],a.a1[0]+a.a2[1],a.a2[1],a.a3[2]";
             TU.PlanAssertEqual(answer, phyplan);
-            result = ExecuteSQL(sql); Assert.AreEqual("0,2,6,18;1,3,4,2", string.Join(";", result));
+            TU.ExecuteSQL(sql, "0,2,6,18;1,3,4,2");
             sql = "select * from a where a1>0 order by a1;";
-            result = ExecuteSQL(sql); Assert.AreEqual("1,2,3,4;2,3,4,5", string.Join(";", result));
+            TU.ExecuteSQL(sql, "1,2,3,4;2,3,4,5");
             sql = " select count(a2) as ca2 from a group by a1/2 order by count(a2);";
-            result = ExecuteSQL(sql); Assert.AreEqual("1;2", string.Join(";", result));
+            TU.ExecuteSQL(sql, "1;2");
             sql = " select count(a2) as ca2 from a group by a1/2 order by 1;";
-            result = ExecuteSQL(sql); Assert.AreEqual("1;2", string.Join(";", result));
+            TU.ExecuteSQL(sql, "1;2");
             sql = "select -a1/2, -a2 from a order by -a1/2 desc, -a2 asc;"; TU.ExecuteSQL(sql, "0,-2;0,-1;-1,-3");
             sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 order by 1 desc;"; TU.ExecuteSQL(sql, "6,1;4,1;2,1");
         }
@@ -1564,7 +1504,7 @@ namespace test
         public void TestLimit()
         {
             var sql = "select a1,a1 from a limit 2;";
-            var result = ExecuteSQL(sql); Assert.AreEqual("0,0;1,1", string.Join(";", result));
+            TU.ExecuteSQL(sql, "0,0;1,1");
         }
 
         [TestMethod]
@@ -1601,7 +1541,7 @@ namespace test
 
             // FIXME: you can see c1+b1>2 is not pushed down
             sql = "select a1,b1,c1 from a,b,c where a1+b1+c1>5 and c1+b1>2";
-            result = ExecuteSQL(sql, out phyplan);
+            TU.ExecuteSQL(sql, "2,2,2", out phyplan);
             answer = @"PhysicNLJoin  (actual rows=1)
                         Output: a.a1[0],b.b1[1],c.c1[2]
                         Filter: a.a1[0]+b.b1[1]+c.c1[2]>5
@@ -1614,7 +1554,6 @@ namespace test
                                 Output: c.c1[0]
                             -> PhysicScanTable b (actual rows=3, loops=9)
                                 Output: b.b1[0]";
-            Assert.AreEqual("2,2,2", string.Join(";", result));
             TU.PlanAssertEqual(answer, phyplan);
 
             sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b1 > ((select c2 from c where c.c2=b2)))";
@@ -1661,7 +1600,7 @@ namespace test
                                         Output: c.c2[1]";
             TU.PlanAssertEqual(answer, phyplan);
             sql = "select 1 from a where a.a1 >= (select b1 from b where b.b2 >= (select c2 from c where c.c2=b2) and b.b1*2 = ((select c2 from c where c.c2=b2)))";
-            result = ExecuteSQL(sql, out phyplan); Assert.AreEqual("1;1", string.Join(";", result));
+            TU.ExecuteSQL(sql, "1;1", out phyplan);
 
             // b3+c2 as a whole push to the outer join side
             sql = "select b3+c2 from a,b,c where a1>= (select b1 from b where b1=a1) and a2 >= (select c2 from c where c1=a1);";
@@ -1698,7 +1637,7 @@ namespace test
             sql = @"select a1  from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b3=a3 
                         and bo.b3 = a3 and b3> 1) and b2<3);";
             option.optimize_.enable_subquery_unnest_ = false;
-            result = TU.ExecuteSQL(sql, out phyplan, option);
+            TU.ExecuteSQL(sql, "0;1", out phyplan, option);
             answer = @"PhysicScanTable a (actual rows=2)
                         Output: a.a1[0],#a.a2[1],#a.a3[2]
                         Filter: a.a1[0]=@1
@@ -1710,9 +1649,8 @@ namespace test
                                     -> PhysicScanTable b (actual rows=0, loops=9)
                                         Output: b.b1[0]
                                         Filter: b.b3[2]=?a.a3[2] and ?bo.b3[2]=?a.a3[2] and b.b3[2]>1";
-            Assert.AreEqual("0;1", string.Join(";", result));
             TU.PlanAssertEqual(answer, phyplan);
-            result = ExecuteSQL(sql, out phyplan);
+            TU.ExecuteSQL(sql, "0;1", out phyplan);
             answer = @"PhysicFilter  (actual rows=2)
                         Output: a.a1[0]
                         Filter: a.a1[0]=bo.b1[1]
@@ -1732,14 +1670,13 @@ namespace test
                                     -> PhysicScanTable b (actual rows=3, loops=6)
                                         Output: b.b3[2],b.b1[0]
                                         Filter: b.b3[2]>1";
-            Assert.AreEqual("0;1", string.Join(";", result));
             TU.PlanAssertEqual(answer, phyplan);
 
             sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             option.optimize_.enable_subquery_unnest_ = false;
-            result = TU.ExecuteSQL(sql, out phyplan, option);
+            TU.ExecuteSQL(sql, "0;1;2", out phyplan, option);
             answer = @"PhysicNLJoin  (actual rows=3)
                         Output: a.a1[2]
                         Filter: b.b2[3]=c.c2[0]
@@ -1777,11 +1714,10 @@ namespace test
                                             -> PhysicScanTable b as b__4 (actual rows=0, loops=27)
                                                 Output: b__4.b2[1]
                                                 Filter: b__4.b4[3]=?a.a3[2]+1 and ?bo.b3[2]=?a.a3[2] and b__4.b3[2]>0";
-            Assert.AreEqual("0;1;2", string.Join(";", result));
             TU.PlanAssertEqual(answer, phyplan);
             // run again with subquery expansion enabled
             // FIXME: b2<5 is not push down due to FromQuery barrier
-            result = ExecuteSQL(sql, out phyplan);
+            TU.ExecuteSQL(sql, "0;1;2", out phyplan);
             answer = @"PhysicFilter  (actual rows=3)
                         Output: a.a1[0]
                         Filter: bo.b2[1]<5
@@ -1836,7 +1772,6 @@ namespace test
                                         -> PhysicScanTable b as b__2 (actual rows=3, loops=27)
                                             Output: b__2.b3[2],b__2.b1[0]
                                             Filter: b__2.b3[2]>1";
-            Assert.AreEqual("0;1;2", string.Join(";", result));
             TU.PlanAssertEqual(answer, phyplan);
         }
 
@@ -1845,21 +1780,21 @@ namespace test
         {
             var phyplan = "";
             var sql = "select count(*) from r;";
-            var result = ExecuteSQL(sql, out phyplan); Assert.AreEqual("3", string.Join(";", result));
+            TU.ExecuteSQL(sql, "3", out phyplan);
             sql = "select count(r1) from r;";
-            result = ExecuteSQL(sql, out phyplan); Assert.AreEqual("1", string.Join(";", result));
+            TU.ExecuteSQL(sql, "1", out phyplan);
             sql = "select " +
               "'|r3: null,null,3|', sum(r1), avg(r1), min(r1), max(r1), count(*), count(r1), " +
               "'|r3: 2,null,4|', sum(r3), avg(r3), min(r3), max(r3), count(r3) from r;";
-            result = ExecuteSQL(sql, out phyplan); Assert.AreEqual("|r3: null,null,3|,3,3,3,3,3,1,|r3: 2,null,4|,6,3,2,4,2", string.Join(";", result));
+            TU.ExecuteSQL(sql, "|r3: null,null,3|,3,3,3,3,3,1,|r3: 2,null,4|,6,3,2,4,2", out phyplan);
             sql = "select a1, a2, r1 from r join a on a1=r1 or a2=r1;";
-            result = ExecuteSQL(sql, out phyplan); Assert.AreEqual("2,3,3", string.Join(";", result));
+            TU.ExecuteSQL(sql, "2,3,3", out phyplan);
             sql = "select a1, a2, r1 from r join a on a2=r1;";
-            result = ExecuteSQL(sql, out phyplan); Assert.AreEqual("2,3,3", string.Join(";", result));
+            TU.ExecuteSQL(sql, "2,3,3", out phyplan);
             sql = "select null=null, null<>null, null>null, null<null, null>=null, null<=null, " +
                 "null+null, null-null, null*null, null/null, " +
                 "null+8, null-8, null*8, null/8, null/8 is null;";
-            result = ExecuteSQL(sql, out phyplan); Assert.AreEqual(",,,,,,,,,,,,,,True", string.Join(";", result));
+            TU.ExecuteSQL(sql, ",,,,,,,,,,,,,,True", out phyplan);
         }
     }
     }
