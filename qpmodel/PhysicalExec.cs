@@ -29,8 +29,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using System.Threading;
 using System.Diagnostics;
+using System.Collections.Concurrent;
 
 using qpmodel.expr;
 using qpmodel.logic;
@@ -167,6 +168,9 @@ namespace qpmodel.physic
         // cte resultset passing
         public Dictionary<string, List<Row>> results_ = new Dictionary<string, List<Row>>();
 
+        // emulated distributed environment
+        public int machineId_ = 0;
+
         public ExecContext(QueryOption option) { option_ = option; }
 
         public void Reset() { params_.Clear(); results_.Clear(); }
@@ -195,4 +199,81 @@ namespace qpmodel.physic
             return null;
         }
     }
+
+    // Emulate a remote exchange channel
+    public class ExchangeChannel
+    {
+        BlockingCollection<Row> dataBuffer_ = new BlockingCollection<Row>(100);
+        int cntDone_ = 0;
+        int dop_;
+
+        public ExchangeChannel(int dop){
+            cntDone_ = 0;
+            dop_ = dop;
+        }
+
+        public void Send(Row r)
+        {
+            dataBuffer_.Add(r);
+        }
+
+        public void MarkSendDone(int workerid)
+        {
+            var newcnt = Interlocked.Increment(ref cntDone_);
+            Debug.Assert(newcnt <= dop_);
+            if (newcnt == dop_)
+                dataBuffer_.CompleteAdding();
+        }
+
+        public Row Recv()
+        {
+            Row r = null;
+            if (!dataBuffer_.IsCompleted)
+            {
+                try
+                {
+                    r = dataBuffer_.Take();
+                    Debug.Assert(r != null);
+                }
+                catch (InvalidOperationException)
+                {
+                    // no row in the buffer
+                }
+            }
+            return r;
+        }
+    }
+
+    // A worker object consists data structures used by a worker thread
+    //
+    public class WorkerObject
+    {
+        internal int workerId_;
+        internal PhysicNode root_;
+        internal QueryOption queryOpt_;
+
+        public WorkerObject(int workerId, PhysicNode root, QueryOption queryOpt)
+        {
+            workerId_ = workerId;
+            root_ = root;
+            queryOpt_ = queryOpt;
+        }
+
+        public void EntryPoint()
+        {
+            var context = new ExecContext(queryOpt_);
+            context.machineId_ = workerId_;
+
+            // TBD: open subqueries
+
+            var plan = root_;
+            (plan as PhysicGather).asConsumer_.Value = false;
+            (plan as PhysicGather).workerId_.Value = workerId_;
+
+            var code = plan.Open(context);
+            code = plan.Exec(null);
+            code = plan.Close();
+        }
+    }
+
 }

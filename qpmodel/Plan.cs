@@ -58,7 +58,7 @@ namespace qpmodel.logic
             public bool memo_disable_crossjoin_ { get; set; } = true;
             public bool memo_use_joinorder_solver_ { get; set; } = false;   // make it true by default
 
-            public int query_dop_ { get; set; } = 4;
+            public int query_dop_ { get; set; } = 3;
 
             // codegen controls
             public bool use_codegen_ { get; set; } = false;
@@ -391,6 +391,16 @@ namespace qpmodel.logic
                 root = transformOneFrom(from_[0]);
             else
                 root = new LogicResult(selection_);
+
+            // distributed plan is required if any table is distributed, subquery 
+            // referenced tables are not counted here. So we may have the query 
+            // shape with main queyr not distributed but subquery is.
+            //
+            bool hasdtable = false;
+            from_.ForEach(x => hasdtable |= 
+                (x is BaseTableRef bx && bx.Table().distributedBy_ != null));
+            if (hasdtable)
+                root = new LogicGather(root);
 
             return root;
         }

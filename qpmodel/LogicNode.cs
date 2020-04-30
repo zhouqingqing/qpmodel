@@ -173,6 +173,15 @@ namespace qpmodel.logic
                     List<PhysicNode> children = sequence.children_.Select(x => x.DirectToPhysical(option)).ToList();
                     phy = new PhysicSequence(sequence, children);
                     break;
+                case LogicGather gather:
+                    phy = new PhysicGather(gather, child_().DirectToPhysical(option));
+                    break;
+                case LogicBroadcast bcast:
+                    phy = new PhysicBroadcast(bcast, child_().DirectToPhysical(option));
+                    break;
+                case LogicRedistribute dist:
+                    phy = new PhysicRedistribute(dist, child_().DirectToPhysical(option));
+                    break;
                 default:
                     throw new NotImplementedException();
             }
@@ -1174,6 +1183,32 @@ namespace qpmodel.logic
         {
             // limit is the top node and don't remove redundant
             return base.ResolveColumnOrdinal(reqOutput, false);
+        }
+    }
+
+    // Remote exchange operators: Gather, Broadcast and Redistribute
+    //
+    public class LogicGather : LogicNode
+    {
+        public LogicGather(LogicNode child)
+        {
+            children_.Add(child);
+        }
+    }
+
+    public class LogicBroadcast : LogicNode 
+    {
+        public LogicBroadcast(LogicNode child)
+        {
+            children_.Add(child);
+        }
+    }
+
+    public class LogicRedistribute: LogicNode
+    {
+        public LogicRedistribute(LogicNode child)
+        {
+            children_.Add(child);
         }
     }
 }

@@ -66,13 +66,13 @@ namespace qpmodel
     {
         public string name_;
         public Dictionary<string, ColumnDef> columns_;
-        public ColumnDef partitionBy_;
+        public ColumnDef distributedBy_;
         public List<IndexDef> indexes_ = new List<IndexDef>();
 
         // storage
         public List<Partition> partions_ = new List<Partition>();
 
-        public TableDef(string tabName, List<ColumnDef> columns, string partitionBy)
+        public TableDef(string tabName, List<ColumnDef> columns, string distributedBy)
         {
             int npart = 1;
             Dictionary<string, ColumnDef> cols = new Dictionary<string, ColumnDef>();
@@ -80,12 +80,12 @@ namespace qpmodel
                 cols.Add(c.name_, c);
             name_ = tabName; columns_ = cols;
 
-            if (partitionBy != null)
+            if (distributedBy != null)
             {
-                cols.TryGetValue(partitionBy, out var partcol);
+                cols.TryGetValue(distributedBy, out var partcol);
                 if (partcol is null)
-                    throw new SemanticAnalyzeException($"can't find partition column '{partitionBy}'");
-                partitionBy_ = partcol;
+                    throw new SemanticAnalyzeException($"can't find partition column '{distributedBy}'");
+                distributedBy_ = partcol;
                 npart = QueryOption.num_table_partitions_;
             }
             for (int i = 0; i < npart; i++)
@@ -122,10 +122,10 @@ namespace qpmodel
     {
         readonly Dictionary<string, TableDef> records_ = new Dictionary<string, TableDef>();
 
-        public void CreateTable(string tabName, List<ColumnDef> columns, string partitionBy)
+        public void CreateTable(string tabName, List<ColumnDef> columns, string distributedBy)
         {
             records_.Add(tabName,
-                new TableDef(tabName, columns, partitionBy));
+                new TableDef(tabName, columns, distributedBy));
         }
         public void DropTable(string tabName)
         {
@@ -205,7 +205,7 @@ namespace qpmodel
                 // nullable tables
                 @"create table r (r1 int, r2 int, r3 int, r4 int);",
                 // partition tables
-                @"create table ap(a1 int, a2 int, a3 int, a4 int) partition by a1;",
+                @"create table ap (a1 int, a2 int, a3 int, a4 int) distributed by a1;",
             };
             SQLStatement.ExecSQLList(string.Join("", createtables));
 
@@ -237,11 +237,13 @@ namespace qpmodel
 
         static Catalog()
         {
+        }
+
+        static public void Init() 
+        {
             // be careful: any exception happened here will be swallowed without throw any exception
             createBuildInTestTables();
             createOptimizerTables();
         }
-
-        static internal void Init() { }
     }
 }

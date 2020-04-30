@@ -46,7 +46,7 @@ using psql;
 
 using statistics_fmt_cvnt;
 
-namespace test
+namespace qpmodel.unittest
 {
     // Test Utils
     public class TU
@@ -124,6 +124,12 @@ namespace test
     [TestClass]
     public class UtilsTest
     {
+        [AssemblyInitialize]
+        public static void AssemblyInit(TestContext context)
+        {
+            Catalog.Init();
+        }
+
         [TestMethod]
         public void TestCSVReader()
         {
@@ -138,7 +144,7 @@ namespace test
     }
 
     [TestClass]
-    public class CodeGenTest
+    public class RunCodeGen
     {
         [TestMethod]
         public void TestSimpleSlect()
@@ -163,7 +169,7 @@ namespace test
     }
 
     [TestClass]
-    public class DDLTest
+    public class DDL
     {
         [TestMethod]
         public void TestCreateTable()
@@ -197,7 +203,7 @@ namespace test
     }
 
     [TestClass]
-    public class TpcTest
+    public class UBenchmarks
     {
         [TestMethod]
         public void TestJobench()
@@ -390,7 +396,7 @@ namespace test
     }
 
     [TestClass]
-    public class OptimizerTest
+    public class Optimizer
     {
         [TestMethod]
         public void TestBasic()
@@ -533,7 +539,7 @@ namespace test
     }
 
     [TestClass]
-    public class SubqueryTest
+    public class Subquery
     {
         internal List<Row> ExecuteSQL(string sql) => TU.ExecuteSQL(sql);
         internal List<Row> ExecuteSQL(string sql, out string physicplan) => TU.ExecuteSQL(sql, out physicplan);
@@ -876,7 +882,7 @@ namespace test
     }
 
     [TestClass]
-    public class DMLTest
+    public class DML
     {
         [TestMethod]
         public void TestInsert()
@@ -905,7 +911,7 @@ namespace test
     }
 
     [TestClass]
-    public class ParserTest
+    public class Parser
     {
         [TestInitialize]
         public void TestInitialize()
@@ -971,7 +977,7 @@ namespace test
     }
 
     [TestClass]
-    public class FunctionTest
+    public class Function
     {
         [TestMethod]
         public void TestCast()
@@ -982,7 +988,7 @@ namespace test
     }
 
     [TestClass]
-    public class CreatePlanTest
+    public class CreatePlan
     {
         [TestMethod]
         public void TestConst()
@@ -1005,7 +1011,7 @@ namespace test
     }
 
     [TestClass]
-    public class GeneralTest
+    public class General
     {
         internal List<Row> ExecuteSQL(string sql) => TU.ExecuteSQL(sql);
         internal List<Row> ExecuteSQL(string sql, out string physicplan) => TU.ExecuteSQL(sql, out physicplan);
@@ -1797,4 +1803,18 @@ namespace test
             TU.ExecuteSQL(sql, ",,,,,,,,,,,,,,True", out phyplan);
         }
     }
+
+    [TestClass]
+    public class Distributed
+    {
+        [TestMethod]
+        public void Gather()
+        {
+            var phyplan = "";
+            var sql = "select a1,a2 from ap;";
+            TU.ExecuteSQL(sql, "0,1;1,2;2,3", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+        }
     }
+
+}

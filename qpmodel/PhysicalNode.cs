@@ -29,6 +29,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 
 using qpmodel.expr;
 using qpmodel.logic;
@@ -138,7 +139,7 @@ namespace qpmodel.physic
             return cost_;
         }
         public virtual double EstimateCost() => 1000000000000.0;
-        
+
         // inclusive cost summarize its own cost and its children cost. During 
         // optimiztaion it is a dynamic measurement, we do so by summarize its
         // best children's.
@@ -223,7 +224,7 @@ namespace qpmodel.physic
             return null;
         }
 
-        [DebuggerBrowsable(DebuggerBrowsableState.Never)] 
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         internal string _ = "<codegen: current node id>";
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         internal string _logic_ = "<codegen: logic node name>";
@@ -254,10 +255,9 @@ namespace qpmodel.physic
         public override string ExplainMoreDetails(int depth, ExplainOption option)
         {
             // we want to see what's underneath
-            return $"{{{Logic().ExplainMoreDetails (depth + 1, option)}}}";
+            return $"{{{Logic().ExplainMoreDetails(depth + 1, option)}}}";
         }
     }
-
 
     public class PhysicScanTable : PhysicNode
     {
@@ -286,7 +286,7 @@ namespace qpmodel.physic
             ExecContext context = context_;
             var logic = logic_ as LogicScanTable;
             var filter = logic.filter_;
-            var heap = (logic.tabref_).Table().partions_[0].heap_;
+            var heap = (logic.tabref_).Table().partions_[context.machineId_].heap_;
 
             string cs = null;
             if (context.option_.optimize_.use_codegen_)
@@ -333,7 +333,7 @@ namespace qpmodel.physic
         public override double EstimateCost()
         {
             var logic = (logic_) as LogicScanTable;
-            var tablerows = Math.Max(1, 
+            var tablerows = Math.Max(1,
                         Catalog.sysstat_.EstCardinality(logic.tabref_.relname_));
             return tablerows * 1.0;
         }
@@ -440,7 +440,7 @@ namespace qpmodel.physic
         }
     }
 
-    public abstract class PhysicJoin: PhysicNode {
+    public abstract class PhysicJoin : PhysicNode {
         public enum Implmentation
         {
             NLJoin,
@@ -581,9 +581,9 @@ namespace qpmodel.physic
     }
 
     // Key list is a special row
-    public class KeyList: Row
+    public class KeyList : Row
     {
-        public KeyList(int length): base(length){}
+        public KeyList(int length) : base(length) { }
 
         static public KeyList ComputeKeys(ExecContext context, List<Expr> keys, Row input)
         {
@@ -686,12 +686,12 @@ namespace qpmodel.physic
                 if (hm.Count == 0)
                     return null;
             }
-            s+= r_().Exec(r =>
-            {
-                string probecode = null;
-                if (context.option_.optimize_.use_codegen_) {
-                    var rname = $"r{r_()._}";
-                    probecode += $@"
+            s += r_().Exec(r =>
+             {
+                 string probecode = null;
+                 if (context.option_.optimize_.use_codegen_) {
+                     var rname = $"r{r_()._}";
+                     probecode += $@"
                     if (context.stop_)
                         return;
 
@@ -708,8 +708,8 @@ namespace qpmodel.physic
                             r{_} = new Row(v{_}.row_, {rname});
                             {ExecProjectCode($"r{_}")}
                             {callback(null)}
-                            {codegen_if(semi, 
-                                "break;")}
+                            {codegen_if(semi,
+                                 "break;")}
                         }}
                     }}
                     else
@@ -731,55 +731,55 @@ namespace qpmodel.physic
                         }}")}
                     }}
                     ";
-                }
-                else
-                {
-                    if (context.stop_)
-                        return null;
+                 }
+                 else
+                 {
+                     if (context.stop_)
+                         return null;
 
-                    Row fakel = new Row(l_().logic_.output_.Count);
-                    Row n = new Row(fakel, r);
-                    var keys = KeyList.ComputeKeys(context, logic.rightKeys_, n);
-                    bool foundOneMatch = false;
+                     Row fakel = new Row(l_().logic_.output_.Count);
+                     Row n = new Row(fakel, r);
+                     var keys = KeyList.ComputeKeys(context, logic.rightKeys_, n);
+                     bool foundOneMatch = false;
 
-                    if (hm.TryGetValue(keys, out List<TaggedRow> exist))
-                    {
-                        foundOneMatch = true;
-                        foreach (var v in exist)
-                        {
-                            if (left)
-                                v.matched_ = true;
-                            n = ExecProject(new Row(v.row_, r));
-                            callback(n);
-                            if (semi)
-                                break;
-                        }
-                    }
-                    else
-                    {
+                     if (hm.TryGetValue(keys, out List<TaggedRow> exist))
+                     {
+                         foundOneMatch = true;
+                         foreach (var v in exist)
+                         {
+                             if (left)
+                                 v.matched_ = true;
+                             n = ExecProject(new Row(v.row_, r));
+                             callback(n);
+                             if (semi)
+                                 break;
+                         }
+                     }
+                     else
+                     {
                         // no match for antisemi
                         if (antisemi && !foundOneMatch)
-                        {
-                            n = new Row(null, r);
-                            n = ExecProject(n);
-                            callback(n);
-                        }
-                        if (right && !foundOneMatch)
-                        {
-                            n = new Row(new Row(l_().logic_.output_.Count), r);
-                            n = ExecProject(n);
-                            callback(n);
-                        }
-                    }
-                }
-                return probecode;
-            });
+                         {
+                             n = new Row(null, r);
+                             n = ExecProject(n);
+                             callback(n);
+                         }
+                         if (right && !foundOneMatch)
+                         {
+                             n = new Row(new Row(l_().logic_.output_.Count), r);
+                             n = ExecProject(n);
+                             callback(n);
+                         }
+                     }
+                 }
+                 return probecode;
+             });
 
             // left join shall examine hash table and output all non-matched rows
             if (left)
             {
                 foreach (var v in hm)
-                    foreach (var r in v.Value) 
+                    foreach (var r in v.Value)
                     {
                         if (!r.matched_)
                         {
@@ -1087,7 +1087,7 @@ namespace qpmodel.physic
             {
                 if (context.stop_)
                     return null;
-                
+
                 if (logic.queryRef_.colRefedBySubq_.Count != 0)
                     context.AddParam(logic.queryRef_, l);
                 var r = ExecProject(l);
@@ -1179,7 +1179,7 @@ namespace qpmodel.physic
             {
                 var table = (logic_ as LogicInsert).targetref_.Table();
                 int partid = 0;
-                if (table.partitionBy_ != null)
+                if (table.distributedBy_ != null)
                     partid = 0;
                 table.partions_[partid].heap_.Add(l);
                 return null;
@@ -1203,7 +1203,7 @@ namespace qpmodel.physic
     public class PhysicProfiling : PhysicNode
     {
         public Int64 nrows_ = 0;
-        public Int64 nloops_= 0;
+        public Int64 nloops_ = 0;
 
         public override string ToString() => $"${child_()}";
 
@@ -1249,7 +1249,7 @@ namespace qpmodel.physic
     {
         public readonly List<Row> rows_ = new List<Row>();
 
-        public PhysicCollect(PhysicNode child): base(null) => children_.Add(child);
+        public PhysicCollect(PhysicNode child) : base(null) => children_.Add(child);
 
         public override string Open(ExecContext context)
         {
@@ -1315,9 +1315,8 @@ namespace qpmodel.physic
         }
     }
 
-    public class PhysicAppend: PhysicNode
+    public class PhysicAppend : PhysicNode
     {
-
         public PhysicAppend(LogicAppend logic, PhysicNode l, PhysicNode r) : base(logic) { children_.Add(l); children_.Add(r); }
         public override string ToString() => $"PAPPEND({l_()},{r_()}): {Cost()})";
 
@@ -1404,6 +1403,168 @@ namespace qpmodel.physic
                 }
 
                 return limitcode;
+            });
+            return s;
+        }
+    }
+
+    public class PhysicGather: PhysicNode
+    {
+        internal ThreadLocal<bool> asConsumer_ = new ThreadLocal<bool>();
+        internal ThreadLocal<int> workerId_ = new ThreadLocal<int>();
+
+        internal ExchangeChannel channel_;
+
+        public PhysicGather(LogicGather logic, PhysicNode l) : base(logic) 
+        { 
+            asConsumer_.Value = true; children_.Add(l); 
+        }
+        public override string ToString() => $"PGATHER({child_()}: {Cost()})";
+
+        int producerId_() { Debug.Assert(!asConsumer_.Value); return workerId_.Value; }
+       
+        public override double EstimateCost()
+        {
+            return logic_.Card() * 0.1;
+        }
+
+        public string OpenConsumer(ExecContext context)
+        {
+            int dop = context.option_.optimize_.query_dop_;
+            string cs = base.Open(context);
+
+            // create producer threads, establish connections and set up 
+            // communication channel etc
+            //
+            channel_ = new ExchangeChannel(dop);
+
+            List<Thread> workers = new List<Thread>();
+            for (int i = 0; i < dop; i++)
+            {
+                var wo = new WorkerObject(i,
+                                        this, context.option_);
+                var thread = new Thread(new ThreadStart(wo.EntryPoint));
+                thread.Name = $"{i + 1}";
+                workers.Add(thread);
+            }
+            workers.ForEach(x => x.Start());
+
+            return cs;
+        }
+
+        public string OpenProducer(ExecContext context)
+        {
+            string cs = base.Open(context);
+
+            Debug.Assert(channel_ != null);
+            return cs;
+        }
+
+        public override string Open(ExecContext context) 
+            => asConsumer_.Value ? OpenConsumer(context) : OpenProducer(context);
+ 
+        public string ExecConsumer(Func<Row, string> callback)
+        {
+            ExecContext context = context_;
+
+            Row r;
+            while ((r = channel_.Recv()) != null){
+                callback(r);
+            }
+            return null;
+        }
+
+        public string ExecProducer(Func<Row, string> callback)
+        {
+            ExecContext context = context_;
+
+            string s = child_().Exec(r =>
+            {
+                string srccode = null;
+                if (!context.option_.optimize_.use_codegen_)
+                {
+                    channel_.Send(r);
+                }
+
+                return srccode;
+            });
+
+            channel_.MarkSendDone(producerId_());
+            return s;
+        }
+        public override string Exec(Func<Row, string> callback)
+            => asConsumer_ .Value? ExecConsumer(callback) : ExecProducer(callback);
+    }
+
+    public class PhysicBroadcast : PhysicNode
+    {
+        public PhysicBroadcast(LogicBroadcast logic, PhysicNode l) : base(logic) => children_.Add(l);
+        public override string ToString() => $"PBORADCAST({child_()}: {Cost()})";
+
+        public override double EstimateCost()
+        {
+            return logic_.Card() * 0.1;
+        }
+
+        public override string Open(ExecContext context)
+        {
+            string cs = base.Open(context);
+            if (context.option_.optimize_.use_codegen_)
+            {
+            }
+            return cs;
+        }
+
+        public override string Exec(Func<Row, string> callback)
+        {
+            ExecContext context = context_;
+
+            string s = child_().Exec(l =>
+            {
+                string srccode = null;
+                if (!context.option_.optimize_.use_codegen_)
+                {
+                    callback(l);
+                }
+
+                return srccode;
+            });
+            return s;
+        }
+    }
+
+    public class PhysicRedistribute : PhysicNode
+    {
+        public PhysicRedistribute(LogicRedistribute logic, PhysicNode l) : base(logic) => children_.Add(l);
+        public override string ToString() => $"PREDISTRIBUTE({child_()}: {Cost()})";
+
+        public override double EstimateCost()
+        {
+            return logic_.Card() * 0.1;
+        }
+
+        public override string Open(ExecContext context)
+        {
+            string cs = base.Open(context);
+            if (context.option_.optimize_.use_codegen_)
+            {
+            }
+            return cs;
+        }
+
+        public override string Exec(Func<Row, string> callback)
+        {
+            ExecContext context = context_;
+
+            string s = child_().Exec(l =>
+            {
+                string srccode = null;
+                if (!context.option_.optimize_.use_codegen_)
+                {
+                    callback(l);
+                }
+
+                return srccode;
             });
             return s;
         }

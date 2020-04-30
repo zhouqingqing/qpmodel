@@ -245,7 +245,8 @@ namespace qpmodel.stat
             // finalize the stats
             n_rows_ = samples.Count;
             Debug.Assert(nNulls <= samples.Count);
-            nullfrac_ = nNulls / samples.Count;
+            if (samples.Count != 0)
+                nullfrac_ = nNulls / samples.Count;
         }
 
         // Follow PostgreSQL's heuristic for LIKE: 
@@ -441,7 +442,15 @@ namespace qpmodel.stat
 
         public LogicAnalyze(LogicNode child) => children_.Add(child);
 
-        public BaseTableRef GetTargetTable() => (child_() as LogicScanTable).tabref_;
+        public BaseTableRef GetTargetTable()
+        {
+            // its child is a [gather ontop] scan
+            var child = child_();
+            Debug.Assert(child is LogicGather || child is LogicScanTable);
+            if (child is LogicGather)
+                child = child.child_();
+            return (child as LogicScanTable).tabref_;
+        }
      }
 
     public class PhysicAnalyze : PhysicNode {

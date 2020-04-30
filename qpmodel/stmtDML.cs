@@ -50,26 +50,26 @@ namespace qpmodel.dml
         public readonly string tabName_;
         public readonly List<ColumnDef> cols_;
         public readonly List<TableConstraint> cons_;
-        public readonly string partitionBy_;
+        public readonly string distributedBy_;
 
         public CreateTableStmt(string tabName, List<ColumnDef> cols, List<TableConstraint> cons, 
-            string partitionBy, string text) : base(text)
+            string distributedBy, string text) : base(text)
         {
             tabName_ = tabName; cols_ = cols;
             int ord = 0; cols_.ForEach(x => x.ordinal_ = ord++);
             if (cols.GroupBy(x => x.name_).Count() < cols.Count)
                 throw new SemanticAnalyzeException("duplicated column name");
             cons_ = cons;
-            partitionBy_ = partitionBy;
+            distributedBy_ = distributedBy;
         }
         public override string ToString()
         {
-            return $"CREATE {tabName_ }: {string.Join(",", cols_)} :{partitionBy_}";
+            return $"CREATE {tabName_ }: {string.Join(",", cols_)} :{distributedBy_}";
         }
 
         public override List<Row> Exec()
         {
-            Catalog.systable_.CreateTable(tabName_, cols_, partitionBy_);
+            Catalog.systable_.CreateTable(tabName_, cols_, distributedBy_);
             return null;
         }
     }

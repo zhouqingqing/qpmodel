@@ -78,9 +78,8 @@ create_index_stmt
 create_table_stmt
  : K_CREATE K_TABLE ( K_IF K_NOT K_EXISTS )?
    ( database_name '.' )? table_name
-   ( '(' column_def ( ',' column_def )* ( ',' table_constraint )* ')' ( K_WITHOUT IDENTIFIER )?
-   | K_AS select_stmt 
-   ( K_PARTITION K_BY column_name)?
+   ( '(' column_def ( ',' column_def )* ( ',' table_constraint )* ')'
+   ( K_DISTRIBUTED K_BY column_name)?
    )
  ;
 
@@ -370,11 +369,9 @@ keyword
  | K_DATABASE
  | K_DATE
  | K_DEFAULT
- | K_DEFERRABLE
- | K_DEFERRED
  | K_DELETE
  | K_DESC
- | K_DETACH
+ | K_DISTRIBUTED
  | K_DISTINCT
  | K_DROP
  | K_EACH
@@ -385,7 +382,6 @@ keyword
  | K_EXCLUSIVE
  | K_EXISTS
  | K_EXPLAIN
- | K_FAIL
  | K_FOR
  | K_FOREIGN
  | K_FROM
@@ -577,12 +573,10 @@ K_CURRENT_TIMESTAMP : C U R R E N T '_' T I M E S T A M P;
 K_DATABASE : D A T A B A S E;
 K_DATE : D A T E;
 K_DEFAULT : D E F A U L T;
-K_DEFERRABLE : D E F E R R A B L E;
-K_DEFERRED : D E F E R R E D;
 K_DELETE : D E L E T E;
 K_DESC : D E S C;
-K_DETACH : D E T A C H;
 K_DISTINCT : D I S T I N C T;
+K_DISTRIBUTED: D I S T R I B U T E D;
 K_DROP : D R O P;
 K_EACH : E A C H;
 K_ELSE : E L S E;
@@ -592,7 +586,6 @@ K_EXCEPT : E X C E P T;
 K_EXCLUSIVE : E X C L U S I V E;
 K_EXISTS : E X I S T S;
 K_EXPLAIN : E X P L A I N;
-K_FAIL : F A I L;
 K_FOR : F O R;
 K_FOREIGN : F O R E I G N;
 K_FROM : F R O M;
@@ -601,8 +594,6 @@ K_GLOB : G L O B;
 K_GROUP : G R O U P;
 K_HAVING : H A V I N G;
 K_IF : I F;
-K_IGNORE : I G N O R E;
-K_IMMEDIATE : I M M E D I A T E;
 K_IN : I N;
 K_INDEX : I N D E X;
 K_INDEXED : I N D E X E D;
