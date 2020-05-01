@@ -31,13 +31,11 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-using qpmodel;
 using qpmodel.stat;
 
-
-namespace statistics_fmt_cvnt
+namespace qpmodel.tools
 {
-    public class tableStats
+    public class PrestoColumnStats
     {
         public float distinctValuesCount { get; set; }
         public int nullsCount { get; set; }
@@ -46,34 +44,30 @@ namespace statistics_fmt_cvnt
         public int? dataSize { get; set; }
     }
 
-    public class TableContents
+    public class PrestoTableStats
     {
         public int rowCount { get; set; }
-        public Dictionary<string, tableStats> columns { get; set; }
+        public Dictionary<string, PrestoColumnStats> columns { get; set; }
 
-        public TableContents()
+        public PrestoTableStats()
         {
         }
     }
 
-    public class Table
+    public class PrestoTable
     {
         public string name;
-        public TableContents contents;
+        public PrestoTableStats contents;
 
-        public Table(string newName)
+        public PrestoTable(string newName)
         {
             name = newName;
         }
-
-        public Table()
-        {
-        }
     }
 
-    public class refmt_presto_stats
+    public class PrestoStatsFormatter
     {
-        static ColumnStat presto_format_convert(tableStats stat_in, int nRows)
+        static ColumnStat PrestoFormatConvert(PrestoColumnStats stat_in, int nRows)
         {
             ColumnStat stat = new ColumnStat();
 
@@ -86,33 +80,33 @@ namespace statistics_fmt_cvnt
             return stat;
         }
 
-        static public void read_cnvt_presto_stats(string stats_dir_fn)
+        static public void ReadConvertPrestoStats(string stats_dir_fn)
         {
             string[] statFiles = Directory.GetFiles(stats_dir_fn);
 
             foreach (string statFn in statFiles)
             {
-                Table currentTable = new Table(statFn);
+                PrestoTable currentTable = new PrestoTable(statFn);
                 currentTable.name = Path.GetFileNameWithoutExtension(statFn);
 
                 string jsonStr = File.ReadAllText(statFn);
                 string trimmedJsonStr = Regex.Replace(jsonStr, "\\n", "");
                 trimmedJsonStr = Regex.Replace(trimmedJsonStr, "\\r", "");
 
-                currentTable.contents = JsonSerializer.Deserialize<TableContents>(trimmedJsonStr);
+                currentTable.contents = JsonSerializer.Deserialize<PrestoTableStats>(trimmedJsonStr);
 
-                foreach (KeyValuePair<string, tableStats> kvp in currentTable.contents.columns)
+                foreach (KeyValuePair<string, PrestoColumnStats> kvp in currentTable.contents.columns)
                 {
-                    ColumnStat stat = presto_format_convert(kvp.Value, currentTable.contents.rowCount);
+                    ColumnStat stat = PrestoFormatConvert(kvp.Value, currentTable.contents.rowCount);
                     Catalog.sysstat_.AddOrUpdate(currentTable.name, kvp.Key, stat);
                 }
             }
         }
     }
 
-    public class serialize_stats
+    public class StatsSerializer
     {
-        static public void seriaize_and_write(Dictionary<string, ColumnStat> records, string stats_output_fn)
+        static public void SerializeAndWrite(Dictionary<string, ColumnStat> records, string stats_output_fn)
         {
             var serial_stats_fmt = JsonSerializer.Serialize<Dictionary<string, ColumnStat>>(records);
 

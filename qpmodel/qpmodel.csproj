@@ -159,7 +159,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Catalog.cs" />
-    <Compile Include="CnvtPrestoStats.cs" />
+    <Compile Include="PrestoStats.cs" />
     <Compile Include="Codegen.cs" />
     <Compile Include="DataType.cs" />
     <Compile Include="Expr.cs" />

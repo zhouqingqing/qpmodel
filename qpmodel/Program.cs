@@ -175,7 +175,6 @@ namespace qpmodel
             }
 
         doit:
-            sql = "analyze ap";
             sql = "select * from ap";
 
             var stopWatch = new Stopwatch();

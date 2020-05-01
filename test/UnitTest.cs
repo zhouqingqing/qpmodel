@@ -40,11 +40,9 @@ using qpmodel.optimizer;
 using qpmodel.test;
 using qpmodel.expr;
 using qpmodel.dml;
-using qpmodel;
+using qpmodel.tools;
 
 using psql;
-
-using statistics_fmt_cvnt;
 
 namespace qpmodel.unittest
 {
@@ -276,7 +274,7 @@ namespace qpmodel.unittest
             string stats_dir = "../../../tpcds/statistics/presto/sf1";
 
             //read_cnvt_presto_stats(string stats_dir_fn) 
-            refmt_presto_stats.read_cnvt_presto_stats(stats_dir);
+            PrestoStatsFormatter.ReadConvertPrestoStats(stats_dir);
 
             Tpcds.CreateTables();
             // TBD: load persisted stats here
