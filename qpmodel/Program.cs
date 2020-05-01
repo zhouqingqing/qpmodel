@@ -175,7 +175,7 @@ namespace qpmodel
             }
 
         doit:
-            sql = "select * from ap, bp where a1=b1;";
+            sql = "select a1,b4 from ap, b where a1=b1;";
 
             var stopWatch = new Stopwatch();
             stopWatch.Start();

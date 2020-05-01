@@ -1410,18 +1410,18 @@ namespace qpmodel.physic
 
     public class PhysicGather: PhysicNode
     {
-        internal ThreadLocal<bool> asConsumer_ = new ThreadLocal<bool>();
-        internal ThreadLocal<int> workerId_ = new ThreadLocal<int>();
+        internal bool asConsumer_ = true;
+        internal int workerId_ = -1;
 
         internal ExchangeChannel channel_;
 
         public PhysicGather(LogicGather logic, PhysicNode l) : base(logic) 
         { 
-            asConsumer_.Value = true; children_.Add(l); 
+            Debug.Assert(asConsumer_); children_.Add(l); 
         }
         public override string ToString() => $"PGATHER({child_()}: {Cost()})";
 
-        int producerId_() { Debug.Assert(!asConsumer_.Value); return workerId_.Value; }
+        int producerId_() { Debug.Assert(!asConsumer_); return workerId_; }
        
         public override double EstimateCost()
         {
@@ -1434,7 +1434,8 @@ namespace qpmodel.physic
             string cs = base.Open(context);
 
             // create producer threads, establish connections and set up 
-            // communication channel etc
+            // communication channel etc. It uses threads to emulate execution
+            // among a pool of machines.
             //
             channel_ = new ExchangeChannel(dop);
 
@@ -1442,7 +1443,7 @@ namespace qpmodel.physic
             for (int i = 0; i < dop; i++)
             {
                 var wo = new WorkerObject(i,
-                                        this, context.option_);
+                                        this.Clone(), context.option_);
                 var thread = new Thread(new ThreadStart(wo.EntryPoint));
                 thread.Name = $"{i + 1}";
                 workers.Add(thread);
@@ -1461,7 +1462,7 @@ namespace qpmodel.physic
         }
 
         public override string Open(ExecContext context) 
-            => asConsumer_.Value ? OpenConsumer(context) : OpenProducer(context);
+            => asConsumer_ ? OpenConsumer(context) : OpenProducer(context);
  
         public string ExecConsumer(Func<Row, string> callback)
         {
@@ -1493,7 +1494,7 @@ namespace qpmodel.physic
             return s;
         }
         public override string Exec(Func<Row, string> callback)
-            => asConsumer_ .Value? ExecConsumer(callback) : ExecProducer(callback);
+            => asConsumer_ ? ExecConsumer(callback) : ExecProducer(callback);
     }
 
     public class PhysicBroadcast : PhysicNode

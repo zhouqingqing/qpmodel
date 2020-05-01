@@ -48,7 +48,7 @@ namespace qpmodel.utils
     // A generic nary-tree node
     //   This serves as basis for both expression and query tree node
     //
-    public abstract class TreeNode<T> where T : TreeNode<T>
+    public abstract class TreeNode<T> where T : TreeNode<T> 
     {
         [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
         public List<T> children_ = new List<T>();
@@ -111,6 +111,16 @@ namespace qpmodel.utils
                         return true;
             }
             return exists;
+        }
+
+        // clone
+        public virtual T Clone()
+        {
+            var n = (T)MemberwiseClone();
+            n.children_ = new List<T>();
+            children_.ForEach(x => n.children_.Add(x.Clone()));
+            Debug.Assert(Equals(n));
+            return n;
         }
     }
 

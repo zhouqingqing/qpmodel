@@ -1812,6 +1812,14 @@ namespace qpmodel.unittest
             var sql = "select a1,a2 from ap;";
             TU.ExecuteSQL(sql, "0,1;1,2;2,3", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+
+            // aligned join, no shuffle required
+            sql = "select a1,b4 from ap, bp where a1=b1;";
+            TU.ExecuteSQL(sql, "0,3;1,4;2,5", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+            sql = "select a1,b4 from ap, b where a1=b1;";
+            TU.ExecuteSQL(sql, "0,3;1,4;2,5", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
         }
     }
 

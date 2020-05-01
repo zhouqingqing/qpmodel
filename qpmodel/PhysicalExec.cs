@@ -201,15 +201,17 @@ namespace qpmodel.physic
     }
 
     // Emulate a remote exchange channel
+    //   So we say send/recv
+    //
     public class ExchangeChannel
     {
-        BlockingCollection<Row> dataBuffer_ = new BlockingCollection<Row>(100);
+        BlockingCollection<Row> dataBuffer_ = new BlockingCollection<Row>();
         int cntDone_ = 0;
-        int dop_;
+        int queryDop_;
 
         public ExchangeChannel(int dop){
             cntDone_ = 0;
-            dop_ = dop;
+            queryDop_ = dop;
         }
 
         public void Send(Row r)
@@ -220,8 +222,8 @@ namespace qpmodel.physic
         public void MarkSendDone(int workerid)
         {
             var newcnt = Interlocked.Increment(ref cntDone_);
-            Debug.Assert(newcnt <= dop_);
-            if (newcnt == dop_)
+            Debug.Assert(newcnt <= queryDop_);
+            if (newcnt == queryDop_)
                 dataBuffer_.CompleteAdding();
         }
 
@@ -266,9 +268,9 @@ namespace qpmodel.physic
 
             // TBD: open subqueries
 
-            var plan = root_;
-            (plan as PhysicGather).asConsumer_.Value = false;
-            (plan as PhysicGather).workerId_.Value = workerId_;
+            var plan = root_ as PhysicGather;
+            plan.asConsumer_ = false;
+            plan.workerId_ = workerId_;
 
             var code = plan.Open(context);
             code = plan.Exec(null);

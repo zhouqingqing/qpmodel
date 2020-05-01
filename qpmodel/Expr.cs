@@ -637,10 +637,9 @@ namespace qpmodel.expr
         // notice b.a2 and a.a2 are the same column but have different ordinal.
         // This means we have to copy ColExpr, so its parents, then everything.
         //
-        public Expr Clone()
+        public override Expr Clone()
         {
-            Expr n = (Expr)MemberwiseClone();
-            n.children_ = children_.CloneList();
+            var n = base.Clone();
             n.tableRefs_ = new List<TableRef>();
             tableRefs_.ForEach(n.tableRefs_.Add);
             n.dbg_isCloneCopy_ = true;
