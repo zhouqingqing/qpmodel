@@ -81,16 +81,6 @@ namespace qpmodel
             var rows = SQLStatement.ExecSQL(sql, out string plan, out _);
         }
 
-        static void doPython()
-        {
-            var engine = Python.CreateEngine();
-            var scope = engine.CreateScope();
-            var libs  = new [] { @"D:\qpmodel\packages\IronPython.2.7.9\lib\net45" };
-            engine.SetSearchPaths(libs);
-            var ret = engine.ExecuteFile(@"z:/source/naru/train_model.py", scope);
-            Console.WriteLine(ret);
-        }
-
         static void TestJobench()
         {
             var files = Directory.GetFiles(@"../../../jobench");
@@ -175,22 +165,25 @@ namespace qpmodel
             }
 
         doit:
-            sql = "select a1,b4 from ap, b where a1=b1;";
+            sql = "select a1,b4 from ap, bp where a2=b2;";
 
             var stopWatch = new Stopwatch();
             stopWatch.Start();
 
+            // query options might be conflicting or incomplete
             Console.WriteLine(sql);
             var a = RawParser.ParseSingleSqlStatement(sql);
+            ExplainOption.show_tablename_ = false;
             a.queryOpt_.profile_.enabled_ = true;
             a.queryOpt_.optimize_.enable_subquery_unnest_ = true;
             a.queryOpt_.optimize_.remove_from_ = false;
             a.queryOpt_.optimize_.use_memo_ = false;
             a.queryOpt_.optimize_.enable_cte_plan_ = false;
             a.queryOpt_.optimize_.use_codegen_ = false;
-
-            //a.queryOpt_.optimize_.memo_disable_crossjoin = false;
-            //a.queryOpt_.optimize_.use_joinorder_solver = true;
+            a.queryOpt_.optimize_.memo_disable_crossjoin_ = false;
+            a.queryOpt_.optimize_.memo_use_joinorder_solver_ = false;
+            a.queryOpt_.explain_.show_output_ = false;
+            a.queryOpt_.explain_.show_cost_ = a.queryOpt_.optimize_.use_memo_;
 
             // -- Semantic analysis:
             //  - bind the query
@@ -198,14 +191,12 @@ namespace qpmodel
             a.Bind(null);
 
             // -- generate an initial plan
-            ExplainOption.show_tablename_ = false;
-            a.queryOpt_.explain_.show_output_ = false;
-            a.queryOpt_.explain_.show_cost_ =  a.queryOpt_.optimize_.use_memo_;
             var rawplan = a.CreatePlan();
             Console.WriteLine("***************** raw plan *************");
             Console.WriteLine(rawplan.Explain(0));
 
-            physic.PhysicNode phyplan = null;
+            // -- optimize the plan
+            PhysicNode phyplan = null;
             if (a.queryOpt_.optimize_.use_memo_)
             {
                 Console.WriteLine("***************** optimized plan *************");
@@ -232,6 +223,7 @@ namespace qpmodel
                 Console.WriteLine(phyplan.Explain(0, a.queryOpt_.explain_));
             }
 
+            // -- output profile and query result
             Console.WriteLine("-- profiling plan --");
             var final = new PhysicCollect(phyplan);
             a.physicPlan_ = final;

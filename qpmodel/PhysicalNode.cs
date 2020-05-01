@@ -1408,30 +1408,54 @@ namespace qpmodel.physic
         }
     }
 
-    public class PhysicGather: PhysicNode
+    public abstract class PhysicRemoteExchange : PhysicNode
     {
         internal bool asConsumer_ = true;
         internal int workerId_ = -1;
-
         internal ExchangeChannel channel_;
 
-        public PhysicGather(LogicGather logic, PhysicNode l) : base(logic) 
-        { 
-            Debug.Assert(asConsumer_); children_.Add(l); 
-        }
-        public override string ToString() => $"PGATHER({child_()}: {Cost()})";
+        protected int producerId_() { Debug.Assert(!asConsumer_); return workerId_; }
 
-        int producerId_() { Debug.Assert(!asConsumer_); return workerId_; }
-       
+        public PhysicRemoteExchange(LogicRemoteExchange logic, PhysicNode l) : base(logic)
+        {
+            Debug.Assert(asConsumer_); children_.Add(l);
+        }
+
+        public virtual string OpenConsumer(ExecContext context) 
+        {
+            string cs = base.Open(context);
+            Debug.Assert(channel_ is null);
+            return cs;
+        }
+        public virtual string OpenProducer(ExecContext context)
+        {
+            string cs = base.Open(context);
+            Debug.Assert(channel_ != null);
+            return cs;
+        }
+        public override string Open(ExecContext context)
+            => asConsumer_ ? OpenConsumer(context) : OpenProducer(context);
+
+        public virtual string ExecConsumer(Func<Row, string> callback) => null;
+        public virtual string ExecProducer(Func<Row, string> callback) => null;
+        public override string Exec(Func<Row, string> callback)
+            => asConsumer_ ? ExecConsumer(callback) : ExecProducer(callback);
+
         public override double EstimateCost()
         {
             return logic_.Card() * 0.1;
         }
+    }
 
-        public string OpenConsumer(ExecContext context)
+    public class PhysicGather: PhysicRemoteExchange
+    {
+        public PhysicGather(LogicGather logic, PhysicNode l) : base(logic, l) { }
+        public override string ToString() => $"PGATHER({child_()}: {Cost()})";
+
+        public override string OpenConsumer(ExecContext context)
         {
             int dop = context.option_.optimize_.query_dop_;
-            string cs = base.Open(context);
+            string cs = base.OpenConsumer(context);
 
             // create producer threads, establish connections and set up 
             // communication channel etc. It uses threads to emulate execution
@@ -1453,18 +1477,7 @@ namespace qpmodel.physic
             return cs;
         }
 
-        public string OpenProducer(ExecContext context)
-        {
-            string cs = base.Open(context);
-
-            Debug.Assert(channel_ != null);
-            return cs;
-        }
-
-        public override string Open(ExecContext context) 
-            => asConsumer_ ? OpenConsumer(context) : OpenProducer(context);
- 
-        public string ExecConsumer(Func<Row, string> callback)
+        public override string ExecConsumer(Func<Row, string> callback)
         {
             ExecContext context = context_;
 
@@ -1475,7 +1488,7 @@ namespace qpmodel.physic
             return null;
         }
 
-        public string ExecProducer(Func<Row, string> callback)
+        public override string ExecProducer(Func<Row, string> callback)
         {
             ExecContext context = context_;
 
@@ -1493,28 +1506,12 @@ namespace qpmodel.physic
             channel_.MarkSendDone(producerId_());
             return s;
         }
-        public override string Exec(Func<Row, string> callback)
-            => asConsumer_ ? ExecConsumer(callback) : ExecProducer(callback);
     }
 
-    public class PhysicBroadcast : PhysicNode
+    public class PhysicBroadcast : PhysicRemoteExchange
     {
-        public PhysicBroadcast(LogicBroadcast logic, PhysicNode l) : base(logic) => children_.Add(l);
+        public PhysicBroadcast(LogicBroadcast logic, PhysicNode l) : base(logic, l) { }
         public override string ToString() => $"PBORADCAST({child_()}: {Cost()})";
-
-        public override double EstimateCost()
-        {
-            return logic_.Card() * 0.1;
-        }
-
-        public override string Open(ExecContext context)
-        {
-            string cs = base.Open(context);
-            if (context.option_.optimize_.use_codegen_)
-            {
-            }
-            return cs;
-        }
 
         public override string Exec(Func<Row, string> callback)
         {
@@ -1534,24 +1531,10 @@ namespace qpmodel.physic
         }
     }
 
-    public class PhysicRedistribute : PhysicNode
+    public class PhysicRedistribute : PhysicRemoteExchange
     {
-        public PhysicRedistribute(LogicRedistribute logic, PhysicNode l) : base(logic) => children_.Add(l);
+        public PhysicRedistribute(LogicRedistribute logic, PhysicNode l) : base(logic, l) { }
         public override string ToString() => $"PREDISTRIBUTE({child_()}: {Cost()})";
-
-        public override double EstimateCost()
-        {
-            return logic_.Card() * 0.1;
-        }
-
-        public override string Open(ExecContext context)
-        {
-            string cs = base.Open(context);
-            if (context.option_.optimize_.use_codegen_)
-            {
-            }
-            return cs;
-        }
 
         public override string Exec(Func<Row, string> callback)
         {

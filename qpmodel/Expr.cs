@@ -587,7 +587,6 @@ namespace qpmodel.expr
         public bool EqualTableRef(TableRef tableRef){ validateAfterBound();Debug.Assert(TableRefCount() == 1);return tableRefs_[0].Equals(tableRef);}
         public bool TableRefsContainedBy(List<TableRef> tableRefs){validateAfterBound();return tableRefs.ContainsList(tableRefs_);}
 
-        public void VisitEach(Action<Expr> callback) => VisitEachT<Expr>(callback);
         public void VisitEachIgnoreRef<T>(Action<T> callback) where T : Expr
             => VisitEachIgnore<ExprRef, T>(callback);
 

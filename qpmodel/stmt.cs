@@ -418,6 +418,9 @@ namespace qpmodel.logic
         internal List<SelectStmt> correlatedWhich_ = new List<SelectStmt>();
         internal bool shallExpandSelection_ = false;
 
+		// mark if current plan is distirbuted: it does not include children plan
+		internal bool distributed_ = false;
+
         internal SelectStmt TopStmt()
         {
             var top = this;
@@ -730,6 +733,8 @@ namespace qpmodel.logic
             physicPlan_ = null;
             if (!queryOpt_.optimize_.use_memo_)
             {
+                if (distributed_)
+                    logicPlan_.MarkExchange(queryOpt_);
                 physicPlan_ = logicPlan_.DirectToPhysical(queryOpt_);
                 selection_?.ForEach(ExprHelper.SubqueryDirectToPhysic);
 

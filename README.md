@@ -2,7 +2,7 @@
 This project models a relational optimizer and executor in c#. The main target is the optimizer, and the purpose is to prepare for a more serious production implementation later. The executor part is needed for plan correctness verification. See github project "issues" for bugs and todo items.
 
 ## Why C#
-Optimizer is logic centric, so a high-level language is preferred. After modeling, production may want to turn it into some C/C++ code, so the language must be a close relative of them. C# provides some good features like LINQ, dynamic types to make modeling easy, and it is close enough to C++ (and that's why not python).
+Optimizer is logic centric, so a high-level language is preferred. After modeling, production may want to turn it into some C/C++ code, so the language must be a close relative of them. C# provides some great features like LINQ, dynamic types to make modeling easy, and it is close enough to C++ (and that's why not python).
 
 ## Optimizer
 The optimizer exercises the following constructs:
@@ -28,7 +28,7 @@ The optimizer exercises the following constructs:
 - Verify the optimizer by some unittests and TPCH/DS. All TPCH queries are runnable. TPCDS we do not support window function and rolling groups. You can find TPCH plan [here](https://github.com/zhouqingqing/adb/tree/master/test/regress/expect/tpch0001).
 
 ## Executor
-The executor is implemented for two purpose: (1) verify plan correctness; (2) demonstrate codeGen engineering readiness following paper ["How to Architect a query compiler, Revisited"](https://www.cs.purdue.edu/homes/rompf/papers/tahboub-sigmod18.pdf) by R.Y.Tahboub et al. Executor is not intended to demonstrate implementing specific operator efficiently.
+The executor is implemented for two purpose: (1) verify plan correctness; (2) test codeGen engineering readiness following paper ["How to Architect a query compiler, Revisited"](https://www.cs.purdue.edu/homes/rompf/papers/tahboub-sigmod18.pdf) by R.Y.Tahboub et al. Executor is not intended to demonstrate implementing specific operator efficiently.
 - It does not use a LMS underneath, but thanks for c#'s interpolated string support, the template is easy to read and construct side by side with interpreted code.
 - To support incremental codeGen improvement, meaning we can ship partial codeGen implementation, it supports a generic expression evaluation function which can fallback to the interpreted implementation if that specific expression is not codeGen ready.
 - It emulates a cross machine execution using parallel threads using remote exchange model.

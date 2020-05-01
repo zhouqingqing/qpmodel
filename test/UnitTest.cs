@@ -397,7 +397,7 @@ namespace qpmodel.unittest
     public class Optimizer
     {
         [TestMethod]
-        public void TestBasic()
+        public void TestJoinSolvers()
         {
             VancePartition.Test();
             SetOp.Test();
@@ -1821,6 +1821,15 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "0,3;1,4;2,5", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
         }
-    }
 
+        [TestMethod]
+        public void Redistribute()
+        {
+            var phyplan = "";
+            var sql = "select a1,b4 from ap, bp where a2=b2;";
+            TU.ExecuteSQL(sql, "0,3;1,4;2,5", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+            Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
+        }
+    }
 }

@@ -78,10 +78,30 @@ namespace qpmodel.logic
             return null;
         }
 
+        public void MarkExchange(QueryOption option)
+        {
+            switch (this)
+            {
+                case LogicJoin lj:
+                    var leftshuffle = new LogicRedistribute(l_());
+                    var rightshuffle = new LogicRedistribute(r_());
+                    lj.children_[0] = leftshuffle;
+                    lj.children_[1] = rightshuffle;
+                    break;
+                default:
+                    children_.ForEach(x => x.MarkExchange(option));
+                    break;
+            }
+        }
+
         // This is an honest translation from logic to physical plan
         public PhysicNode DirectToPhysical(QueryOption option)
         {
-            PhysicNode phy;
+            PhysicNode result;
+            PhysicNode phyfirst = null;
+            if (children_.Count != 0)
+                phyfirst = children_[0].DirectToPhysical(option);
+
             switch (this)
             {
                 case LogicScanTable ln:
@@ -94,101 +114,94 @@ namespace qpmodel.logic
                         ln.filter_.SubqueryDirectToPhysic();
                     }
                     if (index is null)
-                        phy = new PhysicScanTable(ln);
+                        result = new PhysicScanTable(ln);
                     else
-                        phy = new PhysicIndexSeek(ln, index);
+                        result = new PhysicIndexSeek(ln, index);
                     break;
                 case LogicJoin lc:
-                    var l = l_();
-                    var r = r_();
-                    Debug.Assert(!l.LeftReferencesRight(r));
+                    var phyleft = phyfirst;
+                    var phyright = r_().DirectToPhysical(option);
+                    Debug.Assert(!l_().LeftReferencesRight(r_()));
                     switch (lc)
                     {
                         case LogicSingleJoin lsmj:
-                            phy = new PhysicSingleJoin(lsmj,
-                                l.DirectToPhysical(option),
-                                r.DirectToPhysical(option));
+                            result = new PhysicSingleJoin(lsmj, phyleft, phyright);
                             break;
                         case LogicMarkJoin lmj:
-                            phy = new PhysicMarkJoin(lmj,
-                                l.DirectToPhysical(option),
-                                r.DirectToPhysical(option));
+                            result = new PhysicMarkJoin(lmj, phyleft, phyright);
                             break;
                         default:
                             // one restriction of HJ is that if build side has columns used by probe side
                             // subquries, we need to use NLJ to pass variables. It is can be fixed by changing
-                            // the way we pass parameters though.
-                            bool lhasSubqCol = TableRef.HasColsUsedBySubquries(l.InclusiveTableRefs());
+                            // the way runtime pass parameters though.
+                            //
+                            bool lhasSubqCol = TableRef.HasColsUsedBySubquries(l_().InclusiveTableRefs());
                             if (lc.filter_.FilterHashable() && !lhasSubqCol
-                                &&  (lc.type_ == JoinType.Inner || lc.type_ == JoinType.Left))
-                                phy = new PhysicHashJoin(lc,
-                                    l.DirectToPhysical(option),
-                                    r.DirectToPhysical(option));
+                                && (lc.type_ == JoinType.Inner || lc.type_ == JoinType.Left))
+                                result = new PhysicHashJoin(lc, phyleft, phyright);
                             else
-                                phy = new PhysicNLJoin(lc,
-                                    l.DirectToPhysical(option),
-                                    r.DirectToPhysical(option));
+                                result = new PhysicNLJoin(lc, phyleft, phyright);
                             break;
                     }
                     break;
                 case LogicResult lr:
-                    phy = new PhysicResult(lr);
+                    result = new PhysicResult(lr);
                     break;
                 case LogicFromQuery ls:
-                    phy = new PhysicFromQuery(ls, child_().DirectToPhysical(option));
+                    result = new PhysicFromQuery(ls, phyfirst);
                     break;
                 case LogicFilter lf:
-                    phy = new PhysicFilter(lf, child_().DirectToPhysical(option));
+                    result = new PhysicFilter(lf, phyfirst);
                     if (lf.filter_ != null)
                         lf.filter_.SubqueryDirectToPhysic();
                     break;
                 case LogicInsert li:
-                    phy = new PhysicInsert(li, child_().DirectToPhysical(option));
+                    result = new PhysicInsert(li, phyfirst);
                     break;
                 case LogicScanFile le:
-                    phy = new PhysicScanFile(le);
+                    result = new PhysicScanFile(le);
                     break;
                 case LogicAgg la:
-                    phy = new PhysicHashAgg(la, child_().DirectToPhysical(option));
+                    result = new PhysicHashAgg(la, phyfirst);
                     break;
                 case LogicOrder lo:
-                    phy = new PhysicOrder(lo, child_().DirectToPhysical(option));
+                    result = new PhysicOrder(lo, phyfirst);
                     break;
                 case LogicAnalyze lan:
-                    phy = new PhysicAnalyze(lan, child_().DirectToPhysical(option));
+                    result = new PhysicAnalyze(lan, phyfirst);
                     break;
                 case LogicIndex lindex:
-                    phy = new PhysicIndex(lindex, child_().DirectToPhysical(option));
+                    result = new PhysicIndex(lindex, phyfirst);
                     break;
                 case LogicLimit limit:
-                    phy = new PhysicLimit(limit, child_().DirectToPhysical(option));
+                    result = new PhysicLimit(limit, phyfirst);
                     break;
                 case LogicAppend append:
-                    phy = new PhysicAppend(append, l_().DirectToPhysical(option), r_().DirectToPhysical(option));
+                    result = new PhysicAppend(append, phyfirst, r_().DirectToPhysical(option));
                     break;
                 case LogicCteProducer cteproducer:
-                    phy = new PhysicCteProducer(cteproducer, child_().DirectToPhysical(option));
+                    result = new PhysicCteProducer(cteproducer, phyfirst);
                     break;
                 case LogicSequence sequence:
                     List<PhysicNode> children = sequence.children_.Select(x => x.DirectToPhysical(option)).ToList();
-                    phy = new PhysicSequence(sequence, children);
+                    result = new PhysicSequence(sequence, children);
                     break;
                 case LogicGather gather:
-                    phy = new PhysicGather(gather, child_().DirectToPhysical(option));
+                    result = new PhysicGather(gather, phyfirst);
                     break;
                 case LogicBroadcast bcast:
-                    phy = new PhysicBroadcast(bcast, child_().DirectToPhysical(option));
+                    result = new PhysicBroadcast(bcast, phyfirst);
                     break;
                 case LogicRedistribute dist:
-                    phy = new PhysicRedistribute(dist, child_().DirectToPhysical(option));
+                    result = new PhysicRedistribute(dist, phyfirst);
                     break;
                 default:
                     throw new NotImplementedException();
             }
 
             if (option.profile_.enabled_)
-                phy = new PhysicProfiling(phy);
-            return phy;
+                result = new PhysicProfiling(result);
+            return result;
         }
 
         public List<TableRef> InclusiveTableRefs(bool refresh = false)
@@ -1188,27 +1201,27 @@ namespace qpmodel.logic
 
     // Remote exchange operators: Gather, Broadcast and Redistribute
     //
-    public class LogicGather : LogicNode
+    public class LogicRemoteExchange : LogicNode
     {
-        public LogicGather(LogicNode child)
+        public LogicRemoteExchange(LogicNode child)
         {
             children_.Add(child);
         }
     }
-
-    public class LogicBroadcast : LogicNode 
+    public class LogicGather : LogicRemoteExchange
     {
-        public LogicBroadcast(LogicNode child)
-        {
-            children_.Add(child);
-        }
+        public LogicGather(LogicNode child) : base(child) { }
+
+        public override string ExplainInlineDetails() => $"1 : {QueryOption.num_table_partitions_}";
     }
 
-    public class LogicRedistribute: LogicNode
+    public class LogicBroadcast : LogicRemoteExchange
     {
-        public LogicRedistribute(LogicNode child)
-        {
-            children_.Add(child);
-        }
+        public LogicBroadcast(LogicNode child) : base(child) { }
+    }
+
+    public class LogicRedistribute: LogicRemoteExchange
+    {
+        public LogicRedistribute(LogicNode child) : base(child) { }
     }
 }

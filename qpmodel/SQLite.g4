@@ -203,7 +203,6 @@ foreign_key_clause
      | K_MATCH name
      ) 
    )*
-   ( K_NOT? K_DEFERRABLE ( K_INITIALLY K_DEFERRED | K_INITIALLY K_IMMEDIATE )? )?
  ;
 
 indexed_column
@@ -390,8 +389,6 @@ keyword
  | K_GROUP
  | K_HAVING
  | K_IF
- | K_IGNORE
- | K_IMMEDIATE
  | K_IN
  | K_INDEX
  | K_INDEXED

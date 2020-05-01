@@ -83,13 +83,15 @@ namespace qpmodel.logic
             }
         }
 
-        // global static variables
-        public const int num_table_partitions_ = 4;
-        // options
+        // user specified options
         public ProfileOption profile_ = new ProfileOption();
         public OptimizeOption optimize_ = new OptimizeOption();
         public ExplainOption explain_ = new ExplainOption();
 
+        // global static variables
+        public const int num_table_partitions_ = 4;
+
+        // codegen section
         bool saved_use_codegen_;
         public void PushCodeGenDisable() {
             saved_use_codegen_ = optimize_.use_codegen_;
@@ -400,7 +402,11 @@ namespace qpmodel.logic
             from_.ForEach(x => hasdtable |= 
                 (x is BaseTableRef bx && bx.Table().distributedBy_ != null));
             if (hasdtable)
+            {
+                Debug.Assert(!distributed_);
+                distributed_ = true;
                 root = new LogicGather(root);
+            }
 
             return root;
         }
