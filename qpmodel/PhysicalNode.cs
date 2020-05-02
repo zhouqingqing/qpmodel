@@ -25,22 +25,20 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+using qpmodel.codegen;
+using qpmodel.expr;
+using qpmodel.index;
+using qpmodel.logic;
+using qpmodel.optimizer;
+using qpmodel.stat;
+using qpmodel.utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
-
-using qpmodel.expr;
-using qpmodel.logic;
-using qpmodel.utils;
-using qpmodel.optimizer;
-using qpmodel.codegen;
-using qpmodel.index;
-using qpmodel.stat;
-
-using Value = System.Object;
 using BitVector = System.Int64;
+using Value = System.Object;
 
 
 namespace qpmodel.physic
@@ -93,7 +91,6 @@ namespace qpmodel.physic
             if (context.option_.optimize_.use_codegen_)
             {
                 // default setting of codegen parameters
-                _ = ObjectID.NewId().ToString();
                 _logic_ = $"{logic_?.GetType().Name}{_}";
                 _physic_ = $"{this.GetType().Name}{_}";
                 s += CreateCommonNames();
@@ -128,7 +125,6 @@ namespace qpmodel.physic
             Row r = new Row(output.Count);
             for (int i = 0; i < output.Count; i++)
                 r[i] = output[i].Exec(context_, input);
-
             return r;
         }
 
@@ -225,8 +221,6 @@ namespace qpmodel.physic
         }
 
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-        internal string _ = "<codegen: current node id>";
-        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         internal string _logic_ = "<codegen: logic node name>";
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         internal string _physic_ = "<codegen: physic node name>";
@@ -283,16 +277,17 @@ namespace qpmodel.physic
 
         public override string Exec(Func<Row, string> callback)
         {
-            ExecContext context = context_;
+            var context = context_;
             var logic = logic_ as LogicScanTable;
             var filter = logic.filter_;
-            var heap = (logic.tabref_).Table().partions_[context.machineId_].heap_;
+            var distId = (logic.tabref_).IsDistributed() ? (context as DistributedContext).machineId_ : 0;
+            var heap = (logic.tabref_).Table().distributions_[distId].heap_;
 
             string cs = null;
             if (context.option_.optimize_.use_codegen_)
             {
                 cs += $@"
-                var heap{_} = ({_logic_}.tabref_).Table().partions_[0].heap_;
+                var heap{_} = ({_logic_}.tabref_).Table().distributions_[{distId}].heap_;
                 foreach (var l{_} in heap{_})
                 {{
                     Row r{_} = l{_};
@@ -450,7 +445,6 @@ namespace qpmodel.physic
         public PhysicJoin(LogicJoin logic, PhysicNode l, PhysicNode r) : base(logic)
         {
             children_.Add(l); children_.Add(r);
-            // Debug.Assert(tableContained_ != 0);
         }
 
         static internal PhysicJoin CreatePhysicJoin(Implmentation impl, PhysicNode left, PhysicNode right, Expr pred)
@@ -687,7 +681,7 @@ namespace qpmodel.physic
                     return null;
             }
             s += r_().Exec(r =>
-             {
+            {
                  string probecode = null;
                  if (context.option_.optimize_.use_codegen_) {
                      var rname = $"r{r_()._}";
@@ -1181,7 +1175,7 @@ namespace qpmodel.physic
                 int partid = 0;
                 if (table.distributedBy_ != null)
                     partid = 0;
-                table.partions_[partid].heap_.Add(l);
+                table.distributions_[partid].heap_.Add(l);
                 return null;
             });
             return null;
@@ -1410,31 +1404,31 @@ namespace qpmodel.physic
 
     public abstract class PhysicRemoteExchange : PhysicNode
     {
-        internal bool asConsumer_ = true;
-        internal int workerId_ = -1;
-        internal ExchangeChannel channel_;
-
-        protected int producerId_() { Debug.Assert(!asConsumer_); return workerId_; }
+        internal bool asConsumer_ { get; set; } = true;
 
         public PhysicRemoteExchange(LogicRemoteExchange logic, PhysicNode l) : base(logic)
         {
             Debug.Assert(asConsumer_); children_.Add(l);
         }
 
-        public virtual string OpenConsumer(ExecContext context) 
+        public override string Close()
         {
-            string cs = base.Open(context);
-            Debug.Assert(channel_ is null);
-            return cs;
+            var code = base.Close();
+            return code;
         }
-        public virtual string OpenProducer(ExecContext context)
+
+        public virtual string OpenConsumer(ExecContext context) => null;
+        public virtual string OpenProducer(ExecContext context) => null;
+        public override string Open(ExecContext econtext)
         {
-            string cs = base.Open(context);
-            Debug.Assert(channel_ != null);
-            return cs;
+            var context = econtext as DistributedContext;
+            var code = asConsumer_? OpenConsumer(context) : OpenProducer(context);
+
+            // only producer inherits the bottom half of the plan
+            if (!asConsumer_)
+                code += base.Open(context);
+            return code;
         }
-        public override string Open(ExecContext context)
-            => asConsumer_ ? OpenConsumer(context) : OpenProducer(context);
 
         public virtual string ExecConsumer(Func<Row, string> callback) => null;
         public virtual string ExecProducer(Func<Row, string> callback) => null;
@@ -1449,11 +1443,14 @@ namespace qpmodel.physic
 
     public class PhysicGather: PhysicRemoteExchange
     {
+        internal ExchangeChannel channel_ { get; set; }
+
         public PhysicGather(LogicGather logic, PhysicNode l) : base(logic, l) { }
         public override string ToString() => $"PGATHER({child_()}: {Cost()})";
 
-        public override string OpenConsumer(ExecContext context)
+        public override string OpenConsumer(ExecContext econtext)
         {
+            var context = econtext as DistributedContext;
             int dop = context.option_.optimize_.query_dop_;
             string cs = base.OpenConsumer(context);
 
@@ -1463,17 +1460,32 @@ namespace qpmodel.physic
             //
             channel_ = new ExchangeChannel(dop);
 
+            Debug.Assert(context.machines_ != null);
             List<Thread> workers = new List<Thread>();
             for (int i = 0; i < dop; i++)
             {
-                var wo = new WorkerObject(i,
-                                        this.Clone(), context.option_);
+                var machineId = i;
+                var planId = _;
+
+                var wo = new WorkerObject(Thread.CurrentThread.Name,
+                                        context.machines_,
+                                        machineId,
+                                        planId,
+                                        this.Clone(),
+                                        context.option_);
                 var thread = new Thread(new ThreadStart(wo.EntryPoint));
-                thread.Name = $"{i + 1}";
+                thread.Name = $"Gather_{planId}@{machineId}";
                 workers.Add(thread);
             }
             workers.ForEach(x => x.Start());
 
+            return cs;
+        }
+
+        public override string OpenProducer(ExecContext context)
+        {
+            string cs = base.OpenProducer(context);
+            Debug.Assert(channel_ != null);
             return cs;
         }
 
@@ -1482,7 +1494,8 @@ namespace qpmodel.physic
             ExecContext context = context_;
 
             Row r;
-            while ((r = channel_.Recv()) != null){
+            while ((r = channel_.Recv()) != null)
+            {
                 callback(r);
             }
             return null;
@@ -1490,7 +1503,7 @@ namespace qpmodel.physic
 
         public override string ExecProducer(Func<Row, string> callback)
         {
-            ExecContext context = context_;
+            var context = context_ as DistributedContext;
 
             string s = child_().Exec(r =>
             {
@@ -1503,7 +1516,7 @@ namespace qpmodel.physic
                 return srccode;
             });
 
-            channel_.MarkSendDone(producerId_());
+            channel_.MarkSendDone(context.machineId_);
             return s;
         }
     }
@@ -1533,24 +1546,95 @@ namespace qpmodel.physic
 
     public class PhysicRedistribute : PhysicRemoteExchange
     {
-        public PhysicRedistribute(LogicRedistribute logic, PhysicNode l) : base(logic, l) { }
+        // consumer only: channel it recieve from
+        internal ExchangeChannel channel_ { get; set; }
+
+        // producer only: channels it shall send data to, so the number equals nubmer of machines
+        List<ExchangeChannel> upChannels_ { get; set; }
+
+        public PhysicRedistribute(LogicRedistribute logic, PhysicNode l) : base(logic, l) {}
         public override string ToString() => $"PREDISTRIBUTE({child_()}: {Cost()})";
 
-        public override string Exec(Func<Row, string> callback)
+        public override string OpenConsumer(ExecContext econtext)
         {
-            ExecContext context = context_;
+            var context = econtext as DistributedContext;
+            int dop = context.option_.optimize_.query_dop_;
+            var code = base.OpenConsumer(context);
+            var planId = _;
 
-            string s = child_().Exec(l =>
+            Debug.Assert(context.machineId_ >= 0);
+            var machineId = context.machineId_;
+            var wo = new WorkerObject(Thread.CurrentThread.Name, 
+                                    context.machines_,
+                                    machineId,
+                                    planId,
+                                    this.Clone(),
+                                    context.option_);
+            var thread = new Thread(new ThreadStart(wo.EntryPoint));
+            thread.Name = $"Redis_{planId}@{machineId}";
+            thread.Start();
+
+            upChannels_ = null;
+            channel_ = new ExchangeChannel(dop);
+            context.machines_.RegisterChannel(planId, machineId, channel_);
+            return code;
+        }
+        public override string OpenProducer(ExecContext econtext)
+        {
+            var context = econtext as DistributedContext;
+            int dop = context.option_.optimize_.query_dop_;
+            var code = base.OpenProducer(context);
+            var planId = _;
+
+            // establish all up channels
+            Debug.Assert(upChannels_ is null);
+            upChannels_ = new List<ExchangeChannel>();
+            for (int i = 0; i < dop; i++)
+            {
+                var channel = context.machines_.WaitForChannelReady(planId, i);
+                upChannels_.Add(channel);
+            }
+
+            channel_ = null;
+            return code;
+        }
+
+        public override string ExecProducer(Func<Row, string> callback)
+        {
+            var context = context_ as DistributedContext;
+            int dop = context.option_.optimize_.query_dop_;
+
+            string s = child_().Exec(r =>
             {
                 string srccode = null;
                 if (!context.option_.optimize_.use_codegen_)
                 {
-                    callback(l);
+                    var sendtoMachine = r[0].GetHashCode() % dop;
+                    upChannels_[sendtoMachine].Send(r);
+
+                    var tid = Thread.CurrentThread.ManagedThreadId;
+#if debug
+                    Console.WriteLine($"{Thread.CurrentThread.Name} by {tid} => {r} => {sendtoMachine}");
+#endif
                 }
 
                 return srccode;
             });
+
+            for (int i = 0; i < dop; i++)
+                upChannels_[i].MarkSendDone(context.machineId_);
             return s;
+        }
+        public override string ExecConsumer(Func<Row, string> callback)
+        {
+            ExecContext context = context_;
+
+            Row r;
+            while ((r = channel_.Recv()) != null)
+            {
+                callback(r);
+            }
+            return null;
         }
     }
 }

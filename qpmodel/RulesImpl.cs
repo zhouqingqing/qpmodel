@@ -186,4 +186,7 @@ namespace qpmodel.optimizer
     public class Join2SingleJoin : SimpleImplementationRule<LogicSingleJoin, PhysicSingleJoin, NumberArgs.N2> { }
     public class Seq2Seq: SimpleImplementationRule<LogicSequence, PhysicSequence, NumberArgs.NList> { }
     public class CteProd2CteProd: SimpleImplementationRule<LogicCteProducer, PhysicCteProducer, NumberArgs.N1> { }
+    public class Gather2Gather: SimpleImplementationRule<LogicGather, PhysicGather, NumberArgs.N1> { }
+    public class Bcast2Bcast : SimpleImplementationRule<LogicBroadcast, PhysicBroadcast, NumberArgs.N1> { }
+    public class Redis2Redis : SimpleImplementationRule<LogicRedistribute, PhysicRedistribute, NumberArgs.N1> { }
 }

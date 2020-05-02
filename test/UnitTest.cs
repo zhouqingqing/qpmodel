@@ -1812,24 +1812,30 @@ namespace qpmodel.unittest
             var sql = "select a1,a2 from ap;";
             TU.ExecuteSQL(sql, "0,1;1,2;2,3", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-
-            // aligned join, no shuffle required
-            sql = "select a1,b4 from ap, bp where a1=b1;";
-            TU.ExecuteSQL(sql, "0,3;1,4;2,5", out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-            sql = "select a1,b4 from ap, b where a1=b1;";
-            TU.ExecuteSQL(sql, "0,3;1,4;2,5", out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
         }
 
         [TestMethod]
         public void Redistribute()
         {
+            // needs order by to force result order
             var phyplan = "";
-            var sql = "select a1,b4 from ap, bp where a2=b2;";
-            TU.ExecuteSQL(sql, "0,3;1,4;2,5", out phyplan);
+            var sql = "select a1,b1 from ap, b where a1=b1 order by a1;";
+            TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Redistribute"));
+            sql = "select a1,b1 from ap, bp where a1=b1 order by a1;";
+            TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
             Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
+            sql = "select a2,b2,c2 from ap, bp, cp where a2=b2 and c2 = b2 order by c2";
+            TU.ExecuteSQL(sql, "1,1,1;2,2,2;3,3,3", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+            Assert.AreEqual(4, TU.CountStr(phyplan, "Redistribute"));
+            sql = "select a2,b2,c2,d2 from ap, bp, cp, dp where a2=b2 and c2 = b2 and c2=d2 order by b2";
+            TU.ExecuteSQL(sql, "1,1,1,1;2,2,2,2;2,2,2,2;3,3,3,3", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+            Assert.AreEqual(6, TU.CountStr(phyplan, "Redistribute"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "70 threads"));
         }
     }
 }

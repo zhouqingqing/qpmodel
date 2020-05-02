@@ -162,7 +162,7 @@ namespace qpmodel
             }
 
         doit:
-            sql = "select a1,b4 from ap, bp where a2=b2;";
+            sql = "select a2,b2,c2,d2 from ap, bp, cp, dp where a2=b2 and c2 = b2 and c2=d2 order by a2";
 
             var stopWatch = new Stopwatch();
             stopWatch.Start();
@@ -179,7 +179,8 @@ namespace qpmodel
             a.queryOpt_.optimize_.use_codegen_ = false;
             a.queryOpt_.optimize_.memo_disable_crossjoin_ = false;
             a.queryOpt_.optimize_.memo_use_joinorder_solver_ = false;
-            a.queryOpt_.explain_.show_output_ = false;
+            a.queryOpt_.explain_.show_output_ = true;
+            a.queryOpt_.explain_.show_id_ = true;
             a.queryOpt_.explain_.show_cost_ = a.queryOpt_.optimize_.use_memo_;
 
             // -- Semantic analysis:
@@ -224,7 +225,7 @@ namespace qpmodel
             Console.WriteLine("-- profiling plan --");
             var final = new PhysicCollect(phyplan);
             a.physicPlan_ = final;
-            var context = new ExecContext(a.queryOpt_);
+            ExecContext context = a.CreateExecContext();
 
             final.ValidateThis();
             if (a is SelectStmt select)

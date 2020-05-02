@@ -48,8 +48,11 @@ namespace qpmodel.utils
     // A generic nary-tree node
     //   This serves as basis for both expression and query tree node
     //
-    public abstract class TreeNode<T> where T : TreeNode<T> 
+    public class TreeNode<T> where T : TreeNode<T>
     {
+        // unique identifier
+        internal string _ = "uninitialized";
+
         [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
         public List<T> children_ = new List<T>();
         public bool IsLeaf() => children_.Count == 0;
@@ -58,6 +61,11 @@ namespace qpmodel.utils
         public T child_() { Debug.Assert(children_.Count == 1); return children_[0]; }
         public T l_() { Debug.Assert(children_.Count == 2); return children_[0]; }
         public T r_() { Debug.Assert(children_.Count == 2); return children_[1]; }
+
+        public TreeNode()
+        {
+           _ = $"{ObjectID.NewId()}";
+        }
 
         // traversal pattern FOR EACH
         public void VisitEachT<T1>(Action<T1> callback) where T1 : T
@@ -126,7 +134,7 @@ namespace qpmodel.utils
 
     public static class Utils
     {
-        internal static string Tabs(int depth) => new string(' ', depth * 2);
+        internal static string Spaces(int depth) => new string(' ', depth * 2);
 
         // this is shortcut for unhandled conditions - they shall be translated to 
         // related exceptional handling code later

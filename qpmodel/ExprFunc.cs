@@ -130,6 +130,7 @@ namespace qpmodel.expr
                 case "repeat": r = new RepeatFunc(args); break;
                 case "round": r = new RoundFunc(args); break;
                 case "coalesce": r = new CoalesceFunc(args); break;
+                case "hash": r = new HashFunc(args);break;
                 default:
                     if (ExternalFunctions.set_.ContainsKey(funcName))
                         r = new ExternalFunc(func, args);
@@ -333,6 +334,20 @@ namespace qpmodel.expr
         }
     }
 
+    public class HashFunc: FuncExpr
+    {
+        public HashFunc(List<Expr> args) : base("hash", args)
+        {
+            argcnt_ = 1;
+            type_ = new IntType();
+        }
+        public override Value Exec(ExecContext context, Row input)
+        {
+            dynamic val = arg_();
+            int hashval = val.GetHashCode();
+            return hashval;
+        }
+    }
 
     public abstract class AggFunc : FuncExpr
     {

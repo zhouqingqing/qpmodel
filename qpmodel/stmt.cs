@@ -57,6 +57,9 @@ namespace qpmodel.logic
         public Optimizer optimizer_ = new Optimizer();
         public QueryOption queryOpt_ = new QueryOption();
 
+        // mark if current plan is distirbuted: it does not include children plan
+        internal bool distributed_ = false;
+
         // DEBUG support
         internal readonly string text_;
 
@@ -66,6 +69,14 @@ namespace qpmodel.logic
         public virtual BindContext Bind(BindContext parent) => null;
         public virtual LogicNode SubstitutionOptimize() => logicPlan_;
         public virtual LogicNode CreatePlan() => logicPlan_;
+
+        public ExecContext CreateExecContext()
+        {
+            if (distributed_)
+                return new DistributedContext(queryOpt_);
+            else
+                return new ExecContext(queryOpt_);
+        }
 
         public virtual List<Row> Exec()
         {
@@ -85,9 +96,9 @@ namespace qpmodel.logic
             // actual execution is needed
             var finalplan = new PhysicCollect(physicPlan_);
             physicPlan_ = finalplan;
-            var context = new ExecContext(queryOpt_);
-
             finalplan.ValidateThis();
+
+            ExecContext context = CreateExecContext();
             if (this is SelectStmt select)
                 select.OpenSubQueries(context);
             var code = finalplan.Open(context);
@@ -417,9 +428,6 @@ namespace qpmodel.logic
         internal bool isCorrelated_ = false;
         internal List<SelectStmt> correlatedWhich_ = new List<SelectStmt>();
         internal bool shallExpandSelection_ = false;
-
-		// mark if current plan is distirbuted: it does not include children plan
-		internal bool distributed_ = false;
 
         internal SelectStmt TopStmt()
         {

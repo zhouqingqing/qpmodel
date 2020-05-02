@@ -58,7 +58,8 @@ namespace qpmodel.logic
             public bool memo_disable_crossjoin_ { get; set; } = true;
             public bool memo_use_joinorder_solver_ { get; set; } = false;   // make it true by default
 
-            public int query_dop_ { get; set; } = 3;
+            // distributed query dop is the same as number of distributions
+            public int query_dop_ { get; set; } = num_machines_;
 
             // codegen controls
             public bool use_codegen_ { get; set; } = false;
@@ -89,7 +90,7 @@ namespace qpmodel.logic
         public ExplainOption explain_ = new ExplainOption();
 
         // global static variables
-        public const int num_table_partitions_ = 4;
+        public const int num_machines_ = 10;
 
         // codegen section
         bool saved_use_codegen_;
@@ -107,6 +108,7 @@ namespace qpmodel.logic
         public static bool show_tablename_ = true;
         public bool show_cost_ { get; set; } = false;
         public bool show_output_ { get; set; } = true;
+        public bool show_id_ { get; set; } = false;
     }
 
     public abstract class PlanNode<T>: TreeNode<T> where T : PlanNode<T>
@@ -115,14 +117,14 @@ namespace qpmodel.logic
         public virtual string ExplainOutput(int depth, ExplainOption option) => null;
         public virtual string ExplainInlineDetails() => null;
         public virtual string ExplainMoreDetails(int depth, ExplainOption option) => null;
-        protected string PrintFilter(Expr filter, int depth, ExplainOption option)
+        protected string ExplainFilter(Expr filter, int depth, ExplainOption option)
         {
             string r = null;
             if (filter != null)
             {
-                r = "Filter: " + filter.PrintString(depth);
                 // append the subquery plan align with filter
-                r += filter.PrintExprWithSubqueryExpanded(depth, option);
+                r = "Filter: " + filter;
+                r += filter.ExplainExprWithSubqueryExpanded(depth, option);
             }
             return r;
         }
@@ -132,10 +134,11 @@ namespace qpmodel.logic
             string r = null;
             bool exp_showcost = option?.show_cost_ ?? false;
             bool exp_output = option?.show_output_ ?? true;
+            bool exp_id = option?.show_id_ ?? false;
 
             if (!(this is PhysicProfiling) && !(this is PhysicCollect))
             {
-                r = Utils.Tabs(depth);
+                r = Utils.Spaces(depth);
                 if (depth == 0)
                 {
                     if (exp_showcost && this is PhysicNode phytop)
@@ -145,7 +148,7 @@ namespace qpmodel.logic
                     r += "-> ";
 
                 // print line of <nodeName> : <Estimation> <Actual>
-                r += $"{this.GetType().Name} {ExplainInlineDetails()}";
+                r += $"{this.GetType().Name}{(exp_id?" "+_:"")} {ExplainInlineDetails()}";
                 var phynode = this as PhysicNode;
                 if (phynode != null && phynode.profile_ != null)
                 {
@@ -168,14 +171,14 @@ namespace qpmodel.logic
                 // print current node's output
                 var output = exp_output ? ExplainOutput(depth, option): null;
                 if (output != null)
-                    r += Utils.Tabs(depth + 2) + output + "\n";
+                    r += Utils.Spaces(depth + 2) + output + "\n";
                 if (details != null)
                 {
                     // remove the last \n in case the details is a subquery
                     var trailing = "\n";
                     if (details[details.Length - 1] == '\n')
                         trailing = "";
-                    r += Utils.Tabs(depth + 2) + details + trailing;
+                    r += Utils.Spaces(depth + 2) + details + trailing;
                 }
 
                 depth += 2;
@@ -189,6 +192,20 @@ namespace qpmodel.logic
                 bool printAsConsumer = false;
                 if (!printAsConsumer)
                     children_.ForEach(x => r += x.Explain(option, depth));
+            }
+
+            // details of distributed query emulation
+            if (this is PhysicGather)
+            {
+                int nthreads = QueryOption.num_machines_;
+                int nshuffle = 0;
+                VisitEach(x =>
+                {
+                    if (x is PhysicRedistribute || x is PhysicBroadcast)
+                        nshuffle++;
+                });
+                r += $"\nEmulated {QueryOption.num_machines_} machines distributed run " +
+                     $"with {nthreads*(1+nshuffle)} threads\n";
             }
             return r;
         }
@@ -400,7 +417,7 @@ namespace qpmodel.logic
             //
             bool hasdtable = false;
             from_.ForEach(x => hasdtable |= 
-                (x is BaseTableRef bx && bx.Table().distributedBy_ != null));
+                (x is BaseTableRef bx && bx.IsDistributed()));
             if (hasdtable)
             {
                 Debug.Assert(!distributed_);

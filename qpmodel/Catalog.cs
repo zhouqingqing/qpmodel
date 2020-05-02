@@ -55,7 +55,7 @@ namespace qpmodel
         public override string ToString() => $"{name_} {type_} [{ordinal_}]";
     }
 
-    public class Partition {
+    public class Distribution {
         public TableDef tableDef_;
 
         public List<Row> heap_ = new List<Row>();
@@ -69,8 +69,8 @@ namespace qpmodel
         public ColumnDef distributedBy_;
         public List<IndexDef> indexes_ = new List<IndexDef>();
 
-        // storage
-        public List<Partition> partions_ = new List<Partition>();
+        // emulated storage across multiple machines
+        public List<Distribution> distributions_ = new List<Distribution>();
 
         public TableDef(string tabName, List<ColumnDef> columns, string distributedBy)
         {
@@ -84,12 +84,12 @@ namespace qpmodel
             {
                 cols.TryGetValue(distributedBy, out var partcol);
                 if (partcol is null)
-                    throw new SemanticAnalyzeException($"can't find partition column '{distributedBy}'");
+                    throw new SemanticAnalyzeException($"can't find distribution column '{distributedBy}'");
                 distributedBy_ = partcol;
-                npart = QueryOption.num_table_partitions_;
+                npart = QueryOption.num_machines_;
             }
             for (int i = 0; i < npart; i++)
-                partions_.Add(new Partition());
+                distributions_.Add(new Distribution());
         }
 
         public List<ColumnDef> ColumnsInOrder() {
@@ -204,7 +204,7 @@ namespace qpmodel
                 @"create table d (d1 int, d2 int, d3 int, d4 int);",
                 // nullable tables
                 @"create table r (r1 int, r2 int, r3 int, r4 int);",
-                // partition tables
+                // distributed tables
                 @"create table ap (a1 int, a2 int, a3 int, a4 int) distributed by a1;",
                 @"create table bp (b1 int, b2 int, b3 int, b4 int) distributed by b1;",
                 @"create table cp (c1 int, c2 int, c3 int, c4 int) distributed by c1;",

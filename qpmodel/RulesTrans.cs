@@ -58,6 +58,9 @@ namespace qpmodel.optimizer
             new CteProd2CteProd(),
             new Append2Append(),
             new JoinBLock2Join(),
+            new Gather2Gather(),
+            new Bcast2Bcast(),
+            new Redis2Redis(),
             new JoinCommutativeRule(),  // intentionally add a duplicated rule
         };
 

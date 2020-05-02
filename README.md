@@ -31,7 +31,7 @@ The optimizer exercises the following constructs:
 The executor is implemented for two purpose: (1) verify plan correctness; (2) test codeGen engineering readiness following paper ["How to Architect a query compiler, Revisited"](https://www.cs.purdue.edu/homes/rompf/papers/tahboub-sigmod18.pdf) by R.Y.Tahboub et al. Executor is not intended to demonstrate implementing specific operator efficiently.
 - It does not use a LMS underneath, but thanks for c#'s interpolated string support, the template is easy to read and construct side by side with interpreted code.
 - To support incremental codeGen improvement, meaning we can ship partial codeGen implementation, it supports a generic expression evaluation function which can fallback to the interpreted implementation if that specific expression is not codeGen ready.
-- It emulates a cross machine execution using parallel threads using remote exchange model.
+- It emulates a cross machine execution using parallel threads using remote exchange model. Current setting is 10 machines, so a plan with 1 Gather and 6 redistribution utilizes 70 threads for emulation.
 - The executor utilizes Object and dynamic types to simplify implementation. To port it to C/C++, you can follow the traditional "dispatch" mechanism like a + b => {int4pl(a,b), int2pl(a,b), doublepl(a,b), ...}.
 
 You can see an example generated code for this query [here](https://github.com/zhouqingqing/adb/tree/master/test/gen_example.cs) with generic expression evaluation is in this code snippet:

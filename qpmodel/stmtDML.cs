@@ -113,6 +113,7 @@ namespace qpmodel.dml
             queryOpt_.optimize_.use_memo_ = false;
 
             logicPlan_ = new LogicAnalyze(select_.CreatePlan());
+            distributed_ = select_.distributed_;
             return logicPlan_;
         }
 
@@ -179,6 +180,7 @@ namespace qpmodel.dml
             logicPlan_ = select_ is null ?
                 new LogicInsert(targetref_, new LogicResult(vals_)) :
                 new LogicInsert(targetref_, select_.CreatePlan());
+            distributed_ = select_ is null ? false: select_.distributed_;
             return logicPlan_;
         }
 

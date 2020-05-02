@@ -71,6 +71,7 @@ namespace qpmodel.index
             queryOpt_.optimize_.use_memo_ = false;
 
             logicPlan_ = new LogicIndex(select_.CreatePlan(), def_);
+            distributed_ = select_.distributed_;
             return logicPlan_;
         }
 

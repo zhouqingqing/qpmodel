@@ -218,7 +218,7 @@ namespace qpmodel.expr
             return list.ToList();
         }
 
-        public static string PrintExprWithSubqueryExpanded(this Expr expr, int depth, ExplainOption option)
+        public static string ExplainExprWithSubqueryExpanded(this Expr expr, int depth, ExplainOption option)
         {
             string r = "";
             // append the subquery plan align with expr
@@ -228,7 +228,7 @@ namespace qpmodel.expr
                 expr.VisitEachT<SubqueryExpr>(x =>
                 {
                     string cached = x.IsCacheable() ? "cached " : "";
-                    r += Utils.Tabs(depth + 2) + $"<{x.GetType().Name}> {cached}{x.subqueryid_}\n";
+                    r += Utils.Spaces(depth + 2) + $"<{x.GetType().Name}> {cached}{x.subqueryid_}\n";
                     Debug.Assert(x.query_.bindContext_ != null);
                     if (x.query_.physicPlan_ != null)
                         r += $"{x.query_.physicPlan_.Explain(option, depth + 4)}";
@@ -536,10 +536,6 @@ namespace qpmodel.expr
     //
     public class Expr: TreeNode<Expr>
     {
-        // unique identifier
-        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-        internal string _;
-
         // Expression in selection list can have an output name 
         // e.g, a.i+b.i [[as] total]
         //
@@ -573,8 +569,6 @@ namespace qpmodel.expr
 
         // debug info
         internal bool dbg_isCloneCopy_ = false;
-
-        public Expr() { _ = $"{ObjectID.NewId()}"; }
 
         protected string outputName() => outputName_ != null ? $"(as {outputName_})" : null;
 
@@ -642,7 +636,7 @@ namespace qpmodel.expr
             n.tableRefs_ = new List<TableRef>();
             tableRefs_.ForEach(n.tableRefs_.Add);
             n.dbg_isCloneCopy_ = true;
-            n._ = _;
+
             Debug.Assert(Equals(n));
             return n;
         }
@@ -786,7 +780,6 @@ namespace qpmodel.expr
             return expr;
         }
 
-        public virtual string PrintString(int depth) => ToString();
         public virtual Value Exec(ExecContext context, Row input) => throw new Exception($"{this} subclass shall implment Exec()");
         public virtual string ExecCode(ExecContext context, string input) {
             return $@"ExprSearch.Locate(""{_}"").Exec(context, {input}) /*{ToString()}*/";

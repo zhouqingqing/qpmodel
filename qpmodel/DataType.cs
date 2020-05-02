@@ -250,6 +250,7 @@ namespace qpmodel.expr
             alias_ = alias ?? relname_;
         }
 
+        public bool IsDistributed() => Table().distributedBy_ != null;
         public TableDef Table() => Catalog.systable_.Table(relname_);
 
         public override string ToString()

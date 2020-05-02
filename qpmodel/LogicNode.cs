@@ -65,26 +65,33 @@ namespace qpmodel.logic
         // it is possible to really have this value but ok to recompute
         protected LogicSignature logicSign_ = -1;
 
-        public override string ExplainMoreDetails(int depth, ExplainOption option) => PrintFilter(filter_, depth, option);
+        public override string ExplainMoreDetails(int depth, ExplainOption option) => ExplainFilter(filter_, depth, option);
 
         public override string ExplainOutput(int depth, ExplainOption option)
         {
             if (output_.Count != 0)
             {
                 string r = "Output: " + string.Join(",", output_);
-                output_.ForEach(x => r += x.PrintExprWithSubqueryExpanded(depth, option));
+                output_.ForEach(x => r += x.ExplainExprWithSubqueryExpanded(depth, option));
                 return r;
             }
             return null;
         }
 
-        public void MarkExchange(QueryOption option)
+        public LogicNode MarkExchange(QueryOption option)
         {
             switch (this)
             {
                 case LogicJoin lj:
-                    var leftshuffle = new LogicRedistribute(l_());
-                    var rightshuffle = new LogicRedistribute(r_());
+                    LogicNode leftshuffle, rightshuffle;
+                    if (l_() is LogicScanTable ls && !ls.tabref_.IsDistributed())
+                        leftshuffle = l_();
+                    else
+                        leftshuffle = new LogicRedistribute(l_().MarkExchange(option));
+                    if (r_() is LogicScanTable rs && !rs.tabref_.IsDistributed())
+                        rightshuffle = r_();
+                    else
+                        rightshuffle = new LogicRedistribute(r_().MarkExchange(option));
                     lj.children_[0] = leftshuffle;
                     lj.children_[1] = rightshuffle;
                     break;
@@ -92,6 +99,8 @@ namespace qpmodel.logic
                     children_.ForEach(x => x.MarkExchange(option));
                     break;
             }
+
+            return this;
         }
 
         // This is an honest translation from logic to physical plan
@@ -712,13 +721,13 @@ namespace qpmodel.logic
         public override string ExplainMoreDetails(int depth, ExplainOption option)
         {
             string r = null;
-            string tabs = Utils.Tabs(depth + 2);
+            string tabs = Utils.Spaces(depth + 2);
             if (aggrFns_.Count > 0)
                 r += $"Aggregates: {string.Join(", ", aggrFns_)}";
             if (groupby_ != null)
                 r += $"{(aggrFns_.Count > 0? "\n"+tabs: "")}Group by: {string.Join(", ", groupby_)}";
             if (having_ != null)
-                r += $"{("\n"+tabs)}{PrintFilter(having_, depth, option)}";
+                r += $"{("\n"+tabs)}{ExplainFilter(having_, depth, option)}";
             return r;
         }
 
@@ -1211,17 +1220,20 @@ namespace qpmodel.logic
     public class LogicGather : LogicRemoteExchange
     {
         public LogicGather(LogicNode child) : base(child) { }
+        public override string ToString() => $"Gather({child_()})";
 
-        public override string ExplainInlineDetails() => $"1 : {QueryOption.num_table_partitions_}";
+        public override string ExplainInlineDetails() => $"1 : {QueryOption.num_machines_}";
     }
 
     public class LogicBroadcast : LogicRemoteExchange
     {
         public LogicBroadcast(LogicNode child) : base(child) { }
+        public override string ToString() => $"Broadcast({child_()})";
     }
 
     public class LogicRedistribute: LogicRemoteExchange
     {
         public LogicRedistribute(LogicNode child) : base(child) { }
+        public override string ToString() => $"Redistribute({child_()})";
     }
 }
