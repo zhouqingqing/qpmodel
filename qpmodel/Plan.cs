@@ -127,7 +127,7 @@ namespace qpmodel.logic
             return r;
         }
 
-        public string Explain(int depth = 0, ExplainOption option = null)
+        public string Explain(ExplainOption option = null, int depth = 0)
         {
             string r = null;
             bool exp_showcost = option?.show_cost_ ?? false;
@@ -188,7 +188,7 @@ namespace qpmodel.logic
             {
                 bool printAsConsumer = false;
                 if (!printAsConsumer)
-                    children_.ForEach(x => r += x.Explain(depth, option));
+                    children_.ForEach(x => r += x.Explain(option, depth));
             }
             return r;
         }

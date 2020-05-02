@@ -171,9 +171,9 @@ namespace qpmodel.optimizer
                     if (newlogic.MemoLogicSign() != list[0].MemoSignature())
                     {
                         Console.WriteLine("********* list[0]");
-                        Console.WriteLine(list[0].Logic().Explain(0));
+                        Console.WriteLine(list[0].Logic().Explain());
                         Console.WriteLine("********* newlogic");
-                        Console.WriteLine(newlogic.Explain(0));
+                        Console.WriteLine(newlogic.Explain());
                     }
                     Debug.Assert(newlogic.MemoLogicSign() == list[0].MemoSignature());
                 }

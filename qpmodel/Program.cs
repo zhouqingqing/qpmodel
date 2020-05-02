@@ -64,7 +64,6 @@ namespace qpmodel
             var sql = "SELECT a1, sqroot(b1*a1+2) from a join b on b2=a2 where a1>1";
             var rows = SQLStatement.ExecSQL(sql, out string plan, out _);
         }
-
         static void TestDataSet2()
         {
             Random rand = new Random();
@@ -80,7 +79,6 @@ namespace qpmodel
             var sql = "SELECT 4.0*sum(inside(a1.a1))/count(*) from a a1, a a2, a a3, a a4, a a5, a a6, a a7, a a8, a a9, a a10";
             var rows = SQLStatement.ExecSQL(sql, out string plan, out _);
         }
-
         static void TestJobench()
         {
             var files = Directory.GetFiles(@"../../../jobench");
@@ -101,7 +99,6 @@ namespace qpmodel
                 Console.WriteLine(phyplan);
             }
         }
-
         static void TestTpcds_LoadData()
         {
             var files = Directory.GetFiles(@"../../../tpcds", "*.sql");
@@ -193,7 +190,7 @@ namespace qpmodel
             // -- generate an initial plan
             var rawplan = a.CreatePlan();
             Console.WriteLine("***************** raw plan *************");
-            Console.WriteLine(rawplan.Explain(0));
+            Console.WriteLine(rawplan.Explain());
 
             // -- optimize the plan
             PhysicNode phyplan = null;
@@ -201,26 +198,26 @@ namespace qpmodel
             {
                 Console.WriteLine("***************** optimized plan *************");
                 var optplan = a.SubstitutionOptimize();
-                Console.WriteLine(optplan.Explain(0, a.queryOpt_.explain_));
+                Console.WriteLine(optplan.Explain(a.queryOpt_.explain_));
                 a.optimizer_.InitRootPlan(a);
                 a.optimizer_.OptimizeRootPlan(a, null);
                 Console.WriteLine(a.optimizer_.PrintMemo());
                 phyplan = a.optimizer_.CopyOutOptimalPlan();
                 Console.WriteLine(a.optimizer_.PrintMemo());
                 Console.WriteLine("***************** Memo plan *************");
-                Console.WriteLine(phyplan.Explain(0, a.queryOpt_.explain_));
+                Console.WriteLine(phyplan.Explain(a.queryOpt_.explain_));
             }
             else
             {
                 // -- optimize the plan
                 Console.WriteLine("-- optimized plan --");
                 var optplan = a.SubstitutionOptimize();
-                Console.WriteLine(optplan.Explain(0, a.queryOpt_.explain_));
+                Console.WriteLine(optplan.Explain(a.queryOpt_.explain_));
 
                 // -- physical plan
                 Console.WriteLine("-- physical plan --");
                 phyplan = a.physicPlan_;
-                Console.WriteLine(phyplan.Explain(0, a.queryOpt_.explain_));
+                Console.WriteLine(phyplan.Explain(a.queryOpt_.explain_));
             }
 
             // -- output profile and query result
@@ -241,7 +238,7 @@ namespace qpmodel
                 CodeWriter.WriteLine(code);
                 Compiler.Run(Compiler.Compile(), a, context);
             }
-            Console.WriteLine(phyplan.Explain(0, a.queryOpt_.explain_));
+            Console.WriteLine(phyplan.Explain(a.queryOpt_.explain_));
 
             stopWatch.Stop();
             Console.WriteLine("RunTime: " + stopWatch.Elapsed); 
