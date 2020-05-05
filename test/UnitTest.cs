@@ -226,6 +226,8 @@ namespace qpmodel.unittest
         {
             TestTpcdsPlanOnly();
             TestTpcdsWithData();
+
+            TestTpchPlanOnly();
             TestTpch();
 
             string sql_dir_fn =    "../../../test/regress/sql";
@@ -265,6 +267,27 @@ namespace qpmodel.unittest
                 var sql = File.ReadAllText(v);
                 var result = SQLStatement.ExecSQL(sql, out string phyplan, out _, option);
                 Assert.IsNotNull(result);
+            }
+        }
+
+        void TestTpchPlanOnly()
+        {
+            var files = Directory.GetFiles(@"../../../tpch", "*.sql");
+            string stats_fn = "../../../tpch/statistics/sf1";
+
+            Tpch.CreateTables();
+            Catalog.sysstat_.read_serialized_stats(stats_fn);
+
+            // make sure all queries can generate phase one opt plan
+            QueryOption option = new QueryOption();
+            option.optimize_.enable_subquery_unnest_ = true;
+            option.optimize_.remove_from_ = false;
+            option.optimize_.use_memo_ = false;
+            foreach (var v in files)
+            {
+                var sql = File.ReadAllText(v);
+                var result = TU.ExecuteSQL(sql, out string phyplan, option);
+                Assert.IsNotNull(phyplan); Assert.IsNotNull(result);
             }
         }
 
