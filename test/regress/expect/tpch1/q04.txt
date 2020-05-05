@@ -1,0 +1,47 @@
+select
+	o_orderpriority,
+	count(*) as order_count
+from
+	orders
+where
+	o_orderdate >= date '1993-07-01'
+	and o_orderdate < date '1993-07-01' + interval '3' month
+	and exists (
+		select
+			*
+		from
+			lineitem
+		where
+			l_orderkey = o_orderkey
+			and l_commitdate < l_receiptdate
+	)
+group by
+	o_orderpriority
+order by
+	o_orderpriority
+Total cost: 1825579538325.54
+PhysicOrder  (inccost=1825579538325.54, cost=8.54, rows=5) (actual rows=5)
+    Output: o_orderpriority[0],{count(*)(0)}[1]
+    Order by: o_orderpriority[0]
+    -> PhysicHashAgg  (inccost=1825579538317, cost=1217056, rows=5) (actual rows=5)
+        Output: {o_orderpriority}[0],{count(*)(0)}[1]
+        Aggregates: count(*)(0)
+        Group by: o_orderpriority[0]
+        -> PhysicFilter  (inccost=1825578321261, cost=1217046, rows=1217046) (actual rows=44)
+            Output: o_orderpriority[1]
+            Filter: {#marker}[0]
+            -> PhysicMarkJoin Left (inccost=1825577104215, cost=1825569603000, rows=1217046) (actual rows=48)
+                Output: #marker,o_orderpriority[0]
+                Filter: l_orderkey[2]=o_orderkey[1]
+                -> PhysicScanTable orders (inccost=1500000, cost=1500000, rows=304200) (actual rows=48)
+                    Output: o_orderpriority[5],o_orderkey[0]
+                    Filter: o_orderdate[4]>='1993-07-01' and o_orderdate[4]<'9/29/1993 12:00:00 AM'
+                -> PhysicScanTable lineitem (inccost=6001215, cost=6001215, rows=6001215) (actual rows=3752, loops=48)
+                    Output: l_orderkey[0]
+                    Filter: l_commitdate[11]<l_receiptdate[12]
+1-URGENT,9
+2-HIGH,7
+3-MEDIUM,9
+4-NOT SPECIFIED,7
+5-LOW,12
+

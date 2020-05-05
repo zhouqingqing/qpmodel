@@ -1,0 +1,18 @@
+select
+	sum(l_extendedprice * l_discount) as revenue
+from
+	lineitem
+where
+	l_shipdate >= date '1994-01-01'
+	and l_shipdate < date '1994-01-01' + interval '1' year
+	and l_discount between (.06 - 0.01 , .06 + 0.01)
+	and l_quantity < 24
+Total cost: 6351426
+PhysicHashAgg  (inccost=6351426, cost=350211, rows=1) (actual rows=1)
+    Output: {sum(l_extendedprice*l_discount)}[0]
+    Aggregates: sum(l_extendedprice[1]*l_discount[2])
+    -> PhysicScanTable lineitem (inccost=6001215, cost=6001215, rows=350209) (actual rows=116)
+        Output: l_extendedprice[5]*l_discount[6],l_extendedprice[5],l_discount[6]
+        Filter: l_shipdate[10]>='1994-01-01' and l_shipdate[10]<'1/1/1995 12:00:00 AM' and l_discount[6]>=0.05 and l_discount[6]<=0.07 and l_quantity[4]<24
+77949.9186
+

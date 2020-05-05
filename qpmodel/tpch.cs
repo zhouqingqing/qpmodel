@@ -68,7 +68,8 @@ namespace qpmodel.test
         static public void LoadTables(string subfolder) {
             string curdir = Directory.GetCurrentDirectory();
             string folder = $@"{curdir}\..\..\..\tpch\data\{subfolder}";
-            foreach(var v in tabnames_)
+
+            foreach (var v in tabnames_)
             {
                 string filename = $@"'{folder}\{v}.tbl'";
                 var sql = $"copy {v} from {filename};";

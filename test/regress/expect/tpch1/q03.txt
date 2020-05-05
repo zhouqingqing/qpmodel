@@ -1,0 +1,57 @@
+select
+	l_orderkey,
+	sum(l_extendedprice * (1 - l_discount)) as revenue,
+	o_orderdate,
+	o_shippriority
+from
+	customer,
+	orders,
+	lineitem
+where
+	c_mktsegment = 'BUILDING'
+	and c_custkey = o_custkey
+	and l_orderkey = o_orderkey
+	and o_orderdate < date '1995-03-15'
+	and l_shipdate > date '1995-03-15'
+group by
+	l_orderkey,
+	o_orderdate,
+	o_shippriority
+order by
+	revenue desc,
+	o_orderdate
+limit 10
+Total cost: 23823672.82
+PhysicLimit (10) (inccost=23823672.82, cost=10, rows=10) (actual rows=8)
+    Output: l_orderkey[0],{sum(l_extendedprice*1-l_discount)}[1],o_orderdate[2],o_shippriority[3]
+    -> PhysicOrder  (inccost=23823662.82, cost=6292599.82, rows=477564) (actual rows=8)
+        Output: l_orderkey[0],{sum(l_extendedprice*1-l_discount)}[1],o_orderdate[2],o_shippriority[3]
+        Order by: {sum(l_extendedprice*1-l_discount)}[1], o_orderdate[2]
+        -> PhysicHashAgg  (inccost=17531063, cost=1432692, rows=477564) (actual rows=8)
+            Output: {l_orderkey}[0],{sum(l_extendedprice*1-l_discount)}[3],{o_orderdate}[1],{o_shippriority}[2]
+            Aggregates: sum(l_extendedprice[4]*1-l_discount[7])
+            Group by: l_orderkey[0], o_orderdate[1], o_shippriority[2]
+            -> PhysicHashJoin  (inccost=16098371, cost=2122168, rows=477564) (actual rows=14)
+                Output: l_orderkey[2],o_orderdate[3],o_shippriority[4],{l_extendedprice*1-l_discount}[5],l_extendedprice[6],{1-l_discount}[7],{1}[0],l_discount[8]
+                Filter: c_custkey[1]=o_custkey[9]
+                -> PhysicScanTable customer (inccost=150000, cost=150000, rows=30142) (actual rows=29)
+                    Output: 1,c_custkey[0]
+                    Filter: c_mktsegment[6]='BUILDING'
+                -> PhysicHashJoin  (inccost=13826203, cost=6324988, rows=1584320) (actual rows=133)
+                    Output: l_orderkey[4],o_orderdate[0],o_shippriority[1],{l_extendedprice*1-l_discount}[5],l_extendedprice[6],{1-l_discount}[7],l_discount[8],o_custkey[2]
+                    Filter: l_orderkey[4]=o_orderkey[3]
+                    -> PhysicScanTable orders (inccost=1500000, cost=1500000, rows=720000) (actual rows=726)
+                        Output: o_orderdate[4],o_shippriority[7],o_custkey[1],o_orderkey[0]
+                        Filter: o_orderdate[4]<'1995-03-15'
+                    -> PhysicScanTable lineitem (inccost=6001215, cost=6001215, rows=3300668) (actual rows=3252)
+                        Output: l_orderkey[0],l_extendedprice[5]*1-l_discount[6],l_extendedprice[5],1-l_discount[6],l_discount[6]
+                        Filter: l_shipdate[10]>'1995-03-15'
+1637,164224.9253,2/8/1995 12:00:00 AM,0
+5191,49378.3094,12/11/1994 12:00:00 AM,0
+742,43728.048,12/23/1994 12:00:00 AM,0
+3492,43716.0724,11/24/1994 12:00:00 AM,0
+2883,36666.9612,1/23/1995 12:00:00 AM,0
+998,11785.5486,11/26/1994 12:00:00 AM,0
+3430,4726.6775,12/12/1994 12:00:00 AM,0
+4423,3055.9365,2/17/1995 12:00:00 AM,0
+

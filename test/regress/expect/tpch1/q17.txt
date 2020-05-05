@@ -1,0 +1,43 @@
+select
+	sum(l_extendedprice) / 7.0 as avg_yearly
+from
+	lineitem,
+	part
+where
+	p_partkey = l_partkey
+	and p_brand = 'Brand#23'
+	and p_container = 'MED BOX'
+	and l_quantity < (
+		select
+			0.2 * avg(l_quantity)
+		from
+			lineitem
+		where
+			l_partkey = p_partkey
+	)
+Total cost: 24840904
+PhysicHashAgg  (inccost=24840904, cost=5943, rows=1) (actual rows=1)
+    Output: {sum(l_extendedprice)}[0]/7.0(as avg_yearly)
+    Aggregates: sum(l_extendedprice[0])
+    -> PhysicFilter  (inccost=24834961, cost=5941, rows=5941) (actual rows=0)
+        Output: l_extendedprice[0]
+        Filter: l_quantity[1]<0.2*{avg(l_quantity)}[2]
+        -> PhysicHashJoin Left (inccost=24829020, cost=217823, rows=5941) (actual rows=0)
+            Output: l_extendedprice[0],l_quantity[1],{avg(l_quantity)}[3]
+            Filter: l_partkey[4]=p_partkey[2]
+            -> PhysicHashJoin  (inccost=12208767, cost=6007552, rows=5941) (actual rows=0)
+                Output: l_extendedprice[1],l_quantity[2],p_partkey[0]
+                Filter: p_partkey[0]=l_partkey[3]
+                -> PhysicScanTable part (inccost=200000, cost=200000, rows=198) (actual rows=0)
+                    Output: p_partkey[0]
+                    Filter: p_container[6]='MED BOX' and p_brand[3]='Brand#23'
+                -> PhysicScanTable lineitem (inccost=6001215, cost=6001215, rows=6001215) (actual rows=0)
+                    Output: l_extendedprice[5],l_quantity[4],l_partkey[1]
+            -> PhysicHashAgg  (inccost=12402430, cost=6401215, rows=200000) (actual rows=0)
+                Output: {avg(l_quantity)}[1],{l_partkey}[0]
+                Aggregates: avg(l_quantity[1])
+                Group by: l_partkey[0]
+                -> PhysicScanTable lineitem as lineitem__1 (inccost=6001215, cost=6001215, rows=6001215) (actual rows=0)
+                    Output: l_partkey[1],l_quantity[4]
+
+
