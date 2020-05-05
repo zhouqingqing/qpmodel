@@ -1,0 +1,89 @@
+select
+	s_name,
+	count(*) as numwait
+from
+	supplier,
+	lineitem l1,
+	orders,
+	nation
+where
+	s_suppkey = l1.l_suppkey
+	and o_orderkey = l1.l_orderkey
+	and o_orderstatus = 'F'
+	and l1.l_receiptdate > l1.l_commitdate
+	and exists (
+		select
+			*
+		from
+			lineitem l2
+		where
+			l2.l_orderkey = l1.l_orderkey
+			and l2.l_suppkey <> l1.l_suppkey
+	)
+	and not exists (
+		select
+			*
+		from
+			lineitem l3
+		where
+			l3.l_orderkey = l1.l_orderkey
+			and l3.l_suppkey <> l1.l_suppkey
+			and l3.l_receiptdate > l3.l_commitdate
+	)
+	and s_nationkey = n_nationkey
+	and n_name = 'SAUDI ARABIA'
+group by
+	s_name
+order by
+	numwait desc,
+	s_name
+limit 100
+Total cost: 36715148356934.4
+PhysicLimit (100) (inccost=36715148356934.4, cost=100, rows=100) (actual rows=0)
+    Output: s_name[0],{count(*)(0)}[1]
+    -> PhysicOrder  (inccost=36715148356834.4, cost=93103.4, rows=10000) (actual rows=0)
+        Output: s_name[0],{count(*)(0)}[1]
+        Order by: {count(*)(0)}[1], s_name[0]
+        -> PhysicHashAgg  (inccost=36715148263731, cost=6021215, rows=10000) (actual rows=0)
+            Output: {s_name}[0],{count(*)(0)}[1]
+            Aggregates: count(*)(0)
+            Group by: s_name[0]
+            -> PhysicFilter  (inccost=36715142242516, cost=6001215, rows=6001215) (actual rows=0)
+                Output: s_name[1]
+                Filter: {#marker}[0]
+                -> PhysicMarkJoin Left (inccost=36715136241301, cost=36014581476225, rows=6001215) (actual rows=0)
+                    Output: #marker,s_name[0]
+                    Filter: l_orderkey[3]=l_orderkey[1] and l_suppkey[4]<>l_suppkey[2]
+                    -> PhysicFilter  (inccost=700548763861, cost=6001215, rows=6001215) (actual rows=0)
+                        Output: s_name[1],l_orderkey[2],l_suppkey[3]
+                        Filter: {#marker}[0]
+                        -> PhysicMarkJoin Left (inccost=700542762646, cost=700515825735, rows=6001215) (actual rows=0)
+                            Output: #marker,s_name[0],l_orderkey[1],l_suppkey[2]
+                            Filter: l_orderkey[3]=l_orderkey[1] and l_suppkey[4]<>l_suppkey[2]
+                            -> PhysicHashJoin  (inccost=20935696, cost=3035771, rows=116729) (actual rows=0)
+                                Output: s_name[0],l_orderkey[2],l_suppkey[3]
+                                Filter: s_suppkey[1]=l_suppkey[3]
+                                -> PhysicHashJoin  (inccost=20427, cost=10402, rows=400) (actual rows=0)
+                                    Output: s_name[1],s_suppkey[2]
+                                    Filter: s_nationkey[3]=n_nationkey[0]
+                                    -> PhysicScanTable nation (inccost=25, cost=25, rows=1) (actual rows=0)
+                                        Output: n_nationkey[0]
+                                        Filter: n_name[1]='SAUDI ARABIA'
+                                    -> PhysicScanTable supplier (inccost=10000, cost=10000, rows=10000) (actual rows=0)
+                                        Output: s_name[1],s_suppkey[0],s_nationkey[3]
+                                -> PhysicHashJoin  (inccost=17879498, cost=10378283, rows=2918242) (actual rows=0)
+                                    Output: l_orderkey[1],l_suppkey[2]
+                                    Filter: o_orderkey[0]=l_orderkey[1]
+                                    -> PhysicScanTable orders (inccost=1500000, cost=1500000, rows=729413) (actual rows=0)
+                                        Output: o_orderkey[0]
+                                        Filter: o_orderstatus[2]='F'
+                                    -> PhysicScanTable lineitem as l1 (inccost=6001215, cost=6001215, rows=6001215) (actual rows=0)
+                                        Output: l_orderkey[0],l_suppkey[2]
+                                        Filter: l_receiptdate[12]>l_commitdate[11]
+                            -> PhysicScanTable lineitem as l3 (inccost=6001215, cost=6001215, rows=6001215) (actual rows=0)
+                                Output: l_orderkey[0],l_suppkey[2]
+                                Filter: l_receiptdate[12]>l_commitdate[11]
+                    -> PhysicScanTable lineitem as l2 (inccost=6001215, cost=6001215, rows=6001215) (actual rows=0)
+                        Output: l_orderkey[0],l_suppkey[2]
+
+
