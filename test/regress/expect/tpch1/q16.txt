@@ -1,0 +1,53 @@
+select
+	p_brand,
+	p_type,
+	p_size,
+	count(distinct ps_suppkey) as supplier_cnt
+from
+	partsupp,
+	part
+where
+	p_partkey = ps_partkey
+	and p_brand <> 'Brand#45'
+	and p_type not like 'MEDIUM POLISHED%'
+	and p_size in (49, 14, 23, 45, 19, 3, 36, 9)
+	and ps_suppkey not in (
+		select
+			s_suppkey
+		from
+			supplier
+		where
+			s_comment like '%Customer%Complaints%'
+	)
+group by
+	p_brand,
+	p_type,
+	p_size
+order by
+	supplier_cnt desc,
+	p_brand,
+	p_type,
+	p_size
+Total cost: 10827.68
+PhysicOrder  (inccost=10827.68, cost=5427.68, rows=800) (actual rows=0)
+    Output: p_brand[0],p_type[1],p_size[2],{count(ps_suppkey)}[3]
+    Order by: {count(ps_suppkey)}[3], p_brand[0], p_type[1], p_size[2]
+    -> PhysicHashAgg  (inccost=5400, cost=2400, rows=800) (actual rows=0)
+        Output: {p_brand}[0],{p_type}[1],{p_size}[2],{count(ps_suppkey)}[3]
+        Aggregates: count(ps_suppkey[3])
+        Group by: p_brand[0], p_type[1], p_size[2]
+        -> PhysicHashJoin  (inccost=3000, cost=2000, rows=800) (actual rows=0)
+            Output: p_brand[0],p_type[1],p_size[2],ps_suppkey[4]
+            Filter: p_partkey[3]=ps_partkey[5]
+            -> PhysicScanTable part (inccost=200, cost=200, rows=200) (actual rows=34)
+                Output: p_brand[3],p_type[4],p_size[5],p_partkey[0]
+                Filter: p_brand[3]<>'Brand#45' and p_type[4]not like'MEDIUM POLISHED%' and p_size[5] in (49,14,23, ... <Total: 8> )
+            -> PhysicScanTable partsupp (inccost=800, cost=800, rows=800) (actual rows=0)
+                Output: ps_suppkey[1],ps_partkey[0]
+                Filter: ps_suppkey[1] in @1
+                <InSubqueryExpr> cached 1
+                    -> PhysicScanTable supplier (inccost=10, cost=10, rows=1) (actual rows=0)
+                        Output: s_suppkey[0]
+                        Filter: s_comment[6]like'%Customer%Complaints%'
+
+

@@ -1,0 +1,27 @@
+select
+	100.00 * sum(case
+		when p_type like 'PROMO%'
+			then l_extendedprice * (1 - l_discount)
+		else 0
+	end) / sum(l_extendedprice * (1 - l_discount)) as promo_revenue
+from
+	lineitem,
+	part
+where
+	l_partkey = p_partkey
+	and l_shipdate >= date '1995-09-01'
+	and l_shipdate < date '1995-09-01' + interval '1' month
+Total cost: 11275
+PhysicHashAgg  (inccost=11275, cost=1558, rows=1) (actual rows=1)
+    Output: 100.00*{sum(case with 1)}[0]/{sum(l_extendedprice*1-l_discount)}[1](as promo_revenue)
+    Aggregates: sum(case with 1), sum(l_extendedprice[5]*1-l_discount[8])
+    -> PhysicHashJoin  (inccost=9717, cost=3512, rows=1556) (actual rows=84)
+        Output: case with 1,{p_typelike'PROMO%'}[1],p_type[0],{'PROMO%'}[2],{l_extendedprice*1-l_discount}[8],l_extendedprice[6],{1-l_discount}[9],{1}[3],l_discount[7],{0}[4]
+        Filter: l_partkey[10]=p_partkey[5]
+        -> PhysicScanTable part (inccost=200, cost=200, rows=200) (actual rows=200)
+            Output: p_type[4],p_type[4]like'PROMO%','PROMO%',1,0,p_partkey[0]
+        -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=1556) (actual rows=84)
+            Output: l_extendedprice[5],l_discount[6],l_extendedprice[5]*1-l_discount[6],1-l_discount[6],l_partkey[1]
+            Filter: l_shipdate[10]>='1995-09-01' and l_shipdate[10]<'10/1/1995 12:00:00 AM'
+15.2302126115973
+

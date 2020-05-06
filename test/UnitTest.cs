@@ -230,11 +230,19 @@ namespace qpmodel.unittest
             TestTpchPlanOnly();
             TestTpch();
 
+            string[] dir_names = {
+                "tpch0001",
+                "tpch1"
+            };
+
             string sql_dir_fn =    "../../../test/regress/sql";
-            string write_dir_fn =  "../../../test/regress/output/tpch0001";
-            string expect_dir_fn = "../../../test/regress/expect/tpch0001";
+
             ExplainOption.show_tablename_ = false;
-            RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn);
+            foreach (string name in dir_names) {
+                string write_dir_fn = $@"../../../test/regress/output/{name}";
+                string expect_dir_fn = $@"../../../test/regress/expect/{name}";
+                RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn);
+            }
             ExplainOption.show_tablename_ = true;
         }
 
