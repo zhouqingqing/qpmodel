@@ -1861,4 +1861,16 @@ namespace qpmodel.unittest
             Assert.AreEqual(1, TU.CountStr(phyplan, "70 threads"));
         }
     }
+
+    [TestClass]
+    public class Streaming
+    {
+        [TestMethod]
+        public void Tumble()
+        {
+            var phyplan = "";
+            var sql = "select count(*) from ast group by tumble(a0, interval '10' second)";
+            TU.ExecuteSQL(sql, "2;2;1", out phyplan);
+        }
+    }
 }

@@ -33,6 +33,7 @@ using System.Diagnostics;
 using qpmodel.logic;
 using qpmodel.physic;
 using qpmodel.utils;
+using qpmodel.stream;
 
 using Value = System.Object;
 
@@ -130,7 +131,10 @@ namespace qpmodel.expr
                 case "repeat": r = new RepeatFunc(args); break;
                 case "round": r = new RoundFunc(args); break;
                 case "coalesce": r = new CoalesceFunc(args); break;
-                case "hash": r = new HashFunc(args);break;
+                case "hash": r = new HashFunc(args); break;
+                case "tumble": r = new Tumble(args); break;
+                case "hop": r = new Hop(args); break;
+                case "session": r = new Session(args); break;
                 default:
                     if (ExternalFunctions.set_.ContainsKey(funcName))
                         r = new ExternalFunc(func, args);

@@ -209,13 +209,15 @@ namespace qpmodel
                 @"create table bd (b1 int, b2 int, b3 int, b4 int) distributed by b1;",
                 @"create table cd (c1 int, c2 int, c3 int, c4 int) distributed by c1;",
                 @"create table dd (d1 int, d2 int, d3 int, d4 int) distributed by d1;",
+                // steaming tables
+                @"create table ast (a0 datetime, a1 int, a2 int, a3 int, a4 int);",
             };
             SQLStatement.ExecSQLList(string.Join("", createtables));
 
             // load tables
             var curdir = Directory.GetCurrentDirectory();
             var folder = $@"{curdir}\..\..\..\data";
-            var tables = new List<string>() { "a", "b", "c", "d", "r", "ad", "bd", "cd", "dd" };
+            var tables = new List<string>() { "a", "b", "c", "d", "r", "ad", "bd", "cd", "dd", "ast"};
             foreach (var v in tables)
             {
                 string filename = $@"'{folder}\{v}.tbl'";

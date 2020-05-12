@@ -1141,16 +1141,27 @@ namespace qpmodel.expr
 
         void convertToDateTime(int interval, string unit)
         {
+            string[] validIntevals = {"years", "months", "days", "hours", "minutes", "seconds",
+                    "year", "month", "day", "hour", "minute", "second"};
             str_ = interval + unit;
             type_ = new DateTimeType();
+            Debug.Assert(validIntevals.Contains(unit));
 
-            Debug.Assert(unit.Contains("day") || unit.Contains("month") || unit.Contains("year"));
-            int day = interval;
-            if (unit.Contains("month"))
-                day *= 30;  // FIXME
+            // convert year/month to day or hour/min to second
+            int days = 0, seconds = 0;
+            if (unit.Contains("day"))
+                days = interval;
+            else if (unit.Contains("month"))
+                days = interval * 30;  // FIXME
             else if (unit.Contains("year"))
-                day *= 365;  // FIXME
-            val_ = new TimeSpan(day, 0, 0, 0);
+                days = interval * 365;  // FIXME
+            else if (unit.Contains("second"))
+                seconds = interval;
+            else if (unit.Contains("minute"))
+                seconds = interval * 60;
+            else if (unit.Contains("hour"))
+                seconds = interval * 3600;
+            val_ = new TimeSpan(days, 0, 0, seconds);
         }
 
         public override string ToString()

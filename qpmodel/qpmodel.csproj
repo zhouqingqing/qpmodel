@@ -182,6 +182,7 @@
     <Compile Include="Statis.cs" />
     <Compile Include="Stmt.cs" />
     <Compile Include="StmtDML.cs" />
+    <Compile Include="Stream.cs" />
     <Compile Include="Subquery.cs" />
     <Compile Include="Tpch.cs" />
     <Compile Include="Utils.cs" />

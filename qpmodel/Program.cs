@@ -163,6 +163,10 @@ namespace qpmodel
 
         doit:
             sql = "select a2,b2,c2,d2 from ad, bd, cd, dd where a2=b2 and c2 = b2 and c2=d2 order by a2";
+            sql = "select count(*) from ast group by tumble(a0, interval '10' second)";
+
+            var datetime = new DateTime();
+            datetime = DateTime.Now;
 
             var stopWatch = new Stopwatch();
             stopWatch.Start();
@@ -180,7 +184,7 @@ namespace qpmodel
             a.queryOpt_.optimize_.memo_disable_crossjoin_ = false;
             a.queryOpt_.optimize_.memo_use_joinorder_solver_ = false;
             a.queryOpt_.explain_.show_output_ = true;
-            a.queryOpt_.explain_.show_id_ = true;
+            a.queryOpt_.explain_.show_id_ = false;
             a.queryOpt_.explain_.show_cost_ = a.queryOpt_.optimize_.use_memo_;
 
             // -- Semantic analysis:
