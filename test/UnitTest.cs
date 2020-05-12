@@ -1832,7 +1832,7 @@ namespace qpmodel.unittest
         public void Gather()
         {
             var phyplan = "";
-            var sql = "select a1,a2 from ap;";
+            var sql = "select a1,a2 from ad;";
             TU.ExecuteSQL(sql, "0,1;1,2;2,3", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
         }
@@ -1842,19 +1842,19 @@ namespace qpmodel.unittest
         {
             // needs order by to force result order
             var phyplan = "";
-            var sql = "select a1,b1 from ap, b where a1=b1 order by a1;";
+            var sql = "select a1,b1 from ad, b where a1=b1 order by a1;";
             TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "Redistribute"));
-            sql = "select a1,b1 from ap, bp where a1=b1 order by a1;";
+            sql = "select a1,b1 from ad, bd where a1=b1 order by a1;";
             TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
             Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
-            sql = "select a2,b2,c2 from ap, bp, cp where a2=b2 and c2 = b2 order by c2";
+            sql = "select a2,b2,c2 from ad, bd, cd where a2=b2 and c2 = b2 order by c2";
             TU.ExecuteSQL(sql, "1,1,1;2,2,2;3,3,3", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
             Assert.AreEqual(4, TU.CountStr(phyplan, "Redistribute"));
-            sql = "select a2,b2,c2,d2 from ap, bp, cp, dp where a2=b2 and c2 = b2 and c2=d2 order by b2";
+            sql = "select a2,b2,c2,d2 from ad, bd, cd, dd where a2=b2 and c2 = b2 and c2=d2 order by b2";
             TU.ExecuteSQL(sql, "1,1,1,1;2,2,2,2;2,2,2,2;3,3,3,3", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
             Assert.AreEqual(6, TU.CountStr(phyplan, "Redistribute"));

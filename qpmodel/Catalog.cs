@@ -205,17 +205,17 @@ namespace qpmodel
                 // nullable tables
                 @"create table r (r1 int, r2 int, r3 int, r4 int);",
                 // distributed tables
-                @"create table ap (a1 int, a2 int, a3 int, a4 int) distributed by a1;",
-                @"create table bp (b1 int, b2 int, b3 int, b4 int) distributed by b1;",
-                @"create table cp (c1 int, c2 int, c3 int, c4 int) distributed by c1;",
-                @"create table dp (d1 int, d2 int, d3 int, d4 int) distributed by d1;",
+                @"create table ad (a1 int, a2 int, a3 int, a4 int) distributed by a1;",
+                @"create table bd (b1 int, b2 int, b3 int, b4 int) distributed by b1;",
+                @"create table cd (c1 int, c2 int, c3 int, c4 int) distributed by c1;",
+                @"create table dd (d1 int, d2 int, d3 int, d4 int) distributed by d1;",
             };
             SQLStatement.ExecSQLList(string.Join("", createtables));
 
             // load tables
             var curdir = Directory.GetCurrentDirectory();
             var folder = $@"{curdir}\..\..\..\data";
-            var tables = new List<string>() { "a", "b", "c", "d", "r", "ap", "bp", "cp", "dp" };
+            var tables = new List<string>() { "a", "b", "c", "d", "r", "ad", "bd", "cd", "dd" };
             foreach (var v in tables)
             {
                 string filename = $@"'{folder}\{v}.tbl'";
