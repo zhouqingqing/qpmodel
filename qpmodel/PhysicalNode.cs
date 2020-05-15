@@ -25,6 +25,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+using Antlr4.Runtime;
 using qpmodel.codegen;
 using qpmodel.expr;
 using qpmodel.index;
@@ -1377,9 +1378,9 @@ namespace qpmodel.physic
 
             string s = child_().Exec(l =>
             {
-                string limitcode = null;
+                string srccode = null;
                 if (context.option_.optimize_.use_codegen_) {
-                    limitcode = $@"                    
+                    srccode = $@"                    
                     nrows{_}++;
                     Debug.Assert(nrows{_} <= {limit});
                     if (nrows{_} == {limit})
@@ -1396,7 +1397,7 @@ namespace qpmodel.physic
                     callback(l);
                 }
 
-                return limitcode;
+                return srccode;
             });
             return s;
         }
@@ -1635,6 +1636,76 @@ namespace qpmodel.physic
                 callback(r);
             }
             return null;
+        }
+    }
+
+    public class PhysicProjectSet: PhysicNode
+    {
+        public PhysicProjectSet(LogicProjectSet logic, PhysicNode l) : base(logic) => children_.Add(l);
+        public override string ToString() => $"PPRJSET({child_()}: {Cost()})";
+
+        public override double EstimateCost()
+        {
+            return logic_.Card() * 1.0;
+        }
+
+        int theOnlySRFColumn()
+        {
+            // FIXME: assuming one SRF column
+            var output = logic_.output_;
+            var srfcol = -1;
+            for (int i = 0; i < output.Count; i++)
+            {
+                if (output[i] is FuncExpr f && f.isSRF_)
+                {
+                    srfcol = i;
+                    break;
+                }
+            }
+
+            Debug.Assert(srfcol != -1);
+            return srfcol;
+        }
+
+        public override string Exec(Func<Row, string> callback)
+        {
+            ExecContext context = context_;
+            var output = logic_.output_;
+
+            string s = child_().Exec(l =>
+            {
+                string srccode = null;
+                var cache = new List<Row>();
+                if (!context.option_.optimize_.use_codegen_)
+                {
+                    // apply the SRF and fill the cache with multi-rows
+                    var r = new Row(output.Count);
+                    for (int i = 0; i < output.Count; i++)
+                        r[i] = output[i].Exec(context_, l);
+
+                    // for only one SRF, expand it and fill other columns with same value 
+                    var srfcol = theOnlySRFColumn();
+                    dynamic srfvals = r[srfcol];
+                    foreach (var v in srfvals)
+                    {
+                        var newr = new Row(output.Count);
+                        for (int j = 0; j< output.Count; j++)
+                        {
+                            if (j != srfcol)
+                                newr[j] = r[j];
+                            else
+                                newr[j] = v;
+                        }
+                        cache.Add(newr);
+                    }
+
+                    // return one by one from the cache
+                    cache.ForEach(r => callback(r));
+                }
+
+                return srccode;
+            });
+            return s;
         }
     }
 }

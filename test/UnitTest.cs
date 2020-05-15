@@ -1006,6 +1006,12 @@ namespace qpmodel.unittest
             var sql = "select cast('2001-01-3' as date) + interval '30' day;"; TU.ExecuteSQL(sql, "2/2/2001 12:00:00 AM");
             sql = "select cast('2001-01-3' as date) + 30 days;"; TU.ExecuteSQL(sql, "2/2/2001 12:00:00 AM");
         }
+
+        [TestMethod]
+        public void TestMisc()
+        {
+            var sql = "select round(a1, 10), count(*) from a group by round(a1, 10)"; TU.ExecuteSQL(sql, "0,1;1,1;2,1");
+        }
     }
 
     [TestClass]
@@ -1870,11 +1876,20 @@ namespace qpmodel.unittest
     public class Streaming
     {
         [TestMethod]
-        public void Tumble()
+        public void TumbleWindow()
         {
             var phyplan = "";
             var sql = "select count(*) from ast group by tumble(a0, interval '10' second)";
             TU.ExecuteSQL(sql, "2;2;1", out phyplan);
+        }
+
+        [TestMethod]
+        public void HopWindow()
+        {
+            var phyplan = "";
+            var sql = "select count(*) from ast group by hop(a0, interval '5' second, interval '10' second)";
+            TU.ExecuteSQL(sql, "2;4;2;1;1", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "ProjectSet"));
         }
     }
 }

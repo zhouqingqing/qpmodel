@@ -274,26 +274,34 @@ namespace qpmodel.logic
 
     public partial class SelectStmt : SQLStatement
     {
-        // locate subqueries in given expr and create plan for each
+        // locate subqueries or SRF in given expr and create plan for each
         // subquery, no change on the expr itself.
-        LogicNode subQueryExprCreatePlan(LogicNode root, Expr expr)
+        //
+        LogicNode setReturningExprCreatePlan(LogicNode root, Expr expr)
         {
             var newroot = root;
             var subplans = new List<NamedQuery>();
-            expr.VisitEachT<SubqueryExpr>(x =>
+            expr.VisitEachT<Expr>(e =>
             {
-                Debug.Assert(expr.HasSubQuery());
-                x.query_.CreatePlan();
-                subplans.Add(new NamedQuery(x.query_, null));
-
-                // functionally we don't have to do rewrite since above
-                // plan is already runnable
-                if (queryOpt_.optimize_.enable_subquery_unnest_)
+                if (e is SubqueryExpr x)
                 {
-                    // use the plan 'root' containing the subexpr 'x'
-                    var replacement = oneSubqueryToJoin(root, x);
-                    newroot = (LogicNode)newroot.SearchAndReplace(root,
-                                                            replacement);
+                    Debug.Assert(expr.HasSubQuery());
+                    x.query_.CreatePlan();
+                    subplans.Add(new NamedQuery(x.query_, null));
+
+                    // functionally we don't have to do rewrite since above
+                    // plan is already runnable
+                    if (queryOpt_.optimize_.enable_subquery_unnest_)
+                    {
+                        // use the plan 'root' containing the subexpr 'x'
+                        var replacement = oneSubqueryToJoin(root, x);
+                        newroot = (LogicNode)newroot.SearchAndReplace(root,
+                                                                replacement);
+                    }
+                }
+                else if (e is FuncExpr f && f.isSRF_) {
+                    var newchild = new LogicProjectSet(root.child_());
+                    root.children_[0] = newchild;
                 }
             });
 
@@ -512,7 +520,7 @@ namespace qpmodel.logic
                     root = new LogicFilter(root.child_(), where_);
                 }
 
-                root = subQueryExprCreatePlan(root, where_);
+                root = setReturningExprCreatePlan(root, where_);
             }
 
             // group by / having
@@ -520,17 +528,17 @@ namespace qpmodel.logic
             {
                 root = new LogicAgg(root, groupby_, getAggFuncFromSelection(), having_);
                 if (having_ != null)
-                    root = subQueryExprCreatePlan(root, having_);
+                    root = setReturningExprCreatePlan(root, having_);
                 if (groupby_ != null)
                     groupby_.ForEach(x => {
-                        root = subQueryExprCreatePlan(root, x);
+                        root = setReturningExprCreatePlan(root, x);
                     });
             }
 
             // selection list
             selection_.ForEach(x => {
                 var oldroot = root;
-                root = subQueryExprCreatePlan(root, x);
+                root = setReturningExprCreatePlan(root, x);
                 shallExpandSelection_ |= root != oldroot;
             });
 

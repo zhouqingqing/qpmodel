@@ -204,6 +204,9 @@ namespace qpmodel.logic
                 case LogicRedistribute dist:
                     result = new PhysicRedistribute(dist, phyfirst);
                     break;
+                case LogicProjectSet ps:
+                    result = new PhysicProjectSet(ps, phyfirst);
+                    break;
                 default:
                     throw new NotImplementedException();
             }
@@ -804,12 +807,22 @@ namespace qpmodel.logic
             //    expr: (a1+a2+a2)+a3, sum(a+a2+(a3+a2)), 
             //  with some arrangement, we can map expr to keys
             //
+            // the exception is SRF in group by keys, push them down to ProjectSet node
+            //
             if (keys?.Count > 0)
             {
                 reqList.ForEach(x =>
                 {
                     if (exprConsistPureKeys(x, keys))
                         reqContainAggs.Add(x);
+                });
+
+                keys.ForEach(x => {
+                    if (x is FuncExpr fx && fx.isSRF_)
+                    {
+                        Debug.Assert(child_() is LogicProjectSet);
+                        reqList.Add(x);
+                    }
                 });
             }
 
@@ -1260,5 +1273,22 @@ namespace qpmodel.logic
             children_.Add(child);
         }
         public override string ToString() => $"ProjectSet({child_()})";
+
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
+        {
+            var ordinals = new List<int>();
+
+            var reqFromChild = new List<Expr>();
+            foreach (var v in reqOutput) {
+                if (v is FuncExpr fv && fv.isSRF_)
+                    reqFromChild.AddRange(v.RetrieveAllColExpr());
+            }
+
+            child_().ResolveColumnOrdinal(reqFromChild);
+            var childout = child_().output_;
+            output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
+            RefreshOutputRegisteration();
+            return ordinals;
+        }
     }
 }

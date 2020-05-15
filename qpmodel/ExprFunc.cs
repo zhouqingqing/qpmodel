@@ -133,9 +133,9 @@ namespace qpmodel.expr
                 case "round": r = new RoundFunc(args); break;
                 case "coalesce": r = new CoalesceFunc(args); break;
                 case "hash": r = new HashFunc(args); break;
-                case "tumble": r = new Tumble(args); break;
-                case "hop": r = new Hop(args); break;
-                case "session": r = new Session(args); break;
+                case "tumble": r = new TumbleWindow(args); break;
+                case "hop": r = new HopWindow(args); break;
+                case "session": r = new SessionWindow(args); break;
                 default:
                     if (ExternalFunctions.set_.ContainsKey(funcName))
                         r = new ExternalFunc(func, args);
@@ -287,7 +287,13 @@ namespace qpmodel.expr
 
             if (number is null)
                 return null;
-            return Math.Round(number, decimals);
+
+            // there are multiple Math.Round(), an integer number confuses them
+            var type = args_()[0].type_;
+            if (type is IntType)
+                return Math.Round((decimal)number, decimals);
+            else
+                return Math.Round((double)number, decimals);
         }
     }
 
