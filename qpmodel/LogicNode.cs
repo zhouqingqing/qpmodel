@@ -1208,7 +1208,10 @@ namespace qpmodel.logic
         }
     }
 
-    // Remote exchange operators: Gather, Broadcast and Redistribute
+    // Remote exchange operators: Gather, Broadcast and Redistribution
+    //  Gather: start the execution on many other machines
+    //  Redistribution: start execution in current machine with result set redistribution
+    //  Broadcast: execution mode is the same as redistribution but broadcast result set
     //
     public class LogicRemoteExchange : LogicNode
     {
@@ -1225,7 +1228,7 @@ namespace qpmodel.logic
         public override string ExplainInlineDetails() => $"1 : {QueryOption.num_machines_}";
     }
 
-    public class LogicBroadcast : LogicRemoteExchange
+    public class LogicBroadcast: LogicRemoteExchange
     {
         public LogicBroadcast(LogicNode child) : base(child) { }
         public override string ToString() => $"Broadcast({child_()})";
@@ -1235,5 +1238,27 @@ namespace qpmodel.logic
     {
         public LogicRedistribute(LogicNode child) : base(child) { }
         public override string ToString() => $"Redistribute({child_()})";
+    }
+
+    // Consider this query:
+    //    ... FROM a GROUP BY generate_series(1, a2), generate_series(1, a3)
+    // because generate_series() is a SRF, so each row from a, it will generate
+    // multiple rows. To implement this, for each row, ProjectSet invokes target
+    // functions once, cache the rows into a result set and returning one row
+    // each time. The plan looks like this:
+    // ---
+    //  Aggregate
+    //       Group Key: generate_series(1, a.a2), generate_series(1, a.a3)
+    //       ->  ProjectSet
+    //           Output: generate_series(1, a2), generate_series(1, a3)
+    //           ->  Scan table a
+    //
+    public class LogicProjectSet: LogicNode
+    {
+        public LogicProjectSet(LogicNode child)
+        {
+            children_.Add(child);
+        }
+        public override string ToString() => $"ProjectSet({child_()})";
     }
 }

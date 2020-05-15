@@ -164,6 +164,7 @@ namespace qpmodel
         doit:
             sql = "select a2,b2,c2,d2 from ad, bd, cd, dd where a2=b2 and c2 = b2 and c2=d2 order by a2";
             sql = "select count(*) from ast group by tumble(a0, interval '10' second)";
+            sql = "select count(*) from ast group by hop(a0, interval '5' second, interval '10' second)";
 
             var datetime = new DateTime();
             datetime = DateTime.Now;

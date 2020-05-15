@@ -11,8 +11,8 @@ namespace qpmodel.stream
 {
     // tumble window is also known as fixed window: it cuts stream
     // into non-overlapped fixed window size @interval based on column
-    // @time_column
-    // args: time_column, interval
+    // @ts
+    // args: ts, interval
     //
     public class Tumble : FuncExpr
     {
@@ -37,16 +37,33 @@ namespace qpmodel.stream
     }
 
     // hop window is also known as sliding window: it cuts stream
-    // into fixed window size @duration, and each window moves @slide.
-    // If @slide=@duration, it degenerates to tumble window; if @slie 
-    // is 1/4 of @duration, then each row belongs to 4 sliding windows.
-    // args: time_column, slide, duration
+    // into fixed window size @interval, and each window moves @slide.
+    // If @slide=@interval, it degenerates to tumble window; if @slie 
+    // is 1/4 of @interval, then each row belongs to 4 sliding windows.
+    // So it is a set returning function.
+    // args: ts, slide, interval
     //
     public class Hop : FuncExpr
     {
         public Hop(List<Expr> args) : base("hop", args)
         {
+            isSRF_ = true;
             argcnt_ = 3;
+        }
+
+        public override object Exec(ExecContext context, Row input)
+        {
+            var startts = new DateTime(1980, 1, 1);
+            var ts = (DateTime)args_()[0].Exec(context, input);
+            var slide = (TimeSpan)args_()[1].Exec(context, input);
+            var interval = (TimeSpan)args_()[2].Exec(context, input);
+
+            // start from startts date, cut time into interval sized chunks
+            // and return the chunk ts falling into
+            //
+            var span = (ts - startts).TotalSeconds;
+            var window = (long)(span / interval.TotalSeconds);
+            return window;
         }
     }
 

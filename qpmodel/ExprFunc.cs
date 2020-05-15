@@ -79,6 +79,7 @@ namespace qpmodel.expr
     {
         internal string funcName_;
         internal int argcnt_;
+        internal bool isSRF_ = false; // set returning function
 
         internal Expr arg_() { Debug.Assert(argcnt_ == 1); return args_()[0]; }
         internal List<Expr> args_() => children_;
