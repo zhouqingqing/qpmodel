@@ -167,6 +167,10 @@ namespace qpmodel
             sql = "select round(a1, 10), count(*) from a group by round(a1, 10)";
             sql = "select count(*) from a group by round(a1, 10)";
             sql = "select count(*) from ast group by hop(a0, interval '5' second, interval '10' second)";
+            sql = "select round(a1, 10) from a group by a1;";
+            sql = "select abs(-a1*2), count(*) from a group by round(a1, 10);";
+            sql = "select abs(-a1*2), count(*) from a group by a1;";
+            sql = "select tumble_start(a0, interval '10' second), tumble_end(a0, interval '10' second), count(*) from ast group by tumble(a0, interval '10' second)";
 
             var datetime = new DateTime();
             datetime = DateTime.Now;

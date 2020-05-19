@@ -1011,6 +1011,7 @@ namespace qpmodel.unittest
         public void TestMisc()
         {
             var sql = "select round(a1, 10), count(*) from a group by round(a1, 10)"; TU.ExecuteSQL(sql, "0,1;1,1;2,1");
+            sql = "select abs(-a1), count(*) from a group by abs(-a1);"; TU.ExecuteSQL(sql, "0,1;1,1;2,1");
         }
     }
 
@@ -1881,6 +1882,11 @@ namespace qpmodel.unittest
             var phyplan = "";
             var sql = "select count(*) from ast group by tumble(a0, interval '10' second)";
             TU.ExecuteSQL(sql, "2;2;1", out phyplan);
+            sql = "select tumble_start(a0, interval '10' second), tumble_end(a0, interval '10' second), " +
+                "count(*) from ast group by tumble(a0, interval '10' second)";
+            TU.ExecuteSQL(sql, "5/12/2020 7:22:10 AM,5/12/2020 7:22:20 AM,2;" +
+                "5/12/2020 7:22:20 AM,5/12/2020 7:22:30 AM,2;" +
+                "5/12/2020 7:22:50 AM,5/12/2020 7:23:00 AM,1", out phyplan);
         }
 
         [TestMethod]
