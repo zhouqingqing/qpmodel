@@ -14,11 +14,12 @@ namespace qpmodel.stream
     // @ts
     // args: ts, interval
     //
-    public class Tumble : FuncExpr
+    public class TumbleWindow : FuncExpr
     {
-        public Tumble(List<Expr> args) : base("tumble", args)
+        public TumbleWindow(List<Expr> args) : base("tumble", args)
         {
             argcnt_ = 2;
+            type_ = new IntType();
         }
 
         public override object Exec(ExecContext context, Row input)
@@ -43,12 +44,13 @@ namespace qpmodel.stream
     // So it is a set returning function.
     // args: ts, slide, interval
     //
-    public class Hop : FuncExpr
+    public class HopWindow : FuncExpr
     {
-        public Hop(List<Expr> args) : base("hop", args)
+        public HopWindow(List<Expr> args) : base("hop", args)
         {
             isSRF_ = true;
             argcnt_ = 3;
+            type_ = new IntType();
         }
 
         public override object Exec(ExecContext context, Row input)
@@ -59,11 +61,15 @@ namespace qpmodel.stream
             var interval = (TimeSpan)args_()[2].Exec(context, input);
 
             // start from startts date, cut time into interval sized chunks
-            // and return the chunk ts falling into
+            // and return the chunk + slide falling into
             //
             var span = (ts - startts).TotalSeconds;
             var window = (long)(span / interval.TotalSeconds);
-            return window;
+            var nslides = (int)(interval.TotalSeconds / slide.TotalSeconds);
+            var results = new List<long>(nslides);
+            for (int i = 0; i < nslides; i++)
+                results.Add(window + i);
+            return results;
         }
     }
 
@@ -73,11 +79,12 @@ namespace qpmodel.stream
     // otherwise, start a new window to contain this new row.  
     // args: time_column, inactive
     //
-    public class Session : FuncExpr
+    public class SessionWindow : FuncExpr
     {
-        public Session(List<Expr> args) : base("session", args)
+        public SessionWindow(List<Expr> args) : base("session", args)
         {
             argcnt_ = 3;
+            type_ = new IntType();
         }
     }
 }

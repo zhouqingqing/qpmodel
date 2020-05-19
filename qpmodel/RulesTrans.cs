@@ -61,6 +61,7 @@ namespace qpmodel.optimizer
             new Gather2Gather(),
             new Bcast2Bcast(),
             new Redis2Redis(),
+            new PSet2PSet(),
             new JoinCommutativeRule(),  // intentionally add a duplicated rule
         };
 

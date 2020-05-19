@@ -189,4 +189,5 @@ namespace qpmodel.optimizer
     public class Gather2Gather: SimpleImplementationRule<LogicGather, PhysicGather, NumberArgs.N1> { }
     public class Bcast2Bcast : SimpleImplementationRule<LogicBroadcast, PhysicBroadcast, NumberArgs.N1> { }
     public class Redis2Redis : SimpleImplementationRule<LogicRedistribute, PhysicRedistribute, NumberArgs.N1> { }
+    public class PSet2PSet : SimpleImplementationRule<LogicProjectSet, PhysicProjectSet, NumberArgs.N1> { }
 }

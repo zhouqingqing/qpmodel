@@ -83,6 +83,9 @@ namespace qpmodel.logic
                     return ce.LogicAggCE(an);
                 case LogicJoin jn:
                     return ce.LogicJoinCE(jn);
+                case LogicProjectSet ps:
+                    // assuming the set tripples child's row count
+                    return ce.DefaultEstimate(node) * 3;
 
                 // it also provides a fallback estimator
                 default:

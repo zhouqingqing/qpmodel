@@ -164,6 +164,8 @@ namespace qpmodel
         doit:
             sql = "select a2,b2,c2,d2 from ad, bd, cd, dd where a2=b2 and c2 = b2 and c2=d2 order by a2";
             sql = "select count(*) from ast group by tumble(a0, interval '10' second)";
+            sql = "select round(a1, 10), count(*) from a group by round(a1, 10)";
+            sql = "select count(*) from a group by round(a1, 10)";
             sql = "select count(*) from ast group by hop(a0, interval '5' second, interval '10' second)";
 
             var datetime = new DateTime();
@@ -177,9 +179,9 @@ namespace qpmodel
             var a = RawParser.ParseSingleSqlStatement(sql);
             ExplainOption.show_tablename_ = false;
             a.queryOpt_.profile_.enabled_ = true;
-            a.queryOpt_.optimize_.enable_subquery_unnest_ = true;
+            a.queryOpt_.optimize_.enable_subquery_unnest_ = false;
             a.queryOpt_.optimize_.remove_from_ = false;
-            a.queryOpt_.optimize_.use_memo_ = false;
+            a.queryOpt_.optimize_.use_memo_ = true;
             a.queryOpt_.optimize_.enable_cte_plan_ = false;
             a.queryOpt_.optimize_.use_codegen_ = false;
             a.queryOpt_.optimize_.memo_disable_crossjoin_ = false;
