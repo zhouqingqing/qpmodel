@@ -43,6 +43,8 @@ using qpmodel.dml;
 using qpmodel.tools;
 
 using psql;
+using System.Security.Cryptography;
+using System.Reflection;
 
 namespace qpmodel.unittest
 {
@@ -1875,6 +1877,132 @@ namespace qpmodel.unittest
             var phyplan = "";
             var sql = "select count(*) from ast group by tumble(a0, interval '10' second)";
             TU.ExecuteSQL(sql, "2;2;1", out phyplan);
+        }
+    }
+
+    [TestClass]
+    public class CEPrimitive
+    {
+        int ExtractNum(string str)
+        {
+            string numstr = str.Split(')')[0];
+            return Int32.Parse(numstr);
+        }
+        bool CheckEstimation(string physicplan)
+        {
+            int at = 0;
+            while (at != -1)
+            {
+                at = physicplan.IndexOf("rows=");
+                if (at == -1) break;
+                physicplan = physicplan.Substring(at + 5);
+                int expected = ExtractNum(physicplan);
+                at = physicplan.IndexOf("rows=");
+                physicplan = physicplan.Substring(at + 5);
+                int actual = ExtractNum(physicplan);
+                if (actual == 0) continue;
+                int diff = Math.Abs(actual - expected);
+                Console.WriteLine($"{actual}, {expected}");
+                if (diff > Math.Max(10, (int)(0.1 * actual))) return false;
+            }
+            return true;
+        }
+        [TestMethod]
+        public void TpchUnit()
+        {
+            // initialize tpch database
+            Tpch.CreateTables();
+            Tpch.LoadTables("0001");
+            Tpch.AnalyzeTables();
+
+            // load query and set option
+            var files = Directory.GetFiles(@"../../../tpch", "*.sql");
+            var option = new QueryOption();
+            option.explain_.show_cost_ = true;
+
+            string physicplan;
+            foreach (var v in files)
+            {
+                var results = SQLStatement.ExecSQL(File.ReadAllText(v), out physicplan, out string error_, option);
+                Assert.IsTrue(CheckEstimation(physicplan));
+                //Console.WriteLine();
+            }
+            Assert.IsTrue(true);
+        }
+
+        void CheckSql(string[] sqls)
+        {
+            // initialize tpch database
+            Tpch.CreateTables();
+            Tpch.LoadTables("0001");
+            var option = new QueryOption();
+            option.explain_.show_cost_ = true;
+
+            string physicplan;
+            foreach (string sql in sqls)
+            {
+                var results = SQLStatement.ExecSQL(sql, out physicplan, out string error_, option);
+                Assert.IsTrue(CheckEstimation(physicplan));
+            }
+        }
+
+        [TestMethod]
+        public void HashJoin()
+        {
+            string[] sqls = new string[]
+            {
+                "select * from lineitem, orders where l_orderkey = o_orderkey", // hashjoin, q03
+                "select * from lineitem, partsupp where ps_suppkey = l_suppkey and ps_partkey = l_partkey" // hashjoin, q09, double match
+            };
+            CheckSql(sqls);
+        }
+
+        [TestMethod]
+        public void FilterSameCol()
+        {
+            string[] sqls = new string[]
+            {
+                // filter on one column, q04
+                @"select * from orders where o_orderdate >= date '1993-07-01' and o_orderdate<date '1993-07-01' + interval '3' month",
+                // filter on one column, q06, between
+                "select * from lineitem, partsupp where ps_suppkey = l_suppkey and ps_partkey = l_partkey"
+            };
+            CheckSql(sqls);
+        }
+
+        [TestMethod]
+        public void FilterLike()
+        {
+            string[] sqls = new string[]
+            {
+                // filter like, not like, q16
+                "select * from part where p_type not like 'MEDIUM POLISHED%'",
+                "select * from partsupp where ps_comment like '%carefully regular%'"
+            };
+            // check for '_'?
+            CheckSql(sqls);
+        }
+
+        [TestMethod]
+        public void FilterIn()
+        {
+            string[] sqls = new string[]
+            {
+                "select * from lineitem where l_shipmode in ('MAIL','SHIP')", // filter in, q12
+                "select * from customer where substring(c_phone, 1, 2) in ('13', '31', '23', '29', '30', '18', '17')" // substring in, q22
+            };
+            CheckSql(sqls);
+        }
+
+        [TestMethod]
+        public void Aggregate()
+        {
+            string[] sqls = new string[]
+            {
+                // aggregation, q20
+                "select count(*) from lineitem group by l_partkey, l_suppkey"
+            };
+            CheckSql(sqls);
         }
     }
 }
