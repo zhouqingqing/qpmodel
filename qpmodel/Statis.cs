@@ -317,6 +317,16 @@ namespace qpmodel.stat
             return selectivity;
         }
 
+        static double EstSingleColSelectivity(List<Expr> filter)
+        {
+            if (filter.Count() == 1)
+                return EstSingleSelectivity(filter[0]);
+            double selectOut = 0.0;
+            foreach (var v in filter)
+                selectOut += 1.0 - EstSingleSelectivity(v);
+            return Math.Max(0, 1.0 - selectOut);
+        }
+
         // problems:
         //  1. same column correlation: a1 > 5 && a1 <= 5 (say a1 in [1,10])
         //     we can't use sel(a1>5) * sel(a1<=5) which gives 0.25
@@ -326,12 +336,20 @@ namespace qpmodel.stat
         {
             double selectivity = 1.0;
             var andlist = filter.FilterToAndList();
+            Dictionary<Expr, List<Expr>> gatherSameCol = new Dictionary<Expr, List<Expr>>();
             if (andlist.Count == 1)
                 return EstSingleSelectivity(filter);
             else
             {
                 foreach (var v in andlist)
-                    selectivity *= EstSelectivity(v);
+                {
+                    if (gatherSameCol.ContainsKey(v.l_()))
+                        gatherSameCol[v.l_()].Add(v);
+                    else
+                        gatherSameCol.Add(v.l_(), new List<Expr> {v});
+                }
+                foreach (var l in gatherSameCol)
+                    selectivity *= EstSingleColSelectivity(l.Value);
             }
 
             validateSelectivity(selectivity);
