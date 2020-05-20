@@ -797,32 +797,15 @@ namespace qpmodel.physic
         }
     }
 
-    public class PhysicHashAgg : PhysicNode
+    public abstract class PhysicAgg: PhysicNode 
     {
-        public PhysicHashAgg(LogicAgg logic, PhysicNode l) : base(logic) => children_.Add(l);
-        public override string ToString() => $"PHAgg({child_()}: {Cost()})";
-
+        public PhysicAgg(LogicAgg logic, PhysicNode l) : base(logic) => children_.Add(l);
+   
         public Row AggrCoreToRow(Row input)
         {
             var aggfns = (logic_ as LogicAgg).aggrFns_;
             Row r = new Row(aggfns.Count);
             return r;
-        }
-
-        public override double EstimateCost()
-        {
-            return child_().Card() * 1.0 + logic_.Card() * 2.0;
-        }
-
-        public override string Open(ExecContext context)
-        {
-            string cs = base.Open(context);
-            if (context.option_.optimize_.use_codegen_)
-            {
-                cs += $@"var aggrcore{_} = {_logic_}.aggrFns_;
-                   var hm{_} = new Dictionary<KeyList, Row>();";
-            }
-            return cs;
         }
 
         //  special case: when there is no key and hm is empty, we shall still return one row
@@ -850,6 +833,28 @@ namespace qpmodel.physic
                 return newr;
             }
             return null;
+        }
+    }
+
+    public class PhysicHashAgg : PhysicAgg
+    {
+        public PhysicHashAgg(LogicAgg logic, PhysicNode l) : base(logic, l) { }
+        public override string ToString() => $"PHashAgg({child_()}: {Cost()})";
+
+        public override double EstimateCost()
+        {
+            return child_().Card() * 1.0 + logic_.Card() * 2.0;
+        }
+
+        public override string Open(ExecContext context)
+        {
+            string cs = base.Open(context);
+            if (context.option_.optimize_.use_codegen_)
+            {
+                cs += $@"var aggrcore{_} = {_logic_}.aggrFns_;
+                   var hm{_} = new Dictionary<KeyList, Row>();";
+            }
+            return cs;
         }
 
         public override string Exec(Func<Row, string> callback)
@@ -964,6 +969,88 @@ namespace qpmodel.physic
                         var newr = ExecProject(w);
                         callback(newr);
                     }
+                }
+            }
+
+            return s;
+        }
+    }
+
+    public class PhysicStreamAgg : PhysicAgg
+    {
+        public PhysicStreamAgg(LogicAgg logic, PhysicNode l) : base(logic, l) { }
+        public override string ToString() => $"PStreamAgg({child_()}: {Cost()})";
+
+        public override double EstimateCost()
+        {
+            return logic_.Card() * 2.0;
+        }
+
+        public override string Open(ExecContext context)
+        {
+            string cs = base.Open(context);
+            if (context.option_.optimize_.use_codegen_)
+            {
+                cs += $@"";
+            }
+            return cs;
+        }
+
+        public override string Exec(Func<Row, string> callback)
+        {
+            ExecContext context = context_;
+            var logic = logic_ as LogicAgg;
+            var aggrcore = logic.aggrFns_;
+            KeyList curGroupKey = null;
+            Row curGroupRow = null;
+
+            // aggregation is working on aggCore targets
+            string s = child_().Exec(l =>
+            {
+                string buildcode = null;
+                if (!context.option_.optimize_.use_codegen_)
+                {
+                    var keys = KeyList.ComputeKeys(context, logic.groupby_, l);
+                    if (keys.Equals(curGroupKey))
+                    {
+                        for (int i = 0; i < aggrcore.Count; i++)
+                        {
+                            var old = curGroupRow[i];
+                            curGroupRow[i] = aggrcore[i].Accum(context, old, l);
+                        }
+                    }
+                    else
+                    {
+                        // output current grouped row
+                        Row aggvals = new Row(aggrcore.Count);
+                        for (int i = 0; i < aggrcore.Count; i++)
+                            aggvals[i] = aggrcore[i].Finalize(context, aggvals[i]);
+                        var w = new Row(keys, aggvals);
+                        if (logic.having_ is null || logic.having_.Exec(context, w) is true)
+                        {
+                            var newr = ExecProject(w);
+                            callback(newr);
+                        }
+
+                        // start a new grouped row
+                        curGroupRow = AggrCoreToRow(l);
+                        curGroupKey = keys;
+                        for (int i = 0; i < aggrcore.Count; i++)
+                            curGroupRow[i] = aggrcore[i].Init(context, l);
+                    }
+                }
+
+                return buildcode;
+            });
+
+            // special handling for emtpy resultset
+            if (!context.option_.optimize_.use_codegen_)
+            {
+                if (logic.groupby_ is null && curGroupRow is null)
+                {
+                    Row row = HandleEmptyResult(context);
+                    if (row != null)
+                        callback(row);
                 }
             }
 

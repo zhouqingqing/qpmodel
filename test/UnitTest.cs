@@ -1440,6 +1440,9 @@ namespace qpmodel.unittest
             sql = "select count(a1) from a group by (select max(a1) from a);";
             TU.ExecuteSQL(sql, "3");
 
+            // stream aggregation
+            sql = "";
+
             // failed:
             // sql = "select a1, sum(a1) from a group by a1 having sum(a2) > a3;";
             // sql = "select * from a having sum(a2) > 1;";
