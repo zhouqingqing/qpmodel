@@ -1,0 +1,28 @@
+Total cost: 37150.61
+PhysicLimit (20) (inccost=37150.61, cost=20, rows=20) (actual rows=20)
+    Output: customer.c_custkey[0],customer.c_name[1],{sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[2],customer.c_acctbal[3],nation.n_name[4],customer.c_address[5],customer.c_phone[6],customer.c_comment[7]
+    -> PhysicOrder  (inccost=37130.61, cost=3164.61, rows=501) (actual rows=20)
+        Output: customer.c_custkey[0],customer.c_name[1],{sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[2],customer.c_acctbal[3],nation.n_name[4],customer.c_address[5],customer.c_phone[6],customer.c_comment[7]
+        Order by: {sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[2]
+        -> PhysicHashAgg  (inccost=33966, cost=1503, rows=501) (actual rows=43)
+            Output: {customer.c_custkey}[0],{customer.c_name}[1],{sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[7],{customer.c_acctbal}[2],{nation.n_name}[4],{customer.c_address}[5],{customer.c_phone}[3],{customer.c_comment}[6]
+            Aggregates: sum(lineitem.l_extendedprice[8]*1-lineitem.l_discount[11])
+            Group by: customer.c_custkey[0], customer.c_name[1], customer.c_acctbal[2], customer.c_phone[5], nation.n_name[3], customer.c_address[4], customer.c_comment[6]
+            -> PhysicHashJoin  (inccost=32463, cost=9151, rows=501) (actual rows=140)
+                Output: customer.c_custkey[0],customer.c_name[1],customer.c_acctbal[2],nation.n_name[8],customer.c_address[3],customer.c_phone[4],customer.c_comment[5],{lineitem.l_extendedprice*1-lineitem.l_discount}[9],lineitem.l_extendedprice[10],{1-lineitem.l_discount}[11],{1}[6],lineitem.l_discount[12]
+                Filter: customer.c_custkey[0]=orders.o_custkey[13] and customer.c_nationkey[7]=nation.n_nationkey[14]
+                -> PhysicScanTable customer (inccost=150, cost=150, rows=150) (actual rows=150)
+                    Output: customer.c_custkey[0],customer.c_name[1],customer.c_acctbal[5],customer.c_address[2],customer.c_phone[4],customer.c_comment[7],1,customer.c_nationkey[3]
+                -> PhysicNLJoin  (inccost=23162, cost=12040, rows=8350) (actual rows=3500)
+                    Output: nation.n_name[0],{lineitem.l_extendedprice*1-lineitem.l_discount}[2],lineitem.l_extendedprice[3],{1-lineitem.l_discount}[4],lineitem.l_discount[5],orders.o_custkey[6],nation.n_nationkey[1]
+                    -> PhysicScanTable nation (inccost=25, cost=25, rows=25) (actual rows=25)
+                        Output: nation.n_name[1],nation.n_nationkey[0]
+                    -> PhysicHashJoin  (inccost=11097, cost=3592, rows=334) (actual rows=140, loops=25)
+                        Output: {lineitem.l_extendedprice*1-lineitem.l_discount}[0],lineitem.l_extendedprice[1],{1-lineitem.l_discount}[2],lineitem.l_discount[3],orders.o_custkey[5]
+                        Filter: lineitem.l_orderkey[4]=orders.o_orderkey[6]
+                        -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=1457) (actual rows=1457, loops=25)
+                            Output: lineitem.l_extendedprice[5]*1-lineitem.l_discount[6],lineitem.l_extendedprice[5],1-lineitem.l_discount[6],lineitem.l_discount[6],lineitem.l_orderkey[0]
+                            Filter: lineitem.l_returnflag[8]='R'
+                        -> PhysicScanTable orders (inccost=1500, cost=1500, rows=344) (actual rows=64, loops=25)
+                            Output: orders.o_custkey[1],orders.o_orderkey[0]
+                            Filter: orders.o_orderdate[4]>='1993-10-01' and orders.o_orderdate[4]<'12/30/1993 12:00:00 AM'

@@ -1903,25 +1903,41 @@ namespace qpmodel.unittest
             string numstr = str.Split(')')[0];
             return Int32.Parse(numstr);
         }
-        bool CheckEstimation(string physicplan)
+        bool ExtractPair(ref string str, out int estimate, out int actual)
+        {
+            estimate = 0;
+            actual = 0;
+            int at = str.IndexOf("rows=");
+            if (at == -1) return false;
+            str = str.Substring(at + 5);
+            estimate = ExtractNum(str);
+            at = str.IndexOf("rows=");
+            str = str.Substring(at + 5);
+            actual = ExtractNum(str);
+            return true;
+        }
+        void CheckEstimation(string physicplan, string expectedplan)
         {
             int at = 0;
             while (at != -1)
             {
-                at = physicplan.IndexOf("rows=");
-                if (at == -1) break;
-                physicplan = physicplan.Substring(at + 5);
-                int expected = ExtractNum(physicplan);
-                at = physicplan.IndexOf("rows=");
-                physicplan = physicplan.Substring(at + 5);
-                int actual = ExtractNum(physicplan);
-                if (actual == 0) continue;
-                int diff = Math.Abs(actual - expected);
-                Console.WriteLine($"{actual}, {expected}");
-                if (diff > Math.Max(10, (int)(0.1 * actual))) return false;
+                if (!ExtractPair(ref physicplan, out int phyest, out int phyact)) return;
+                if (!ExtractPair(ref expectedplan, out int expest, out int expact)) return;
+
+                if (phyact != expact)
+                {
+                    Console.WriteLine("Different plan.");
+                    return;
+                }
+                if (expact == 0) continue;
+
+                int phydiff = Math.Abs(phyest - phyact);
+                int expdiff = Math.Abs(phyest - phyact);
+                string compare = (phydiff < expdiff) ? "better" : "worse";
+                Console.WriteLine($"{compare}. current run: {phydiff}, expected: {expdiff}");
             }
-            return true;
         }
+
         [TestMethod]
         public void TpchUnit()
         {
@@ -1938,26 +1954,38 @@ namespace qpmodel.unittest
             string physicplan;
             foreach (var v in files)
             {
+                string fn = Path.GetFileNameWithoutExtension(v);
                 var results = SQLStatement.ExecSQL(File.ReadAllText(v), out physicplan, out string error_, option);
-                Assert.IsTrue(CheckEstimation(physicplan));
-                //Console.WriteLine();
+                //File.WriteAllText("../../../test/primitive/expect/" + $"{fn}.txt", physicplan);
+                string expected = File.ReadAllText("../../../test/primitive/expect/" + $"{fn}.txt");
+                bool is_equal = expected.Equals(physicplan);
+                if (!is_equal) CheckEstimation(physicplan, expected);
+                Assert.IsTrue(is_equal);
             }
             Assert.IsTrue(true);
         }
 
-        void CheckSql(string[] sqls)
+        string expect_dir_fn = "../../../test/primitive/expect/";
+
+        void CheckSql(string[] sqls, string test_name)
         {
             // initialize tpch database
             Tpch.CreateTables();
-            Tpch.LoadTables("0001");
+            Tpch.LoadTables("001");
             var option = new QueryOption();
             option.explain_.show_cost_ = true;
 
             string physicplan;
-            foreach (string sql in sqls)
+            for (int i=0; i<sqls.Length; ++i)
             {
-                var results = SQLStatement.ExecSQL(sql, out physicplan, out string error_, option);
-                Assert.IsTrue(CheckEstimation(physicplan));
+                var results = SQLStatement.ExecSQL(sqls[i], out physicplan, out string error_, option);
+                string expected = File.ReadAllText(expect_dir_fn + test_name + $"_{i}.txt");
+                bool is_equal = expected.Equals(physicplan);
+                if (!is_equal) CheckEstimation(physicplan, expected);
+                Console.WriteLine(physicplan);
+                Console.WriteLine(expected);
+                Assert.AreEqual(physicplan, expected);
+                //File.WriteAllText(expect_dir_fn + test_name + $"_{i}.txt", physicplan);
             }
         }
 
@@ -1969,7 +1997,7 @@ namespace qpmodel.unittest
                 "select * from lineitem, orders where l_orderkey = o_orderkey", // hashjoin, q03
                 "select * from lineitem, partsupp where ps_suppkey = l_suppkey and ps_partkey = l_partkey" // hashjoin, q09, double match
             };
-            CheckSql(sqls);
+            CheckSql(sqls, "hashjoin");
         }
 
         [TestMethod]
@@ -1978,11 +2006,11 @@ namespace qpmodel.unittest
             string[] sqls = new string[]
             {
                 // filter on one column, q04
-                @"select * from orders where o_orderdate >= date '1993-07-01' and o_orderdate<date '1993-07-01' + interval '3' month",
+                "select * from orders where o_orderdate >= date '1993-07-01' and o_orderdate<date '1993-07-01' + interval '3' month",
                 // filter on one column, q06, between
                 "select * from lineitem, partsupp where ps_suppkey = l_suppkey and ps_partkey = l_partkey"
             };
-            CheckSql(sqls);
+            CheckSql(sqls, "filtersamecol");
         }
 
         [TestMethod]
@@ -1995,7 +2023,7 @@ namespace qpmodel.unittest
                 "select * from partsupp where ps_comment like '%carefully regular%'"
             };
             // check for '_'?
-            CheckSql(sqls);
+            CheckSql(sqls, "filterlike");
         }
 
         [TestMethod]
@@ -2006,7 +2034,7 @@ namespace qpmodel.unittest
                 "select * from lineitem where l_shipmode in ('MAIL','SHIP')", // filter in, q12
                 "select * from customer where substring(c_phone, 1, 2) in ('13', '31', '23', '29', '30', '18', '17')" // substring in, q22
             };
-            CheckSql(sqls);
+            CheckSql(sqls, "filterin");
         }
 
         [TestMethod]
@@ -2014,10 +2042,12 @@ namespace qpmodel.unittest
         {
             string[] sqls = new string[]
             {
-                // aggregation, q20
-                "select count(*) from lineitem group by l_partkey, l_suppkey"
+                "select count(*) from lineitem group by l_partkey", // single column
+                "select count(*) from lineitem group by l_partkey, l_suppkey", // double aggregation, q20
+                "select count(*) from lineitem group by (l_orderkey / 5)", // group with expression
+                "select count(*) from lineitem group by (l_orderkey + l_partkey)" // group with expressions
             };
-            CheckSql(sqls);
+            CheckSql(sqls, "aggregate");
         }
     }
 }

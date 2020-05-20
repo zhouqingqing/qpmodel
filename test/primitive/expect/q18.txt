@@ -1,0 +1,31 @@
+Total cost: 152519.25
+PhysicLimit (100) (inccost=152519.25, cost=100, rows=100) (actual rows=0)
+    Output: customer.c_name[0],customer.c_custkey[1],orders.o_orderkey[2],orders.o_orderdate[3],orders.o_totalprice[4],{sum(lineitem.l_quantity)}[5]
+    -> PhysicOrder  (inccost=152419.25, cost=82916.25, rows=9007) (actual rows=0)
+        Output: customer.c_name[0],customer.c_custkey[1],orders.o_orderkey[2],orders.o_orderdate[3],orders.o_totalprice[4],{sum(lineitem.l_quantity)}[5]
+        Order by: orders.o_totalprice[4], orders.o_orderdate[3]
+        -> PhysicHashAgg  (inccost=69503, cost=27021, rows=9007) (actual rows=0)
+            Output: {customer.c_name}[0],{customer.c_custkey}[1],{orders.o_orderkey}[2],{orders.o_orderdate}[3],{orders.o_totalprice}[4],{sum(lineitem.l_quantity)}[5]
+            Aggregates: sum(lineitem.l_quantity[5])
+            Group by: customer.c_name[0], customer.c_custkey[1], orders.o_orderkey[2], orders.o_orderdate[3], orders.o_totalprice[4]
+            -> PhysicHashJoin  (inccost=42482, cost=15312, rows=9007) (actual rows=0)
+                Output: customer.c_name[0],customer.c_custkey[1],orders.o_orderkey[2],orders.o_orderdate[3],orders.o_totalprice[4],lineitem.l_quantity[5]
+                Filter: customer.c_custkey[1]=orders.o_custkey[6]
+                -> PhysicScanTable customer (inccost=150, cost=150, rows=150) (actual rows=150)
+                    Output: customer.c_name[1],customer.c_custkey[0]
+                -> PhysicHashJoin  (inccost=27020, cost=19515, rows=6005) (actual rows=0)
+                    Output: orders.o_orderkey[2],orders.o_orderdate[3],orders.o_totalprice[4],lineitem.l_quantity[0],orders.o_custkey[5]
+                    Filter: orders.o_orderkey[2]=lineitem.l_orderkey[1]
+                    -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=6005) (actual rows=6005)
+                        Output: lineitem.l_quantity[4],lineitem.l_orderkey[0]
+                    -> PhysicScanTable orders (inccost=1500, cost=1500, rows=1500) (actual rows=0)
+                        Output: orders.o_orderkey[0],orders.o_orderdate[4],orders.o_totalprice[3],orders.o_custkey[1]
+                        Filter: orders.o_orderkey[0] in @1
+                        <InSubqueryExpr> cached 1
+                            -> PhysicHashAgg  (inccost=15010, cost=9005, rows=1500) (actual rows=0)
+                                Output: {lineitem__1.l_orderkey}[0]
+                                Aggregates: sum(lineitem__1.l_quantity[1])
+                                Group by: lineitem__1.l_orderkey[0]
+                                Filter: {sum(lineitem__1.l_quantity)}[1]>300
+                                -> PhysicScanTable lineitem as lineitem__1 (inccost=6005, cost=6005, rows=6005) (actual rows=6005)
+                                    Output: lineitem__1.l_orderkey[0],lineitem__1.l_quantity[4]

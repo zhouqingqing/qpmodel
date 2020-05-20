@@ -1,0 +1,22 @@
+Total cost: 8552.1
+PhysicOrder  (inccost=8552.1, cost=0.1, rows=1) (actual rows=27)
+    Output: c_orders.c_count[0],{count(*)(0)}[1]
+    Order by: {count(*)(0)}[1], c_orders.c_count[0]
+    -> PhysicHashAgg  (inccost=8552, cost=152, rows=1) (actual rows=27)
+        Output: {c_orders.c_count}[0],{count(*)(0)}[1]
+        Aggregates: count(*)(0)
+        Group by: c_orders.c_count[0]
+        -> PhysicFromQuery <c_orders> (inccost=8400, cost=150, rows=150) (actual rows=150)
+            Output: c_orders.c_count[1]
+            -> PhysicHashAgg  (inccost=8250, cost=2550, rows=150) (actual rows=150)
+                Output: {customer.c_custkey}[0],{count(orders.o_orderkey)}[1]
+                Aggregates: count(orders.o_orderkey[1])
+                Group by: customer.c_custkey[0]
+                -> PhysicHashJoin Left (inccost=5700, cost=4050, rows=2250) (actual rows=1535)
+                    Output: customer.c_custkey[0],orders.o_orderkey[1]
+                    Filter: customer.c_custkey[0]=orders.o_custkey[2]
+                    -> PhysicScanTable customer (inccost=150, cost=150, rows=150) (actual rows=150)
+                        Output: customer.c_custkey[0]
+                    -> PhysicScanTable orders (inccost=1500, cost=1500, rows=1500) (actual rows=1485)
+                        Output: orders.o_orderkey[0],orders.o_custkey[1]
+                        Filter: orders.o_comment[8]not like'%special%requests%'

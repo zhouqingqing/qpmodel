@@ -1,0 +1,7 @@
+Total cost: 4
+PhysicHashAgg  (inccost=4, cost=3, rows=1) (actual rows=4501)
+    Output: {count(*)(0)}[1]
+    Aggregates: count(*)(0)
+    Group by: lineitem.l_orderkey[0]/5
+    -> PhysicScanTable lineitem (inccost=1, cost=1, rows=1) (actual rows=60175)
+        Output: lineitem.l_orderkey[0]
