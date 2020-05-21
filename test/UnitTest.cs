@@ -1970,7 +1970,7 @@ namespace qpmodel.unittest
                 string fn = Path.GetFileNameWithoutExtension(v);
                 var results = SQLStatement.ExecSQL(File.ReadAllText(v), out physicplan, out string error_, option);
                 //File.WriteAllText(expect_dir_fn + $"{fn}.txt", physicplan);
-                string expected = File.ReadAllText(expect_dir_fn + $"{fn}.txt");
+                string expected = File.ReadAllText(expect_dir_fn + $"{fn}.txt").Replace("\r", string.Empty);
                 bool is_equal = expected.Equals(physicplan);
                 if (!is_equal) CheckEstimation(physicplan, expected);
                 Assert.IsTrue(is_equal);
@@ -1988,7 +1988,7 @@ namespace qpmodel.unittest
             for (int i=0; i<sqls.Length; ++i)
             {
                 var results = SQLStatement.ExecSQL(sqls[i], out physicplan, out string error_, option);
-                string expected = File.ReadAllText(expect_dir_fn + test_name + $"_{i}.txt");
+                string expected = File.ReadAllText(expect_dir_fn + test_name + $"_{i}.txt").Replace("\r", string.Empty);
                 bool is_equal = expected.Equals(physicplan);
                 if (!is_equal) CheckEstimation(physicplan, expected);
                 Console.WriteLine(physicplan);
