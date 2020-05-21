@@ -325,7 +325,7 @@ namespace qpmodel.stat
                         if (inPred.children_[i] is LiteralExpr pr)
                             selectivity += stat.EstSelectivity("=", pr.val_);
                     }
-                    return selectivity;
+                    return Math.Min(1.0, selectivity);
                 }
             }
 
