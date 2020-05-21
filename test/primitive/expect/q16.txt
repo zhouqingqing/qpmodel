@@ -1,12 +1,12 @@
-Total cost: 11427.68
-PhysicOrder  (inccost=11427.68, cost=5427.68, rows=800) (actual rows=0)
+Total cost: 3983.38
+PhysicOrder  (inccost=3983.38, cost=754.38, rows=148) (actual rows=0)
     Output: part.p_brand[0],part.p_type[1],part.p_size[2],{count(partsupp.ps_suppkey)}[3]
     Order by: {count(partsupp.ps_suppkey)}[3], part.p_brand[0], part.p_type[1], part.p_size[2]
-    -> PhysicHashAgg  (inccost=6000, cost=2400, rows=800) (actual rows=0)
+    -> PhysicHashAgg  (inccost=3229, cost=444, rows=148) (actual rows=0)
         Output: {part.p_brand}[0],{part.p_type}[1],{part.p_size}[2],{count(partsupp.ps_suppkey)}[3]
         Aggregates: count(partsupp.ps_suppkey[3])
         Group by: part.p_brand[0], part.p_type[1], part.p_size[2]
-        -> PhysicHashJoin  (inccost=3600, cost=2600, rows=800) (actual rows=0)
+        -> PhysicHashJoin  (inccost=2785, cost=1785, rows=148) (actual rows=0)
             Output: part.p_brand[2],part.p_type[3],part.p_size[4],partsupp.ps_suppkey[0]
             Filter: part.p_partkey[5]=partsupp.ps_partkey[1]
             -> PhysicScanTable partsupp (inccost=800, cost=800, rows=800) (actual rows=0)
@@ -16,6 +16,6 @@ PhysicOrder  (inccost=11427.68, cost=5427.68, rows=800) (actual rows=0)
                     -> PhysicScanTable supplier (inccost=10, cost=10, rows=1) (actual rows=0)
                         Output: supplier.s_suppkey[0]
                         Filter: supplier.s_comment[6]like'%Customer%Complaints%'
-            -> PhysicScanTable part (inccost=200, cost=200, rows=200) (actual rows=0)
+            -> PhysicScanTable part (inccost=200, cost=200, rows=37) (actual rows=0)
                 Output: part.p_brand[3],part.p_type[4],part.p_size[5],part.p_partkey[0]
                 Filter: part.p_brand[3]<>'Brand#45' and part.p_type[4]not like'MEDIUM POLISHED%' and part.p_size[5] in (49,14,23, ... <Total: 8> )

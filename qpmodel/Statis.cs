@@ -313,6 +313,21 @@ namespace qpmodel.stat
                     }
                 }
             }
+            if (filter is InListExpr inPred)
+            {
+                // implementation of IN estimation
+                if (inPred.children_[0] is ColExpr pl && pl.tabRef_ is BaseTableRef bpl)
+                {
+                    selectivity = 0.0;
+                    var stat = Catalog.sysstat_.GetColumnStat(bpl.relname_, pl.colName_);
+                    for (int i = 1; i < inPred.children_.Count; ++i)
+                    {
+                        if (inPred.children_[i] is LiteralExpr pr)
+                            selectivity += stat.EstSelectivity("=", pr.val_);
+                    }
+                    return selectivity;
+                }
+            }
 
             return selectivity;
         }
@@ -351,10 +366,10 @@ namespace qpmodel.stat
                     double vSel = EstSingleSelectivity(v);
                     if (vSel == 1.0)
                         continue;
-                    if (gatherSameCol.ContainsKey(v.l_()))
-                        gatherSameCol[v.l_()].Add(vSel);
+                    if (gatherSameCol.ContainsKey(v.children_[0]))
+                        gatherSameCol[v.children_[0]].Add(vSel);
                     else
-                        gatherSameCol.Add(v.l_(), new List<double> {vSel});
+                        gatherSameCol.Add(v.children_[0], new List<double> {vSel});
                 }
                 foreach (var l in gatherSameCol)
                     selectivity *= EstSingleColSelectivity(l.Value);
