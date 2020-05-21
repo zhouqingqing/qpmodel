@@ -317,13 +317,13 @@ namespace qpmodel.stat
             return selectivity;
         }
 
-        static double EstSingleColSelectivity(List<Expr> filter)
+        static double EstSingleColSelectivity(List<double> selList)
         {
-            if (filter.Count() == 1)
-                return EstSingleSelectivity(filter[0]);
+            if (selList.Count() == 1)
+                return selList[0];
             double selectOut = 0.0;
-            foreach (var v in filter)
-                selectOut += 1.0 - EstSingleSelectivity(v);
+            foreach (var selectivity in selList)
+                selectOut += 1.0 - selectivity;
             return Math.Max(0, 1.0 - selectOut);
         }
 
@@ -336,17 +336,20 @@ namespace qpmodel.stat
         {
             double selectivity = 1.0;
             var andlist = filter.FilterToAndList();
-            Dictionary<Expr, List<Expr>> gatherSameCol = new Dictionary<Expr, List<Expr>>();
+            Dictionary<Expr, List<double>> gatherSameCol = new Dictionary<Expr, List<double>>();
             if (andlist.Count == 1)
                 return EstSingleSelectivity(filter);
             else
             {
                 foreach (var v in andlist)
                 {
+                    double vSel = EstSingleSelectivity(v);
+                    if (vSel == 1.0)
+                        continue;
                     if (gatherSameCol.ContainsKey(v.l_()))
-                        gatherSameCol[v.l_()].Add(v);
+                        gatherSameCol[v.l_()].Add(vSel);
                     else
-                        gatherSameCol.Add(v.l_(), new List<Expr> {v});
+                        gatherSameCol.Add(v.l_(), new List<double> {vSel});
                 }
                 foreach (var l in gatherSameCol)
                     selectivity *= EstSingleColSelectivity(l.Value);
