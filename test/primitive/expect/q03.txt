@@ -1,25 +1,25 @@
-Total cost: 22910.13
-PhysicLimit (10) (inccost=22910.13, cost=10, rows=10) (actual rows=8)
+Total cost: NaN
+PhysicLimit (10) (inccost=NaN, cost=10, rows=10) (actual rows=8)
     Output: lineitem.l_orderkey[0],{sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[1],orders.o_orderdate[2],orders.o_shippriority[3]
-    -> PhysicOrder  (inccost=22900.13, cost=2859.13, rows=459) (actual rows=8)
+    -> PhysicOrder  (inccost=NaN, cost=NaN, rows=1) (actual rows=8)
         Output: lineitem.l_orderkey[0],{sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[1],orders.o_orderdate[2],orders.o_shippriority[3]
         Order by: {sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[1], orders.o_orderdate[2]
-        -> PhysicHashAgg  (inccost=20041, cost=1377, rows=459) (actual rows=8)
+        -> PhysicHashAgg  (inccost=12, cost=1, rows=0) (actual rows=8)
             Output: {lineitem.l_orderkey}[0],{sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[3],{orders.o_orderdate}[1],{orders.o_shippriority}[2]
             Aggregates: sum(lineitem.l_extendedprice[4]*1-lineitem.l_discount[7])
             Group by: lineitem.l_orderkey[0], orders.o_orderdate[1], orders.o_shippriority[2]
-            -> PhysicHashJoin  (inccost=18664, cost=2101, rows=459) (actual rows=14)
+            -> PhysicHashJoin  (inccost=11, cost=4, rows=1) (actual rows=14)
                 Output: lineitem.l_orderkey[2],orders.o_orderdate[3],orders.o_shippriority[4],{lineitem.l_extendedprice*1-lineitem.l_discount}[5],lineitem.l_extendedprice[6],{1-lineitem.l_discount}[7],{1}[0],lineitem.l_discount[8]
                 Filter: customer.c_custkey[1]=orders.o_custkey[9]
-                -> PhysicScanTable customer (inccost=150, cost=150, rows=29) (actual rows=29)
+                -> PhysicScanTable customer (inccost=1, cost=1, rows=1) (actual rows=29)
                     Output: 1,customer.c_custkey[0]
                     Filter: customer.c_mktsegment[6]='BUILDING'
-                -> PhysicHashJoin  (inccost=16413, cost=8908, rows=1584) (actual rows=133)
+                -> PhysicHashJoin  (inccost=6, cost=4, rows=1) (actual rows=133)
                     Output: lineitem.l_orderkey[0],orders.o_orderdate[5],orders.o_shippriority[6],{lineitem.l_extendedprice*1-lineitem.l_discount}[1],lineitem.l_extendedprice[2],{1-lineitem.l_discount}[3],lineitem.l_discount[4],orders.o_custkey[7]
                     Filter: lineitem.l_orderkey[0]=orders.o_orderkey[8]
-                    -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=3302) (actual rows=3252)
+                    -> PhysicScanTable lineitem (inccost=1, cost=1, rows=1) (actual rows=3252)
                         Output: lineitem.l_orderkey[0],lineitem.l_extendedprice[5]*1-lineitem.l_discount[6],lineitem.l_extendedprice[5],1-lineitem.l_discount[6],lineitem.l_discount[6]
                         Filter: lineitem.l_shipdate[10]>'1995-03-15'
-                    -> PhysicScanTable orders (inccost=1500, cost=1500, rows=720) (actual rows=726)
+                    -> PhysicScanTable orders (inccost=1, cost=1, rows=1) (actual rows=726)
                         Output: orders.o_orderdate[4],orders.o_shippriority[7],orders.o_custkey[1],orders.o_orderkey[0]
                         Filter: orders.o_orderdate[4]<'1995-03-15'

@@ -1,34 +1,34 @@
-Total cost: 57.1
-PhysicOrder  (inccost=57.1, cost=0.1, rows=1) (actual rows=0)
+Total cost: 6.1
+PhysicOrder  (inccost=6.1, cost=0.1, rows=1) (actual rows=0)
     Output: supplier.s_name[0],supplier.s_address[1]
     Order by: supplier.s_name[0]
-    -> PhysicHashJoin  (inccost=57, cost=22, rows=1) (actual rows=0)
+    -> PhysicHashJoin  (inccost=6, cost=4, rows=1) (actual rows=0)
         Output: supplier.s_name[0],supplier.s_address[1]
         Filter: supplier.s_nationkey[2]=nation.n_nationkey[3]
-        -> PhysicScanTable supplier (inccost=10, cost=10, rows=10) (actual rows=10)
+        -> PhysicScanTable supplier (inccost=1, cost=1, rows=1) (actual rows=10)
             Output: supplier.s_name[1],supplier.s_address[2],supplier.s_nationkey[3]
             Filter: supplier.s_suppkey[0] in @1
             <InSubqueryExpr> cached 1
-                -> PhysicFilter  (inccost=1547350, cost=753, rows=753) (actual rows=47)
+                -> PhysicFilter  (inccost=114, cost=1, rows=1) (actual rows=47)
                     Output: partsupp.ps_suppkey[0]
                     Filter: partsupp.ps_availqty[1]>0.5*{sum(lineitem.l_quantity)}[2]
-                    -> PhysicNLJoin Left (inccost=1546597, cost=1534140, rows=753) (actual rows=60)
+                    -> PhysicNLJoin Left (inccost=113, cost=110, rows=1) (actual rows=60)
                         Output: partsupp.ps_suppkey[0],partsupp.ps_availqty[1],{sum(lineitem.l_quantity)}[3]
                         Filter: lineitem.l_partkey[4]=partsupp.ps_partkey[2] and lineitem.l_suppkey[5]=partsupp.ps_suppkey[0]
-                        -> PhysicScanTable partsupp (inccost=800, cost=800, rows=800) (actual rows=60)
+                        -> PhysicScanTable partsupp (inccost=1, cost=1, rows=1) (actual rows=60)
                             Output: partsupp.ps_suppkey[1],partsupp.ps_availqty[2],partsupp.ps_partkey[0]
                             Filter: partsupp.ps_partkey[0] in @2
                             <InSubqueryExpr> cached 2
-                                -> PhysicScanTable part (inccost=200, cost=200, rows=1) (actual rows=15)
+                                -> PhysicScanTable part (inccost=1, cost=1, rows=1) (actual rows=15)
                                     Output: part.p_partkey[0]
                                     Filter: part.p_name[1]like'forest%'
-                        -> PhysicHashAgg  (inccost=11657, cost=5652, rows=1884) (actual rows=499, loops=60)
+                        -> PhysicHashAgg  (inccost=2, cost=1, rows=0) (actual rows=499, loops=60)
                             Output: {sum(lineitem.l_quantity)}[2],{lineitem.l_partkey}[0],{lineitem.l_suppkey}[1]
                             Aggregates: sum(lineitem.l_quantity[2])
                             Group by: lineitem.l_partkey[0], lineitem.l_suppkey[1]
-                            -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=1884) (actual rows=922, loops=60)
+                            -> PhysicScanTable lineitem (inccost=1, cost=1, rows=1) (actual rows=922, loops=60)
                                 Output: lineitem.l_partkey[1],lineitem.l_suppkey[2],lineitem.l_quantity[4]
                                 Filter: lineitem.l_shipdate[10]>='1994-01-01' and lineitem.l_shipdate[10]<'1/1/1995 12:00:00 AM'
-        -> PhysicScanTable nation (inccost=25, cost=25, rows=1) (actual rows=1)
+        -> PhysicScanTable nation (inccost=1, cost=1, rows=1) (actual rows=1)
             Output: nation.n_nationkey[0]
             Filter: nation.n_name[1]='CANADA'

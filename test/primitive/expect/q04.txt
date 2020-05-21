@@ -1,20 +1,20 @@
-Total cost: 1811425.54
-PhysicOrder  (inccost=1811425.54, cost=8.54, rows=5) (actual rows=5)
+Total cost: NaN
+PhysicOrder  (inccost=NaN, cost=NaN, rows=1) (actual rows=5)
     Output: orders.o_orderpriority[0],{count(*)(0)}[1]
     Order by: orders.o_orderpriority[0]
-    -> PhysicHashAgg  (inccost=1811417, cost=1211, rows=5) (actual rows=5)
+    -> PhysicHashAgg  (inccost=5, cost=1, rows=0) (actual rows=5)
         Output: {orders.o_orderpriority}[0],{count(*)(0)}[1]
         Aggregates: count(*)(0)
         Group by: orders.o_orderpriority[0]
-        -> PhysicFilter  (inccost=1810206, cost=1201, rows=1201) (actual rows=44)
+        -> PhysicFilter  (inccost=4, cost=1, rows=1) (actual rows=44)
             Output: orders.o_orderpriority[1]
             Filter: {#marker}[0]
-            -> PhysicMarkJoin Left (inccost=1809005, cost=1801500, rows=1201) (actual rows=48)
+            -> PhysicMarkJoin Left (inccost=3, cost=1, rows=1) (actual rows=48)
                 Output: #marker,orders.o_orderpriority[0]
                 Filter: lineitem.l_orderkey[2]=orders.o_orderkey[1]
-                -> PhysicScanTable orders (inccost=1500, cost=1500, rows=300) (actual rows=48)
+                -> PhysicScanTable orders (inccost=1, cost=1, rows=1) (actual rows=48)
                     Output: orders.o_orderpriority[5],orders.o_orderkey[0]
                     Filter: orders.o_orderdate[4]>='1993-07-01' and orders.o_orderdate[4]<'9/29/1993 12:00:00 AM'
-                -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=6005) (actual rows=3752, loops=48)
+                -> PhysicScanTable lineitem (inccost=1, cost=1, rows=1) (actual rows=3752, loops=48)
                     Output: lineitem.l_orderkey[0]
                     Filter: lineitem.l_commitdate[11]<lineitem.l_receiptdate[12]

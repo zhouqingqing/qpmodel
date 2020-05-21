@@ -1,24 +1,24 @@
-Total cost: 39118
-PhysicHashAgg  (inccost=39118, cost=32, rows=1) (actual rows=1)
+Total cost: 122
+PhysicHashAgg  (inccost=122, cost=3, rows=1) (actual rows=1)
     Output: {sum(lineitem.l_extendedprice)}[0]/7.0(as avg_yearly)
     Aggregates: sum(lineitem.l_extendedprice[0])
-    -> PhysicFilter  (inccost=39086, cost=30, rows=30) (actual rows=0)
+    -> PhysicFilter  (inccost=119, cost=1, rows=1) (actual rows=0)
         Output: lineitem.l_extendedprice[0]
         Filter: lineitem.l_quantity[1]<0.2*{avg(lineitem__1.l_quantity)}[2]
-        -> PhysicNLJoin Left (inccost=39056, cost=8400, rows=30) (actual rows=0)
+        -> PhysicNLJoin Left (inccost=118, cost=110, rows=1) (actual rows=0)
             Output: lineitem.l_extendedprice[0],lineitem.l_quantity[1],{avg(lineitem__1.l_quantity)}[3]
             Filter: lineitem__1.l_partkey[4]=part.p_partkey[2]
-            -> PhysicHashJoin  (inccost=18246, cost=12041, rows=30) (actual rows=0)
+            -> PhysicHashJoin  (inccost=6, cost=4, rows=1) (actual rows=0)
                 Output: lineitem.l_extendedprice[0],lineitem.l_quantity[1],part.p_partkey[3]
                 Filter: part.p_partkey[3]=lineitem.l_partkey[2]
-                -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=6005) (actual rows=6005)
+                -> PhysicScanTable lineitem (inccost=1, cost=1, rows=1) (actual rows=6005)
                     Output: lineitem.l_extendedprice[5],lineitem.l_quantity[4],lineitem.l_partkey[1]
-                -> PhysicScanTable part (inccost=200, cost=200, rows=1) (actual rows=0)
+                -> PhysicScanTable part (inccost=1, cost=1, rows=1) (actual rows=0)
                     Output: part.p_partkey[0]
                     Filter: part.p_container[6]='MED BOX' and part.p_brand[3]='Brand#23'
-            -> PhysicHashAgg  (inccost=12410, cost=6405, rows=200) (actual rows=0)
+            -> PhysicHashAgg  (inccost=2, cost=1, rows=0) (actual rows=0)
                 Output: {avg(lineitem__1.l_quantity)}[1],{lineitem__1.l_partkey}[0]
                 Aggregates: avg(lineitem__1.l_quantity[1])
                 Group by: lineitem__1.l_partkey[0]
-                -> PhysicScanTable lineitem as lineitem__1 (inccost=6005, cost=6005, rows=6005) (actual rows=0)
+                -> PhysicScanTable lineitem as lineitem__1 (inccost=1, cost=1, rows=1) (actual rows=0)
                     Output: lineitem__1.l_partkey[1],lineitem__1.l_quantity[4]

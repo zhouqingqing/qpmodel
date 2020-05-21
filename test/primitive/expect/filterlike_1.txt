@@ -1,4 +1,4 @@
 Total cost: 1
-PhysicScanTable partsupp (inccost=1, cost=1, rows=1) (actual rows=1488)
+PhysicScanTable partsupp (inccost=1, cost=1, rows=1) (actual rows=57)
     Output: partsupp.ps_partkey[0],partsupp.ps_suppkey[1],partsupp.ps_availqty[2],partsupp.ps_supplycost[3],partsupp.ps_comment[4]
     Filter: partsupp.ps_comment[4]like'%carefully regular%'

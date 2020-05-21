@@ -1,7 +1,7 @@
 Total cost: 4
-PhysicHashAgg  (inccost=4, cost=3, rows=1) (actual rows=38259)
+PhysicHashAgg  (inccost=4, cost=3, rows=1) (actual rows=3827)
     Output: {count(*)(0)}[1]
     Aggregates: count(*)(0)
     Group by: lineitem.l_orderkey[0]+lineitem.l_partkey[1]
-    -> PhysicScanTable lineitem (inccost=1, cost=1, rows=1) (actual rows=60175)
+    -> PhysicScanTable lineitem (inccost=1, cost=1, rows=1) (actual rows=6005)
         Output: lineitem.l_orderkey[0],lineitem.l_partkey[1]

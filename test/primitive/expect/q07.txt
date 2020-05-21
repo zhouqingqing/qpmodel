@@ -1,37 +1,37 @@
-Total cost: 3509383.1
-PhysicOrder  (inccost=3509383.1, cost=0.1, rows=1) (actual rows=0)
+Total cost: 264.1
+PhysicOrder  (inccost=264.1, cost=0.1, rows=1) (actual rows=0)
     Output: shipping.supp_nation[0],shipping.cust_nation[1],shipping.l_year[2],{sum(shipping.volume)}[3]
     Order by: shipping.supp_nation[0], shipping.cust_nation[1], shipping.l_year[2]
-    -> PhysicHashAgg  (inccost=3509383, cost=10268, rows=1) (actual rows=0)
+    -> PhysicHashAgg  (inccost=264, cost=3, rows=1) (actual rows=0)
         Output: {shipping.supp_nation}[0],{shipping.cust_nation}[1],{shipping.l_year}[2],{sum(shipping.volume)}[3]
         Aggregates: sum(shipping.volume[3])
         Group by: shipping.supp_nation[0], shipping.cust_nation[1], shipping.l_year[2]
-        -> PhysicFromQuery <shipping> (inccost=3499115, cost=10266, rows=10266) (actual rows=0)
+        -> PhysicFromQuery <shipping> (inccost=261, cost=1, rows=1) (actual rows=0)
             Output: shipping.supp_nation[0],shipping.cust_nation[1],shipping.l_year[2],shipping.volume[3]
-            -> PhysicHashJoin  (inccost=3488849, cost=102686, rows=10266) (actual rows=0)
+            -> PhysicHashJoin  (inccost=260, cost=4, rows=1) (actual rows=0)
                 Output: n1.n_name (as supp_nation)[2],n2.n_name (as cust_nation)[3],{year(lineitem.l_shipdate)}[4],{lineitem.l_extendedprice*1-lineitem.l_discount(as volume)}[5]
                 Filter: supplier.s_suppkey[0]=lineitem.l_suppkey[6] and supplier.s_nationkey[1]=n1.n_nationkey[7]
-                -> PhysicScanTable supplier (inccost=10, cost=10, rows=10) (actual rows=10)
+                -> PhysicScanTable supplier (inccost=1, cost=1, rows=1) (actual rows=10)
                     Output: supplier.s_suppkey[0],supplier.s_nationkey[3]
-                -> PhysicNLJoin  (inccost=3386153, cost=3234350, rows=92400) (actual rows=61)
+                -> PhysicNLJoin  (inccost=255, cost=121, rows=1) (actual rows=61)
                     Output: n1.n_name (as supp_nation)[2],n2.n_name (as cust_nation)[0],{year(lineitem.l_shipdate)}[3],{lineitem.l_extendedprice*1-lineitem.l_discount(as volume)}[4],lineitem.l_suppkey[5],n1.n_nationkey[6]
                     Filter: customer.c_nationkey[7]=n2.n_nationkey[1] and n1.n_name[2]='FRANCE' and n2.n_name[0]='GERMANY' or n1.n_name[2]='GERMANY' and n2.n_name[0]='FRANCE'
-                    -> PhysicScanTable nation as n2 (inccost=25, cost=25, rows=25) (actual rows=25)
+                    -> PhysicScanTable nation as n2 (inccost=1, cost=1, rows=1) (actual rows=25)
                         Output: n2.n_name (as cust_nation)[1],n2.n_nationkey[0]
-                    -> PhysicNLJoin  (inccost=151778, cost=129710, rows=92400) (actual rows=44825, loops=25)
+                    -> PhysicNLJoin  (inccost=133, cost=121, rows=1) (actual rows=44825, loops=25)
                         Output: n1.n_name (as supp_nation)[0],{year(lineitem.l_shipdate)}[2],{lineitem.l_extendedprice*1-lineitem.l_discount(as volume)}[3],lineitem.l_suppkey[4],n1.n_nationkey[1],customer.c_nationkey[5]
-                        -> PhysicScanTable nation as n1 (inccost=25, cost=25, rows=25) (actual rows=25, loops=25)
+                        -> PhysicScanTable nation as n1 (inccost=1, cost=1, rows=1) (actual rows=25, loops=25)
                             Output: n1.n_name (as supp_nation)[1],n1.n_nationkey[0]
-                        -> PhysicHashJoin  (inccost=22043, cost=6460, rows=3696) (actual rows=1793, loops=625)
+                        -> PhysicHashJoin  (inccost=11, cost=4, rows=1) (actual rows=1793, loops=625)
                             Output: {year(lineitem.l_shipdate)}[2],{lineitem.l_extendedprice*1-lineitem.l_discount(as volume)}[3],lineitem.l_suppkey[4],customer.c_nationkey[0]
                             Filter: customer.c_custkey[1]=orders.o_custkey[5]
-                            -> PhysicScanTable customer (inccost=150, cost=150, rows=150) (actual rows=150, loops=625)
+                            -> PhysicScanTable customer (inccost=1, cost=1, rows=1) (actual rows=150, loops=625)
                                 Output: customer.c_nationkey[3],customer.c_custkey[0]
-                            -> PhysicHashJoin  (inccost=15433, cost=7928, rows=2464) (actual rows=1793, loops=625)
+                            -> PhysicHashJoin  (inccost=6, cost=4, rows=1) (actual rows=1793, loops=625)
                                 Output: {year(lineitem.l_shipdate)}[2],{lineitem.l_extendedprice*1-lineitem.l_discount(as volume)}[3],lineitem.l_suppkey[4],orders.o_custkey[0]
                                 Filter: orders.o_orderkey[1]=lineitem.l_orderkey[5]
-                                -> PhysicScanTable orders (inccost=1500, cost=1500, rows=1500) (actual rows=1500, loops=625)
+                                -> PhysicScanTable orders (inccost=1, cost=1, rows=1) (actual rows=1500, loops=625)
                                     Output: orders.o_custkey[1],orders.o_orderkey[0]
-                                -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=2464) (actual rows=1793, loops=625)
+                                -> PhysicScanTable lineitem (inccost=1, cost=1, rows=1) (actual rows=1793, loops=625)
                                     Output: year(lineitem.l_shipdate[10]),lineitem.l_extendedprice[5]*1-lineitem.l_discount[6](as volume),lineitem.l_suppkey[2],lineitem.l_orderkey[0]
                                     Filter: lineitem.l_shipdate[10]>='1995-01-01' and lineitem.l_shipdate[10]<='1996-12-31'

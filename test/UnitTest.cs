@@ -1898,6 +1898,18 @@ namespace qpmodel.unittest
     [TestClass]
     public class CEPrimitive
     {
+        void CheckTableLoad()
+        {
+            string sql = "select * from lineitem";
+            var results = SQLStatement.ExecSQL(sql, out string physicplan, out string error_);
+            if (results == null)
+            {
+                Tpch.CreateTables();
+                Tpch.LoadTables("0001");
+            }
+            else
+                Debug.Assert(results.Count == 6005);
+        }
         int ExtractNum(string str)
         {
             string numstr = str.Split(')')[0];
@@ -1938,13 +1950,13 @@ namespace qpmodel.unittest
             }
         }
 
+        string expect_dir_fn = "../../../test/primitive/expect/";
+
         [TestMethod]
         public void TpchUnit()
         {
             // initialize tpch database
-            Tpch.CreateTables();
-            Tpch.LoadTables("0001");
-            Tpch.AnalyzeTables();
+            CheckTableLoad();
 
             // load query and set option
             var files = Directory.GetFiles(@"../../../tpch", "*.sql");
@@ -1956,22 +1968,18 @@ namespace qpmodel.unittest
             {
                 string fn = Path.GetFileNameWithoutExtension(v);
                 var results = SQLStatement.ExecSQL(File.ReadAllText(v), out physicplan, out string error_, option);
-                //File.WriteAllText("../../../test/primitive/expect/" + $"{fn}.txt", physicplan);
-                string expected = File.ReadAllText("../../../test/primitive/expect/" + $"{fn}.txt");
+                //File.WriteAllText(expect_dir_fn + $"{fn}.txt", physicplan);
+                string expected = File.ReadAllText(expect_dir_fn + $"{fn}.txt");
                 bool is_equal = expected.Equals(physicplan);
                 if (!is_equal) CheckEstimation(physicplan, expected);
                 Assert.IsTrue(is_equal);
             }
-            Assert.IsTrue(true);
         }
-
-        string expect_dir_fn = "../../../test/primitive/expect/";
 
         void CheckSql(string[] sqls, string test_name)
         {
             // initialize tpch database
-            Tpch.CreateTables();
-            Tpch.LoadTables("001");
+            CheckTableLoad();
             var option = new QueryOption();
             option.explain_.show_cost_ = true;
 
