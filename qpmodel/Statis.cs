@@ -322,9 +322,14 @@ namespace qpmodel.stat
             if (selList.Count() == 1)
                 return selList[0];
             double selectOut = 0.0;
+            double backupSel = 1.0;
             foreach (var selectivity in selList)
+            {
                 selectOut += 1.0 - selectivity;
-            return Math.Max(0, 1.0 - selectOut);
+                backupSel *= selectivity;
+            }
+            if (selectOut >= 0.0 && selectOut <1.0) return 1 - selectOut;
+            return backupSel;
         }
 
         // problems:
