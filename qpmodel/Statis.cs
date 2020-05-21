@@ -411,11 +411,64 @@ namespace qpmodel.stat
             return GetOrCreateTableStats(tabName)[0].n_rows_;
         }
 
-         public void read_serialized_stats(string statsFn)
+        public dynamic ExtractValue(JsonElement value)
+        {
+            string date_pattern = @"\d\d\d\d\-\d\d\-\d\dT\d\d\:\d\d\:\d\d";
+            dynamic candidate_value;
+
+            switch (value.ValueKind)
+            {
+                case JsonValueKind.String:
+                    candidate_value = (string) value.GetString();
+                    Match result = Regex.Match(candidate_value, date_pattern);
+
+                    if (result.Success)
+                        return DateTime.Parse(candidate_value);
+                    else
+                        return candidate_value;
+
+                case JsonValueKind.Number:
+                    double double_candidate;
+                    int int_candidate;
+
+                    if (value.TryGetInt32(out int_candidate))
+                        return int_candidate;
+                    if (value.TryGetDouble(out double_candidate))
+                        return double_candidate;
+                    else
+                        return null;
+
+                default:
+                    return null;
+            }
+        }
+
+        public void jsonPostProcess(ColumnStat stat)
+        {
+
+            if (stat.hist_ != null)
+            {
+                for (int i = 0; i < stat.hist_.buckets_.Length; i++)
+                {
+                    stat.hist_.buckets_[i] = ExtractValue((JsonElement)stat.hist_.buckets_[i]);
+                }
+            }
+
+            if (stat.mcv_ != null && stat.mcv_.nvalues_ != 0)
+            {
+                int i = 0;
+                while (stat.mcv_.values_[i] != null)
+                {
+                    stat.mcv_.values_[i] = ExtractValue((JsonElement)stat.mcv_.values_[i]);
+                    i++;
+                }
+            }
+        }
+
+        public void read_serialized_stats(string statsFn)
         {
             string jsonStr = File.ReadAllText(statsFn);
             Dictionary<string, ColumnStat> records;
-
 
             string trimmedJsonStr = Regex.Replace(jsonStr, "\\n", "");
             trimmedJsonStr = Regex.Replace(trimmedJsonStr, "\\r", "");
@@ -425,8 +478,8 @@ namespace qpmodel.stat
 
             foreach (KeyValuePair<string, ColumnStat> elem in records)
             {
-                //void SysStatsAddOrUpdate(string tabcol, ColumnStat stat)
-                SysStatsAddOrUpdate(elem.Key,  elem.Value);
+                jsonPostProcess(elem.Value);
+                SysStatsAddOrUpdate(elem.Key, elem.Value);
             }
         }
 
