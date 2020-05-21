@@ -1,16 +1,16 @@
-Total cost: NaN
-PhysicOrder  (inccost=NaN, cost=NaN, rows=1) (actual rows=2)
+Total cost: 13233.32
+PhysicOrder  (inccost=13233.32, cost=14.32, rows=7) (actual rows=2)
     Output: lineitem.l_shipmode[0],{sum(case with 1)}[1],{sum(case with 1)}[2]
     Order by: lineitem.l_shipmode[0]
-    -> PhysicHashAgg  (inccost=7, cost=1, rows=0) (actual rows=2)
+    -> PhysicHashAgg  (inccost=13219, cost=914, rows=7) (actual rows=2)
         Output: {lineitem.l_shipmode}[0],{sum(case with 1)}[1],{sum(case with 1)}[2]
         Aggregates: sum(case with 1), sum(case with 1)
         Group by: lineitem.l_shipmode[0]
-        -> PhysicHashJoin  (inccost=6, cost=4, rows=1) (actual rows=25)
+        -> PhysicHashJoin  (inccost=12305, cost=4800, rows=900) (actual rows=25)
             Output: lineitem.l_shipmode[14],{case with 1}[0],{orders.o_orderpriority='1-URGENT' or orders.o_orderpriority='2-HIGH'}[1],{orders.o_orderpriority='1-URGENT'}[2],orders.o_orderpriority[3],{'1-URGENT'}[4],{orders.o_orderpriority='2-HIGH'}[5],{'2-HIGH'}[6],{1}[7],{0}[8],{case with 1}[9],{orders.o_orderpriority<>'1-URGENT' and orders.o_orderpriority<>'2-HIGH'}[10],{orders.o_orderpriority<>'1-URGENT'}[11],{orders.o_orderpriority<>'2-HIGH'}[12]
             Filter: orders.o_orderkey[13]=lineitem.l_orderkey[15]
-            -> PhysicScanTable orders (inccost=1, cost=1, rows=1) (actual rows=1500)
+            -> PhysicScanTable orders (inccost=1500, cost=1500, rows=1500) (actual rows=1500)
                 Output: case with 1,orders.o_orderpriority[5]='1-URGENT' or orders.o_orderpriority[5]='2-HIGH',orders.o_orderpriority[5]='1-URGENT',orders.o_orderpriority[5],'1-URGENT',orders.o_orderpriority[5]='2-HIGH','2-HIGH',1,0,case with 1,orders.o_orderpriority[5]<>'1-URGENT' and orders.o_orderpriority[5]<>'2-HIGH',orders.o_orderpriority[5]<>'1-URGENT',orders.o_orderpriority[5]<>'2-HIGH',orders.o_orderkey[0]
-            -> PhysicScanTable lineitem (inccost=1, cost=1, rows=1) (actual rows=25)
+            -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=900) (actual rows=25)
                 Output: lineitem.l_shipmode[14],lineitem.l_orderkey[0]
                 Filter: lineitem.l_shipmode[14] in ('MAIL','SHIP') and lineitem.l_commitdate[11]<lineitem.l_receiptdate[12] and lineitem.l_shipdate[10]<lineitem.l_commitdate[11] and lineitem.l_receiptdate[12]>='1994-01-01' and lineitem.l_receiptdate[12]<'1/1/1995 12:00:00 AM'

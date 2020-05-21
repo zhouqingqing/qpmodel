@@ -1,28 +1,28 @@
-Total cost: NaN
-PhysicLimit (20) (inccost=NaN, cost=20, rows=20) (actual rows=20)
+Total cost: 16679.47
+PhysicLimit (20) (inccost=16679.47, cost=20, rows=20) (actual rows=20)
     Output: customer.c_custkey[0],customer.c_name[1],{sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[2],customer.c_acctbal[3],nation.n_name[4],customer.c_address[5],customer.c_phone[6],customer.c_comment[7]
-    -> PhysicOrder  (inccost=NaN, cost=NaN, rows=1) (actual rows=20)
+    -> PhysicOrder  (inccost=16659.47, cost=516.47, rows=108) (actual rows=20)
         Output: customer.c_custkey[0],customer.c_name[1],{sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[2],customer.c_acctbal[3],nation.n_name[4],customer.c_address[5],customer.c_phone[6],customer.c_comment[7]
         Order by: {sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[2]
-        -> PhysicHashAgg  (inccost=134, cost=1, rows=0) (actual rows=43)
+        -> PhysicHashAgg  (inccost=16143, cost=324, rows=108) (actual rows=43)
             Output: {customer.c_custkey}[0],{customer.c_name}[1],{sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[7],{customer.c_acctbal}[2],{nation.n_name}[4],{customer.c_address}[5],{customer.c_phone}[3],{customer.c_comment}[6]
             Aggregates: sum(lineitem.l_extendedprice[8]*1-lineitem.l_discount[11])
             Group by: customer.c_custkey[0], customer.c_name[1], customer.c_acctbal[2], customer.c_phone[5], nation.n_name[3], customer.c_address[4], customer.c_comment[6]
-            -> PhysicHashJoin  (inccost=133, cost=4, rows=1) (actual rows=140)
+            -> PhysicHashJoin  (inccost=15819, cost=2208, rows=108) (actual rows=140)
                 Output: customer.c_custkey[0],customer.c_name[1],customer.c_acctbal[2],nation.n_name[8],customer.c_address[3],customer.c_phone[4],customer.c_comment[5],{lineitem.l_extendedprice*1-lineitem.l_discount}[9],lineitem.l_extendedprice[10],{1-lineitem.l_discount}[11],{1}[6],lineitem.l_discount[12]
                 Filter: customer.c_custkey[0]=orders.o_custkey[13] and customer.c_nationkey[7]=nation.n_nationkey[14]
-                -> PhysicScanTable customer (inccost=1, cost=1, rows=1) (actual rows=150)
+                -> PhysicScanTable customer (inccost=150, cost=150, rows=150) (actual rows=150)
                     Output: customer.c_custkey[0],customer.c_name[1],customer.c_acctbal[5],customer.c_address[2],customer.c_phone[4],customer.c_comment[7],1,customer.c_nationkey[3]
-                -> PhysicNLJoin  (inccost=128, cost=121, rows=1) (actual rows=3500)
+                -> PhysicNLJoin  (inccost=13461, cost=2870, rows=1800) (actual rows=3500)
                     Output: nation.n_name[0],{lineitem.l_extendedprice*1-lineitem.l_discount}[2],lineitem.l_extendedprice[3],{1-lineitem.l_discount}[4],lineitem.l_discount[5],orders.o_custkey[6],nation.n_nationkey[1]
-                    -> PhysicScanTable nation (inccost=1, cost=1, rows=1) (actual rows=25)
+                    -> PhysicScanTable nation (inccost=25, cost=25, rows=25) (actual rows=25)
                         Output: nation.n_name[1],nation.n_nationkey[0]
-                    -> PhysicHashJoin  (inccost=6, cost=4, rows=1) (actual rows=140, loops=25)
+                    -> PhysicHashJoin  (inccost=10566, cost=3061, rows=72) (actual rows=140, loops=25)
                         Output: {lineitem.l_extendedprice*1-lineitem.l_discount}[0],lineitem.l_extendedprice[1],{1-lineitem.l_discount}[2],lineitem.l_discount[3],orders.o_custkey[5]
                         Filter: lineitem.l_orderkey[4]=orders.o_orderkey[6]
-                        -> PhysicScanTable lineitem (inccost=1, cost=1, rows=1) (actual rows=1457, loops=25)
+                        -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=1457) (actual rows=1457, loops=25)
                             Output: lineitem.l_extendedprice[5]*1-lineitem.l_discount[6],lineitem.l_extendedprice[5],1-lineitem.l_discount[6],lineitem.l_discount[6],lineitem.l_orderkey[0]
                             Filter: lineitem.l_returnflag[8]='R'
-                        -> PhysicScanTable orders (inccost=1, cost=1, rows=1) (actual rows=64, loops=25)
+                        -> PhysicScanTable orders (inccost=1500, cost=1500, rows=75) (actual rows=64, loops=25)
                             Output: orders.o_custkey[1],orders.o_orderkey[0]
                             Filter: orders.o_orderdate[4]>='1993-10-01' and orders.o_orderdate[4]<'12/30/1993 12:00:00 AM'

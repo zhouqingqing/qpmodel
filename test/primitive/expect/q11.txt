@@ -1,39 +1,39 @@
-Total cost: NaN
-PhysicOrder  (inccost=NaN, cost=NaN, rows=1) (actual rows=0)
+Total cost: 3127.56
+PhysicOrder  (inccost=3127.56, cost=358.56, rows=80) (actual rows=0)
     Output: partsupp.ps_partkey[0],{sum(partsupp.ps_supplycost*partsupp.ps_availqty)}[1]
     Order by: {sum(partsupp.ps_supplycost*partsupp.ps_availqty)}[1]
-    -> PhysicHashAgg  (inccost=12, cost=1, rows=0) (actual rows=0)
+    -> PhysicHashAgg  (inccost=2769, cost=240, rows=80) (actual rows=0)
         Output: {partsupp.ps_partkey}[0],{sum(partsupp.ps_supplycost*partsupp.ps_availqty)}[1]
         Aggregates: sum(partsupp.ps_supplycost[2]*partsupp.ps_availqty[3])
         Group by: partsupp.ps_partkey[0]
         Filter: {sum(partsupp.ps_supplycost*partsupp.ps_availqty)}[1]>@1
         <ScalarSubqueryExpr> cached 1
-            -> PhysicHashAgg  (inccost=14, cost=3, rows=1) (actual rows=0)
+            -> PhysicHashAgg  (inccost=2611, cost=82, rows=1) (actual rows=0)
                 Output: {sum(partsupp__1.ps_supplycost*partsupp__1.ps_availqty)}[0]*0.0001000000
                 Aggregates: sum(partsupp__1.ps_supplycost[1]*partsupp__1.ps_availqty[2])
-                -> PhysicHashJoin  (inccost=11, cost=4, rows=1) (actual rows=0)
+                -> PhysicHashJoin  (inccost=2529, cost=1681, rows=80) (actual rows=0)
                     Output: {partsupp__1.ps_supplycost*partsupp__1.ps_availqty}[0],partsupp__1.ps_supplycost[1],partsupp__1.ps_availqty[2]
                     Filter: partsupp__1.ps_suppkey[3]=supplier__1.s_suppkey[4]
-                    -> PhysicScanTable partsupp as partsupp__1 (inccost=1, cost=1, rows=1) (actual rows=0)
+                    -> PhysicScanTable partsupp as partsupp__1 (inccost=800, cost=800, rows=800) (actual rows=0)
                         Output: partsupp__1.ps_supplycost[3]*partsupp__1.ps_availqty[2],partsupp__1.ps_supplycost[3],partsupp__1.ps_availqty[2],partsupp__1.ps_suppkey[1]
-                    -> PhysicHashJoin  (inccost=6, cost=4, rows=1) (actual rows=0)
+                    -> PhysicHashJoin  (inccost=48, cost=13, rows=1) (actual rows=0)
                         Output: supplier__1.s_suppkey[1]
                         Filter: supplier__1.s_nationkey[2]=nation__1.n_nationkey[0]
-                        -> PhysicScanTable nation as nation__1 (inccost=1, cost=1, rows=1) (actual rows=0)
+                        -> PhysicScanTable nation as nation__1 (inccost=25, cost=25, rows=1) (actual rows=0)
                             Output: nation__1.n_nationkey[0]
                             Filter: nation__1.n_name[1]='GERMANY'
-                        -> PhysicScanTable supplier as supplier__1 (inccost=1, cost=1, rows=1) (actual rows=0)
+                        -> PhysicScanTable supplier as supplier__1 (inccost=10, cost=10, rows=10) (actual rows=0)
                             Output: supplier__1.s_suppkey[0],supplier__1.s_nationkey[3]
-        -> PhysicHashJoin  (inccost=11, cost=4, rows=1) (actual rows=0)
+        -> PhysicHashJoin  (inccost=2529, cost=1681, rows=80) (actual rows=0)
             Output: partsupp.ps_partkey[0],{partsupp.ps_supplycost*partsupp.ps_availqty}[1],partsupp.ps_supplycost[2],partsupp.ps_availqty[3]
             Filter: partsupp.ps_suppkey[4]=supplier.s_suppkey[5]
-            -> PhysicScanTable partsupp (inccost=1, cost=1, rows=1) (actual rows=800)
+            -> PhysicScanTable partsupp (inccost=800, cost=800, rows=800) (actual rows=800)
                 Output: partsupp.ps_partkey[0],partsupp.ps_supplycost[3]*partsupp.ps_availqty[2],partsupp.ps_supplycost[3],partsupp.ps_availqty[2],partsupp.ps_suppkey[1]
-            -> PhysicHashJoin  (inccost=6, cost=4, rows=1) (actual rows=0)
+            -> PhysicHashJoin  (inccost=48, cost=13, rows=1) (actual rows=0)
                 Output: supplier.s_suppkey[1]
                 Filter: supplier.s_nationkey[2]=nation.n_nationkey[0]
-                -> PhysicScanTable nation (inccost=1, cost=1, rows=1) (actual rows=1)
+                -> PhysicScanTable nation (inccost=25, cost=25, rows=1) (actual rows=1)
                     Output: nation.n_nationkey[0]
                     Filter: nation.n_name[1]='GERMANY'
-                -> PhysicScanTable supplier (inccost=1, cost=1, rows=1) (actual rows=10)
+                -> PhysicScanTable supplier (inccost=10, cost=10, rows=10) (actual rows=10)
                     Output: supplier.s_suppkey[0],supplier.s_nationkey[3]

@@ -1,31 +1,31 @@
-Total cost: 8
-PhysicFilter  (inccost=8, cost=1, rows=1) (actual rows=1)
+Total cost: 6335
+PhysicFilter  (inccost=6335, cost=10, rows=10) (actual rows=1)
     Output: supplier.s_suppkey[0],supplier.s_name[1],supplier.s_address[2],supplier.s_phone[3],revenue0.total_revenue[4]
     Filter: revenue0.total_revenue[4]=@1
     <ScalarSubqueryExpr> cached 1
-        -> PhysicHashAgg  (inccost=5, cost=3, rows=1) (actual rows=1)
+        -> PhysicHashAgg  (inccost=6287, cost=12, rows=1) (actual rows=1)
             Output: {max(revenue0__1.total_revenue)}[0]
             Aggregates: max(revenue0__1.total_revenue[0])
-            -> PhysicFromQuery <revenue0 as revenue0__1> (inccost=2, cost=0, rows=1) (actual rows=10)
+            -> PhysicFromQuery <revenue0 as revenue0__1> (inccost=6275, cost=10, rows=10) (actual rows=10)
                 Output: revenue0__1.total_revenue[1]
-                -> PhysicHashAgg  (inccost=2, cost=1, rows=0) (actual rows=10)
+                -> PhysicHashAgg  (inccost=6265, cost=260, rows=10) (actual rows=10)
                     Output: {lineitem.l_suppkey}[0],{sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[1]
                     Aggregates: sum(lineitem.l_extendedprice[2]*1-lineitem.l_discount[5])
                     Group by: lineitem.l_suppkey[0]
-                    -> PhysicScanTable lineitem (inccost=1, cost=1, rows=1) (actual rows=201)
+                    -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=240) (actual rows=201)
                         Output: lineitem.l_suppkey (as supplier_no)[2],lineitem.l_extendedprice[5]*1-lineitem.l_discount[6],lineitem.l_extendedprice[5],1-lineitem.l_discount[6],1,lineitem.l_discount[6]
                         Filter: lineitem.l_shipdate[10]>='1996-01-01' and lineitem.l_shipdate[10]<'3/31/1996 12:00:00 AM'
-    -> PhysicHashJoin  (inccost=7, cost=4, rows=1) (actual rows=10)
+    -> PhysicHashJoin  (inccost=6325, cost=40, rows=10) (actual rows=10)
         Output: supplier.s_suppkey[0],supplier.s_name[1],supplier.s_address[2],supplier.s_phone[3],revenue0.total_revenue[4]
         Filter: supplier.s_suppkey[0]=revenue0.supplier_no[5]
-        -> PhysicScanTable supplier (inccost=1, cost=1, rows=1) (actual rows=10)
+        -> PhysicScanTable supplier (inccost=10, cost=10, rows=10) (actual rows=10)
             Output: supplier.s_suppkey[0],supplier.s_name[1],supplier.s_address[2],supplier.s_phone[4]
-        -> PhysicFromQuery <revenue0> (inccost=2, cost=0, rows=1) (actual rows=10)
+        -> PhysicFromQuery <revenue0> (inccost=6275, cost=10, rows=10) (actual rows=10)
             Output: revenue0.total_revenue[1],revenue0.supplier_no[0]
-            -> PhysicHashAgg  (inccost=2, cost=1, rows=0) (actual rows=10)
+            -> PhysicHashAgg  (inccost=6265, cost=260, rows=10) (actual rows=10)
                 Output: {lineitem.l_suppkey}[0],{sum(lineitem.l_extendedprice*1-lineitem.l_discount)}[1]
                 Aggregates: sum(lineitem.l_extendedprice[2]*1-lineitem.l_discount[5])
                 Group by: lineitem.l_suppkey[0]
-                -> PhysicScanTable lineitem (inccost=1, cost=1, rows=1) (actual rows=201)
+                -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=240) (actual rows=201)
                     Output: lineitem.l_suppkey (as supplier_no)[2],lineitem.l_extendedprice[5]*1-lineitem.l_discount[6],lineitem.l_extendedprice[5],1-lineitem.l_discount[6],1,lineitem.l_discount[6]
                     Filter: lineitem.l_shipdate[10]>='1996-01-01' and lineitem.l_shipdate[10]<'3/31/1996 12:00:00 AM'

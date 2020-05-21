@@ -1906,6 +1906,7 @@ namespace qpmodel.unittest
             {
                 Tpch.CreateTables();
                 Tpch.LoadTables("0001");
+                Tpch.AnalyzeTables();
             }
             else
                 Debug.Assert(results.Count == 6005);
@@ -2016,7 +2017,7 @@ namespace qpmodel.unittest
                 // filter on one column, q04
                 "select * from orders where o_orderdate >= date '1993-07-01' and o_orderdate<date '1993-07-01' + interval '3' month",
                 // filter on one column, q06, between
-                "select * from lineitem, partsupp where ps_suppkey = l_suppkey and ps_partkey = l_partkey"
+                "select * from lineitem where l_discount between (.06 - 0.01 , .06 + 0.01)"
             };
             CheckSql(sqls, "filtersamecol");
         }
