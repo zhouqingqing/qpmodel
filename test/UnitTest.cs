@@ -229,7 +229,8 @@ namespace qpmodel.unittest
             TestTpcdsWithData();
 
             Tpch.CreateTables();
-            TestTpchPlanOnly();
+            TestTpchAndComparePlan("1", new string[] { "q10" });
+            TestTpchAndComparePlan("0001", new string[] { "" });
             TestTpchWithData();
         }
 
@@ -265,31 +266,28 @@ namespace qpmodel.unittest
             }
         }
 
-        void TestTpchPlanOnly()
+        void TestTpchAndComparePlan(string scale, string[] badQueries)
         {
             var files = Directory.GetFiles(@"../../../tpch", "*.sql");
-            string stats_fn = "../../../tpch/statistics/sf1";
-
-            Catalog.sysstat_.read_serialized_stats(stats_fn);
-
-            // make sure all queries can generate phase one opt plan
-            QueryOption option = new QueryOption();
-            option.optimize_.enable_subquery_unnest_ = true;
-            option.optimize_.remove_from_ = false;
-            option.optimize_.use_memo_ = false;
-            foreach (var v in files)
+            if (scale == "1")
             {
-                var sql = File.ReadAllText(v);
-                var result = TU.ExecuteSQL(sql, out string phyplan, option);
-                Assert.IsNotNull(phyplan); Assert.IsNotNull(result);
+                // for 1g scale, we can't do real run, but we'd like to see the plan
+                var stats_fn = "../../../tpch/statistics/sf1";
+                Catalog.sysstat_.read_serialized_stats(stats_fn);
+            }
+            else 
+            {
+                // load data for this cale
+                Tpch.LoadTables(scale);
+                Tpch.AnalyzeTables();
             }
 
+            // run tests and compare plan
             string sql_dir_fn = "../../../test/regress/sql";
-            string write_dir_fn = "../../../test/regress/output/tpch1";
-            string expect_dir_fn = "../../../test/regress/expect/tpch1";
-
+            string write_dir_fn = $"../../../test/regress/output/tpch{scale}";
+            string expect_dir_fn = $"../../../test/regress/expect/tpch{scale}";
             ExplainOption.show_tablename_ = false;
-            RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn);
+            RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries);
             ExplainOption.show_tablename_ = true;
         }
 
@@ -317,10 +315,10 @@ namespace qpmodel.unittest
             }
         }
 
-        void RunFolderAndVerify(string sql_dir_fn, string write_dir_fn, string expect_dir_fn)
+        void RunFolderAndVerify(string sql_dir_fn, string write_dir_fn, string expect_dir_fn, string[] badQueries)
         {
             QueryVerify qv = new QueryVerify();
-            var result = qv.SQLQueryVerify(sql_dir_fn, write_dir_fn, expect_dir_fn);
+            var result = qv.SQLQueryVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries);
             if (result != null) Debug.WriteLine(result);
             Assert.IsNull(result);
         }
@@ -339,11 +337,7 @@ namespace qpmodel.unittest
             }
             Assert.AreEqual(22, files.Length);
 
-            // load data
-            Tpch.LoadTables("0001");
-            Tpch.AnalyzeTables();
-
-            // execute queries
+            // data already loaded by previous test, execute queries
             string phyplan = "";
             var option = new QueryOption();
 

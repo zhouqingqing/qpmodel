@@ -24,10 +24,7 @@ namespace psql
             return true;
         }
 
-        static public string[] badQueries_ = { "q10"};
-
-
-        public string SQLQueryVerify(string sql_dir_fn, string write_dir_fn, string expect_dir_fn)
+        public string SQLQueryVerify(string sql_dir_fn, string write_dir_fn, string expect_dir_fn, string[] badQueries)
         {
             QueryOption option = new QueryOption();
             option.optimize_.TurnOnAllOptimizations();
@@ -44,10 +41,8 @@ namespace psql
             {
                 string dbg_name = Path.GetFileNameWithoutExtension(sqlFn);
 
-                if (badQueries_.Contains(dbg_name) == true)
-                {
+                if (badQueries.Contains(dbg_name) == true)
                     continue;
-                }
 
                 // execute query
                 var sql = File.ReadAllText(sqlFn);
