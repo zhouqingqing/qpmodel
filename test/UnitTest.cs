@@ -229,7 +229,7 @@ namespace qpmodel.unittest
             TestTpcdsWithData();
 
             Tpch.CreateTables();
-            TestTpchAndComparePlan("1", new string[] { "q10" });
+            TestTpchAndComparePlan("1", new string[] { "" });
             TestTpchAndComparePlan("0001", new string[] { "" });
             TestTpchWithData();
         }

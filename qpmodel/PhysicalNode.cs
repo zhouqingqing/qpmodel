@@ -133,9 +133,10 @@ namespace qpmodel.physic
         {
             if (double.IsNaN(cost_))
                 cost_ = EstimateCost();
+            Debug.Assert(cost_ >= 0);
             return cost_;
         }
-        public virtual double EstimateCost() => 1000000000000.0;
+        public virtual double EstimateCost() => throw new NotImplementedException();
 
         // inclusive cost summarize its own cost and its children cost. During 
         // optimiztaion it is a dynamic measurement, we do so by summarize its
@@ -155,7 +156,7 @@ namespace qpmodel.physic
             return incCost;
         }
 
-        public long Card() => logic_.Card();
+        public ulong Card() => logic_.Card();
         public BitVector tableContained_ { get => logic_.tableContained_; }
 
         #region codegen support

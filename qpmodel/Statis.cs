@@ -188,9 +188,9 @@ namespace qpmodel.stat
     //
     public class ColumnStat
     {
-        public long n_rows_ { get; set; }        // number of rows
+        public ulong n_rows_ { get; set; }        // number of rows
         public double nullfrac_ { get; set; }    // null value percentage
-        public long n_distinct_ { get; set; }
+        public ulong n_distinct_ { get; set; }
         public Historgram hist_ { get; set; }    // value historgram
         public MCVList mcv_   {get;  set; }
 
@@ -209,7 +209,7 @@ namespace qpmodel.stat
                 values.Add(val);
             }
 
-            n_distinct_ = values.Distinct().Count();
+            n_distinct_ = (ulong)values.Distinct().Count();
             if (n_distinct_ <= MCVList.NValues_)
             {
                 mcv_ = new MCVList();
@@ -243,7 +243,7 @@ namespace qpmodel.stat
             }
 
             // finalize the stats
-            n_rows_ = samples.Count;
+            n_rows_ = (ulong)samples.Count;
             Debug.Assert(nNulls <= samples.Count);
             if (samples.Count != 0)
                 nullfrac_ = nNulls / samples.Count;
@@ -282,7 +282,7 @@ namespace qpmodel.stat
                 return StatConst.sel_one;
             }
         }
-        public long EstDistinct()
+        public ulong EstDistinct()
         {
             Debug.Assert(n_distinct_ >= 0);
             return Math.Max(1, n_distinct_);
@@ -406,7 +406,7 @@ namespace qpmodel.stat
         }
 
         // stats getters
-        public long EstCardinality(string tabName)
+        public ulong EstCardinality(string tabName)
         {
             return GetOrCreateTableStats(tabName)[0].n_rows_;
         }

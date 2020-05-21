@@ -47,18 +47,18 @@ namespace qpmodel.logic
     //
     public abstract class CardEstimator {
         public static Version version_;
-        protected long DefaultEstimate(LogicNode node)
+        protected ulong DefaultEstimate(LogicNode node)
         {
-            long card = 1;
+            ulong card = 1;
             node.children_.ForEach(x => card = Math.Max(x.Card(), card));
             return card;
         }
 
-        public abstract long LogicFilterCE(LogicFilter node);
-        public abstract long LogicScanTableCE(LogicScanTable node);
-        public abstract long LogicAggCE(LogicAgg node);
-        public abstract long LogicJoinCE(LogicJoin node);
-        public static long DoEstimation(LogicNode node)
+        public abstract ulong LogicFilterCE(LogicFilter node);
+        public abstract ulong LogicScanTableCE(LogicScanTable node);
+        public abstract ulong LogicAggCE(LogicAgg node);
+        public abstract ulong LogicJoinCE(LogicJoin node);
+        public static ulong DoEstimation(LogicNode node)
         {
             CE_10 ce = new CE_10();
 
@@ -72,7 +72,7 @@ namespace qpmodel.logic
                     Debug.Assert(bn.group_.exprList_.Count == 2);
                     return bn.group_.exprList_[1].physic_.logic_.EstimateCard();
                 case LogicLimit tn:
-                    return tn.limit_;
+                    return (ulong)tn.limit_;
 
                 // these requires derived class implmentation
                 case LogicFilter fn:
@@ -97,46 +97,49 @@ namespace qpmodel.logic
     public class CE_10 : CardEstimator{
         public CE_10() { version_ = new Version(1, 0);}
 
-        public override long LogicFilterCE(LogicFilter node)
+        public override ulong LogicFilterCE(LogicFilter node)
         {
             var nrows = node.child_().Card();
             if (node.filter_ != null)
             {
                 var selectivity = node.filter_.EstSelectivity();
-                nrows = (long)(selectivity * nrows);
+                nrows = (ulong)(selectivity * nrows);
             }
             return Math.Max(1, nrows);
         }
-        public override long LogicScanTableCE(LogicScanTable node)
+        public override ulong LogicScanTableCE(LogicScanTable node)
         {
             var nrows = Catalog.sysstat_.EstCardinality(node.tabref_.relname_);
             if (node.filter_ != null)
             {
                 var selectivity = node.filter_.EstSelectivity();
-                nrows = (long)(selectivity * nrows);
+                nrows = (ulong)(selectivity * nrows);
             }
             return Math.Max(1, nrows);
         }
-        public override long LogicAggCE(LogicAgg node)
+        public override ulong LogicAggCE(LogicAgg node)
         {
-            long card = 1;
+            ulong card = 1;
             if (node.groupby_ is null)
                 card = 1;
             else
             {
-                long distinct = 1;
+                ulong distinct = 1;
                 foreach (var v in node.groupby_)
                 {
-                    long ndistinct = 1;
+                    ulong ndistinct = 1;
                     if (v is ColExpr vc && vc.tabRef_ is BaseTableRef bvc)
                     {
                         var stat = Catalog.sysstat_.GetColumnStat(bvc.relname_, vc.colName_);
                         ndistinct = stat.n_distinct_;
                     }
-                    distinct *= ndistinct;
+
+                    // stop accumulating in case of overflow
+                    if (distinct * ndistinct > distinct)
+                        distinct *= ndistinct;
                 }
 
-                card = distinct;
+                card = (ulong)distinct;
             }
 
             // it won't go beyond the number of output rows
@@ -148,14 +151,14 @@ namespace qpmodel.logic
         // This however does not consider join key distribution. In SQL Server 2014, it introduced
         // histogram join to better the estimation.
         //
-        public override long LogicJoinCE(LogicJoin node)
+        public override ulong LogicJoinCE(LogicJoin node)
         {
-            long card;
+            ulong card;
             node.CreateKeyList();
             var cardl = node.l_().Card();
             var cardr = node.r_().Card();
 
-            long dl = 0, dr = 0, mindlr = 1;
+            ulong dl = 0, dr = 0, mindlr = 1;
             for (int i = 0; i < node.leftKeys_.Count; i++)
             {
                 var lv = node.leftKeys_[i];

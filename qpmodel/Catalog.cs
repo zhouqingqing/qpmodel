@@ -187,7 +187,7 @@ namespace qpmodel
             {
                 Catalog.systable_.CreateTable($"T{i}", cols, null);
                 var stat = new ColumnStat();
-                stat.n_rows_ = 1 + i * 10;
+                stat.n_rows_ = (ulong)(1 + i * 10);
                 Catalog.sysstat_.AddOrUpdate($"T{i}", "i", stat);
             }
         }

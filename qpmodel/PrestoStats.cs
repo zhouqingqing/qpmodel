@@ -72,8 +72,8 @@ namespace qpmodel.tools
             ColumnStat stat = new ColumnStat();
 
             stat.nullfrac_ = (double)stat_in.nullsCount / (double)nRows;
-            stat.n_rows_ = nRows;
-            stat.n_distinct_ = (long)stat_in.distinctValuesCount;
+            stat.n_rows_ = (ulong)nRows;
+            stat.n_distinct_ = (ulong)stat_in.distinctValuesCount;
             stat.mcv_ = null;
             stat.hist_ = null;
 
