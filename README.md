@@ -1,5 +1,5 @@
 # A Relational Optimizer and Executor Modeling
-This project models a relational optimizer and executor in c#. The main target is the optimizer, and the purpose is to prepare for a more serious production implementation later. The executor part is needed for plan correctness verification. See github project "issues" for bugs and todo items.
+This project models a relational optimizer and executor in c#. The main target is the optimizer, and the purpose is to prepare for a more serious production implementation later. The executor part is needed for plan correctness verification with TPCH/DS end to end runnable. See github project "issues" for bugs and todo items.
 
 ## Why C#
 Optimizer is logic centric, so a high-level language is preferred. After modeling, production may want to turn it into some C/C++ code, so the language must be a close relative of them. C# provides some great features like LINQ, dynamic types to make modeling easy, and it is close enough to C++ (and that's why not python).
