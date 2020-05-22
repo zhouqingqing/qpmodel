@@ -178,6 +178,7 @@ namespace qpmodel.optimizer
     public class Scan2Scan : SimpleImplementationRule<LogicScanTable, PhysicScanTable, NumberArgs.N0> { }
     public class Filter2Filter : SimpleImplementationRule<LogicFilter, PhysicFilter, NumberArgs.N1> { }
     public class Agg2HashAgg : SimpleImplementationRule<LogicAgg, PhysicHashAgg, NumberArgs.N1> { }
+    public class Agg2StreamAgg : SimpleImplementationRule<LogicAgg, PhysicStreamAgg, NumberArgs.N1> { }
     public class Order2Sort : SimpleImplementationRule<LogicOrder, PhysicOrder, NumberArgs.N1> { }
     public class Append2Append : SimpleImplementationRule<LogicAppend, PhysicAppend, NumberArgs.N1> { }
     public class From2From : SimpleImplementationRule<LogicFromQuery, PhysicFromQuery, NumberArgs.N1> { }

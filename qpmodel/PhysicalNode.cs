@@ -835,6 +835,39 @@ namespace qpmodel.physic
             }
             return null;
         }
+
+        public string FinalizeAGroupRow(ExecContext context, Row keys, Row aggvals, Func<Row, string> callback)
+        {
+            var logic = logic_ as LogicAgg;
+            var aggrcore = logic.aggrFns_;
+            string srccode = null;
+
+            if (context.option_.optimize_.use_codegen_) 
+            {
+                srccode = $@"
+                    for (int i = 0; i < {aggrcore.Count}; i++)
+                        aggvals{_}[i] = aggrcore{_}[i].Finalize(context, aggvals{_}[i]);
+                    var r{_} = new Row(keys{_}, aggvals{_});
+                    if ({(logic.having_ is null).ToLower()} || {_logic_}.having_.Exec(context, r{_}) is true)
+                    {{
+                        {ExecProjectCode($"r{_}")}
+                        {callback(null)}
+                    }}";
+            }
+            else
+            {
+                for (int i = 0; i < aggrcore.Count; i++)
+                    aggvals[i] = aggrcore[i].Finalize(context, aggvals[i]);
+                var w = new Row(keys, aggvals);
+                if (logic.having_ is null || logic.having_.Exec(context, w) is true)
+                {
+                    var newr = ExecProject(w);
+                    callback(newr);
+                }
+            }
+
+            return srccode;
+        }
     }
 
     public class PhysicHashAgg : PhysicAgg
@@ -936,16 +969,8 @@ namespace qpmodel.physic
 
                     var keys{_} = v{_}.Key;
                     Row aggvals{_} = v{_}.Value;
-                    for (int i = 0; i < {aggrcore.Count}; i++)
-                        aggvals{_}[i] = aggrcore{_}[i].Finalize(context, aggvals{_}[i]);
-                    var r{_} = new Row(keys{_}, aggvals{_});
-                    if ({(logic.having_ is null).ToLower()} || {_logic_}.having_.Exec(context, r{_}) is true)
-                    {{
-                        {ExecProjectCode($"r{_}")}
-                        {callback(null)}
-                    }}
-                }}
-                ";
+                    {FinalizeAGroupRow(context, null, null, callback)}
+                }}";
             }
             else
             {
@@ -959,17 +984,7 @@ namespace qpmodel.physic
                 {
                     if (context.stop_)
                         break;
-
-                    var keys = v.Key;
-                    Row aggvals = v.Value;
-                    for (int i = 0; i < aggrcore.Count; i++)
-                        aggvals[i] = aggrcore[i].Finalize(context, aggvals[i]);
-                    var w = new Row(keys, aggvals);
-                    if (logic.having_ is null || logic.having_.Exec(context, w) is true)
-                    {
-                        var newr = ExecProject(w);
-                        callback(newr);
-                    }
+                    FinalizeAGroupRow(context, v.Key, v.Value, callback);
                 }
             }
 
@@ -1012,7 +1027,7 @@ namespace qpmodel.physic
                 if (!context.option_.optimize_.use_codegen_)
                 {
                     var keys = KeyList.ComputeKeys(context, logic.groupby_, l);
-                    if (keys.Equals(curGroupKey))
+                    if (curGroupKey != null && keys.Equals(curGroupKey))
                     {
                         for (int i = 0; i < aggrcore.Count; i++)
                         {
@@ -1022,16 +1037,9 @@ namespace qpmodel.physic
                     }
                     else
                     {
-                        // output current grouped row
-                        Row aggvals = new Row(aggrcore.Count);
-                        for (int i = 0; i < aggrcore.Count; i++)
-                            aggvals[i] = aggrcore[i].Finalize(context, aggvals[i]);
-                        var w = new Row(keys, aggvals);
-                        if (logic.having_ is null || logic.having_.Exec(context, w) is true)
-                        {
-                            var newr = ExecProject(w);
-                            callback(newr);
-                        }
+                        // output current grouped row if any
+                        if (curGroupKey != null)
+                            FinalizeAGroupRow(context, keys, curGroupRow, callback);
 
                         // start a new grouped row
                         curGroupRow = AggrCoreToRow(l);
@@ -1044,7 +1052,7 @@ namespace qpmodel.physic
                 return buildcode;
             });
 
-            // special handling for emtpy resultset
+            // special handling for emtpy resultset and last row
             if (!context.option_.optimize_.use_codegen_)
             {
                 if (logic.groupby_ is null && curGroupRow is null)
@@ -1053,6 +1061,8 @@ namespace qpmodel.physic
                     if (row != null)
                         callback(row);
                 }
+                if (curGroupKey != null)
+                    FinalizeAGroupRow(context, curGroupKey, curGroupRow, callback);
             }
 
             return s;
