@@ -313,7 +313,21 @@ namespace qpmodel.stat
                     }
                 }
             }
-
+            if (filter is InListExpr inPred)
+            {
+                // implementation of IN estimation
+                if (inPred.children_[0] is ColExpr pl && pl.tabRef_ is BaseTableRef bpl)
+                {
+                    selectivity = 0.0;
+                    var stat = Catalog.sysstat_.GetColumnStat(bpl.relname_, pl.colName_);
+                    for (int i = 1; i < inPred.children_.Count; ++i)
+                    {
+                        if (inPred.children_[i] is LiteralExpr pr)
+                            selectivity += stat.EstSelectivity("=", pr.val_);
+                    }
+                    return Math.Min(1.0, selectivity);
+                }
+            }
             return selectivity;
         }
 

@@ -28,18 +28,18 @@ order by
 	p_brand,
 	p_type,
 	p_size
-Total cost: 6470287.64
-PhysicOrder  (inccost=6470287.64, cost=2295287.64, rows=187500) (actual rows=0)
+Total cost: 3881902.61
+PhysicOrder  (inccost=3881902.61, cost=1509052.61, rows=127300) (actual rows=0)
     Output: p_brand[0],p_type[1],p_size[2],{count(ps_suppkey)}[3]
     Order by: {count(ps_suppkey)}[3], p_brand[0], p_type[1], p_size[2]
-    -> PhysicHashAgg  (inccost=4175000, cost=1175000, rows=187500) (actual rows=0)
+    -> PhysicHashAgg  (inccost=2372850, cost=381900, rows=127300) (actual rows=0)
         Output: {p_brand}[0],{p_type}[1],{p_size}[2],{count(ps_suppkey)}[3]
         Aggregates: count(ps_suppkey[3])
         Group by: p_brand[0], p_type[1], p_size[2]
-        -> PhysicHashJoin  (inccost=3000000, cost=2000000, rows=800000) (actual rows=0)
+        -> PhysicHashJoin  (inccost=1990950, cost=990950, rows=127300) (actual rows=0)
             Output: p_brand[0],p_type[1],p_size[2],ps_suppkey[4]
             Filter: p_partkey[3]=ps_partkey[5]
-            -> PhysicScanTable part (inccost=200000, cost=200000, rows=200000) (actual rows=0)
+            -> PhysicScanTable part (inccost=200000, cost=200000, rows=31825) (actual rows=0)
                 Output: p_brand[3],p_type[4],p_size[5],p_partkey[0]
                 Filter: p_brand[3]<>'Brand#45' and p_type[4]not like'MEDIUM POLISHED%' and p_size[5] in (49,14,23, ... <Total: 8> )
             -> PhysicScanTable partsupp (inccost=800000, cost=800000, rows=800000) (actual rows=0)
