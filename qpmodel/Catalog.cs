@@ -222,11 +222,11 @@ namespace qpmodel
 
             // load tables
             var curdir = Directory.GetCurrentDirectory();
-            var folder = $@"{curdir}\..\..\..\data";
+            var folder = $@"{curdir}/../../../../data";
             var tables = new List<string>() { "a", "b", "c", "d", "r", "ad", "bd", "cd", "dd", "ast" };
             foreach (var v in tables)
             {
-                string filename = $@"'{folder}\{v}.tbl'";
+                string filename = $@"'{folder}/{v}.tbl'";
                 var sql = $"copy {v} from {filename};";
                 var result = SQLStatement.ExecSQL(sql, out _, out _);
             }

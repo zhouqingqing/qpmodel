@@ -60,8 +60,8 @@ namespace qpmodel.test
             SQLStatement.ExecSQL("drop table customer;", out _, out _);
 
             string curdir = Directory.GetCurrentDirectory();
-            string folder = $@"{curdir}\..\..\..\tpch\create";
-            string filename = $@"{folder}\tpch.sql";
+            string folder = $@"{curdir}/../../../../tpch/create";
+            string filename = $@"{folder}/tpch.sql";
             var sql = File.ReadAllText(filename);
             SQLStatement.ExecSQLList(sql);
         }
@@ -69,11 +69,11 @@ namespace qpmodel.test
         static public void LoadTables(string subfolder)
         {
             string curdir = Directory.GetCurrentDirectory();
-            string folder = $@"{curdir}\..\..\..\tpch\data\{subfolder}";
+            string folder = $@"{curdir}/../../../../tpch/data/{subfolder}";
 
             foreach (var v in tabnames_)
             {
-                string filename = $@"'{folder}\{v}.tbl'";
+                string filename = $@"'{folder}/{v}.tbl'";
                 var sql = $"copy {v} from {filename};";
                 SQLStatement.ExecSQL(sql, out _, out _);
             }
@@ -114,8 +114,8 @@ namespace qpmodel.test
             SQLStatement.ExecSQL("drop table customer;", out _, out _);
 
             string curdir = Directory.GetCurrentDirectory();
-            string folder = $@"{curdir}\..\..\..\tpcds\create";
-            string filename = $@"{folder}\tpcds.sql";
+            string folder = $@"{curdir}/../../../../tpcds/create";
+            string filename = $@"{folder}/tpcds.sql";
             var sql = File.ReadAllText(filename);
             SQLStatement.ExecSQLList(sql);
         }
@@ -123,11 +123,11 @@ namespace qpmodel.test
         static public void LoadTables(string subfolder)
         {
             string curdir = Directory.GetCurrentDirectory();
-            string folder = $@"{curdir}\..\..\..\tpcds\data\{subfolder}";
+            string folder = $@"{curdir}/../../../../tpcds/data/{subfolder}";
 
             foreach (var v in tabnames_)
             {
-                string filename = $@"'{folder}\{v}.tbl'";
+                string filename = $@"'{folder}/{v}.tbl'";
                 var sql = $"copy {v} from {filename};";
                 SQLStatement.ExecSQL(sql, out _, out _);
             }
@@ -148,8 +148,8 @@ namespace qpmodel.test
         static public void CreateTables()
         {
             string curdir = Directory.GetCurrentDirectory();
-            string folder = $@"{curdir}\..\..\..\jobench\create";
-            string filename = $@"{folder}\schema.sql";
+            string folder = $@"{curdir}/../../../../jobench/create";
+            string filename = $@"{folder}/schema.sql";
             var sql = File.ReadAllText(filename);
             SQLStatement.ExecSQLList(sql);
         }

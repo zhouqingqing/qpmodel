@@ -82,7 +82,7 @@ namespace qpmodel
         }
         static void TestJobench()
         {
-            var files = Directory.GetFiles(@"../../../jobench");
+            var files = Directory.GetFiles(@"../../../../jobench");
 
             JOBench.CreateTables();
 
@@ -102,7 +102,7 @@ namespace qpmodel
         }
         static void TestTpcds_LoadData()
         {
-            var files = Directory.GetFiles(@"../../../tpcds", "*.sql");
+            var files = Directory.GetFiles(@"../../../../tpcds", "*.sql");
             string[] norun = { "q1", "q10" };
 
             Tpcds.CreateTables();
@@ -136,7 +136,7 @@ namespace qpmodel
             if (false)
             {
                 JOBench.CreateTables();
-                sql = File.ReadAllText("../../../jobench/10a.sql");
+                sql = File.ReadAllText("../../../../jobench/10a.sql");
                 goto doit;
             }
 
@@ -146,7 +146,7 @@ namespace qpmodel
                 Tpch.LoadTables("0001");
                 //Tpch.CreateIndexes();
                 Tpch.AnalyzeTables();
-                sql = File.ReadAllText("../../../tpch/q20.sql");
+                sql = File.ReadAllText("../../../../tpch/q20.sql");
                 goto doit;
             }
 
@@ -158,7 +158,7 @@ namespace qpmodel
                 // 1, 2,3,7,10,
                 // long time: 4 bad plan
                 // 6: distinct not supported, causing wrong result
-                sql = File.ReadAllText("../../../tpcds/q7.sql");
+                sql = File.ReadAllText("../../../../tpcds/q7.sql");
                 goto doit;
             }
 

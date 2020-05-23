@@ -1169,7 +1169,7 @@ namespace qpmodel.logic
 
     public class LogicScanFile : LogicGet<ExternalTableRef>
     {
-        public string FileName() => tabref_.filename_;
+        public string FileName() => tabref_.filename_.Trim();
         public LogicScanFile(ExternalTableRef tab) : base(tab) { }
     }
 

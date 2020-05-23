@@ -133,7 +133,7 @@ namespace qpmodel.unittest
         public void TestCSVReader()
         {
             List<string> r = new List<string>();
-            Utils.ReadCsvLine(@"../../../data/test.tbl",
+            Utils.ReadCsvLine(@"../../../../data/test.tbl",
                 x => r.Add(string.Join(",", x)));
             Assert.AreEqual(3, r.Count);
             Assert.AreEqual("1,2,3,4", r[0]);
@@ -207,7 +207,7 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestJobench()
         {
-            var files = Directory.GetFiles(@"../../../jobench");
+            var files = Directory.GetFiles(@"../../../../jobench");
 
             JOBench.CreateTables();
 
@@ -240,7 +240,7 @@ namespace qpmodel.unittest
             Tpcds.LoadTables("tiny");
             Tpcds.AnalyzeTables();
 
-            var files = Directory.GetFiles(@"../../../tpcds", "*.sql");
+            var files = Directory.GetFiles(@"../../../../tpcds", "*.sql");
             // long time: 4 bad plan
             // 6: distinct not supported, causing wrong result
             // 10: subquery memo not copy out
@@ -269,11 +269,11 @@ namespace qpmodel.unittest
 
         void TestTpchAndComparePlan(string scale, string[] badQueries)
         {
-            var files = Directory.GetFiles(@"../../../tpch", "*.sql");
+            var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
             if (scale == "1")
             {
                 // for 1g scale, we can't do real run, but we'd like to see the plan
-                var stats_fn = "../../../tpch/statistics/sf1";
+                var stats_fn = "../../../../tpch/statistics/sf1";
                 Catalog.sysstat_.read_serialized_stats(stats_fn);
             }
             else
@@ -284,9 +284,9 @@ namespace qpmodel.unittest
             }
 
             // run tests and compare plan
-            string sql_dir_fn = "../../../test/regress/sql";
-            string write_dir_fn = $"../../../test/regress/output/tpch{scale}";
-            string expect_dir_fn = $"../../../test/regress/expect/tpch{scale}";
+            string sql_dir_fn = "../../../../test/regress/sql";
+            string write_dir_fn = $"../../../../test/regress/output/tpch{scale}";
+            string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}";
             ExplainOption.show_tablename_ = false;
             RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries);
             ExplainOption.show_tablename_ = true;
@@ -294,8 +294,8 @@ namespace qpmodel.unittest
 
         void TestTpcdsPlanOnly()
         {
-            var files = Directory.GetFiles(@"../../../tpcds", "*.sql");
-            string stats_dir = "../../../tpcds/statistics/presto/sf1";
+            var files = Directory.GetFiles(@"../../../../tpcds", "*.sql");
+            string stats_dir = "../../../../tpcds/statistics/presto/sf1";
 
             //read_cnvt_presto_stats(string stats_dir_fn) 
             PrestoStatsFormatter.ReadConvertPrestoStats(stats_dir);
@@ -327,7 +327,7 @@ namespace qpmodel.unittest
         void TestTpchWithData()
         {
             // make sure all queries parsed
-            var files = Directory.GetFiles(@"../../../tpch", "*.sql");
+            var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
 
             foreach (var v in files)
             {
@@ -920,7 +920,7 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestCopy()
         {
-            string filename = @"'..\..\..\data\test.tbl'";
+            string filename = @"'../../../../data/test.tbl'";
             var sql = $"copy test from {filename};";
             var stmt = RawParser.ParseSingleSqlStatement(sql) as CopyStmt;
             Assert.AreEqual(filename, stmt.fileName_);
@@ -1001,8 +1001,9 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestCast()
         {
-            var sql = "select cast('2001-01-3' as date) + interval '30' day;"; TU.ExecuteSQL(sql, "2/2/2001 12:00:00 AM");
-            sql = "select cast('2001-01-3' as date) + 30 days;"; TU.ExecuteSQL(sql, "2/2/2001 12:00:00 AM");
+            var expected = new DateTime(2001, 2, 2).ToString();
+            var sql = "select cast('2001-01-3' as date) + interval '30' day;"; TU.ExecuteSQL(sql, expected);
+            sql = "select cast('2001-01-3' as date) + 30 days;"; TU.ExecuteSQL(sql, expected);
         }
 
         [TestMethod]
@@ -1885,9 +1886,9 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "2;2;1", out phyplan);
             sql = "select tumble_start(a0, interval '10' second), tumble_end(a0, interval '10' second), " +
                 "count(*) from ast group by tumble(a0, interval '10' second)";
-            TU.ExecuteSQL(sql, "5/12/2020 7:22:10 AM,5/12/2020 7:22:20 AM,2;" +
-                "5/12/2020 7:22:20 AM,5/12/2020 7:22:30 AM,2;" +
-                "5/12/2020 7:22:50 AM,5/12/2020 7:23:00 AM,1", out phyplan);
+            TU.ExecuteSQL(sql, $"{new DateTime(2020, 5, 12, 7, 22, 10).ToString()},{new DateTime(2020, 5, 12, 7, 22, 20).ToString()},2;" +
+                $"{new DateTime(2020, 5, 12, 7, 22, 20).ToString()},{new DateTime(2020, 5, 12, 7, 22, 30).ToString()},2;" +
+                $"{new DateTime(2020, 5, 12, 7, 22, 50).ToString()},{new DateTime(2020, 5, 12, 7, 23, 0).ToString()},1", out phyplan);
         }
 
         [TestMethod]
