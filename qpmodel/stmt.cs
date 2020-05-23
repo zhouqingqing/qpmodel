@@ -141,7 +141,7 @@ namespace qpmodel.logic
         }
 
         public static List<Row> ExecSQL(string sql, out string physicplan, out string error, QueryOption option = null)
-        =>  ExecSQL(sql, out _, out physicplan, out error, option);
+        => ExecSQL(sql, out _, out physicplan, out error, option);
 
         // This function can also be used to execute a single SQL statement
         public static string ExecSQLList(string sqls, QueryOption option = null)
@@ -153,7 +153,7 @@ namespace qpmodel.logic
         }
     }
 
-    public class StatementList: SQLStatement
+    public class StatementList : SQLStatement
     {
         public List<SQLStatement> list_ = new List<SQLStatement>();
 
@@ -210,7 +210,8 @@ namespace qpmodel.logic
         //
         internal SelectStmt first_ { get; }
 
-        public SetOpTree(SelectStmt stmt) {
+        public SetOpTree(SelectStmt stmt)
+        {
             first_ = stmt;
             stmt_ = stmt;
             Debug.Assert(IsLeaf());
@@ -220,7 +221,8 @@ namespace qpmodel.logic
         public bool IsLeaf()
         {
             Debug.Assert(!IsEmpty());
-            if (stmt_ != null) {
+            if (stmt_ != null)
+            {
                 Debug.Assert(op_ is null && left_ is null && right_ is null);
                 return true;
             }
@@ -231,8 +233,9 @@ namespace qpmodel.logic
             }
         }
 
-        public void Add(string op, SelectStmt newstmt) {
-            List<string> allowed = new List<string> 
+        public void Add(string op, SelectStmt newstmt)
+        {
+            List<string> allowed = new List<string>
                 {"union", "unionall", "except", "exceptall", "intersect", "intersectall"};
             Debug.Assert(allowed.Contains(op) || op is null);
             Debug.Assert(newstmt != null);
@@ -318,7 +321,7 @@ namespace qpmodel.logic
                         plan = new LogicAgg(plan, groupby, null, null);
                         break;
                     case "except":
-                        // except keeps left rows not found in right
+                    // except keeps left rows not found in right
                     case "intersect":
                         // intersect keeps rows found in both sides
                         var filter = FilterHelper.MakeFullComparator(
@@ -370,7 +373,7 @@ namespace qpmodel.logic
             internal SelectStmt query_;
             internal string alias_;
 
-            internal NamedQuery(SelectStmt query, string alias) 
+            internal NamedQuery(SelectStmt query, string alias)
             {
                 Debug.Assert(query != null);
                 query_ = query;
@@ -384,7 +387,7 @@ namespace qpmodel.logic
                 return false;
             }
 
-            public override int GetHashCode() => query_.GetHashCode() ^ alias_?.GetHashCode()??0;
+            public override int GetHashCode() => query_.GetHashCode() ^ alias_?.GetHashCode() ?? 0;
         }
 
         // parse info
@@ -445,7 +448,8 @@ namespace qpmodel.logic
         internal bool PlanContainsCorrelatedSubquery()
         {
             bool hasCorrelated = false;
-            Subqueries(excludeFromAndDecorrelated: true).ForEach(x => {
+            Subqueries(excludeFromAndDecorrelated: true).ForEach(x =>
+            {
                 if (x.query_.isCorrelated_)
                     hasCorrelated = true;
             });
@@ -535,7 +539,7 @@ namespace qpmodel.logic
                     });
                 default:
                     if (pushJoinFilter)
-					    return plan.PushJoinFilter (filter);
+                        return plan.PushJoinFilter(filter);
                     return false;
             }
         }
@@ -549,7 +553,7 @@ namespace qpmodel.logic
             var parents = new List<LogicNode>();
             var indexes = new List<int>();
             var filters = new List<LogicFilter>();
-            var cntFilter = plan.FindNodeTypeMatch(parents, 
+            var cntFilter = plan.FindNodeTypeMatch(parents,
                                     indexes, filters, skipParentType: typeof(LogicFromQuery));
 
             for (int i = 0; i < cntFilter; i++)
@@ -620,8 +624,8 @@ namespace qpmodel.logic
         public List<NamedQuery> Subqueries(bool excludeFromAndDecorrelated = false)
         {
             var ret = new List<NamedQuery>();
-            Debug.Assert(subQueries_.Count >= 
-                    fromQueries_.Count  + decorrelatedSubs_.Count);
+            Debug.Assert(subQueries_.Count >=
+                    fromQueries_.Count + decorrelatedSubs_.Count);
             if (excludeFromAndDecorrelated)
             {
                 foreach (var x in subQueries_)
@@ -634,10 +638,11 @@ namespace qpmodel.logic
             return ret;
         }
 
-        bool stmtIsInCTEChain() {
+        bool stmtIsInCTEChain()
+        {
             if ((bindContext_.stmt_ as SelectStmt).isCteDefinition_)
                 return true;
-           if (bindContext_.parent_ is null)
+            if (bindContext_.parent_ is null)
                 return false;
             else
                 return (bindContext_.parent_.stmt_ as SelectStmt).stmtIsInCTEChain();
@@ -689,8 +694,10 @@ namespace qpmodel.logic
                 extraFilter = rf.filter_;
 
             LogicNode ret = root;
-            root.VisitEach((parent, index, node) => {
-                if (node is LogicJoin) {
+            root.VisitEach((parent, index, node) =>
+            {
+                if (node is LogicJoin)
+                {
                     if (parent != null)
                         parent.children_[index] = trySimplifyOuterJoin(node as LogicJoin, extraFilter);
                     else
@@ -717,12 +724,14 @@ namespace qpmodel.logic
 
             // optimize for subqueries 
             //  fromquery needs some special handling to link the new plan
-            subQueries_.ForEach(x => {
-                Debug.Assert (x.query_.queryOpt_ == queryOpt_);
+            subQueries_.ForEach(x =>
+            {
+                Debug.Assert(x.query_.queryOpt_ == queryOpt_);
                 if (!decorrelatedSubs_.Contains(x))
                     x.query_.SubstitutionOptimize();
             });
-            foreach (var x in fromQueries_) {
+            foreach (var x in fromQueries_)
+            {
                 var fromQuery = x.Value as LogicFromQuery;
                 var newplan = subQueries_.Find(y => y.Equals(x.Key));
                 if (newplan != null)
@@ -730,7 +739,8 @@ namespace qpmodel.logic
             }
 
             // now we can adjust join order
-            logic.VisitEach(x => {
+            logic.VisitEach(x =>
+            {
                 if (x is LogicJoin lx)
                     lx.SwapJoinSideIfNeeded();
             });
@@ -756,7 +766,7 @@ namespace qpmodel.logic
             return logic;
         }
 
-        internal void OpenSubQueries(ExecContext context) 
+        internal void OpenSubQueries(ExecContext context)
         {
             foreach (var v in Subqueries(true))
                 v.query_.physicPlan_.Open(context);

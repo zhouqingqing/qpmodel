@@ -39,7 +39,7 @@ namespace qpmodel.test
 {
     public class Tpch
     {
-        static public string[] tabnames_ = { 
+        static public string[] tabnames_ = {
             "region", "nation", "part","supplier",
             "partsupp", "customer", "orders", "lineitem"
         };
@@ -54,7 +54,8 @@ namespace qpmodel.test
             @"create index idx_nation_regionkey on nation (n_regionkey);",
         };
 
-        static public void CreateTables() {
+        static public void CreateTables()
+        {
             // hack: drop tpch table customer
             SQLStatement.ExecSQL("drop table customer;", out _, out _);
 
@@ -65,7 +66,8 @@ namespace qpmodel.test
             SQLStatement.ExecSQLList(sql);
         }
 
-        static public void LoadTables(string subfolder) {
+        static public void LoadTables(string subfolder)
+        {
             string curdir = Directory.GetCurrentDirectory();
             string folder = $@"{curdir}\..\..\..\tpch\data\{subfolder}";
 
@@ -77,7 +79,8 @@ namespace qpmodel.test
             }
         }
 
-        static public void CreateIndexes() {
+        static public void CreateIndexes()
+        {
             SQLStatement.ExecSQLList(string.Join("", createindexes_));
         }
 
@@ -91,7 +94,8 @@ namespace qpmodel.test
         }
     }
 
-    public class Tpcds {
+    public class Tpcds
+    {
 
         static public string[] tabnames_ = {
             "call_center",            "catalog_page", "catalog_returns",

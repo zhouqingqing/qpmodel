@@ -57,11 +57,11 @@ namespace psql
                 // construct file name of expected result
                 string expect_fn = $@"{expect_dir_fn}\{f_name}.txt";
 
-               // verify query result against the expected result
-               if (!resultVerify(write_fn, expect_fn))
-               {
-                  return write_fn;
-               }
+                // verify query result against the expected result
+                if (!resultVerify(write_fn, expect_fn))
+                {
+                    return write_fn;
+                }
             }
             return null;
         }
@@ -70,9 +70,9 @@ namespace psql
 
     static class Program
     {
-       static void Main()
+        static void Main()
         {
-    
+
         }
     }
 }

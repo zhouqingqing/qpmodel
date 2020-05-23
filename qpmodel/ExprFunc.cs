@@ -41,7 +41,8 @@ namespace qpmodel.expr
 {
     static public class ExternalFunctions
     {
-        public class FunctionDesc {
+        public class FunctionDesc
+        {
             internal int argcnt_;
             internal ColumnType rettype_;
             internal object fn_;
@@ -57,7 +58,7 @@ namespace qpmodel.expr
             else if (type == typeof(int))
                 ctype = new IntType();
             else if (type == typeof(string))
-                ctype = new VarCharType(64*1024);
+                ctype = new VarCharType(64 * 1024);
             else
                 throw new NotImplementedException();
 
@@ -170,8 +171,10 @@ namespace qpmodel.expr
     }
 
     // As a wrapper of external functions
-    public class ExternalFunc : FuncExpr {
-        public ExternalFunc(string funcName, List<Expr> args) : base(funcName, args) {
+    public class ExternalFunc : FuncExpr
+    {
+        public ExternalFunc(string funcName, List<Expr> args) : base(funcName, args)
+        {
             // TBD: we shall verify with register signature
             var desc = ExternalFunctions.set_[funcName_];
             if (desc.argcnt_ != args.Count)
@@ -207,8 +210,10 @@ namespace qpmodel.expr
         }
     }
 
-    public class SubstringFunc : FuncExpr {
-        public SubstringFunc(List<Expr> args) : base("substring", args) {
+    public class SubstringFunc : FuncExpr
+    {
+        public SubstringFunc(List<Expr> args) : base("substring", args)
+        {
             argcnt_ = 3;
         }
 
@@ -249,7 +254,8 @@ namespace qpmodel.expr
         }
     }
 
-    public class RepeatFunc : FuncExpr {
+    public class RepeatFunc : FuncExpr
+    {
         public RepeatFunc(List<Expr> args) : base("repeat", args)
         {
             argcnt_ = 2;
@@ -350,7 +356,8 @@ namespace qpmodel.expr
 
     public class YearFunc : FuncExpr
     {
-        public YearFunc(List<Expr> args) : base("year", args) {
+        public YearFunc(List<Expr> args) : base("year", args)
+        {
             argcnt_ = 1;
             type_ = new DateTimeType();
         }
@@ -361,7 +368,8 @@ namespace qpmodel.expr
         }
     }
 
-    public class DateFunc : FuncExpr {
+    public class DateFunc : FuncExpr
+    {
         public DateFunc(List<Expr> args) : base("date", args)
         {
             argcnt_ = 1;
@@ -374,7 +382,7 @@ namespace qpmodel.expr
         }
     }
 
-    public class HashFunc: FuncExpr
+    public class HashFunc : FuncExpr
     {
         public HashFunc(List<Expr> args) : base("hash", args)
         {
@@ -391,9 +399,11 @@ namespace qpmodel.expr
 
     public abstract class AggFunc : FuncExpr
     {
-        public AggFunc(string func, List<Expr> args) : base(func, args) {
+        public AggFunc(string func, List<Expr> args) : base(func, args)
+        {
             argcnt_ = 1;
-            foreach (var v in args) {
+            foreach (var v in args)
+            {
                 if (v.HasAggFunc())
                     throw new Exception("aggregate functions cannot be nested");
             }
@@ -409,7 +419,7 @@ namespace qpmodel.expr
         public abstract Value Accum(ExecContext context, Value old, Row input);
         public virtual Value Finalize(ExecContext context, Value old) => old;
 
-        public override object Exec(ExecContext context, Row input) 
+        public override object Exec(ExecContext context, Row input)
             => throw new Exception("aggfn [some] are stateful, they use different set of APIs");
     }
 
@@ -513,7 +523,8 @@ namespace qpmodel.expr
             Type ltype, rtype; ltype = typeof(int); rtype = typeof(int);
             if (old is null)
                 min_ = arg;
-            else {
+            else
+            {
                 dynamic lv = old;
                 if (!(arg is null))
                 {
@@ -560,7 +571,8 @@ namespace qpmodel.expr
     public class AggAvg : AggFunc
     {
         // Exec info
-        public class AvgPair {
+        public class AvgPair
+        {
             internal Value sum_;
             internal long count_;
             internal Value Finalize()
@@ -620,9 +632,10 @@ namespace qpmodel.expr
     }
 
     // sqrt(sum((x_i - mean)^2)/(n-1)) where n is sample size
-    public class AggStddevSamp: AggFunc
+    public class AggStddevSamp : AggFunc
     {
-        public class AggStddevValues {
+        public class AggStddevValues
+        {
             Value stddev_ = null;
             bool computed_ = false;
             internal List<dynamic> vals_ = new List<dynamic>();
@@ -835,23 +848,36 @@ namespace qpmodel.expr
             Debug.Assert(l_().type_ != null && r_().type_ != null);
             switch (op_)
             {
-                case "+": case "-": case "*": case "/": case "||":
+                case "+":
+                case "-":
+                case "*":
+                case "/":
+                case "||":
                     // notice that CoerseType() may change l/r underneath
                     type_ = ColumnType.CoerseType(op_, l_(), r_());
                     break;
-                case ">": case ">=": case "<": case "<=":
+                case ">":
+                case ">=":
+                case "<":
+                case "<=":
                     if (ColumnType.IsNumberType(l_().type_))
                         ColumnType.CoerseType(op_, l_(), r_());
                     type_ = new BoolType();
                     break;
-                case "=":case "<>": case "!=":
+                case "=":
+                case "<>":
+                case "!=":
                     if (ColumnType.IsNumberType(l_().type_))
                         ColumnType.CoerseType(op_, l_(), r_());
                     type_ = new BoolType();
                     break;
-                case " and ": case " or ":
-                case "like": case "not like": case "in":
-                case "is": case "is not":
+                case " and ":
+                case " or ":
+                case "like":
+                case "not like":
+                case "in":
+                case "is":
+                case "is not":
                     type_ = new BoolType();
                     break;
                 default:
@@ -859,7 +885,8 @@ namespace qpmodel.expr
             }
         }
 
-        public static string SwapSideOp(string op) {
+        public static string SwapSideOp(string op)
+        {
             switch (op)
             {
                 case ">": return "<";
@@ -963,7 +990,7 @@ namespace qpmodel.expr
 
     public class LogicAndExpr : LogicAndOrExpr
     {
-        public LogicAndExpr(Expr l, Expr r) : base(l, r, " and "){}
+        public LogicAndExpr(Expr l, Expr r) : base(l, r, " and ") { }
 
         public static LogicAndExpr MakeExpr(Expr l, Expr r)
         {
@@ -1007,16 +1034,19 @@ namespace qpmodel.expr
         }
     }
 
-    public class CastExpr : Expr {
+    public class CastExpr : Expr
+    {
         public override string ToString() => $"cast({child_()} to {type_})";
         public CastExpr(Expr child, ColumnType coltype) : base() { children_.Add(child); type_ = coltype; }
         public override Value Exec(ExecContext context, Row input)
         {
             Value to = null;
             dynamic from = child_().Exec(context, input);
-            switch (from) {
+            switch (from)
+            {
                 case string vs:
-                    switch (type_) {
+                    switch (type_)
+                    {
                         case DateTimeType td:
                             to = DateTime.Parse(from);
                             break;

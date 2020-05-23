@@ -244,12 +244,12 @@ namespace qpmodel.expr
         public static void SubqueryDirectToPhysic(this Expr expr)
         {
             // append the subquery plan align with expr
-           expr.VisitEachT<SubqueryExpr>(x =>
-           {
-               Debug.Assert(expr.HasSubQuery());
-               var query = x.query_;
-               query.physicPlan_ = query.logicPlan_.DirectToPhysical(query.TopStmt().queryOpt_);
-           });
+            expr.VisitEachT<SubqueryExpr>(x =>
+            {
+                Debug.Assert(expr.HasSubQuery());
+                var query = x.query_;
+                query.physicPlan_ = query.logicPlan_.DirectToPhysical(query.TopStmt().queryOpt_);
+            });
         }
 
         public static bool IsBoolean(this Expr expr)
@@ -275,7 +275,8 @@ namespace qpmodel.expr
         }
     }
 
-    public static class FilterHelper {
+    public static class FilterHelper
+    {
 
         public static Expr MakeFullComparator(List<Expr> left, List<Expr> right)
         {
@@ -292,7 +293,8 @@ namespace qpmodel.expr
             return result;
         }
 
-        public static int FilterHashCode(this Expr filter) {
+        public static int FilterHashCode(this Expr filter)
+        {
             // consider the case:
             //   A X (B X C on f3) on f1 AND f2
             // is equal to commutative transformation
@@ -321,7 +323,8 @@ namespace qpmodel.expr
         }
 
         // a > 3 or c > 1, b > 5 =>  (a > 3 or c > 1) and (b > 5)
-        public static Expr AddAndFilter(this Expr basefilter, Expr newcond) {
+        public static Expr AddAndFilter(this Expr basefilter, Expr newcond)
+        {
             Debug.Assert(newcond.IsBoolean());
             if (basefilter is null)
                 return newcond.Clone();
@@ -341,7 +344,8 @@ namespace qpmodel.expr
         {
             Debug.Assert(filter.IsBoolean());
             trueOrfalse = false;
-            if (filter.TryEvalConst(out Value value)) {
+            if (filter.TryEvalConst(out Value value))
+            {
                 Debug.Assert(value is bool);
                 trueOrfalse = value is true;
                 return true;
@@ -419,7 +423,8 @@ namespace qpmodel.expr
                 if (indexops.Contains(fb.op_) && fb.l_() is ColExpr cl && fb.r_() is LiteralExpr)
                 {
                     var index = table.Table().IndexContains(cl.colName_);
-                    if (index != null) {
+                    if (index != null)
+                    {
                         if (index.columns_[0].Equals(cl.colName_))
                             ret = index;
                     }
@@ -485,10 +490,12 @@ namespace qpmodel.expr
             var andlist = filter.FilterToAndList();
             foreach (var v in andlist)
             {
-                v.VisitEach(x => {
+                v.VisitEach(x =>
+                {
                     if (x is SubqueryExpr xs && !shallowColExprOnly)
                         results.AddRange(xs.query_.logicPlan_.RetrieveCorrelated(shallowColExprOnly));
-                    if (x is ColExpr xc && xc.isParameter_) {
+                    if (x is ColExpr xc && xc.isParameter_)
+                    {
                         if (shallowColExprOnly)
                             results.Add(xc);
                         else
@@ -506,7 +513,8 @@ namespace qpmodel.expr
         public static List<TableRef> FilterGetOuterRef(this Expr filter)
         {
             List<TableRef> refs = new List<TableRef>();
-            filter.VisitEachT<ColExpr>(x => {
+            filter.VisitEachT<ColExpr>(x =>
+            {
                 if (x.isParameter_)
                     refs.Add(x.tabRef_);
             });
@@ -518,7 +526,8 @@ namespace qpmodel.expr
         // e.g., filter: a.a1=?b.b1 and a.a2=?c.c1; tablrefs={b}
         //       then we shall only process 'b.b1'
         //
-        public static void DeParameter(this Expr filter, List<TableRef> tablerefs) {
+        public static void DeParameter(this Expr filter, List<TableRef> tablerefs)
+        {
             var cols = filter.FilterGetCorrelatedCol();
             cols.ForEach(x =>
             {
@@ -534,7 +543,7 @@ namespace qpmodel.expr
     //     subclass shall only use children_ to contain Expr, otherwise
     //      Bind() etc won't work.
     //
-    public class Expr: TreeNode<Expr>
+    public class Expr : TreeNode<Expr>
     {
         // Expression in selection list can have an output name 
         // e.g, a.i+b.i [[as] total]
@@ -572,19 +581,20 @@ namespace qpmodel.expr
 
         protected string outputName() => outputName_ != null ? $"(as {outputName_})" : null;
 
-        void validateAfterBound() {
+        void validateAfterBound()
+        {
             Debug.Assert(bounded_);
             Debug.Assert(tableRefs_.Distinct().Count() == tableRefs_.Count);
         }
 
-        public int TableRefCount() {validateAfterBound();return tableRefs_.Count;}
-        public bool EqualTableRef(TableRef tableRef){ validateAfterBound();Debug.Assert(TableRefCount() == 1);return tableRefs_[0].Equals(tableRef);}
-        public bool TableRefsContainedBy(List<TableRef> tableRefs){validateAfterBound();return tableRefs.ContainsList(tableRefs_);}
+        public int TableRefCount() { validateAfterBound(); return tableRefs_.Count; }
+        public bool EqualTableRef(TableRef tableRef) { validateAfterBound(); Debug.Assert(TableRefCount() == 1); return tableRefs_[0].Equals(tableRef); }
+        public bool TableRefsContainedBy(List<TableRef> tableRefs) { validateAfterBound(); return tableRefs.ContainsList(tableRefs_); }
 
         public void VisitEachIgnoreRef<T>(Action<T> callback) where T : Expr
             => VisitEachIgnore<ExprRef, T>(callback);
 
-        public void VisitEachIgnore<T1, T2>(Action<T2> callback) where T1: Expr where T2: Expr
+        public void VisitEachIgnore<T1, T2>(Action<T2> callback) where T1 : Expr where T2 : Expr
         {
             if (!(this is T1))
             {
@@ -760,7 +770,8 @@ namespace qpmodel.expr
 
         public virtual void Bind(BindContext context)
         {
-            for (int i = 0; i < children_.Count; i++) {
+            for (int i = 0; i < children_.Count; i++)
+            {
                 Expr x = children_[i];
 
                 x.Bind(context);
@@ -786,7 +797,8 @@ namespace qpmodel.expr
         //
         public virtual Value Exec(ExecContext context, Row input)
             => throw new Exception($"{this} subclass shall implment Exec()");
-        public virtual string ExecCode(ExecContext context, string input) {
+        public virtual string ExecCode(ExecContext context, string input)
+        {
             return $@"ExprSearch.Locate(""{_}"").Exec(context, {input}) /*{ToString()}*/";
         }
     }
@@ -798,7 +810,7 @@ namespace qpmodel.expr
     {
         internal readonly string tabAlias_;
 
-        public SelStar(string tabAlias):base() => tabAlias_ = tabAlias;
+        public SelStar(string tabAlias) : base() => tabAlias_ = tabAlias;
         public override string ToString() => tabAlias_ + ".*";
 
         public override void Bind(BindContext context) => throw new InvalidProgramException("shall be expanded already");
@@ -807,7 +819,8 @@ namespace qpmodel.expr
             var targetrefs = new List<TableRef>();
             if (tabAlias_ is null)
                 targetrefs = context.AllTableRefs();
-            else {
+            else
+            {
                 var x = context.Table(tabAlias_);
                 targetrefs.Add(x);
             }
@@ -826,7 +839,7 @@ namespace qpmodel.expr
                     list.ForEach(x => x.Bind(context));
                 else
                 {
-                    if (context.stmt_.queryOpt_.optimize_.remove_from_ 
+                    if (context.stmt_.queryOpt_.optimize_.remove_from_
                         && x is FromQueryRef xf)
                     {
                         list.Clear();
@@ -866,7 +879,8 @@ namespace qpmodel.expr
             Debug.Assert(Clone().Equals(this));
         }
 
-        public string tableName_() {
+        public string tableName_()
+        {
             if (bounded_)
                 return tabRef_.alias_;
             else
@@ -888,7 +902,8 @@ namespace qpmodel.expr
             return expr;
         }
 
-        public void DeParameter() {
+        public void DeParameter()
+        {
             Debug.Assert(isParameter_);
             Debug.Assert(tableRefs_.Count == 0 && tableRefs_ != null);
             isParameter_ = false;
@@ -1001,7 +1016,8 @@ namespace qpmodel.expr
         }
     }
 
-    public class SysColExpr : ColExpr {
+    public class SysColExpr : ColExpr
+    {
 
         public static List<string> SysCols_ = new List<string>() { "sysrid_" };
         public SysColExpr(string dbName, string tabName, string colName, ColumnType type) : base(dbName, tabName, colName, type)
@@ -1182,7 +1198,8 @@ namespace qpmodel.expr
             return val_;
         }
 
-        public override string ExecCode(ExecContext context, string input) {
+        public override string ExecCode(ExecContext context, string input)
+        {
             var str = str_.Replace("'", "\"");
             if (type_ is DateTimeType)
             {
@@ -1229,12 +1246,12 @@ namespace qpmodel.expr
         internal int ordinal_;
 
         public override string ToString() => $@"{{{expr_().ToString().RemovePositions()}}}[{ordinal_}]";
-        public ExprRef(Expr expr, int ordinal): base()
+        public ExprRef(Expr expr, int ordinal) : base()
         {
             if (expr is ExprRef ee)
                 expr = ee.expr_();
             Debug.Assert(!(expr is ExprRef));
-            children_.Add(expr); 
+            children_.Add(expr);
             ordinal_ = ordinal;
             type_ = expr.type_;
             bounded_ = expr.bounded_;
@@ -1276,7 +1293,7 @@ namespace qpmodel.expr
         public override string ToString() => $@"{{{aggr_().ToString().RemovePositions()}}}[{ordinal_}]";
         public AggrRef(Expr expr, int ordinal) : base(expr, ordinal)
         {
-           Debug.Assert(expr.HasAggFunc());
+            Debug.Assert(expr.HasAggFunc());
         }
     }
 }

@@ -44,7 +44,7 @@ using TableColumn = System.Tuple<string, string>;
 
 namespace qpmodel.stat
 {
-    class StatConst 
+    class StatConst
     {
         public const double sel_zero = 0.000000001;
         public const double sel_one = 1.0;
@@ -71,7 +71,8 @@ namespace qpmodel.stat
     // Besides these, there are V-optimal and MaxDiff histogram.
     // See Poosala et al SIGMOD 1996.
     //
-    public class Historgram {
+    public class Historgram
+    {
         public const int NBuckets_ = 100;
 
         public int depth_ { get; set; }
@@ -79,7 +80,8 @@ namespace qpmodel.stat
         public Value[] buckets_ { get; set; } = new Value[NBuckets_];
         public int[] distincts_ { get; set; } = new int[NBuckets_];
 
-        int whichBucket(Value val) {
+        int whichBucket(Value val)
+        {
             dynamic value = val;
 
             if (((dynamic)buckets_[0]).CompareTo(value) >= 0)
@@ -89,23 +91,24 @@ namespace qpmodel.stat
                 dynamic l = buckets_[i];
                 dynamic r = buckets_[i + 1];
                 if (l.CompareTo(value) <= 0 && r.CompareTo(value) > 0)
-                    return i+1;
+                    return i + 1;
             }
 
             return nbuckets_ - 1;
         }
 
-        public double EstSelectivity(string op, Value val) {
+        public double EstSelectivity(string op, Value val)
+        {
             double selectivity = StatConst.sel_one;
 
-            if (!new List<String>() { "=", ">", ">=", "<","<=" }.Contains(op))
+            if (!new List<String>() { "=", ">", ">=", "<", "<=" }.Contains(op))
                 return selectivity;
 
             int which = whichBucket(val);
             switch (op)
             {
                 case "=":
-                    selectivity = 1.0/(nbuckets_ * distincts_[which]);
+                    selectivity = 1.0 / (nbuckets_ * distincts_[which]);
                     break;
                 case ">":
                 case ">=":
@@ -124,7 +127,8 @@ namespace qpmodel.stat
         }
     }
 
-    public class MCVList {
+    public class MCVList
+    {
         public const int NValues_ = 100;
 
         public int nvalues_ { get; set; }
@@ -139,7 +143,8 @@ namespace qpmodel.stat
             Debug.Assert(total <= 1 + StatConst.epsilon_);
         }
 
-        int whichValue(Value val) {
+        int whichValue(Value val)
+        {
             return Array.IndexOf(values_, val);
         }
         public double EstSelectivity(string op, Value val)
@@ -192,7 +197,7 @@ namespace qpmodel.stat
         public double nullfrac_ { get; set; }    // null value percentage
         public ulong n_distinct_ { get; set; }
         public Historgram hist_ { get; set; }    // value historgram
-        public MCVList mcv_   {get;  set; }
+        public MCVList mcv_ { get; set; }
 
         public ColumnStat() { }
 
@@ -218,9 +223,10 @@ namespace qpmodel.stat
                 mcv_ = new MCVList();
                 var groups = from value in values group value by value into newGroup orderby newGroup.Key select newGroup;
                 int i = 0;
-                foreach (var g in groups) {
+                foreach (var g in groups)
+                {
                     mcv_.values_[i] = g.Key;
-                    mcv_.freqs_[i] = (1.0 * g.Count())/values.Count();
+                    mcv_.freqs_[i] = (1.0 * g.Count()) / values.Count();
                     i++;
                 }
                 mcv_.nvalues_ = i;
@@ -280,7 +286,8 @@ namespace qpmodel.stat
                 return mcv_.EstSelectivity(op, val);
             else if (hist_ != null)
                 return hist_.EstSelectivity(op, val);
-            else {
+            else
+            {
                 // only wild guess now
                 return StatConst.sel_one;
             }
@@ -436,7 +443,7 @@ namespace qpmodel.stat
             switch (value.ValueKind)
             {
                 case JsonValueKind.String:
-                    candidate_value = (string) value.GetString();
+                    candidate_value = (string)value.GetString();
                     Match result = Regex.Match(candidate_value, date_pattern);
 
                     if (result.Success)
@@ -508,7 +515,8 @@ namespace qpmodel.stat
         }
     }
 
-    public class LogicAnalyze : LogicNode { 
+    public class LogicAnalyze : LogicNode
+    {
 
         public LogicAnalyze(LogicNode child) => children_.Add(child);
 
@@ -521,9 +529,10 @@ namespace qpmodel.stat
                 child = child.child_();
             return (child as LogicScanTable).tabref_;
         }
-     }
+    }
 
-    public class PhysicAnalyze : PhysicNode {
+    public class PhysicAnalyze : PhysicNode
+    {
         internal List<ColumnStat> stats_;
 
         public PhysicAnalyze(LogicAnalyze logic, PhysicNode l) : base(logic) => children_.Add(l);

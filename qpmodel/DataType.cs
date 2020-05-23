@@ -264,7 +264,7 @@ namespace qpmodel.expr
             if (allColumnsRefs_ is null || refresh)
             {
                 var columns = Catalog.systable_.TableCols(relname_);
-                allColumnsRefs_ = columns.Select(x 
+                allColumnsRefs_ = columns.Select(x
                     => new ColExpr(null, alias_, x.Value.name_, x.Value.type_) as Expr).ToList();
             }
 
@@ -279,7 +279,7 @@ namespace qpmodel.expr
         public BaseTableRef baseref_;
         public List<Expr> colrefs_;
 
-        public ExternalTableRef( string filename, BaseTableRef baseref, List<Expr> colrefs)
+        public ExternalTableRef(string filename, BaseTableRef baseref, List<Expr> colrefs)
         {
             filename_ = filename.Replace('\'', ' ');
             baseref_ = baseref;
@@ -451,10 +451,12 @@ namespace qpmodel.expr
         public List<JoinType> joinops_;
         public List<Expr> constraints_;
 
-        public override string ToString() {
+        public override string ToString()
+        {
             string str = tables_[0].ToString();
-            for (int i = 1; i < tables_.Count; i++) {
-                var joinpair = $" {joinops_[i-1]} {tables_[i]}";
+            for (int i = 1; i < tables_.Count; i++)
+            {
+                var joinpair = $" {joinops_[i - 1]} {tables_[i]}";
                 str += joinpair;
             }
             return str;
@@ -465,15 +467,18 @@ namespace qpmodel.expr
             tables.ForEach(x => Debug.Assert(!(x is JoinQueryRef)));
             tables_ = tables;
             joinops_ = new List<JoinType>();
-            joinops.ForEach(x => {
+            joinops.ForEach(x =>
+            {
                 JoinType type;
                 switch (x)
                 {
                     case "join": type = JoinType.Inner; break;
                     case "leftjoin": case "leftouterjoin": type = JoinType.Left; break;
-                    case "crossjoin": 
-                    case "rightjoin": case "rightouterjoin":
-                    case "fulljoin": case "fullouterjoin":
+                    case "crossjoin":
+                    case "rightjoin":
+                    case "rightouterjoin":
+                    case "fulljoin":
+                    case "fullouterjoin":
                         throw new NotImplementedException();
                     default:
                         throw new SemanticAnalyzeException("not recognized join operation");

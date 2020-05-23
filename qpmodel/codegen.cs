@@ -114,7 +114,8 @@ namespace qpmodel.codegen
                 var tree = CSharpSyntaxTree.ParseText(str);
                 File.WriteAllText(sourcePath, tree.GetRoot().NormalizeWhitespace().ToFullString());
             }
-            catch {
+            catch
+            {
                 Debug.WriteLine("format code failed");
             }
         }
@@ -136,7 +137,7 @@ namespace qpmodel.codegen
             var provider = new Microsoft.CodeDom.Providers.DotNetCompilerPlatform.CSharpCodeProvider();
 
             // compile it
-            string[] references = { "qpmodel.exe", "System.dll", "Microsoft.CSharp.dll", "System.Core.dll"};
+            string[] references = { "qpmodel.exe", "System.dll", "Microsoft.CSharp.dll", "System.Core.dll" };
             CompilerParameters cp = new CompilerParameters(references);
             cp.GenerateInMemory = true;
             cp.GenerateExecutable = false;
