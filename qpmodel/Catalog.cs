@@ -30,6 +30,8 @@ using System.Diagnostics;
 using System.Linq;
 using System.Collections.Generic;
 using System.IO;
+using System.Globalization;
+using System.Threading;
 
 using qpmodel.stat;
 using qpmodel.sqlparser;
@@ -255,6 +257,15 @@ namespace qpmodel
             // be careful: any exception happened here will be swallowed without throw any exception
             createBuildInTestTables();
             createOptimizerTables();
+
+            // Change current culture: different locales have different ways to format the time. 
+            // We are using text comparison in the tests so formatting can cause trouble.
+            var culture = CultureInfo.CreateSpecificCulture("en-US");
+            CultureInfo.DefaultThreadCurrentCulture = culture;
+            CultureInfo.DefaultThreadCurrentUICulture = culture;
+
+            Thread.CurrentThread.CurrentCulture = culture;
+            Thread.CurrentThread.CurrentUICulture = culture;
         }
     }
 }
