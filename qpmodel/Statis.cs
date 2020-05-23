@@ -97,12 +97,12 @@ namespace qpmodel.stat
             return nbuckets_ - 1;
         }
 
-        public double EstSelectivity(string op, Value val)
+        public double? EstSelectivity(string op, Value val)
         {
             double selectivity = StatConst.sel_one;
 
             if (!new List<String>() { "=", ">", ">=", "<", "<=" }.Contains(op))
-                return selectivity;
+                return null;
 
             int which = whichBucket(val);
             switch (op)
@@ -120,8 +120,7 @@ namespace qpmodel.stat
                     break;
             }
 
-            if (selectivity == 0)
-                selectivity = StatConst.sel_zero;
+            if (selectivity == 0) return null;
             Estimator.validateSelectivity(selectivity);
             return selectivity;
         }
@@ -147,14 +146,13 @@ namespace qpmodel.stat
         {
             return Array.IndexOf(values_, val);
         }
-        public double EstSelectivity(string op, Value val)
+        public double? EstSelectivity(string op, Value val)
         {
             if (!new List<String>() { "=", ">", ">=", "<", "<=" }.Contains(op))
-                return StatConst.sel_one;
+                return null;
 
             int which = whichValue(val);
-            if (which == -1)
-                return StatConst.sel_zero;
+            if (which == -1) return null;
 
             double selectivity = 0.0;
             switch (op)
@@ -176,8 +174,7 @@ namespace qpmodel.stat
                     break;
             }
 
-            if (selectivity == 0)
-                selectivity = StatConst.sel_zero;
+            if (selectivity == 0) return null;
             Estimator.validateSelectivity(selectivity);
             return selectivity;
         }
@@ -282,15 +279,7 @@ namespace qpmodel.stat
         {
             if (op == "like")
                 return EstLikeSelectivity(val);
-            if (mcv_ != null)
-                return mcv_.EstSelectivity(op, val);
-            else if (hist_ != null)
-                return hist_.EstSelectivity(op, val);
-            else
-            {
-                // only wild guess now
-                return StatConst.sel_one;
-            }
+            return mcv_?.EstSelectivity(op, val) ?? hist_?.EstSelectivity(op, val) ?? StatConst.sel_one;
         }
         public ulong EstDistinct()
         {
