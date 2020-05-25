@@ -26,15 +26,15 @@
  */
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Diagnostics;
 using System.IO;
-using System.CodeDom.Compiler;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CSharp;
+using System.Reflection;
+using System.Runtime.Loader;
+using Microsoft.CodeAnalysis.Emit;
 
 using qpmodel.logic;
 using qpmodel.physic;
@@ -120,10 +120,8 @@ namespace qpmodel.codegen
             }
         }
 
-        internal static CompilerResults Compile()
+        internal static Assembly Compile()
         {
-            bool optimize = false;
-
             // there are builtin CodeDomProvider.CreateProvider("CSharp") or the Nuget one
             //  we use the latter since it suppports newer C# features (but it is way slower)
             // you may encounter IO path issues like: Could not find a part of the path … bin\roslyn\csc.exe
@@ -134,38 +132,57 @@ namespace qpmodel.codegen
             FromatFile(source);
 
             // use a provider recognize newer C# features
-            var provider = new Microsoft.CodeDom.Providers.DotNetCompilerPlatform.CSharpCodeProvider();
+            var provider = new CSharpCodeProvider();
 
             // compile it
-            string[] references = { "qpmodel.exe", "System.dll", "Microsoft.CSharp.dll", "System.Core.dll" };
-            CompilerParameters cp = new CompilerParameters(references);
-            cp.GenerateInMemory = true;
-            cp.GenerateExecutable = false;
-            cp.IncludeDebugInformation = !optimize;
-            if (optimize) cp.CompilerOptions = "/optimize";
-            CompilerResults cr = provider.CompileAssemblyFromFile(cp, source);
+            SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(File.ReadAllText(source));
+            string assemblyName = Path.GetRandomFileName();
+            var refPaths = new[] {
+                Assembly.Load(new AssemblyName("qpmodel")).Location,
+                typeof(System.Object).GetTypeInfo().Assembly.Location,
+                Assembly.Load(new AssemblyName("netstandard")).Location,
+                Assembly.Load(new AssemblyName("System.Console")).Location,
+                Assembly.Load(new AssemblyName("System.Runtime")).Location,
+                Assembly.Load(new AssemblyName("System.Core")).Location,
+                Assembly.Load(new AssemblyName("System.Collections")).Location,
+                Assembly.Load(new AssemblyName("Microsoft.CSharp")).Location,
+                Assembly.Load(new AssemblyName("System.Linq.Expressions")).Location
+            };
+            CSharpCompilation compilation = CSharpCompilation.Create(
+                assemblyName,
+                syntaxTrees: new[] { syntaxTree },
+                references: refPaths.Select(r => MetadataReference.CreateFromFile(r)).ToArray(),
+                options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
+                            .WithOptimizationLevel(OptimizationLevel.Release));
 
-            // detect any errors
-            if (cr.Errors.Count > 0)
+            // emit code and generate assembly
+            using (var ms = new MemoryStream())
             {
-                Console.WriteLine("Errors building {0} into {1}", source, cr.PathToAssembly);
-                foreach (CompilerError ce in cr.Errors)
-                    Console.WriteLine("  {0}: {1}", ce.ErrorNumber, ce.ErrorText);
-                throw new SemanticExecutionException("codegen failed");
+                EmitResult result = compilation.Emit(ms);
+                if (!result.Success)
+                {
+                    Console.Error.WriteLine("Compilation failed!");
+                    foreach (Diagnostic diagnostic in result.Diagnostics)
+                        Console.Error.WriteLine($"{diagnostic.GetMessage()}");
+                }
+                else
+                {
+                    ms.Seek(0, SeekOrigin.Begin);
+                    Assembly assembly = AssemblyLoadContext.Default.LoadFromStream(ms);
+                    return assembly;
+                }
             }
 
-            // now we can execute it
-            Console.WriteLine("compiled OK");
-            return cr;
+            return null;
         }
 
-        internal static void Run(CompilerResults cr, SQLStatement stmt, ExecContext context)
+        internal static void Run(Assembly assembly, SQLStatement stmt, ExecContext context)
         {
             // now we can execute it
-            var assembly = cr.CompiledAssembly;
-            var queryCode = assembly.GetType("QueryCode");
-            var runmethod = queryCode.GetMethod("Run");
-            runmethod.Invoke(null, new object[2] { stmt, context });
+            var type = assembly.GetType("QueryCode");
+            var instance = assembly.CreateInstance("QueryCode");
+            var meth = type.GetMember("Run").First() as MethodInfo;
+            meth.Invoke(instance, new object[] { stmt, context });
         }
     }
 }
