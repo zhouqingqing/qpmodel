@@ -144,7 +144,17 @@ namespace qpmodel.physic
         }
 
         public int ColCount() => values_.Length;
-        public override string ToString() => string.Join(",", values_.ToList());
+        public override string ToString()
+        {
+            return string.Join(",", values_.Select(x => {
+                if (x is double dv)
+                    return dv.ToString("0.####");
+                else if (x is double df)
+                    return df.ToString("0.####");
+                else
+                    return x;
+            }));
+        }
     }
 
     public class Parameter

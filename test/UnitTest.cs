@@ -1407,7 +1407,7 @@ namespace qpmodel.unittest
             sql = "select a2, sum(a1) from a where a1>0 group by a2";
             TU.ExecuteSQL(sql, "2,1;3,2");
             sql = "select a3/2*2, sum(a3), count(a3), stddev_samp(a3) from a group by 1;";
-            TU.ExecuteSQL(sql, "2,5,2,0.707106781186548;4,4,1,");
+            TU.ExecuteSQL(sql, "2,5,2,0.7071;4,4,1,");
             sql = "select count(*)+1 from (select b1+c1 from (select b1 from b) a, (select c1,c2 from c) c where c2>1) a;";
             TU.ExecuteSQL(sql, "7");
             sql = "select d1, sum(d2) from (select c1/2, sum(c1) from (select b1, count(*) as a1 from b group by b1)c(c1, c2) group by c1/2) d(d1, d2) group by d1;";

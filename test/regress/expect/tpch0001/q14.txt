@@ -23,5 +23,5 @@ PhysicHashAgg  (inccost=11275, cost=1558, rows=1) (actual rows=1)
         -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=1556) (actual rows=84)
             Output: l_extendedprice[5],l_discount[6],l_extendedprice[5]*1-l_discount[6],1-l_discount[6],l_partkey[1]
             Filter: l_shipdate[10]>='1995-09-01' and l_shipdate[10]<'10/1/1995 12:00:00 AM'
-15.2302126115973
+15.2302
 
