@@ -159,6 +159,29 @@ namespace qpmodel.logic
         public static List<Row> ExecSQL(string sql, out string physicplan, out string error, QueryOption option = null)
         =>  ExecSQL(sql, out _, out physicplan, out error, option);
 
+        public static void ExplainSQL(string sql, out string physicplan, out string error, QueryOption option = null)
+        {
+            SQLStatement stmt;
+            try
+            {
+                stmt = RawParser.ParseSingleSqlStatement(sql);
+                stmt.explainOnly_ = true;
+                if (option != null)
+                    stmt.queryOpt_ = option;
+                var result = stmt.Exec();
+                physicplan = "";
+                if (stmt.physicPlan_ != null)
+                    physicplan = stmt.physicPlan_.Explain(option?.explain_);
+                error = "";
+            }
+            catch (Exception e)
+            {
+                error = e.Message;
+                Console.WriteLine(error);
+                physicplan = null;
+            }
+        }
+
         // This function can also be used to execute a single SQL statement
         public static string ExecSQLList(string sqls, QueryOption option = null)
         {
