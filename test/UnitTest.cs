@@ -244,7 +244,7 @@ namespace qpmodel.unittest
             // long time: 4 bad plan
             // 6: distinct not supported, causing wrong result
             // 10: subquery memo not copy out
-            string[] runnable = { "q1", "q2", "q3"};
+            string[] runnable = { "q1", "q2", "q3", "q7"};
 
             // make sure all queries can generate phase one opt plan
             QueryOption option = new QueryOption();
@@ -260,6 +260,7 @@ namespace qpmodel.unittest
                 if (!runnable.Contains(tokens[1]))
                     continue;
 
+                Debug.Assert(option.optimize_.use_memo_);
                 var sql = File.ReadAllText(v);
                 var result = SQLStatement.ExecSQL(sql, out string phyplan, out _, option);
                 Assert.IsNotNull(result);

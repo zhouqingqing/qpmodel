@@ -42,6 +42,8 @@ namespace qpmodel.logic
         public class ProfileOption
         {
             public bool enabled_ { get; set; } = true;
+
+            public ProfileOption Clone() => (ProfileOption)MemberwiseClone();
         }
         public class OptimizeOption
         {
@@ -82,6 +84,7 @@ namespace qpmodel.logic
                 if (memo_use_joinorder_solver_)
                     Debug.Assert(use_memo_);
             }
+            public OptimizeOption Clone() => (OptimizeOption)MemberwiseClone();
         }
 
         // user specified options
@@ -91,6 +94,15 @@ namespace qpmodel.logic
 
         // global static variables
         public const int num_machines_ = 10;
+
+        public QueryOption Clone()
+        {
+            var newoption = new QueryOption();
+            newoption.optimize_ = optimize_.Clone();
+            newoption.explain_ = explain_.Clone();
+            newoption.profile_ = profile_.Clone();
+            return newoption;
+        }
 
         // codegen section
         bool saved_use_codegen_;
@@ -109,6 +121,7 @@ namespace qpmodel.logic
         public bool show_cost_ { get; set; } = false;
         public bool show_output_ { get; set; } = true;
         public bool show_id_ { get; set; } = false;
+        public ExplainOption Clone() => (ExplainOption)MemberwiseClone();
     }
 
     public abstract class PlanNode<T>: TreeNode<T> where T : PlanNode<T>

@@ -36,6 +36,7 @@ using qpmodel.physic;
 using qpmodel.codegen;
 using qpmodel.optimizer;
 
+
 //
 // Parser is the only place shall deal with antlr 
 // do NOT using any antlr structure here
@@ -115,11 +116,13 @@ namespace qpmodel.logic
 
         public static List<Row> ExecSQL(string sql, out SQLStatement stmt, out string physicplan, out string error, QueryOption option = null)
         {
+            var optCopy = option?.Clone();
+
             try
             {
                 stmt = RawParser.ParseSingleSqlStatement(sql);
                 if (option != null)
-                    stmt.queryOpt_ = option;
+                    stmt.queryOpt_ = optCopy;
                 var result = stmt.Exec();
                 physicplan = "";
                 if (stmt.physicPlan_ != null)
