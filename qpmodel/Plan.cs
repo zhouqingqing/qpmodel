@@ -107,6 +107,7 @@ namespace qpmodel.logic
         [ThreadStatic]
         public static bool show_tablename_ = true;
         public bool show_cost_ { get; set; } = false;
+        public bool show_actual_ { get; set; } = true;
         public bool show_output_ { get; set; } = true;
         public bool show_id_ { get; set; } = false;
     }
@@ -133,6 +134,7 @@ namespace qpmodel.logic
         {
             string r = null;
             bool exp_showcost = option?.show_cost_ ?? false;
+            bool exp_showactual = option?.show_actual_ ?? true;
             bool exp_output = option?.show_output_ ?? true;
             bool exp_id = option?.show_id_ ?? false;
 
@@ -159,11 +161,14 @@ namespace qpmodel.logic
                         r += $" (inccost={incCost}, cost={cost}, rows={phynode.logic_.Card()})";
                     }
 
-                    var profile = phynode.profile_;
-                    if (profile.nloops_ == 1 || profile.nloops_==0)
-                        r += $" (actual rows={profile.nrows_})";
-                    else
-                        r += $" (actual rows={profile.nrows_ / profile.nloops_}, loops={profile.nloops_})";
+                    if (exp_showactual)
+                    {
+                        var profile = phynode.profile_;
+                        if (profile.nloops_ == 1 || profile.nloops_ == 0)
+                            r += $" (actual rows={profile.nrows_})";
+                        else
+                            r += $" (actual rows={profile.nrows_ / profile.nloops_}, loops={profile.nloops_})";
+                    }
                 }
                 r += "\n";
                 var details = ExplainMoreDetails(depth, option);

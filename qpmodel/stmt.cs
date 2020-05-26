@@ -54,6 +54,7 @@ namespace qpmodel.logic
 
         // others
         public bool explainOnly_ = false;
+        public bool explainAnalyze_ = false;
         public Optimizer optimizer_ = new Optimizer();
         public QueryOption queryOpt_ = new QueryOption();
 
@@ -90,13 +91,25 @@ namespace qpmodel.logic
                 optimizer_.OptimizeRootPlan(this, null);
                 physicPlan_ = optimizer_.CopyOutOptimalPlan();
             }
-            if (explainOnly_)
-                return null;
 
             // actual execution is needed
             var finalplan = new PhysicCollect(physicPlan_);
             physicPlan_ = finalplan;
             finalplan.ValidateThis();
+
+            if (explainOnly_)
+            {
+                queryOpt_.explain_.show_cost_ = true;
+                queryOpt_.explain_.show_actual_ = false;
+                Console.WriteLine(finalplan.Explain(queryOpt_.explain_));
+                return finalplan.rows_; // empty list
+            }
+            if (explainAnalyze_)
+            {
+                queryOpt_.optimize_.use_codegen_ = true;
+                queryOpt_.explain_.show_cost_ = true;
+                queryOpt_.explain_.show_actual_ = true;
+            }
 
             ExecContext context = CreateExecContext();
             if (this is SelectStmt select)
@@ -104,6 +117,12 @@ namespace qpmodel.logic
             var code = finalplan.Open(context);
             code += finalplan.Exec(null);
             code += finalplan.Close();
+
+            if (explainAnalyze_)
+            {
+                Console.WriteLine(finalplan.Explain(queryOpt_.explain_));
+                return finalplan.rows_;
+            }
 
             if (queryOpt_.optimize_.use_codegen_)
             {
