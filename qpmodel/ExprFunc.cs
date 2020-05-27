@@ -839,8 +839,16 @@ namespace qpmodel.expr
                     // notice that CoerseType() may change l/r underneath
                     type_ = ColumnType.CoerseType(op_, l_(), r_());
                     break;
-                case ">": case ">=": case "<": case "<=": 
+                case ">": case ">=": case "<": case "<=":
+                    if (ColumnType.IsNumberType(l_().type_))
+                        ColumnType.CoerseType(op_, l_(), r_());
+                    type_ = new BoolType();
+                    break;
                 case "=":case "<>": case "!=":
+                    if (ColumnType.IsNumberType(l_().type_))
+                        ColumnType.CoerseType(op_, l_(), r_());
+                    type_ = new BoolType();
+                    break;
                 case " and ": case " or ":
                 case "like": case "not like": case "in":
                 case "is": case "is not":
@@ -885,6 +893,15 @@ namespace qpmodel.expr
 
             switch (op_)
             {
+                // we can do a compile type type coerse for addition/multiply etc to align 
+                // data types, say double+decimal will require both side become decimal. 
+                // However, for comparison, we cam't do that, because that depends the actual
+                // value: decimal has better precision and double has better range, if double
+                // if out of decimal's range, we shall convert both to double; otherwise they
+                // shall be converted to decimals.
+                //
+                // We do a simplification here by forcing type coerse for any op at Bind().
+                // 
                 case "+": return lv + rv;
                 case "-": return lv - rv;
                 case "*": return lv * rv;

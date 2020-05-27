@@ -244,7 +244,7 @@ namespace qpmodel.unittest
             // long time: 4 bad plan
             // 6: distinct not supported, causing wrong result
             // 10: subquery memo not copy out
-            string[] runnable = { "q1", "q2", "q3", "q7"};
+            string[] runnable = { "q1", "q2", "q3", "q7", "q15", "q17"};
 
             // make sure all queries can generate phase one opt plan
             QueryOption option = new QueryOption();

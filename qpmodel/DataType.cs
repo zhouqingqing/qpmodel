@@ -49,6 +49,9 @@ namespace qpmodel.expr
             return true;
         }
 
+        public static bool IsNumberType(ColumnType type)
+            => type is NumericType || type is DoubleType || type is IntType;
+
         // 5/2.0 => 2.5
         public static ColumnType CoerseType(string op, Expr el, Expr er)
         {
