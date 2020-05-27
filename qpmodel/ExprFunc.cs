@@ -231,7 +231,8 @@ namespace qpmodel.expr
 
             if (str is null)
                 return null;
-            return str.Substring(start, end - start + 1);
+            // SQL allows substr() function go beyond length, guard it
+            return str.Substring(start, Math.Min(end - start + 1, str.Length));
         }
     }
     public class UpperFunc : FuncExpr
