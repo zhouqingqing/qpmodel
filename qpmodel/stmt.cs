@@ -144,7 +144,7 @@ namespace qpmodel.logic
                 var result = stmt.Exec();
                 physicplan = "";
                 if (stmt.physicPlan_ != null)
-                    physicplan = stmt.physicPlan_.Explain(option?.explain_);
+                    physicplan = stmt.physicPlan_.Explain(stmt.queryOpt_.explain_);
                 error = "";
                 return result;
             }
