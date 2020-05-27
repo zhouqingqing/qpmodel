@@ -146,6 +146,7 @@ namespace qpmodel
                 //Tpch.CreateIndexes();
                 Tpch.AnalyzeTables();
                 sql = File.ReadAllText("../../../tpch/q20.sql");
+                sql = "explain select l_shipdate from lineitem where l_orderkey = 3";
                 goto doit;
             }
 
