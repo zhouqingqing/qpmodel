@@ -81,6 +81,8 @@ namespace qpmodel.logic
                     return ce.LogicScanTableCE(sn);
                 case LogicAgg an:
                     return ce.LogicAggCE(an);
+                case LogicAppend la:
+                    return la.l_().EstimateCard() + la.r_().EstimateCard();
                 case LogicJoin jn:
                     return ce.LogicJoinCE(jn);
                 case LogicProjectSet ps:

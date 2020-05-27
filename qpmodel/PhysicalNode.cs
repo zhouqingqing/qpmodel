@@ -1413,6 +1413,10 @@ namespace qpmodel.physic
         public PhysicAppend(LogicAppend logic, PhysicNode l, PhysicNode r) : base(logic) { children_.Add(l); children_.Add(r); }
         public override string ToString() => $"PAPPEND({l_()},{r_()}): {Cost()})";
 
+        public override double EstimateCost()
+        {
+            return logic_.Card() * 1;
+        }
         public override string Open(ExecContext context)
         {
             string cs = base.Open(context);
