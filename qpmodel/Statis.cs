@@ -203,8 +203,11 @@ namespace qpmodel.stat
             foreach (var r in samples)
             {
                 Value val = r[index];
-                if (val is null)
+                if (val is null) 
+                {
                     nNulls++;
+					continue;
+                }
 
                 values.Add(val);
             }
