@@ -287,9 +287,15 @@ namespace qpmodel.unittest
             string sql_dir_fn = "../../../../test/regress/sql";
             string write_dir_fn = $"../../../../test/regress/output/tpch{scale}";
             string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}";
-            ExplainOption.show_tablename_ = false;
-            RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries);
-            ExplainOption.show_tablename_ = true;
+            try
+            {
+                ExplainOption.show_tablename_ = false;
+                RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries);
+            }
+            finally
+            {
+                ExplainOption.show_tablename_ = true;
+            }
         }
 
         void TestTpcdsPlanOnly()
@@ -328,6 +334,7 @@ namespace qpmodel.unittest
         {
             // make sure all queries parsed
             var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
+            Array.Sort(files);
 
             foreach (var v in files)
             {
@@ -360,7 +367,7 @@ namespace qpmodel.unittest
                 Assert.AreEqual("1-URGENT,9;2-HIGH,7;3-MEDIUM,9;4-NOT SPECIFIED,7;5-LOW,12", string.Join(";", result));
                 TU.ExecuteSQL(File.ReadAllText(files[4]), "", out phyplan, option);
                 if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
-                TU.ExecuteSQL(File.ReadAllText(files[5]), "77949.9186", out _, option); // FIXME: sampling estimation
+                TU.ExecuteSQL(File.ReadAllText(files[5]), "48090.8586", out _, option); // FIXME: sampling estimation
                 if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
                 TU.ExecuteSQL(File.ReadAllText(files[6]), "", out _, option);
                 TU.ExecuteSQL(File.ReadAllText(files[7]), "1995,0;1996,0", out _, option);

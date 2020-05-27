@@ -1187,10 +1187,12 @@ namespace qpmodel.expr
 
         public override string ToString()
         {
-            if (val_ is string)
-                return $"'{val_}'";
-            else
-                return str_;
+            return val_ switch
+            {
+                string val_ => $"'{val_}'",
+                double val_ => val_.ToString("0.####"),
+                _ => str_,
+            };
         }
         public override Value Exec(ExecContext context, Row input)
         {
