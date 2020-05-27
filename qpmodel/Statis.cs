@@ -279,7 +279,8 @@ namespace qpmodel.stat
         {
             if (op == "like")
                 return EstLikeSelectivity(val);
-            return mcv_?.EstSelectivity(op, val) ?? hist_?.EstSelectivity(op, val) ?? StatConst.sel_one;
+            return mcv_?.EstSelectivity(op, val) ?? 
+                hist_?.EstSelectivity(op, val) ?? StatConst.one_;
         }
         public ulong EstDistinct()
         {

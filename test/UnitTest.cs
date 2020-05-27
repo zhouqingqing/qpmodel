@@ -244,7 +244,13 @@ namespace qpmodel.unittest
             // long time: 4 bad plan
             // 6: distinct not supported, causing wrong result
             // 10: subquery memo not copy out
-            string[] runnable = { "q1", "q2", "q3", "q7", "q15", "q17" };
+            string[] runnable = { 
+                "q1", "q2", "q3", "q7", "q15", "q17", "q19", "q21", "q24", "q25",
+                "q26", "q28", "q30", "q32", "q34", "q35", "q37", "q39", "q42", "q43",
+                "q45", "q46", "q50", "q52", "q55", "q58", "q59", "q61", "q62", "q65",
+                "q68", "q69", "q71", "q73", "q79", "q81", "q82", "q83", "q84", "q85",
+                "q88", "q90", "q91", "q92", "q94", "q95", "q96", "q99"
+            };
 
             // make sure all queries can generate phase one opt plan
             QueryOption option = new QueryOption();
@@ -389,12 +395,10 @@ namespace qpmodel.unittest
                     "UNITED STATES,1998,32847.96;UNITED STATES,1997,30849.5;UNITED STATES,1996,56125.46;UNITED STATES,1995,15961.7977;" +
                     "UNITED STATES,1994,31671.2;UNITED STATES,1993,55057.469;UNITED STATES,1992,51970.23",
                     string.Join(";", result));
-#if (false)
                 result = TU.ExecuteSQL(File.ReadAllText(files[9]), out _, option);
                 if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
                 Assert.AreEqual(20, result.Count);
-#endif
-                TU.ExecuteSQL(File.ReadAllText(files[10]), "", out _, option);
+                TU.ExecuteSQL(File.ReadAllText(files[10]), "",  out _, option);
                 if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
                 TU.ExecuteSQL(File.ReadAllText(files[11]), "MAIL,5,5;SHIP,5,10", out _, option);
                 // FIXME: agg on agg from
