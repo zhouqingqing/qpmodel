@@ -132,13 +132,21 @@ namespace qpmodel.physic
                 dynamic l = this[i];
                 dynamic r = rrow[i];
                 bool flip = descends[i];
-                var c = l.CompareTo(r);
-                if (c < 0)
+                if (l is null)
+                {
+                    // null first
                     return flip ? +1 : -1;
-                else if (c == 0)
-                    continue;
-                else if (c > 0)
-                    return flip ? -1 : +1;
+                }
+                else
+                {
+                    var c = l.CompareTo(r);
+                    if (c < 0)
+                        return flip ? +1 : -1;
+                    else if (c == 0)
+                        continue;
+                    else if (c > 0)
+                        return flip ? -1 : +1;
+                }
             }
             return 0;
         }
