@@ -609,15 +609,18 @@ namespace qpmodel.expr
             AvgPair oldpair = old as AvgPair;
             if (oldpair.sum_ is null)
             {
-                pair_.sum_ = arg;
-                Debug.Assert(oldpair.count_ == 0);
                 if (arg != null)
-                    pair_.count_ = 1;
+                {
+                    pair_.sum_ = arg;
+                    Debug.Assert(oldpair.count_ == 0);
+                    if (arg == null)
+                        pair_.count_ = 1;
+                }
             }
             else
             {
                 dynamic lv = oldpair.sum_;
-                if (!(arg is null))
+                if (arg != null)
                 {
                     dynamic rv = arg;
                     pair_.sum_ = lv + rv;
@@ -643,17 +646,22 @@ namespace qpmodel.expr
             {
                 if (!computed_)
                 {
+                    stddev_ = null;
                     int n = vals_.Count;
-                    if (n == 1)
-                        stddev_ = null;
-                    else
+                    if (n != 1)
                     {
-                        dynamic sum = 0.0; vals_.ForEach(x => sum += x);
-                        var mean = sum / n;
-
-                        dynamic stddev = 0; vals_.ForEach(x => stddev += ((x - mean) * (x - mean)));
-                        stddev = Math.Sqrt(stddev / (n - 1));
-                        stddev_ = stddev;
+                        dynamic sum = 0.0; vals_.ForEach(x => sum += x is null? 0: x);
+                        if (sum != null)
+                        {
+                            var mean = sum / n;
+                            dynamic stddev = 0; vals_.ForEach(x => stddev +=  
+                                            x is null? 0: ((x - mean) * (x - mean)));
+                            if (stddev != null)
+                            {
+                                stddev = Math.Sqrt(stddev / (n - 1));
+                                stddev_ = stddev;
+                            }
+                        }
                     }
 
                     computed_ = true;

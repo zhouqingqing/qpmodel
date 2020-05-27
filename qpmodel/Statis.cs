@@ -46,8 +46,8 @@ namespace qpmodel.stat
 {
     class StatConst
     {
-        public const double sel_zero = 0.000000001;
-        public const double sel_one = 1.0;
+        public const double zero_ = 0.000000001;
+        public const double one_ = 1.0;
 
         public const double epsilon_ = 0.001;
     }
@@ -99,7 +99,7 @@ namespace qpmodel.stat
 
         public double? EstSelectivity(string op, Value val)
         {
-            double selectivity = StatConst.sel_one;
+            double selectivity = StatConst.one_;
 
             if (!new List<String>() { "=", ">", ">=", "<", "<=" }.Contains(op))
                 return null;
@@ -271,7 +271,7 @@ namespace qpmodel.stat
             sel *= Math.Pow(ANY_CHAR_SEL, str.Count(x => x == '_'));
             sel *= Math.Pow(FIXED_CHAR_SEL, str.Count(x => x != '_' && x != '%'));
             if (sel > 1)
-                sel = StatConst.sel_one;
+                sel = StatConst.one_;
             return sel;
         }
 
