@@ -105,7 +105,7 @@ namespace qpmodel.logic
     public enum ExplainMode 
     { 
         none, // physical plan only
-        plain, // physical plan with estimated cost
+        plain, // physical plan with actual cost
         explain, // physical plan with estimated cost, execution skipped
         analyze, // physical plan, estimates, actual cardinality, results muted
     }
@@ -140,7 +140,7 @@ namespace qpmodel.logic
         {
             string r = null;
             bool exp_showcost = option is null ? false : (int)option.mode_ > 1 ;
-            bool exp_showactual = option is null ? false : ( option.mode_  == ExplainMode.plain || option.mode_ == ExplainMode.analyze);
+            bool exp_showactual = option is null ? true : ( option.mode_  == ExplainMode.plain || option.mode_ == ExplainMode.analyze);
             bool exp_output = option?.show_output_ ?? true;
             bool exp_id = option?.show_id_ ?? false;
 
