@@ -546,16 +546,6 @@ namespace qpmodel.sqlparser
         {
             SQLStatement r = null;
 
-            bool isExplain = false;
-            bool isExecute = false;
-            if (context.K_EXPLAIN() != null)
-            {
-                isExplain = true;
-                if (context.K_EXECUTE() != null)
-                    isExecute = true;
-            }
-
-
             if (context.select_stmt() != null)
                 r = Visit(context.select_stmt()) as SQLStatement;
             else if (context.create_table_stmt() != null)
@@ -574,13 +564,12 @@ namespace qpmodel.sqlparser
             if (r is null)
                 throw new NotImplementedException();
 
-            Debug.Assert(!r.explainOnly_);
-            if (isExplain)
+            if (context.K_EXPLAIN() != null)
             {
-                if (!isExecute)
-                    r.explainOnly_ = true;
+                if (context.K_EXECUTE() != null)
+                    r.queryOpt_.explain_.mode_ = ExplainMode.analyze;
                 else
-                    r.explainAnalyze_ = true;
+                    r.queryOpt_.explain_.mode_ = ExplainMode.explain;
             }
             
             return r;

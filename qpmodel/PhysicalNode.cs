@@ -1389,7 +1389,7 @@ namespace qpmodel.physic
                             newr[i] = r[i];
                     }
                     rows_.Add(newr);
-                    if(!context.option_.explain_.no_output_)
+                    if((int)context.option_.explain_.mode_ < 2)
                         Console.WriteLine($"{newr}");
                 }
                 return cs;

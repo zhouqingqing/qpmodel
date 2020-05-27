@@ -102,13 +102,18 @@ namespace qpmodel.logic
         public void PopCodeGen() => optimize_.use_codegen_ = saved_use_codegen_;
     }
 
+    public enum ExplainMode 
+    { 
+        none, // physical plan only
+        plain, // physical plan with estimated cost
+        explain, // physical plan with estimated cost, execution skipped
+        analyze, // physical plan, estimates, actual cardinality, results muted
+    }
     public class ExplainOption {
 
         [ThreadStatic]
         public static bool show_tablename_ = true;
-        public bool show_cost_ { get; set; } = false;
-        public bool show_actual_ { get; set; } = true;
-        public bool no_output_ { get; set; } = false;
+        public ExplainMode mode_ = ExplainMode.plain;
         public bool show_output_ { get; set; } = true;
         public bool show_id_ { get; set; } = false;
     }
@@ -134,8 +139,8 @@ namespace qpmodel.logic
         public string Explain(ExplainOption option = null, int depth = 0)
         {
             string r = null;
-            bool exp_showcost = option?.show_cost_ ?? false;
-            bool exp_showactual = option?.show_actual_ ?? true;
+            bool exp_showcost = option is null ? false : (int)option.mode_ > 1 ;
+            bool exp_showactual = option is null ? false : (int)option.mode_ > 2;
             bool exp_output = option?.show_output_ ?? true;
             bool exp_id = option?.show_id_ ?? false;
 

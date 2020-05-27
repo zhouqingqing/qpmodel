@@ -35,7 +35,6 @@ using qpmodel.expr;
 using qpmodel.physic;
 using qpmodel.codegen;
 using qpmodel.optimizer;
-using Microsoft.Scripting.Utils;
 
 //
 // Parser is the only place shall deal with antlr 
@@ -54,8 +53,6 @@ namespace qpmodel.logic
         public PhysicNode physicPlan_;
 
         // others
-        public bool explainOnly_ = false;
-        public bool explainAnalyze_ = false;
         public Optimizer optimizer_ = new Optimizer();
         public QueryOption queryOpt_ = new QueryOption();
 
@@ -93,19 +90,10 @@ namespace qpmodel.logic
                 physicPlan_ = optimizer_.CopyOutOptimalPlan();
             }
 
-            if (explainOnly_)
+            if (queryOpt_.explain_.mode_ == ExplainMode.explain)
             {
-                queryOpt_.explain_.show_cost_ = true;
-                queryOpt_.explain_.show_actual_ = false;
                 Console.WriteLine(physicPlan_.Explain(queryOpt_.explain_));
                 return null; // empty list
-            }
-
-            if (explainAnalyze_)
-            {
-                queryOpt_.explain_.no_output_ = true;
-                queryOpt_.explain_.show_cost_ = true;
-                queryOpt_.explain_.show_actual_ = true;
             }
 
             // actual execution is needed
@@ -120,17 +108,17 @@ namespace qpmodel.logic
             code += finalplan.Exec(null);
             code += finalplan.Close();
 
-            if (explainAnalyze_)
-            {
-                Console.WriteLine(physicPlan_.Explain(queryOpt_.explain_));
-                return finalplan.rows_;
-            }
-
             if (queryOpt_.optimize_.use_codegen_)
             {
                 CodeWriter.WriteLine(code);
                 Compiler.Run(Compiler.Compile(), this, context);
             }
+
+            if (queryOpt_.explain_.mode_ == ExplainMode.analyze)
+            {
+                Console.WriteLine(physicPlan_.Explain(queryOpt_.explain_));
+            }
+
             return finalplan.rows_;
         }
 
@@ -144,7 +132,7 @@ namespace qpmodel.logic
                 var result = stmt.Exec();
                 physicplan = "";
                 if (stmt.physicPlan_ != null)
-                    physicplan = stmt.physicPlan_.Explain(stmt.queryOpt_.explain_);
+                    physicplan = stmt.physicPlan_.Explain(option?.explain_ ?? stmt.queryOpt_.explain_);
                 error = "";
                 return result;
             }
@@ -163,25 +151,8 @@ namespace qpmodel.logic
 
         public static void ExplainSQL(string sql, out string physicplan, out string error, QueryOption option = null)
         {
-            SQLStatement stmt;
-            try
-            {
-                stmt = RawParser.ParseSingleSqlStatement(sql);
-                stmt.explainOnly_ = true;
-                if (option != null)
-                    stmt.queryOpt_ = option;
-                var result = stmt.Exec();
-                physicplan = "";
-                if (stmt.physicPlan_ != null)
-                    physicplan = stmt.physicPlan_.Explain(option?.explain_);
-                error = "";
-            }
-            catch (Exception e)
-            {
-                error = e.Message;
-                Console.WriteLine(error);
-                physicplan = null;
-            }
+            option.explain_.mode_ = ExplainMode.explain;
+            ExecSQL(sql, out _, out physicplan, out error, option);
         }
 
         // This function can also be used to execute a single SQL statement
