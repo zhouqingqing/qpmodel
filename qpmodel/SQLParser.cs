@@ -547,8 +547,14 @@ namespace qpmodel.sqlparser
             SQLStatement r = null;
 
             bool isExplain = false;
+            bool isExecute = false;
             if (context.K_EXPLAIN() != null)
+            {
                 isExplain = true;
+                if (context.K_EXECUTE() != null)
+                    isExecute = true;
+            }
+
 
             if (context.select_stmt() != null)
                 r = Visit(context.select_stmt()) as SQLStatement;
@@ -569,7 +575,14 @@ namespace qpmodel.sqlparser
                 throw new NotImplementedException();
 
             Debug.Assert(!r.explainOnly_);
-            r.explainOnly_ = isExplain;
+            if (isExplain)
+            {
+                if (!isExecute)
+                    r.explainOnly_ = true;
+                else
+                    r.explainAnalyze_ = true;
+            }
+            
             return r;
         }
 

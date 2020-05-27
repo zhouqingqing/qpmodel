@@ -35,6 +35,7 @@ using qpmodel.expr;
 using qpmodel.physic;
 using qpmodel.codegen;
 using qpmodel.optimizer;
+using Microsoft.Scripting.Utils;
 
 //
 // Parser is the only place shall deal with antlr 
@@ -92,24 +93,25 @@ namespace qpmodel.logic
                 physicPlan_ = optimizer_.CopyOutOptimalPlan();
             }
 
-            // actual execution is needed
-            var finalplan = new PhysicCollect(physicPlan_);
-            physicPlan_ = finalplan;
-            finalplan.ValidateThis();
-
             if (explainOnly_)
             {
                 queryOpt_.explain_.show_cost_ = true;
                 queryOpt_.explain_.show_actual_ = false;
-                Console.WriteLine(finalplan.Explain(queryOpt_.explain_));
-                return finalplan.rows_; // empty list
+                Console.WriteLine(physicPlan_.Explain(queryOpt_.explain_));
+                return null; // empty list
             }
+
             if (explainAnalyze_)
             {
-                queryOpt_.optimize_.use_codegen_ = true;
+                queryOpt_.explain_.no_output_ = true;
                 queryOpt_.explain_.show_cost_ = true;
                 queryOpt_.explain_.show_actual_ = true;
             }
+
+            // actual execution is needed
+            var finalplan = new PhysicCollect(physicPlan_);
+            //physicPlan_ = finalplan;
+            finalplan.ValidateThis();
 
             ExecContext context = CreateExecContext();
             if (this is SelectStmt select)
@@ -120,7 +122,7 @@ namespace qpmodel.logic
 
             if (explainAnalyze_)
             {
-                Console.WriteLine(finalplan.Explain(queryOpt_.explain_));
+                Console.WriteLine(physicPlan_.Explain(queryOpt_.explain_));
                 return finalplan.rows_;
             }
 

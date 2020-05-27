@@ -108,6 +108,7 @@ namespace qpmodel.logic
         public static bool show_tablename_ = true;
         public bool show_cost_ { get; set; } = false;
         public bool show_actual_ { get; set; } = true;
+        public bool no_output_ { get; set; } = false;
         public bool show_output_ { get; set; } = true;
         public bool show_id_ { get; set; } = false;
     }
