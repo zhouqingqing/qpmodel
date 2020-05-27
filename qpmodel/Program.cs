@@ -146,7 +146,6 @@ namespace qpmodel
                 //Tpch.CreateIndexes();
                 Tpch.AnalyzeTables();
                 sql = File.ReadAllText("../../../tpch/q20.sql");
-                sql = "explain select l_shipdate from lineitem where l_orderkey = 3";
                 goto doit;
             }
 
@@ -193,7 +192,7 @@ namespace qpmodel
             a.queryOpt_.optimize_.memo_use_joinorder_solver_ = false;
             a.queryOpt_.explain_.show_output_ = true;
             a.queryOpt_.explain_.show_id_ = false;
-            a.queryOpt_.explain_.mode_ = a.queryOpt_.optimize_.use_memo_ ? ExplainMode.plain : ExplainMode.none;
+            a.queryOpt_.explain_.mode_ = a.queryOpt_.optimize_.use_memo_ ? ExplainMode.analyze : ExplainMode.plain;
 
             // -- Semantic analysis:
             //  - bind the query

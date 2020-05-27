@@ -98,7 +98,6 @@ namespace qpmodel.logic
 
             // actual execution is needed
             var finalplan = new PhysicCollect(physicPlan_);
-            //physicPlan_ = finalplan;
             finalplan.ValidateThis();
 
             ExecContext context = CreateExecContext();
