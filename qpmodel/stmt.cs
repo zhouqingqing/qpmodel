@@ -54,7 +54,6 @@ namespace qpmodel.logic
         public PhysicNode physicPlan_;
 
         // others
-        public bool explainOnly_ = false;
         public Optimizer optimizer_ = new Optimizer();
         public QueryOption queryOpt_ = new QueryOption();
 
@@ -91,8 +90,12 @@ namespace qpmodel.logic
                 optimizer_.OptimizeRootPlan(this, null);
                 physicPlan_ = optimizer_.CopyOutOptimalPlan();
             }
-            if (explainOnly_)
-                return null;
+
+            if (queryOpt_.explain_.mode_ == ExplainMode.explain)
+            {
+                Console.WriteLine(physicPlan_.Explain(queryOpt_.explain_));
+                return null; // empty list
+            }
 
             // actual execution is needed
             var finalplan = new PhysicCollect(physicPlan_);
@@ -111,6 +114,10 @@ namespace qpmodel.logic
                 CodeWriter.WriteLine(code);
                 Compiler.Run(Compiler.Compile(), this, context);
             }
+            if (queryOpt_.explain_.mode_ == ExplainMode.analyze)
+            {
+                Console.WriteLine(physicPlan_.Explain(queryOpt_.explain_));
+            }
             return finalplan.rows_;
         }
 
@@ -126,7 +133,7 @@ namespace qpmodel.logic
                 var result = stmt.Exec();
                 physicplan = "";
                 if (stmt.physicPlan_ != null)
-                    physicplan = stmt.physicPlan_.Explain(option?.explain_);
+                    physicplan = stmt.physicPlan_.Explain(option?.explain_ ?? stmt.queryOpt_.explain_);
                 error = "";
                 return result;
             }

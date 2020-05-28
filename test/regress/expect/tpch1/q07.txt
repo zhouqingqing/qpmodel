@@ -38,42 +38,40 @@ order by
 	cust_nation,
 	l_year
 Total cost: 228240249.1
-PhysicOrder  (inccost=228240249.1, cost=0.1, rows=1) (actual rows=0)
+PhysicOrder  (inccost=228240249.1, cost=0.1, rows=1)
     Output: supp_nation[0],cust_nation[1],l_year[2],{sum(volume)}[3]
     Order by: supp_nation[0], cust_nation[1], l_year[2]
-    -> PhysicHashAgg  (inccost=228240249, cost=3811525, rows=1) (actual rows=0)
+    -> PhysicHashAgg  (inccost=228240249, cost=3811525, rows=1)
         Output: {supp_nation}[0],{cust_nation}[1],{l_year}[2],{sum(volume)}[3]
         Aggregates: sum(volume[3])
         Group by: supp_nation[0], cust_nation[1], l_year[2]
-        -> PhysicFromQuery <shipping> (inccost=224428724, cost=3811523, rows=3811523) (actual rows=0)
+        -> PhysicFromQuery <shipping> (inccost=224428724, cost=3811523, rows=3811523)
             Output: supp_nation[0],cust_nation[1],l_year[2],volume[3]
-            -> PhysicHashJoin  (inccost=220617201, cost=99119598, rows=3811523) (actual rows=0)
+            -> PhysicHashJoin  (inccost=220617201, cost=99119598, rows=3811523)
                 Output: n_name (as supp_nation)[2],n_name (as cust_nation)[3],{year(l_shipdate)}[4],{l_extendedprice*1-l_discount(as volume)}[5]
                 Filter: s_suppkey[0]=l_suppkey[6] and s_nationkey[1]=n_nationkey[7]
-                -> PhysicScanTable supplier (inccost=10000, cost=10000, rows=10000) (actual rows=0)
+                -> PhysicScanTable supplier (inccost=10000, cost=10000, rows=10000)
                     Output: s_suppkey[0],s_nationkey[3]
-                -> PhysicHashJoin  (inccost=121487603, cost=99100848, rows=95288075) (actual rows=0)
+                -> PhysicHashJoin  (inccost=121487603, cost=99100848, rows=95288075)
                     Output: n_name (as supp_nation)[0],n_name (as cust_nation)[1],{year(l_shipdate)}[4],{l_extendedprice*1-l_discount(as volume)}[5],l_suppkey[6],n_nationkey[2]
                     Filter: c_nationkey[7]=n_nationkey[3]
-                    -> PhysicNLJoin  (inccost=1275, cost=1225, rows=625) (actual rows=0)
+                    -> PhysicNLJoin  (inccost=1275, cost=1225, rows=625)
                         Output: n_name (as supp_nation)[2],n_name (as cust_nation)[0],n_nationkey[3],n_nationkey[1]
                         Filter: n_name[2]='FRANCE' and n_name[0]='GERMANY' or n_name[2]='GERMANY' and n_name[0]='FRANCE'
-                        -> PhysicScanTable nation as n2 (inccost=25, cost=25, rows=25) (actual rows=0)
+                        -> PhysicScanTable nation as n2 (inccost=25, cost=25, rows=25)
                             Output: n_name (as cust_nation)[1],n_nationkey[0]
-                        -> PhysicScanTable nation as n1 (inccost=25, cost=25, rows=25) (actual rows=0)
+                        -> PhysicScanTable nation as n1 (inccost=25, cost=25, rows=25)
                             Output: n_name (as supp_nation)[1],n_nationkey[0]
-                    -> PhysicHashJoin  (inccost=22385480, cost=6652437, rows=3811523) (actual rows=0)
+                    -> PhysicHashJoin  (inccost=22385480, cost=6652437, rows=3811523)
                         Output: {year(l_shipdate)}[2],{l_extendedprice*1-l_discount(as volume)}[3],l_suppkey[4],c_nationkey[0]
                         Filter: c_custkey[1]=o_custkey[5]
-                        -> PhysicScanTable customer (inccost=150000, cost=150000, rows=150000) (actual rows=0)
+                        -> PhysicScanTable customer (inccost=150000, cost=150000, rows=150000)
                             Output: c_nationkey[3],c_custkey[0]
-                        -> PhysicHashJoin  (inccost=15583043, cost=8081828, rows=2540914) (actual rows=0)
+                        -> PhysicHashJoin  (inccost=15583043, cost=8081828, rows=2540914)
                             Output: {year(l_shipdate)}[2],{l_extendedprice*1-l_discount(as volume)}[3],l_suppkey[4],o_custkey[0]
                             Filter: o_orderkey[1]=l_orderkey[5]
-                            -> PhysicScanTable orders (inccost=1500000, cost=1500000, rows=1500000) (actual rows=0)
+                            -> PhysicScanTable orders (inccost=1500000, cost=1500000, rows=1500000)
                                 Output: o_custkey[1],o_orderkey[0]
-                            -> PhysicScanTable lineitem (inccost=6001215, cost=6001215, rows=2540914) (actual rows=0)
+                            -> PhysicScanTable lineitem (inccost=6001215, cost=6001215, rows=2540914)
                                 Output: year(l_shipdate[10]),l_extendedprice[5]*1-l_discount[6](as volume),l_suppkey[2],l_orderkey[0]
                                 Filter: l_shipdate[10]>='1995-01-01' and l_shipdate[10]<='1996-12-31'
-
-
