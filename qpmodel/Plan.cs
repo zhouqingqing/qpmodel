@@ -38,7 +38,8 @@ using qpmodel.utils;
 
 namespace qpmodel.logic
 {
-    public class QueryOption {
+    public class QueryOption
+    {
         public class ProfileOption
         {
             public bool enabled_ { get; set; } = true;
@@ -66,7 +67,8 @@ namespace qpmodel.logic
             // codegen controls
             public bool use_codegen_ { get; set; } = false;
 
-            public void TurnOnAllOptimizations() {
+            public void TurnOnAllOptimizations()
+            {
                 enable_subquery_unnest_ = true;
                 remove_from_ = true;
 
@@ -106,7 +108,8 @@ namespace qpmodel.logic
 
         // codegen section
         bool saved_use_codegen_;
-        public void PushCodeGenDisable() {
+        public void PushCodeGenDisable()
+        {
             saved_use_codegen_ = optimize_.use_codegen_;
             optimize_.use_codegen_ = false;
         }
@@ -114,7 +117,8 @@ namespace qpmodel.logic
         public void PopCodeGen() => optimize_.use_codegen_ = saved_use_codegen_;
     }
 
-    public class ExplainOption {
+    public class ExplainOption
+    {
 
         [ThreadStatic]
         public static bool show_tablename_ = true;
@@ -124,7 +128,7 @@ namespace qpmodel.logic
         public ExplainOption Clone() => (ExplainOption)MemberwiseClone();
     }
 
-    public abstract class PlanNode<T>: TreeNode<T> where T : PlanNode<T>
+    public abstract class PlanNode<T> : TreeNode<T> where T : PlanNode<T>
     {
         // print utilities
         public virtual string ExplainOutput(int depth, ExplainOption option) => null;
@@ -155,25 +159,25 @@ namespace qpmodel.logic
                 if (depth == 0)
                 {
                     if (exp_showcost && this is PhysicNode phytop)
-                        r += $"Total cost: {Math.Truncate(phytop.InclusiveCost()*100)/100}\n";
+                        r += $"Total cost: {Math.Truncate(phytop.InclusiveCost() * 100) / 100}\n";
                 }
                 else
                     r += "-> ";
 
                 // print line of <nodeName> : <Estimation> <Actual>
-                r += $"{this.GetType().Name}{(exp_id?" "+_:"")} {ExplainInlineDetails()}";
+                r += $"{this.GetType().Name}{(exp_id ? " " + _ : "")} {ExplainInlineDetails()}";
                 var phynode = this as PhysicNode;
                 if (phynode != null && phynode.profile_ != null)
                 {
                     if (exp_showcost)
                     {
-                        var incCost = Math.Truncate(phynode.InclusiveCost()*100)/100;
-                        var cost = Math.Truncate(phynode.Cost()*100)/100;
+                        var incCost = Math.Truncate(phynode.InclusiveCost() * 100) / 100;
+                        var cost = Math.Truncate(phynode.Cost() * 100) / 100;
                         r += $" (inccost={incCost}, cost={cost}, rows={phynode.logic_.Card()})";
                     }
 
                     var profile = phynode.profile_;
-                    if (profile.nloops_ == 1 || profile.nloops_==0)
+                    if (profile.nloops_ == 1 || profile.nloops_ == 0)
                         r += $" (actual rows={profile.nrows_})";
                     else
                         r += $" (actual rows={profile.nrows_ / profile.nloops_}, loops={profile.nloops_})";
@@ -182,7 +186,7 @@ namespace qpmodel.logic
                 var details = ExplainMoreDetails(depth, option);
 
                 // print current node's output
-                var output = exp_output ? ExplainOutput(depth, option): null;
+                var output = exp_output ? ExplainOutput(depth, option) : null;
                 if (output != null)
                     r += Utils.Spaces(depth + 2) + output + "\n";
                 if (details != null)
@@ -218,7 +222,7 @@ namespace qpmodel.logic
                         nshuffle++;
                 });
                 r += $"\nEmulated {QueryOption.num_machines_} machines distributed run " +
-                     $"with {nthreads*(1+nshuffle)} threads\n";
+                     $"with {nthreads * (1 + nshuffle)} threads\n";
             }
             return r;
         }
@@ -227,7 +231,8 @@ namespace qpmodel.logic
         public int FindNodeTypeMatch<T1>(List<T> parents,
             List<int> childIndex, List<T1> targets, Type skipParentType = null) where T1 : PlanNode<T>
         {
-            VisitEach((parent, index, child)=> {
+            VisitEach((parent, index, child) =>
+            {
                 if (child is T1 ct)
                 {
                     parents?.Add((T)parent);
@@ -312,7 +317,8 @@ namespace qpmodel.logic
                                                                 replacement);
                     }
                 }
-                else if (e is FuncExpr f && f.isSRF_) {
+                else if (e is FuncExpr f && f.isSRF_)
+                {
                     var newchild = new LogicProjectSet(root.child_());
                     root.children_[0] = newchild;
                 }
@@ -437,7 +443,7 @@ namespace qpmodel.logic
             // shape with main queyr not distributed but subquery is.
             //
             bool hasdtable = false;
-            from_.ForEach(x => hasdtable |= 
+            from_.ForEach(x => hasdtable |=
                 (x is BaseTableRef bx && bx.IsDistributed()));
             if (hasdtable)
             {
@@ -452,7 +458,8 @@ namespace qpmodel.logic
         // select * from (select max(b3) maxb3 from b) b where maxb3>1
         // where => max(b3)>1 and this shall be moved to aggregation node
         //
-        Expr moveFilterToInsideAggNode(LogicNode root, Expr filter) {
+        Expr moveFilterToInsideAggNode(LogicNode root, Expr filter)
+        {
             // first find out the aggregation node shall take the filter
             List<LogicAgg> aggNodes = new List<LogicAgg>();
             if (root.FindNodeTypeMatch<LogicAgg>(aggNodes) > 1)
@@ -462,7 +469,8 @@ namespace qpmodel.logic
             // make the filter and add to the node
             var list = filter.FilterToAndList();
             List<Expr> shallmove = new List<Expr>();
-            foreach (var v in list) {
+            foreach (var v in list)
+            {
                 if (v.HasAggFunc())
                     shallmove.Add(v);
             }
@@ -543,13 +551,15 @@ namespace qpmodel.logic
                 if (having_ != null)
                     root = setReturningExprCreatePlan(root, having_);
                 if (groupby_ != null)
-                    groupby_.ForEach(x => {
+                    groupby_.ForEach(x =>
+                    {
                         root = setReturningExprCreatePlan(root, x);
                     });
             }
 
             // selection list
-            selection_.ForEach(x => {
+            selection_.ForEach(x =>
+            {
                 var oldroot = root;
                 root = setReturningExprCreatePlan(root, x);
                 shallExpandSelection_ |= root != oldroot;
@@ -559,9 +569,9 @@ namespace qpmodel.logic
             if (orders_ != null)
                 root = new LogicOrder(root, orders_, descends_);
 
-			// limit
-			if (limit_ != null)
-				root = new LogicLimit (root, limit_);
+            // limit
+            if (limit_ != null)
+                root = new LogicLimit(root, limit_);
 
             // ctes
             if (ctes_ != null)
@@ -569,7 +579,8 @@ namespace qpmodel.logic
 
             // let's make sure the plan is in good shape
             //  - there is no filter except filter node (ok to be multiple)
-            root.VisitEach(x => {
+            root.VisitEach(x =>
+            {
                 var log = x as LogicNode;
                 if (!(x is LogicFilter))
                     Debug.Assert(log.filter_ is null);
@@ -610,7 +621,8 @@ namespace qpmodel.logic
                 // setops plan can also have CTEs, LIMIT and ORDER support
                 // Notes: GROUPBY is with the individual clause
                 Debug.Assert(!hasAgg_);
-                if (orders_ != null) {
+                if (orders_ != null)
+                {
                     orders_ = bindOrderByOrGroupBy(context, orders_);
                 }
             }
@@ -624,7 +636,8 @@ namespace qpmodel.logic
         {
             byList = replaceOutputNameToExpr(byList);
             byList = seq2selection(byList, selection_);
-            byList.ForEach(x => {
+            byList.ForEach(x =>
+            {
                 if (!x.bounded_)        // some items already bounded with seq2selection()
                     x.Bind(context);
             });
@@ -701,7 +714,7 @@ namespace qpmodel.logic
                     throw new SemanticAnalyzeException("aggregation functions are not allowed in group by clause");
             }
 
-            if (having_ != null) 
+            if (having_ != null)
             {
                 hasAgg_ = true;
                 having_.Bind(context);
@@ -747,7 +760,8 @@ namespace qpmodel.logic
                 }
             }
 
-            void bindTableRef(TableRef table) {
+            void bindTableRef(TableRef table)
+            {
                 switch (table)
                 {
                     case BaseTableRef bref:

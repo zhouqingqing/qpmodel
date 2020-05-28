@@ -30,6 +30,8 @@ using System.Diagnostics;
 using System.Linq;
 using System.Collections.Generic;
 using System.IO;
+using System.Globalization;
+using System.Threading;
 
 using qpmodel.stat;
 using qpmodel.sqlparser;
@@ -55,7 +57,8 @@ namespace qpmodel
         public override string ToString() => $"{name_} {type_} [{ordinal_}]";
     }
 
-    public class Distribution {
+    public class Distribution
+    {
         public TableDef tableDef_;
 
         public List<Row> heap_ = new List<Row>();
@@ -92,7 +95,8 @@ namespace qpmodel
                 distributions_.Add(new Distribution());
         }
 
-        public List<ColumnDef> ColumnsInOrder() {
+        public List<ColumnDef> ColumnsInOrder()
+        {
             var list = columns_.Values.ToList();
             return list.OrderBy(x => x.ordinal_).ToList();
         }
@@ -103,9 +107,10 @@ namespace qpmodel
             return value;
         }
 
-        public IndexDef IndexContains(string column) 
+        public IndexDef IndexContains(string column)
         {
-            foreach (var v in indexes_) {
+            foreach (var v in indexes_)
+            {
                 if (v.columns_.Contains(column))
                     return v;
             }
@@ -137,20 +142,23 @@ namespace qpmodel
         {
             records_[tabName].indexes_.Add(index);
         }
-        public void DropIndex(string indName) {
+        public void DropIndex(string indName)
+        {
             var tab = IndexGetTable(indName);
             if (tab != null)
                 tab.indexes_.RemoveAll(x => x.name_.Equals(indName));
         }
 
-        public TableDef TryTable(string tabName) {
+        public TableDef TryTable(string tabName)
+        {
             if (records_.TryGetValue(tabName, out TableDef value))
                 return value;
             return null;
         }
-        public TableDef Table(string tabName)=> records_[tabName];
+        public TableDef Table(string tabName) => records_[tabName];
 
-        public IndexDef Index(string indName) {
+        public IndexDef Index(string indName)
+        {
             foreach (var v in records_)
             {
                 foreach (var i in v.Value.indexes_)
@@ -170,8 +178,8 @@ namespace qpmodel
             }
             return null;
         }
-        public Dictionary<string, ColumnDef> TableCols(string tabName)=> records_[tabName].columns_;
-        public ColumnDef Column(string tabName, string colName)=> TableCols(tabName)[colName];
+        public Dictionary<string, ColumnDef> TableCols(string tabName) => records_[tabName].columns_;
+        public ColumnDef Column(string tabName, string colName) => TableCols(tabName)[colName];
     }
 
     public static class Catalog
@@ -182,7 +190,7 @@ namespace qpmodel
 
         static void createOptimizerTables()
         {
-            List<ColumnDef> cols = new List<ColumnDef> { new ColumnDef("i", 0)};
+            List<ColumnDef> cols = new List<ColumnDef> { new ColumnDef("i", 0) };
             for (int i = 0; i < 30; i++)
             {
                 Catalog.systable_.CreateTable($"T{i}", cols, null);
@@ -216,11 +224,11 @@ namespace qpmodel
 
             // load tables
             var curdir = Directory.GetCurrentDirectory();
-            var folder = $@"{curdir}\..\..\..\data";
-            var tables = new List<string>() { "a", "b", "c", "d", "r", "ad", "bd", "cd", "dd", "ast"};
+            var folder = $@"{curdir}/../../../../data";
+            var tables = new List<string>() { "a", "b", "c", "d", "r", "ad", "bd", "cd", "dd", "ast" };
             foreach (var v in tables)
             {
-                string filename = $@"'{folder}\{v}.tbl'";
+                string filename = $@"'{folder}/{v}.tbl'";
                 var sql = $"copy {v} from {filename};";
                 var result = SQLStatement.ExecSQL(sql, out _, out _);
             }
@@ -244,11 +252,20 @@ namespace qpmodel
         {
         }
 
-        static public void Init() 
+        static public void Init()
         {
             // be careful: any exception happened here will be swallowed without throw any exception
             createBuildInTestTables();
             createOptimizerTables();
+
+            // Change current culture: different locales have different ways to format the time. 
+            // We are using text comparison in the tests so formatting can cause trouble.
+            var culture = CultureInfo.CreateSpecificCulture("en-US");
+            CultureInfo.DefaultThreadCurrentCulture = culture;
+            CultureInfo.DefaultThreadCurrentUICulture = culture;
+
+            Thread.CurrentThread.CurrentCulture = culture;
+            Thread.CurrentThread.CurrentUICulture = culture;
         }
     }
 }

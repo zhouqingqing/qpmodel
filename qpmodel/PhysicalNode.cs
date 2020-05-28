@@ -86,7 +86,8 @@ namespace qpmodel.physic
             });
         }
 
-        public virtual string Open(ExecContext context) {
+        public virtual string Open(ExecContext context)
+        {
             string s = null;
             context_ = context;
             if (context.option_.optimize_.use_codegen_)
@@ -100,7 +101,8 @@ namespace qpmodel.physic
             children_.ForEach(x => s += x.Open(context)); return s;
         }
 
-        public virtual string Close() {
+        public virtual string Close()
+        {
             string s = ""; children_.ForEach(x => s += x.Close()); return s;
         }
         // @context is to carray parameters etc, @callback.Row is current row for processing
@@ -145,7 +147,8 @@ namespace qpmodel.physic
         {
             var incCost = 0.0;
             incCost += Cost();
-            children_.ForEach(x => {
+            children_.ForEach(x =>
+            {
                 if (x is PhysicMemoRef xp)
                     incCost += xp.Group().minIncCost_;
                 else
@@ -164,7 +167,8 @@ namespace qpmodel.physic
         // across callback boundaries are special: they have to be uniquely named and
         // use consistently.
         //
-        public PhysicNode LocateNode(string objectid) {
+        public PhysicNode LocateNode(string objectid)
+        {
             PhysicNode target = null;
             VisitEachExists(x =>
             {
@@ -182,7 +186,8 @@ namespace qpmodel.physic
             return target;
         }
 
-        protected string CreateCommonNames() {
+        protected string CreateCommonNames()
+        {
             Debug.Assert(context_.option_.optimize_.use_codegen_);
 
             var phytype = GetType().Name;
@@ -401,7 +406,8 @@ namespace qpmodel.physic
                 int i = 0;
                 Array.ForEach(fields, f =>
                 {
-                    if (f == "") {
+                    if (f == "")
+                    {
                         r[i] = null;
                     }
                     else
@@ -437,7 +443,8 @@ namespace qpmodel.physic
         }
     }
 
-    public abstract class PhysicJoin : PhysicNode {
+    public abstract class PhysicJoin : PhysicNode
+    {
         public enum Implmentation
         {
             NLJoin,
@@ -583,7 +590,8 @@ namespace qpmodel.physic
 
         static public KeyList ComputeKeys(ExecContext context, List<Expr> keys, Row input)
         {
-            if (keys != null) {
+            if (keys != null)
+            {
                 var list = new KeyList(keys.Count);
                 for (int i = 0; i < keys.Count; i++)
                     list[i] = keys[i].Exec(context, input);
@@ -634,7 +642,8 @@ namespace qpmodel.physic
             bool left = type == JoinType.Left;
 
             // build hash table with left side 
-            string s = l_().Exec(l => {
+            string s = l_().Exec(l =>
+            {
                 string buildcode = null;
                 if (context.option_.optimize_.use_codegen_)
                 {
@@ -684,10 +693,11 @@ namespace qpmodel.physic
             }
             s += r_().Exec(r =>
             {
-                 string probecode = null;
-                 if (context.option_.optimize_.use_codegen_) {
-                     var rname = $"r{r_()._}";
-                     probecode += $@"
+                string probecode = null;
+                if (context.option_.optimize_.use_codegen_)
+                {
+                    var rname = $"r{r_()._}";
+                    probecode += $@"
                     if (context.stop_)
                         return;
 
@@ -705,7 +715,7 @@ namespace qpmodel.physic
                             {ExecProjectCode($"r{_}")}
                             {callback(null)}
                             {codegen_if(semi,
-                                 "break;")}
+                                "break;")}
                         }}
                     }}
                     else
@@ -727,49 +737,49 @@ namespace qpmodel.physic
                         }}")}
                     }}
                     ";
-                 }
-                 else
-                 {
-                     if (context.stop_)
-                         return null;
+                }
+                else
+                {
+                    if (context.stop_)
+                        return null;
 
-                     Row fakel = new Row(l_().logic_.output_.Count);
-                     Row n = new Row(fakel, r);
-                     var keys = KeyList.ComputeKeys(context, logic.rightKeys_, n);
-                     bool foundOneMatch = false;
+                    Row fakel = new Row(l_().logic_.output_.Count);
+                    Row n = new Row(fakel, r);
+                    var keys = KeyList.ComputeKeys(context, logic.rightKeys_, n);
+                    bool foundOneMatch = false;
 
-                     if (hm.TryGetValue(keys, out List<TaggedRow> exist))
-                     {
-                         foundOneMatch = true;
-                         foreach (var v in exist)
-                         {
-                             if (left)
-                                 v.matched_ = true;
-                             n = ExecProject(new Row(v.row_, r));
-                             callback(n);
-                             if (semi)
-                                 break;
-                         }
-                     }
-                     else
-                     {
+                    if (hm.TryGetValue(keys, out List<TaggedRow> exist))
+                    {
+                        foundOneMatch = true;
+                        foreach (var v in exist)
+                        {
+                            if (left)
+                                v.matched_ = true;
+                            n = ExecProject(new Row(v.row_, r));
+                            callback(n);
+                            if (semi)
+                                break;
+                        }
+                    }
+                    else
+                    {
                         // no match for antisemi
                         if (antisemi && !foundOneMatch)
-                         {
-                             n = new Row(null, r);
-                             n = ExecProject(n);
-                             callback(n);
-                         }
-                         if (right && !foundOneMatch)
-                         {
-                             n = new Row(new Row(l_().logic_.output_.Count), r);
-                             n = ExecProject(n);
-                             callback(n);
-                         }
-                     }
-                 }
-                 return probecode;
-             });
+                        {
+                            n = new Row(null, r);
+                            n = ExecProject(n);
+                            callback(n);
+                        }
+                        if (right && !foundOneMatch)
+                        {
+                            n = new Row(new Row(l_().logic_.output_.Count), r);
+                            n = ExecProject(n);
+                            callback(n);
+                        }
+                    }
+                }
+                return probecode;
+            });
 
             // left join shall examine hash table and output all non-matched rows
             if (left)
@@ -798,10 +808,10 @@ namespace qpmodel.physic
         }
     }
 
-    public abstract class PhysicAgg: PhysicNode 
+    public abstract class PhysicAgg : PhysicNode
     {
         public PhysicAgg(LogicAgg logic, PhysicNode l) : base(logic) => children_.Add(l);
-   
+
         public Row AggrCoreToRow(Row input)
         {
             var aggfns = (logic_ as LogicAgg).aggrFns_;
@@ -1105,7 +1115,8 @@ namespace qpmodel.physic
             string s = child_().Exec(l =>
             {
                 string build = null;
-                if (context.option_.optimize_.use_codegen_) {
+                if (context.option_.optimize_.use_codegen_)
+                {
                     build = $@"set{_}.Add(r{child_()._});";
                 }
                 else
@@ -1319,7 +1330,8 @@ namespace qpmodel.physic
             s += child_().Exec(l =>
             {
                 string code = null;
-                if (context.option_.optimize_.use_codegen_) {
+                if (context.option_.optimize_.use_codegen_)
+                {
                     code = $@"
                     {_physic_}.nrows_++;
                     var r{_} = r{child_()._};
@@ -1379,7 +1391,8 @@ namespace qpmodel.physic
             string s = child_().Exec(r =>
             {
                 string cs = null;
-                if (context.option_.optimize_.use_codegen_) {
+                if (context.option_.optimize_.use_codegen_)
+                {
                     cs += $@"
                         Row newr = new Row({ncolumns});";
                     for (int i = 0; i < output.Count; i++)
@@ -1452,7 +1465,8 @@ namespace qpmodel.physic
         }
     }
 
-    public class PhysicLimit : PhysicNode {
+    public class PhysicLimit : PhysicNode
+    {
 
         public PhysicLimit(LogicLimit logic, PhysicNode l) : base(logic) => children_.Add(l);
         public override string ToString() => $"PLIMIT({child_()}: {Cost()})";
@@ -1481,7 +1495,8 @@ namespace qpmodel.physic
             string s = child_().Exec(l =>
             {
                 string srccode = null;
-                if (context.option_.optimize_.use_codegen_) {
+                if (context.option_.optimize_.use_codegen_)
+                {
                     srccode = $@"                    
                     nrows{_}++;
                     Debug.Assert(nrows{_} <= {limit});
@@ -1525,7 +1540,7 @@ namespace qpmodel.physic
         public override string Open(ExecContext econtext)
         {
             var context = econtext as DistributedContext;
-            var code = asConsumer_? OpenConsumer(context) : OpenProducer(context);
+            var code = asConsumer_ ? OpenConsumer(context) : OpenProducer(context);
 
             // only producer inherits the bottom half of the plan
             if (!asConsumer_)
@@ -1544,7 +1559,7 @@ namespace qpmodel.physic
         }
     }
 
-    public class PhysicGather: PhysicRemoteExchange
+    public class PhysicGather : PhysicRemoteExchange
     {
         internal ExchangeChannel channel_ { get; set; }
 
@@ -1655,7 +1670,7 @@ namespace qpmodel.physic
         // producer only: channels it shall send data to, so the number equals nubmer of machines
         List<ExchangeChannel> upChannels_ { get; set; }
 
-        public PhysicRedistribute(LogicRedistribute logic, PhysicNode l) : base(logic, l) {}
+        public PhysicRedistribute(LogicRedistribute logic, PhysicNode l) : base(logic, l) { }
         public override string ToString() => $"PREDISTRIBUTE({child_()}: {Cost()})";
 
         public override string OpenConsumer(ExecContext econtext)
@@ -1667,7 +1682,7 @@ namespace qpmodel.physic
 
             Debug.Assert(context.machineId_ >= 0);
             var machineId = context.machineId_;
-            var wo = new WorkerObject(Thread.CurrentThread.Name, 
+            var wo = new WorkerObject(Thread.CurrentThread.Name,
                                     context.machines_,
                                     machineId,
                                     planId,
@@ -1741,7 +1756,7 @@ namespace qpmodel.physic
         }
     }
 
-    public class PhysicProjectSet: PhysicNode
+    public class PhysicProjectSet : PhysicNode
     {
         public PhysicProjectSet(LogicProjectSet logic, PhysicNode l) : base(logic) => children_.Add(l);
         public override string ToString() => $"PPRJSET({child_()}: {Cost()})";
@@ -1791,7 +1806,7 @@ namespace qpmodel.physic
                     foreach (var v in srfvals)
                     {
                         var newr = new Row(output.Count);
-                        for (int j = 0; j< output.Count; j++)
+                        for (int j = 0; j < output.Count; j++)
                         {
                             if (j != srfcol)
                                 newr[j] = r[j];

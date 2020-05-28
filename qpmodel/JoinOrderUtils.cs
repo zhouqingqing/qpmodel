@@ -822,7 +822,8 @@ namespace qpmodel.optimizer
         // example: {A,B,C}, {A.a=B.b, A.a=C.c}
         internal JoinGraph(string[] vertices, string[] preds) :
             this(vertices.Select(x => new LogicScanTable(new BaseTableRef(x)) as LogicNode).ToList(),
-            dbg_JoinStringToExpr(vertices, preds)){ }
+            dbg_JoinStringToExpr(vertices, preds))
+        { }
         internal static Expr dbg_JoinStringToExpr(string[] vertices, string v)
         {
             // parse a join predicate like "T1 * T5" and returns index of T1 and T5
@@ -845,10 +846,10 @@ namespace qpmodel.optimizer
             var i12 = dbg_ParseJoinPredString(vertices.ToList(), v);
             int i1 = i12[0], i2 = i12[1];
 
-            ColExpr l = new ColExpr(null, vertices[i1], $"a{i1+1}", new IntType());
+            ColExpr l = new ColExpr(null, vertices[i1], $"a{i1 + 1}", new IntType());
             var lref = new BaseTableRef(vertices[i1]); l.tabRef_ = lref; l.tableRefs_.Add(lref);
             l.bounded_ = true;
-            ColExpr r = new ColExpr(null, vertices[i2], $"a{i2+1}", new IntType());
+            ColExpr r = new ColExpr(null, vertices[i2], $"a{i2 + 1}", new IntType());
             var rref = new BaseTableRef(vertices[i2]); r.tabRef_ = rref; r.tableRefs_.Add(rref);
             r.bounded_ = true;
             Expr pred = BinExpr.MakeBooleanExpr(l, r, "=");

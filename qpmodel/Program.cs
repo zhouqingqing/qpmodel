@@ -56,7 +56,7 @@ namespace qpmodel
             SQLContext.Register<double, string>("sqroot", sqroot);
             var a = sqlContext.Read("a");
             var b = sqlContext.Read("b");
-            
+
             a.filter("a1>1").join(b, "b2=a2").select("a1", "sqroot(b1*a1+2)").show();
             string s = a.physicPlan_.Explain();
             Console.WriteLine(s);
@@ -67,7 +67,8 @@ namespace qpmodel
         static void TestDataSet2()
         {
             Random rand = new Random();
-            int inside(int d) {
+            int inside(int d)
+            {
                 var x = rand.NextDouble();
                 var y = rand.NextDouble();
                 var ret = x * x + y * y <= 1 ? 1 : 0;
@@ -81,7 +82,7 @@ namespace qpmodel
         }
         static void TestJobench()
         {
-            var files = Directory.GetFiles(@"../../../jobench");
+            var files = Directory.GetFiles(@"../../../../jobench");
 
             JOBench.CreateTables();
 
@@ -101,8 +102,8 @@ namespace qpmodel
         }
         static void TestTpcds_LoadData()
         {
-            var files = Directory.GetFiles(@"../../../tpcds", "*.sql");
-            string[] norun = {"q1", "q10"};
+            var files = Directory.GetFiles(@"../../../../tpcds", "*.sql");
+            string[] norun = { "q1", "q10" };
 
             Tpcds.CreateTables();
             Tpcds.LoadTables("tiny");
@@ -135,7 +136,7 @@ namespace qpmodel
             if (false)
             {
                 JOBench.CreateTables();
-                sql = File.ReadAllText("../../../jobench/10a.sql");
+                sql = File.ReadAllText("../../../../jobench/10a.sql");
                 goto doit;
             }
 
@@ -145,19 +146,19 @@ namespace qpmodel
                 Tpch.LoadTables("0001");
                 //Tpch.CreateIndexes();
                 Tpch.AnalyzeTables();
-                sql = File.ReadAllText("../../../tpch/q20.sql");
+                sql = File.ReadAllText("../../../../tpch/q20.sql");
                 goto doit;
             }
 
             if (false)
-            { 
+            {
                 Tpcds.CreateTables();
                 Tpcds.LoadTables("tiny");
                 Tpcds.AnalyzeTables();
                 // 1, 2,3,7,10,
                 // long time: 4 bad plan
                 // 6: distinct not supported, causing wrong result
-                sql = File.ReadAllText("../../../tpcds/q7.sql");
+                sql = File.ReadAllText("../../../../tpcds/q7.sql");
                 goto doit;
             }
 
@@ -245,7 +246,7 @@ namespace qpmodel
             Console.WriteLine(phyplan.Explain(a.queryOpt_.explain_));
 
             stopWatch.Stop();
-            Console.WriteLine("RunTime: " + stopWatch.Elapsed); 
+            Console.WriteLine("RunTime: " + stopWatch.Elapsed);
             Console.ReadKey();
         }
     }

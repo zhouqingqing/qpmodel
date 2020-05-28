@@ -97,7 +97,8 @@ namespace qpmodel.expr
             return false;
         }
 
-        public bool IsCorrelated() {
+        public bool IsCorrelated()
+        {
             Debug.Assert(bounded_);
             return query_.isCorrelated_;
         }
@@ -110,7 +111,8 @@ namespace qpmodel.expr
         // InSubquery ... b is not correlated but its child is correlated to outside 
         // table a, which makes it not cacheable.
         //
-        public bool IsCacheable() {
+        public bool IsCacheable()
+        {
             if (isCacheable_ is null)
             {
                 if (IsCorrelated())
@@ -124,7 +126,8 @@ namespace qpmodel.expr
                     bool childCorrelated = false;
                     query_.subQueries_.ForEach(x =>
                     {
-                        if (x.query_.isCorrelated_) { 
+                        if (x.query_.isCorrelated_)
+                        {
                             if (!queriesOkToRef.ContainsList(x.query_.correlatedWhich_))
                                 childCorrelated = true;
                         }
@@ -174,7 +177,7 @@ namespace qpmodel.expr
             });
 
             bool exists = r != null;
-            cachedVal_ = hasNot_? !exists: exists;
+            cachedVal_ = hasNot_ ? !exists : exists;
             cachedValSet_ = true;
             return cachedVal_;
         }
@@ -211,7 +214,7 @@ namespace qpmodel.expr
             });
             context.option_.PopCodeGen();
 
-            cachedVal_ = (r != null)? r[0] : null;
+            cachedVal_ = (r != null) ? r[0] : null;
             cachedValSet_ = true;
             return cachedVal_;
         }
@@ -239,9 +242,9 @@ namespace qpmodel.expr
         {
             Debug.Assert(type_ != null);
             Value expr = expr_().Exec(context, input);
-            if (IsCacheable () && cachedValSet_)
+            if (IsCacheable() && cachedValSet_)
                 return (cachedVal_ as HashSet<Value>).Contains(expr);
-            
+
             var set = new HashSet<Value>();
             query_.physicPlan_.Exec(l =>
             {
@@ -298,7 +301,8 @@ namespace qpmodel.expr
             var inlist = inlist_();
             if (inlist_().Count < 5)
                 return $"{expr_()} in ({string.Join(",", inlist)})";
-            else {
+            else
+            {
                 return $"{expr_()} in ({string.Join(",", inlist.GetRange(0, 3))}, ... <Total: {inlist.Count}> )";
             }
         }

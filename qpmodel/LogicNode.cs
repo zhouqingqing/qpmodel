@@ -60,7 +60,7 @@ namespace qpmodel.logic
         // these fields are used to avoid recompute - be careful with stale caching
         protected List<TableRef> tableRefs_ = null;
         // tables it contained (children recursively inclusive)
-        internal BitVector tableContained_ { get; set; }     
+        internal BitVector tableContained_ { get; set; }
 
         // it is possible to really have this value but ok to recompute
         protected LogicSignature logicSign_ = -1;
@@ -228,7 +228,7 @@ namespace qpmodel.logic
                     refs.Add(fx.queryRef_);
                     refs.AddRange(fx.queryRef_.query_.bindContext_.AllTableRefs());
                 }
-                else 
+                else
                 {
                     foreach (var v in children_)
                         refs.AddRange(v.InclusiveTableRefs(refresh));
@@ -259,7 +259,8 @@ namespace qpmodel.logic
             // let's first fix Aggregation as a whole epxression - there could be some combinations
             // of AggrRef with aggregation keys (ColExpr), so we have to go thorough after it
             //
-            clone.VisitEachT<AggrRef>(target => {
+            clone.VisitEachT<AggrRef>(target =>
+            {
                 Predicate<Expr> roughNameTest;
                 roughNameTest = z => target.Equals(z);
                 target.ordinal_ = source.FindIndex(roughNameTest);
@@ -268,7 +269,8 @@ namespace qpmodel.logic
                     Debug.Assert(source.FindAll(roughNameTest).Count == 1);
                 }
             });
-            clone.VisitEachT<AggFunc>(target => {
+            clone.VisitEachT<AggFunc>(target =>
+            {
                 Predicate<Expr> roughNameTest;
                 roughNameTest = z => target.Equals(z);
                 int ordinal = source.FindIndex(roughNameTest);
@@ -279,25 +281,25 @@ namespace qpmodel.logic
             // we have to use each ColExpr and fix its ordinal
             clone.VisitEachIgnoreRef<ColExpr>(target =>
             {
-            // ignore system column, ordinal is known
-            if (target is SysColExpr)
-                return;
+                // ignore system column, ordinal is known
+                if (target is SysColExpr)
+                    return;
 
-            Predicate<Expr> roughNameTest;
-            roughNameTest = z => target.Equals(z) || target.colName_.Equals(z.outputName_);
+                Predicate<Expr> roughNameTest;
+                roughNameTest = z => target.Equals(z) || target.colName_.Equals(z.outputName_);
 
-            // using source's matching index for ordinal
-            // fix colexpr's ordinal - leave the outerref as it is already decided in ColExpr.Bind()
-            // During execution, the bottom node will be responsible to fill the value via AddParam().
-            //
-            if (!target.isParameter_)
-            {
-                target.ordinal_ = source.FindIndex(roughNameTest);
-
-                // we may hit more than one target, say t2.col1 matching {t1.col1, t2.col1}
-                // in this case, we shall redo the mapping with table name
+                // using source's matching index for ordinal
+                // fix colexpr's ordinal - leave the outerref as it is already decided in ColExpr.Bind()
+                // During execution, the bottom node will be responsible to fill the value via AddParam().
                 //
-                Debug.Assert(source.FindAll(roughNameTest).Count >= 1);
+                if (!target.isParameter_)
+                {
+                    target.ordinal_ = source.FindIndex(roughNameTest);
+
+                    // we may hit more than one target, say t2.col1 matching {t1.col1, t2.col1}
+                    // in this case, we shall redo the mapping with table name
+                    //
+                    Debug.Assert(source.FindAll(roughNameTest).Count >= 1);
                     if (source.FindAll(roughNameTest).Count > 1)
                     {
                         Predicate<ColExpr> nameAndTableMatch = z =>
@@ -318,7 +320,7 @@ namespace qpmodel.logic
         // output_ may adjust column ordinals after ordinal fixing, so we have to re-register them for codeGen
         protected void RefreshOutputRegisteration()
         {
-            output_.ForEach(x=> ExprSearch.table_[x._] = x);
+            output_.ForEach(x => ExprSearch.table_[x._] = x);
         }
 
         // fix each expression by using source's ordinal and make a copy
@@ -364,7 +366,8 @@ namespace qpmodel.logic
             return card_;
         }
 
-        public ulong EstimateCard() {
+        public ulong EstimateCard()
+        {
             return CardEstimator.DoEstimation(this);
         }
 
@@ -372,11 +375,13 @@ namespace qpmodel.logic
         public List<Expr> RetrieveCorrelated(bool returnColExprOnly)
         {
             List<Expr> results = new List<Expr>();
-            VisitEach(x => {
+            VisitEach(x =>
+            {
                 var logic = x as LogicNode;
                 var filterExpr = logic.filter_;
 
-                if (filterExpr != null) {
+                if (filterExpr != null)
+                {
                     if (returnColExprOnly)
                         results.AddRange(filterExpr.FilterGetCorrelatedCol());
                     else
@@ -390,7 +395,8 @@ namespace qpmodel.logic
         public List<Expr> RetrieveCorrelatedFilters() => RetrieveCorrelated(false);
     }
 
-    public static class LogicHelper {
+    public static class LogicHelper
+    {
         public static bool LeftReferencesRight(this LogicNode l, LogicNode r)
         {
             var ltables = l.InclusiveTableRefs();
@@ -403,7 +409,8 @@ namespace qpmodel.logic
 
             // now examine each correlated expr from left, so if it references right
             var listexpr = l.RetrieveCorrelatedFilters();
-            foreach (var v in listexpr) {
+            foreach (var v in listexpr)
+            {
                 var refs = v.FilterGetOuterRef();
                 if (rtables.Intersect(refs).Any())
                     return true;
@@ -425,11 +432,12 @@ namespace qpmodel.logic
 
     // LogicMemoRef wrap a CMemoGroup as a LogicNode (so CMemoGroup can be used in plan tree)
     //
-    public class LogicMemoRef : LogicNode {
+    public class LogicMemoRef : LogicNode
+    {
         public CMemoGroup group_;
 
         public LogicNode Deref() => child_();
-        public T Deref<T>() where T: LogicNode => (T)Deref();
+        public T Deref<T>() where T : LogicNode => (T)Deref();
 
         public LogicMemoRef(CMemoGroup group)
         {
@@ -448,7 +456,7 @@ namespace qpmodel.logic
 
         public override LogicSignature MemoLogicSign() => Deref().MemoLogicSign();
         public override int GetHashCode() => (int)MemoLogicSign();
-        public override bool Equals(object obj) 
+        public override bool Equals(object obj)
         {
             if (obj is LogicMemoRef lo)
                 return lo.MemoLogicSign() == MemoLogicSign();
@@ -456,7 +464,8 @@ namespace qpmodel.logic
         }
     }
 
-    public enum JoinType {
+    public enum JoinType
+    {
         // ANSI SQL specified join types can show in SQL statement
         Inner,
         Left,
@@ -484,7 +493,8 @@ namespace qpmodel.logic
 
         public override string ToString() => $"({l_()} {type_} {r_()})";
         public override string ExplainInlineDetails() { return type_ == JoinType.Inner ? "" : type_.ToString(); }
-        public LogicJoin(LogicNode l, LogicNode r) { 
+        public LogicJoin(LogicNode l, LogicNode r)
+        {
             children_.Add(l); children_.Add(r);
             if (l != null && r != null)
             {
@@ -492,14 +502,15 @@ namespace qpmodel.logic
                 tableContained_ = SetOp.Union(l.tableContained_, r.tableContained_);
             }
         }
-        public LogicJoin(LogicNode l, LogicNode r, Expr filter): this(l, r) 
-        { 
-            filter_ = filter; 
+        public LogicJoin(LogicNode l, LogicNode r, Expr filter) : this(l, r)
+        {
+            filter_ = filter;
         }
 
         public bool IsInnerJoin() => type_ == JoinType.Inner && !(this is LogicMarkJoin);
 
-        public override LogicSignature MemoLogicSign() {
+        public override LogicSignature MemoLogicSign()
+        {
             if (logicSign_ == -1)
                 logicSign_ = l_().MemoLogicSign() ^ r_().MemoLogicSign() ^ filter_.FilterHashCode();
             return logicSign_;
@@ -511,7 +522,8 @@ namespace qpmodel.logic
         }
         public override bool Equals(object obj)
         {
-            if (obj is LogicJoin lo) {
+            if (obj is LogicJoin lo)
+            {
                 return base.Equals(lo) && (filter_?.Equals(lo.filter_) ?? true);
             }
             return false;
@@ -599,9 +611,9 @@ namespace qpmodel.logic
             {
                 var tables = v.CollectAllTableRef();
 
-                if (ltables.ContainsList( tables))
+                if (ltables.ContainsList(tables))
                     lreq.Add(v);
-                else if (rtables.ContainsList( tables))
+                else if (rtables.ContainsList(tables))
                     rreq.Add(v);
                 else
                 {
@@ -644,7 +656,7 @@ namespace qpmodel.logic
         public override string ToString() => $"filter({child_()}): {filter_}";
 
         // public override string ExplainInlineDetails(int depth) => movable_ ? "" : "***";
-        public override int GetHashCode()=> base.GetHashCode() ^ filter_.GetHashCode();
+        public override int GetHashCode() => base.GetHashCode() ^ filter_.GetHashCode();
         public override bool Equals(object obj)
         {
             if (obj is LogicFilter lo)
@@ -717,7 +729,7 @@ namespace qpmodel.logic
         public override LogicSignature MemoLogicSign()
         {
             if (logicSign_ == -1)
-                logicSign_ = child_().MemoLogicSign() ^ having_.FilterHashCode() 
+                logicSign_ = child_().MemoLogicSign() ^ having_.FilterHashCode()
                     ^ Utils.ListHashCode(raw_aggrs_) ^ Utils.ListHashCode(groupby_);
             return logicSign_;
         }
@@ -728,9 +740,9 @@ namespace qpmodel.logic
             if (aggrFns_.Count > 0)
                 r += $"Aggregates: {string.Join(", ", aggrFns_)}";
             if (groupby_ != null)
-                r += $"{(aggrFns_.Count > 0? "\n"+tabs: "")}Group by: {string.Join(", ", groupby_)}";
+                r += $"{(aggrFns_.Count > 0 ? "\n" + tabs : "")}Group by: {string.Join(", ", groupby_)}";
             if (having_ != null)
-                r += $"{("\n"+tabs)}{ExplainFilter(having_, depth, option)}";
+                r += $"{("\n" + tabs)}{ExplainFilter(having_, depth, option)}";
             return r;
         }
 
@@ -792,7 +804,8 @@ namespace qpmodel.logic
             var fns = reqlistGetAggrRefs(reqList);
 
             // first let's find out all elements containing any AggFunc
-            reqList.ForEach(x => {
+            reqList.ForEach(x =>
+            {
                 Debug.Assert(!(x is AggrRef));
                 x.VisitEachT<AggFunc>(y =>
                 {
@@ -817,7 +830,8 @@ namespace qpmodel.logic
                         reqContainAggs.Add(x);
                 });
 
-                keys.ForEach(x => {
+                keys.ForEach(x =>
+                {
                     if (x is FuncExpr fx && fx.isSRF_)
                     {
                         Debug.Assert(child_() is LogicProjectSet);
@@ -855,7 +869,8 @@ namespace qpmodel.logic
             bool IsGroupByElement(Expr e) => groupby_.Contains(e) || e is AggFunc;
             Expr RepalceWithGroupbyRef(Expr e)
             {
-                if (e is AggFunc) {
+                if (e is AggFunc)
+                {
                     return e;
                 }
                 else
@@ -885,7 +900,7 @@ namespace qpmodel.logic
             List<int> ordinals = new List<int>();
 
             // reqOutput may contain ExprRef which is generated during FromQuery removal process, remove them
-            var reqList = reqOutput.CloneList(new List<Type> { typeof(LiteralExpr)});
+            var reqList = reqOutput.CloneList(new List<Type> { typeof(LiteralExpr) });
 
             // request from child including reqOutput and filter. Don't use whole expression
             // matching push down like k+k => (k+k)[0] instead, we need k[0]+k[0] because 
@@ -907,7 +922,7 @@ namespace qpmodel.logic
             child_().ResolveColumnOrdinal(reqFromChild);
             var childout = child_().output_;
 
-            if (groupby_ != null) 
+            if (groupby_ != null)
                 groupby_ = CloneFixColumnOrdinal(groupby_, childout, true);
             if (having_ != null)
                 having_ = CloneFixColumnOrdinal(having_, childout);
@@ -946,7 +961,7 @@ namespace qpmodel.logic
                 newoutput.Add(x);
             });
             if (having_ != null && groupby_ != null)
-                having_ = sourceListSearchReplaceWithGroupBy(new List<Expr>() { having_})[0];
+                having_ = sourceListSearchReplaceWithGroupBy(new List<Expr>() { having_ })[0];
             having_?.VisitEachIgnoreRef<AggFunc>(y =>
             {
                 // remove the duplicates immediatley to avoid wrong ordinal in ExprRef
@@ -968,7 +983,7 @@ namespace qpmodel.logic
             if (offending != null)
                 throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
             output_ = newoutput;
-            if (having_?.VisitEachExists(y => y is ColExpr, new List<Type> { typeof(ExprRef) })??false)
+            if (having_?.VisitEachExists(y => y is ColExpr, new List<Type> { typeof(ExprRef) }) ?? false)
                 throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
 
             RefreshOutputRegisteration();
@@ -1086,11 +1101,11 @@ namespace qpmodel.logic
         public LogicGet(T tab) => tabref_ = tab;
         public override string ToString() => tabref_.ToString();
         public override string ExplainInlineDetails() => ToString();
-        public override int GetHashCode() => base.GetHashCode() ^ (filter_?.GetHashCode()??0) ^ tabref_.GetHashCode();
+        public override int GetHashCode() => base.GetHashCode() ^ (filter_?.GetHashCode() ?? 0) ^ tabref_.GetHashCode();
         public override bool Equals(object obj)
         {
             if (obj is LogicGet<T> lo)
-                return base.Equals(lo) && (filter_?.Equals(lo.filter_)??true) && tabref_.Equals(lo.tabref_);
+                return base.Equals(lo) && (filter_?.Equals(lo.filter_) ?? true) && tabref_.Equals(lo.tabref_);
             return false;
         }
 
@@ -1154,7 +1169,7 @@ namespace qpmodel.logic
 
     public class LogicScanFile : LogicGet<ExternalTableRef>
     {
-        public string FileName() => tabref_.filename_;
+        public string FileName() => tabref_.filename_.Trim();
         public LogicScanFile(ExternalTableRef tab) : base(tab) { }
     }
 
@@ -1196,7 +1211,8 @@ namespace qpmodel.logic
         // already solved in ResolveOrdinals().
     }
 
-    public class LogicLimit : LogicNode {
+    public class LogicLimit : LogicNode
+    {
 
         internal int limit_;
 
@@ -1241,13 +1257,13 @@ namespace qpmodel.logic
         public override string ExplainInlineDetails() => $"1 : {QueryOption.num_machines_}";
     }
 
-    public class LogicBroadcast: LogicRemoteExchange
+    public class LogicBroadcast : LogicRemoteExchange
     {
         public LogicBroadcast(LogicNode child) : base(child) { }
         public override string ToString() => $"Broadcast({child_()})";
     }
 
-    public class LogicRedistribute: LogicRemoteExchange
+    public class LogicRedistribute : LogicRemoteExchange
     {
         public LogicRedistribute(LogicNode child) : base(child) { }
         public override string ToString() => $"Redistribute({child_()})";
@@ -1266,7 +1282,7 @@ namespace qpmodel.logic
     //           Output: generate_series(1, a2), generate_series(1, a3)
     //           ->  Scan table a
     //
-    public class LogicProjectSet: LogicNode
+    public class LogicProjectSet : LogicNode
     {
         public LogicProjectSet(LogicNode child)
         {
@@ -1279,7 +1295,8 @@ namespace qpmodel.logic
             var ordinals = new List<int>();
 
             var reqFromChild = new List<Expr>();
-            foreach (var v in reqOutput) {
+            foreach (var v in reqOutput)
+            {
                 if (v is FuncExpr fv && fv.isSRF_)
                     reqFromChild.AddRange(v.RetrieveAllColExpr());
             }

@@ -103,7 +103,7 @@ namespace qpmodel.optimizer
             list.Add(node);
         }
 
-        public override string ToString()=> Explain(0);
+        public override string ToString() => Explain(0);
         internal string Explain(int verbosity)
         {
             string result = "BestTree: " + memo_.Count + "\n";
@@ -193,7 +193,7 @@ namespace qpmodel.optimizer
         // There shall be only 1 join filter on top. 
         // Subqueries is not considered here.
         //
-        internal static JoinGraph ExtractJoinGraph(LogicNode plan, 
+        internal static JoinGraph ExtractJoinGraph(LogicNode plan,
                 out LogicNode filterNodeParent, out int index, out LogicFilter filterNode)
         {
             // find the join filter
@@ -215,7 +215,8 @@ namespace qpmodel.optimizer
                 // the job of upper layer.
                 //
                 var vertices = new List<LogicNode>();
-                topjoin.VisitEach(x => {
+                topjoin.VisitEach(x =>
+                {
                     if (!(x is LogicJoin))
                         vertices.Add(x as LogicNode);
                 });
@@ -257,7 +258,7 @@ namespace qpmodel.optimizer
 
         internal abstract PhysicNode Run(JoinGraph graph, BigInteger expectC1 = new BigInteger());
 
-        protected Expr identifyJoinPred(PhysicNode T1, PhysicNode T2, bool canBeCrossJoin=false)
+        protected Expr identifyJoinPred(PhysicNode T1, PhysicNode T2, bool canBeCrossJoin = false)
         {
             var key = ValueTuple.Create(T1, T2);
             if (!joinpreds_.ContainsKey(key))
@@ -586,7 +587,7 @@ namespace qpmodel.optimizer
             // book figure 3.12
             var tables = new string[] { "T1", "T2", "T3", "T4", "T5" };
             JoinGraph figure312 = new JoinGraph(tables, new string[] { "T1*T2", "T1*T3", "T1*T4", "T3*T4", "T5*T2", "T5*T3", "T5*T4" });
-            Debug.Assert(figure312.joinbits_.Count == 5 && figure312.preds_.Count == 7) ;
+            Debug.Assert(figure312.joinbits_.Count == 5 && figure312.preds_.Count == 7);
             solver.Reset().Run(figure312);
 
             // full test

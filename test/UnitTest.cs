@@ -88,7 +88,7 @@ namespace qpmodel.unittest
         }
 
         // a;c;b == b;a;c
-        static public void ResultAreEqualNoOrder(string l, string r) 
+        static public void ResultAreEqualNoOrder(string l, string r)
         {
             char[] splitters = { ';' };
             var lw = l.Split(splitters, StringSplitOptions.RemoveEmptyEntries);
@@ -133,7 +133,7 @@ namespace qpmodel.unittest
         public void TestCSVReader()
         {
             List<string> r = new List<string>();
-            Utils.ReadCsvLine(@"../../../data/test.tbl",
+            Utils.ReadCsvLine(@"../../../../data/test.tbl",
                 x => r.Add(string.Join(",", x)));
             Assert.AreEqual(3, r.Count);
             Assert.AreEqual("1,2,3,4", r[0]);
@@ -207,7 +207,7 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestJobench()
         {
-            var files = Directory.GetFiles(@"../../../jobench");
+            var files = Directory.GetFiles(@"../../../../jobench");
 
             JOBench.CreateTables();
 
@@ -240,11 +240,11 @@ namespace qpmodel.unittest
             Tpcds.LoadTables("tiny");
             Tpcds.AnalyzeTables();
 
-            var files = Directory.GetFiles(@"../../../tpcds", "*.sql");
+            var files = Directory.GetFiles(@"../../../../tpcds", "*.sql");
             // long time: 4 bad plan
             // 6: distinct not supported, causing wrong result
             // 10: subquery memo not copy out
-            string[] runnable = { "q1", "q2", "q3", "q7", "q15", "q17"};
+            string[] runnable = { "q1", "q2", "q3", "q7", "q15", "q17" };
 
             // make sure all queries can generate phase one opt plan
             QueryOption option = new QueryOption();
@@ -269,14 +269,14 @@ namespace qpmodel.unittest
 
         void TestTpchAndComparePlan(string scale, string[] badQueries)
         {
-            var files = Directory.GetFiles(@"../../../tpch", "*.sql");
+            var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
             if (scale == "1")
             {
                 // for 1g scale, we can't do real run, but we'd like to see the plan
-                var stats_fn = "../../../tpch/statistics/sf1";
+                var stats_fn = "../../../../tpch/statistics/sf1";
                 Catalog.sysstat_.read_serialized_stats(stats_fn);
             }
-            else 
+            else
             {
                 // load data for this cale
                 Tpch.LoadTables(scale);
@@ -284,18 +284,24 @@ namespace qpmodel.unittest
             }
 
             // run tests and compare plan
-            string sql_dir_fn = "../../../test/regress/sql";
-            string write_dir_fn = $"../../../test/regress/output/tpch{scale}";
-            string expect_dir_fn = $"../../../test/regress/expect/tpch{scale}";
-            ExplainOption.show_tablename_ = false;
-            RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries);
-            ExplainOption.show_tablename_ = true;
+            string sql_dir_fn = "../../../../test/regress/sql";
+            string write_dir_fn = $"../../../../test/regress/output/tpch{scale}";
+            string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}";
+            try
+            {
+                ExplainOption.show_tablename_ = false;
+                RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries);
+            }
+            finally
+            {
+                ExplainOption.show_tablename_ = true;
+            }
         }
 
         void TestTpcdsPlanOnly()
         {
-            var files = Directory.GetFiles(@"../../../tpcds", "*.sql");
-            string stats_dir = "../../../tpcds/statistics/presto/sf1";
+            var files = Directory.GetFiles(@"../../../../tpcds", "*.sql");
+            string stats_dir = "../../../../tpcds/statistics/presto/sf1";
 
             //read_cnvt_presto_stats(string stats_dir_fn) 
             PrestoStatsFormatter.ReadConvertPrestoStats(stats_dir);
@@ -327,7 +333,8 @@ namespace qpmodel.unittest
         void TestTpchWithData()
         {
             // make sure all queries parsed
-            var files = Directory.GetFiles(@"../../../tpch", "*.sql");
+            var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
+            Array.Sort(files);
 
             foreach (var v in files)
             {
@@ -360,7 +367,7 @@ namespace qpmodel.unittest
                 Assert.AreEqual("1-URGENT,9;2-HIGH,7;3-MEDIUM,9;4-NOT SPECIFIED,7;5-LOW,12", string.Join(";", result));
                 TU.ExecuteSQL(File.ReadAllText(files[4]), "", out phyplan, option);
                 if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
-                TU.ExecuteSQL(File.ReadAllText(files[5]), "77949.9186", out _, option); // FIXME: sampling estimation
+                TU.ExecuteSQL(File.ReadAllText(files[5]), "48090.8586", out _, option); // FIXME: sampling estimation
                 if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
                 TU.ExecuteSQL(File.ReadAllText(files[6]), "", out _, option);
                 TU.ExecuteSQL(File.ReadAllText(files[7]), "1995,0;1996,0", out _, option);
@@ -371,15 +378,15 @@ namespace qpmodel.unittest
                 Assert.AreEqual("ARGENTINA,1998,17779.0697;ARGENTINA,1997,13943.9538;ARGENTINA,1996,7641.4227;" +
                     "ARGENTINA,1995,20892.7525;ARGENTINA,1994,15088.3526;ARGENTINA,1993,17586.3446;ARGENTINA,1992,28732.4615;" +
                     "ETHIOPIA,1998,28217.16;ETHIOPIA,1996,33970.65;ETHIOPIA,1995,37720.35;ETHIOPIA,1994,37251.01;ETHIOPIA,1993,23782.61;" +
-                    "IRAN,1997,23590.008;IRAN,1996,7428.2325;IRAN,1995,21000.9965;IRAN,1994,29408.13;IRAN,1993,49876.415;IRAN,1992,52064.24;"+
-                    "IRAQ,1998,11619.9604;IRAQ,1997,47910.246;IRAQ,1996,18459.5675;IRAQ,1995,32782.3701;IRAQ,1994,9041.2317;IRAQ,1993,30687.2625;"+
-                    "IRAQ,1992,29098.2557;KENYA,1998,33148.3345;KENYA,1997,54355.0165;KENYA,1996,53607.4854;KENYA,1995,85354.8738;"+
-                    "KENYA,1994,102904.2511;KENYA,1993,109310.8084;KENYA,1992,138534.121;MOROCCO,1998,157058.2328;MOROCCO,1997,88669.961;"+
-                    "MOROCCO,1996,236833.6672;MOROCCO,1995,381575.8668;MOROCCO,1994,243523.4336;MOROCCO,1993,232196.7803;MOROCCO,1992,347434.1452;"+
-                    "PERU,1998,101109.0196;PERU,1997,58073.0866;PERU,1996,30360.5218;PERU,1995,138451.78;PERU,1994,55023.0632;PERU,1993,110409.0863;"+
-                    "PERU,1992,70946.1916;UNITED KINGDOM,1998,139685.044;UNITED KINGDOM,1997,183502.0498;UNITED KINGDOM,1996,374085.2884;"+
-                    "UNITED KINGDOM,1995,548356.7984;UNITED KINGDOM,1994,266982.768;UNITED KINGDOM,1993,717309.464;UNITED KINGDOM,1992,79540.6016;"+
-                    "UNITED STATES,1998,32847.96;UNITED STATES,1997,30849.5;UNITED STATES,1996,56125.46;UNITED STATES,1995,15961.7977;"+
+                    "IRAN,1997,23590.008;IRAN,1996,7428.2325;IRAN,1995,21000.9965;IRAN,1994,29408.13;IRAN,1993,49876.415;IRAN,1992,52064.24;" +
+                    "IRAQ,1998,11619.9604;IRAQ,1997,47910.246;IRAQ,1996,18459.5675;IRAQ,1995,32782.3701;IRAQ,1994,9041.2317;IRAQ,1993,30687.2625;" +
+                    "IRAQ,1992,29098.2557;KENYA,1998,33148.3345;KENYA,1997,54355.0165;KENYA,1996,53607.4854;KENYA,1995,85354.8738;" +
+                    "KENYA,1994,102904.2511;KENYA,1993,109310.8084;KENYA,1992,138534.121;MOROCCO,1998,157058.2328;MOROCCO,1997,88669.961;" +
+                    "MOROCCO,1996,236833.6672;MOROCCO,1995,381575.8668;MOROCCO,1994,243523.4336;MOROCCO,1993,232196.7803;MOROCCO,1992,347434.1452;" +
+                    "PERU,1998,101109.0196;PERU,1997,58073.0866;PERU,1996,30360.5218;PERU,1995,138451.78;PERU,1994,55023.0632;PERU,1993,110409.0863;" +
+                    "PERU,1992,70946.1916;UNITED KINGDOM,1998,139685.044;UNITED KINGDOM,1997,183502.0498;UNITED KINGDOM,1996,374085.2884;" +
+                    "UNITED KINGDOM,1995,548356.7984;UNITED KINGDOM,1994,266982.768;UNITED KINGDOM,1993,717309.464;UNITED KINGDOM,1992,79540.6016;" +
+                    "UNITED STATES,1998,32847.96;UNITED STATES,1997,30849.5;UNITED STATES,1996,56125.46;UNITED STATES,1995,15961.7977;" +
                     "UNITED STATES,1994,31671.2;UNITED STATES,1993,55057.469;UNITED STATES,1992,51970.23",
                     string.Join(";", result));
 #if (false)
@@ -387,7 +394,7 @@ namespace qpmodel.unittest
                 if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
                 Assert.AreEqual(20, result.Count);
 #endif
-                TU.ExecuteSQL(File.ReadAllText(files[10]), "",  out _, option);
+                TU.ExecuteSQL(File.ReadAllText(files[10]), "", out _, option);
                 if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
                 TU.ExecuteSQL(File.ReadAllText(files[11]), "MAIL,5,5;SHIP,5,10", out _, option);
                 // FIXME: agg on agg from
@@ -402,7 +409,7 @@ namespace qpmodel.unittest
                 TU.ExecuteSQL(File.ReadAllText(files[15]), "", out _, option);
                 TU.ExecuteSQL(File.ReadAllText(files[16]), "", out _, option);
                 TU.ExecuteSQL(File.ReadAllText(files[17]), "", out _, option);
-                TU.ExecuteSQL(File.ReadAllText(files[18]),  out _, option); // FIXME: .. or ... or ...
+                TU.ExecuteSQL(File.ReadAllText(files[18]), out _, option); // FIXME: .. or ... or ...
                 TU.ExecuteSQL(File.ReadAllText(files[19]), "", out _, option);
                 TU.ExecuteSQL(File.ReadAllText(files[20]), "", out _, option);
                 option.optimize_.remove_from_ = false;
@@ -498,12 +505,12 @@ namespace qpmodel.unittest
             Assert.AreEqual("3", string.Join(";", result));
 
             sql = "select count(*) from a where a1 in (select b2 from b where b1 > 0) and a2 in (select b3 from b where b1 > 0);";
-            TU.ExecuteSQL(sql, "1",out phyplan, option); TU.CountOccurrences(phyplan, "PhysicFilter", 0);
+            TU.ExecuteSQL(sql, "1", out phyplan, option); TU.CountOccurrences(phyplan, "PhysicFilter", 0);
 
             sql = "select count(*) from (select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1 and a1>0) v;";
             TU.ExecuteSQL(sql, "2", out phyplan, option); TU.CountOccurrences(phyplan, "PhysicFilter", 0);
 
-            sql = "select a2 from a where a.a3 > (select min(b1*2) from b where b.b2 >= (select c2-1 from c where c.c2=b2) and b.b3 > ((select c2 from c where c.c2=b2)));"; 
+            sql = "select a2 from a where a.a3 > (select min(b1*2) from b where b.b2 >= (select c2-1 from c where c.c2=b2) and b.b3 > ((select c2 from c where c.c2=b2)));";
             TU.ExecuteSQL(sql, "1;2;3", out phyplan, option);
             var answer = @"PhysicScanTable a (actual rows=3)
                             Output: a.a2[1]
@@ -570,7 +577,7 @@ namespace qpmodel.unittest
 
             for (int i = 0; i < 2; i++)
             {
-                option.optimize_.use_memo_ = i==0;
+                option.optimize_.use_memo_ = i == 0;
                 // exist-subquery
                 var phyplan = "";
                 var sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1);";
@@ -680,7 +687,7 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "8");
             sql = "select sum(a12) from (select a1*a2 a12 from a) b;";
             TU.ExecuteSQL(sql, "8");
-            sql = "select a4 from (select a3, a4 from a) b(a4);"; 
+            sql = "select a4 from (select a3, a4 from a) b(a4);";
             TU.ExecuteSQL(sql, "2;3;4");
             sql = "select c.d1 from (select sum(a12) from (select a1*a2 a12 from a) b) c(d1);";
             TU.ExecuteSQL(sql, "8");
@@ -920,7 +927,7 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestCopy()
         {
-            string filename = @"'..\..\..\data\test.tbl'";
+            string filename = @"'../../../../data/test.tbl'";
             var sql = $"copy test from {filename};";
             var stmt = RawParser.ParseSingleSqlStatement(sql) as CopyStmt;
             Assert.AreEqual(filename, stmt.fileName_);
@@ -1001,8 +1008,9 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestCast()
         {
-            var sql = "select cast('2001-01-3' as date) + interval '30' day;"; TU.ExecuteSQL(sql, "2/2/2001 12:00:00 AM");
-            sql = "select cast('2001-01-3' as date) + 30 days;"; TU.ExecuteSQL(sql, "2/2/2001 12:00:00 AM");
+            var expected = new DateTime(2001, 2, 2).ToString();
+            var sql = "select cast('2001-01-3' as date) + interval '30' day;"; TU.ExecuteSQL(sql, expected);
+            sql = "select cast('2001-01-3' as date) + 30 days;"; TU.ExecuteSQL(sql, expected);
         }
 
         [TestMethod]
@@ -1885,9 +1893,9 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "2;2;1", out phyplan);
             sql = "select tumble_start(a0, interval '10' second), tumble_end(a0, interval '10' second), " +
                 "count(*) from ast group by tumble(a0, interval '10' second)";
-            TU.ExecuteSQL(sql, "5/12/2020 7:22:10 AM,5/12/2020 7:22:20 AM,2;" +
-                "5/12/2020 7:22:20 AM,5/12/2020 7:22:30 AM,2;" +
-                "5/12/2020 7:22:50 AM,5/12/2020 7:23:00 AM,1", out phyplan);
+            TU.ExecuteSQL(sql, $"{new DateTime(2020, 5, 12, 7, 22, 10).ToString()},{new DateTime(2020, 5, 12, 7, 22, 20).ToString()},2;" +
+                $"{new DateTime(2020, 5, 12, 7, 22, 20).ToString()},{new DateTime(2020, 5, 12, 7, 22, 30).ToString()},2;" +
+                $"{new DateTime(2020, 5, 12, 7, 22, 50).ToString()},{new DateTime(2020, 5, 12, 7, 23, 0).ToString()},1", out phyplan);
         }
 
         [TestMethod]

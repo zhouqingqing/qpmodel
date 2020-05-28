@@ -46,7 +46,7 @@ namespace qpmodel.index
         public readonly BaseTableRef targetref_;
         public readonly SelectStmt select_;
 
-        public CreateIndexStmt(string indexname, 
+        public CreateIndexStmt(string indexname,
             BaseTableRef target, bool unique, List<string> columns, Expr where, string text) : base(text)
         {
             targetref_ = target;
@@ -146,7 +146,7 @@ namespace qpmodel.index
             {
                 var tablerow = r[0];
                 Debug.Assert(tablerow != null && tablerow is Row);
-                var key = new KeyList(r.ColCount() -1);
+                var key = new KeyList(r.ColCount() - 1);
                 for (int i = 1; i < r.ColCount(); i++)
                     key[i - 1] = r[i];
                 index_.Insert(key, tablerow as Row);
@@ -168,25 +168,30 @@ namespace qpmodel.index
         }
     }
 
-    public abstract class ISearchIndex {
+    public abstract class ISearchIndex
+    {
         public virtual void Insert(KeyList key, Row r) => throw new NotImplementedException();
         public virtual List<Row> Search(string op, KeyList key) => throw new NotImplementedException();
         public virtual List<Row> Search(KeyList l, KeyList r) => throw new NotImplementedException();
     }
 
-    public class MemoryIndex: ISearchIndex{
+    public class MemoryIndex : ISearchIndex
+    {
 
         internal bool unique_;
         internal SortedDictionary<KeyList, List<Row>> data_ = new SortedDictionary<KeyList, List<Row>>();
 
-        public MemoryIndex(bool unique) {
+        public MemoryIndex(bool unique)
+        {
             unique_ = unique;
         }
 
-        public override void Insert(KeyList key, Row r) {
+        public override void Insert(KeyList key, Row r)
+        {
             if (data_.TryGetValue(key, out List<Row> l))
             {
-                if (unique_) {
+                if (unique_)
+                {
                     Debug.Assert(l.Count == 1);
                     throw new SemanticExecutionException(
                         $"try to insert duplicated key: {key}. Existing row: {l}, new row: {r}");

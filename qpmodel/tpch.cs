@@ -39,7 +39,7 @@ namespace qpmodel.test
 {
     public class Tpch
     {
-        static public string[] tabnames_ = { 
+        static public string[] tabnames_ = {
             "region", "nation", "part","supplier",
             "partsupp", "customer", "orders", "lineitem"
         };
@@ -54,30 +54,33 @@ namespace qpmodel.test
             @"create index idx_nation_regionkey on nation (n_regionkey);",
         };
 
-        static public void CreateTables() {
+        static public void CreateTables()
+        {
             // hack: drop tpch table customer
             SQLStatement.ExecSQL("drop table customer;", out _, out _);
 
             string curdir = Directory.GetCurrentDirectory();
-            string folder = $@"{curdir}\..\..\..\tpch\create";
-            string filename = $@"{folder}\tpch.sql";
+            string folder = $@"{curdir}/../../../../tpch/create";
+            string filename = $@"{folder}/tpch.sql";
             var sql = File.ReadAllText(filename);
             SQLStatement.ExecSQLList(sql);
         }
 
-        static public void LoadTables(string subfolder) {
+        static public void LoadTables(string subfolder)
+        {
             string curdir = Directory.GetCurrentDirectory();
-            string folder = $@"{curdir}\..\..\..\tpch\data\{subfolder}";
+            string folder = $@"{curdir}/../../../../tpch/data/{subfolder}";
 
             foreach (var v in tabnames_)
             {
-                string filename = $@"'{folder}\{v}.tbl'";
+                string filename = $@"'{folder}/{v}.tbl'";
                 var sql = $"copy {v} from {filename};";
                 SQLStatement.ExecSQL(sql, out _, out _);
             }
         }
 
-        static public void CreateIndexes() {
+        static public void CreateIndexes()
+        {
             SQLStatement.ExecSQLList(string.Join("", createindexes_));
         }
 
@@ -91,7 +94,8 @@ namespace qpmodel.test
         }
     }
 
-    public class Tpcds {
+    public class Tpcds
+    {
 
         static public string[] tabnames_ = {
             "call_center",            "catalog_page", "catalog_returns",
@@ -110,8 +114,8 @@ namespace qpmodel.test
             SQLStatement.ExecSQL("drop table customer;", out _, out _);
 
             string curdir = Directory.GetCurrentDirectory();
-            string folder = $@"{curdir}\..\..\..\tpcds\create";
-            string filename = $@"{folder}\tpcds.sql";
+            string folder = $@"{curdir}/../../../../tpcds/create";
+            string filename = $@"{folder}/tpcds.sql";
             var sql = File.ReadAllText(filename);
             SQLStatement.ExecSQLList(sql);
         }
@@ -119,11 +123,11 @@ namespace qpmodel.test
         static public void LoadTables(string subfolder)
         {
             string curdir = Directory.GetCurrentDirectory();
-            string folder = $@"{curdir}\..\..\..\tpcds\data\{subfolder}";
+            string folder = $@"{curdir}/../../../../tpcds/data/{subfolder}";
 
             foreach (var v in tabnames_)
             {
-                string filename = $@"'{folder}\{v}.tbl'";
+                string filename = $@"'{folder}/{v}.tbl'";
                 var sql = $"copy {v} from {filename};";
                 SQLStatement.ExecSQL(sql, out _, out _);
             }
@@ -144,8 +148,8 @@ namespace qpmodel.test
         static public void CreateTables()
         {
             string curdir = Directory.GetCurrentDirectory();
-            string folder = $@"{curdir}\..\..\..\jobench\create";
-            string filename = $@"{folder}\schema.sql";
+            string folder = $@"{curdir}/../../../../jobench/create";
+            string filename = $@"{folder}/schema.sql";
             var sql = File.ReadAllText(filename);
             SQLStatement.ExecSQLList(sql);
         }
