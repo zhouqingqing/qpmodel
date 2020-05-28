@@ -301,7 +301,7 @@ namespace qpmodel.unittest
             try
             {
                 ExplainOption.show_tablename_ = false;
-                RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries);
+                RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries, scale == "1");
             }
             finally
             {
@@ -333,10 +333,10 @@ namespace qpmodel.unittest
             }
         }
 
-        void RunFolderAndVerify(string sql_dir_fn, string write_dir_fn, string expect_dir_fn, string[] badQueries)
+        void RunFolderAndVerify(string sql_dir_fn, string write_dir_fn, string expect_dir_fn, string[] badQueries, bool explainOnly = false)
         {
             QueryVerify qv = new QueryVerify();
-            var result = qv.SQLQueryVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries);
+            var result = qv.SQLQueryVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries, explainOnly);
             if (result != null) Debug.WriteLine(result);
             Assert.IsNull(result);
         }

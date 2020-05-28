@@ -43,62 +43,60 @@ order by
 	p_partkey
 limit 100
 Total cost: 6176277.59
-PhysicLimit (100) (inccost=6176277.59, cost=100, rows=100) (actual rows=0)
+PhysicLimit (100) (inccost=6176277.59, cost=100, rows=100)
     Output: s_acctbal[0],s_name[1],n_name[2],p_partkey[3],p_mfgr[4],s_address[5],s_phone[6],s_comment[7]
-    -> PhysicOrder  (inccost=6176177.59, cost=3.59, rows=3) (actual rows=0)
+    -> PhysicOrder  (inccost=6176177.59, cost=3.59, rows=3)
         Output: s_acctbal[0],s_name[1],n_name[2],p_partkey[3],p_mfgr[4],s_address[5],s_phone[6],s_comment[7]
         Order by: s_acctbal[0], n_name[2], s_name[1], p_partkey[3]
-        -> PhysicFilter  (inccost=6176174, cost=3, rows=3) (actual rows=0)
+        -> PhysicFilter  (inccost=6176174, cost=3, rows=3)
             Output: s_acctbal[0],s_name[1],n_name[2],p_partkey[3],p_mfgr[4],s_address[5],s_phone[6],s_comment[7]
             Filter: ps_supplycost[8]={min(ps_supplycost)}[9]
-            -> PhysicHashJoin Left (inccost=6176171, cost=160011, rows=3) (actual rows=0)
+            -> PhysicHashJoin Left (inccost=6176171, cost=160011, rows=3)
                 Output: s_acctbal[0],s_name[1],n_name[2],p_partkey[3],p_mfgr[4],s_address[5],s_phone[6],s_comment[7],ps_supplycost[8],{min(ps_supplycost)}[9]
                 Filter: p_partkey[3]=ps_partkey[10]
-                -> PhysicHashJoin  (inccost=3750088, cost=160016, rows=4) (actual rows=0)
+                -> PhysicHashJoin  (inccost=3750088, cost=160016, rows=4)
                     Output: s_acctbal[2],s_name[3],n_name[4],p_partkey[0],p_mfgr[1],s_address[5],s_phone[6],s_comment[7],ps_supplycost[8]
                     Filter: p_partkey[0]=ps_partkey[9]
-                    -> PhysicScanTable part (inccost=200000, cost=200000, rows=6) (actual rows=0)
+                    -> PhysicScanTable part (inccost=200000, cost=200000, rows=6)
                         Output: p_partkey[0],p_mfgr[2]
                         Filter: p_size[5]=15 and p_type[4]like'%BRASS'
-                    -> PhysicHashJoin  (inccost=3390072, cost=960010, rows=160000) (actual rows=0)
+                    -> PhysicHashJoin  (inccost=3390072, cost=960010, rows=160000)
                         Output: s_acctbal[2],s_name[3],n_name[0],s_address[4],s_phone[5],s_comment[6],ps_supplycost[7],ps_partkey[8]
                         Filter: s_nationkey[9]=n_nationkey[1]
-                        -> PhysicHashJoin  (inccost=62, cost=32, rows=5) (actual rows=0)
+                        -> PhysicHashJoin  (inccost=62, cost=32, rows=5)
                             Output: n_name[1],n_nationkey[2]
                             Filter: n_regionkey[3]=r_regionkey[0]
-                            -> PhysicScanTable region (inccost=5, cost=5, rows=1) (actual rows=0)
+                            -> PhysicScanTable region (inccost=5, cost=5, rows=1)
                                 Output: r_regionkey[0]
                                 Filter: r_name[1]='EUROPE'
-                            -> PhysicScanTable nation (inccost=25, cost=25, rows=25) (actual rows=0)
+                            -> PhysicScanTable nation (inccost=25, cost=25, rows=25)
                                 Output: n_name[1],n_nationkey[0],n_regionkey[2]
-                        -> PhysicHashJoin  (inccost=2430000, cost=1620000, rows=800000) (actual rows=0)
+                        -> PhysicHashJoin  (inccost=2430000, cost=1620000, rows=800000)
                             Output: s_acctbal[0],s_name[1],s_address[2],s_phone[3],s_comment[4],ps_supplycost[7],ps_partkey[8],s_nationkey[5]
                             Filter: s_suppkey[6]=ps_suppkey[9]
-                            -> PhysicScanTable supplier (inccost=10000, cost=10000, rows=10000) (actual rows=0)
+                            -> PhysicScanTable supplier (inccost=10000, cost=10000, rows=10000)
                                 Output: s_acctbal[5],s_name[1],s_address[2],s_phone[4],s_comment[6],s_nationkey[3],s_suppkey[0]
-                            -> PhysicScanTable partsupp (inccost=800000, cost=800000, rows=800000) (actual rows=0)
+                            -> PhysicScanTable partsupp (inccost=800000, cost=800000, rows=800000)
                                 Output: ps_supplycost[3],ps_partkey[0],ps_suppkey[1]
-                -> PhysicHashAgg  (inccost=2266072, cost=480000, rows=160000) (actual rows=0)
+                -> PhysicHashAgg  (inccost=2266072, cost=480000, rows=160000)
                     Output: {min(ps_supplycost)}[1],{ps_partkey}[0]
                     Aggregates: min(ps_supplycost[1])
                     Group by: ps_partkey[0]
-                    -> PhysicHashJoin  (inccost=1786072, cost=964000, rows=160000) (actual rows=0)
+                    -> PhysicHashJoin  (inccost=1786072, cost=964000, rows=160000)
                         Output: ps_partkey[1],ps_supplycost[2]
                         Filter: s_suppkey[0]=ps_suppkey[3]
-                        -> PhysicHashJoin  (inccost=22072, cost=12010, rows=2000) (actual rows=0)
+                        -> PhysicHashJoin  (inccost=22072, cost=12010, rows=2000)
                             Output: s_suppkey[1]
                             Filter: s_nationkey[2]=n_nationkey[0]
-                            -> PhysicHashJoin  (inccost=62, cost=32, rows=5) (actual rows=0)
+                            -> PhysicHashJoin  (inccost=62, cost=32, rows=5)
                                 Output: n_nationkey[1]
                                 Filter: n_regionkey[2]=r_regionkey[0]
-                                -> PhysicScanTable region as region__1 (inccost=5, cost=5, rows=1) (actual rows=0)
+                                -> PhysicScanTable region as region__1 (inccost=5, cost=5, rows=1)
                                     Output: r_regionkey[0]
                                     Filter: r_name[1]='EUROPE'
-                                -> PhysicScanTable nation as nation__1 (inccost=25, cost=25, rows=25) (actual rows=0)
+                                -> PhysicScanTable nation as nation__1 (inccost=25, cost=25, rows=25)
                                     Output: n_nationkey[0],n_regionkey[2]
-                            -> PhysicScanTable supplier as supplier__1 (inccost=10000, cost=10000, rows=10000) (actual rows=0)
+                            -> PhysicScanTable supplier as supplier__1 (inccost=10000, cost=10000, rows=10000)
                                 Output: s_suppkey[0],s_nationkey[3]
-                        -> PhysicScanTable partsupp as partsupp__1 (inccost=800000, cost=800000, rows=800000) (actual rows=0)
+                        -> PhysicScanTable partsupp as partsupp__1 (inccost=800000, cost=800000, rows=800000)
                             Output: ps_partkey[0],ps_supplycost[3],ps_suppkey[1]
-
-
