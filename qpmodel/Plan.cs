@@ -117,12 +117,19 @@ namespace qpmodel.logic
         public void PopCodeGen() => optimize_.use_codegen_ = saved_use_codegen_;
     }
 
+    public enum ExplainMode
+    {
+        none, // physical plan only
+        plain, // physical plan with actual cost
+        explain, // physical plan with estimated cost, execution skipped
+        analyze, // physical plan, estimates, actual cardinality, results muted
+    }
     public class ExplainOption
     {
 
         [ThreadStatic]
         public static bool show_tablename_ = true;
-        public bool show_cost_ { get; set; } = false;
+        public ExplainMode mode_ = ExplainMode.plain;
         public bool show_output_ { get; set; } = true;
         public bool show_id_ { get; set; } = false;
         public ExplainOption Clone() => (ExplainOption)MemberwiseClone();
@@ -149,7 +156,8 @@ namespace qpmodel.logic
         public string Explain(ExplainOption option = null, int depth = 0)
         {
             string r = null;
-            bool exp_showcost = option?.show_cost_ ?? false;
+            bool exp_showcost = option is null ? false : (int)option.mode_ > 1;
+            bool exp_showactual = option is null ? true : (option.mode_ == ExplainMode.plain || option.mode_ == ExplainMode.analyze);
             bool exp_output = option?.show_output_ ?? true;
             bool exp_id = option?.show_id_ ?? false;
 
@@ -175,12 +183,14 @@ namespace qpmodel.logic
                         var cost = Math.Truncate(phynode.Cost() * 100) / 100;
                         r += $" (inccost={incCost}, cost={cost}, rows={phynode.logic_.Card()})";
                     }
-
-                    var profile = phynode.profile_;
-                    if (profile.nloops_ == 1 || profile.nloops_ == 0)
-                        r += $" (actual rows={profile.nrows_})";
-                    else
-                        r += $" (actual rows={profile.nrows_ / profile.nloops_}, loops={profile.nloops_})";
+                    if (exp_showactual)
+                    {
+                        var profile = phynode.profile_;
+                        if (profile.nloops_ == 1 || profile.nloops_ == 0)
+                            r += $" (actual rows={profile.nrows_})";
+                        else
+                            r += $" (actual rows={profile.nrows_ / profile.nloops_}, loops={profile.nloops_})";
+                    }
                 }
                 r += "\n";
                 var details = ExplainMoreDetails(depth, option);
