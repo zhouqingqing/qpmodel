@@ -45,7 +45,8 @@ namespace qpmodel.logic
     // previous version. Use can pick up version outside and class inhertiance 
     // tells upgrade provenance.
     //
-    public abstract class CardEstimator {
+    public abstract class CardEstimator
+    {
         public static Version version_;
         protected ulong DefaultEstimate(LogicNode node)
         {
@@ -81,6 +82,8 @@ namespace qpmodel.logic
                     return ce.LogicScanTableCE(sn);
                 case LogicAgg an:
                     return ce.LogicAggCE(an);
+                case LogicAppend la:
+                    return la.l_().EstimateCard() + la.r_().EstimateCard();
                 case LogicJoin jn:
                     return ce.LogicJoinCE(jn);
                 case LogicProjectSet ps:
@@ -94,8 +97,9 @@ namespace qpmodel.logic
         }
     }
 
-    public class CE_10 : CardEstimator{
-        public CE_10() { version_ = new Version(1, 0);}
+    public class CE_10 : CardEstimator
+    {
+        public CE_10() { version_ = new Version(1, 0); }
 
         public override ulong LogicFilterCE(LogicFilter node)
         {

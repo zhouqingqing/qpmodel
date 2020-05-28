@@ -38,10 +38,12 @@ using qpmodel.utils;
 
 namespace qpmodel.dml
 {
-    public abstract class TableConstraint { 
+    public abstract class TableConstraint
+    {
     }
 
-    public class PrimaryKeyConstraint : TableConstraint {
+    public class PrimaryKeyConstraint : TableConstraint
+    {
         public PrimaryKeyConstraint() { }
     }
 
@@ -52,7 +54,7 @@ namespace qpmodel.dml
         public readonly List<TableConstraint> cons_;
         public readonly string distributedBy_;
 
-        public CreateTableStmt(string tabName, List<ColumnDef> cols, List<TableConstraint> cons, 
+        public CreateTableStmt(string tabName, List<ColumnDef> cols, List<TableConstraint> cons,
             string distributedBy, string text) : base(text)
         {
             tabName_ = tabName; cols_ = cols;
@@ -79,7 +81,7 @@ namespace qpmodel.dml
         public readonly string tabName_;
         public DropTableStmt(string tabName, string text) : base(text)
         {
-            tabName_ = tabName; 
+            tabName_ = tabName;
         }
         public override string ToString() => $"DROP {tabName_}";
 
@@ -90,7 +92,8 @@ namespace qpmodel.dml
         }
     }
 
-    public class AnalyzeStmt : SQLStatement {
+    public class AnalyzeStmt : SQLStatement
+    {
         public readonly BaseTableRef targetref_;
         public readonly SelectStmt select_;
 
@@ -180,7 +183,7 @@ namespace qpmodel.dml
             logicPlan_ = select_ is null ?
                 new LogicInsert(targetref_, new LogicResult(vals_)) :
                 new LogicInsert(targetref_, select_.CreatePlan());
-            distributed_ = select_ is null ? false: select_.distributed_;
+            distributed_ = select_ is null ? false : select_.distributed_;
             return logicPlan_;
         }
 
@@ -217,7 +220,7 @@ namespace qpmodel.dml
             ExternalTableRef sourcetab = new ExternalTableRef(fileName, targetref, colrefs);
             SelectStmt select = new SelectStmt(new List<Expr> { new SelStar(null) },
                             new List<TableRef> { sourcetab }, where, null, null, null, null, null, null, text);
-            insert_ = new InsertStmt(targetref, cols, null, select, text) { queryOpt_ = queryOpt_};
+            insert_ = new InsertStmt(targetref, cols, null, select, text) { queryOpt_ = queryOpt_ };
         }
 
         public override BindContext Bind(BindContext parent) => insert_.Bind(parent);

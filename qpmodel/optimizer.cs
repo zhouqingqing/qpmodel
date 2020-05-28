@@ -52,7 +52,8 @@ namespace qpmodel.optimizer
     // CGroupMember is a member of CMemoGroup, all these memebers are logically
     // equvalent but different logical/physical implementations
     //
-    public class CGroupMember{
+    public class CGroupMember
+    {
         public LogicNode logic_;
         public PhysicNode physic_;
 
@@ -61,7 +62,8 @@ namespace qpmodel.optimizer
         internal QueryOption QueryOption() => group_.memo_.stmt_.queryOpt_;
         internal SQLStatement Stmt() => group_.memo_.stmt_;
 
-        internal LogicNode Logic() {
+        internal LogicNode Logic()
+        {
             LogicNode logic;
             if (logic_ != null)
                 logic = logic_;
@@ -72,17 +74,19 @@ namespace qpmodel.optimizer
         }
         internal LogicSignature MemoSignature() => Logic().MemoLogicSign();
 
-        public CGroupMember(LogicNode node, CMemoGroup group) {
+        public CGroupMember(LogicNode node, CMemoGroup group)
+        {
             logic_ = node; group_ = group;
             Debug.Assert(!(Logic() is LogicMemoRef));
         }
-        public CGroupMember(PhysicNode node, CMemoGroup group) 
+        public CGroupMember(PhysicNode node, CMemoGroup group)
         {
             physic_ = node; group_ = group;
             Debug.Assert(!(Logic() is LogicMemoRef));
         }
 
-        public void ValidateMember(bool optimizationDone) {
+        public void ValidateMember(bool optimizationDone)
+        {
             Debug.Assert(Logic() != null);
 
             // TODO: copy out destroy the memo so we can't apply checks here
@@ -99,7 +103,8 @@ namespace qpmodel.optimizer
                 Logic().children_.ForEach(x => Debug.Assert(
                         x is LogicMemoRef xl && !(xl.Deref() is LogicMemoRef)));
 
-                if (physic_ != null) {
+                if (physic_ != null)
+                {
                     // the physical node itself is non-memo node
                     Debug.Assert(!(physic_ is PhysicMemoRef));
 
@@ -123,7 +128,8 @@ namespace qpmodel.optimizer
             return null;
         }
 
-        public override int GetHashCode() {
+        public override int GetHashCode()
+        {
             if (logic_ != null)
                 return logic_.GetHashCode();
             if (physic_ != null)
@@ -133,7 +139,8 @@ namespace qpmodel.optimizer
 
         public override bool Equals(object obj)
         {
-            if (obj is CGroupMember co) {
+            if (obj is CGroupMember co)
+            {
                 if (logic_ != null)
                     return logic_.Equals(co.logic_);
                 if (physic_ != null)
@@ -205,7 +212,8 @@ namespace qpmodel.optimizer
     //    
     // These CGroupMember are in the same group because their logical plan are the same.
     //
-    public class CMemoGroup {
+    public class CMemoGroup
+    {
         // insertion order in memo
         public int memoid_;
 
@@ -223,7 +231,8 @@ namespace qpmodel.optimizer
         // debug info
         internal Memo memo_;
 
-        public CMemoGroup(Memo memo, int groupid, LogicNode subtree) {
+        public CMemoGroup(Memo memo, int groupid, LogicNode subtree)
+        {
             Debug.Assert(!(subtree is LogicMemoRef));
             memo_ = memo;
             memoid_ = groupid;
@@ -267,9 +276,11 @@ namespace qpmodel.optimizer
             return logic;
         }
 
-        public void CountMembers(out int clogic, out int cphysic) {
+        public void CountMembers(out int clogic, out int cphysic)
+        {
             clogic = 0; cphysic = 0;
-            foreach (var v in exprList_) {
+            foreach (var v in exprList_)
+            {
                 if (v.logic_ != null)
                     clogic++;
                 else
@@ -300,7 +311,7 @@ namespace qpmodel.optimizer
 
             // optimize all children group and newly generated groups
             var prevGroupCount = memo.cgroups_.Count;
-            joinblock.children_.ForEach(x => 
+            joinblock.children_.ForEach(x =>
                     (x as LogicMemoRef).group_.OptimizeGroup(memo, required));
             while (memo.stack_.Count > prevGroupCount)
                 memo.stack_.Pop().OptimizeGroup(memo, required);
@@ -311,7 +322,8 @@ namespace qpmodel.optimizer
         }
 
         // loop through optimize members of the group
-        public void OptimizeGroup(Memo memo, PhysicProperty required) {
+        public void OptimizeGroup(Memo memo, PhysicProperty required)
+        {
             // solver group shall optimize all its children before it can start
             if (IsSolverOptimizedGroup())
                 OptimizeSolverOptimizedGroupChildren(memo, required);
@@ -329,7 +341,8 @@ namespace qpmodel.optimizer
         }
 
         // scan through the member list and return the least cost member
-        public CGroupMember locateMinCostMember() {
+        public CGroupMember locateMinCostMember()
+        {
             double mincost = double.MaxValue;
             foreach (var v in exprList_)
             {
@@ -342,7 +355,7 @@ namespace qpmodel.optimizer
             }
 
             minIncCost_ = mincost;
-            Debug.Assert(IsSolverOptimizedGroup() || 
+            Debug.Assert(IsSolverOptimizedGroup() ||
                 minMember_.physic_.InclusiveCost() == minIncCost_);
             return minMember_;
         }
@@ -366,7 +379,8 @@ namespace qpmodel.optimizer
                 // there are children. So for each member in the list, we calculate the inclusive
                 // cost and return the lowest one
                 var incCost = new List<double>();
-                for (int i  = 0; i < exprList_.Count; i++) {
+                for (int i = 0; i < exprList_.Count; i++)
+                {
                     var physic = exprList_[i].physic_;
                     var cost = double.MaxValue;
                     if (physic != null)
@@ -453,7 +467,8 @@ namespace qpmodel.optimizer
         }
     }
 
-    public class Memo {
+    public class Memo
+    {
         public SQLStatement stmt_;
         public CMemoGroup rootgroup_;
         [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
@@ -462,7 +477,8 @@ namespace qpmodel.optimizer
         public Stack<CMemoGroup> stack_ = new Stack<CMemoGroup>();
 
         public Memo(SQLStatement stmt) => stmt_ = stmt;
-        public CMemoGroup LookupCGroup(LogicNode subtree) {
+        public CMemoGroup LookupCGroup(LogicNode subtree)
+        {
             if (subtree is LogicMemoRef sl)
                 return sl.group_;
 
@@ -543,7 +559,7 @@ namespace qpmodel.optimizer
                 JoinGraph graph = null;
                 LogicFilter filterNode = null;
                 LogicNode filterNodeParent = null; int index = -1;
-                graph = JoinResolver.ExtractJoinGraph(plan, 
+                graph = JoinResolver.ExtractJoinGraph(plan,
                                         out filterNodeParent, out index, out filterNode);
 
                 // if join solver can't handle it, fallback
@@ -575,7 +591,8 @@ namespace qpmodel.optimizer
             return doEnquePlan(plan);
         }
 
-        public void ValidateMemo(bool optimizationDone= false) {
+        public void ValidateMemo(bool optimizationDone = false)
+        {
             // all groups are different
             Debug.Assert(cgroups_.Distinct().Count() == cgroups_.Count);
             foreach (var v in cgroups_)
@@ -585,13 +602,15 @@ namespace qpmodel.optimizer
             }
         }
 
-        public string Print() {
+        public string Print()
+        {
             var str = "\nMemo:\n";
             int tlogics = 0, tphysics = 0;
 
             // output by memo insertion order to read easier
             var list = cgroups_.OrderBy(x => x.Value.memoid_).ToList();
-            foreach (var v in list) {
+            foreach (var v in list)
+            {
                 var group = v.Value;
                 if (group == rootgroup_)
                     str += "*";
@@ -627,7 +646,8 @@ namespace qpmodel.optimizer
 
             // each statement sitting in a new memo
             var memo = new Memo(stmt);
-            if (enqueueit) {
+            if (enqueueit)
+            {
                 memoset_.Add(memo);
 
                 // the statment shall already have plan generated
@@ -669,7 +689,8 @@ namespace qpmodel.optimizer
             // but we shall reconnect the logic node back to the Select Stmt level as needed
             // by column ordinal resolution. Physical node however is not needed.
             //
-            foreach (var v in select.fromQueries_) {
+            foreach (var v in select.fromQueries_)
+            {
                 var fromQuery = (v.Key.query_ as SelectStmt);
                 var generatedPlan = (v.Value as LogicFromQuery).child_();
 
@@ -700,7 +721,8 @@ namespace qpmodel.optimizer
             return CopyOutOptimalPlan(topstmt_);
         }
 
-        public string PrintMemo() {
+        public string PrintMemo()
+        {
             string str = "";
             memoset_.ForEach(x => str += x.Print());
             return str;

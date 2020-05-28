@@ -33,7 +33,7 @@ namespace qpmodel.stream
             // and return the chunk ts falling into
             //
             var span = (ts - startts).TotalSeconds;
-            var window = (long) (span / interval.TotalSeconds);
+            var window = (long)(span / interval.TotalSeconds);
             return window;
         }
     }

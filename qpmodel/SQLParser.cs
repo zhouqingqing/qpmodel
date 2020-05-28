@@ -71,7 +71,8 @@ namespace qpmodel.sqlparser
         }
 
         public static SQLStatement ParseSingleSqlStatement(string sql) => ParseSqlStatements(sql).list_[0];
-        public static Expr ParseExpr(string expr) {
+        public static Expr ParseExpr(string expr)
+        {
             RawParser parser = new RawParser();
             parser.Init(expr);
             SQLiteParser.ExprContext exprContext = parser.sqlParser_.expr();
@@ -108,7 +109,7 @@ namespace qpmodel.sqlparser
             }
         }
         public override object VisitCurrentTimeLiteral([NotNull] SQLiteParser.CurrentTimeLiteralContext context)
-           =>  throw new NotImplementedException();
+           => throw new NotImplementedException();
         public override object VisitStringLiteral([NotNull] SQLiteParser.StringLiteralContext context)
             => new LiteralExpr(context.GetText(), new CharType(context.GetText().Length));
         public override object VisitNullLiteral([NotNull] SQLiteParser.NullLiteralContext context)
@@ -170,7 +171,7 @@ namespace qpmodel.sqlparser
 
         public override object VisitCastExpr([NotNull] SQLiteParser.CastExprContext context)
             => new CastExpr((Expr)Visit(context.expr()), (ColumnType)Visit(context.type_name()));
-            public override object VisitSubqueryExpr([NotNull] SQLiteParser.SubqueryExprContext context)
+        public override object VisitSubqueryExpr([NotNull] SQLiteParser.SubqueryExprContext context)
         {
             if (context.K_EXISTS() != null)
                 return new ExistSubqueryExpr(Visit(context.select_stmt()) as SelectStmt);
@@ -389,7 +390,7 @@ namespace qpmodel.sqlparser
             // setops may consists multiple core select statement
             SetOpTree setops = null;
             var firststmt = VisitSelect_core(context.select_core()[0]) as SelectStmt;
-            Debug.Assert(context.select_core().Count()== context.compound_operator().Count() + 1);
+            Debug.Assert(context.select_core().Count() == context.compound_operator().Count() + 1);
             for (int i = 1; i < context.select_core().Count(); i++)
             {
                 if (setops is null)
@@ -410,7 +411,8 @@ namespace qpmodel.sqlparser
 
             // LIMIT clause
             Expr limit = null;
-            if (context.K_LIMIT() != null) {
+            if (context.K_LIMIT() != null)
+            {
                 limit = Visit(context.expr(0)) as Expr;
             }
 
@@ -472,7 +474,8 @@ namespace qpmodel.sqlparser
 
         public override object VisitPrimaryKeyConstraint([NotNull] SQLiteParser.PrimaryKeyConstraintContext context)
         {
-            if (context.K_PRIMARY() != null) {
+            if (context.K_PRIMARY() != null)
+            {
                 Debug.Assert(context.K_KEY() != null);
             }
             return new PrimaryKeyConstraint();
@@ -498,8 +501,8 @@ namespace qpmodel.sqlparser
             return new AnalyzeStmt(tabref, GetRawText(context));
         }
 
-        public override object VisitDrop_table_stmt([NotNull] SQLiteParser.Drop_table_stmtContext context) 
-            => new DropTableStmt (context.table_name().GetText(), GetRawText(context));
+        public override object VisitDrop_table_stmt([NotNull] SQLiteParser.Drop_table_stmtContext context)
+            => new DropTableStmt(context.table_name().GetText(), GetRawText(context));
 
         public override object VisitCreate_index_stmt([NotNull] SQLiteParser.Create_index_stmtContext context)
         {

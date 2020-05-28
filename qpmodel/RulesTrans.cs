@@ -66,7 +66,8 @@ namespace qpmodel.optimizer
         };
 
         // TBD: besides static controls, we can examine the plan and quick trim rules impossible to apply
-        public static void Init(QueryOption option) {
+        public static void Init(QueryOption option)
+        {
             if (!option.optimize_.enable_indexseek_)
                 ruleset_.RemoveAll(x => x is Scan2IndexSeek);
             if (!option.optimize_.enable_hashjoin_)
@@ -76,7 +77,7 @@ namespace qpmodel.optimizer
         }
 
         public virtual bool Appliable(CGroupMember expr) => false;
-        public virtual CGroupMember Apply(CGroupMember expr) =>  null;
+        public virtual CGroupMember Apply(CGroupMember expr) => null;
     }
 
     public class ExplorationRule : Rule { }
@@ -90,7 +91,8 @@ namespace qpmodel.optimizer
     // the condition cross-join shall not be suppressed.
     // Another more efficient complete and duplicates free set is RS-B2.
     //
-    public class JoinCommutativeRule : ExplorationRule {
+    public class JoinCommutativeRule : ExplorationRule
+    {
 
         public override bool Appliable(CGroupMember expr)
         {
@@ -106,7 +108,7 @@ namespace qpmodel.optimizer
             if (r.LeftReferencesRight(l))
                 return expr;
 
-            LogicJoin newjoin = new LogicJoin(r,l,f);
+            LogicJoin newjoin = new LogicJoin(r, l, f);
             return new CGroupMember(newjoin, expr.group_);
         }
     }
@@ -146,7 +148,7 @@ namespace qpmodel.optimizer
             {
                 var predicate = v as BinExpr;
                 var predicateRefs = predicate.tableRefs_;
-                if (ABCtabrefs.ListAEqualsB( predicateRefs))
+                if (ABCtabrefs.ListAEqualsB(predicateRefs))
                 {
                     ret = ret.AddAndFilter(predicate);
                 }
@@ -163,7 +165,8 @@ namespace qpmodel.optimizer
 
             var bc = (a_bc.r_() as LogicMemoRef).Deref();
             var bcfilter = bc.filter_;
-            if (bc is LogicJoin bcj) {
+            if (bc is LogicJoin bcj)
+            {
                 if (!bcj.IsInnerJoin())
                     return false;
 

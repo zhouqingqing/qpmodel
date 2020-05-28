@@ -132,19 +132,37 @@ namespace qpmodel.physic
                 dynamic l = this[i];
                 dynamic r = rrow[i];
                 bool flip = descends[i];
-                var c = l.CompareTo(r);
-                if (c < 0)
-                    return flip?+1:-1;
-                else if (c == 0)
-                    continue;
-                else if (c > 0)
-                    return flip?-1:+1;
+                if (l is null)
+                {
+                    // null first
+                    return flip ? +1 : -1;
+                }
+                else
+                {
+                    var c = l.CompareTo(r);
+                    if (c < 0)
+                        return flip ? +1 : -1;
+                    else if (c == 0)
+                        continue;
+                    else if (c > 0)
+                        return flip ? -1 : +1;
+                }
             }
             return 0;
         }
 
         public int ColCount() => values_.Length;
-        public override string ToString() => string.Join(",", values_.ToList());
+        public override string ToString()
+        {
+            return string.Join(",", values_.Select(x => {
+                if (x is double dv)
+                    return dv.ToString("0.####");
+                else if (x is double df)
+                    return df.ToString("0.####");
+                else
+                    return x;
+            }));
+        }
     }
 
     public class Parameter
@@ -173,13 +191,13 @@ namespace qpmodel.physic
         public void Reset() { params_.Clear(); results_.Clear(); }
         public Value GetParam(TableRef tabref, int ordinal)
         {
-        	Debug.Assert (!stop_);
+            Debug.Assert(!stop_);
             Debug.Assert(params_.FindAll(x => x.tabref_.Equals(tabref)).Count == 1);
             return params_.Find(x => x.tabref_.Equals(tabref)).row_[ordinal];
         }
         public void AddParam(TableRef tabref, Row row)
         {
-        	Debug.Assert (!stop_);
+            Debug.Assert(!stop_);
             Debug.Assert(params_.FindAll(x => x.tabref_.Equals(tabref)).Count <= 1);
             params_.Remove(params_.Find(x => x.tabref_.Equals(tabref)));
             params_.Add(new Parameter(tabref, row));
@@ -220,7 +238,8 @@ namespace qpmodel.physic
         int cntDoneProducers_ = 0;
         int cntProducers_;
 
-        public ExchangeChannel(int dop){
+        public ExchangeChannel(int dop)
+        {
             cntDoneProducers_ = 0;
             cntProducers_ = dop;
         }
@@ -281,7 +300,7 @@ namespace qpmodel.physic
         }
 
         internal ConcurrentDictionary<ChannelId, ExchangeChannel> channels_ = new ConcurrentDictionary<ChannelId, ExchangeChannel>();
-        public MachinePool() {}
+        public MachinePool() { }
 
         public void RegisterChannel(string planId, int machineId, ExchangeChannel channel)
         {
@@ -292,11 +311,11 @@ namespace qpmodel.physic
 
         public ExchangeChannel WaitForChannelReady(string plandId, int machineId)
         {
-            restart:
+        restart:
             var channelId = new MachinePool.ChannelId(plandId, machineId);
             if (channels_.TryGetValue(channelId, out ExchangeChannel channel))
                 return channel;
-            else 
+            else
             {
                 // wait for its ready - a manual event is better
                 Thread.Sleep(100);

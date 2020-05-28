@@ -56,7 +56,7 @@ namespace qpmodel
             SQLContext.Register<double, string>("sqroot", sqroot);
             var a = sqlContext.Read("a");
             var b = sqlContext.Read("b");
-            
+
             a.filter("a1>1").join(b, "b2=a2").select("a1", "sqroot(b1*a1+2)").show();
             string s = a.physicPlan_.Explain();
             Console.WriteLine(s);
@@ -67,7 +67,8 @@ namespace qpmodel
         static void TestDataSet2()
         {
             Random rand = new Random();
-            int inside(int d) {
+            int inside(int d)
+            {
                 var x = rand.NextDouble();
                 var y = rand.NextDouble();
                 var ret = x * x + y * y <= 1 ? 1 : 0;
@@ -81,7 +82,7 @@ namespace qpmodel
         }
         static void TestJobench()
         {
-            var files = Directory.GetFiles(@"../../../jobench");
+            var files = Directory.GetFiles(@"../../../../jobench");
 
             JOBench.CreateTables();
 
@@ -101,8 +102,8 @@ namespace qpmodel
         }
         static void TestTpcds_LoadData()
         {
-            var files = Directory.GetFiles(@"../../../tpcds", "*.sql");
-            string[] norun = {"q1", "q10"};
+            var files = Directory.GetFiles(@"../../../../tpcds", "*.sql");
+            string[] norun = { "q1", "q10" };
 
             Tpcds.CreateTables();
             Tpcds.LoadTables("tiny");
@@ -135,7 +136,7 @@ namespace qpmodel
             if (false)
             {
                 JOBench.CreateTables();
-                sql = File.ReadAllText("../../../jobench/10a.sql");
+                sql = File.ReadAllText("../../../../jobench/10a.sql");
                 goto doit;
             }
 
@@ -145,32 +146,26 @@ namespace qpmodel
                 Tpch.LoadTables("0001");
                 //Tpch.CreateIndexes();
                 Tpch.AnalyzeTables();
-                sql = File.ReadAllText("../../../tpch/q20.sql");
+                sql = File.ReadAllText("../../../../tpch/q20.sql");
                 goto doit;
             }
 
             if (false)
-            { 
+            {
+                //84
+                sql = File.ReadAllText("../../../tpcds/q85.sql");
                 Tpcds.CreateTables();
                 Tpcds.LoadTables("tiny");
                 Tpcds.AnalyzeTables();
-                // 1, 2,3,7,10,
                 // long time: 4 bad plan
                 // 6: distinct not supported, causing wrong result
-                sql = File.ReadAllText("../../../tpcds/q7.sql");
+                // q23, q33, q56, q60: in-subquery plan bug
+                // 10,11,13, 31, 38, 41, 48, 54, 66, 72, 74: too slow
                 goto doit;
             }
 
         doit:
-            sql = "select a2,b2,c2,d2 from ad, bd, cd, dd where a2=b2 and c2 = b2 and c2=d2 order by a2";
-            sql = "select count(*) from ast group by tumble(a0, interval '10' second)";
-            sql = "select round(a1, 10), count(*) from a group by round(a1, 10)";
-            sql = "select count(*) from a group by round(a1, 10)";
-            sql = "select count(*) from ast group by hop(a0, interval '5' second, interval '10' second)";
-            sql = "select round(a1, 10) from a group by a1;";
-            sql = "select abs(-a1*2), count(*) from a group by round(a1, 10);";
-            sql = "select abs(-a1*2), count(*) from a group by a1;";
-            sql = "select tumble_start(a0, interval '10' second), tumble_end(a0, interval '10' second), count(*) from ast group by tumble(a0, interval '10' second)";
+            sql = "select count(*) from a group by a1;";
 
             var datetime = new DateTime();
             datetime = DateTime.Now;
@@ -183,7 +178,7 @@ namespace qpmodel
             var a = RawParser.ParseSingleSqlStatement(sql);
             ExplainOption.show_tablename_ = false;
             a.queryOpt_.profile_.enabled_ = true;
-            a.queryOpt_.optimize_.enable_subquery_unnest_ = false;
+            a.queryOpt_.optimize_.enable_subquery_unnest_ = true;
             a.queryOpt_.optimize_.remove_from_ = false;
             a.queryOpt_.optimize_.use_memo_ = true;
             a.queryOpt_.optimize_.enable_cte_plan_ = false;
@@ -253,7 +248,7 @@ namespace qpmodel
             Console.WriteLine(phyplan.Explain(a.queryOpt_.explain_));
 
             stopWatch.Stop();
-            Console.WriteLine("RunTime: " + stopWatch.Elapsed); 
+            Console.WriteLine("RunTime: " + stopWatch.Elapsed);
             Console.ReadKey();
         }
     }

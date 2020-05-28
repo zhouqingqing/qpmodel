@@ -59,7 +59,7 @@ sql_stmt
                                       | drop_table_stmt
                                       | insert_stmt
                                       | copy_stmt
-                                      | pragma_stmt
+                                      | set_stmt
                                       | select_stmt
                                       | update_stmt
                                       )
@@ -111,9 +111,8 @@ copy_stmt
    ( K_WHERE expr )?
  ;
 
-pragma_stmt
- : K_PRAGMA ( database_name '.' )? pragma_name ( '=' pragma_value
-                                               | '(' pragma_value ')' )?
+set_stmt
+ : K_SET pragma_name ( '=' config_value )?
  ;
 
 select_stmt
@@ -196,13 +195,6 @@ expr
 
 foreign_key_clause
  : K_REFERENCES foreign_table ( '(' column_name ( ',' column_name )* ')' )?
-   ( ( K_ON ( K_DELETE | K_UPDATE ) ( K_SET K_NULL
-                                    | K_SET K_DEFAULT
-                                    | K_CASCADE
-                                    | K_RESTRICT)
-     | K_MATCH name
-     ) 
-   )*
  ;
 
 indexed_column
@@ -228,7 +220,7 @@ ordering_term
  : expr ( K_COLLATE collation_name )? ( K_ASC | K_DESC )?
  ;
 
-pragma_value
+config_value
  : signed_number
  | name
  | STRING_LITERAL
@@ -245,13 +237,11 @@ result_column
  ;
 
 table_or_subquery
- : ( database_name '.' )? table_name ( K_AS? table_alias )?
-   ( K_INDEXED K_BY index_name
-   | K_NOT K_INDEXED )?															#fromSimpleTable
+ : ( database_name '.' )? table_name ( K_AS? table_alias )?   #fromSimpleTable
  | '(' ( table_or_subquery ( ',' table_or_subquery )*
        | join_clause )
    ')' ( K_AS? table_alias_with_columns )?										#fromJoinTable
- | '(' select_stmt ')' ( K_AS? table_alias_with_columns )?						#fromSelectStmt
+ | '(' select_stmt ')' ( K_AS? table_alias_with_columns )?		#fromSelectStmt
  ;
 
 table_alias_with_columns

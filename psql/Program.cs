@@ -50,18 +50,18 @@ namespace psql
 
                 // construct file name for result file and write result
                 string f_name = Path.GetFileNameWithoutExtension(sqlFn);
-                string write_fn = $@"{write_dir_fn}\{f_name}.txt";
+                string write_fn = $@"{write_dir_fn}/{f_name}.txt";
 
                 File.WriteAllText(write_fn, test_result);
 
                 // construct file name of expected result
-                string expect_fn = $@"{expect_dir_fn}\{f_name}.txt";
+                string expect_fn = $@"{expect_dir_fn}/{f_name}.txt";
 
-               // verify query result against the expected result
-               if (!resultVerify(write_fn, expect_fn))
-               {
-                  return write_fn;
-               }
+                // verify query result against the expected result
+                if (!resultVerify(write_fn, expect_fn))
+                {
+                    return write_fn;
+                }
             }
             return null;
         }
@@ -70,9 +70,9 @@ namespace psql
 
     static class Program
     {
-       static void Main()
+        static void Main()
         {
-    
+
         }
     }
 }

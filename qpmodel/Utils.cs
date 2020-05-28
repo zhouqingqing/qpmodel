@@ -64,7 +64,7 @@ namespace qpmodel.utils
 
         public TreeNode()
         {
-           _ = $"{ObjectID.NewId()}";
+            _ = $"{ObjectID.NewId()}";
         }
 
         // traversal pattern FOR EACH
@@ -175,7 +175,8 @@ namespace qpmodel.utils
             return dequote;
         }
 
-        public static bool StringLike(this string s, string pattern) {
+        public static bool StringLike(this string s, string pattern)
+        {
             var regpattern = pattern.Replace("%", ".*");
             return Regex.IsMatch(s, regpattern);
         }

@@ -40,7 +40,8 @@ namespace qpmodel.optimizer
 {
     public class ImplmentationRule : Rule { }
 
-    public class NumberArgs {
+    public class NumberArgs
+    {
         public class N0 : NumberArgs { }
         public class N1 : NumberArgs { }
         public class N2 : NumberArgs { }
@@ -48,7 +49,7 @@ namespace qpmodel.optimizer
     }
 
     // A simple rule verify logic is T1 and convert to T2 with T3 specified children
-    public class SimpleImplementationRule<T1, T2, T3> : ImplmentationRule where T1: LogicNode where T2: PhysicNode where T3: NumberArgs, new()
+    public class SimpleImplementationRule<T1, T2, T3> : ImplmentationRule where T1 : LogicNode where T2 : PhysicNode where T3 : NumberArgs, new()
     {
         public override bool Appliable(CGroupMember expr)
         {
@@ -65,17 +66,17 @@ namespace qpmodel.optimizer
             switch (nArgs)
             {
                 case NumberArgs.N0 n0:
-                    args = new Object[] {log};
+                    args = new Object[] { log };
                     break;
                 case NumberArgs.N1 n1:
-                    args = new Object[] {log, new PhysicMemoRef(log.child_())};
+                    args = new Object[] { log, new PhysicMemoRef(log.child_()) };
                     break;
                 case NumberArgs.N2 n2:
-                    args = new Object[] {log, new PhysicMemoRef(log.l_()), new PhysicMemoRef(log.r_())};
+                    args = new Object[] { log, new PhysicMemoRef(log.l_()), new PhysicMemoRef(log.r_()) };
                     break;
                 case NumberArgs.NList nlist:
                     List<PhysicNode> children = log.children_.Select(x => new PhysicMemoRef(x) as PhysicNode).ToList();
-                    args = new Object[] {log, children};
+                    args = new Object[] { log, children };
                     break;
                 default:
                     Debug.Assert(false);
@@ -94,9 +95,10 @@ namespace qpmodel.optimizer
             if (join is null || join is LogicMarkJoin || join is LogicSingleJoin)
                 return false;
 
-            if (join.filter_.FilterHashable()) {
+            if (join.filter_.FilterHashable())
+            {
                 var stmt = expr.Stmt() as SelectStmt;
-                bool lhasSubqCol = stmt.PlanContainsCorrelatedSubquery() && 
+                bool lhasSubqCol = stmt.PlanContainsCorrelatedSubquery() &&
                     TableRef.HasColsUsedBySubquries(join.l_().InclusiveTableRefs());
                 if (!lhasSubqCol)
                     return true;
@@ -178,15 +180,16 @@ namespace qpmodel.optimizer
     public class Scan2Scan : SimpleImplementationRule<LogicScanTable, PhysicScanTable, NumberArgs.N0> { }
     public class Filter2Filter : SimpleImplementationRule<LogicFilter, PhysicFilter, NumberArgs.N1> { }
     public class Agg2HashAgg : SimpleImplementationRule<LogicAgg, PhysicHashAgg, NumberArgs.N1> { }
+    public class Agg2StreamAgg : SimpleImplementationRule<LogicAgg, PhysicStreamAgg, NumberArgs.N1> { }
     public class Order2Sort : SimpleImplementationRule<LogicOrder, PhysicOrder, NumberArgs.N1> { }
     public class Append2Append : SimpleImplementationRule<LogicAppend, PhysicAppend, NumberArgs.N1> { }
     public class From2From : SimpleImplementationRule<LogicFromQuery, PhysicFromQuery, NumberArgs.N1> { }
-    public class Limit2Limit: SimpleImplementationRule<LogicLimit, PhysicLimit, NumberArgs.N1> { }
+    public class Limit2Limit : SimpleImplementationRule<LogicLimit, PhysicLimit, NumberArgs.N1> { }
     public class Join2MarkJoin : SimpleImplementationRule<LogicMarkJoin, PhysicMarkJoin, NumberArgs.N2> { }
     public class Join2SingleJoin : SimpleImplementationRule<LogicSingleJoin, PhysicSingleJoin, NumberArgs.N2> { }
-    public class Seq2Seq: SimpleImplementationRule<LogicSequence, PhysicSequence, NumberArgs.NList> { }
-    public class CteProd2CteProd: SimpleImplementationRule<LogicCteProducer, PhysicCteProducer, NumberArgs.N1> { }
-    public class Gather2Gather: SimpleImplementationRule<LogicGather, PhysicGather, NumberArgs.N1> { }
+    public class Seq2Seq : SimpleImplementationRule<LogicSequence, PhysicSequence, NumberArgs.NList> { }
+    public class CteProd2CteProd : SimpleImplementationRule<LogicCteProducer, PhysicCteProducer, NumberArgs.N1> { }
+    public class Gather2Gather : SimpleImplementationRule<LogicGather, PhysicGather, NumberArgs.N1> { }
     public class Bcast2Bcast : SimpleImplementationRule<LogicBroadcast, PhysicBroadcast, NumberArgs.N1> { }
     public class Redis2Redis : SimpleImplementationRule<LogicRedistribute, PhysicRedistribute, NumberArgs.N1> { }
     public class PSet2PSet : SimpleImplementationRule<LogicProjectSet, PhysicProjectSet, NumberArgs.N1> { }

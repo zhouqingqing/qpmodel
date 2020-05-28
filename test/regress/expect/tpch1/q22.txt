@@ -60,7 +60,7 @@ PhysicOrder  (inccost=225008400272.1, cost=0.1, rows=1) (actual rows=0)
                                 Aggregates: avg(c_acctbal[0])
                                 -> PhysicScanTable customer as customer__1 (inccost=150000, cost=150000, rows=136500) (actual rows=0)
                                     Output: c_acctbal[5]
-                                    Filter: c_acctbal[5]>0.00 and substring(c_phone[4],1,2) in ('13','31','23', ... <Total: 7> )
+                                    Filter: c_acctbal[5]>0 and substring(c_phone[4],1,2) in ('13','31','23', ... <Total: 7> )
                     -> PhysicScanTable orders (inccost=1500000, cost=1500000, rows=1500000) (actual rows=0)
                         Output: o_custkey[1]
 
