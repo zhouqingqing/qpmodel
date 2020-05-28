@@ -31,7 +31,7 @@ namespace psql
             option.optimize_.remove_from_ = false;
 
             option.explain_.show_output_ = true;
-            option.explain_.show_cost_ = option.optimize_.use_memo_;
+            option.explain_.mode_ = option.optimize_.use_memo_ ? ExplainMode.analyze : ExplainMode.plain;
 
             // get a list of sql query fine names from the sql directory
             string[] sqlFiles = Directory.GetFiles(sql_dir_fn);

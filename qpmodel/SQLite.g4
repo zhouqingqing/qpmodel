@@ -50,7 +50,7 @@ sql_stmt_list
  ;
 
 sql_stmt
- : ( K_EXPLAIN ( K_ANALYZE K_VERBOSE )? )? (
+ : ( K_EXPLAIN ( K_EXECUTE )( K_VERBOSE )? )? (
                                       analyze_stmt
                                       | create_index_stmt
                                       | create_table_stmt
@@ -369,6 +369,7 @@ keyword
  | K_ESCAPE
  | K_EXCEPT
  | K_EXCLUSIVE
+ | K_EXECUTE
  | K_EXISTS
  | K_EXPLAIN
  | K_FOR
@@ -571,6 +572,7 @@ K_END : E N D;
 K_ESCAPE : E S C A P E;
 K_EXCEPT : E X C E P T;
 K_EXCLUSIVE : E X C L U S I V E;
+K_EXECUTE : E X E C U T E;
 K_EXISTS : E X I S T S;
 K_EXPLAIN : E X P L A I N;
 K_FOR : F O R;
