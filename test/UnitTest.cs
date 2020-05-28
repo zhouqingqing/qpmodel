@@ -244,11 +244,14 @@ namespace qpmodel.unittest
             // long time: 4 bad plan
             // 6: distinct not supported, causing wrong result
             // 10: subquery memo not copy out
+            // q000: jigzag memory allocation pattern but they are runnable with qpmodel Program.Main()
+            //
             string[] runnable = { 
                 "q1", "q2", "q3", "q7", "q15", "q17", "q19", "q21", "q24", "q25",
                 "q26", "q28", "q30", "q32", "q34", "q35", "q37", "q39", "q42", "q43",
-                "q45", "q46", "q50", "q52", "q55", "q58", "q59", "q61", "q62", "q65",
-                "q68", "q69", "q71", "q73", "q79", "q81", "q82", "q83", "q84", "q85",
+                "q45", "q46", "q50", "q52", "q55", "q58", "q59", "q61", "q62", "q00065",
+                "q68", "q69", "q71", "q73", "q79", "q81", "q82", "q83", "q00084", 
+                "q00085", 
                 "q88", "q90", "q91", "q92", "q94", "q95", "q96", "q99"
             };
 
@@ -266,8 +269,10 @@ namespace qpmodel.unittest
                 if (!runnable.Contains(tokens[1]))
                     continue;
 
+                Debug.Assert(option.optimize_.enable_subquery_unnest_);
                 Debug.Assert(option.optimize_.use_memo_);
                 var sql = File.ReadAllText(v);
+
                 var result = SQLStatement.ExecSQL(sql, out string phyplan, out _, option);
                 Assert.IsNotNull(result);
             }

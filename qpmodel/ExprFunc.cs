@@ -611,12 +611,9 @@ namespace qpmodel.expr
             if (oldpair.sum_ is null)
             {
                 if (arg != null)
-                {
                     pair_.sum_ = arg;
-                    Debug.Assert(oldpair.count_ == 0);
-                    if (arg == null)
-                        pair_.count_ = 1;
-                }
+                else
+                    pair_.count_ = 1;
             }
             else
             {

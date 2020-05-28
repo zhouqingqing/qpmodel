@@ -152,13 +152,15 @@ namespace qpmodel
 
             if (false)
             {
+                //84
+                sql = File.ReadAllText("../../../tpcds/q85.sql");
                 Tpcds.CreateTables();
                 Tpcds.LoadTables("tiny");
                 Tpcds.AnalyzeTables();
-                // 1, 2,3,7,10,
                 // long time: 4 bad plan
                 // 6: distinct not supported, causing wrong result
-                sql = File.ReadAllText("../../../../tpcds/q7.sql");
+                // q23, q33, q56, q60: in-subquery plan bug
+                // 10,11,13, 31, 38, 41, 48, 54, 66, 72, 74: too slow
                 goto doit;
             }
 
@@ -176,7 +178,7 @@ namespace qpmodel
             var a = RawParser.ParseSingleSqlStatement(sql);
             ExplainOption.show_tablename_ = false;
             a.queryOpt_.profile_.enabled_ = true;
-            a.queryOpt_.optimize_.enable_subquery_unnest_ = false;
+            a.queryOpt_.optimize_.enable_subquery_unnest_ = true;
             a.queryOpt_.optimize_.remove_from_ = false;
             a.queryOpt_.optimize_.use_memo_ = true;
             a.queryOpt_.optimize_.enable_cte_plan_ = false;
