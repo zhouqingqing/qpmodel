@@ -50,7 +50,7 @@ sql_stmt_list
  ;
 
 sql_stmt
- : ( K_EXPLAIN ( K_EXECUTE )( K_VERBOSE )? )? (
+ : ( K_EXPLAIN ( K_EXECUTE )? ( K_VERBOSE )? )? (
                                       analyze_stmt
                                       | create_index_stmt
                                       | create_table_stmt
