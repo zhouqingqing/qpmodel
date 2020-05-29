@@ -299,7 +299,7 @@ namespace qpmodel.stat
         static double EstSingleSelectivity(Expr filter)
         {
             double selectivity = 1.0;
-            Debug.Assert(filter.FilterToAndList().Count == 1);
+            Debug.Assert(filter.FilterToAndOrList().Count == 1);
 
             if (filter is BinExpr pred)
             {
@@ -338,14 +338,29 @@ namespace qpmodel.stat
         //   
         public static double EstSelectivity(this Expr filter)
         {
-            double selectivity = 1.0;
-            var andlist = filter.FilterToAndList();
-            if (andlist.Count == 1)
+            var andorlist = filter.FilterToAndOrList();
+            
+            double selectivity;
+            if (andorlist.Count == 1)
                 return EstSingleSelectivity(filter);
             else
             {
-                foreach (var v in andlist)
-                    selectivity *= EstSelectivity(v);
+                if(filter is LogicAndExpr)
+                {
+                    selectivity = 1.0;
+                    foreach (var v in andorlist)
+                    {
+                        selectivity *= EstSelectivity(v);
+                    }
+                }
+                else
+                {
+                    selectivity = 0.0;
+                    foreach (var v in andorlist)
+                    {
+                        selectivity = selectivity + EstSelectivity(v) - selectivity * EstSelectivity(v);
+                    }
+                }
             }
 
             validateSelectivity(selectivity);

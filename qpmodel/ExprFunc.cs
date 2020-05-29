@@ -992,6 +992,21 @@ namespace qpmodel.expr
             type_ = new BoolType(); Debug.Assert(Clone().Equals(this));
             Debug.Assert(this.IsBoolean());
         }
+        public List<Expr> BreakToList(bool isAnd)
+        {
+            var andorlist = new List<Expr>();
+            for (int i = 0; i < 2; i++)
+            {
+                Expr e = i == 0 ? l_() : r_();
+                if (isAnd && e is LogicAndExpr ea)
+                    andorlist.AddRange(ea.BreakToList(isAnd));
+                else if (!isAnd && e is LogicOrExpr eo)
+                    andorlist.AddRange(eo.BreakToList(isAnd));
+                else
+                    andorlist.Add(e);
+            }
+            return andorlist;
+        }
     }
 
     public class LogicAndExpr : LogicAndOrExpr
@@ -1009,20 +1024,6 @@ namespace qpmodel.expr
 
         // a AND (b OR c) AND d => [a, b OR c, d]
         //
-        public List<Expr> BreakToList()
-        {
-            var andlist = new List<Expr>();
-            for (int i = 0; i < 2; i++)
-            {
-                Expr e = i == 0 ? l_() : r_();
-                if (e is LogicAndExpr ea)
-                    andlist.AddRange(ea.BreakToList());
-                else
-                    andlist.Add(e);
-            }
-
-            return andlist;
-        }
     }
 
     public class LogicOrExpr : LogicAndOrExpr
