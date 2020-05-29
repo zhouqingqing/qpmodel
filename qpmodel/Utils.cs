@@ -52,6 +52,7 @@ namespace qpmodel.utils
     {
         // unique identifier
         internal string _ = "uninitialized";
+        internal string clone_ = "notclone";
 
         [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
         public List<T> children_ = new List<T>();
@@ -124,7 +125,10 @@ namespace qpmodel.utils
         // clone
         public virtual T Clone()
         {
+            // clone object have same ID but different cloneID
             var n = (T)MemberwiseClone();
+            clone_ = $"{ObjectID.NewId()}";
+
             n.children_ = new List<T>();
             children_.ForEach(x => n.children_.Add(x.Clone()));
             Debug.Assert(Equals(n));

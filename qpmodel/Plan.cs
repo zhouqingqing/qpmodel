@@ -174,7 +174,8 @@ namespace qpmodel.logic
                     r += "-> ";
 
                 // print line of <nodeName> : <Estimation> <Actual>
-                r += $"{this.GetType().Name}{(exp_id ? " " + _ : "")} {ExplainInlineDetails()}";
+                var id = _ + (clone_.Equals("notclone") ? "" : "_" + clone_);
+                r += $"{this.GetType().Name}{(exp_id ? " " + id : "")} {ExplainInlineDetails()}";
                 var phynode = this as PhysicNode;
                 if (phynode != null && phynode.profile_ != null)
                 {
