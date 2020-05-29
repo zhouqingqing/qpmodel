@@ -576,9 +576,6 @@ namespace qpmodel.expr
         // output type of the expression
         internal ColumnType type_;
 
-        // debug info
-        internal bool dbg_isCloneCopy_ = false;
-
         protected string outputName() => outputName_ != null ? $"(as {outputName_})" : null;
 
         void validateAfterBound()
@@ -644,9 +641,7 @@ namespace qpmodel.expr
         {
             var n = base.Clone();
             n.tableRefs_ = new List<TableRef>();
-            tableRefs_.ForEach(n.tableRefs_.Add);
-            n.dbg_isCloneCopy_ = true;
-
+            tableRefs_.ForEach(n.tableRefs_.Add);            
             Debug.Assert(Equals(n));
             return n;
         }

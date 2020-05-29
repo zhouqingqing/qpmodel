@@ -146,7 +146,7 @@ namespace qpmodel
                 Tpch.LoadTables("0001");
                 //Tpch.CreateIndexes();
                 Tpch.AnalyzeTables();
-                sql = File.ReadAllText("../../../../../tpch/q20.sql");
+                sql = File.ReadAllText("../../../../tpch/q20.sql");
                 goto doit;
             }
 
@@ -165,7 +165,7 @@ namespace qpmodel
             }
 
         doit:
-            sql = "select count(*) from a group by a1;";
+            sql = "with cte as (select avg(a2) from a join b on a1=b1) select * from cte cte1, cte cte2;";
 
             var datetime = new DateTime();
             datetime = DateTime.Now;
@@ -180,13 +180,13 @@ namespace qpmodel
             a.queryOpt_.profile_.enabled_ = true;
             a.queryOpt_.optimize_.enable_subquery_unnest_ = true;
             a.queryOpt_.optimize_.remove_from_ = false;
-            a.queryOpt_.optimize_.use_memo_ = false;
-            a.queryOpt_.optimize_.enable_cte_plan_ = false;
+            a.queryOpt_.optimize_.use_memo_ = true;
+            a.queryOpt_.optimize_.enable_cte_plan_ = true;
             a.queryOpt_.optimize_.use_codegen_ = false;
             a.queryOpt_.optimize_.memo_disable_crossjoin_ = false;
             a.queryOpt_.optimize_.memo_use_joinorder_solver_ = false;
             a.queryOpt_.explain_.show_output_ = true;
-            a.queryOpt_.explain_.show_id_ = false;
+            a.queryOpt_.explain_.show_id_ = true;
             a.queryOpt_.explain_.show_estCost_ = a.queryOpt_.optimize_.use_memo_;
             a.queryOpt_.explain_.mode_ = ExplainMode.full;
 
