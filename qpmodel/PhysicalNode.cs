@@ -135,10 +135,10 @@ namespace qpmodel.physic
         {
             if (double.IsNaN(cost_))
                 cost_ = EstimateCost();
-            Debug.Assert(cost_ >= 0);
+            Debug.Assert(cost_ >= 0 || cost_ is double.NaN);
             return cost_;
         }
-        public virtual double EstimateCost() => throw new NotImplementedException();
+        public virtual double EstimateCost() => double.NaN;
 
         // inclusive cost summarize its own cost and its children cost. During 
         // optimiztaion it is a dynamic measurement, we do so by summarize its
@@ -1412,7 +1412,7 @@ namespace qpmodel.physic
                             newr[i] = r[i];
                     }
                     rows_.Add(newr);
-                    if ((int)context.option_.explain_.mode_ < 2)
+                    if (context.option_.explain_.mode_ >= ExplainMode.full )
                         Console.WriteLine($"{newr}");
                 }
                 return cs;

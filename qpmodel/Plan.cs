@@ -116,19 +116,21 @@ namespace qpmodel.logic
 
         public void PopCodeGen() => optimize_.use_codegen_ = saved_use_codegen_;
     }
+
     public enum ExplainMode
     {
-        none, // physical plan only
-        plain, // physical plan with actual cost
-        explain, // physical plan with estimated cost, execution skipped
-        analyze, // physical plan, estimates, actual cardinality, results muted
+        explain,    // physical plan with estimated cost, execution skipped
+        analyze,    // physical plan, estimates, actual cost, results muted
+        full,       // analyze mode with results printed
     }
+ 
     public class ExplainOption
     {
 
         [ThreadStatic]
         public static bool show_tablename_ = true;
-        public ExplainMode mode_ = ExplainMode.plain;
+        public ExplainMode mode_ { get; set; } = ExplainMode.full;
+        public bool show_estCost_ { get; set; } = false;
         public bool show_output_ { get; set; } = true;
         public bool show_id_ { get; set; } = false;
         public ExplainOption Clone() => (ExplainOption)MemberwiseClone();
@@ -156,8 +158,8 @@ namespace qpmodel.logic
         {
             string r = null;
             bool exp_output = option?.show_output_ ?? true;
-            bool exp_showcost = option is null ? false : (int)option.mode_ > 1;
-            bool exp_showactual = option is null ? true : (option.mode_ == ExplainMode.plain || option.mode_ == ExplainMode.analyze);
+            bool exp_showcost = option?.show_estCost_ ?? false;
+            bool exp_showactual = option is null ? false : option.mode_ >= ExplainMode.analyze;
             bool exp_id = option?.show_id_ ?? false;
 
             if (!(this is PhysicProfiling) && !(this is PhysicCollect))
