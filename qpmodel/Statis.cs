@@ -336,30 +336,52 @@ namespace qpmodel.stat
         //     we can't use sel(a1>5) * sel(a1<=5) which gives 0.25
         //  2. different column correlation:  country='US' and continent='North America'
         //   
+        static ColExpr ExtractColumn(Expr filter)
+        {
+            if (filter is BinExpr pred)
+                if (pred.l_() is ColExpr pl && pl.tabRef_ is BaseTableRef bpl)
+                    if (pred.r_() is LiteralExpr pr && new List<String>() { "=", ">", ">=", "<", "<=" }.Contains(pred.op_))
+                        return pl;
+            return null;
+        }
+        static double EstColumnSelectivity(List<double> listsel, bool isAnd)
+        {
+            double selectivity = isAnd ? 1.0 : 0.0;
+            foreach (double sel in listsel)
+                selectivity = isAnd ? selectivity - (1.0 - sel) : Math.Max(selectivity, sel);
+            return selectivity;
+        }
         public static double EstSelectivity(this Expr filter)
         {
             var andorlist = filter.FilterToAndOrList();
-            
-            double selectivity;
+
+            double selectivity = filter is LogicAndExpr ? 1.0 : 0.0;
             if (andorlist.Count == 1)
                 return EstSingleSelectivity(filter);
             else
             {
-                if(filter is LogicAndExpr)
+                // combine simple expressions of the same column
+                Dictionary<ColExpr, List<double>> colselcombine = new Dictionary<ColExpr, List<double>>();
+                foreach (var v in andorlist)
                 {
-                    selectivity = 1.0;
-                    foreach (var v in andorlist)
+                    ColExpr col = ExtractColumn(v);
+                    if (!(col is null))
                     {
-                        selectivity *= EstSelectivity(v);
+                        if (colselcombine.ContainsKey(col))
+                            colselcombine[col].Add(EstSelectivity(v));
+                        else
+                            colselcombine.Add(col, new List<double> { EstSelectivity(v) });
+                    }
+                    else
+                    {
+                        double vsel = EstSelectivity(v);
+                        selectivity = filter is LogicAndExpr ? selectivity * vsel : selectivity + vsel - vsel * selectivity;
                     }
                 }
-                else
+                foreach (var colexpr in colselcombine)
                 {
-                    selectivity = 0.0;
-                    foreach (var v in andorlist)
-                    {
-                        selectivity = selectivity + EstSelectivity(v) - selectivity * EstSelectivity(v);
-                    }
+                    double csel = EstColumnSelectivity(colexpr.Value, filter is LogicAndExpr);
+                    selectivity = filter is LogicAndExpr ? selectivity * csel : selectivity + csel - csel * selectivity;
                 }
             }
 
