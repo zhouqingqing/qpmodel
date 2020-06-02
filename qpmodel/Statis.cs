@@ -100,11 +100,12 @@ namespace qpmodel.stat
         public double? EstSelectivity(string op, Value val)
         {
             double selectivity = StatConst.one_;
-
+            
             if (!new List<String>() { "=", ">", ">=", "<", "<=" }.Contains(op))
                 return null;
 
             int which = whichBucket(val);
+            
             switch (op)
             {
                 case "=":
@@ -141,41 +142,56 @@ namespace qpmodel.stat
             for (int i = 0; i < nvalues_; i++) total += freqs_[i];
             Debug.Assert(total <= 1 + StatConst.epsilon_);
         }
-
         int whichValue(Value val)
+            => Array.IndexOf(values_, val);
+        int whichUpperBound(Value val)
         {
-            return Array.IndexOf(values_, val);
+            dynamic value = val;
+            for (int i = 0; i < NValues_; i++)
+            {
+                if (((dynamic)values_[i]).CompareTo(value) >= 0)
+                    return i;
+            }
+            return NValues_;
         }
-        public double? EstSelectivity(string op, Value val)
+        public double? EstSelectivity(string op, Value val, bool force = false)
         {
             if (!new List<String>() { "=", ">", ">=", "<", "<=" }.Contains(op))
                 return null;
-
+            
             int which = whichValue(val);
-            if (which == -1) return null;
-
+            int upperBound = -1;
+            if (which == -1)
+            {
+                if (!force)
+                    return null;
+                upperBound = whichUpperBound(val);
+            }
+            
             double selectivity = 0.0;
+            int start = 0, end = nvalues_;
             switch (op)
             {
                 case "=":
-                    selectivity = freqs_[which];
-                    break;
+                    return which != -1 ? freqs_[which] : 0.0;
                 case ">":
+                    start = which != -1 ? which + 1 : upperBound;
+                    break;
                 case ">=":
-                    int start = which;
-                    for (int i = start; i < nvalues_; i++)
-                        selectivity += freqs_[i];
+                    start = which != -1 ? which : upperBound;
                     break;
                 case "<":
+                    end = which != -1 ? which : upperBound;
+                    break;
                 case "<=":
-                    int end = which;
-                    for (int i = 0; i <= end; i++)
-                        selectivity += freqs_[i];
+                    end = which != -1 ? which + 1 : upperBound;
                     break;
             }
+            for (int i = start; i < end; i++)
+                selectivity += freqs_[i];
 
-            if (selectivity == 0) return null;
-            Estimator.validateSelectivity(selectivity);
+            // if (selectivity == 0) return null;
+            // Estimator.validateSelectivity(selectivity);
             return selectivity;
         }
     }
@@ -279,6 +295,11 @@ namespace qpmodel.stat
         {
             if (op == "like")
                 return EstLikeSelectivity(val);
+            if (mcv_ is null && hist_ is null)
+                return StatConst.one_;
+            if (hist_ is null)
+                return mcv_.EstSelectivity(op, val, true) ?? StatConst.one_;
+            // as far as I know histogram and mcv cannot coexist, but just in case
             return mcv_?.EstSelectivity(op, val) ?? 
                 hist_?.EstSelectivity(op, val) ?? StatConst.one_;
         }
@@ -354,7 +375,7 @@ namespace qpmodel.stat
         public static double EstSelectivity(this Expr filter)
         {
             var andorlist = filter.FilterToAndOrList();
-
+            
             double selectivity = filter is LogicAndExpr ? 1.0 : 0.0;
             if (andorlist.Count == 1)
                 return EstSingleSelectivity(filter);
