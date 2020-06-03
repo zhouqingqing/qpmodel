@@ -413,9 +413,10 @@ namespace qpmodel.stat
             double backupsel = 1.0;
             foreach (double sel in listsel)
             {
-                selectivity = isAnd ? selectivity - (1.0 - sel) : Math.Max(selectivity, sel);
+                selectivity = isAnd ? selectivity - (1.0 - sel) : selectivity + sel;
                 backupsel *= sel;
             }
+            if (!isAnd) selectivity = Math.Min(selectivity, 1.0);
             if (selectivity < 0 || selectivity > 1.0) selectivity = backupsel;
             return selectivity;
         }
