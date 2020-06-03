@@ -183,7 +183,7 @@ namespace qpmodel.logic
                     mindlr = 0;
                     break;
                 }
-                mindlr = mindlr * Math.Max(dl, dr);
+                mindlr = mindlr * Math.Min(dl, dr);
             }
             
             if (mindlr != 0)

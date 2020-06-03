@@ -102,7 +102,7 @@ namespace qpmodel.stat
             if (val is DateTime)
                 frac = (double)((dval - dlb).Divide(dub - dlb));
             else
-                frac = (double)(dval - dlb) / (dub - dlb);
+                frac = (double)(dval - dlb) / (double)(dub - dlb);
             Debug.Assert(frac >= 0 && frac < 1.0 + StatConst.epsilon_);
             return frac;
         }
@@ -129,12 +129,11 @@ namespace qpmodel.stat
                     if (which == 0) selectivity = 0.0;
                     else if (which == nbuckets_ + 1) selectivity = 1.0;
                     else
-                        selectivity = (1.0 * which + getFraction(buckets_[which - 1], buckets_[which], val))
+                        selectivity = (1.0 * which - 1 + getFraction(buckets_[which - 1], buckets_[which], val))
                             / nbuckets_;
                     break;
             }
 
-            if (selectivity == 0) return null;
             Estimator.validateSelectivity(selectivity);
             return selectivity;
         }
@@ -184,7 +183,7 @@ namespace qpmodel.stat
             }
             return totfreq;
         }
-        public double? EstSelectivity(string op, Value val, bool force = false)
+        public double? EstSelectivity(string op, Value val)
         {
             if (!new List<String>() { "=", ">", ">=", "<", "<=" }.Contains(op))
                 return null;
@@ -195,8 +194,11 @@ namespace qpmodel.stat
                 if (which == -1) return otherfreq_;
                 return freqs_[which];
             }
+            
+            double selectivity = calcTotalFreq(val, op);
+            Estimator.validateSelectivity(selectivity);
 
-            return calcTotalFreq(val, op);
+            return selectivity;
         }
     }
 
@@ -258,8 +260,18 @@ namespace qpmodel.stat
                     i++;
                     if (i >= mcv_.nvalues_) break;
                 }
-                mcv_.otherfreq_ = (1.0 - freq) / (n_distinct_ - (ulong)mcv_.nvalues_);
-                mcv_.totalfreq_ = freq;
+                if (n_distinct_ > (ulong)mcv_.nvalues_)
+                {
+                    Debug.Assert(freq > 0 && freq < 1 + StatConst.epsilon_);
+                    mcv_.otherfreq_ = (1.0 - freq) / (n_distinct_ - (ulong)mcv_.nvalues_);
+                    mcv_.totalfreq_ = freq;
+                }
+                else
+                {
+                    mcv_.otherfreq_ = 0;
+                    mcv_.totalfreq_ = StatConst.one_;
+                }
+
                 mcv_.validateThis();
 
                 // remove all values present in mcv
@@ -312,12 +324,17 @@ namespace qpmodel.stat
         {
             if (op == "like")
                 return EstLikeSelectivity(val);
+            if (!new List<String>() { "=", ">", ">=", "<", "<=" }.Contains(op))
+                return StatConst.one_;
+
             if (mcv_ is null) 
             {
+                if (hist_ is null)
+                    return StatConst.one_;
                 if (op == "=") // unique
                     return 1.0 / n_rows_;
                 else
-                    return hist_?.EstSelectivity(op, val) ?? StatConst.one_;
+                    return hist_.EstSelectivity(op, val) ?? StatConst.one_;
             }
             else
             {
