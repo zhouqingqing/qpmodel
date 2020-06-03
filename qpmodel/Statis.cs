@@ -75,10 +75,9 @@ namespace qpmodel.stat
     {
         public const int NBuckets_ = 100;
 
-        public int depth_ { get; set; }
+        public double depth_ { get; set; }
         public int nbuckets_ { get; set; }
-        public Value[] buckets_ { get; set; } = new Value[NBuckets_];
-        public int[] distincts_ { get; set; } = new int[NBuckets_];
+        public Value[] buckets_ { get; set; } = new Value[NBuckets_ + 1];
 
         int whichBucket(Value val)
         {
@@ -86,38 +85,46 @@ namespace qpmodel.stat
 
             if (((dynamic)buckets_[0]).CompareTo(value) >= 0)
                 return 0;
-            for (int i = 0; i < nbuckets_ - 1; i++)
+            for (int i = 0; i <= nbuckets_; i++)
             {
-                dynamic l = buckets_[i];
-                dynamic r = buckets_[i + 1];
-                if (l.CompareTo(value) <= 0 && r.CompareTo(value) > 0)
-                    return i + 1;
+                // get the upper bound
+                dynamic bound = buckets_[i];
+                if (bound.CompareTo(value) > 0)
+                    return i;
             }
-
-            return nbuckets_ - 1;
+            return nbuckets_ + 1;
         }
-
+        double getFraction(Value lb, Value ub, Value val)
+        {
+            // string is not capable of comparing
+            dynamic dlb = lb, dub = ub, dval = val;
+            return (double)((dval - dlb).Divide(dub - dlb));
+        }
         public double? EstSelectivity(string op, Value val)
         {
+            // return the selectivity respect to only the histogram
             double selectivity = StatConst.one_;
-            
-            if (!new List<String>() { "=", ">", ">=", "<", "<=" }.Contains(op))
-                return null;
+            Debug.Assert(new List<String>() { ">", ">=", "<", "<=" }.Contains(op));
 
             int which = whichBucket(val);
             
             switch (op)
             {
-                case "=":
-                    selectivity = 1.0 / (nbuckets_ * distincts_[which]);
-                    break;
                 case ">":
                 case ">=":
-                    selectivity = 1.0 * (nbuckets_ - which) / nbuckets_;
+                    if (which == 0) selectivity = 1.0;
+                    else if (which == nbuckets_ + 1) selectivity = 0.0;
+                    else
+                        selectivity = (1.0 * (nbuckets_ - which) 
+                            + 1.0 - getFraction(buckets_[which - 1], buckets_[which], val)) / nbuckets_;
                     break;
                 case "<":
                 case "<=":
-                    selectivity = 1.0 * which / nbuckets_;
+                    if (which == 0) selectivity = 0.0;
+                    else if (which == nbuckets_ + 1) selectivity = 1.0;
+                    else
+                        selectivity = (1.0 * which + getFraction(buckets_[which - 1], buckets_[which], val))
+                            / nbuckets_;
                     break;
             }
 
@@ -134,6 +141,8 @@ namespace qpmodel.stat
         public int nvalues_ { get; set; }
         public Value[] values_ { get; set; } = new Value[NValues_];
         public double[] freqs_ { get; set; } = new double[NValues_];
+        public double totalfreq_ { get; set; }
+        public double otherfreq_ { get; set; } = 0.0;
 
         internal void validateThis()
         {
@@ -141,58 +150,49 @@ namespace qpmodel.stat
             double total = 0;
             for (int i = 0; i < nvalues_; i++) total += freqs_[i];
             Debug.Assert(total <= 1 + StatConst.epsilon_);
+            Debug.Assert(totalfreq_ <= 1 + StatConst.epsilon_);
         }
         int whichValue(Value val)
             => Array.IndexOf(values_, val);
-        int whichUpperBound(Value val)
+        double calcTotalFreq(Value val, string op)
         {
+            double totfreq = 0.0;
             dynamic value = val;
             for (int i = 0; i < NValues_; i++)
             {
-                if (((dynamic)values_[i]).CompareTo(value) >= 0)
-                    return i;
+                switch (op)
+                {
+                    case "<=":
+                        if (((dynamic)values_[i]) <= value) totfreq += freqs_[i];
+                        break;
+                    case "<":
+                        if (((dynamic)values_[i]) < value) totfreq += freqs_[i];
+                        break;
+                    case ">=":
+                        if (((dynamic)values_[i]) >= value) totfreq += freqs_[i];
+                        break;
+                    case ">":
+                        if (((dynamic)values_[i]) > value) totfreq += freqs_[i];
+                        break;
+                }
             }
-            return NValues_;
+            return totfreq;
         }
         public double? EstSelectivity(string op, Value val, bool force = false)
         {
             if (!new List<String>() { "=", ">", ">=", "<", "<=" }.Contains(op))
                 return null;
             
-            int which = whichValue(val);
-            int upperBound = -1;
-            if (which == -1)
+            if (op == "=")
             {
-                if (!force)
-                    return null;
-                upperBound = whichUpperBound(val);
+                int which = whichValue(val);
+                if (which == -1) return otherfreq_;
+                return freqs_[which];
             }
-            
-            double selectivity = 0.0;
-            int start = 0, end = nvalues_;
-            switch (op)
-            {
-                case "=":
-                    return which != -1 ? freqs_[which] : 0.0;
-                case ">":
-                    start = which != -1 ? which + 1 : upperBound;
-                    break;
-                case ">=":
-                    start = which != -1 ? which : upperBound;
-                    break;
-                case "<":
-                    end = which != -1 ? which : upperBound;
-                    break;
-                case "<=":
-                    end = which != -1 ? which + 1 : upperBound;
-                    break;
-            }
-            for (int i = start; i < end; i++)
-                selectivity += freqs_[i];
 
-            // if (selectivity == 0) return null;
-            // Estimator.validateSelectivity(selectivity);
-            return selectivity;
+            return calcTotalFreq(val, op);
+
+            
         }
     }
 
@@ -231,35 +231,48 @@ namespace qpmodel.stat
             }
 
             n_distinct_ = (ulong)values.Distinct().Count();
-            if (n_distinct_ <= MCVList.NValues_)
+            // initialize mcv whenever the attr is not unique key
+            if (n_distinct_ < (ulong)values.Count())
             {
                 mcv_ = new MCVList();
-                var groups = from value in values group value by value into newGroup orderby newGroup.Key select newGroup;
-                int i = 0;
+                var groups = from value in values group value by value into newGroup select newGroup;
+                
+                Dictionary<Value, int> sortgroup = new Dictionary<Value, int>();
                 foreach (var g in groups)
+                    sortgroup.Add(g.Key, g.Count());
+                
+                var sorted = from pair in sortgroup orderby pair.Value descending select pair;
+                mcv_.nvalues_ = (int)Math.Min(n_distinct_, MCVList.NValues_);
+
+                int i = 0;
+                double freq = 0.0;
+                foreach (var g in sorted)
                 {
-                    mcv_.values_[i] = g.Key;
-                    mcv_.freqs_[i] = (1.0 * g.Count()) / values.Count();
+                    mcv_.values_[i] = g.Key ;
+                    mcv_.freqs_[i] = (1.0 * g.Value) / values.Count();
+                    freq += mcv_.freqs_[i];
                     i++;
+                    if (i >= mcv_.nvalues_) break;
                 }
-                mcv_.nvalues_ = i;
+                mcv_.otherfreq_ = (1.0 - freq) / (n_distinct_ - (ulong)mcv_.nvalues_);
+                mcv_.totalfreq_ = freq;
                 mcv_.validateThis();
+
+                // remove all values present in mcv
+                values.RemoveAll(x => mcv_.values_.Contains(x));
             }
-            else
+            // initialize histogram unless all values in mcv
+            if (values.Count > 0)
             {
                 // now sort the values and create equal-depth historgram
                 values.Sort();
                 int nbuckets = Math.Min(Historgram.NBuckets_, values.Count);
-                int depth = values.Count / nbuckets;
+                double depth = ((double)values.Count) / nbuckets;
                 Debug.Assert(depth >= 1);
 
                 hist_ = new Historgram();
-                for (int i = 0; i < nbuckets; i++)
-                {
-                    hist_.buckets_[i] = values[(i + 1) * depth - 1];
-                    hist_.distincts_[i] = values.GetRange(i * depth, depth).Distinct().Count();
-                    Debug.Assert(hist_.distincts_[i] > 0);
-                }
+                for (int i = 0; i < nbuckets + 1; i++)
+                    hist_.buckets_[i] = values[Math.Min((int)(i * depth), values.Count - 1)];
                 hist_.depth_ = depth;
                 hist_.nbuckets_ = nbuckets;
             }
@@ -295,13 +308,21 @@ namespace qpmodel.stat
         {
             if (op == "like")
                 return EstLikeSelectivity(val);
-            if (mcv_ is null && hist_ is null)
-                return StatConst.one_;
-            if (hist_ is null)
-                return mcv_.EstSelectivity(op, val, true) ?? StatConst.one_;
-            // as far as I know histogram and mcv cannot coexist, but just in case
-            return mcv_?.EstSelectivity(op, val) ?? 
-                hist_?.EstSelectivity(op, val) ?? StatConst.one_;
+            if (mcv_ is null) 
+            {
+                if (op == "=") // unique
+                    return 1.0 / n_rows_;
+                else
+                    return hist_.EstSelectivity(op, val) ?? StatConst.one_;
+            }
+            else
+            {
+                if (op == "=")
+                    return mcv_.EstSelectivity(op, val) ?? StatConst.one_;
+                else
+                    return (mcv_.EstSelectivity(op, val) ?? StatConst.one_)
+                        + (1 - mcv_.totalfreq_) * (hist_?.EstSelectivity(op, val) ?? StatConst.one_);
+            }
         }
         public ulong EstDistinct()
         {
@@ -314,7 +335,7 @@ namespace qpmodel.stat
     {
         public static void validateSelectivity(double selectivity)
         {
-            Debug.Assert(selectivity > 0 && selectivity <= 1.0 + StatConst.epsilon_);
+            Debug.Assert(selectivity >= 0 && selectivity <= 1.0 + StatConst.epsilon_);
         }
 
         static double EstSingleSelectivity(Expr filter)
@@ -375,7 +396,6 @@ namespace qpmodel.stat
         public static double EstSelectivity(this Expr filter)
         {
             var andorlist = filter.FilterToAndOrList();
-            
             double selectivity = filter is LogicAndExpr ? 1.0 : 0.0;
             if (andorlist.Count == 1)
                 return EstSingleSelectivity(filter);
