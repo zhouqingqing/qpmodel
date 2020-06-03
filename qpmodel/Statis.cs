@@ -98,7 +98,13 @@ namespace qpmodel.stat
         {
             // string is not capable of comparing
             dynamic dlb = lb, dub = ub, dval = val;
-            return (double)((dval - dlb).Divide(dub - dlb));
+            double frac;
+            if (val is DateTime)
+                frac = (double)((dval - dlb).Divide(dub - dlb));
+            else
+                frac = (double)(dval - dlb) / (dub - dlb);
+            Debug.Assert(frac >= 0 && frac < 1.0 + StatConst.epsilon_);
+            return frac;
         }
         public double? EstSelectivity(string op, Value val)
         {
@@ -191,8 +197,6 @@ namespace qpmodel.stat
             }
 
             return calcTotalFreq(val, op);
-
-            
         }
     }
 
@@ -313,7 +317,7 @@ namespace qpmodel.stat
                 if (op == "=") // unique
                     return 1.0 / n_rows_;
                 else
-                    return hist_.EstSelectivity(op, val) ?? StatConst.one_;
+                    return hist_?.EstSelectivity(op, val) ?? StatConst.one_;
             }
             else
             {
@@ -389,8 +393,13 @@ namespace qpmodel.stat
         static double EstColumnSelectivity(List<double> listsel, bool isAnd)
         {
             double selectivity = isAnd ? 1.0 : 0.0;
+            double backupsel = 1.0;
             foreach (double sel in listsel)
+            {
                 selectivity = isAnd ? selectivity - (1.0 - sel) : Math.Max(selectivity, sel);
+                backupsel *= sel;
+            }
+            if (selectivity < 0 || selectivity > 1.0) selectivity = backupsel;
             return selectivity;
         }
         public static double EstSelectivity(this Expr filter)
