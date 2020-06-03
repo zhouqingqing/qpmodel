@@ -19,21 +19,21 @@ group by
 	o_orderpriority
 order by
 	o_orderpriority
-Total cost: 1825579538325.54
-PhysicOrder  (inccost=1825579538325.54, cost=8.54, rows=5)
+Total cost: 335127796089.54
+PhysicOrder  (inccost=335127796089.54, cost=8.54, rows=5)
     Output: o_orderpriority[0],{count(*)(0)}[1]
     Order by: o_orderpriority[0]
-    -> PhysicHashAgg  (inccost=1825579538317, cost=1217056, rows=5)
+    -> PhysicHashAgg  (inccost=335127796081, cost=223423, rows=5)
         Output: {o_orderpriority}[0],{count(*)(0)}[1]
         Aggregates: count(*)(0)
         Group by: o_orderpriority[0]
-        -> PhysicFilter  (inccost=1825578321261, cost=1217046, rows=1217046)
+        -> PhysicFilter  (inccost=335127572658, cost=223413, rows=223413)
             Output: o_orderpriority[1]
             Filter: {#marker}[0]
-            -> PhysicMarkJoin Left (inccost=1825577104215, cost=1825569603000, rows=1217046)
+            -> PhysicMarkJoin Left (inccost=335127349245, cost=335119848030, rows=223413)
                 Output: #marker,o_orderpriority[0]
                 Filter: l_orderkey[2]=o_orderkey[1]
-                -> PhysicScanTable orders (inccost=1500000, cost=1500000, rows=304200)
+                -> PhysicScanTable orders (inccost=1500000, cost=1500000, rows=55842)
                     Output: o_orderpriority[5],o_orderkey[0]
                     Filter: o_orderdate[4]>='1993-07-01' and o_orderdate[4]<'9/29/1993 12:00:00 AM'
                 -> PhysicScanTable lineitem (inccost=6001215, cost=6001215, rows=6001215)

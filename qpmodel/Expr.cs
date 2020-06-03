@@ -355,17 +355,22 @@ namespace qpmodel.expr
 
         // a>5 => [a > 5]
         // a>5 AND c>7 => [a>5, c>7]
-        public static List<Expr> FilterToAndList(this Expr filter)
+        public static List<Expr> FilterToAndOrList(this Expr filter, bool isAndOnly = false)
         {
             Debug.Assert(filter.IsBoolean());
-            var andlist = new List<Expr>();
+            var andorlist = new List<Expr>();
             if (filter is LogicAndExpr andexpr)
-                andlist = andexpr.BreakToList();
+                andorlist = andexpr.BreakToList(true);
+            else if (!isAndOnly && filter is LogicOrExpr orexpr)
+                andorlist = orexpr.BreakToList(false);
             else
-                andlist.Add(filter);
+                andorlist.Add(filter);
 
-            return andlist;
+            return andorlist;
         }
+
+        public static List<Expr> FilterToAndList(this Expr filter)
+            => filter.FilterToAndOrList(true);
 
         // Join filter pushdown may depends on join order.
         // Consider 

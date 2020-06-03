@@ -185,7 +185,7 @@ namespace qpmodel.logic
                 }
                 mindlr = mindlr * Math.Min(dl, dr);
             }
-
+            
             if (mindlr != 0)
                 card = Math.Max(1, (cardl * cardr) / mindlr);
             else
