@@ -569,10 +569,11 @@ namespace qpmodel.sqlparser
 
             if (context.K_EXPLAIN() != null)
             {
+                r.queryOpt_.explain_.mode_ = ExplainMode.explain;
                 if (context.K_EXECUTE() != null)
                     r.queryOpt_.explain_.mode_ = ExplainMode.analyze;
-                else
-                    r.queryOpt_.explain_.mode_ = ExplainMode.explain;
+                else if (context.K_FULL() != null)
+                    r.queryOpt_.explain_.mode_ = ExplainMode.full;
             }
             return r;
         }

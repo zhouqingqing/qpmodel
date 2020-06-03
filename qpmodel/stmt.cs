@@ -114,7 +114,7 @@ namespace qpmodel.logic
                 CodeWriter.WriteLine(code);
                 Compiler.Run(Compiler.Compile(), this, context);
             }
-            if (queryOpt_.explain_.mode_ == ExplainMode.analyze)
+            if (queryOpt_.explain_.mode_ >= ExplainMode.analyze)
             {
                 Console.WriteLine(physicPlan_.Explain(queryOpt_.explain_));
             }

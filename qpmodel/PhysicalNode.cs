@@ -89,6 +89,9 @@ namespace qpmodel.physic
         public virtual string Open(ExecContext context)
         {
             string s = null;
+
+            // open once
+            Debug.Assert(context_ is null);
             context_ = context;
             if (context.option_.optimize_.use_codegen_)
             {
@@ -98,12 +101,16 @@ namespace qpmodel.physic
                 s += CreateCommonNames();
             }
 
-            children_.ForEach(x => s += x.Open(context)); return s;
+            children_.ForEach(x => s += x.Open(context));
+            return s;
         }
 
         public virtual string Close()
         {
-            string s = ""; children_.ForEach(x => s += x.Close()); return s;
+            Debug.Assert(context_ != null);
+            string s = ""; children_.ForEach(x => s += x.Close());
+            context_ = null;
+            return s;
         }
         // @context is to carray parameters etc, @callback.Row is current row for processing
         public abstract string Exec(Func<Row, string> callback);
@@ -135,10 +142,10 @@ namespace qpmodel.physic
         {
             if (double.IsNaN(cost_))
                 cost_ = EstimateCost();
-            Debug.Assert(cost_ >= 0);
+            Debug.Assert(cost_ >= 0 || cost_ is double.NaN);
             return cost_;
         }
-        public virtual double EstimateCost() => throw new NotImplementedException();
+        public virtual double EstimateCost() => double.NaN;
 
         // inclusive cost summarize its own cost and its children cost. During 
         // optimiztaion it is a dynamic measurement, we do so by summarize its
@@ -1412,7 +1419,7 @@ namespace qpmodel.physic
                             newr[i] = r[i];
                     }
                     rows_.Add(newr);
-                    if ((int)context.option_.explain_.mode_ < 2)
+                    if (context.option_.explain_.mode_ >= ExplainMode.full )
                         Console.WriteLine($"{newr}");
                 }
                 return cs;
@@ -1532,7 +1539,9 @@ namespace qpmodel.physic
 
         public override string Close()
         {
-            var code = base.Close();
+            var code = "";
+            if (!asConsumer_)
+                code += base.Close();
             return code;
         }
 
@@ -1546,6 +1555,11 @@ namespace qpmodel.physic
             // only producer inherits the bottom half of the plan
             if (!asConsumer_)
                 code += base.Open(context);
+            else
+            {
+                Debug.Assert(context_ is null);
+                context_ = context;
+            }
             return code;
         }
 

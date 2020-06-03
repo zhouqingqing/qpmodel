@@ -136,7 +136,7 @@ namespace qpmodel
             if (false)
             {
                 JOBench.CreateTables();
-                sql = File.ReadAllText("../../../../jobench/10a.sql");
+                sql = File.ReadAllText("../../../../../jobench/10a.sql");
                 goto doit;
             }
 
@@ -153,7 +153,7 @@ namespace qpmodel
             if (false)
             {
                 //84
-                sql = File.ReadAllText("../../../tpcds/q85.sql");
+                sql = File.ReadAllText("../../../../tpcds/q33.sql");
                 Tpcds.CreateTables();
                 Tpcds.LoadTables("tiny");
                 Tpcds.AnalyzeTables();
@@ -165,7 +165,7 @@ namespace qpmodel
             }
 
         doit:
-            sql = "select count(*) from a group by a1;";
+            sql = "with cte as (select avg(a2) from a join b on a1=b1) select * from cte cte1, cte cte2;";
 
             var datetime = new DateTime();
             datetime = DateTime.Now;
@@ -181,13 +181,14 @@ namespace qpmodel
             a.queryOpt_.optimize_.enable_subquery_unnest_ = true;
             a.queryOpt_.optimize_.remove_from_ = false;
             a.queryOpt_.optimize_.use_memo_ = true;
-            a.queryOpt_.optimize_.enable_cte_plan_ = false;
+            a.queryOpt_.optimize_.enable_cte_plan_ = true;
             a.queryOpt_.optimize_.use_codegen_ = false;
             a.queryOpt_.optimize_.memo_disable_crossjoin_ = false;
             a.queryOpt_.optimize_.memo_use_joinorder_solver_ = false;
             a.queryOpt_.explain_.show_output_ = true;
-            a.queryOpt_.explain_.show_id_ = false;
-            a.queryOpt_.explain_.mode_ = a.queryOpt_.optimize_.use_memo_ ? ExplainMode.analyze : ExplainMode.plain;
+            a.queryOpt_.explain_.show_id_ = true;
+            a.queryOpt_.explain_.show_estCost_ = a.queryOpt_.optimize_.use_memo_;
+            a.queryOpt_.explain_.mode_ = ExplainMode.full;
 
             // -- Semantic analysis:
             //  - bind the query
