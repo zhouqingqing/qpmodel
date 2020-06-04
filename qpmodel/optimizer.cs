@@ -419,18 +419,13 @@ namespace qpmodel.optimizer
             return minMember_;
         }
 
-        public PhysicNode CopyOutMinLogicPhysicPlan(PhysicNode physic = null)
+        public PhysicNode CopyOutMinLogicPhysicPlan()
         {
-            if (physic is null)
-            {
-                // get the lowest inclusive cost one from the member list
-                var minmember = CalculateMinInclusiveCostMember();
-                physic = minmember.physic_;
-            }
-
+            // get the lowest inclusive cost one from the member list
             // always use a clone to not change memo itself
-            var phyClone = physic.Clone();
-            physic = null;
+            //
+            var minmember = CalculateMinInclusiveCostMember();
+            var phyClone = minmember.physic_.Clone();
 
             // recursively repeat the process for all its children
             if (phyClone.children_.Count > 0 && !(phyClone is PhysicProfiling))
@@ -441,13 +436,8 @@ namespace qpmodel.optimizer
                 {
                     // children shall be min cost
                     PhysicNode phychild;
-                    if (!(v is PhysicMemoRef))
-                        phychild = CopyOutMinLogicPhysicPlan(v);
-                    else
-                    {
-                        var g = (v as PhysicMemoRef).Group();
-                        phychild = g.CopyOutMinLogicPhysicPlan();
-                    }
+                    var g = (v as PhysicMemoRef).Group();
+                    phychild = g.CopyOutMinLogicPhysicPlan();
 
                     // remount the physic and logic children list
                     phychildren.Add(phychild);
