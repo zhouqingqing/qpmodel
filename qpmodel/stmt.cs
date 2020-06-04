@@ -139,11 +139,21 @@ namespace qpmodel.logic
             }
             catch (Exception e)
             {
-                error = e.Message;
-                Console.WriteLine(error);
-                stmt = null;
-                physicplan = null;
-                return null;
+                if (e is SemanticAnalyzeException || e is SemanticExecutionException)
+                {
+                    // expected errors
+                    error = e.Message;
+                    Console.Error.WriteLine(error);
+                    stmt = null;
+                    physicplan = null;
+                    return null;
+                }
+                else
+                {
+                    // unexpected error
+                    Console.Error.WriteLine(e.StackTrace);
+                    throw e;
+                }
             }
         }
 

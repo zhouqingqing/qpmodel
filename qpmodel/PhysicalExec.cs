@@ -42,7 +42,7 @@ namespace qpmodel.physic
 {
     public class SemanticExecutionException : Exception
     {
-        public SemanticExecutionException(string msg) => Console.WriteLine($"ERROR[execution]: {msg}");
+        public SemanticExecutionException(string msg): base(msg) => Console.WriteLine($"ERROR[execution]: {msg}");
     }
 
     public class Row : IComparable

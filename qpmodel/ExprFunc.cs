@@ -406,7 +406,7 @@ namespace qpmodel.expr
             foreach (var v in args)
             {
                 if (v.HasAggFunc())
-                    throw new Exception("aggregate functions cannot be nested");
+                    throw new SemanticAnalyzeException("aggregate functions cannot be nested");
             }
         }
 

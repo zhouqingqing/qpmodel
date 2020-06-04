@@ -43,7 +43,7 @@ namespace qpmodel.logic
 {
     public class SemanticAnalyzeException : Exception
     {
-        public SemanticAnalyzeException(string msg) => Console.WriteLine($"ERROR[Optimizer]: {msg }");
+        public SemanticAnalyzeException(string msg) : base (msg) => Console.WriteLine($"ERROR[Optimizer]: {msg }");
     }
 
     public abstract class LogicNode : PlanNode<LogicNode>
