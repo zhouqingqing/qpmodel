@@ -207,6 +207,9 @@ namespace qpmodel.logic
                 case LogicProjectSet ps:
                     result = new PhysicProjectSet(ps, phyfirst);
                     break;
+                case LogicSampleScan ss:
+                    result = new PhysicSampleScan(ss, phyfirst);
+                    break;
                 default:
                     throw new NotImplementedException();
             }
@@ -1307,5 +1310,19 @@ namespace qpmodel.logic
             RefreshOutputRegisteration();
             return ordinals;
         }
+    }
+
+    public class LogicSampleScan : LogicNode
+    {
+        internal SelectStmt.TableSample sample_;
+
+        public LogicSampleScan(LogicNode child, SelectStmt.TableSample sample)
+        {
+            children_.Add(child);
+            sample_ = sample;
+        }
+        public bool ByRowCount() => sample_.percent_ is double.NaN;
+
+        public override string ToString() => $"SampleScan({child_()})";
     }
 }

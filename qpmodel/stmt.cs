@@ -384,6 +384,22 @@ namespace qpmodel.logic
 
     public partial class SelectStmt : SQLStatement
     {
+        public class TableSample
+        {
+            internal int rowcnt_;
+            internal double percent_ = double.NaN;
+            public TableSample(double percent)
+            {
+                Debug.Assert(percent >= 1 && percent <= 100);
+                percent_ = percent;
+            }
+            public TableSample(int rowcnt)
+            {
+                rowcnt_ = rowcnt;
+                Debug.Assert(percent_ is double.NaN);
+            }
+        }
+
         // representing a query by CTE or FROM
         public class NamedQuery
         {

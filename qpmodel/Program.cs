@@ -165,7 +165,7 @@ namespace qpmodel
             }
 
         doit:
-            sql = "with cte as (select avg(a2) from a join b on a1=b1) select * from cte cte1, cte cte2;";
+            sql = "select * from a tablesample row (2)";
 
             var datetime = new DateTime();
             datetime = DateTime.Now;

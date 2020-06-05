@@ -266,7 +266,13 @@ namespace qpmodel.sqlparser
             return new JoinQueryRef(tabrefs, joins, constraints);
         }
         public override object VisitFromSimpleTable([NotNull] SQLiteParser.FromSimpleTableContext context)
-            => new BaseTableRef(context.table_name().GetText(), context.table_alias()?.GetText());
+        {
+            SelectStmt.TableSample sample = null;
+            if (context.tablesample_clause() != null)
+                sample = VisitTablesample_clause(context.tablesample_clause()) as SelectStmt.TableSample;
+            return new BaseTableRef(context.table_name().GetText(), context.table_alias()?.GetText(), sample);
+        }
+
         public override object VisitOrdering_term([NotNull] SQLiteParser.Ordering_termContext context)
             => new OrderTerm(Visit(context.expr()) as Expr, (!(context.K_DESC() is null)));
         public override object VisitFromJoinTable([NotNull] SQLiteParser.FromJoinTableContext context)
@@ -310,6 +316,20 @@ namespace qpmodel.sqlparser
                 }
             }
             return new FromQueryRef(query, alias, colalias);
+        }
+
+        public override object VisitTablesample_clause([NotNull] SQLiteParser.Tablesample_clauseContext context)
+        {
+            if (context.K_PERCENT() != null)
+            {
+                var percent = double.Parse(context.signed_number().NUMERIC_LITERAL().GetText());
+                return new SelectStmt.TableSample(percent);
+            }
+            else
+            {
+                var rowcnt = int.Parse(context.signed_number().NUMERIC_LITERAL().GetText());
+                return new SelectStmt.TableSample(rowcnt);
+            }
         }
 
         public override object VisitSelect_core([NotNull] SQLiteParser.Select_coreContext context)

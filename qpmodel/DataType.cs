@@ -182,6 +182,9 @@ namespace qpmodel.expr
         //
         public string alias_;
 
+        // if it is a table sample
+        public SelectStmt.TableSample tableSample_;
+
         // list of correlated column used in correlated subqueries
         internal readonly List<ColExpr> colRefedBySubq_ = new List<ColExpr>();
 
@@ -246,11 +249,12 @@ namespace qpmodel.expr
     {
         public string relname_;
 
-        public BaseTableRef(string name, string alias = null)
+        public BaseTableRef(string name, string alias = null, SelectStmt.TableSample tableSample = null)
         {
             Debug.Assert(name != null);
             relname_ = name;
             alias_ = alias ?? relname_;
+            tableSample_ = tableSample;
         }
 
         public bool IsDistributed() => Table().distributedBy_ != null;

@@ -370,6 +370,8 @@ namespace qpmodel.logic
                 {
                     case BaseTableRef bref:
                         from = new LogicScanTable(bref);
+                        if (bref.tableSample_ != null)
+                            from = new LogicSampleScan(from, bref.tableSample_);
                         break;
                     case ExternalTableRef eref:
                         from = new LogicScanFile(eref);

@@ -1840,4 +1840,87 @@ namespace qpmodel.physic
             return s;
         }
     }
+
+    public class PhysicSampleScan : PhysicNode
+    {
+        Random rand_;
+
+        // members for row count sampling
+        Row[] array_;
+        int target_;
+        int curCnt_;
+        int curSample_;
+
+        public PhysicSampleScan(LogicSampleScan logic, PhysicNode l) : base(logic) => children_.Add(l);
+        public override string ToString() => $"PSAMPLE({child_()}: {Cost()})";
+
+        public override double EstimateCost()
+        {
+            return logic_.Card() * 0.5;
+        }
+
+        void RowCntSampling(Row l)
+        {
+            var logic = logic_ as LogicSampleScan;
+
+            // Reservior sampling
+            Debug.Assert(l != null);
+            curSample_++;
+            if (curCnt_ < target_)
+                array_[curCnt_++] = l;
+            else
+            {
+                var r = rand_.Next(0, curSample_);
+                if (r < target_)
+                    array_[r] = l;
+            }
+        }
+
+        void PercentSampling(Row l) => throw new NotImplementedException();
+
+        public override string Open(ExecContext context)
+        {
+            rand_ = new Random();
+            var srccode = base.Open(context);
+            return srccode;
+        }
+
+        public override string Exec(Func<Row, string> callback)
+        {
+            ExecContext context = context_;
+            var logic = logic_ as LogicSampleScan;
+
+            if (logic.ByRowCount())
+            {
+                target_ = logic.sample_.rowcnt_;
+                array_ = new Row[target_];
+                curCnt_ = 0;
+                curSample_ = 0;
+            }
+
+            string s = child_().Exec(l =>
+            {
+                string srccode = null;
+                var cache = new List<Row>();
+                if (!context.option_.optimize_.use_codegen_)
+                {
+                    if (logic.ByRowCount())
+                        RowCntSampling(l);
+                    else
+                        PercentSampling(l);
+                }
+
+                return srccode;
+            });
+
+            // now output samples to upper layer
+            if (logic.ByRowCount())
+            {
+                for (int i = 0; i < array_.Length; i++)
+                    if (array_[i] != null)
+                        callback(array_[i]);
+            }
+            return s;
+        }
+    }
 }
