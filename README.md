@@ -2,7 +2,7 @@
 This project implements a relational optimizer and executor in c#. It is called "model" because it does not have all the details carved. The main target is the optimizer, and the purpose is to prepare for a more serious production implementation later. The executor part is needed for plan correctness verification with TPCH/DS end to end runnable. See github project "issues" for bugs and todo items.
 
 ## Why C#
-Optimizer is logic centric, so a high-level language is preferred. After modeling, production may want to turn it into some C/C++ code, so the language must be a close relative of them. C# provides some great features like LINQ, dynamic types to make modeling easy, and it is close enough to C++ (and that's why not python).
+Optimizer is logic centric, so a high-level language is preferred. After modeling, production may want to turn it into some C/C++ code, so the language must be a close relative of them. C# (.net core) provides some great features like cross-platform, LINQ, dynamic types to make modeling easy, and it is close enough to C++ (and that's why not python). 
 
 ## Optimizer
 The optimizer exercises the following constructs:
@@ -46,7 +46,7 @@ You can see an example generated code for this query [here](https://github.com/z
 ```
 
 ## How to Play
-Load the project with Visual Studio 2019 community edition (it is free). Program.Main() mainly for debugging purpose. There are several builtin tables like 'a', 'b', 'c', 'd' for testing purpose, and you can find their definition in Catalog.createBuildInTestTables(). 
+The program is based on .net core, so it runs on both Windows and Linux. Load the project with Visual Studio 2019 free community edition or visual studio code. Program.Main() mainly for debugging purpose. There are several builtin tables like 'a', 'b', 'c', 'd' for testing purpose, and you can find their definition in Catalog.createBuildInTestTables(). If you come up with a PR, make sure you have unittest passed.
 
 Unittest comes up with multiple tests covering major functionalities:
 - TPCH end to end power run with small data set
