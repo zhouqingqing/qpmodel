@@ -18,21 +18,21 @@ group by
 order by
 	custdist desc,
 	c_count desc
-Total cost: 8550182.1
-PhysicOrder  (inccost=8550182.1, cost=0.1, rows=1 memory=8)
+Total cost: 8550182.1, memory=3600024
+PhysicOrder  (inccost=8550182.1, cost=0.1, rows=1, memory=8)
     Output: c_count[0],{count(*)(0)}[1]
     Order by: {count(*)(0)}[1], c_count[0]
-    -> PhysicHashAgg  (inccost=8550182, cost=150002, rows=1 memory=2400000)
+    -> PhysicHashAgg  (inccost=8550182, cost=150002, rows=1, memory=16)
         Output: {c_count}[0],{count(*)(0)}[1]
         Aggregates: count(*)(0)
         Group by: c_count[0]
         -> PhysicFromQuery <c_orders> (inccost=8400180, cost=150000, rows=150000)
             Output: c_count[1]
-            -> PhysicHashAgg  (inccost=8250180, cost=2550090, rows=150000 memory=36001440)
+            -> PhysicHashAgg  (inccost=8250180, cost=2550090, rows=150000, memory=2400000)
                 Output: {c_custkey}[0],{count(o_orderkey)}[1]
                 Aggregates: count(o_orderkey[1])
                 Group by: c_custkey[0]
-                -> PhysicHashJoin Left (inccost=5700090, cost=4050090, rows=2250090 memory=1200000)
+                -> PhysicHashJoin Left (inccost=5700090, cost=4050090, rows=2250090, memory=1200000)
                     Output: c_custkey[0],o_orderkey[1]
                     Filter: c_custkey[0]=o_custkey[2]
                     -> PhysicScanTable customer (inccost=150000, cost=150000, rows=150000)

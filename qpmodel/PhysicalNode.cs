@@ -176,6 +176,17 @@ namespace qpmodel.physic
             return memory_;
         }
         protected virtual ulong EstimateMemory() => 0;
+        public ulong InclusiveMemory()
+        {
+            ulong memory = 0;
+            memory += Memory();
+            children_.ForEach(x =>
+            {
+                memory += x.InclusiveMemory();
+            });
+
+            return memory;
+        }
         #endregion
 
         public BitVector tableContained_ { get => logic_.tableContained_; }
@@ -911,7 +922,7 @@ namespace qpmodel.physic
 
         protected override ulong EstimateMemory()
         {
-            var bytes = child_().Card() * logic_.EstOutputWidth() * 2;
+            var bytes = Card() * logic_.EstOutputWidth() * 2;
             return bytes;
         }
 

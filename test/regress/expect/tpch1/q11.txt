@@ -25,23 +25,23 @@ group by
 		)
 order by
 	value desc
-Total cost: 2084378.71
-PhysicOrder  (inccost=2084378.71, cost=335151.71, rows=32000 memory=384000)
+Total cost: 2084378.71, memory=1155208
+PhysicOrder  (inccost=2084378.71, cost=335151.71, rows=32000, memory=384000)
     Output: ps_partkey[0],{sum(ps_supplycost*ps_availqty)}[1]
     Order by: {sum(ps_supplycost*ps_availqty)}[1]
-    -> PhysicHashAgg  (inccost=1749227, cost=96000, rows=32000 memory=768000)
+    -> PhysicHashAgg  (inccost=1749227, cost=96000, rows=32000, memory=768000)
         Output: {ps_partkey}[0],{sum(ps_supplycost*ps_availqty)}[1]
         Aggregates: sum(ps_supplycost[2]*ps_availqty[3])
         Group by: ps_partkey[0]
         Filter: {sum(ps_supplycost*ps_availqty)}[1]>@1
         <ScalarSubqueryExpr> cached 1
-            -> PhysicHashAgg  (inccost=1685229, cost=32002, rows=1 memory=512000)
+            -> PhysicHashAgg  (inccost=1685229, cost=32002, rows=1, memory=16)
                 Output: {sum(ps_supplycost*ps_availqty)}[0]*0.0001
                 Aggregates: sum(ps_supplycost[1]*ps_availqty[2])
-                -> PhysicHashJoin  (inccost=1653227, cost=832800, rows=32000 memory=3200)
+                -> PhysicHashJoin  (inccost=1653227, cost=832800, rows=32000, memory=3200)
                     Output: {ps_supplycost*ps_availqty}[1],ps_supplycost[2],ps_availqty[3]
                     Filter: ps_suppkey[4]=s_suppkey[0]
-                    -> PhysicHashJoin  (inccost=20427, cost=10402, rows=400 memory=8)
+                    -> PhysicHashJoin  (inccost=20427, cost=10402, rows=400, memory=8)
                         Output: s_suppkey[1]
                         Filter: s_nationkey[2]=n_nationkey[0]
                         -> PhysicScanTable nation as nation__1 (inccost=25, cost=25, rows=1)
@@ -51,10 +51,10 @@ PhysicOrder  (inccost=2084378.71, cost=335151.71, rows=32000 memory=384000)
                             Output: s_suppkey[0],s_nationkey[3]
                     -> PhysicScanTable partsupp as partsupp__1 (inccost=800000, cost=800000, rows=800000)
                         Output: ps_supplycost[3]*ps_availqty[2],ps_supplycost[3],ps_availqty[2],ps_suppkey[1]
-        -> PhysicHashJoin  (inccost=1653227, cost=832800, rows=32000 memory=3200)
+        -> PhysicHashJoin  (inccost=1653227, cost=832800, rows=32000, memory=3200)
             Output: ps_partkey[1],{ps_supplycost*ps_availqty}[2],ps_supplycost[3],ps_availqty[4]
             Filter: ps_suppkey[5]=s_suppkey[0]
-            -> PhysicHashJoin  (inccost=20427, cost=10402, rows=400 memory=8)
+            -> PhysicHashJoin  (inccost=20427, cost=10402, rows=400, memory=8)
                 Output: s_suppkey[1]
                 Filter: s_nationkey[2]=n_nationkey[0]
                 -> PhysicScanTable nation (inccost=25, cost=25, rows=1)

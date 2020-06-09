@@ -19,11 +19,11 @@ group by
 	o_orderpriority
 order by
 	o_orderpriority
-Total cost: 335127796089.54
-PhysicOrder  (inccost=335127796089.54, cost=8.54, rows=5 memory=95)
+Total cost: 335127796089.54, memory=285
+PhysicOrder  (inccost=335127796089.54, cost=8.54, rows=5, memory=95)
     Output: o_orderpriority[0],{count(*)(0)}[1]
     Order by: o_orderpriority[0]
-    -> PhysicHashAgg  (inccost=335127796081, cost=223423, rows=5 memory=8489694)
+    -> PhysicHashAgg  (inccost=335127796081, cost=223423, rows=5, memory=190)
         Output: {o_orderpriority}[0],{count(*)(0)}[1]
         Aggregates: count(*)(0)
         Group by: o_orderpriority[0]

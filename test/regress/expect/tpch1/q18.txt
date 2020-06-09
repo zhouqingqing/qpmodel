@@ -31,29 +31,29 @@ order by
 	o_totalprice desc,
 	o_orderdate
 limit 100
-Total cost: 210015644.47
+Total cost: 210015644.47, memory=1620073122
 PhysicLimit (100) (inccost=210015644.47, cost=100, rows=100)
     Output: c_name[0],c_custkey[1],o_orderkey[2],o_orderdate[3],o_totalprice[4],{sum(l_quantity)}[5]
-    -> PhysicOrder  (inccost=210015544.47, cost=145051956.47, rows=9002182 memory=513124374)
+    -> PhysicOrder  (inccost=210015544.47, cost=145051956.47, rows=9002182, memory=513124374)
         Output: c_name[0],c_custkey[1],o_orderkey[2],o_orderdate[3],o_totalprice[4],{sum(l_quantity)}[5]
         Order by: o_totalprice[4], o_orderdate[3]
-        -> PhysicHashAgg  (inccost=64963588, cost=27006546, rows=9002182 memory=1026248748)
+        -> PhysicHashAgg  (inccost=64963588, cost=27006546, rows=9002182, memory=1026248748)
             Output: {c_name}[0],{c_custkey}[1],{o_orderkey}[2],{o_orderdate}[3],{o_totalprice}[4],{sum(l_quantity)}[5]
             Aggregates: sum(l_quantity[5])
             Group by: c_name[0], c_custkey[1], o_orderkey[2], o_orderdate[3], o_totalprice[4]
-            -> PhysicHashJoin  (inccost=37957042, cost=15303397, rows=9002182 memory=8700000)
+            -> PhysicHashJoin  (inccost=37957042, cost=15303397, rows=9002182, memory=8700000)
                 Output: c_name[0],c_custkey[1],o_orderkey[2],o_orderdate[3],o_totalprice[4],l_quantity[5]
                 Filter: c_custkey[1]=o_custkey[6]
                 -> PhysicScanTable customer (inccost=150000, cost=150000, rows=150000)
                     Output: c_name[1],c_custkey[0]
-                -> PhysicHashJoin  (inccost=22503645, cost=15002430, rows=6001215 memory=72000000)
+                -> PhysicHashJoin  (inccost=22503645, cost=15002430, rows=6001215, memory=72000000)
                     Output: o_orderkey[0],o_orderdate[1],o_totalprice[2],l_quantity[4],o_custkey[3]
                     Filter: o_orderkey[0]=l_orderkey[5]
                     -> PhysicScanTable orders (inccost=1500000, cost=1500000, rows=1500000)
                         Output: o_orderkey[0],o_orderdate[4],o_totalprice[3],o_custkey[1]
                         Filter: o_orderkey[0] in @1
                         <InSubqueryExpr> cached 1
-                            -> PhysicHashAgg  (inccost=15002430, cost=9001215, rows=1500000 memory=48009720)
+                            -> PhysicHashAgg  (inccost=15002430, cost=9001215, rows=1500000, memory=12000000)
                                 Output: {l_orderkey}[0]
                                 Aggregates: sum(l_quantity[1])
                                 Group by: l_orderkey[0]

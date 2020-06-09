@@ -168,7 +168,13 @@ namespace qpmodel.logic
                 if (depth == 0)
                 {
                     if (exp_showcost && this is PhysicNode phytop)
-                        r += $"Total cost: {Math.Truncate(phytop.InclusiveCost() * 100) / 100}\n";
+                    {
+                        var memorycost = "";
+                        var memory = phytop.InclusiveMemory();
+                        if (memory != 0)
+                            memorycost = $", memory={memory}"; 
+                        r += $"Total cost: {Math.Truncate(phytop.InclusiveCost() * 100) / 100}{memorycost}\n";
+                    }
                 }
                 else
                     r += "-> ";
@@ -186,7 +192,7 @@ namespace qpmodel.logic
                         var memorycost = "";
                         var memory = phynode.Memory();
                         if (memory != 0)
-                            memorycost = $" memory={memory}";                            
+                            memorycost = $", memory={memory}";                            
                         r += $" (inccost={incCost}, cost={cost}, rows={phynode.logic_.Card()}{memorycost})";
                     }
                     if (exp_showactual)
