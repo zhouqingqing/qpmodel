@@ -116,6 +116,19 @@ namespace qpmodel
             }
             return null;
         }
+
+        public int EstRowSize()
+        {
+            int size = 0;
+            foreach (var v in columns_)
+            {
+                Debug.Assert(v.Value.type_.len_ > 0);
+                size += v.Value.type_.len_;
+            }
+
+            Debug.Assert(size > 0);
+            return size;
+        }
     }
 
     public class SystemTable
