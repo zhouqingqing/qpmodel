@@ -36,10 +36,10 @@ where
 order by
 	s_name
 Total cost: 48.1
-PhysicOrder  (inccost=48.1, cost=0.1, rows=1) (actual rows=0)
+PhysicOrder  (inccost=48.1, cost=0.1, rows=1 memory=65) (actual rows=0)
     Output: s_name[0],s_address[1]
     Order by: s_name[0]
-    -> PhysicHashJoin  (inccost=48, cost=13, rows=1) (actual rows=0)
+    -> PhysicHashJoin  (inccost=48, cost=13, rows=1 memory=8) (actual rows=0)
         Output: s_name[1],s_address[2]
         Filter: s_nationkey[3]=n_nationkey[0]
         -> PhysicScanTable nation (inccost=25, cost=25, rows=1) (actual rows=1)
@@ -52,7 +52,7 @@ PhysicOrder  (inccost=48.1, cost=0.1, rows=1) (actual rows=0)
                 -> PhysicFilter  (inccost=12811, cost=367, rows=367) (actual rows=47)
                     Output: ps_suppkey[0]
                     Filter: ps_availqty[1]>0.5*{sum(l_quantity)}[2]
-                    -> PhysicHashJoin Left (inccost=12444, cost=2885, rows=367) (actual rows=60)
+                    -> PhysicHashJoin Left (inccost=12444, cost=2885, rows=367 memory=19200) (actual rows=60)
                         Output: ps_suppkey[0],ps_availqty[1],{sum(l_quantity)}[3]
                         Filter: l_partkey[4]=ps_partkey[2] and l_suppkey[5]=ps_suppkey[0]
                         -> PhysicScanTable partsupp (inccost=800, cost=800, rows=800) (actual rows=60)
@@ -62,7 +62,7 @@ PhysicOrder  (inccost=48.1, cost=0.1, rows=1) (actual rows=0)
                                 -> PhysicScanTable part (inccost=200, cost=200, rows=1) (actual rows=15)
                                     Output: p_partkey[0]
                                     Filter: p_name[1]like'forest%'
-                        -> PhysicHashAgg  (inccost=8759, cost=2754, rows=918) (actual rows=499)
+                        -> PhysicHashAgg  (inccost=8759, cost=2754, rows=918 memory=29376) (actual rows=499)
                             Output: {sum(l_quantity)}[2],{l_partkey}[0],{l_suppkey}[1]
                             Aggregates: sum(l_quantity[2])
                             Group by: l_partkey[0], l_suppkey[1]

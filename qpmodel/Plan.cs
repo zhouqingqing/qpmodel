@@ -183,7 +183,11 @@ namespace qpmodel.logic
                     {
                         var incCost = Math.Truncate(phynode.InclusiveCost() * 100) / 100;
                         var cost = Math.Truncate(phynode.Cost() * 100) / 100;
-                        r += $" (inccost={incCost}, cost={cost}, rows={phynode.logic_.Card()})";
+                        var memorycost = "";
+                        var memory = phynode.Memory();
+                        if (memory != 0)
+                            memorycost = $" memory={memory}";                            
+                        r += $" (inccost={incCost}, cost={cost}, rows={phynode.logic_.Card()}{memorycost})";
                     }
                     if (exp_showactual)
                     {

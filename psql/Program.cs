@@ -26,6 +26,7 @@ namespace psql
 
         public string SQLQueryVerify(string sql_dir_fn, string write_dir_fn, string expect_dir_fn, string[] badQueries, bool explainOnly)
         {
+            string result = null;
             QueryOption option = new QueryOption();
             option.optimize_.TurnOnAllOptimizations();
             option.optimize_.remove_from_ = false;
@@ -61,10 +62,10 @@ namespace psql
                 // verify query result against the expected result
                 if (!resultVerify(write_fn, expect_fn))
                 {
-                    return write_fn;
+                    result += write_fn + ";";
                 }
             }
-            return null;
+            return result;
         }
 
     }

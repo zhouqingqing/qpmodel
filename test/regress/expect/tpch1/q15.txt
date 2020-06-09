@@ -33,26 +33,26 @@ PhysicFilter  (inccost=6314060, cost=10000, rows=10000)
     Output: s_suppkey[0],s_name[1],s_address[2],s_phone[3],total_revenue[4]
     Filter: total_revenue[4]=@1
     <ScalarSubqueryExpr> cached 1
-        -> PhysicHashAgg  (inccost=6264062, cost=10002, rows=1)
+        -> PhysicHashAgg  (inccost=6264062, cost=10002, rows=1 memory=160000)
             Output: {max(total_revenue)}[0]
             Aggregates: max(total_revenue[0])
             -> PhysicFromQuery <revenue0 as revenue0__1> (inccost=6254060, cost=10000, rows=10000)
                 Output: total_revenue[1]
-                -> PhysicHashAgg  (inccost=6244060, cost=242845, rows=10000)
+                -> PhysicHashAgg  (inccost=6244060, cost=242845, rows=10000 memory=5348280)
                     Output: {l_suppkey}[0],{sum(l_extendedprice*1-l_discount)}[1]
                     Aggregates: sum(l_extendedprice[2]*1-l_discount[5])
                     Group by: l_suppkey[0]
                     -> PhysicScanTable lineitem (inccost=6001215, cost=6001215, rows=222845)
                         Output: l_suppkey (as supplier_no)[2],l_extendedprice[5]*1-l_discount[6],l_extendedprice[5],1-l_discount[6],1,l_discount[6]
                         Filter: l_shipdate[10]>='1996-01-01' and l_shipdate[10]<'3/31/1996 12:00:00 AM'
-    -> PhysicHashJoin  (inccost=6304060, cost=40000, rows=10000)
+    -> PhysicHashJoin  (inccost=6304060, cost=40000, rows=10000 memory=1680000)
         Output: s_suppkey[0],s_name[1],s_address[2],s_phone[3],total_revenue[4]
         Filter: s_suppkey[0]=supplier_no[5]
         -> PhysicScanTable supplier (inccost=10000, cost=10000, rows=10000)
             Output: s_suppkey[0],s_name[1],s_address[2],s_phone[4]
         -> PhysicFromQuery <revenue0> (inccost=6254060, cost=10000, rows=10000)
             Output: total_revenue[1],supplier_no[0]
-            -> PhysicHashAgg  (inccost=6244060, cost=242845, rows=10000)
+            -> PhysicHashAgg  (inccost=6244060, cost=242845, rows=10000 memory=5348280)
                 Output: {l_suppkey}[0],{sum(l_extendedprice*1-l_discount)}[1]
                 Aggregates: sum(l_extendedprice[2]*1-l_discount[5])
                 Group by: l_suppkey[0]

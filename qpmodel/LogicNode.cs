@@ -78,6 +78,17 @@ namespace qpmodel.logic
             return null;
         }
 
+        public ulong EstOutputWidth()
+        {
+            ulong bytes = 0;
+            foreach (var v in output_)
+            {
+                Debug.Assert(v.type_.len_ > 0);
+                bytes += (ulong)v.type_.len_;
+            }
+
+            return bytes;
+        }
         public LogicNode MarkExchange(QueryOption option)
         {
             switch (this)

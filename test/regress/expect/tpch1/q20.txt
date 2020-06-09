@@ -36,10 +36,10 @@ where
 order by
 	s_name
 Total cost: 22863.58
-PhysicOrder  (inccost=22863.58, cost=2436.58, rows=400)
+PhysicOrder  (inccost=22863.58, cost=2436.58, rows=400 memory=26000)
     Output: s_name[0],s_address[1]
     Order by: s_name[0]
-    -> PhysicHashJoin  (inccost=20427, cost=10402, rows=400)
+    -> PhysicHashJoin  (inccost=20427, cost=10402, rows=400 memory=8)
         Output: s_name[1],s_address[2]
         Filter: s_nationkey[3]=n_nationkey[0]
         -> PhysicScanTable nation (inccost=25, cost=25, rows=1)
@@ -52,7 +52,7 @@ PhysicOrder  (inccost=22863.58, cost=2436.58, rows=400)
                 -> PhysicFilter  (inccost=12042679, cost=364, rows=364)
                     Output: ps_suppkey[0]
                     Filter: ps_availqty[1]>0.5*{sum(l_quantity)}[2]
-                    -> PhysicHashJoin Left (inccost=12042315, cost=2510548, rows=364)
+                    -> PhysicHashJoin Left (inccost=12042315, cost=2510548, rows=364 memory=19200000)
                         Output: ps_suppkey[0],ps_availqty[1],{sum(l_quantity)}[3]
                         Filter: l_partkey[4]=ps_partkey[2] and l_suppkey[5]=ps_suppkey[0]
                         -> PhysicScanTable partsupp (inccost=800000, cost=800000, rows=800000)
@@ -62,7 +62,7 @@ PhysicOrder  (inccost=22863.58, cost=2436.58, rows=400)
                                 -> PhysicScanTable part (inccost=200000, cost=200000, rows=64)
                                     Output: p_partkey[0]
                                     Filter: p_name[1]like'forest%'
-                        -> PhysicHashAgg  (inccost=8731767, cost=2730552, rows=910184)
+                        -> PhysicHashAgg  (inccost=8731767, cost=2730552, rows=910184 memory=29125888)
                             Output: {sum(l_quantity)}[2],{l_partkey}[0],{l_suppkey}[1]
                             Aggregates: sum(l_quantity[2])
                             Group by: l_partkey[0], l_suppkey[1]

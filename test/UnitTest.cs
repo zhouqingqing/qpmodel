@@ -334,6 +334,7 @@ namespace qpmodel.unittest
             }
         }
 
+        // true on success and false on failure
         void RunFolderAndVerify(string sql_dir_fn, string write_dir_fn, string expect_dir_fn, string[] badQueries, bool explainOnly = false)
         {
             QueryVerify qv = new QueryVerify();

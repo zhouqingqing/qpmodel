@@ -1,0 +1,42 @@
+select
+	c_count,
+	count(*) as custdist
+from
+	(
+		select
+			c_custkey,
+			count(o_orderkey) as c_count
+		from
+			customer left outer join orders on
+				c_custkey = o_custkey
+				and o_comment not like '%special%requests%'
+		group by
+			c_custkey
+	) as c_orders
+group by
+	c_count
+order by
+	custdist desc,
+	c_count desc
+Total cost: 8550182.1
+PhysicOrder  (inccost=8550182.1, cost=0.1, rows=1 memory=8)
+    Output: c_count[0],{count(*)(0)}[1]
+    Order by: {count(*)(0)}[1], c_count[0]
+    -> PhysicHashAgg  (inccost=8550182, cost=150002, rows=1 memory=2400000)
+        Output: {c_count}[0],{count(*)(0)}[1]
+        Aggregates: count(*)(0)
+        Group by: c_count[0]
+        -> PhysicFromQuery <c_orders> (inccost=8400180, cost=150000, rows=150000)
+            Output: c_count[1]
+            -> PhysicHashAgg  (inccost=8250180, cost=2550090, rows=150000 memory=36001440)
+                Output: {c_custkey}[0],{count(o_orderkey)}[1]
+                Aggregates: count(o_orderkey[1])
+                Group by: c_custkey[0]
+                -> PhysicHashJoin Left (inccost=5700090, cost=4050090, rows=2250090 memory=1200000)
+                    Output: c_custkey[0],o_orderkey[1]
+                    Filter: c_custkey[0]=o_custkey[2]
+                    -> PhysicScanTable customer (inccost=150000, cost=150000, rows=150000)
+                        Output: c_custkey[0]
+                    -> PhysicScanTable orders (inccost=1500000, cost=1500000, rows=1500000)
+                        Output: o_orderkey[0],o_custkey[1]
+                        Filter: o_comment[8]not like'%special%requests%'

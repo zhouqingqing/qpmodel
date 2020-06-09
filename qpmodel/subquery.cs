@@ -523,7 +523,7 @@ namespace qpmodel.logic
             return null;
         }
 
-        public override double EstimateCost()
+        protected override double EstimateCost()
         {
             double cost = l_().Card() * r_().Card();
             return cost;
@@ -601,7 +601,7 @@ namespace qpmodel.logic
             return null;
         }
 
-        public override double EstimateCost()
+        protected override double EstimateCost()
         {
             double cost = l_().Card() * r_().Card();
             return cost;
@@ -675,7 +675,7 @@ namespace qpmodel.logic
 
             return s;
         }
-        public override double EstimateCost()
+        protected override double EstimateCost()
         {
             return logic_.Card() * 0.5;
         }
@@ -736,7 +736,7 @@ namespace qpmodel.logic
             return s;
         }
 
-        public override double EstimateCost()
+        protected override double EstimateCost()
         {
             return logic_.Card() * 0.5;
         }
