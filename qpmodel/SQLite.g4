@@ -66,7 +66,7 @@ sql_stmt
  ;
 
 analyze_stmt
- : K_ANALYZE table_name?
+ : K_ANALYZE table_name? (tablesample_clause)*
  ;
 
 create_index_stmt
