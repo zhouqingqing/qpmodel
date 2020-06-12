@@ -97,11 +97,17 @@ namespace qpmodel.dml
         public readonly BaseTableRef targetref_;
         public readonly SelectStmt select_;
 
-        public AnalyzeStmt(BaseTableRef target, string text) : base(text)
+        public AnalyzeStmt(BaseTableRef target, string text,
+                           SelectStmt.TableSample ts) : base(text)
         {
             // SELECT statement is used so later optimizations can be kicked in easier
             targetref_ = target;
-            select_ = RawParser.ParseSingleSqlStatement($"select * from {target.relname_}") as SelectStmt;
+            string sql = $"select * from {target.relname_} ";
+
+            if (ts != null)
+                sql += $" tablesample row ({ts.rowcnt_})";
+
+            select_ = RawParser.ParseSingleSqlStatement(sql) as SelectStmt;
         }
 
         public override BindContext Bind(BindContext parent)

@@ -517,8 +517,16 @@ namespace qpmodel.sqlparser
 
         public override object VisitAnalyze_stmt([NotNull] SQLiteParser.Analyze_stmtContext context)
         {
-            var tabref = new BaseTableRef(context.table_name().GetText());
-            return new AnalyzeStmt(tabref, GetRawText(context));
+            SelectStmt.TableSample sample = null;
+
+            if (context.tablesample_clause(0) != null)
+                sample = VisitTablesample_clause(context.tablesample_clause(0)) as SelectStmt.TableSample;
+
+            var tabref = new BaseTableRef(context.table_name().GetText(),
+                                          null,
+                                          sample);
+
+            return new AnalyzeStmt(tabref, GetRawText(context), sample);
         }
 
         public override object VisitDrop_table_stmt([NotNull] SQLiteParser.Drop_table_stmtContext context)

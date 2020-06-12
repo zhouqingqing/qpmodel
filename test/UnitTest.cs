@@ -199,6 +199,9 @@ namespace qpmodel.unittest
         {
             var sql = "analyze a;";
             SQLStatement.ExecSQL(sql, out _, out _);
+
+            sql = "analyze a tablesample row (15)";
+            SQLStatement.ExecSQL(sql, out _, out _);
         }
     }
 

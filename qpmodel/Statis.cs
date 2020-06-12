@@ -619,8 +619,12 @@ namespace qpmodel.stat
         {
             // its child is a [gather ontop] scan
             var child = child_();
-            Debug.Assert(child is LogicGather || child is LogicScanTable);
-            if (child is LogicGather)
+
+            Debug.Assert(child is LogicGather ||
+                         child is LogicScanTable  ||
+                         child is LogicSampleScan);
+
+            if (child is LogicGather || child is LogicSampleScan)
                 child = child.child_();
             return (child as LogicScanTable).tabref_;
         }
