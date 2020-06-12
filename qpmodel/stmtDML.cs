@@ -108,6 +108,8 @@ namespace qpmodel.dml
                 sql += $" tablesample row ({ts.rowcnt_})";
 
             select_ = RawParser.ParseSingleSqlStatement(sql) as SelectStmt;
+            // select_ is a different statement, binding their options
+            select_.queryOpt_ = queryOpt_;
         }
 
         public override BindContext Bind(BindContext parent)
@@ -128,6 +130,7 @@ namespace qpmodel.dml
 
         public override LogicNode SubstitutionOptimize()
         {
+            Debug.Assert(object.ReferenceEquals(queryOpt_, select_.queryOpt_));
             var scan = select_.SubstitutionOptimize();
             logicPlan_ = new LogicAnalyze(scan);
             // convert to physical plan
@@ -230,7 +233,11 @@ namespace qpmodel.dml
         }
 
         public override BindContext Bind(BindContext parent) => insert_.Bind(parent);
-        public override LogicNode CreatePlan() => insert_.CreatePlan();
+        public override LogicNode CreatePlan()
+        {
+            queryOpt_.optimize_.use_memo_ = false;
+            return insert_.CreatePlan();
+        }
         public override LogicNode SubstitutionOptimize()
         {
             logicPlan_ = insert_.SubstitutionOptimize();

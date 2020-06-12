@@ -251,7 +251,8 @@ namespace qpmodel
                 @"create unique index dd1 on d(d1);",
                 @"create index dd2 on d(d2);",
             };
-            SQLStatement.ExecSQLList(string.Join("", createindexes));
+            foreach (var sql in createindexes)
+                SQLStatement.ExecSQL(sql, out _, out _);
 
             // analyze tables
             foreach (var v in tables)
