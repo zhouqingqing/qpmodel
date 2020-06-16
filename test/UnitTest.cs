@@ -1024,7 +1024,9 @@ namespace qpmodel.unittest
         {
             var expected = new DateTime(2001, 2, 2).ToString();
             var sql = "select cast('2001-01-3' as date) + interval '30' day;"; TU.ExecuteSQL(sql, expected);
-            sql = "select cast('2001-01-3' as date) + 30 days;"; TU.ExecuteSQL(sql, expected);
+            QueryOption option = new QueryOption();
+            option.optimize_.use_memo_ = true;
+            sql = "select cast('2001-01-3' as date) + 30 days;"; TU.ExecuteSQL(sql, expected, out _, option);
         }
 
         [TestMethod]

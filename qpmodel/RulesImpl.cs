@@ -194,4 +194,5 @@ namespace qpmodel.optimizer
     public class Redis2Redis : SimpleImplementationRule<LogicRedistribute, PhysicRedistribute, NumberArgs.N1> { }
     public class PSet2PSet : SimpleImplementationRule<LogicProjectSet, PhysicProjectSet, NumberArgs.N1> { }
     public class Sample2Sample : SimpleImplementationRule<LogicSampleScan, PhysicSampleScan, NumberArgs.N1> { }
+    public class Result2Result : SimpleImplementationRule<LogicResult, PhysicResult, NumberArgs.N0> { }
 }

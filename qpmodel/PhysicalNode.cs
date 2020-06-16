@@ -1342,6 +1342,7 @@ namespace qpmodel.physic
     public class PhysicResult : PhysicNode
     {
         public PhysicResult(LogicResult logic) : base(logic) { }
+        public override string ToString() => $"PResult";
 
         public override string Exec(Func<Row, string> callback)
         {
@@ -1349,6 +1350,7 @@ namespace qpmodel.physic
             callback(r);
             return null;
         }
+        protected override double EstimateCost() => logic_.Card() * 1.0;
     }
 
     public class PhysicProfiling : PhysicNode
