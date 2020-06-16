@@ -1334,17 +1334,21 @@ namespace qpmodel.unittest
             Assert.AreEqual(3, TU.CountStr(phyplan, "PhysicHashJoin"));
             Assert.AreEqual(3, result.Count);
 
-            // FIXME: becuase join order prevents push down - comparing below 2 cases
+            // Before MEMO, becuase join order prevents push down - comparing below 2 cases. MEMO can resolve their difference.
+            var option = new QueryOption();
             sql = "select * from a, b, c where a1 = b1 and b2 = c2;";
             TU.ExecuteSQL(sql, "0,1,2,3,0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5,2,3,4,5", out phyplan);
             Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicHashJoin"));
             sql = "select * from a, b, c where a1 = b1 and a1 = c1;";
-            TU.ExecuteSQL(sql, "0,1,2,3,0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5,2,3,4,5", out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "HashJoin"));
+            option.optimize_.use_memo_ = false;
+            TU.ExecuteSQL(sql, "0,1,2,3,0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5,2,3,4,5", out phyplan, option);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicHashJoin"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "Filter: a.a1[0]=b.b1[4] and a.a1[0]=c.c1[8]"));
+            option.optimize_.use_memo_ = true;
+            TU.ExecuteSQL(sql, "0,1,2,3,0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5,2,3,4,5", out phyplan, option);
+            Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicHashJoin"));
 
             // these queries depends on we can decide left/right side parameter dependencies
-            var option = new QueryOption();
             option.optimize_.enable_subquery_unnest_ = false;
             sql = "select a1+b1 from a join b on a1=b1 where a1 < (select a2 from a where a2=b2);"; TU.ExecuteSQL(sql, "0;2;4", out _, option);
             sql = "select a1+b1 from b join a on a1=b1 where a1 < (select a2 from a where a2=b2);"; TU.ExecuteSQL(sql, "0;2;4", out _, option);
@@ -1580,10 +1584,10 @@ namespace qpmodel.unittest
             var result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicIndexSeek"));
             Assert.AreEqual("2,2,,5", string.Join(";", result));
-            sql = "select * from d where 1<d1;";
+            sql = "select * from d where 2<d1;";
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicIndexSeek"));
-            Assert.AreEqual("2,2,,5;3,3,5,6", string.Join(";", result));
+            Assert.AreEqual("3,3,5,6", string.Join(";", result));
         }
 
         [TestMethod]
@@ -1796,18 +1800,18 @@ namespace qpmodel.unittest
                                     -> PhysicSingleJoin Left (actual rows=3)
                                         Output: a.a1[0],a.a3[1],c.c3[2],a.a2[3],bo.b2[4]
                                         Filter: b__4.b4[5]=a.a3[1]+1 and bo.b3[6]=a.a3[1] and bo.b1[7]=a.a1[0]
-                                        -> PhysicNLJoin  (actual rows=3)
+                                        -> PhysicHashJoin  (actual rows=3)
                                             Output: a.a1[2],a.a3[3],c.c3[0],a.a2[4]
                                             Filter: b.b2[5]=c.c2[1]
                                             -> PhysicScanTable c (actual rows=3)
                                                 Output: c.c3[2],c.c2[1]
                                                 Filter: c.c3[2]<5
-                                            -> PhysicHashJoin  (actual rows=3, loops=3)
+                                            -> PhysicHashJoin  (actual rows=3)
                                                 Output: a.a1[2],a.a3[3],a.a2[4],b.b2[0]
                                                 Filter: a.a1[2]=b.b1[1]
-                                                -> PhysicScanTable b (actual rows=3, loops=3)
+                                                -> PhysicScanTable b (actual rows=3)
                                                     Output: b.b2[1],b.b1[0]
-                                                -> PhysicScanTable a (actual rows=3, loops=3)
+                                                -> PhysicScanTable a (actual rows=3)
                                                     Output: a.a1[0],a.a3[2],a.a2[1]
                                         -> PhysicFilter  (actual rows=3, loops=3)
                                             Output: bo.b2[0],b__4.b4[1],bo.b3[2],bo.b1[3]

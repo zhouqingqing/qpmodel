@@ -409,9 +409,9 @@ namespace qpmodel.physic
 
         protected override double EstimateCost()
         {
-            // 2 means < 50% selection ratio will pick up index
+            // 1.99 means < 50% selection ratio will pick up index
             var logic = (logic_) as LogicScanTable;
-            return logic.Card() * 2.0;
+            return logic.Card() * 1.99;
         }
     }
 

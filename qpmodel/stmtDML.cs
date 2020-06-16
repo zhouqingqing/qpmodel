@@ -151,6 +151,9 @@ namespace qpmodel.dml
         public InsertStmt(BaseTableRef target, List<string> cols, List<Expr> vals, SelectStmt select, string text) : base(text)
         {
             targetref_ = target; cols_ = null; vals_ = vals; select_ = select;
+            // select_ is a different statement, binding their options
+            if (select_ != null)
+                select_.queryOpt_ = queryOpt_;
         }
 
         public override BindContext Bind(BindContext parent)
@@ -189,6 +192,7 @@ namespace qpmodel.dml
 
         public override LogicNode CreatePlan()
         {
+            queryOpt_.optimize_.use_memo_ = false;
             logicPlan_ = select_ is null ?
                 new LogicInsert(targetref_, new LogicResult(vals_)) :
                 new LogicInsert(targetref_, select_.CreatePlan());

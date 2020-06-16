@@ -57,7 +57,7 @@ namespace qpmodel.logic
             public bool enable_hashjoin_ { get; set; } = true;
             public bool enable_nljoin_ { get; set; } = true;
             public bool enable_indexseek_ { get; set; } = true;
-            public bool use_memo_ { get; set; } = false;      // make it true by default
+            public bool use_memo_ { get; set; } = true;
             public bool memo_disable_crossjoin_ { get; set; } = true;
             public bool memo_use_joinorder_solver_ { get; set; } = false;   // make it true by default
 
@@ -473,6 +473,9 @@ namespace qpmodel.logic
             {
                 Debug.Assert(!distributed_);
                 distributed_ = true;
+
+                // FIXME: we have to disable memo optimization before property enforcement done
+                queryOpt_.optimize_.use_memo_ = false;
                 root = new LogicGather(root);
             }
 
