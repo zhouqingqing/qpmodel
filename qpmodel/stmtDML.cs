@@ -97,11 +97,19 @@ namespace qpmodel.dml
         public readonly BaseTableRef targetref_;
         public readonly SelectStmt select_;
 
-        public AnalyzeStmt(BaseTableRef target, string text) : base(text)
+        public AnalyzeStmt(BaseTableRef target, string text,
+                           SelectStmt.TableSample ts) : base(text)
         {
             // SELECT statement is used so later optimizations can be kicked in easier
             targetref_ = target;
-            select_ = RawParser.ParseSingleSqlStatement($"select * from {target.relname_}") as SelectStmt;
+            string sql = $"select * from {target.relname_} ";
+
+            if (ts != null)
+                sql += $" tablesample row ({ts.rowcnt_})";
+
+            select_ = RawParser.ParseSingleSqlStatement(sql) as SelectStmt;
+            // select_ is a different statement, binding their options
+            select_.queryOpt_ = queryOpt_;
         }
 
         public override BindContext Bind(BindContext parent)
@@ -122,6 +130,7 @@ namespace qpmodel.dml
 
         public override LogicNode SubstitutionOptimize()
         {
+            Debug.Assert(object.ReferenceEquals(queryOpt_, select_.queryOpt_));
             var scan = select_.SubstitutionOptimize();
             logicPlan_ = new LogicAnalyze(scan);
             // convert to physical plan
@@ -142,6 +151,9 @@ namespace qpmodel.dml
         public InsertStmt(BaseTableRef target, List<string> cols, List<Expr> vals, SelectStmt select, string text) : base(text)
         {
             targetref_ = target; cols_ = null; vals_ = vals; select_ = select;
+            // select_ is a different statement, binding their options
+            if (select_ != null)
+                select_.queryOpt_ = queryOpt_;
         }
 
         public override BindContext Bind(BindContext parent)
@@ -180,6 +192,7 @@ namespace qpmodel.dml
 
         public override LogicNode CreatePlan()
         {
+            queryOpt_.optimize_.use_memo_ = false;
             logicPlan_ = select_ is null ?
                 new LogicInsert(targetref_, new LogicResult(vals_)) :
                 new LogicInsert(targetref_, select_.CreatePlan());
@@ -224,7 +237,11 @@ namespace qpmodel.dml
         }
 
         public override BindContext Bind(BindContext parent) => insert_.Bind(parent);
-        public override LogicNode CreatePlan() => insert_.CreatePlan();
+        public override LogicNode CreatePlan()
+        {
+            queryOpt_.optimize_.use_memo_ = false;
+            return insert_.CreatePlan();
+        }
         public override LogicNode SubstitutionOptimize()
         {
             logicPlan_ = insert_.SubstitutionOptimize();

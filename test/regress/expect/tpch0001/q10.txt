@@ -30,25 +30,25 @@ group by
 order by
 	revenue desc
 limit 20
-Total cost: 10631.58
+Total cost: 10631.58, memory=73116
 PhysicLimit (20) (inccost=10631.58, cost=20, rows=20) (actual rows=20)
     Output: c_custkey[0],c_name[1],{sum(l_extendedprice*1-l_discount)}[2],c_acctbal[3],n_name[4],c_address[5],c_phone[6],c_comment[7]
-    -> PhysicOrder  (inccost=10611.58, cost=419.58, rows=91) (actual rows=20)
+    -> PhysicOrder  (inccost=10611.58, cost=419.58, rows=91, memory=22022) (actual rows=20)
         Output: c_custkey[0],c_name[1],{sum(l_extendedprice*1-l_discount)}[2],c_acctbal[3],n_name[4],c_address[5],c_phone[6],c_comment[7]
         Order by: {sum(l_extendedprice*1-l_discount)}[2]
-        -> PhysicHashAgg  (inccost=10192, cost=273, rows=91) (actual rows=43)
+        -> PhysicHashAgg  (inccost=10192, cost=273, rows=91, memory=44044) (actual rows=43)
             Output: {c_custkey}[0],{c_name}[1],{sum(l_extendedprice*1-l_discount)}[7],{c_acctbal}[2],{n_name}[4],{c_address}[5],{c_phone}[3],{c_comment}[6]
             Aggregates: sum(l_extendedprice[8]*1-l_discount[11])
             Group by: c_custkey[0], c_name[1], c_acctbal[2], c_phone[5], n_name[3], c_address[4], c_comment[6]
-            -> PhysicHashJoin  (inccost=9919, cost=232, rows=91) (actual rows=140)
+            -> PhysicHashJoin  (inccost=9919, cost=232, rows=91, memory=1650) (actual rows=140)
                 Output: c_custkey[3],c_name[4],c_acctbal[5],n_name[0],c_address[6],c_phone[7],c_comment[8],{l_extendedprice*1-l_discount}[9],l_extendedprice[10],{1-l_discount}[11],{1}[1],l_discount[12]
                 Filter: c_nationkey[13]=n_nationkey[2]
                 -> PhysicScanTable nation (inccost=25, cost=25, rows=25) (actual rows=25)
                     Output: n_name[1],1,n_nationkey[0]
-                -> PhysicHashJoin  (inccost=9662, cost=363, rows=91) (actual rows=140)
+                -> PhysicHashJoin  (inccost=9662, cost=363, rows=91, memory=4392) (actual rows=140)
                     Output: c_custkey[5],c_name[6],c_acctbal[7],c_address[8],c_phone[9],c_comment[10],{l_extendedprice*1-l_discount}[0],l_extendedprice[1],{1-l_discount}[2],l_discount[3],c_nationkey[11]
                     Filter: c_custkey[5]=o_custkey[4]
-                    -> PhysicHashJoin  (inccost=9149, cost=1644, rows=61) (actual rows=140)
+                    -> PhysicHashJoin  (inccost=9149, cost=1644, rows=61, memory=1008) (actual rows=140)
                         Output: {l_extendedprice*1-l_discount}[2],l_extendedprice[3],{1-l_discount}[4],l_discount[5],o_custkey[0]
                         Filter: l_orderkey[6]=o_orderkey[1]
                         -> PhysicScanTable orders (inccost=1500, cost=1500, rows=63) (actual rows=64)

@@ -33,8 +33,8 @@ where
 		and l_shipmode in ('AIR', 'AIR REG')
 		and l_shipinstruct = 'DELIVER IN PERSON'
 	)
-Total cost: 2400554213467
-PhysicHashAgg  (inccost=2400554213467, cost=1200243000002, rows=1)
+Total cost: 2400554213467, memory=16
+PhysicHashAgg  (inccost=2400554213467, cost=1200243000002, rows=1, memory=16)
     Output: {sum(l_extendedprice*1-l_discount)}[0]
     Aggregates: sum(l_extendedprice[1]*1-l_discount[4])
     -> PhysicNLJoin  (inccost=1200311213465, cost=1200305012250, rows=1200243000000)

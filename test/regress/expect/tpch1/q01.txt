@@ -19,11 +19,11 @@ group by
 order by
 	l_returnflag,
 	l_linestatus
-Total cost: 11854298.35
-PhysicOrder  (inccost=11854298.35, cost=11.35, rows=6)
+Total cost: 11854298.35, memory=1116
+PhysicOrder  (inccost=11854298.35, cost=11.35, rows=6, memory=372)
     Output: l_returnflag[0],l_linestatus[1],{sum(l_quantity)}[2],{sum(l_extendedprice)}[3],{sum(l_extendedprice*1-l_discount)}[4],{sum(l_extendedprice*1-l_discount*1+l_tax)}[5],{avg(l_quantity)}[6],{avg(l_extendedprice)}[7],{avg(l_discount)}[8],{count(*)(0)}[9]
     Order by: l_returnflag[0], l_linestatus[1]
-    -> PhysicHashAgg  (inccost=11854287, cost=5853072, rows=6)
+    -> PhysicHashAgg  (inccost=11854287, cost=5853072, rows=6, memory=744)
         Output: {l_returnflag}[0],{l_linestatus}[1],{sum(l_quantity)}[2],{sum(l_extendedprice)}[3],{sum(l_extendedprice*1-l_discount)}[4],{sum(l_extendedprice*1-l_discount*1+l_tax)}[5],{avg(l_quantity)}[6],{avg(l_extendedprice)}[7],{avg(l_discount)}[8],{count(*)(0)}[9]
         Aggregates: sum(l_quantity[2]), sum(l_extendedprice[3]), sum(l_extendedprice[3]*1-l_discount[7]), sum(l_extendedprice[3]*1-l_discount[7]*1+l_tax[10]), avg(l_quantity[2]), avg(l_extendedprice[3]), avg(l_discount[7]), count(*)(0)
         Group by: l_returnflag[0], l_linestatus[1]

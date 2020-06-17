@@ -38,13 +38,13 @@ order by
 	numwait desc,
 	s_name
 limit 100
-Total cost: 36715148356934.4
+Total cost: 36715148356934.4, memory=6728512
 PhysicLimit (100) (inccost=36715148356934.4, cost=100, rows=100)
     Output: s_name[0],{count(*)(0)}[1]
-    -> PhysicOrder  (inccost=36715148356834.4, cost=93103.4, rows=10000)
+    -> PhysicOrder  (inccost=36715148356834.4, cost=93103.4, rows=10000, memory=290000)
         Output: s_name[0],{count(*)(0)}[1]
         Order by: {count(*)(0)}[1], s_name[0]
-        -> PhysicHashAgg  (inccost=36715148263731, cost=6021215, rows=10000)
+        -> PhysicHashAgg  (inccost=36715148263731, cost=6021215, rows=10000, memory=580000)
             Output: {s_name}[0],{count(*)(0)}[1]
             Aggregates: count(*)(0)
             Group by: s_name[0]
@@ -60,10 +60,10 @@ PhysicLimit (100) (inccost=36715148356934.4, cost=100, rows=100)
                         -> PhysicMarkJoin Left (inccost=700542762646, cost=700515825735, rows=6001215)
                             Output: #marker,s_name[0],l_orderkey[1],l_suppkey[2]
                             Filter: l_orderkey[3]=l_orderkey[1] and l_suppkey[4]<>l_suppkey[2]
-                            -> PhysicHashJoin  (inccost=20935696, cost=3035771, rows=116729)
+                            -> PhysicHashJoin  (inccost=20935696, cost=3035771, rows=116729, memory=23200)
                                 Output: s_name[0],l_orderkey[2],l_suppkey[3]
                                 Filter: s_suppkey[1]=l_suppkey[3]
-                                -> PhysicHashJoin  (inccost=20427, cost=10402, rows=400)
+                                -> PhysicHashJoin  (inccost=20427, cost=10402, rows=400, memory=8)
                                     Output: s_name[1],s_suppkey[2]
                                     Filter: s_nationkey[3]=n_nationkey[0]
                                     -> PhysicScanTable nation (inccost=25, cost=25, rows=1)
@@ -71,7 +71,7 @@ PhysicLimit (100) (inccost=36715148356934.4, cost=100, rows=100)
                                         Filter: n_name[1]='SAUDI ARABIA'
                                     -> PhysicScanTable supplier (inccost=10000, cost=10000, rows=10000)
                                         Output: s_name[1],s_suppkey[0],s_nationkey[3]
-                                -> PhysicHashJoin  (inccost=17879498, cost=10378283, rows=2918242)
+                                -> PhysicHashJoin  (inccost=17879498, cost=10378283, rows=2918242, memory=5835304)
                                     Output: l_orderkey[1],l_suppkey[2]
                                     Filter: o_orderkey[0]=l_orderkey[1]
                                     -> PhysicScanTable orders (inccost=1500000, cost=1500000, rows=729413)

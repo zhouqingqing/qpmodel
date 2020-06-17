@@ -57,7 +57,7 @@ namespace qpmodel.logic
             public bool enable_hashjoin_ { get; set; } = true;
             public bool enable_nljoin_ { get; set; } = true;
             public bool enable_indexseek_ { get; set; } = true;
-            public bool use_memo_ { get; set; } = false;      // make it true by default
+            public bool use_memo_ { get; set; } = true;
             public bool memo_disable_crossjoin_ { get; set; } = true;
             public bool memo_use_joinorder_solver_ { get; set; } = false;   // make it true by default
 
@@ -168,7 +168,13 @@ namespace qpmodel.logic
                 if (depth == 0)
                 {
                     if (exp_showcost && this is PhysicNode phytop)
-                        r += $"Total cost: {Math.Truncate(phytop.InclusiveCost() * 100) / 100}\n";
+                    {
+                        var memorycost = "";
+                        var memory = phytop.InclusiveMemory();
+                        if (memory != 0)
+                            memorycost = $", memory={memory}"; 
+                        r += $"Total cost: {Math.Truncate(phytop.InclusiveCost() * 100) / 100}{memorycost}\n";
+                    }
                 }
                 else
                     r += "-> ";
@@ -183,7 +189,11 @@ namespace qpmodel.logic
                     {
                         var incCost = Math.Truncate(phynode.InclusiveCost() * 100) / 100;
                         var cost = Math.Truncate(phynode.Cost() * 100) / 100;
-                        r += $" (inccost={incCost}, cost={cost}, rows={phynode.logic_.Card()})";
+                        var memorycost = "";
+                        var memory = phynode.Memory();
+                        if (memory != 0)
+                            memorycost = $", memory={memory}";                            
+                        r += $" (inccost={incCost}, cost={cost}, rows={phynode.logic_.Card()}{memorycost})";
                     }
                     if (exp_showactual)
                     {
@@ -463,6 +473,9 @@ namespace qpmodel.logic
             {
                 Debug.Assert(!distributed_);
                 distributed_ = true;
+
+                // FIXME: we have to disable memo optimization before property enforcement done
+                queryOpt_.optimize_.use_memo_ = false;
                 root = new LogicGather(root);
             }
 

@@ -613,9 +613,17 @@ namespace qpmodel.optimizer
             var j1 = pred.l_().tableRefs_[0];
             Utils.Assumes(pred.r_().tableRefs_.Count == 1);
             var j2 = pred.r_().tableRefs_[0];
-            int i1 = vertices_.FindIndex(x => j1.alias_ == (x as LogicScanTable).tabref_.alias_);
+            int i1 = vertices_.FindIndex(x => {
+                var refs = x.InclusiveTableRefs();
+                Utils.Assumes(refs.Count == 1);
+                return j1.alias_ == refs[0].alias_;
+            });
             index[0] = i1;
-            int i2 = vertices_.FindIndex(x => j2.alias_ == (x as LogicScanTable).tabref_.alias_);
+            int i2 = vertices_.FindIndex(x => {
+                var refs = x.InclusiveTableRefs();
+                Utils.Assumes(refs.Count == 1);
+                return j2.alias_ == refs[0].alias_;
+            });
             index[1] = i2;
 
             return index;

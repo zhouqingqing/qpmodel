@@ -116,6 +116,19 @@ namespace qpmodel
             }
             return null;
         }
+
+        public int EstRowSize()
+        {
+            int size = 0;
+            foreach (var v in columns_)
+            {
+                Debug.Assert(v.Value.type_.len_ > 0);
+                size += v.Value.type_.len_;
+            }
+
+            Debug.Assert(size > 0);
+            return size;
+        }
     }
 
     public class SystemTable
@@ -238,7 +251,8 @@ namespace qpmodel
                 @"create unique index dd1 on d(d1);",
                 @"create index dd2 on d(d2);",
             };
-            SQLStatement.ExecSQLList(string.Join("", createindexes));
+            foreach (var sql in createindexes)
+                SQLStatement.ExecSQL(sql, out _, out _);
 
             // analyze tables
             foreach (var v in tables)
@@ -254,7 +268,7 @@ namespace qpmodel
 
         static public void Init()
         {
-            // be careful: any exception happened here will be swallowed without throw any exception
+            // be careful: any exception happened here will be swallowed without further throw
             createBuildInTestTables();
             createOptimizerTables();
 

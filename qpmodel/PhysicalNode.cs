@@ -48,6 +48,7 @@ namespace qpmodel.physic
     {
         public LogicNode logic_;
         internal double cost_ = double.NaN;
+        internal ulong memory_ = ulong.MaxValue;
         internal PhysicProfiling profile_;
         internal ExecContext context_;
 
@@ -138,6 +139,8 @@ namespace qpmodel.physic
             return r;
         }
 
+        #region optimizer
+        public ulong Card() => logic_.Card();
         public double Cost()
         {
             if (double.IsNaN(cost_))
@@ -145,7 +148,7 @@ namespace qpmodel.physic
             Debug.Assert(cost_ >= 0 || cost_ is double.NaN);
             return cost_;
         }
-        public virtual double EstimateCost() => double.NaN;
+        protected virtual double EstimateCost() => double.NaN;
 
         // inclusive cost summarize its own cost and its children cost. During 
         // optimiztaion it is a dynamic measurement, we do so by summarize its
@@ -166,7 +169,26 @@ namespace qpmodel.physic
             return incCost;
         }
 
-        public ulong Card() => logic_.Card();
+        public ulong Memory()
+        {
+            if (memory_ is ulong.MaxValue)
+                memory_ = EstimateMemory();
+            return memory_;
+        }
+        protected virtual ulong EstimateMemory() => 0;
+        public ulong InclusiveMemory()
+        {
+            ulong memory = 0;
+            memory += Memory();
+            children_.ForEach(x =>
+            {
+                memory += x.InclusiveMemory();
+            });
+
+            return memory;
+        }
+        #endregion
+
         public BitVector tableContained_ { get => logic_.tableContained_; }
 
         #region codegen support
@@ -339,7 +361,7 @@ namespace qpmodel.physic
             return cs;
         }
 
-        public override double EstimateCost()
+        protected override double EstimateCost()
         {
             var logic = (logic_) as LogicScanTable;
             var tablerows = Math.Max(1,
@@ -385,11 +407,11 @@ namespace qpmodel.physic
             return null;
         }
 
-        public override double EstimateCost()
+        protected override double EstimateCost()
         {
-            // 2 means < 50% selection ratio will pick up index
+            // 1.99 means < 50% selection ratio will pick up index
             var logic = (logic_) as LogicScanTable;
-            return logic.Card() * 2.0;
+            return logic.Card() * 1.99;
         }
     }
 
@@ -583,7 +605,7 @@ namespace qpmodel.physic
             return s;
         }
 
-        public override double EstimateCost()
+        protected override double EstimateCost()
         {
             double cost = (l_().Card() + 10) * (r_().Card() + 10);
             return cost;
@@ -619,6 +641,12 @@ namespace qpmodel.physic
     {
         public PhysicHashJoin(LogicJoin logic, PhysicNode l, PhysicNode r) : base(logic, l, r) { }
         public override string ToString() => $"PHJ({l_()},{r_()}: {Cost()},{InclusiveCost()})";
+
+        protected override ulong EstimateMemory()
+        {
+            var bytes = l_().Card() * l_().logic_.EstOutputWidth() * 2;
+            return bytes;
+        }
 
         public override string Open(ExecContext context)
         {
@@ -806,7 +834,7 @@ namespace qpmodel.physic
             return s;
         }
 
-        public override double EstimateCost()
+        protected override double EstimateCost()
         {
             var buildcost = l_().Card() * 2.0;
             var probecost = r_().Card() * 1.0;
@@ -892,7 +920,13 @@ namespace qpmodel.physic
         public PhysicHashAgg(LogicAgg logic, PhysicNode l) : base(logic, l) { }
         public override string ToString() => $"PHashAgg({child_()}: {Cost()})";
 
-        public override double EstimateCost()
+        protected override ulong EstimateMemory()
+        {
+            var bytes = Card() * logic_.EstOutputWidth() * 2;
+            return bytes;
+        }
+
+        protected override double EstimateCost()
         {
             return child_().Card() * 1.0 + logic_.Card() * 2.0;
         }
@@ -1014,7 +1048,7 @@ namespace qpmodel.physic
         public PhysicStreamAgg(LogicAgg logic, PhysicNode l) : base(logic, l) { }
         public override string ToString() => $"PStreamAgg({child_()}: {Cost()})";
 
-        public override double EstimateCost()
+        protected override double EstimateCost()
         {
             return logic_.Card() * 2.0;
         }
@@ -1091,6 +1125,12 @@ namespace qpmodel.physic
         public PhysicOrder(LogicOrder logic, PhysicNode l) : base(logic) => children_.Add(l);
         public override string ToString() => $"POrder({child_()}: {Cost()},{InclusiveCost()})";
 
+        protected override ulong EstimateMemory()
+        {
+            var bytes = child_().Card() * logic_.EstOutputWidth();
+            return bytes;
+        }
+
         public override string Open(ExecContext context)
         {
             string cs = base.Open(context);
@@ -1158,7 +1198,7 @@ namespace qpmodel.physic
             return s;
         }
 
-        public override double EstimateCost()
+        protected override double EstimateCost()
         {
             var rowstosort = child_().Card() * 1.0;
             double cost = rowstosort * (0.1 + Math.Log(rowstosort));
@@ -1227,7 +1267,7 @@ namespace qpmodel.physic
             return null;
         }
 
-        public override double EstimateCost()
+        protected override double EstimateCost()
         {
             return child_().Card() * 1.0;
         }
@@ -1274,7 +1314,7 @@ namespace qpmodel.physic
             return false;
         }
 
-        public override double EstimateCost()
+        protected override double EstimateCost()
         {
             return child_().Card() * 1.0;
         }
@@ -1302,6 +1342,7 @@ namespace qpmodel.physic
     public class PhysicResult : PhysicNode
     {
         public PhysicResult(LogicResult logic) : base(logic) { }
+        public override string ToString() => $"PResult";
 
         public override string Exec(Func<Row, string> callback)
         {
@@ -1309,6 +1350,7 @@ namespace qpmodel.physic
             callback(r);
             return null;
         }
+        protected override double EstimateCost() => logic_.Card() * 1.0;
     }
 
     public class PhysicProfiling : PhysicNode
@@ -1354,7 +1396,7 @@ namespace qpmodel.physic
             return s;
         }
 
-        public override double EstimateCost() => 0;
+        protected override double EstimateCost() => 0;
     }
 
     public class PhysicCollect : PhysicNode
@@ -1434,7 +1476,7 @@ namespace qpmodel.physic
         public PhysicAppend(LogicAppend logic, PhysicNode l, PhysicNode r) : base(logic) { children_.Add(l); children_.Add(r); }
         public override string ToString() => $"PAPPEND({l_()},{r_()}): {Cost()})";
 
-        public override double EstimateCost()
+        protected override double EstimateCost()
         {
             return logic_.Card() * 1;
         }
@@ -1479,7 +1521,7 @@ namespace qpmodel.physic
         public PhysicLimit(LogicLimit logic, PhysicNode l) : base(logic) => children_.Add(l);
         public override string ToString() => $"PLIMIT({child_()}: {Cost()})";
 
-        public override double EstimateCost()
+        protected override double EstimateCost()
         {
             return logic_.Card() * 1.0;
         }
@@ -1568,7 +1610,7 @@ namespace qpmodel.physic
         public override string Exec(Func<Row, string> callback)
             => asConsumer_ ? ExecConsumer(callback) : ExecProducer(callback);
 
-        public override double EstimateCost()
+        protected override double EstimateCost()
         {
             return logic_.Card() * 0.1;
         }
@@ -1776,7 +1818,7 @@ namespace qpmodel.physic
         public PhysicProjectSet(LogicProjectSet logic, PhysicNode l) : base(logic) => children_.Add(l);
         public override string ToString() => $"PPRJSET({child_()}: {Cost()})";
 
-        public override double EstimateCost()
+        protected override double EstimateCost()
         {
             return logic_.Card() * 1.0;
         }
@@ -1854,7 +1896,7 @@ namespace qpmodel.physic
         public PhysicSampleScan(LogicSampleScan logic, PhysicNode l) : base(logic) => children_.Add(l);
         public override string ToString() => $"PSAMPLE({child_()}: {Cost()})";
 
-        public override double EstimateCost()
+        protected override double EstimateCost()
         {
             return logic_.Card() * 0.5;
         }
