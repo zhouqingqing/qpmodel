@@ -385,13 +385,14 @@ namespace qpmodel.optimizer
                     var cost = double.MaxValue;
                     if (physic != null)
                     {
-                        cost = physic.Cost();
+                        cost = 0;
                         foreach (var child in physic.children_)
                         {
                             var childgroup = (child as PhysicMemoRef).Group();
                             childgroup.CalculateMinInclusiveCostMember();
                             cost += childgroup.minIncCost_;
                         }
+                        cost += physic.Cost(true);
                     }
                     incCost.Add(cost);
                 }
