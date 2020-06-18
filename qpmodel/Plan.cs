@@ -435,7 +435,7 @@ namespace qpmodel.logic
                         from = new LogicFilter(subjoin, filterexpr);
                         break;
                     default:
-                        throw new Exception();
+                        throw new InvalidProgramException();
                 }
 
                 return from;
@@ -783,7 +783,7 @@ namespace qpmodel.logic
                 {
                     from_[i] = chainUpToFindCte(context, bref.relname_, bref.alias_);
                     if (from_[i] is null)
-                        throw new Exception($@"table '{bref.relname_}' not exists");
+                        throw new SemanticAnalyzeException($@"table '{bref.relname_}' not exists");
                 }
             }
 
@@ -799,7 +799,7 @@ namespace qpmodel.logic
                         if (Catalog.systable_.TryTable(eref.baseref_.relname_) != null)
                             context.RegisterTable(eref);
                         else
-                            throw new Exception($@"base table '{eref.baseref_.relname_}' not exists");
+                            throw new SemanticAnalyzeException($@"base table '{eref.baseref_.relname_}' not exists");
                         break;
                     case QueryRef qref:
                         if (qref.query_.bindContext_ is null)

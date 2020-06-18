@@ -40,9 +40,9 @@ using qpmodel.dml;
 namespace qpmodel.sqlparser
 {
     // antlr requires user defined exception
-    public class AntlrCompileException : Exception
+    public class AntlrParserException : Exception
     {
-        public AntlrCompileException(string msg) => Console.WriteLine($"ERROR[Antlr]: {msg }");
+        public AntlrParserException(string msg) => Console.WriteLine($"ERROR[Antlr]: {msg }");
     }
 
     public class RawParser

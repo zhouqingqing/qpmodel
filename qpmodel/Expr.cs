@@ -796,7 +796,7 @@ namespace qpmodel.expr
         // expression split into two interfaces Exec() and ExecCode() for easier usage.
         //
         public virtual Value Exec(ExecContext context, Row input)
-            => throw new Exception($"{this} subclass shall implment Exec()");
+            => throw new NotImplementedException($"{this} subclass shall implment Exec()");
         public virtual string ExecCode(ExecContext context, string input)
         {
             return $@"ExprSearch.Locate(""{_}"").Exec(context, {input}) /*{ToString()}*/";

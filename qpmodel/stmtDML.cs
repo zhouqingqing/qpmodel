@@ -165,7 +165,7 @@ namespace qpmodel.dml
 
             // verify target table is correct
             if (Catalog.systable_.TryTable(targetref_.relname_) is null)
-                throw new Exception($@"base table '{targetref_.alias_}' not exists");
+                throw new SemanticAnalyzeException($@"base table '{targetref_.alias_}' not exists");
 
             // use selectstmt's target list is not given
             Utils.Assumes(cols_ is null);
