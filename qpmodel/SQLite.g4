@@ -41,7 +41,7 @@ parse
 error
  : UNEXPECTED_CHAR 
    { 
-     throw new AntlrCompileException("UNEXPECTED_CHAR=" + $UNEXPECTED_CHAR.text); 
+     throw new AntlrParserException("UNEXPECTED_CHAR=" + $UNEXPECTED_CHAR.text); 
    }
  ;
 
