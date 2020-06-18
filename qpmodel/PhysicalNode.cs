@@ -140,18 +140,10 @@ namespace qpmodel.physic
         }
 
         #region optimizer
-        public ulong Card()
+        public ulong Card() => logic_.Card();
+        public double Cost()
         {
-            if (this is PhysicMemoRef pmr && pmr.Group().minMember_ != null)
-                return pmr.Group().minMember_.physic_.logic_.Card();
-            return logic_.Card();
-        }
-        public double Cost(bool findopt = false)
-        {
-            // force update when finding min cost member
-            if (findopt)
-                cost_ = EstimateCost();
-            else if (double.IsNaN(cost_))
+            if (double.IsNaN(cost_))
                 cost_ = EstimateCost();
             Debug.Assert(cost_ >= 0 || cost_ is double.NaN);
             return cost_;
