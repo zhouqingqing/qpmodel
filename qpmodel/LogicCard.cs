@@ -170,7 +170,7 @@ namespace qpmodel.logic
                     {
                         var origbt = col.baseTabRef_ as BaseTableRef;
                         var stats = Catalog.sysstat_.GetColumnStat(origbt.relname_, col.colName_);
-                        return stats.EstDistinct();
+                        return stats?.EstDistinct() ?? 0;
                     }
                     
                 }

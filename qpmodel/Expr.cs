@@ -868,7 +868,7 @@ namespace qpmodel.expr
 
         // bound info
         internal TableRef tabRef_;
-        internal TableRef baseTabRef_ = null;
+        internal TableRef baseTabRef_ = null;   // for query ref case
         internal bool isParameter_;
         internal int ordinal_ = -1;          // which column in children's output
 
@@ -923,7 +923,7 @@ namespace qpmodel.expr
 
             // inherit the basetabref from context
             if (!(tabRef_ is BaseTableRef))
-                baseTabRef_ = (tabRef_.LocateColumn(colName_) as ColExpr).baseTabRef_;
+                baseTabRef_ = (tabRef_?.LocateColumn(colName_) as ColExpr)?.baseTabRef_;
 
             // we can't find the column in current context, so it could an outer reference
             if (tabRef_ is null)

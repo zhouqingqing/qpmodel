@@ -432,7 +432,6 @@ namespace qpmodel.expr
                 if (outside[i].outputName_ != null)
                 {
                     outputNameMap_[outside[i].outputName_] = inside[i];
-                    (outputNameMap_[outside[i].outputName_] as ColExpr).baseTabRef_ = (inside[i] as ColExpr).tabRef_;
                 }
             }
         }
