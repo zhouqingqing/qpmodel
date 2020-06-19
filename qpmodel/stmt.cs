@@ -696,7 +696,7 @@ namespace qpmodel.logic
             selection.ForEach(x =>
             {
                 if (x.HasSubQuery())
-                    x = x.SearchReplace<Expr>(IsSubquery, RepalceSuquerySelection);
+                    x = x.SearchAndReplace<Expr>(IsSubquery, RepalceSuquerySelection);
                 x.ResetAggregateTableRefs();
                 newselection.Add(x);
             });

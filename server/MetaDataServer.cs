@@ -108,6 +108,8 @@ namespace server
             if (curlen < newlen)
             {
                 columns_[column] = newlen;
+
+                // debug only
                 var answer = SendAndRecvMsg(stream, $"VERIFY {column} {newlen}");
                 Debug.Assert(answer.Equals("True"));
             }
@@ -127,6 +129,10 @@ namespace server
             SendMsg(stream, success ? "COMMITTED": "ABORTED");
         }
 
+        // Commands:
+        //   ALTER <column> <len>
+        //   GELEN <column>
+        //
         void HandleQPCommand(NetworkStream stream, string command)
         {
             string[] words = command.Split(' ');
