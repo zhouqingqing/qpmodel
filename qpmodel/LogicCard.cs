@@ -157,6 +157,26 @@ namespace qpmodel.logic
         //
         public override ulong LogicJoinCE(LogicJoin node)
         {
+            ulong getDistinct(Expr key)
+            {
+                if (key is ColExpr col)
+                {
+                    if (col.tabRef_ is BaseTableRef bt)
+                    {
+                        var stats = Catalog.sysstat_.GetColumnStat(bt.relname_, col.colName_);
+                        return stats.EstDistinct();
+                    }
+                    else if (col.baseTabRef_ != null)
+                    {
+                        var origbt = col.baseTabRef_ as BaseTableRef;
+                        var stats = Catalog.sysstat_.GetColumnStat(origbt.relname_, col.colName_);
+                        return stats.EstDistinct();
+                    }
+                    
+                }
+                return 0;
+            }
+
             ulong card;
             node.CreateKeyList();
             var cardl = node.l_().Card();
@@ -166,17 +186,10 @@ namespace qpmodel.logic
             for (int i = 0; i < node.leftKeys_.Count; i++)
             {
                 var lv = node.leftKeys_[i];
-                if (lv is ColExpr vl && vl.tabRef_ is BaseTableRef bvl)
-                {
-                    var stat = Catalog.sysstat_.GetColumnStat(bvl.relname_, vl.colName_);
-                    dl = stat.EstDistinct();
-                }
+                dl = getDistinct(lv);
+
                 var rv = node.rightKeys_[i];
-                if (rv is ColExpr vr && vr.tabRef_ is BaseTableRef bvr)
-                {
-                    var stat = Catalog.sysstat_.GetColumnStat(bvr.relname_, vr.colName_);
-                    dr = stat.EstDistinct();
-                }
+                dr = getDistinct(rv);
 
                 if (node.ops_[i] != "=")
                 {

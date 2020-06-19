@@ -322,6 +322,10 @@ namespace qpmodel.expr
                         if (z is ColExpr cz)
                         {
                             cz.tabRef_ = this;
+                            // when the col is from only one data col,
+                            // then record its original tabref
+                            if (cz.tableRefs_.Count == 1 && cz.tableRefs_[0] is BaseTableRef btr)
+                                cz.baseTabRef_ = btr;
                         }
                     });
                     r.Add(y);
@@ -391,6 +395,8 @@ namespace qpmodel.expr
                             if (z is ColExpr cz)
                             {
                                 cz.tabRef_ = this;
+                                if (cz.tableRefs_.Count == 1 && cz.tableRefs_[0] is BaseTableRef btr)
+                                    cz.baseTabRef_ = btr;
                             }
                         });
 
@@ -426,6 +432,7 @@ namespace qpmodel.expr
                 if (outside[i].outputName_ != null)
                 {
                     outputNameMap_[outside[i].outputName_] = inside[i];
+                    (outputNameMap_[outside[i].outputName_] as ColExpr).baseTabRef_ = (inside[i] as ColExpr).tabRef_;
                 }
             }
         }
