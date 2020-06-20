@@ -636,12 +636,11 @@ namespace qpmodel.stat
 
         public PhysicAnalyze(LogicAnalyze logic, PhysicNode l) : base(logic) => children_.Add(l);
 
-        public override string Open(ExecContext context)
+        public override void Open(ExecContext context)
         {
             base.Open(context);
             var tabName = (logic_ as LogicAnalyze).GetTargetTable().relname_;
             stats_ = Catalog.sysstat_.GetOrCreateTableStats(tabName);
-            return null;
         }
 
         public override string Exec(Func<Row, string> callback)

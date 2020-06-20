@@ -134,13 +134,12 @@ namespace qpmodel.index
 
         public PhysicIndex(LogicIndex logic, PhysicNode l) : base(logic) => children_.Add(l);
 
-        public override string Open(ExecContext context)
+        public override void Open(ExecContext context)
         {
             base.Open(context);
             var logic = (logic_ as LogicIndex);
             var tabName = logic.GetTargetTable().relname_;
             index_ = new MemoryIndex(logic.def_.unique_);
-            return null;
         }
 
         public override string Exec(Func<Row, string> callback)

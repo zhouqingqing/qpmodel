@@ -237,7 +237,8 @@ namespace qpmodel
             final.ValidateThis();
             if (a is SelectStmt select)
                 select.OpenSubQueries(context);
-            var code = final.Open(context);
+            final.Open(context);
+            var code = context.code_;
             code += final.Exec(null);
             code += final.Close();
 

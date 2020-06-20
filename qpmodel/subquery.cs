@@ -705,12 +705,11 @@ namespace qpmodel.logic
             children_.Add(child);
         }
 
-        public override string Open(ExecContext context)
+        public override void Open(ExecContext context)
         {
-            string cs = base.Open(context);
+            base.Open(context);
             var logic = logic_ as LogicCteProducer;
             context.RegisterCteProducer(logic.cte_.cteName_, heap_);
-            return cs;
         }
 
         public override string Exec(Func<Row, string> callback)
