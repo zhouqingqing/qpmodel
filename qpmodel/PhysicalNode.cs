@@ -203,8 +203,7 @@ namespace qpmodel.physic
             {
                 if ((x as PhysicNode)._ == objectid)
                 {
-                    if (target != null)
-                        throw new Exception("no duplicates allowed");
+                    Debug.Assert(target is null); 
                     target = x as PhysicNode;
                     return false;
                 }

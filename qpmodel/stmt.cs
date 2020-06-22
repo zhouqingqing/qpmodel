@@ -139,7 +139,10 @@ namespace qpmodel.logic
             }
             catch (Exception e)
             {
-                if (e is SemanticAnalyzeException || e is SemanticExecutionException)
+                // supress two known possible expected exceptions
+                if (e is AntlrParserException || 
+                    e is SemanticAnalyzeException || 
+                    e is SemanticExecutionException)
                 {
                     // expected errors
                     error = e.Message;
@@ -150,7 +153,7 @@ namespace qpmodel.logic
                 }
                 else
                 {
-                    // unexpected error
+                    // throw on unexpected errors
                     Console.Error.WriteLine(e.StackTrace);
                     throw e;
                 }

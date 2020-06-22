@@ -268,7 +268,7 @@ namespace qpmodel
 
         static public void Init()
         {
-            // be careful: any exception happened here will be swallowed without further throw
+            // Create some internal tables for easier testing
             createBuildInTestTables();
             createOptimizerTables();
 

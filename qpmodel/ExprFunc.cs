@@ -421,7 +421,7 @@ namespace qpmodel.expr
         public virtual Value Finalize(ExecContext context, Value old) => old;
 
         public override object Exec(ExecContext context, Row input)
-            => throw new Exception("aggfn [some] are stateful, they use different set of APIs");
+            => throw new InvalidProgramException("aggfn [some] are stateful, they use different set of APIs");
     }
 
     public class AggSum : AggFunc
@@ -900,7 +900,7 @@ namespace qpmodel.expr
                 case "<": return ">";
                 case "<=": return ">=";
                 case "in":
-                    throw new Exception("not switchable");
+                    throw new InvalidProgramException("not switchable");
                 default:
                     return op;
             }

@@ -173,9 +173,9 @@ namespace qpmodel.index
 
     public abstract class ISearchIndex
     {
-        public virtual void Insert(KeyList key, Row r) => throw new NotImplementedException();
-        public virtual List<Row> Search(string op, KeyList key) => throw new NotImplementedException();
-        public virtual List<Row> Search(KeyList l, KeyList r) => throw new NotImplementedException();
+        public abstract void Insert(KeyList key, Row r);
+        public abstract List<Row> Search(string op, KeyList key);
+        public abstract List<Row> Search(KeyList l, KeyList r);
     }
 
     public class MemoryIndex : ISearchIndex
