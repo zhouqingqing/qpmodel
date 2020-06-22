@@ -44,6 +44,7 @@ using qpmodel.tools;
 using qpmodel.stat;
 
 using psql;
+using System.Reflection.Metadata;
 
 namespace qpmodel.unittest
 {
@@ -1925,6 +1926,73 @@ namespace qpmodel.unittest
             var sql = "select count(*) from ast group by hop(a0, interval '5' second, interval '10' second)";
             TU.ExecuteSQL(sql, "2;4;2;1;1", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "ProjectSet"));
+        }
+    }
+
+    [TestClass]
+    public class Cardinality
+    {
+        static internal int ExtractNum(string str)
+        {
+            string numstr = str.Split(',',')')[0];
+            return Int32.Parse(numstr);
+        }
+        static internal bool CheckNumList(string phyplan, List<int> result)
+        {
+            for (int i = 0; i < result.Count; i++)
+            {
+                int at = phyplan.IndexOf(", rows=");
+                if (at < 0) return false;
+                phyplan = phyplan.Substring(at + 7);
+                int estimate = ExtractNum(phyplan);
+                if (estimate != result[i]) return false;
+            }
+            return true;
+        }
+        static internal void CheckCard(string sql, List<int> cardlist, QueryOption option = null)
+        {
+            var result = SQLStatement.ExecSQL(sql, out string physicplan, out string error_, option);
+            Assert.IsNotNull(physicplan);
+            Assert.IsTrue(CheckNumList(physicplan, cardlist));
+        }
+        internal void CheckTableLoad()
+        {
+            Tpch.CreateTables();
+            Tpch.LoadTables("0001");
+            Tpch.AnalyzeTables();
+        }
+        [TestMethod]
+        public void PrimitiveTest()
+        {
+            CheckTableLoad();
+
+            var option = new QueryOption();
+            option.explain_.mode_ = ExplainMode.analyze;
+            option.explain_.show_estCost_ = true;
+
+            string sql;
+            // filter scan
+            sql = "select * from lineitem where l_extendedprice > 25000;";
+            CheckCard(sql, new List<int> { 3039 }, option);
+            sql = @"select * from orders where o_orderdate >= date '1993-07-01' and o_orderdate < date '1997-07-01';";
+            CheckCard(sql, new List<int> { 914 }, option);
+            sql = "select * from lineitem where l_discount between(.06 - 0.01 , .06 + 0.01);";
+            CheckCard(sql, new List<int> { 1131 }, option);
+            sql = "select * from lineitem where l_shipmode in ('RAIL', 'TRUCK', 'REG AIR', 'MAIL');";
+            CheckCard(sql, new List<int> { 3474 }, option);
+            sql = "select p_type from part where p_type like 'MEDIUM%';";
+            CheckCard(sql, new List<int> { 1 }, option);    // actual is 35
+            // join
+            sql = "select * from lineitem, orders where l_orderkey = o_orderkey;";
+            CheckCard(sql, new List<int> { 6005, 1500, 6005 }, option);
+            sql = "select * from lineitem, partsupp where ps_suppkey = l_suppkey and ps_partkey = l_partkey;";
+            CheckCard(sql, new List<int> { 2402, 800, 6005 }, option);
+            // aggregation
+            sql = "select count(*) from lineitem group by l_partkey;";
+            CheckCard(sql, new List<int> { 200, 6005 }, option);
+            sql = "select count(*) from lineitem group by l_partkey, l_suppkey;";
+            CheckCard(sql, new List<int> { 2000, 6005 }, option);
+
         }
     }
 }
