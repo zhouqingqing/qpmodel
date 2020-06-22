@@ -1961,6 +1961,14 @@ namespace qpmodel.unittest
             Tpch.LoadTables("0001");
             Tpch.AnalyzeTables();
         }
+        internal void DropTable()
+        {
+            List<string> tableNames = new List<string>
+            { "region", "nation", "part", "supplier", "partsupp", "customer", "orders", "lineitem"};
+            
+            for (int i = 0; i < tableNames.Count; i++)
+                SQLStatement.ExecSQL($"drop table {tableNames[i]}", out _, out _);
+        }
         [TestMethod]
         public void PrimitiveTest()
         {
@@ -1993,6 +2001,7 @@ namespace qpmodel.unittest
             sql = "select count(*) from lineitem group by l_partkey, l_suppkey;";
             CheckCard(sql, new List<int> { 2000, 6005 }, option);
 
+            DropTable();
         }
     }
 }
