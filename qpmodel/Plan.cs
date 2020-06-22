@@ -249,48 +249,6 @@ namespace qpmodel.logic
             return r;
         }
 
-        // lookup all T1 types in the tree and return the parent-target relationship
-        public int FindNodeTypeMatch<T1>(List<T> parents,
-            List<int> childIndex, List<T1> targets, Type skipParentType = null) where T1 : PlanNode<T>
-        {
-            VisitEach((parent, index, child) =>
-            {
-                if (child is T1 ct)
-                {
-                    parents?.Add((T)parent);
-                    childIndex?.Add(index);
-                    targets.Add(ct);
-
-                    // verify the parent-child relationship
-                    Debug.Assert(parent is null || parent.children_[index] == child);
-                }
-            }, skipParentType);
-
-            return targets.Count;
-        }
-        public int FindNodeTypeMatch<T1>(List<T1> targets) where T1 : PlanNode<T> => FindNodeTypeMatch<T1>(null, null, targets);
-        public int CountNodeTypeMatch<T1>() where T1 : PlanNode<T> => FindNodeTypeMatch<T1>(new List<T1>());
-
-        public PlanNode<T> SearchAndReplace(PlanNode<T> target, PlanNode<T> replacement)
-        {
-            PlanNode<T> ret = null;
-            VisitEach((parent, index, child) =>
-            {
-                if (child == target)
-                {
-                    if (parent is null)
-                        ret = replacement;
-                    else
-                    {
-                        parent.children_[index] = (T)replacement;
-                        ret = this;
-                    }
-                }
-            });
-
-            return ret;
-        }
-
         public override int GetHashCode()
         {
             return GetType().GetHashCode() ^ children_.ListHashCode();
@@ -847,7 +805,7 @@ namespace qpmodel.logic
                 foreach (var s in selection)
                 {
                     if (s.outputName_ != null)
-                        newv = newv.SearchReplace(s.outputName_, s, false);
+                        newv = newv.SearchAndReplace(s.outputName_, s, false);
                 }
                 newlist.Add(newv);
             }

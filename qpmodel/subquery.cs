@@ -142,9 +142,9 @@ namespace qpmodel.logic
             // make a filter on top of the mark join collecting all filters
             Expr topfilter;
             if (nodeAIsOnMarkJoin)
-                topfilter = nodeAFilter.SearchReplace(existExpr, LiteralExpr.MakeLiteral("true", new BoolType()));
+                topfilter = nodeAFilter.SearchAndReplace(existExpr, LiteralExpr.MakeLiteral("true", new BoolType()));
             else
-                topfilter = nodeAFilter.SearchReplace(existExpr, markerFilter);
+                topfilter = nodeAFilter.SearchAndReplace(existExpr, markerFilter);
             nodeBFilter.DeParameter(nodeA.InclusiveTableRefs());
             topfilter = topfilter.AddAndFilter(nodeBFilter);
             LogicFilter Filter = new LogicFilter(markjoin, topfilter);
@@ -271,7 +271,7 @@ namespace qpmodel.logic
             if (nodeLeftFilter != null)
             {
                 // a1 > @1 => a1 > c1
-                var decExpr = nodeLeftFilter.SearchReplace(scalarExpr, singleValueExpr);
+                var decExpr = nodeLeftFilter.SearchAndReplace(scalarExpr, singleValueExpr);
                 nonMovableFilter = new LogicFilter(singleJoinNode, decExpr);
                 nonMovableFilter.movable_ = false;
             }
@@ -705,12 +705,11 @@ namespace qpmodel.logic
             children_.Add(child);
         }
 
-        public override string Open(ExecContext context)
+        public override void Open(ExecContext context)
         {
-            string cs = base.Open(context);
+            base.Open(context);
             var logic = logic_ as LogicCteProducer;
             context.RegisterCteProducer(logic.cte_.cteName_, heap_);
-            return cs;
         }
 
         public override string Exec(Func<Row, string> callback)

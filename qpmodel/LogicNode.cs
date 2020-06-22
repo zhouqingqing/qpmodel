@@ -289,7 +289,7 @@ namespace qpmodel.logic
                 roughNameTest = z => target.Equals(z);
                 int ordinal = source.FindIndex(roughNameTest);
                 if (ordinal != -1)
-                    clone = clone.SearchReplace(target, new ExprRef(target, ordinal));
+                    clone = clone.SearchAndReplace(target, new ExprRef(target, ordinal));
             });
 
             // we have to use each ColExpr and fix its ordinal
@@ -777,7 +777,7 @@ namespace qpmodel.logic
 
             Expr xchanged = x.Clone();
             foreach (var v in keys)
-                xchanged = xchanged.SearchReplace(v, constTrue);
+                xchanged = xchanged.SearchAndReplace(v, constTrue);
             if (!xchanged.VisitEachExists(
                     e => e.IsLeaf() && !(e is LiteralExpr) && !e.Equals(constTrue)))
                 return true;
@@ -892,7 +892,7 @@ namespace qpmodel.logic
                     for (int i = 0; i < groupby_.Count; i++)
                     {
                         var g = groupby_[i];
-                        e = e.SearchReplace(g, new ExprRef(g, i));
+                        e = e.SearchAndReplace(g, new ExprRef(g, i));
                     }
                 }
 
@@ -902,7 +902,7 @@ namespace qpmodel.logic
             List<Expr> newlist = new List<Expr>();
             sourceList.ForEach(x =>
             {
-                x = x.SearchReplace<Expr>(IsGroupByElement, RepalceWithGroupbyRef);
+                x = x.SearchAndReplace<Expr>(IsGroupByElement, RepalceWithGroupbyRef);
                 x.ResetAggregateTableRefs();
                 newlist.Add(x);
             });
@@ -969,7 +969,7 @@ namespace qpmodel.logic
                     // remove the duplicates immediatley to avoid wrong ordinal in ExprRef
                     if (!aggrFns_.Contains(y))
                         aggrFns_.Add(y);
-                    x = x.SearchReplace(y, new ExprRef(y, nkeys + aggrFns_.IndexOf(y)));
+                    x = x.SearchAndReplace(y, new ExprRef(y, nkeys + aggrFns_.IndexOf(y)));
                 });
 
                 newoutput.Add(x);
@@ -981,7 +981,7 @@ namespace qpmodel.logic
                 // remove the duplicates immediatley to avoid wrong ordinal in ExprRef
                 if (!aggrFns_.Contains(y))
                     aggrFns_.Add(y);
-                having_ = having_.SearchReplace(y, new ExprRef(y, nkeys + aggrFns_.IndexOf(y)));
+                having_ = having_.SearchAndReplace(y, new ExprRef(y, nkeys + aggrFns_.IndexOf(y)));
             });
             Debug.Assert(aggrFns_.Count == aggrFns_.Distinct().Count());
 

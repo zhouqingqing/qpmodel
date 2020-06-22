@@ -123,6 +123,60 @@ namespace qpmodel.utils
             return exists;
         }
 
+        // lookup all T1 types in the tree and return the parent-target relationship
+        public int FindNodeTypeMatch<T1>(List<T> parents,
+            List<int> childIndex, List<T1> targets, Type skipParentType = null) where T1 : TreeNode<T>
+        {
+            VisitEach((parent, index, child) =>
+            {
+                if (child is T1 ct)
+                {
+                    parents?.Add((T)parent);
+                    childIndex?.Add(index);
+                    targets.Add(ct);
+
+                    // verify the parent-child relationship
+                    Debug.Assert(parent is null || parent.children_[index] == child);
+                }
+            }, skipParentType);
+
+            return targets.Count;
+        }
+
+        public int FindNodeTypeMatch<T1>(List<T1> targets) where T1 : TreeNode<T> => FindNodeTypeMatch<T1>(null, null, targets);
+        public int CountNodeTypeMatch<T1>() where T1 : TreeNode<T> => FindNodeTypeMatch<T1>(new List<T1>());
+
+        // search @target and replace with @replacement
+        public T SearchAndReplace<T1>(T1 target, T replacement) where T1: T
+        {
+            bool checkfn(T e) => target == e;
+            T replacefn(T e) => replacement;
+            return SearchAndReplace<T>(checkfn, replacefn);
+        }
+
+        // search any with type @T1 and replace with replacefn(T1)
+        public T SearchAndReplace<T1>(Func<T1, T> replacefn) where T1 : T
+        {
+            bool checkfn(T e) => e is T1;
+            return SearchAndReplace<T1>(checkfn, replacefn);
+        }
+
+        // generic form of search with condition @checkfn and replace with @replacefn
+        public T SearchAndReplace<T1>(Func<T, bool> checkfn, Func<T1, T> replacefn) where T1 : T
+        {
+            if (checkfn((T)this))
+                return replacefn((T1)this);
+            else
+            {
+                for (int i = 0; i < children_.Count; i++)
+                {
+                    var child = children_[i];
+                    children_[i] = child.SearchAndReplace(checkfn, replacefn);
+                }
+                return (T)this;
+            }
+        }
+
         // clone
         public virtual T Clone()
         {

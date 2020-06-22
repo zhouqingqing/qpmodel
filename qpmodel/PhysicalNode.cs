@@ -87,7 +87,7 @@ namespace qpmodel.physic
             });
         }
 
-        public virtual string Open(ExecContext context)
+        public virtual void Open(ExecContext context)
         {
             string s = null;
 
@@ -102,8 +102,8 @@ namespace qpmodel.physic
                 s += CreateCommonNames();
             }
 
-            children_.ForEach(x => s += x.Open(context));
-            return s;
+            context.code_ += s;
+            children_.ForEach(x => x.Open(context));
         }
 
         public virtual string Close()
@@ -293,7 +293,7 @@ namespace qpmodel.physic
         public PhysicScanTable(LogicNode logic) : base(logic) { }
         public override string ToString() => $"PScan({(logic_ as LogicScanTable).tabref_}: {Cost()})";
 
-        public override string Open(ExecContext context)
+        public override void Open(ExecContext context)
         {
             string cs = null;
             context_ = context;
@@ -306,8 +306,9 @@ namespace qpmodel.physic
                 _physic_ = $"{this.GetType().Name}{_}";
                 cs += CreateCommonNames();
             }
-            children_.ForEach(x => cs += x.Open(context));
-            return cs;
+
+            context.code_ += cs;
+            children_.ForEach(x => x.Open(context));
         }
 
         public override string Exec(Func<Row, string> callback)
@@ -647,9 +648,9 @@ namespace qpmodel.physic
             return bytes;
         }
 
-        public override string Open(ExecContext context)
+        public override void Open(ExecContext context)
         {
-            string cs = base.Open(context);
+            base.Open(context);
             Debug.Assert(logic_.filter_ != null);
 
             // recreate the left side and right side key list - can't reuse old values 
@@ -659,9 +660,8 @@ namespace qpmodel.physic
             logic.CreateKeyList(false);
             if (context.option_.optimize_.use_codegen_)
             {
-                cs += $@"var hm{_} = new Dictionary<KeyList, List<TaggedRow>>();";
+                context.code_ += $@"var hm{_} = new Dictionary<KeyList, List<TaggedRow>>();";
             }
-            return cs;
         }
 
         public override string Exec(Func<Row, string> callback)
@@ -930,15 +930,14 @@ namespace qpmodel.physic
             return child_().Card() * 1.0 + logic_.Card() * 2.0;
         }
 
-        public override string Open(ExecContext context)
+        public override void Open(ExecContext context)
         {
-            string cs = base.Open(context);
+            base.Open(context);
             if (context.option_.optimize_.use_codegen_)
             {
-                cs += $@"var aggrcore{_} = {_logic_}.aggrFns_;
+                context.code_ += $@"var aggrcore{_} = {_logic_}.aggrFns_;
                    var hm{_} = new Dictionary<KeyList, Row>();";
             }
-            return cs;
         }
 
         public override string Exec(Func<Row, string> callback)
@@ -1052,14 +1051,13 @@ namespace qpmodel.physic
             return logic_.Card() * 2.0;
         }
 
-        public override string Open(ExecContext context)
+        public override void Open(ExecContext context)
         {
-            string cs = base.Open(context);
+            base.Open(context);
             if (context.option_.optimize_.use_codegen_)
             {
-                cs += $@"";
+                context.code_ += $@"";
             }
-            return cs;
         }
 
         public override string Exec(Func<Row, string> callback)
@@ -1130,14 +1128,13 @@ namespace qpmodel.physic
             return bytes;
         }
 
-        public override string Open(ExecContext context)
+        public override void Open(ExecContext context)
         {
-            string cs = base.Open(context);
+            base.Open(context);
             if (context.option_.optimize_.use_codegen_)
             {
-                cs += $@"var set{_} = new List<Row>();";
+                context.code_ += $@"var set{_} = new List<Row>();";
             }
-            return cs;
         }
 
         // respect logic.orders_|descends_
@@ -1215,14 +1212,12 @@ namespace qpmodel.physic
 
         public bool IsCteConsumer(out CTEQueryRef qref) => (logic_ as LogicFromQuery).IsCteConsumer(out qref);
 
-        public override string Open(ExecContext context)
+        public override void Open(ExecContext context)
         {
-            string s = base.Open(context);
-
+            base.Open(context);
             var logic = logic_ as LogicFromQuery;
             if (logic.IsCteConsumer(out CTEQueryRef qref))
                 cteCache_ = context.TryGetCteProducer(qref.cte_.cteName_);
-            return s;
         }
 
         public override string Exec(Func<Row, string> callback)
@@ -1404,11 +1399,10 @@ namespace qpmodel.physic
 
         public PhysicCollect(PhysicNode child) : base(null) => children_.Add(child);
 
-        public override string Open(ExecContext context)
+        public override void Open(ExecContext context)
         {
             context.Reset();
-            string s = base.Open(context);
-            return s;
+            base.Open(context);
         }
 
         public override string Close()
@@ -1479,13 +1473,12 @@ namespace qpmodel.physic
         {
             return logic_.Card() * 1;
         }
-        public override string Open(ExecContext context)
+        public override void Open(ExecContext context)
         {
-            string cs = base.Open(context);
+            base.Open(context);
             if (context.option_.optimize_.use_codegen_)
             {
             }
-            return cs;
         }
 
         public override string Exec(Func<Row, string> callback)
@@ -1525,14 +1518,13 @@ namespace qpmodel.physic
             return logic_.Card() * 1.0;
         }
 
-        public override string Open(ExecContext context)
+        public override void Open(ExecContext context)
         {
-            string cs = base.Open(context);
+            base.Open(context);
             if (context.option_.optimize_.use_codegen_)
             {
-                cs += $@"var nrows{_} = 0;";
+                context.code_ += $@"var nrows{_} = 0;";
             }
-            return cs;
         }
 
         public override string Exec(Func<Row, string> callback)
@@ -1588,20 +1580,19 @@ namespace qpmodel.physic
 
         public virtual string OpenConsumer(ExecContext context) => null;
         public virtual string OpenProducer(ExecContext context) => null;
-        public override string Open(ExecContext econtext)
+        public override void Open(ExecContext econtext)
         {
             var context = econtext as DistributedContext;
             var code = asConsumer_ ? OpenConsumer(context) : OpenProducer(context);
 
             // only producer inherits the bottom half of the plan
             if (!asConsumer_)
-                code += base.Open(context);
+                base.Open(context);
             else
             {
                 Debug.Assert(context_ is null);
                 context_ = context;
             }
-            return code;
         }
 
         public virtual string ExecConsumer(Func<Row, string> callback) => null;
@@ -1919,11 +1910,10 @@ namespace qpmodel.physic
 
         void PercentSampling(Row l) => throw new NotImplementedException();
 
-        public override string Open(ExecContext context)
+        public override void Open(ExecContext context)
         {
             rand_ = new Random();
-            var srccode = base.Open(context);
-            return srccode;
+            base.Open(context);
         }
 
         public override string Exec(Func<Row, string> callback)

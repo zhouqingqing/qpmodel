@@ -105,7 +105,8 @@ namespace qpmodel.logic
             ExecContext context = CreateExecContext();
             if (this is SelectStmt select)
                 select.OpenSubQueries(context);
-            var code = finalplan.Open(context);
+            finalplan.Open(context);
+            var code = context.code_;
             code += finalplan.Exec(null);
             code += finalplan.Close();
 
@@ -696,7 +697,7 @@ namespace qpmodel.logic
             selection.ForEach(x =>
             {
                 if (x.HasSubQuery())
-                    x = x.SearchReplace<Expr>(IsSubquery, RepalceSuquerySelection);
+                    x = x.SearchAndReplace<Expr>(IsSubquery, RepalceSuquerySelection);
                 x.ResetAggregateTableRefs();
                 newselection.Add(x);
             });
@@ -804,10 +805,15 @@ namespace qpmodel.logic
 
         internal void OpenSubQueries(ExecContext context)
         {
+            // subquery and main query are sharing the same context, so we have to disable 
+            // codegen for subqueries as their code shall not mixed (or needed)
+            //
+            context.option_.PushCodeGenDisable();
             foreach (var v in Subqueries(true))
                 v.query_.physicPlan_.Open(context);
             foreach (var v in Subqueries(false))
                 v.query_.OpenSubQueries(context);
+            context.option_.PopCodeGen();
         }
     }
 
@@ -881,7 +887,8 @@ namespace qpmodel.logic
             Console.WriteLine(physicPlan_.Explain());
 
             finalplan.ValidateThis();
-            var code = finalplan.Open(context);
+            finalplan.Open(context);
+            var code = context.code_;
             code += finalplan.Exec(null);
             code += finalplan.Close();
 

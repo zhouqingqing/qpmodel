@@ -271,7 +271,7 @@ namespace qpmodel.expr
             if (expr is LiteralExpr)
                 return expr;
             else
-                return expr.SearchReplace<Expr>(IsConstFn, EvalConstFn);
+                return expr.SearchAndReplace<Expr>(IsConstFn, EvalConstFn);
         }
     }
 
@@ -652,7 +652,7 @@ namespace qpmodel.expr
         }
 
         // In current expression, search and replace @from with @to 
-        public Expr SearchReplace<T>(T from, Expr to, bool aggregateTableRefs = true)
+        public Expr SearchAndReplace<T>(T from, Expr to, bool aggregateTableRefs = true)
         {
             Debug.Assert(from != null);
 
@@ -669,7 +669,7 @@ namespace qpmodel.expr
             else
             {
                 var newl = new List<Expr>();
-                clone.children_.ForEach(x => newl.Add(x.SearchReplace(from, to, aggregateTableRefs)));
+                clone.children_.ForEach(x => newl.Add(x.SearchAndReplace(from, to, aggregateTableRefs)));
                 clone.children_ = newl;
             }
 
@@ -678,28 +678,6 @@ namespace qpmodel.expr
             return clone;
         }
 
-        // In current expression, search all type T and replace with callback(T)
-        public Expr SearchReplace<T>(Func<T, Expr> replacefn) where T : Expr
-        {
-            bool checkfn(Expr e) => e is T;
-            return SearchReplace<T>(checkfn, replacefn);
-        }
-
-        // generic form of search with condition @checkfn and replace with @replacefn
-        public Expr SearchReplace<T>(Func<Expr, bool> checkfn, Func<T, Expr> replacefn) where T : Expr
-        {
-            if (checkfn(this))
-                return replacefn((T)this);
-            else
-            {
-                for (int i = 0; i < children_.Count; i++)
-                {
-                    var child = children_[i];
-                    children_[i] = child.SearchReplace(checkfn, replacefn);
-                }
-                return this;
-            }
-        }
         protected static bool exprEquals(Expr l, Expr r)
         {
             if (l is null && r is null)
@@ -786,7 +764,7 @@ namespace qpmodel.expr
         public Expr DeQueryRef()
         {
             bool hasAggFunc = this.HasAggFunc();
-            var expr = SearchReplace<ColExpr>(x => x.ExprOfQueryRef(hasAggFunc));
+            var expr = SearchAndReplace<ColExpr>(x => x.ExprOfQueryRef(hasAggFunc));
             expr.ResetAggregateTableRefs();
             return expr;
         }

@@ -186,6 +186,9 @@ namespace qpmodel.physic
         // cte resultset passing
         public Dictionary<string, List<Row>> results_ = new Dictionary<string, List<Row>>();
 
+        // holding generated code
+        public string code_;
+
         public ExecContext(QueryOption option) { option_ = option; }
 
         public void Reset() { params_.Clear(); results_.Clear(); }
@@ -359,7 +362,8 @@ namespace qpmodel.physic
             var plan = root_ as PhysicRemoteExchange;
             plan.asConsumer_ = false;
 
-            var code = plan.Open(context);
+            plan.Open(context);
+            var code = context.code_;
             code = plan.Exec(null);
             code = plan.Close();
         }
