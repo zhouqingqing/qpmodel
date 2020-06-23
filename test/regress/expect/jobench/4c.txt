@@ -1,0 +1,48 @@
+SELECT MIN(mi_idx.info) AS rating,
+       MIN(t.title) AS movie_title
+FROM info_type AS it,
+     keyword AS k,
+     movie_info_idx AS mi_idx,
+     movie_keyword AS mk,
+     title AS t
+WHERE it.info ='rating'
+  AND k.keyword LIKE '%sequel%'
+  AND mi_idx.info > '2.0'
+  AND t.production_year > 1990
+  AND t.id = mi_idx.movie_id
+  AND t.id = mk.movie_id
+  AND mk.movie_id = mi_idx.movie_id
+  AND k.id = mk.keyword_id
+  AND it.id = mi_idx.info_type_id
+Total cost: 15756045, memory=27129161287768
+PhysicHashAgg  (inccost=15756045, cost=3, rows=1, memory=4294967296) (actual rows=1)
+    Output: {min(info)}[0],{min(title)}[1]
+    Aggregates: min(info[0]), min(title[1])
+    -> PhysicHashJoin  (inccost=15756042, cost=4, rows=1, memory=8) (actual rows=0)
+        Output: info[1],title[2]
+        Filter: id[0]=info_type_id[3]
+        -> PhysicScanTable info_type as it (inccost=113, cost=113, rows=1) (actual rows=0)
+            Output: id[0]
+            Filter: info[1]='rating'
+        -> PhysicHashJoin  (inccost=15755925, cost=1825641, rows=1, memory=27124866261032) (actual rows=0)
+            Output: info[0],title[4],info_type_id[1]
+            Filter: id[5]=movie_id[2] and id[5]=movie_id[3]
+            -> PhysicHashJoin  (inccost=11401972, cost=832264, rows=12631, memory=57720) (actual rows=0)
+                Output: info[1],info_type_id[2],movie_id[3],movie_id[0]
+                Filter: movie_id[0]=movie_id[3]
+                -> PhysicHashJoin  (inccost=9189673, cost=4531573, rows=7215, memory=1712) (actual rows=0)
+                    Output: movie_id[1]
+                    Filter: id[0]=keyword_id[2]
+                    -> PhysicScanTable keyword as k (inccost=134170, cost=134170, rows=214) (actual rows=0)
+                        Output: id[0]
+                        Filter: keyword[1]like'%sequel%'
+                    -> PhysicScanTable movie_keyword as mk (inccost=4523930, cost=4523930, rows=4523930) (actual rows=0)
+                        Output: movie_id[1],keyword_id[2]
+                -> PhysicScanTable movie_info_idx as mi_idx (inccost=1380035, cost=1380035, rows=805203) (actual rows=0)
+                    Output: info[3],info_type_id[2],movie_id[1]
+                    Filter: info[3]>'2.0'
+            -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=1800376) (actual rows=0)
+                Output: title[1],id[0]
+                Filter: production_year[4]>1990
+,
+

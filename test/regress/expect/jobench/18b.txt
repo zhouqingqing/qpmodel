@@ -1,0 +1,77 @@
+SELECT MIN(mi.info) AS movie_budget,
+       MIN(mi_idx.info) AS movie_votes,
+       MIN(t.title) AS movie_title
+FROM cast_info AS ci,
+     info_type AS it1,
+     info_type AS it2,
+     movie_info AS mi,
+     movie_info_idx AS mi_idx,
+     name AS n,
+     title AS t
+WHERE ci.note IN ('(writer)',
+                  '(head writer)',
+                  '(written by)',
+                  '(story)',
+                  '(story editor)')
+  AND it1.info = 'genres'
+  AND it2.info = 'rating'
+  AND mi.info IN ('Horror',
+                  'Thriller')
+  AND mi.note IS NULL
+  AND mi_idx.info > '8.0'
+  AND n.gender IS NOT NULL
+  AND n.gender = 'f'
+  AND t.production_year BETWEEN (2008 , 2014)
+  AND t.id = mi.movie_id
+  AND t.id = mi_idx.movie_id
+  AND t.id = ci.movie_id
+  AND ci.movie_id = mi.movie_id
+  AND ci.movie_id = mi_idx.movie_id
+  AND mi.movie_id = mi_idx.movie_id
+  AND n.id = ci.person_id
+  AND it1.id = mi.info_type_id
+  AND it2.id = mi_idx.info_type_id
+Total cost: 64744165, memory=2321429840376
+PhysicHashAgg  (inccost=64744165, cost=3, rows=1, memory=6442450944) (actual rows=1)
+    Output: {min(info)}[0],{min(info)}[1],{min(title)}[2]
+    Aggregates: min(info[0]), min(info[1]), min(title[2])
+    -> PhysicHashJoin  (inccost=64744162, cost=807546, rows=1, memory=4294967320) (actual rows=0)
+        Output: info[0],info[1],title[5]
+        Filter: id[6]=movie_id[2] and id[6]=movie_id[3] and id[6]=movie_id[4]
+        -> PhysicHashJoin  (inccost=61408304, cost=1483554, rows=1, memory=4294967328) (actual rows=0)
+            Output: info[0],info[1],movie_id[2],movie_id[3],movie_id[4]
+            Filter: id[6]=person_id[5]
+            -> PhysicHashJoin  (inccost=55757259, cost=3168806, rows=1, memory=98784248176) (actual rows=0)
+                Output: info[0],info[1],movie_id[4],movie_id[2],movie_id[3],person_id[5]
+                Filter: movie_id[4]=movie_id[2] and movie_id[4]=movie_id[3]
+                -> PhysicHashJoin  (inccost=16344109, cost=53930, rows=23, memory=2207613206592) (actual rows=0)
+                    Output: info[0],info[3],movie_id[1],movie_id[4]
+                    Filter: movie_id[1]=movie_id[4] and id[2]=info_type_id[5]
+                    -> PhysicHashJoin  (inccost=14910144, cost=74077, rows=1028, memory=16) (actual rows=0)
+                        Output: info[2],movie_id[3],id[0]
+                        Filter: id[1]=info_type_id[4]
+                        -> PhysicNLJoin  (inccost=347, cost=121, rows=1) (actual rows=0)
+                            Output: id[0],id[1]
+                            -> PhysicScanTable info_type as it2 (inccost=113, cost=113, rows=1) (actual rows=0)
+                                Output: id[0]
+                                Filter: info[1]='rating'
+                            -> PhysicScanTable info_type as it1 (inccost=113, cost=113, rows=1) (actual rows=0)
+                                Output: id[0]
+                                Filter: info[1]='genres'
+                        -> PhysicScanTable movie_info as mi (inccost=14835720, cost=14835720, rows=73047) (actual rows=0)
+                            Output: info[3],movie_id[1],info_type_id[2]
+                            Filter: info[3] in ('Horror','Thriller') and note[4]isnull
+                    -> PhysicScanTable movie_info_idx as mi_idx (inccost=1380035, cost=1380035, rows=51851) (actual rows=0)
+                        Output: info[3],movie_id[1],info_type_id[2]
+                        Filter: info[3]>'8.0'
+                -> PhysicScanTable cast_info as ci (inccost=36244344, cost=36244344, rows=3168759) (actual rows=0)
+                    Output: movie_id[2],person_id[1]
+                    Filter: note[4] in ('(writer)','(head writer)','(written by)', ... <Total: 5> )
+            -> PhysicScanTable name as n (inccost=4167491, cost=4167491, rows=1483551) (actual rows=0)
+                Output: id[0]
+                Filter: gender[4]is notnull and gender[4]='f'
+        -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=807543) (actual rows=0)
+            Output: title[1],id[0]
+            Filter: production_year[4]>=2008 and production_year[4]<=2014
+,,
+

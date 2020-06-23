@@ -1,0 +1,50 @@
+SELECT MIN(lt.link) AS link_type,
+       MIN(t1.title) AS first_movie,
+       MIN(t2.title) AS second_movie
+FROM keyword AS k,
+     link_type AS lt,
+     movie_keyword AS mk,
+     movie_link AS ml,
+     title AS t1,
+     title AS t2
+WHERE k.keyword ='character-name-in-title'
+  AND mk.keyword_id = k.id
+  AND t1.id = mk.movie_id
+  AND ml.movie_id = t1.id
+  AND ml.linked_movie_id = t2.id
+  AND lt.id = ml.link_type_id
+  AND mk.movie_id = t1.id
+Total cost: 21967616, memory=5430187302124728
+PhysicHashAgg  (inccost=21967616, cost=3, rows=1, memory=4294967360) (actual rows=1)
+    Output: {min(link)}[0],{min(title)}[1],{min(title)}[2]
+    Aggregates: min(link[0]), min(title[1]), min(title[2])
+    -> PhysicHashJoin  (inccost=21967613, cost=41284, rows=1, memory=8) (actual rows=0)
+        Output: link[1],title[2],title[3]
+        Filter: keyword_id[4]=id[0]
+        -> PhysicScanTable keyword as k (inccost=134170, cost=134170, rows=1) (actual rows=0)
+            Output: id[0]
+            Filter: keyword[1]='character-name-in-title'
+        -> PhysicHashJoin  (inccost=21792159, cost=2570121, rows=41281, memory=566935704192) (actual rows=0)
+            Output: link[0],title[1],title[4],keyword_id[2]
+            Filter: linked_movie_id[3]=id[5]
+            -> PhysicHashJoin  (inccost=16693726, cost=535, rows=264, memory=1296) (actual rows=0)
+                Output: link[0],title[2],keyword_id[3],linked_movie_id[4]
+                Filter: id[1]=link_type_id[5]
+                -> PhysicScanTable link_type as lt (inccost=18, cost=18, rows=18) (actual rows=0)
+                    Output: link[1],id[0]
+                -> PhysicHashJoin  (inccost=16693173, cost=30330, rows=233, memory=107374183200) (actual rows=0)
+                    Output: title[0],keyword_id[1],linked_movie_id[3],link_type_id[4]
+                    Filter: movie_id[5]=id[2]
+                    -> PhysicHashJoin  (inccost=16632846, cost=9580604, rows=50, memory=5429508697268672) (actual rows=0)
+                        Output: title[0],keyword_id[2],id[1]
+                        Filter: id[1]=movie_id[3] and movie_id[3]=id[1]
+                        -> PhysicScanTable title as t1 (inccost=2528312, cost=2528312, rows=2528312) (actual rows=0)
+                            Output: title[1],id[0]
+                        -> PhysicScanTable movie_keyword as mk (inccost=4523930, cost=4523930, rows=4523930) (actual rows=0)
+                            Output: keyword_id[2],movie_id[1]
+                    -> PhysicScanTable movie_link as ml (inccost=29997, cost=29997, rows=29997) (actual rows=0)
+                        Output: linked_movie_id[2],link_type_id[3],movie_id[1]
+            -> PhysicScanTable title as t2 (inccost=2528312, cost=2528312, rows=2528312) (actual rows=0)
+                Output: title[1],id[0]
+,,
+

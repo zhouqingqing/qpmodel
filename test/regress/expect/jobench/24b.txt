@@ -1,0 +1,123 @@
+SELECT MIN(chn.name) AS voiced_char_name,
+       MIN(n.name) AS voicing_actress_name,
+       MIN(t.title) AS kung_fu_panda
+FROM aka_name AS an,
+     char_name AS chn,
+     cast_info AS ci,
+     company_name AS cn,
+     info_type AS it,
+     keyword AS k,
+     movie_companies AS mc,
+     movie_info AS mi,
+     movie_keyword AS mk,
+     name AS n,
+     role_type AS rt,
+     title AS t
+WHERE ci.note IN ('(voice)',
+                  '(voice: Japanese version)',
+                  '(voice) (uncredited)',
+                  '(voice: English version)')
+  AND cn.country_code ='[us]'
+  AND cn.name = 'DreamWorks Animation'
+  AND it.info = 'release dates'
+  AND k.keyword IN ('hero',
+                    'martial-arts',
+                    'hand-to-hand-combat',
+                    'computer-animated-movie')
+  AND mi.info IS NOT NULL
+  AND (mi.info LIKE 'Japan:%201%'
+       OR mi.info LIKE 'USA:%201%')
+  AND n.gender ='f'
+  AND n.name LIKE '%An%'
+  AND rt.role ='actress'
+  AND t.production_year > 2010
+  AND t.title LIKE 'Kung Fu Panda%'
+  AND t.id = mi.movie_id
+  AND t.id = mc.movie_id
+  AND t.id = ci.movie_id
+  AND t.id = mk.movie_id
+  AND mc.movie_id = ci.movie_id
+  AND mc.movie_id = mi.movie_id
+  AND mc.movie_id = mk.movie_id
+  AND mi.movie_id = ci.movie_id
+  AND mi.movie_id = mk.movie_id
+  AND ci.movie_id = mk.movie_id
+  AND cn.id = mc.company_id
+  AND it.id = mi.info_type_id
+  AND n.id = ci.person_id
+  AND rt.id = ci.role_id
+  AND n.id = an.person_id
+  AND ci.person_id = an.person_id
+  AND chn.id = ci.person_role_id
+  AND k.id = mk.keyword_id
+Total cost: 84191660, memory=23622321408
+PhysicHashAgg  (inccost=84191660, cost=3, rows=1, memory=6442450944) (actual rows=1)
+    Output: {min(name)}[0],{min(name)}[1],{min(title)}[2]
+    Aggregates: min(name[0]), min(name[1]), min(title[2])
+    -> PhysicHashJoin  (inccost=84191657, cost=901346, rows=1, memory=6442450960) (actual rows=0)
+        Output: name[0],name[1],title[2]
+        Filter: id[3]=person_id[5] and person_id[4]=person_id[5]
+        -> PhysicHashJoin  (inccost=82388968, cost=4, rows=1, memory=2147483656) (actual rows=0)
+            Output: name[2],name[3],title[0],id[4],person_id[5]
+            Filter: id[1]=movie_id[6] and id[1]=movie_id[7] and id[1]=movie_id[8] and id[1]=movie_id[9]
+            -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=1) (actual rows=0)
+                Output: title[1],id[0]
+                Filter: production_year[4]>2010 and title[1]like'Kung Fu Panda%'
+            -> PhysicHashJoin  (inccost=79860652, cost=4, rows=1, memory=8) (actual rows=0)
+                Output: name[1],name[2],id[3],person_id[4],movie_id[5],movie_id[6],movie_id[7],movie_id[8]
+                Filter: id[0]=role_id[9]
+                -> PhysicScanTable role_type as rt (inccost=12, cost=12, rows=1) (actual rows=0)
+                    Output: id[0]
+                    Filter: role[1]='actress'
+                -> PhysicHashJoin  (inccost=79860636, cost=1483554, rows=1, memory=2147483696) (actual rows=0)
+                    Output: name[0],name[7],id[8],person_id[1],movie_id[2],movie_id[3],movie_id[4],movie_id[5],role_id[6]
+                    Filter: id[8]=person_id[1]
+                    -> PhysicHashJoin  (inccost=74209591, cost=7, rows=1, memory=2147483704) (actual rows=0)
+                        Output: name[0],person_id[1],movie_id[2],movie_id[3],movie_id[4],movie_id[5],role_id[6]
+                        Filter: id[8]=keyword_id[7]
+                        -> PhysicHashJoin  (inccost=74075414, cost=4, rows=1, memory=2147483712) (actual rows=0)
+                            Output: name[0],person_id[1],movie_id[2],movie_id[3],movie_id[4],movie_id[5],role_id[6],keyword_id[7]
+                            Filter: id[9]=info_type_id[8]
+                            -> PhysicHashJoin  (inccost=74075297, cost=4940, rows=1, memory=2147483696) (actual rows=0)
+                                Output: name[0],person_id[1],movie_id[7],movie_id[2],movie_id[3],movie_id[4],role_id[5],keyword_id[6],info_type_id[8]
+                                Filter: movie_id[7]=movie_id[4] and movie_id[7]=movie_id[3] and movie_id[2]=movie_id[7]
+                                -> PhysicHashJoin  (inccost=59234637, cost=3140342, rows=1, memory=56) (actual rows=0)
+                                    Output: name[7],person_id[0],movie_id[1],movie_id[2],movie_id[3],role_id[4],keyword_id[5]
+                                    Filter: id[8]=person_role_id[6]
+                                    -> PhysicHashJoin  (inccost=52953956, cost=4523975, rows=1, memory=880) (actual rows=0)
+                                        Output: person_id[0],movie_id[1],movie_id[2],movie_id[5],role_id[3],keyword_id[6],person_role_id[4]
+                                        Filter: movie_id[2]=movie_id[5] and movie_id[1]=movie_id[5]
+                                        -> PhysicHashJoin  (inccost=43906051, cost=2208439, rows=22, memory=88) (actual rows=0)
+                                            Output: person_id[1],movie_id[0],movie_id[2],role_id[3],person_role_id[4]
+                                            Filter: movie_id[0]=movie_id[2]
+                                            -> PhysicHashJoin  (inccost=5453268, cost=2609142, rows=11, memory=8) (actual rows=0)
+                                                Output: movie_id[1]
+                                                Filter: id[0]=company_id[2]
+                                                -> PhysicScanTable company_name as cn (inccost=234997, cost=234997, rows=1) (actual rows=0)
+                                                    Output: id[0]
+                                                    Filter: country_code[2]='[us]' and name[1]='DreamWorks Animation'
+                                                -> PhysicScanTable movie_companies as mc (inccost=2609129, cost=2609129, rows=2609129) (actual rows=0)
+                                                    Output: movie_id[1],company_id[2]
+                                            -> PhysicScanTable cast_info as ci (inccost=36244344, cost=36244344, rows=2208395) (actual rows=0)
+                                                Output: person_id[1],movie_id[2],role_id[6],person_role_id[3]
+                                                Filter: note[4] in ('(voice)','(voice: Japanese version)','(voice) (uncredited)','(voice: English version)')
+                                        -> PhysicScanTable movie_keyword as mk (inccost=4523930, cost=4523930, rows=4523930) (actual rows=0)
+                                            Output: movie_id[1],keyword_id[2]
+                                    -> PhysicScanTable char_name as chn (inccost=3140339, cost=3140339, rows=3140339) (actual rows=0)
+                                        Output: name[1],id[0]
+                                -> PhysicScanTable movie_info as mi (inccost=14835720, cost=14835720, rows=4937) (actual rows=0)
+                                    Output: movie_id[1],info_type_id[2]
+                                    Filter: info[3]is notnull and info[3]like'Japan:%201%' or info[3]like'USA:%201%'
+                            -> PhysicScanTable info_type as it (inccost=113, cost=113, rows=1) (actual rows=0)
+                                Output: id[0]
+                                Filter: info[1]='release dates'
+                        -> PhysicScanTable keyword as k (inccost=134170, cost=134170, rows=4) (actual rows=0)
+                            Output: id[0]
+                            Filter: keyword[1] in ('hero','martial-arts','hand-to-hand-combat','computer-animated-movie')
+                    -> PhysicScanTable name as n (inccost=4167491, cost=4167491, rows=1483551) (actual rows=0)
+                        Output: name[1],id[0]
+                        Filter: gender[4]='f' and name[1]like'%An%'
+        -> PhysicScanTable aka_name as an (inccost=901343, cost=901343, rows=901343) (actual rows=0)
+            Output: person_id[1]
+,,
+

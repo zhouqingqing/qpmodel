@@ -1,0 +1,59 @@
+SELECT MIN(a1.name) AS writer_pseudo_name,
+       MIN(t.title) AS movie_title
+FROM aka_name AS a1,
+     cast_info AS ci,
+     company_name AS cn,
+     movie_companies AS mc,
+     name AS n1,
+     role_type AS rt,
+     title AS t
+WHERE cn.country_code ='[us]'
+  AND rt.role ='writer'
+  AND a1.person_id = n1.id
+  AND n1.id = ci.person_id
+  AND ci.movie_id = t.id
+  AND t.id = mc.movie_id
+  AND mc.company_id = cn.id
+  AND ci.role_id = rt.id
+  AND a1.person_id = ci.person_id
+  AND ci.movie_id = mc.movie_id
+Total cost: 251548716, memory=5429519477172656
+PhysicHashAgg  (inccost=251548716, cost=3, rows=1, memory=4294967296) (actual rows=1)
+    Output: {min(name)}[0],{min(title)}[1]
+    Aggregates: min(name[0]), min(title[1])
+    -> PhysicHashJoin  (inccost=251548713, cost=901350, rows=1, memory=6442450992) (actual rows=0)
+        Output: name[3],title[0]
+        Filter: person_id[4]=id[1] and person_id[4]=person_id[2]
+        -> PhysicHashJoin  (inccost=249746020, cost=8325709, rows=3, memory=5429508697268672) (actual rows=0)
+            Output: title[0],id[2],person_id[3]
+            Filter: movie_id[4]=id[1] and id[1]=movie_id[5]
+            -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=2528312) (actual rows=0)
+                Output: title[1],id[0]
+            -> PhysicHashJoin  (inccost=238891999, cost=39228993, rows=3269082, memory=8) (actual rows=0)
+                Output: id[1],person_id[2],movie_id[3],movie_id[4]
+                Filter: role_id[5]=id[0]
+                -> PhysicScanTable role_type as rt (inccost=12, cost=12, rows=1) (actual rows=0)
+                    Output: id[0]
+                    Filter: role[1]='writer'
+                -> PhysicHashJoin  (inccost=199662994, cost=79256627, rows=35959909, memory=33339928) (actual rows=0)
+                    Output: id[0],person_id[1],movie_id[2],movie_id[3],role_id[4]
+                    Filter: id[0]=person_id[1]
+                    -> PhysicScanTable name as n1 (inccost=4167491, cost=4167491, rows=4167491) (actual rows=0)
+                        Output: id[0]
+                    -> PhysicHashJoin  (inccost=116238876, cost=73303598, rows=34961732, memory=8390088) (actual rows=0)
+                        Output: person_id[1],movie_id[2],movie_id[0],role_id[3]
+                        Filter: movie_id[2]=movie_id[0]
+                        -> PhysicHashJoin  (inccost=6690934, cost=3846808, rows=1048761, memory=755672) (actual rows=0)
+                            Output: movie_id[1]
+                            Filter: company_id[2]=id[0]
+                            -> PhysicScanTable company_name as cn (inccost=234997, cost=234997, rows=94459) (actual rows=0)
+                                Output: id[0]
+                                Filter: country_code[2]='[us]'
+                            -> PhysicScanTable movie_companies as mc (inccost=2609129, cost=2609129, rows=2609129) (actual rows=0)
+                                Output: movie_id[1],company_id[2]
+                        -> PhysicScanTable cast_info as ci (inccost=36244344, cost=36244344, rows=36244344) (actual rows=0)
+                            Output: person_id[1],movie_id[2],role_id[6]
+        -> PhysicScanTable aka_name as a1 (inccost=901343, cost=901343, rows=901343) (actual rows=0)
+            Output: name[2],person_id[1]
+,
+

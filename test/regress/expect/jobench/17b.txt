@@ -1,0 +1,60 @@
+SELECT MIN(n.name) AS member_in_charnamed_movie,
+       MIN(n.name) AS a1
+FROM cast_info AS ci,
+     company_name AS cn,
+     keyword AS k,
+     movie_companies AS mc,
+     movie_keyword AS mk,
+     name AS n,
+     title AS t
+WHERE k.keyword ='character-name-in-title'
+  AND n.name LIKE 'Z%'
+  AND n.id = ci.person_id
+  AND ci.movie_id = t.id
+  AND t.id = mk.movie_id
+  AND mk.keyword_id = k.id
+  AND t.id = mc.movie_id
+  AND mc.company_id = cn.id
+  AND ci.movie_id = mc.movie_id
+  AND ci.movie_id = mk.movie_id
+  AND mc.movie_id = mk.movie_id
+Total cost: 100758324, memory=6442511504
+PhysicHashAgg  (inccost=100758324, cost=3, rows=1, memory=4294967296) (actual rows=1)
+    Output: {min(name)}[0],{min(name)}[0]
+    Aggregates: min(name[0])
+    -> PhysicHashJoin  (inccost=100758321, cost=2528315, rows=1, memory=2147483672) (actual rows=0)
+        Output: name[0]
+        Filter: movie_id[1]=id[4] and id[4]=movie_id[2] and id[4]=movie_id[3]
+        -> PhysicHashJoin  (inccost=95701694, cost=4167494, rows=1, memory=32) (actual rows=0)
+            Output: name[4],movie_id[0],movie_id[1],movie_id[2]
+            Filter: id[5]=person_id[3]
+            -> PhysicHashJoin  (inccost=87366709, cost=235000, rows=1, memory=40) (actual rows=0)
+                Output: movie_id[0],movie_id[1],movie_id[2],person_id[3]
+                Filter: company_id[4]=id[5]
+                -> PhysicHashJoin  (inccost=86896712, cost=2614256, rows=1, memory=60192) (actual rows=0)
+                    Output: movie_id[0],movie_id[1],movie_id[3],person_id[2],company_id[4]
+                    Filter: movie_id[3]=movie_id[1] and movie_id[0]=movie_id[3]
+                    -> PhysicHashJoin  (inccost=81673327, cost=36246918, rows=2508, memory=264) (actual rows=0)
+                        Output: movie_id[1],movie_id[0],person_id[2]
+                        Filter: movie_id[1]=movie_id[0]
+                        -> PhysicHashJoin  (inccost=9182065, cost=4523965, rows=33, memory=8) (actual rows=0)
+                            Output: movie_id[1]
+                            Filter: keyword_id[2]=id[0]
+                            -> PhysicScanTable keyword as k (inccost=134170, cost=134170, rows=1) (actual rows=0)
+                                Output: id[0]
+                                Filter: keyword[1]='character-name-in-title'
+                            -> PhysicScanTable movie_keyword as mk (inccost=4523930, cost=4523930, rows=4523930) (actual rows=0)
+                                Output: movie_id[1],keyword_id[2]
+                        -> PhysicScanTable cast_info as ci (inccost=36244344, cost=36244344, rows=36244344) (actual rows=0)
+                            Output: movie_id[2],person_id[1]
+                    -> PhysicScanTable movie_companies as mc (inccost=2609129, cost=2609129, rows=2609129) (actual rows=0)
+                        Output: movie_id[1],company_id[2]
+                -> PhysicScanTable company_name as cn (inccost=234997, cost=234997, rows=234997) (actual rows=0)
+                    Output: id[0]
+            -> PhysicScanTable name as n (inccost=4167491, cost=4167491, rows=4167491) (actual rows=0)
+                Output: name[1],id[0]
+                Filter: name[1]like'Z%'
+        -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=2528312) (actual rows=0)
+            Output: id[0]
+,
+

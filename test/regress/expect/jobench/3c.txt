@@ -1,0 +1,47 @@
+SELECT MIN(t.title) AS movie_title
+FROM keyword AS k,
+     movie_info AS mi,
+     movie_keyword AS mk,
+     title AS t
+WHERE k.keyword LIKE '%sequel%'
+  AND mi.info IN ('Sweden',
+                  'Norway',
+                  'Germany',
+                  'Denmark',
+                  'Swedish',
+                  'Denish',
+                  'Norwegian',
+                  'German',
+                  'USA',
+                  'American')
+  AND t.production_year > 1990
+  AND t.id = mi.movie_id
+  AND t.id = mk.movie_id
+  AND mk.movie_id = mi.movie_id
+  AND k.id = mk.keyword_id
+Total cost: 31243163, memory=1083186470687440
+PhysicHashAgg  (inccost=31243163, cost=3, rows=1, memory=2147483648) (actual rows=1)
+    Output: {min(title)}[0]
+    Aggregates: min(title[0])
+    -> PhysicHashJoin  (inccost=31243160, cost=235, rows=1, memory=21474836560) (actual rows=0)
+        Output: title[0]
+        Filter: id[2]=keyword_id[1]
+        -> PhysicHashJoin  (inccost=31108755, cost=5532714, rows=10, memory=1083162842833968) (actual rows=0)
+            Output: title[0],keyword_id[3]
+            Filter: id[1]=movie_id[4] and movie_id[4]=movie_id[2]
+            -> PhysicHashJoin  (inccost=21052111, cost=3688079, rows=504387, memory=5533264) (actual rows=0)
+                Output: title[1],id[2],movie_id[0]
+                Filter: id[2]=movie_id[0]
+                -> PhysicScanTable movie_info as mi (inccost=14835720, cost=14835720, rows=691658) (actual rows=0)
+                    Output: movie_id[1]
+                    Filter: info[3] in ('Sweden','Norway','Germany', ... <Total: 10> )
+                -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=1800376) (actual rows=0)
+                    Output: title[1],id[0]
+                    Filter: production_year[4]>1990
+            -> PhysicScanTable movie_keyword as mk (inccost=4523930, cost=4523930, rows=4523930) (actual rows=0)
+                Output: keyword_id[2],movie_id[1]
+        -> PhysicScanTable keyword as k (inccost=134170, cost=134170, rows=214) (actual rows=0)
+            Output: id[0]
+            Filter: keyword[1]like'%sequel%'
+
+

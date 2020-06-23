@@ -1,0 +1,52 @@
+SELECT MIN(k.keyword) AS movie_keyword,
+       MIN(n.name) AS actor_name,
+       MIN(t.title) AS hero_movie
+FROM cast_info AS ci,
+     keyword AS k,
+     movie_keyword AS mk,
+     name AS n,
+     title AS t
+WHERE k.keyword IN ('superhero',
+                    'sequel',
+                    'second-part',
+                    'marvel-comics',
+                    'based-on-comic',
+                    'tv-special',
+                    'fight',
+                    'violence')
+  AND t.production_year > 2000
+  AND k.id = mk.keyword_id
+  AND t.id = mk.movie_id
+  AND t.id = ci.movie_id
+  AND ci.movie_id = mk.movie_id
+  AND n.id = ci.person_id
+Total cost: 93958809, memory=3551937966992
+PhysicHashAgg  (inccost=93958809, cost=3, rows=1, memory=6442450944) (actual rows=1)
+    Output: {min(keyword)}[0],{min(name)}[1],{min(title)}[2]
+    Aggregates: min(keyword[0]), min(name[1]), min(title[2])
+    -> PhysicHashJoin  (inccost=93958806, cost=4167494, rows=1, memory=4294967304) (actual rows=0)
+        Output: keyword[0],name[3],title[1]
+        Filter: id[4]=person_id[2]
+        -> PhysicHashJoin  (inccost=85623821, cost=36245751, rows=1, memory=3019362020336) (actual rows=0)
+            Output: keyword[0],title[1],person_id[4]
+            Filter: movie_id[5]=movie_id[2] and id[3]=movie_id[5]
+            -> PhysicHashJoin  (inccost=13133726, cost=1423134, rows=703, memory=506806142816) (actual rows=0)
+                Output: keyword[0],title[2],movie_id[1],id[3]
+                Filter: id[3]=movie_id[1]
+                -> PhysicHashJoin  (inccost=9182280, cost=4524180, rows=236, memory=15032385592) (actual rows=0)
+                    Output: keyword[0],movie_id[2]
+                    Filter: id[1]=keyword_id[3]
+                    -> PhysicScanTable keyword as k (inccost=134170, cost=134170, rows=7) (actual rows=0)
+                        Output: keyword[1],id[0]
+                        Filter: keyword[1] in ('superhero','sequel','second-part', ... <Total: 8> )
+                    -> PhysicScanTable movie_keyword as mk (inccost=4523930, cost=4523930, rows=4523930) (actual rows=0)
+                        Output: movie_id[1],keyword_id[2]
+                -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=1421959) (actual rows=0)
+                    Output: title[1],id[0]
+                    Filter: production_year[4]>2000
+            -> PhysicScanTable cast_info as ci (inccost=36244344, cost=36244344, rows=36244344) (actual rows=0)
+                Output: person_id[1],movie_id[2]
+        -> PhysicScanTable name as n (inccost=4167491, cost=4167491, rows=4167491) (actual rows=0)
+            Output: name[1],id[0]
+,,
+

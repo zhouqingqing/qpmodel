@@ -617,14 +617,15 @@ namespace qpmodel.stat
             {
                 for (int i = 0; i < stat.hist_.buckets_.Length; i++)
                 {
-                    stat.hist_.buckets_[i] = ExtractValue((JsonElement)stat.hist_.buckets_[i]);
+                    if (stat.hist_.buckets_[i] != null)
+                        stat.hist_.buckets_[i] = ExtractValue((JsonElement)stat.hist_.buckets_[i]);
                 }
             }
 
             if (stat.mcv_ != null && stat.mcv_.nvalues_ != 0)
             {
                 int i = 0;
-                while (stat.mcv_.values_[i] != null)
+                while ((i < stat.mcv_.nvalues_) && (stat.mcv_.values_[i] != null))
                 {
                     stat.mcv_.values_[i] = ExtractValue((JsonElement)stat.mcv_.values_[i]);
                     i++;

@@ -1,0 +1,79 @@
+SELECT MIN(an.name) AS alternative_name,
+       MIN(chn.name) AS voiced_character,
+       MIN(n.name) AS voicing_actress,
+       MIN(t.title) AS american_movie
+FROM aka_name AS an,
+     char_name AS chn,
+     cast_info AS ci,
+     company_name AS cn,
+     movie_companies AS mc,
+     name AS n,
+     role_type AS rt,
+     title AS t
+WHERE ci.note = '(voice)'
+  AND cn.country_code ='[us]'
+  AND mc.note LIKE '%(200%)%'
+  AND (mc.note LIKE '%(USA)%'
+       OR mc.note LIKE '%(worldwide)%')
+  AND n.gender ='f'
+  AND n.name LIKE '%Angel%'
+  AND rt.role ='actress'
+  AND t.production_year BETWEEN (2007 , 2010)
+  AND ci.movie_id = t.id
+  AND t.id = mc.movie_id
+  AND ci.movie_id = mc.movie_id
+  AND mc.company_id = cn.id
+  AND ci.role_id = rt.id
+  AND n.id = ci.person_id
+  AND chn.id = ci.person_role_id
+  AND an.person_id = n.id
+  AND an.person_id = ci.person_id
+Total cost: 56325152, memory=1219770768392
+PhysicHashAgg  (inccost=56325152, cost=3, rows=1, memory=8589934592) (actual rows=1)
+    Output: {min(name)}[0],{min(name)}[1],{min(name)}[2],{min(title)}[3]
+    Aggregates: min(name[0]), min(name[1]), min(name[2]), min(title[3])
+    -> PhysicHashJoin  (inccost=56325149, cost=901346, rows=1, memory=6442450960) (actual rows=0)
+        Output: name[5],name[0],name[1],title[2]
+        Filter: person_id[6]=id[3] and person_id[6]=person_id[4]
+        -> PhysicHashJoin  (inccost=54522460, cost=527895, rows=1, memory=4294967328) (actual rows=0)
+            Output: name[0],name[1],title[6],id[2],person_id[3]
+            Filter: movie_id[4]=id[7] and id[7]=movie_id[5]
+            -> PhysicHashJoin  (inccost=51466253, cost=4, rows=1, memory=8) (actual rows=0)
+                Output: name[1],name[2],id[3],person_id[4],movie_id[5],movie_id[6]
+                Filter: role_id[7]=id[0]
+                -> PhysicScanTable role_type as rt (inccost=12, cost=12, rows=1) (actual rows=0)
+                    Output: id[0]
+                    Filter: role[1]='actress'
+                -> PhysicHashJoin  (inccost=51466237, cost=12989, rows=1, memory=1200443377120) (actual rows=0)
+                    Output: name[0],name[5],id[6],person_id[1],movie_id[2],movie_id[3],role_id[4]
+                    Filter: id[6]=person_id[1]
+                    -> PhysicHashJoin  (inccost=47285757, cost=3142016, rows=559, memory=22360) (actual rows=0)
+                        Output: name[5],person_id[0],movie_id[1],movie_id[2],role_id[3]
+                        Filter: id[6]=person_role_id[4]
+                        -> PhysicHashJoin  (inccost=41003402, cost=1818470, rows=559, memory=2680) (actual rows=0)
+                            Output: person_id[1],movie_id[2],movie_id[0],role_id[3],person_role_id[4]
+                            Filter: movie_id[2]=movie_id[0]
+                            -> PhysicHashJoin  (inccost=2940588, cost=96462, rows=335, memory=13344) (actual rows=0)
+                                Output: movie_id[0]
+                                Filter: company_id[1]=id[2]
+                                -> PhysicScanTable movie_companies as mc (inccost=2609129, cost=2609129, rows=834) (actual rows=0)
+                                    Output: movie_id[1],company_id[2]
+                                    Filter: note[4]like'%(200%)%' and note[4]like'%(USA)%' or note[4]like'%(worldwide)%'
+                                -> PhysicScanTable company_name as cn (inccost=234997, cost=234997, rows=94459) (actual rows=0)
+                                    Output: id[0]
+                                    Filter: country_code[2]='[us]'
+                            -> PhysicScanTable cast_info as ci (inccost=36244344, cost=36244344, rows=1817241) (actual rows=0)
+                                Output: person_id[1],movie_id[2],role_id[6],person_role_id[3]
+                                Filter: note[4]='(voice)'
+                        -> PhysicScanTable char_name as chn (inccost=3140339, cost=3140339, rows=3140339) (actual rows=0)
+                            Output: name[1],id[0]
+                    -> PhysicScanTable name as n (inccost=4167491, cost=4167491, rows=11868) (actual rows=0)
+                        Output: name[1],id[0]
+                        Filter: gender[4]='f' and name[1]like'%Angel%'
+            -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=527892) (actual rows=0)
+                Output: title[1],id[0]
+                Filter: production_year[4]>=2007 and production_year[4]<=2010
+        -> PhysicScanTable aka_name as an (inccost=901343, cost=901343, rows=901343) (actual rows=0)
+            Output: name[2],person_id[1]
+,,,
+

@@ -1,0 +1,77 @@
+SELECT MIN(mi.info) AS budget,
+       MIN(t.title) AS unsuccsessful_movie
+FROM company_name AS cn,
+     company_type AS ct,
+     info_type AS it1,
+     info_type AS it2,
+     movie_companies AS mc,
+     movie_info AS mi,
+     movie_info_idx AS mi_idx,
+     title AS t
+WHERE cn.country_code ='[us]'
+  AND ct.kind IS NOT NULL
+  AND (ct.kind ='production companies'
+       OR ct.kind = 'distributors')
+  AND it1.info ='budget'
+  AND it2.info ='bottom 10 rank'
+  AND t.production_year >2000
+  AND (t.title LIKE 'Birdemic%'
+       OR t.title LIKE '%Movie%')
+  AND t.id = mi.movie_id
+  AND t.id = mi_idx.movie_id
+  AND mi.info_type_id = it1.id
+  AND mi_idx.info_type_id = it2.id
+  AND t.id = mc.movie_id
+  AND ct.id = mc.company_type_id
+  AND cn.id = mc.company_id
+  AND mc.movie_id = mi.movie_id
+  AND mc.movie_id = mi_idx.movie_id
+  AND mi.movie_id = mi_idx.movie_id
+Total cost: 40612595, memory=83202107424264
+PhysicHashAgg  (inccost=40612595, cost=3, rows=1, memory=4294967296) (actual rows=1)
+    Output: {min(info)}[0],{min(title)}[1]
+    Aggregates: min(info[0]), min(title[1])
+    -> PhysicHashJoin  (inccost=40612592, cost=94462, rows=1, memory=4294967304) (actual rows=0)
+        Output: info[0],title[1]
+        Filter: id[3]=company_id[2]
+        -> PhysicHashJoin  (inccost=40283133, cost=5, rows=1, memory=4294967312) (actual rows=0)
+            Output: info[0],title[1],company_id[2]
+            Filter: id[4]=company_type_id[3]
+            -> PhysicHashJoin  (inccost=40283124, cost=4, rows=1, memory=4294967320) (actual rows=0)
+                Output: info[0],title[1],company_id[2],company_type_id[3]
+                Filter: info_type_id[4]=id[5]
+                -> PhysicHashJoin  (inccost=40283007, cost=4, rows=1, memory=4294967328) (actual rows=0)
+                    Output: info[0],title[1],company_id[2],company_type_id[3],info_type_id[4]
+                    Filter: info_type_id[5]=id[6]
+                    -> PhysicHashJoin  (inccost=40282890, cost=14835723, rows=1, memory=2147483696) (actual rows=0)
+                        Output: info[7],title[0],company_id[1],company_type_id[2],info_type_id[8],info_type_id[3]
+                        Filter: movie_id[9]=movie_id[4] and id[5]=movie_id[9] and movie_id[6]=movie_id[9]
+                        -> PhysicHashJoin  (inccost=10611447, cost=1434716, rows=1, memory=58712203811200) (actual rows=0)
+                            Output: title[0],company_id[1],company_type_id[2],info_type_id[5],movie_id[6],id[3],movie_id[4]
+                            Filter: id[3]=movie_id[6] and movie_id[4]=movie_id[6]
+                            -> PhysicHashJoin  (inccost=7796696, cost=2659255, rows=27340, memory=24466281292808) (actual rows=0)
+                                Output: title[0],company_id[2],company_type_id[3],id[1],movie_id[4]
+                                Filter: id[1]=movie_id[4]
+                                -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=11393) (actual rows=0)
+                                    Output: title[1],id[0]
+                                    Filter: production_year[4]>2000 and title[1]like'Birdemic%' or title[1]like'%Movie%'
+                                -> PhysicScanTable movie_companies as mc (inccost=2609129, cost=2609129, rows=2609129) (actual rows=0)
+                                    Output: company_id[2],company_type_id[3],movie_id[1]
+                            -> PhysicScanTable movie_info_idx as mi_idx (inccost=1380035, cost=1380035, rows=1380035) (actual rows=0)
+                                Output: info_type_id[2],movie_id[1]
+                        -> PhysicScanTable movie_info as mi (inccost=14835720, cost=14835720, rows=14835720) (actual rows=0)
+                            Output: info[3],info_type_id[2],movie_id[1]
+                    -> PhysicScanTable info_type as it2 (inccost=113, cost=113, rows=1) (actual rows=0)
+                        Output: id[0]
+                        Filter: info[1]='bottom 10 rank'
+                -> PhysicScanTable info_type as it1 (inccost=113, cost=113, rows=1) (actual rows=0)
+                    Output: id[0]
+                    Filter: info[1]='budget'
+            -> PhysicScanTable company_type as ct (inccost=4, cost=4, rows=2) (actual rows=0)
+                Output: id[0]
+                Filter: kind[1]is notnull and kind[1]='production companies' or kind[1]='distributors'
+        -> PhysicScanTable company_name as cn (inccost=234997, cost=234997, rows=94459) (actual rows=0)
+            Output: id[0]
+            Filter: country_code[2]='[us]'
+,
+

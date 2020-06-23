@@ -1,0 +1,125 @@
+SELECT MIN(cn1.name) AS first_company,
+       MIN(cn2.name) AS second_company,
+       MIN(mi_idx1.info) AS first_rating,
+       MIN(mi_idx2.info) AS second_rating,
+       MIN(t1.title) AS first_movie,
+       MIN(t2.title) AS second_movie
+FROM company_name AS cn1,
+     company_name AS cn2,
+     info_type AS it1,
+     info_type AS it2,
+     kind_type AS kt1,
+     kind_type AS kt2,
+     link_type AS lt,
+     movie_companies AS mc1,
+     movie_companies AS mc2,
+     movie_info_idx AS mi_idx1,
+     movie_info_idx AS mi_idx2,
+     movie_link AS ml,
+     title AS t1,
+     title AS t2
+WHERE cn1.country_code = '[nl]'
+  AND it1.info = 'rating'
+  AND it2.info = 'rating'
+  AND kt1.kind IN ('tv series')
+  AND kt2.kind IN ('tv series')
+  AND lt.link LIKE '%follow%'
+  AND mi_idx2.info < '3.0'
+  AND t2.production_year = 2007
+  AND lt.id = ml.link_type_id
+  AND t1.id = ml.movie_id
+  AND t2.id = ml.linked_movie_id
+  AND it1.id = mi_idx1.info_type_id
+  AND t1.id = mi_idx1.movie_id
+  AND kt1.id = t1.kind_id
+  AND cn1.id = mc1.company_id
+  AND t1.id = mc1.movie_id
+  AND ml.movie_id = mi_idx1.movie_id
+  AND ml.movie_id = mc1.movie_id
+  AND mi_idx1.movie_id = mc1.movie_id
+  AND it2.id = mi_idx2.info_type_id
+  AND t2.id = mi_idx2.movie_id
+  AND kt2.id = t2.kind_id
+  AND cn2.id = mc2.company_id
+  AND t2.id = mc2.movie_id
+  AND ml.linked_movie_id = mi_idx2.movie_id
+  AND ml.linked_movie_id = mc2.movie_id
+  AND mi_idx2.movie_id = mc2.movie_id
+Total cost: 23941717, memory=35207994828888
+PhysicHashAgg  (inccost=23941717, cost=3, rows=1, memory=12884901888) (actual rows=1)
+    Output: {min(name)}[0],{min(name)}[1],{min(info)}[2],{min(info)}[3],{min(title)}[4],{min(title)}[5]
+    Aggregates: min(name[0]), min(name[1]), min(info[2]), min(info[3]), min(title[4]), min(title[5])
+    -> PhysicHashJoin  (inccost=23941714, cost=2608, rows=1, memory=10737418248) (actual rows=0)
+        Output: name[6],name[0],info[1],info[2],title[3],title[4]
+        Filter: id[7]=company_id[5]
+        -> PhysicHashJoin  (inccost=23704109, cost=123077, rows=1, memory=8589934632) (actual rows=0)
+            Output: name[0],info[1],info[2],title[3],title[9],company_id[4]
+            Filter: id[10]=linked_movie_id[5] and id[10]=movie_id[6] and id[7]=kind_id[11] and id[10]=movie_id[8]
+            -> PhysicHashJoin  (inccost=21052720, cost=2528315, rows=1, memory=6442451016) (actual rows=0)
+                Output: name[0],info[1],info[2],title[12],company_id[3],linked_movie_id[4],movie_id[5],id[6],movie_id[7]
+                Filter: id[13]=movie_id[8] and id[13]=movie_id[9] and id[10]=kind_id[14] and id[13]=movie_id[11]
+                -> PhysicHashJoin  (inccost=15996093, cost=2609604, rows=1, memory=1385126965000) (actual rows=0)
+                    Output: name[0],info[1],info[2],company_id[10],linked_movie_id[3],movie_id[4],id[5],movie_id[6],movie_id[7],movie_id[8],id[9],movie_id[11]
+                    Filter: movie_id[8]=movie_id[11] and movie_id[7]=movie_id[11]
+                    -> PhysicHashJoin  (inccost=10777360, cost=1380260, rows=215, memory=21474836760) (actual rows=0)
+                        Output: name[0],info[9],info[1],linked_movie_id[2],movie_id[3],id[4],movie_id[5],movie_id[6],movie_id[10],id[7]
+                        Filter: movie_id[6]=movie_id[10] and id[8]=info_type_id[11]
+                        -> PhysicNLJoin  (inccost=8017065, cost=165, rows=5) (actual rows=0)
+                            Output: name[0],info[1],linked_movie_id[2],movie_id[3],id[8],movie_id[4],movie_id[5],id[6],id[7]
+                            -> PhysicHashJoin  (inccost=8016893, cost=235012, rows=5, memory=10737418520) (actual rows=0)
+                                Output: name[8],info[0],linked_movie_id[1],movie_id[2],movie_id[3],movie_id[4],id[5],id[6]
+                                Filter: id[9]=company_id[7]
+                                -> PhysicNLJoin  (inccost=7546884, cost=165, rows=5) (actual rows=0)
+                                    Output: info[0],linked_movie_id[1],movie_id[2],movie_id[3],movie_id[4],id[5],id[7],company_id[6]
+                                    -> PhysicNLJoin  (inccost=7546606, cost=165, rows=5) (actual rows=0)
+                                        Output: info[0],linked_movie_id[1],movie_id[2],movie_id[3],movie_id[4],id[6],company_id[5]
+                                        -> PhysicHashJoin  (inccost=7546434, cost=2640568, rows=5, memory=33752000872824) (actual rows=0)
+                                            Output: info[0],linked_movie_id[1],movie_id[2],movie_id[4],movie_id[3],company_id[5]
+                                            Filter: movie_id[2]=movie_id[4] and linked_movie_id[1]=movie_id[4]
+                                            -> PhysicHashJoin  (inccost=2296737, cost=94306, rows=15717, memory=8) (actual rows=0)
+                                                Output: info[1],linked_movie_id[2],movie_id[3],movie_id[4]
+                                                Filter: id[0]=info_type_id[5]
+                                                -> PhysicScanTable info_type as it2 (inccost=113, cost=113, rows=1) (actual rows=0)
+                                                    Output: id[0]
+                                                    Filter: info[1]='rating'
+                                                -> PhysicHashJoin  (inccost=2202318, cost=760395, rows=78587, memory=29984) (actual rows=0)
+                                                    Output: info[2],linked_movie_id[0],movie_id[3],movie_id[1],info_type_id[4]
+                                                    Filter: linked_movie_id[0]=movie_id[3]
+                                                    -> PhysicHashJoin  (inccost=61888, cost=31873, rows=1874, memory=8) (actual rows=0)
+                                                        Output: linked_movie_id[1],movie_id[2]
+                                                        Filter: id[0]=link_type_id[3]
+                                                        -> PhysicScanTable link_type as lt (inccost=18, cost=18, rows=1) (actual rows=0)
+                                                            Output: id[0]
+                                                            Filter: link[1]like'%follow%'
+                                                        -> PhysicScanTable movie_link as ml (inccost=29997, cost=29997, rows=29997) (actual rows=0)
+                                                            Output: linked_movie_id[2],movie_id[1],link_type_id[3]
+                                                    -> PhysicScanTable movie_info_idx as mi_idx2 (inccost=1380035, cost=1380035, rows=678060) (actual rows=0)
+                                                        Output: info[3],movie_id[1],info_type_id[2]
+                                                        Filter: info[3]<'3.0'
+                                            -> PhysicScanTable movie_companies as mc2 (inccost=2609129, cost=2609129, rows=2609129) (actual rows=0)
+                                                Output: movie_id[1],company_id[2]
+                                        -> PhysicScanTable kind_type as kt1 (inccost=7, cost=7, rows=1) (actual rows=0)
+                                            Output: id[0]
+                                            Filter: kind[1] in ('tv series')
+                                    -> PhysicScanTable info_type as it1 (inccost=113, cost=113, rows=1) (actual rows=0)
+                                        Output: id[0]
+                                        Filter: info[1]='rating'
+                                -> PhysicScanTable company_name as cn2 (inccost=234997, cost=234997, rows=234997) (actual rows=0)
+                                    Output: name[1],id[0]
+                            -> PhysicScanTable kind_type as kt2 (inccost=7, cost=7, rows=1) (actual rows=0)
+                                Output: id[0]
+                                Filter: kind[1] in ('tv series')
+                        -> PhysicScanTable movie_info_idx as mi_idx1 (inccost=1380035, cost=1380035, rows=1380035) (actual rows=0)
+                            Output: info[3],movie_id[1],info_type_id[2]
+                    -> PhysicScanTable movie_companies as mc1 (inccost=2609129, cost=2609129, rows=2609129) (actual rows=0)
+                        Output: company_id[2],movie_id[1]
+                -> PhysicScanTable title as t1 (inccost=2528312, cost=2528312, rows=2528312) (actual rows=0)
+                    Output: title[1],id[0],kind_id[3]
+            -> PhysicScanTable title as t2 (inccost=2528312, cost=2528312, rows=123074) (actual rows=0)
+                Output: title[1],id[0],kind_id[3]
+                Filter: production_year[4]=2007
+        -> PhysicScanTable company_name as cn1 (inccost=234997, cost=234997, rows=2605) (actual rows=0)
+            Output: name[1],id[0]
+            Filter: country_code[2]='[nl]'
+,,,,,
+

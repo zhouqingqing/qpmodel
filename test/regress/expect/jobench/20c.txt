@@ -1,0 +1,97 @@
+SELECT MIN(n.name) AS cast_member,
+       MIN(t.title) AS complete_dynamic_hero_movie
+FROM complete_cast AS cc,
+     comp_cast_type AS cct1,
+     comp_cast_type AS cct2,
+     char_name AS chn,
+     cast_info AS ci,
+     keyword AS k,
+     kind_type AS kt,
+     movie_keyword AS mk,
+     name AS n,
+     title AS t
+WHERE cct1.kind = 'cast'
+  AND cct2.kind LIKE '%complete%'
+  AND chn.name IS NOT NULL
+  AND (chn.name LIKE '%man%'
+       OR chn.name LIKE '%Man%')
+  AND k.keyword IN ('superhero',
+                    'marvel-comics',
+                    'based-on-comic',
+                    'tv-special',
+                    'fight',
+                    'violence',
+                    'magnet',
+                    'web',
+                    'claw',
+                    'laser')
+  AND kt.kind = 'movie'
+  AND t.production_year > 2000
+  AND kt.id = t.kind_id
+  AND t.id = mk.movie_id
+  AND t.id = ci.movie_id
+  AND t.id = cc.movie_id
+  AND mk.movie_id = ci.movie_id
+  AND mk.movie_id = cc.movie_id
+  AND ci.movie_id = cc.movie_id
+  AND chn.id = ci.person_role_id
+  AND n.id = ci.person_id
+  AND k.id = mk.keyword_id
+  AND cct1.id = cc.subject_id
+  AND cct2.id = cc.status_id
+Total cost: 98618025, memory=18350249811640
+PhysicHashAgg  (inccost=98618025, cost=3, rows=1, memory=4294967296) (actual rows=1)
+    Output: {min(name)}[0],{min(title)}[1]
+    Aggregates: min(name[0]), min(title[1])
+    -> PhysicHashJoin  (inccost=98618022, cost=135089, rows=1, memory=4294967336) (actual rows=0)
+        Output: name[0],title[1]
+        Filter: id[2]=movie_id[7] and movie_id[3]=movie_id[7] and movie_id[4]=movie_id[7] and id[5]=subject_id[8] and id[6]=status_id[9]
+        -> PhysicHashJoin  (inccost=98347847, cost=1439042, rows=1, memory=18341658179208) (actual rows=0)
+            Output: name[0],title[6],id[7],movie_id[1],movie_id[2],id[3],id[4]
+            Filter: id[5]=kind_id[8] and id[7]=movie_id[1] and id[7]=movie_id[2]
+            -> PhysicHashJoin  (inccost=94380493, cost=4192640, rows=8541, memory=397968) (actual rows=0)
+                Output: name[6],movie_id[0],movie_id[1],id[2],id[3],id[4]
+                Filter: id[7]=person_id[5]
+                -> PhysicHashJoin  (inccost=86020362, cost=1184879, rows=8291, memory=1289848) (actual rows=0)
+                    Output: movie_id[0],movie_id[1],id[2],id[3],id[4],person_id[5]
+                    Filter: id[7]=person_role_id[6]
+                    -> PhysicHashJoin  (inccost=81695144, cost=36267983, rows=23033, memory=9696) (actual rows=0)
+                        Output: movie_id[0],movie_id[4],id[1],id[2],id[3],person_id[5],person_role_id[6]
+                        Filter: movie_id[0]=movie_id[4]
+                        -> PhysicHashJoin  (inccost=9182817, cost=4524251, rows=303, memory=288) (actual rows=0)
+                            Output: movie_id[4],id[0],id[1],id[2]
+                            Filter: id[3]=keyword_id[5]
+                            -> PhysicNLJoin  (inccost=134636, cost=209, rows=9) (actual rows=0)
+                                Output: id[0],id[1],id[2],id[3]
+                                -> PhysicNLJoin  (inccost=257, cost=121, rows=1) (actual rows=0)
+                                    Output: id[1],id[2],id[0]
+                                    -> PhysicScanTable kind_type as kt (inccost=7, cost=7, rows=1) (actual rows=0)
+                                        Output: id[0]
+                                        Filter: kind[1]='movie'
+                                    -> PhysicNLJoin  (inccost=129, cost=121, rows=1) (actual rows=0)
+                                        Output: id[1],id[0]
+                                        -> PhysicScanTable comp_cast_type as cct2 (inccost=4, cost=4, rows=1) (actual rows=0)
+                                            Output: id[0]
+                                            Filter: kind[1]like'%complete%'
+                                        -> PhysicScanTable comp_cast_type as cct1 (inccost=4, cost=4, rows=1) (actual rows=0)
+                                            Output: id[0]
+                                            Filter: kind[1]='cast'
+                                -> PhysicScanTable keyword as k (inccost=134170, cost=134170, rows=9) (actual rows=0)
+                                    Output: id[0]
+                                    Filter: keyword[1] in ('superhero','marvel-comics','based-on-comic', ... <Total: 10> )
+                            -> PhysicScanTable movie_keyword as mk (inccost=4523930, cost=4523930, rows=4523930) (actual rows=0)
+                                Output: movie_id[1],keyword_id[2]
+                        -> PhysicScanTable cast_info as ci (inccost=36244344, cost=36244344, rows=36244344) (actual rows=0)
+                            Output: movie_id[2],person_id[1],person_role_id[3]
+                    -> PhysicScanTable char_name as chn (inccost=3140339, cost=3140339, rows=1130522) (actual rows=0)
+                        Output: id[0]
+                        Filter: name[1]is notnull and name[1]like'%man%' or name[1]like'%Man%'
+                -> PhysicScanTable name as n (inccost=4167491, cost=4167491, rows=4167491) (actual rows=0)
+                    Output: name[1],id[0]
+            -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=1421959) (actual rows=0)
+                Output: title[1],id[0],kind_id[3]
+                Filter: production_year[4]>2000
+        -> PhysicScanTable complete_cast as cc (inccost=135086, cost=135086, rows=135086) (actual rows=0)
+            Output: movie_id[1],subject_id[2],status_id[3]
+,
+

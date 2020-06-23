@@ -26,6 +26,7 @@
  */
 
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -261,15 +262,30 @@ namespace qpmodel.utils
         public static void ReadCsvLine(string filepath, Action<string[]> action)
         {
             using var parser = new TextFieldParser(filepath);
+            int recordCounter = 0;
             parser.TextFieldType = FieldType.Delimited;
             parser.SetDelimiters("|");
             while (!parser.EndOfData)
             {
-                // Processing row
-                string[] fields = parser.ReadFields();
-                if (fields[fields.Length - 1].Equals(""))
-                    Array.Resize(ref fields, fields.Length - 1);
-                action(fields);
+                try
+                {
+                    recordCounter++;
+
+                    // Processing row
+                    string[] fields = parser.ReadFields();
+                    if (fields[fields.Length - 1].Equals(""))
+                        Array.Resize(ref fields, fields.Length - 1);
+                    action(fields);
+                }
+                catch (Exception e)
+                {
+                    string fname = Path.GetFileNameWithoutExtension(filepath);
+                    Console.WriteLine($"Error Parsing record: {recordCounter} of file: {fname}");
+                    Console.WriteLine($"Error was: {e.Message}");
+                    Console.WriteLine("+++ StackTrace +++");
+                    Console.Error.WriteLine(e.StackTrace);
+                    throw e;
+                };
             }
         }
     }

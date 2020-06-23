@@ -1,0 +1,98 @@
+SELECT MIN(mi.info) AS movie_budget,
+       MIN(mi_idx.info) AS movie_votes,
+       MIN(n.name) AS male_writer,
+       MIN(t.title) AS violent_movie_title
+FROM cast_info AS ci,
+     info_type AS it1,
+     info_type AS it2,
+     keyword AS k,
+     movie_info AS mi,
+     movie_info_idx AS mi_idx,
+     movie_keyword AS mk,
+     name AS n,
+     title AS t
+WHERE ci.note IN ('(writer)',
+                  '(head writer)',
+                  '(written by)',
+                  '(story)',
+                  '(story editor)')
+  AND it1.info = 'genres'
+  AND it2.info = 'votes'
+  AND k.keyword IN ('murder',
+                    'blood',
+                    'gore',
+                    'death',
+                    'female-nudity')
+  AND mi.info = 'Horror'
+  AND n.gender = 'm'
+  AND t.production_year > 2010
+  AND t.title LIKE 'Vampire%'
+  AND t.id = mi.movie_id
+  AND t.id = mi_idx.movie_id
+  AND t.id = ci.movie_id
+  AND t.id = mk.movie_id
+  AND ci.movie_id = mi.movie_id
+  AND ci.movie_id = mi_idx.movie_id
+  AND ci.movie_id = mk.movie_id
+  AND mi.movie_id = mi_idx.movie_id
+  AND mi.movie_id = mk.movie_id
+  AND mi_idx.movie_id = mk.movie_id
+  AND n.id = ci.person_id
+  AND it1.id = mi.info_type_id
+  AND it2.id = mi_idx.info_type_id
+  AND k.id = mk.keyword_id
+Total cost: 75601772, memory=103079215552
+PhysicHashAgg  (inccost=75601772, cost=3, rows=1, memory=8589934592) (actual rows=1)
+    Output: {min(info)}[0],{min(info)}[1],{min(name)}[2],{min(title)}[3]
+    Aggregates: min(info[0]), min(info[1]), min(name[2]), min(title[3])
+    -> PhysicHashJoin  (inccost=75601769, cost=2683942, rows=1, memory=6442450952) (actual rows=0)
+        Output: info[0],info[1],name[4],title[2]
+        Filter: id[5]=person_id[3]
+        -> PhysicHashJoin  (inccost=68750336, cost=3168762, rows=1, memory=6442450976) (actual rows=0)
+            Output: info[0],info[1],title[2],person_id[7]
+            Filter: movie_id[8]=movie_id[3] and movie_id[8]=movie_id[4] and movie_id[8]=movie_id[5] and id[6]=movie_id[8]
+            -> PhysicHashJoin  (inccost=29337230, cost=4, rows=1, memory=6442450984) (actual rows=0)
+                Output: info[0],info[1],title[2],movie_id[3],movie_id[4],movie_id[5],id[6]
+                Filter: id[8]=info_type_id[7]
+                -> PhysicHashJoin  (inccost=29337113, cost=4, rows=1, memory=6442450992) (actual rows=0)
+                    Output: info[0],info[1],title[2],movie_id[3],movie_id[4],movie_id[5],id[6],info_type_id[7]
+                    Filter: id[9]=info_type_id[8]
+                    -> PhysicHashJoin  (inccost=29336996, cost=7, rows=1, memory=6442451000) (actual rows=0)
+                        Output: info[0],info[1],title[2],movie_id[3],movie_id[4],movie_id[5],id[6],info_type_id[7],info_type_id[8]
+                        Filter: id[10]=keyword_id[9]
+                        -> PhysicHashJoin  (inccost=29202819, cost=1380038, rows=1, memory=4294967336) (actual rows=0)
+                            Output: info[0],info[7],title[1],movie_id[2],movie_id[8],movie_id[3],id[4],info_type_id[5],info_type_id[9],keyword_id[6]
+                            Filter: movie_id[8]=movie_id[3] and id[4]=movie_id[8] and movie_id[2]=movie_id[8]
+                            -> PhysicHashJoin  (inccost=26442746, cost=4523933, rows=1, memory=4294967320) (actual rows=0)
+                                Output: info[0],title[1],movie_id[2],movie_id[5],id[3],info_type_id[4],keyword_id[6]
+                                Filter: id[3]=movie_id[5] and movie_id[2]=movie_id[5]
+                                -> PhysicHashJoin  (inccost=17394883, cost=30851, rows=1, memory=53687091400) (actual rows=0)
+                                    Output: info[2],title[0],movie_id[3],id[1],info_type_id[4]
+                                    Filter: id[1]=movie_id[3]
+                                    -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=25) (actual rows=0)
+                                        Output: title[1],id[0]
+                                        Filter: production_year[4]>2010 and title[1]like'Vampire%'
+                                    -> PhysicScanTable movie_info as mi (inccost=14835720, cost=14835720, rows=30800) (actual rows=0)
+                                        Output: info[3],movie_id[1],info_type_id[2]
+                                        Filter: info[3]='Horror'
+                                -> PhysicScanTable movie_keyword as mk (inccost=4523930, cost=4523930, rows=4523930) (actual rows=0)
+                                    Output: movie_id[1],keyword_id[2]
+                            -> PhysicScanTable movie_info_idx as mi_idx (inccost=1380035, cost=1380035, rows=1380035) (actual rows=0)
+                                Output: info[3],movie_id[1],info_type_id[2]
+                        -> PhysicScanTable keyword as k (inccost=134170, cost=134170, rows=4) (actual rows=0)
+                            Output: id[0]
+                            Filter: keyword[1] in ('murder','blood','gore', ... <Total: 5> )
+                    -> PhysicScanTable info_type as it2 (inccost=113, cost=113, rows=1) (actual rows=0)
+                        Output: id[0]
+                        Filter: info[1]='votes'
+                -> PhysicScanTable info_type as it1 (inccost=113, cost=113, rows=1) (actual rows=0)
+                    Output: id[0]
+                    Filter: info[1]='genres'
+            -> PhysicScanTable cast_info as ci (inccost=36244344, cost=36244344, rows=3168759) (actual rows=0)
+                Output: person_id[1],movie_id[2]
+                Filter: note[4] in ('(writer)','(head writer)','(written by)', ... <Total: 5> )
+        -> PhysicScanTable name as n (inccost=4167491, cost=4167491, rows=2683939) (actual rows=0)
+            Output: name[1],id[0]
+            Filter: gender[4]='m'
+,,,
+

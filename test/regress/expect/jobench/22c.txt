@@ -1,0 +1,120 @@
+SELECT MIN(cn.name) AS movie_company,
+       MIN(mi_idx.info) AS rating,
+       MIN(t.title) AS western_violent_movie
+FROM company_name AS cn,
+     company_type AS ct,
+     info_type AS it1,
+     info_type AS it2,
+     keyword AS k,
+     kind_type AS kt,
+     movie_companies AS mc,
+     movie_info AS mi,
+     movie_info_idx AS mi_idx,
+     movie_keyword AS mk,
+     title AS t
+WHERE cn.country_code != '[us]'
+  AND it1.info = 'countries'
+  AND it2.info = 'rating'
+  AND k.keyword IN ('murder',
+                    'murder-in-title',
+                    'blood',
+                    'violence')
+  AND kt.kind IN ('movie',
+                  'episode')
+  AND mc.note NOT LIKE '%(USA)%'
+  AND mc.note LIKE '%(200%)%'
+  AND mi.info IN ('Sweden',
+                  'Norway',
+                  'Germany',
+                  'Denmark',
+                  'Swedish',
+                  'Danish',
+                  'Norwegian',
+                  'German',
+                  'USA',
+                  'American')
+  AND mi_idx.info < '8.5'
+  AND t.production_year > 2005
+  AND kt.id = t.kind_id
+  AND t.id = mi.movie_id
+  AND t.id = mk.movie_id
+  AND t.id = mi_idx.movie_id
+  AND t.id = mc.movie_id
+  AND mk.movie_id = mi.movie_id
+  AND mk.movie_id = mi_idx.movie_id
+  AND mk.movie_id = mc.movie_id
+  AND mi.movie_id = mi_idx.movie_id
+  AND mi.movie_id = mc.movie_id
+  AND mc.movie_id = mi_idx.movie_id
+  AND k.id = mk.keyword_id
+  AND it1.id = mi.info_type_id
+  AND it2.id = mi_idx.info_type_id
+  AND ct.id = mc.company_type_id
+  AND cn.id = mc.company_id
+Total cost: 34192465, memory=27917289776
+PhysicHashAgg  (inccost=34192465, cost=3, rows=1, memory=6442450944) (actual rows=1)
+    Output: {min(name)}[0],{min(info)}[1],{min(title)}[2]
+    Aggregates: min(name[0]), min(info[1]), min(title[2])
+    -> PhysicHashJoin  (inccost=34192462, cost=235000, rows=1, memory=4294967304) (actual rows=0)
+        Output: name[3],info[0],title[1]
+        Filter: id[4]=company_id[2]
+        -> PhysicHashJoin  (inccost=33722465, cost=5, rows=1, memory=4294967312) (actual rows=0)
+            Output: info[0],title[1],company_id[2]
+            Filter: id[4]=kind_id[3]
+            -> PhysicHashJoin  (inccost=33722453, cost=1042587, rows=1, memory=4294967376) (actual rows=0)
+                Output: info[0],title[6],company_id[1],kind_id[7]
+                Filter: id[8]=movie_id[2] and id[8]=movie_id[3] and id[8]=movie_id[4] and id[8]=movie_id[5]
+                -> PhysicHashJoin  (inccost=30151554, cost=8, rows=2, memory=2147483696) (actual rows=0)
+                    Output: info[0],company_id[1],movie_id[2],movie_id[3],movie_id[4],movie_id[5]
+                    Filter: id[7]=company_type_id[6]
+                    -> PhysicHashJoin  (inccost=30151542, cost=4, rows=1, memory=2147483704) (actual rows=0)
+                        Output: info[0],company_id[1],movie_id[2],movie_id[3],movie_id[4],movie_id[5],company_type_id[6]
+                        Filter: id[8]=info_type_id[7]
+                        -> PhysicHashJoin  (inccost=30151425, cost=4, rows=1, memory=2147483712) (actual rows=0)
+                            Output: info[0],company_id[1],movie_id[2],movie_id[3],movie_id[4],movie_id[5],company_type_id[6],info_type_id[7]
+                            Filter: id[9]=info_type_id[8]
+                            -> PhysicHashJoin  (inccost=30151308, cost=701194, rows=1, memory=2147483696) (actual rows=0)
+                                Output: info[0],company_id[1],movie_id[2],movie_id[7],movie_id[3],movie_id[4],company_type_id[5],info_type_id[8],info_type_id[6]
+                                Filter: movie_id[7]=movie_id[3] and movie_id[4]=movie_id[7] and movie_id[7]=movie_id[2]
+                                -> PhysicHashJoin  (inccost=14614394, cost=1338396, rows=1, memory=928) (actual rows=0)
+                                    Output: info[4],company_id[0],movie_id[1],movie_id[5],movie_id[2],company_type_id[3],info_type_id[6]
+                                    Filter: movie_id[2]=movie_id[5] and movie_id[1]=movie_id[5]
+                                    -> PhysicHashJoin  (inccost=11895963, cost=104662, rows=29, memory=1072) (actual rows=0)
+                                        Output: company_id[1],movie_id[2],movie_id[0],company_type_id[3]
+                                        Filter: movie_id[0]=movie_id[2]
+                                        -> PhysicHashJoin  (inccost=9182172, cost=4524072, rows=134, memory=32) (actual rows=0)
+                                            Output: movie_id[1]
+                                            Filter: id[0]=keyword_id[2]
+                                            -> PhysicScanTable keyword as k (inccost=134170, cost=134170, rows=4) (actual rows=0)
+                                                Output: id[0]
+                                                Filter: keyword[1] in ('murder','murder-in-title','blood','violence')
+                                            -> PhysicScanTable movie_keyword as mk (inccost=4523930, cost=4523930, rows=4523930) (actual rows=0)
+                                                Output: movie_id[1],keyword_id[2]
+                                        -> PhysicScanTable movie_companies as mc (inccost=2609129, cost=2609129, rows=104365) (actual rows=0)
+                                            Output: company_id[2],movie_id[1],company_type_id[3]
+                                            Filter: note[4]not like'%(USA)%' and note[4]like'%(200%)%'
+                                    -> PhysicScanTable movie_info_idx as mi_idx (inccost=1380035, cost=1380035, rows=1338337) (actual rows=0)
+                                        Output: info[3],movie_id[1],info_type_id[2]
+                                        Filter: info[3]<'8.5'
+                                -> PhysicScanTable movie_info as mi (inccost=14835720, cost=14835720, rows=701191) (actual rows=0)
+                                    Output: movie_id[1],info_type_id[2]
+                                    Filter: info[3] in ('Sweden','Norway','Germany', ... <Total: 10> )
+                            -> PhysicScanTable info_type as it2 (inccost=113, cost=113, rows=1) (actual rows=0)
+                                Output: id[0]
+                                Filter: info[1]='rating'
+                        -> PhysicScanTable info_type as it1 (inccost=113, cost=113, rows=1) (actual rows=0)
+                            Output: id[0]
+                            Filter: info[1]='countries'
+                    -> PhysicScanTable company_type as ct (inccost=4, cost=4, rows=4) (actual rows=0)
+                        Output: id[0]
+                -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=1042584) (actual rows=0)
+                    Output: title[1],kind_id[3],id[0]
+                    Filter: production_year[4]>2005
+            -> PhysicScanTable kind_type as kt (inccost=7, cost=7, rows=2) (actual rows=0)
+                Output: id[0]
+                Filter: kind[1] in ('movie','episode')
+        -> PhysicScanTable company_name as cn (inccost=234997, cost=234997, rows=234997) (actual rows=0)
+            Output: name[1],id[0]
+            Filter: country_code[2]!='[us]'
+,,
+
