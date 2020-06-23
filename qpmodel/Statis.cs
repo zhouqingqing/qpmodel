@@ -328,28 +328,48 @@ namespace qpmodel.stat
 
         public double EstSelectivity(string op, Value val)
         {
+            var selectivity = StatConst.one_;
             if (op == "like")
-                return EstLikeSelectivity(val);
-            if (!new List<String>() { "=", ">", ">=", "<", "<=" }.Contains(op))
-                return StatConst.one_;
-
-            if (mcv_ is null) 
-            {
-                if (hist_ is null)
-                    return StatConst.one_;
-                if (op == "=") // unique
-                    return 1.0 / n_rows_;
-                else
-                    return hist_.EstSelectivity(op, val) ?? StatConst.one_;
-            }
+                selectivity = EstLikeSelectivity(val);
+            else if (!new List<String>() { "=", ">", ">=", "<", "<=" }.Contains(op))
+                selectivity = StatConst.one_;
             else
             {
-                if (op == "=")
-                    return mcv_.EstSelectivity(op, val) ?? StatConst.one_;
+                if (mcv_ is null)
+                {
+                    if (hist_ is null)
+                        selectivity =  StatConst.one_;
+                    else if (op == "=") // unique
+                        selectivity = 1.0 / n_rows_;
+                    else
+                        selectivity = hist_.EstSelectivity(op, val) ?? StatConst.one_;
+                }
                 else
-                    return (mcv_.EstSelectivity(op, val) ?? StatConst.one_)
-                        + (1 - mcv_.totalfreq_) * (hist_?.EstSelectivity(op, val) ?? StatConst.one_);
+                {
+                    if (op == "=")
+                        selectivity = mcv_.EstSelectivity(op, val) ?? StatConst.one_;
+                    else
+                    {
+                        var mcvest = mcv_.EstSelectivity(op, val);
+                        var histest = hist_?.EstSelectivity(op, val);
+                        if (mcvest is null)
+                        {
+                            // only use histgram if avaliable
+                            selectivity = hist_ is null ? StatConst.one_ : (histest ?? StatConst.one_);
+                        }
+                        else
+                        {
+                            if (histest is null)
+                                selectivity = (double)mcvest;
+                            else
+                                selectivity = (double)mcvest + (1 - mcv_.totalfreq_) * ((double)histest);
+                        }
+                    }
+                }
             }
+
+            Estimator.validateSelectivity(selectivity);
+            return selectivity;
         }
         public ulong EstDistinct()
         {
@@ -378,11 +398,11 @@ namespace qpmodel.stat
                     {
                         // a.a1 >= <const>
                         var stat = Catalog.sysstat_.GetColumnStat(bpl.relname_, pl.colName_);
-                        return stat.EstSelectivity(pred.op_, pr.val_);
+                        selectivity = stat.EstSelectivity(pred.op_, pr.val_);
                     }
                 }
             }
-            if (filter is InListExpr inPred)
+            else if (filter is InListExpr inPred)
             {
                 // implementation of IN estimation
                 if (inPred.children_[0] is ColExpr pl && pl.tabRef_ is BaseTableRef bpl)
@@ -394,9 +414,11 @@ namespace qpmodel.stat
                         if (inPred.children_[i] is LiteralExpr pr)
                             selectivity += stat.EstSelectivity("=", pr.val_);
                     }
-                    return Math.Min(1.0, selectivity);
+                    selectivity = Math.Min(1.0, selectivity);
                 }
             }
+
+            validateSelectivity(selectivity);
             return selectivity;
         }
 

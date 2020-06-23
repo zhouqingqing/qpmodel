@@ -300,7 +300,7 @@ namespace qpmodel.unittest
             }
 
             // run tests and compare plan
-            string sql_dir_fn = "../../../../test/regress/sql";
+            string sql_dir_fn = "../../../../test/regress/sql/tpch";
             string write_dir_fn = $"../../../../test/regress/output/tpch{scale}";
             string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}";
             try
