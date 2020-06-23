@@ -1979,6 +1979,7 @@ namespace qpmodel.unittest
             option.explain_.show_estCost_ = true;
 
             string sql;
+            
             // filter scan
             sql = "select * from lineitem where l_extendedprice > 25000;";
             CheckCard(sql, new List<int> { 3039 }, option);
@@ -1990,16 +1991,24 @@ namespace qpmodel.unittest
             CheckCard(sql, new List<int> { 3474 }, option);
             sql = "select p_type from part where p_type like 'MEDIUM%';";
             CheckCard(sql, new List<int> { 1 }, option);    // actual is 35
+            
             // join
             sql = "select * from lineitem, orders where l_orderkey = o_orderkey;";
             CheckCard(sql, new List<int> { 6005, 1500, 6005 }, option);
             sql = "select * from lineitem, partsupp where ps_suppkey = l_suppkey and ps_partkey = l_partkey;";
-            CheckCard(sql, new List<int> { 2402, 800, 6005 }, option);
+            CheckCard(sql, new List<int> { 2402, 800, 6005 }, option);  // actual is 8447, 800, 6005
+            sql = "select * from orders left join customer on o_custkey = c_custkey where o_totalprice > 50000 + 0.01;";
+            CheckCard(sql, new List<int> { 1698, 1132, 150 }, option);  // actual is 1131, 1131, 150
+            sql = "select * from partsupp, part, supplier where ps_partkey = p_partkey and s_suppkey = ps_suppkey;";
+            CheckCard(sql, new List<int> { 800, 200, 800, 10, 800 }, option);
+            
             // aggregation
             sql = "select count(*) from lineitem group by l_partkey;";
             CheckCard(sql, new List<int> { 200, 6005 }, option);
             sql = "select count(*) from lineitem group by l_partkey, l_suppkey;";
-            CheckCard(sql, new List<int> { 2000, 6005 }, option);
+            CheckCard(sql, new List<int> { 2000, 6005 }, option);   // actual is 700, 6005
+            sql = "select count(*) from lineitem where l_partkey < 100 group by l_partkey, l_shipmode;";
+            CheckCard(sql, new List<int> { 1400, 2883 }, option);   // atcual is 678, 2883
 
             DropTable();
         }
