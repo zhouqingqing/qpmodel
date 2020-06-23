@@ -1955,7 +1955,7 @@ namespace qpmodel.unittest
             option.explain_.mode_ = ExplainMode.analyze;
             option.explain_.show_estCost_ = true;
 
-            string allquery = File.ReadAllText("../../../regress/sql/ce/ce.sql");
+            string allquery = File.ReadAllText("../../../regress/sql/ce.sql");
             string[] listquery = allquery.Split(';');
 
             List<string> listoutput = new List<string>() ;
@@ -1971,9 +1971,9 @@ namespace qpmodel.unittest
                 listoutput.Add(physicplan);
             }
             string alloutput = string.Join('\n', listoutput);
-            File.WriteAllText($"../../../regress/output/ce/ce.out", alloutput);
+            File.WriteAllText($"../../../regress/output/ce.out", alloutput);
 
-            string expected = File.ReadAllText($"../../../regress/expect/ce/ce.out").Replace("\r", "");
+            string expected = File.ReadAllText($"../../../regress/expect/ce.out").Replace("\r", "");
             Assert.AreEqual(alloutput, expected);
 
             DropTable();
