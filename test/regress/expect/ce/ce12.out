@@ -1,0 +1,21 @@
+Total cost: 341132.1, memory=13612
+PhysicOrder  (inccost=341132.1, cost=0.1, rows=1, memory=4) (actual rows=1500)
+    Output: l.l_orderkey[0]
+    Order by: l.l_orderkey[0]
+    -> PhysicHashAgg  (inccost=341132, cost=300002, rows=1, memory=8) (actual rows=1500)
+        Output: {l.l_orderkey}[0]
+        Group by: l.l_orderkey[0]
+        -> PhysicHashJoin  (inccost=41130, cost=15010, rows=6005, memory=12000) (actual rows=6005)
+            Output: l.l_orderkey[1]
+            Filter: l.l_orderkey[1]=orders.o_orderkey[0]
+            -> PhysicScanTable orders (inccost=1500, cost=1500, rows=1500) (actual rows=1500)
+                Output: orders.o_orderkey[0]
+            -> PhysicHashJoin  (inccost=24620, cost=12410, rows=6005, memory=1600) (actual rows=6005)
+                Output: l.l_orderkey[1]
+                Filter: l.l_partkey[2]=part.p_partkey[0]
+                -> PhysicScanTable part (inccost=200, cost=200, rows=200) (actual rows=200)
+                    Output: part.p_partkey[0]
+                -> PhysicFromQuery <l> (inccost=12010, cost=6005, rows=6005) (actual rows=6005)
+                    Output: l.l_orderkey[0],l.l_partkey[1]
+                    -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=6005) (actual rows=6005)
+                        Output: lineitem.l_orderkey[0],lineitem.l_partkey[1],lineitem.l_suppkey[2],lineitem.l_linenumber[3],lineitem.l_quantity[4],lineitem.l_extendedprice[5],lineitem.l_discount[6],lineitem.l_tax[7],lineitem.l_returnflag[8],lineitem.l_linestatus[9],lineitem.l_shipdate[10],lineitem.l_commitdate[11],lineitem.l_receiptdate[12],lineitem.l_shipinstruct[13],lineitem.l_shipmode[14],lineitem.l_comment[15]
