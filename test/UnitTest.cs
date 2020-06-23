@@ -1955,7 +1955,7 @@ namespace qpmodel.unittest
             option.explain_.mode_ = ExplainMode.analyze;
             option.explain_.show_estCost_ = true;
 
-            string allquery = File.ReadAllText("../../../regress/sql/ce.sql");
+            string allquery = File.ReadAllText("../../../regress/sql/ce/ce.sql");
             string[] listquery = allquery.Split(';');
             
             for (int i=0; i<listquery.Length; i++)
