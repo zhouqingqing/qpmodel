@@ -44,7 +44,6 @@ using qpmodel.tools;
 using qpmodel.stat;
 
 using psql;
-using System.Reflection.Metadata;
 
 namespace qpmodel.unittest
 {
@@ -1926,57 +1925,6 @@ namespace qpmodel.unittest
             var sql = "select count(*) from ast group by hop(a0, interval '5' second, interval '10' second)";
             TU.ExecuteSQL(sql, "2;4;2;1;1", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "ProjectSet"));
-        }
-    }
-
-    [TestClass]
-    public class Cardinality
-    {
-        internal void CheckTableLoad()
-        {
-            Tpch.CreateTables();
-            Tpch.LoadTables("0001");
-            Tpch.AnalyzeTables();
-        }
-        internal void DropTable()
-        {
-            List<string> tableNames = new List<string>
-            { "region", "nation", "part", "supplier", "partsupp", "customer", "orders", "lineitem"};
-            
-            for (int i = 0; i < tableNames.Count; i++)
-                SQLStatement.ExecSQL($"drop table {tableNames[i]}", out _, out _);
-        }
-        [TestMethod]
-        public void PrimitiveTest()
-        {
-            CheckTableLoad();
-
-            var option = new QueryOption();
-            option.explain_.mode_ = ExplainMode.analyze;
-            option.explain_.show_estCost_ = true;
-
-            string allquery = File.ReadAllText("../../../regress/sql/ce/ce.sql");
-            string[] listquery = allquery.Split(';');
-
-            List<string> listoutput = new List<string>() ;
-
-            for (int i=0; i<listquery.Length; i++)
-            {
-                string sql = listquery[i].Trim();
-                if (sql.Length <= 0) continue;
-
-                var result = SQLStatement.ExecSQL(sql, out string physicplan, out string error_, option);
-                Assert.IsNotNull(physicplan);
-
-                listoutput.Add(physicplan);
-            }
-            string alloutput = string.Join('\n', listoutput);
-            File.WriteAllText($"../../../regress/output/ce/ce.out", alloutput);
-
-            string expected = File.ReadAllText($"../../../regress/expect/ce/ce.out").Replace("\r", "");
-            Assert.AreEqual(alloutput, expected);
-
-            DropTable();
         }
     }
 }

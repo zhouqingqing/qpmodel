@@ -159,12 +159,6 @@ namespace qpmodel.stat
         }
         int whichValue(Value val)
             => Array.IndexOf(values_, val);
-        int compare(dynamic v1, dynamic v2)
-        {
-            if (v1 is string && v2 is string)
-                return v1.CompareTo(v2);
-            return v1 == v2 ? 0 : v1 < v2 ? -1 : 1;
-        }
         double calcTotalFreq(Value val, string op)
         {
             double totfreq = 0.0;
@@ -174,16 +168,16 @@ namespace qpmodel.stat
                 switch (op)
                 {
                     case "<=":
-                        if (compare(values_[i], value) <= 0) totfreq += freqs_[i];
+                        if (((dynamic)values_[i]) <= value) totfreq += freqs_[i];
                         break;
                     case "<":
-                        if (compare(values_[i], value) < 0) totfreq += freqs_[i];
+                        if (((dynamic)values_[i]) < value) totfreq += freqs_[i];
                         break;
                     case ">=":
-                        if (compare(values_[i], value) >= 0) totfreq += freqs_[i];
+                        if (((dynamic)values_[i]) >= value) totfreq += freqs_[i];
                         break;
                     case ">":
-                        if (compare(values_[i], value) > 0) totfreq += freqs_[i];
+                        if (((dynamic)values_[i]) > value) totfreq += freqs_[i];
                         break;
                 }
             }

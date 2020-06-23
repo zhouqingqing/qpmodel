@@ -940,10 +940,10 @@ namespace qpmodel.expr
                 case "*": return lv * rv;
                 case "/": return lv / rv;
                 case "||": return string.Concat(lv, rv);
-                case ">": return Compare(lv, rv) > 0;
-                case ">=": return Compare(lv, rv) >= 0;
-                case "<": return Compare(lv, rv) < 0;
-                case "<=": return Compare(lv, rv) <= 0;
+                case ">": return lv > rv;
+                case ">=": return lv >= rv;
+                case "<": return lv < rv;
+                case "<=": return lv <= rv;
                 case "=": return lv == rv;
                 case "<>": case "!=": return lv != rv;
                 case "like": return Utils.StringLike(lv, rv);
@@ -957,13 +957,6 @@ namespace qpmodel.expr
                 default:
                     throw new NotImplementedException();
             }
-        }
-        int Compare(dynamic lv, dynamic rv)
-        {
-            if (lv is string && rv is string)
-                return lv.CompareTo(rv);
-            else
-                return lv == rv ? 0 : lv < rv ? -1 : 1;
         }
 
         public override string ExecCode(ExecContext context, string input)
