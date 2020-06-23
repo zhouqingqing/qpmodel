@@ -164,12 +164,12 @@ namespace qpmodel.logic
                     var tr = col.tabRef_;
 
                     if (tr is FromQueryRef fqr && fqr.MapOutputName(col.colName_) != null)
-                        tr = (fqr.MapOutputName(col.colName_) as ColExpr).tabRef_;
+                        if (fqr.MapOutputName(col.colName_) is ColExpr ce) tr = ce.tabRef_;
 
                     if (tr is BaseTableRef btr)
                     {
                         var stats = Catalog.sysstat_.GetColumnStat(btr.relname_, col.colName_);
-                        return stats.EstDistinct();
+                        return stats?.EstDistinct() ?? 0;
                     }
                     
                 }
