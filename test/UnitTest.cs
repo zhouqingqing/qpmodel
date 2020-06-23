@@ -1957,15 +1957,18 @@ namespace qpmodel.unittest
 
             string allquery = File.ReadAllText("../../../regress/sql/ce.sql");
             string[] listquery = allquery.Split(';');
-            Debug.Print(listquery[0]);
+            
             for (int i=0; i<listquery.Length; i++)
             {
                 string sql = listquery[i].Trim();
                 if (sql.Length <= 0) continue;
+
                 var result = SQLStatement.ExecSQL(sql, out string physicplan, out string error_, option);
                 Assert.IsNotNull(physicplan);
                 File.WriteAllText($"../../../regress/output/ce/ce{i}.out", physicplan);
-                Assert.AreEqual(physicplan, File.ReadAllText($"../../../regress/expect/ce/ce{i}.out"));
+
+                string expected = File.ReadAllText($"../../../regress/expect/ce/ce{i}.out").Replace("\r", "");
+                Assert.AreEqual(physicplan, expected);
             }
 
             DropTable();

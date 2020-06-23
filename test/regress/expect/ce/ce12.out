@@ -1,8 +1,8 @@
-Total cost: 341132.1, memory=13612
-PhysicOrder  (inccost=341132.1, cost=0.1, rows=1, memory=4) (actual rows=1500)
+Total cost: 47137.1, memory=13612
+PhysicOrder  (inccost=47137.1, cost=0.1, rows=1, memory=4) (actual rows=1500)
     Output: l.l_orderkey[0]
     Order by: l.l_orderkey[0]
-    -> PhysicHashAgg  (inccost=341132, cost=300002, rows=1, memory=8) (actual rows=1500)
+    -> PhysicHashAgg  (inccost=47137, cost=6007, rows=1, memory=8) (actual rows=1500)
         Output: {l.l_orderkey}[0]
         Group by: l.l_orderkey[0]
         -> PhysicHashJoin  (inccost=41130, cost=15010, rows=6005, memory=12000) (actual rows=6005)
