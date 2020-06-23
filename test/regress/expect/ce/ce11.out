@@ -1,8 +1,0 @@
-Total cost: 11688, memory=11200
-PhysicHashAgg  (inccost=11688, cost=5683, rows=1400, memory=11200) (actual rows=678)
-    Output: {count(*)(0)}[2]
-    Aggregates: count(*)(0)
-    Group by: lineitem.l_partkey[0], lineitem.l_shipmode[1]
-    -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=2883) (actual rows=2883)
-        Output: lineitem.l_partkey[1],lineitem.l_shipmode[14]
-        Filter: lineitem.l_partkey[1]<100

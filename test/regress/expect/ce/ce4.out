@@ -1,4 +1,0 @@
-Total cost: 200
-PhysicScanTable part (inccost=200, cost=200, rows=1) (actual rows=35)
-    Output: part.p_partkey[0],part.p_name[1],part.p_mfgr[2],part.p_brand[3],part.p_type[4],part.p_size[5],part.p_container[6],part.p_retailprice[7],part.p_comment[8]
-    Filter: part.p_type[4]like'MEDIUM%'

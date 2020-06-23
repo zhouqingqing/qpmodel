@@ -1,4 +1,0 @@
-Total cost: 6005
-PhysicScanTable lineitem (inccost=6005, cost=6005, rows=1131) (actual rows=1131)
-    Output: lineitem.l_orderkey[0],lineitem.l_partkey[1],lineitem.l_suppkey[2],lineitem.l_linenumber[3],lineitem.l_quantity[4],lineitem.l_extendedprice[5],lineitem.l_discount[6],lineitem.l_tax[7],lineitem.l_returnflag[8],lineitem.l_linestatus[9],lineitem.l_shipdate[10],lineitem.l_commitdate[11],lineitem.l_receiptdate[12],lineitem.l_shipinstruct[13],lineitem.l_shipmode[14],lineitem.l_comment[15]
-    Filter: lineitem.l_discount[6]>=0.05 and lineitem.l_discount[6]<=0.07

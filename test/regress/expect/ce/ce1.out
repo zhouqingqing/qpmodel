@@ -1,4 +1,0 @@
-Total cost: 1500
-PhysicScanTable orders (inccost=1500, cost=1500, rows=914) (actual rows=912)
-    Output: orders.o_orderkey[0],orders.o_custkey[1],orders.o_orderstatus[2],orders.o_totalprice[3],orders.o_orderdate[4],orders.o_orderpriority[5],orders.o_clerk[6],orders.o_shippriority[7],orders.o_comment[8]
-    Filter: orders.o_orderdate[4]>='1993-07-01' and orders.o_orderdate[4]<'1997-07-01'

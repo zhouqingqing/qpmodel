@@ -1957,7 +1957,9 @@ namespace qpmodel.unittest
 
             string allquery = File.ReadAllText("../../../regress/sql/ce/ce.sql");
             string[] listquery = allquery.Split(';');
-            
+
+            List<string> listoutput = new List<string>() ;
+
             for (int i=0; i<listquery.Length; i++)
             {
                 string sql = listquery[i].Trim();
@@ -1965,11 +1967,14 @@ namespace qpmodel.unittest
 
                 var result = SQLStatement.ExecSQL(sql, out string physicplan, out string error_, option);
                 Assert.IsNotNull(physicplan);
-                File.WriteAllText($"../../../regress/output/ce/ce{i}.out", physicplan);
 
-                string expected = File.ReadAllText($"../../../regress/expect/ce/ce{i}.out").Replace("\r", "");
-                Assert.AreEqual(physicplan, expected);
+                listoutput.Add(physicplan);
             }
+            string alloutput = string.Join('\n', listoutput);
+            File.WriteAllText($"../../../regress/output/ce/ce.out", alloutput);
+
+            string expected = File.ReadAllText($"../../../regress/expect/ce/ce.out").Replace("\r", "");
+            Assert.AreEqual(alloutput, expected);
 
             DropTable();
         }
