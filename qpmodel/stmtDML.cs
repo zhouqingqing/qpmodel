@@ -211,7 +211,7 @@ namespace qpmodel.dml
         }
 
         public override SelectStmt ExtractSelect() => select_;
-        public override PhysicNode MemoOpt(PhysicNode select)
+        public override PhysicNode InstallSelectPlan(PhysicNode select)
         {
             var node = physicPlan_;
             while (!(node is PhysicInsert))

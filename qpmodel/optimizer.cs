@@ -718,7 +718,7 @@ namespace qpmodel.optimizer
             copyoutCounter_ = 0;
 
             PhysicNode selectplan = CopyOutOptimalPlan(select_);
-            return topstmt_.MemoOpt(selectplan);
+            return topstmt_.InstallSelectPlan(selectplan);
         }
 
         public string PrintMemo()
