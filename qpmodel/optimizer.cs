@@ -626,6 +626,7 @@ namespace qpmodel.optimizer
     {
         public List<Memo> memoset_ = new List<Memo>();
         public SQLStatement topstmt_;
+        public SelectStmt select_;
         public int copyoutCounter_ = 0;
 
         public void InitRootPlan(SQLStatement stmt)
@@ -633,15 +634,16 @@ namespace qpmodel.optimizer
             // call once
             Rule.Init(stmt.queryOpt_);
             topstmt_ = stmt;
+            select_ = stmt.ExtractSelect();
             memoset_.Clear();
         }
 
         public void OptimizeRootPlan(SQLStatement stmt, PhysicProperty required, bool enqueueit = true)
         {
-            var select = stmt as SelectStmt;
+            var select = stmt.ExtractSelect();
 
             // each statement sitting in a new memo
-            var memo = new Memo(stmt);
+            var memo = new Memo(select);
             if (enqueueit)
             {
                 memoset_.Add(memo);
@@ -714,7 +716,9 @@ namespace qpmodel.optimizer
         public PhysicNode CopyOutOptimalPlan()
         {
             copyoutCounter_ = 0;
-            return CopyOutOptimalPlan(topstmt_);
+
+            PhysicNode selectplan = CopyOutOptimalPlan(select_);
+            return topstmt_.MemoOpt(selectplan);
         }
 
         public string PrintMemo()

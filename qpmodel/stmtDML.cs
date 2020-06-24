@@ -192,7 +192,8 @@ namespace qpmodel.dml
 
         public override LogicNode CreatePlan()
         {
-            queryOpt_.optimize_.use_memo_ = false;
+            if (select_ is null)
+                queryOpt_.optimize_.use_memo_ = false;
             logicPlan_ = select_ is null ?
                 new LogicInsert(targetref_, new LogicResult(vals_)) :
                 new LogicInsert(targetref_, select_.CreatePlan());
@@ -207,6 +208,17 @@ namespace qpmodel.dml
             if (select_ != null)
                 select_.logicPlan_.ResolveColumnOrdinal(select_.selection_, false);
             return logicPlan_;
+        }
+
+        public override SelectStmt ExtractSelect() => select_;
+        public override PhysicNode MemoOpt(PhysicNode select)
+        {
+            var node = physicPlan_;
+            while (!(node is PhysicInsert))
+                node = node.child_();
+            Debug.Assert(node.child_() is PhysicProfiling);
+            node.children_[0] = select;
+            return physicPlan_;
         }
     }
 
