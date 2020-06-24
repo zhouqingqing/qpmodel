@@ -113,7 +113,7 @@ namespace qpmodel.stat
             Debug.Assert(new List<String>() { ">", ">=", "<", "<=" }.Contains(op));
 
             int which = whichBucket(val);
-            
+
             switch (op)
             {
                 case ">":
@@ -121,7 +121,7 @@ namespace qpmodel.stat
                     if (which == 0) selectivity = 1.0;
                     else if (which == nbuckets_ + 1) selectivity = 0.0;
                     else
-                        selectivity = (1.0 * (nbuckets_ - which) 
+                        selectivity = (1.0 * (nbuckets_ - which)
                             + 1.0 - getFraction(buckets_[which - 1], buckets_[which], val)) / nbuckets_;
                     break;
                 case "<":
@@ -157,16 +157,16 @@ namespace qpmodel.stat
             Debug.Assert(total <= 1 + StatConst.epsilon_);
             Debug.Assert(totalfreq_ <= 1 + StatConst.epsilon_);
         }
-        int whichValue(Value val)
-            => Array.IndexOf(values_, val);
-        int compare(dynamic v1, dynamic v2)
-        {
-            if (v1 is string && v2 is string)
-                return v1.CompareTo(v2);
-            return v1 == v2 ? 0 : v1 < v2 ? -1 : 1;
-        }
+
         double calcTotalFreq(Value val, string op)
         {
+            int compare(dynamic v1, dynamic v2)
+            {
+                if (v1 is string && v2 is string)
+                    return v1.CompareTo(v2);
+                return v1 == v2 ? 0 : v1 < v2 ? -1 : 1;
+            }
+
             double totfreq = 0.0;
             dynamic value = val;
             for (int i = 0; i < NValues_; i++)
@@ -185,22 +185,29 @@ namespace qpmodel.stat
                     case ">":
                         if (compare(values_[i], value) > 0) totfreq += freqs_[i];
                         break;
+                    default:
+                        throw new NotImplementedException();
                 }
             }
+
             return totfreq;
         }
+
         public double? EstSelectivity(string op, Value val)
         {
+            int whichValue(Value val)
+                => Array.IndexOf(values_, val);
+
             if (!new List<String>() { "=", ">", ">=", "<", "<=" }.Contains(op))
                 return null;
-            
+
             if (op == "=")
             {
                 int which = whichValue(val);
                 if (which == -1) return otherfreq_;
                 return freqs_[which];
             }
-            
+
             double selectivity = calcTotalFreq(val, op);
             Estimator.validateSelectivity(selectivity);
 
@@ -233,10 +240,10 @@ namespace qpmodel.stat
             foreach (var r in samples)
             {
                 Value val = r[index];
-                if (val is null) 
+                if (val is null)
                 {
                     nNulls++;
-					continue;
+                    continue;
                 }
 
                 values.Add(val);
@@ -248,11 +255,11 @@ namespace qpmodel.stat
             {
                 mcv_ = new MCVList();
                 var groups = from value in values group value by value into newGroup select newGroup;
-                
+
                 Dictionary<Value, int> sortgroup = new Dictionary<Value, int>();
                 foreach (var g in groups)
                     sortgroup.Add(g.Key, g.Count());
-                
+
                 var sorted = from pair in sortgroup orderby pair.Value descending select pair;
                 mcv_.nvalues_ = (int)Math.Min(n_distinct_, MCVList.NValues_);
 
@@ -260,7 +267,7 @@ namespace qpmodel.stat
                 double freq = 0.0;
                 foreach (var g in sorted)
                 {
-                    mcv_.values_[i] = g.Key ;
+                    mcv_.values_[i] = g.Key;
                     mcv_.freqs_[i] = (1.0 * g.Value) / values.Count();
                     freq += mcv_.freqs_[i];
                     i++;
@@ -338,7 +345,7 @@ namespace qpmodel.stat
                 if (mcv_ is null)
                 {
                     if (hist_ is null)
-                        selectivity =  StatConst.one_;
+                        selectivity = StatConst.one_;
                     else if (op == "=") // unique
                         selectivity = 1.0 / n_rows_;
                     else
@@ -649,7 +656,7 @@ namespace qpmodel.stat
             var child = child_();
 
             Debug.Assert(child is LogicGather ||
-                         child is LogicScanTable  ||
+                         child is LogicScanTable ||
                          child is LogicSampleScan);
 
             if (child is LogicGather || child is LogicSampleScan)

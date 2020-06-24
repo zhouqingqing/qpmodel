@@ -184,6 +184,11 @@ namespace qpmodel.dml
                 if (cols_ is null)
                     cols_ = select_.selection_;
                 Debug.Assert(select_.selection_.Count == cols_.Count);
+
+                // reject self-insertion: this can be done by snapshot scan underlying table 
+                // but not this project's scope
+                if (select_.from_.Any(x => x is BaseTableRef bx && bx.relname_.Equals(targetref_.relname_)))
+                    throw new NotImplementedException("self insertion not supported");
             }
 
             bindContext_ = context;
