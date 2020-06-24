@@ -69,6 +69,8 @@ namespace qpmodel.logic
         public virtual BindContext Bind(BindContext parent) => null;
         public virtual LogicNode SubstitutionOptimize() => logicPlan_;
         public virtual LogicNode CreatePlan() => logicPlan_;
+        public virtual SelectStmt ExtractSelect() => null;
+        public virtual PhysicNode InstallSelectPlan(PhysicNode select) => null;
 
         public ExecContext CreateExecContext()
         {
@@ -815,6 +817,9 @@ namespace qpmodel.logic
                 v.query_.OpenSubQueries(context);
             context.option_.PopCodeGen();
         }
+
+        public override SelectStmt ExtractSelect() => this;
+        public override PhysicNode InstallSelectPlan(PhysicNode select) => select;
     }
 
     public class DataSet
