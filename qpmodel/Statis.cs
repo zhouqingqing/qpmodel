@@ -79,7 +79,7 @@ namespace qpmodel.stat
         public int nbuckets_ { get; set; }
         public Value[] buckets_ { get; set; } = new Value[NBuckets_ + 1];
 
-        int whichBucket(Value val)
+        int whichBucketLargerThan(Value val)
         {
             dynamic value = val;
 
@@ -94,6 +94,9 @@ namespace qpmodel.stat
             }
             return nbuckets_ + 1;
         }
+
+        // given upper bound @ub and lower bound @lb, calculate the position of @val
+        //
         double getFraction(Value lb, Value ub, Value val)
         {
             // string is not capable of comparing
@@ -106,13 +109,14 @@ namespace qpmodel.stat
             Debug.Assert(frac >= 0 && frac < 1.0 + StatConst.epsilon_);
             return frac;
         }
+
         public double? EstSelectivity(string op, Value val)
         {
             // return the selectivity respect to only the histogram
             double selectivity = StatConst.one_;
             Debug.Assert(new List<String>() { ">", ">=", "<", "<=" }.Contains(op));
 
-            int which = whichBucket(val);
+            int which = whichBucketLargerThan(val);
 
             switch (op)
             {
@@ -121,16 +125,28 @@ namespace qpmodel.stat
                     if (which == 0) selectivity = 1.0;
                     else if (which == nbuckets_ + 1) selectivity = 0.0;
                     else
-                        selectivity = (1.0 * (nbuckets_ - which)
-                            + 1.0 - getFraction(buckets_[which - 1], buckets_[which], val)) / nbuckets_;
+                    {
+                        var basefraction = nbuckets_ - which;
+                        var deltadjust = 0.0;
+                        // for non-string data, we can further adjust within the bucket fraction by assuming
+                        // data are continuous within the bucket
+                        if (!(val is string))
+                            deltadjust = 1.0 - getFraction(buckets_[which - 1], buckets_[which], val);
+                        selectivity = (basefraction + deltadjust) / nbuckets_;
+                    }
                     break;
                 case "<":
                 case "<=":
                     if (which == 0) selectivity = 0.0;
                     else if (which == nbuckets_ + 1) selectivity = 1.0;
                     else
-                        selectivity = (1.0 * which - 1 + getFraction(buckets_[which - 1], buckets_[which], val))
-                            / nbuckets_;
+                    {
+                        var basefraction = which;
+                        var deltadjust = 0.0;
+                        if (!(val is string))
+                            deltadjust = 1.0 - getFraction(buckets_[which - 1], buckets_[which], val);
+                        selectivity = (basefraction - deltadjust) / nbuckets_;
+                    }
                     break;
             }
 
