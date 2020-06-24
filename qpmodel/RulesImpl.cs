@@ -195,4 +195,5 @@ namespace qpmodel.optimizer
     public class PSet2PSet : SimpleImplementationRule<LogicProjectSet, PhysicProjectSet, NumberArgs.N1> { }
     public class Sample2Sample : SimpleImplementationRule<LogicSampleScan, PhysicSampleScan, NumberArgs.N1> { }
     public class Result2Result : SimpleImplementationRule<LogicResult, PhysicResult, NumberArgs.N0> { }
+    public class ScanFile2ScanFile : SimpleImplementationRule<LogicScanFile, PhysicScanFile, NumberArgs.N0> { }
 }

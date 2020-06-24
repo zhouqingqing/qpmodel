@@ -71,6 +71,15 @@ namespace qpmodel.logic
         public virtual LogicNode CreatePlan() => logicPlan_;
         public virtual SelectStmt ExtractSelect() => null;
         public virtual PhysicNode InstallSelectPlan(PhysicNode select) => null;
+        protected PhysicNode InstallUnder<T>(PhysicNode select)
+        {
+            var node = physicPlan_;
+            while (!(node is T))
+                node = node.child_();
+            Debug.Assert(node.child_() is PhysicProfiling);
+            node.children_[0] = select;
+            return physicPlan_;
+        }
 
         public ExecContext CreateExecContext()
         {

@@ -216,15 +216,7 @@ namespace qpmodel.dml
         }
 
         public override SelectStmt ExtractSelect() => select_;
-        public override PhysicNode InstallSelectPlan(PhysicNode select)
-        {
-            var node = physicPlan_;
-            while (!(node is PhysicInsert))
-                node = node.child_();
-            Debug.Assert(node.child_() is PhysicProfiling);
-            node.children_[0] = select;
-            return physicPlan_;
-        }
+        public override PhysicNode InstallSelectPlan(PhysicNode select) => InstallUnder<PhysicInsert>(select);
     }
 
     public class CopyStmt : SQLStatement
@@ -234,6 +226,7 @@ namespace qpmodel.dml
         public readonly Expr where_;
 
         internal InsertStmt insert_;
+        internal SelectStmt select_;
 
         // copy tab(cols) from <file> <where> =>
         // insert into tab(cols) select * from foreign_table(<file>) <where>
@@ -248,15 +241,14 @@ namespace qpmodel.dml
             if (cols is null)
                 colrefs = targetref.AllColumnsRefs();
             ExternalTableRef sourcetab = new ExternalTableRef(fileName, targetref, colrefs);
-            SelectStmt select = new SelectStmt(new List<Expr> { new SelStar(null) },
+            select_ = new SelectStmt(new List<Expr> { new SelStar(null) },
                             new List<TableRef> { sourcetab }, where, null, null, null, null, null, null, text);
-            insert_ = new InsertStmt(targetref, cols, null, select, text) { queryOpt_ = queryOpt_ };
+            insert_ = new InsertStmt(targetref, cols, null, select_, text) { queryOpt_ = queryOpt_ };
         }
 
         public override BindContext Bind(BindContext parent) => insert_.Bind(parent);
         public override LogicNode CreatePlan()
         {
-            queryOpt_.optimize_.use_memo_ = false;
             return insert_.CreatePlan();
         }
         public override LogicNode SubstitutionOptimize()
@@ -265,5 +257,7 @@ namespace qpmodel.dml
             physicPlan_ = insert_.physicPlan_;
             return logicPlan_;
         }
+        public override SelectStmt ExtractSelect() => select_;
+        public override PhysicNode InstallSelectPlan(PhysicNode select) => InstallUnder<PhysicInsert>(select);
     }
 }

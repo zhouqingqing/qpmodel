@@ -36,6 +36,7 @@ using qpmodel.utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using BitVector = System.Int64;
@@ -469,6 +470,15 @@ namespace qpmodel.physic
             });
 
             return null;
+        }
+        protected override double EstimateCost()
+        {
+            var logic = (logic_) as LogicScanFile;
+            var estRowsize = logic.tabref_.baseref_.Table().EstRowSize();
+            var filename = logic.FileName();
+            FileInfo fi = new FileInfo(filename);
+            var estRowcnt = Math.Max(1, fi.Length / estRowsize);
+            return estRowcnt * 1.5;
         }
     }
 
