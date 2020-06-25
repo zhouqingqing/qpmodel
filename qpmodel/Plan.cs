@@ -634,37 +634,37 @@ namespace qpmodel.logic
             return byList;
         }
 
+        List<Expr> bindSelectionList(BindContext context)
+        {
+            // keep the expansion order
+            List<Expr> newselection = new List<Expr>();
+            for (int i = 0; i < selection_.Count; i++)
+            {
+                Expr x = selection_[i];
+                if (x is SelStar xs)
+                {
+                    // expand * into actual columns
+                    var list = xs.ExpandAndDeQuerRef(context);
+                    newselection.AddRange(list);
+                }
+                else
+                {
+                    x.Bind(context);
+                    if (x.HasAggFunc())
+                        hasAgg_ = true;
+                    x = x.ConstFolding();
+                    if (queryOpt_.optimize_.remove_from_)
+                        x = x.DeQueryRef();
+                    newselection.Add(x);
+                }
+            }
+            Debug.Assert(newselection.Count(x => x is SelStar) == 0);
+            Debug.Assert(newselection.Count >= selection_.Count);
+            return newselection;
+        }
+
         internal void BindWithContext(BindContext context)
         {
-            List<Expr> bindSelectionList(BindContext context)
-            {
-                // keep the expansion order
-                List<Expr> newselection = new List<Expr>();
-                for (int i = 0; i < selection_.Count; i++)
-                {
-                    Expr x = selection_[i];
-                    if (x is SelStar xs)
-                    {
-                        // expand * into actual columns
-                        var list = xs.ExpandAndDeQuerRef(context);
-                        newselection.AddRange(list);
-                    }
-                    else
-                    {
-                        x.Bind(context);
-                        if (x.HasAggFunc())
-                            hasAgg_ = true;
-                        x = x.ConstFolding();
-                        if (queryOpt_.optimize_.remove_from_)
-                            x = x.DeQueryRef();
-                        newselection.Add(x);
-                    }
-                }
-                Debug.Assert(newselection.Count(x => x is SelStar) == 0);
-                Debug.Assert(newselection.Count >= selection_.Count);
-                return newselection;
-            }
-
             // we don't consider setops in this level
             Debug.Assert(setops_ is null);
 
