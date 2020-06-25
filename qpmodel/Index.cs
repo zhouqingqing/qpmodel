@@ -57,12 +57,12 @@ namespace qpmodel.index
             def_.table_ = target;
             select_ = RawParser.ParseSingleSqlStatement
                 ($"select sysrid_, {string.Join(",", columns)} from {def_.table_.relname_}") as SelectStmt;
-            // select_ is a different statement, binding their options
-            select_.queryOpt_ = queryOpt_;
         }
 
         public override BindContext Bind(BindContext parent)
         {
+            // select_ is a different statement, binding their options
+            select_.queryOpt_ = queryOpt_;
             return select_.Bind(parent);
         }
 
