@@ -41,10 +41,8 @@ using qpmodel.test;
 using qpmodel.expr;
 using qpmodel.dml;
 using qpmodel.tools;
-using qpmodel.stat;
 
 using psql;
-using System.Reflection.Metadata;
 
 namespace qpmodel.unittest
 {
@@ -319,11 +317,9 @@ namespace qpmodel.unittest
             var files = Directory.GetFiles(@"../../../../tpcds", "*.sql");
             string stats_dir = "../../../../tpcds/statistics/presto/sf1";
 
-            //read_cnvt_presto_stats(string stats_dir_fn) 
-            PrestoStatsFormatter.ReadConvertPrestoStats(stats_dir);
-
             Tpcds.CreateTables();
-            // TBD: load persisted stats here
+            // load persisted stats
+            PrestoStatsFormatter.ReadConvertPrestoStats(stats_dir);
 
             // make sure all queries can generate phase one opt plan
             QueryOption option = new QueryOption();
@@ -1938,14 +1934,7 @@ namespace qpmodel.unittest
             Tpch.LoadTables("0001");
             Tpch.AnalyzeTables();
         }
-        internal void DropTable()
-        {
-            List<string> tableNames = new List<string>
-            { "region", "nation", "part", "supplier", "partsupp", "customer", "orders", "lineitem"};
-            
-            for (int i = 0; i < tableNames.Count; i++)
-                SQLStatement.ExecSQL($"drop table {tableNames[i]}", out _, out _);
-        }
+
         [TestMethod]
         public void PrimitiveTest()
         {
@@ -1975,8 +1964,6 @@ namespace qpmodel.unittest
 
             string expected = File.ReadAllText($"../../../regress/expect/ce.out").Replace("\r", "");
             Assert.AreEqual(alloutput, expected);
-
-            DropTable();
         }
     }
 }

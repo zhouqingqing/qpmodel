@@ -56,8 +56,7 @@ namespace qpmodel.test
 
         static public void CreateTables()
         {
-            // hack: drop tpch table customer
-            SQLStatement.ExecSQL("drop table customer;", out _, out _);
+            DropTables();
 
             string curdir = Directory.GetCurrentDirectory();
             string folder = $@"{curdir}/../../../../tpch/create";
@@ -66,6 +65,12 @@ namespace qpmodel.test
             SQLStatement.ExecSQLList(sql);
         }
 
+        static public void DropTables()
+        {
+            foreach (var v in tabnames_)
+                SQLStatement.ExecSQL($"drop table {v}", out _, out _);
+            System.GC.Collect();
+        }
         static public void LoadTables(string subfolder)
         {
             string curdir = Directory.GetCurrentDirectory();
@@ -110,8 +115,7 @@ namespace qpmodel.test
         };
         static public void CreateTables()
         {
-            // hack: drop tpch table customer
-            SQLStatement.ExecSQL("drop table customer;", out _, out _);
+            DropTables();
 
             string curdir = Directory.GetCurrentDirectory();
             string folder = $@"{curdir}/../../../../tpcds/create";
@@ -119,7 +123,12 @@ namespace qpmodel.test
             var sql = File.ReadAllText(filename);
             SQLStatement.ExecSQLList(sql);
         }
-
+        static public void DropTables()
+        {
+            foreach (var v in tabnames_)
+                SQLStatement.ExecSQL($"drop table {v}", out _, out _);
+            System.GC.Collect();
+        }
         static public void LoadTables(string subfolder)
         {
             string curdir = Directory.GetCurrentDirectory();
