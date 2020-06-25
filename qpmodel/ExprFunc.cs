@@ -811,7 +811,6 @@ namespace qpmodel.expr
         }
     }
 
-
     // we can actually put all binary ops in BinExpr class but we want to keep 
     // some special ones (say AND/OR) so we can coding easier
     //
