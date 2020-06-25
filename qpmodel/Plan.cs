@@ -123,10 +123,9 @@ namespace qpmodel.logic
         analyze,    // physical plan, estimates, actual cost, results muted
         full,       // analyze mode with results printed
     }
- 
+
     public class ExplainOption
     {
-
         [ThreadStatic]
         public static bool show_tablename_ = true;
         public ExplainMode mode_ { get; set; } = ExplainMode.full;
@@ -172,7 +171,7 @@ namespace qpmodel.logic
                         var memorycost = "";
                         var memory = phytop.InclusiveMemory();
                         if (memory != 0)
-                            memorycost = $", memory={memory}"; 
+                            memorycost = $", memory={memory}";
                         r += $"Total cost: {Math.Truncate(phytop.InclusiveCost() * 100) / 100}{memorycost}\n";
                     }
                 }
@@ -192,7 +191,7 @@ namespace qpmodel.logic
                         var memorycost = "";
                         var memory = phynode.Memory();
                         if (memory != 0)
-                            memorycost = $", memory={memory}";                            
+                            memorycost = $", memory={memory}";
                         r += $" (inccost={incCost}, cost={cost}, rows={phynode.logic_.Card()}{memorycost})";
                     }
                     if (exp_showactual)
@@ -724,7 +723,7 @@ namespace qpmodel.logic
                     CteExpr cte;
                     var topctes = (parent.stmt_ as SelectStmt).ctes_;
                     if (topctes != null &&
-                        null != (cte = topctes.Find(x => x.cteName_.Equals(ctename))))
+                        (cte = topctes.Find(x => x.cteName_.Equals(ctename))) != null)
                     {
                         return new CTEQueryRef(cte, alias);
                     }
