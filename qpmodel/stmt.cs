@@ -185,8 +185,7 @@ namespace qpmodel.logic
         public static string ExecSQLList(string sqls, QueryOption option = null)
         {
             StatementList stmts = RawParser.ParseSqlStatements(sqls);
-            if (option != null)
-                stmts.queryOpt_ = option;
+            stmts.queryOpt_ = option;
             return stmts.ExecList();
         }
     }
@@ -216,7 +215,6 @@ namespace qpmodel.logic
             string result = "";
             foreach (var v in list_)
             {
-                v.queryOpt_ = queryOpt_;
                 var rows = ExecSQL(v, out string plan, queryOpt_);
 
                 // format: <sql> <plan> <result>
