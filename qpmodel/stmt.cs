@@ -133,21 +133,27 @@ namespace qpmodel.logic
             return finalplan.rows_;
         }
 
-        public static List<Row> ExecSQL(string sql, out SQLStatement stmt, out string physicplan, out string error, QueryOption option = null)
+        public static List<Row> ExecSQL (SQLStatement stmt, out string physicplan, QueryOption option = null)
         {
             var optCopy = option?.Clone();
+            if (option != null)
+                stmt.queryOpt_ = optCopy;
 
+            var result = stmt.Exec();
+            physicplan = "";
+            if (stmt.physicPlan_ != null)
+                physicplan = stmt.physicPlan_.Explain(option?.explain_ ?? stmt.queryOpt_.explain_);
+            return result;
+        }
+
+        public static List<Row> ExecSQL(string sql, out SQLStatement stmt, out string physicplan, out string error, QueryOption option = null)
+        {
             try
             {
                 stmt = RawParser.ParseSingleSqlStatement(sql);
-                if (option != null)
-                    stmt.queryOpt_ = optCopy;
-                var result = stmt.Exec();
-                physicplan = "";
-                if (stmt.physicPlan_ != null)
-                    physicplan = stmt.physicPlan_.Explain(option?.explain_ ?? stmt.queryOpt_.explain_);
+                var results = ExecSQL(stmt, out physicplan, option);
                 error = "";
-                return result;
+                return results;
             }
             catch (Exception e)
             {
@@ -179,8 +185,7 @@ namespace qpmodel.logic
         public static string ExecSQLList(string sqls, QueryOption option = null)
         {
             StatementList stmts = RawParser.ParseSqlStatements(sqls);
-            if (option != null)
-                stmts.queryOpt_ = option;
+            stmts.queryOpt_ = option;
             return stmts.ExecList();
         }
     }
@@ -210,8 +215,7 @@ namespace qpmodel.logic
             string result = "";
             foreach (var v in list_)
             {
-                v.queryOpt_ = queryOpt_;
-                var rows = ExecSQL(v.text_, out string plan, out _, queryOpt_);
+                var rows = ExecSQL(v, out string plan, queryOpt_);
 
                 // format: <sql> <plan> <result>
                 result += v.text_ + "\n";
