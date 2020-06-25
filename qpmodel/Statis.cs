@@ -385,7 +385,7 @@ namespace qpmodel.stat
                             if (histest is null)
                                 selectivity = (double)mcvest;
                             else
-                                selectivity = (double)mcvest + (1 - mcv_.totalfreq_) * ((double)histest);
+                                selectivity = (double)mcvest + ((1 - mcv_.totalfreq_) * ((double)histest));
                         }
                     }
                 }
@@ -494,13 +494,13 @@ namespace qpmodel.stat
                     else
                     {
                         double vsel = EstSelectivity(v);
-                        selectivity = filter is LogicAndExpr ? selectivity * vsel : selectivity + vsel - vsel * selectivity;
+                        selectivity = filter is LogicAndExpr ? (selectivity * vsel) : selectivity + vsel - (vsel * selectivity);
                     }
                 }
                 foreach (var colexpr in colselcombine)
                 {
                     double csel = EstColumnSelectivity(colexpr.Value, filter is LogicAndExpr);
-                    selectivity = filter is LogicAndExpr ? selectivity * csel : selectivity + csel - csel * selectivity;
+                    selectivity = filter is LogicAndExpr ? (selectivity * csel) : selectivity + csel - (csel * selectivity);
                 }
             }
 
@@ -528,7 +528,6 @@ namespace qpmodel.stat
                 records_[tabcol] = stat;
         }
 
-
         public ColumnStat GetColumnStat(string tabName, string colName)
         {
             return RetrieveColumnStat(tabName + colName);
@@ -540,7 +539,6 @@ namespace qpmodel.stat
                 return value;
             return null;
         }
-
 
         public List<ColumnStat> GetOrCreateTableStats(string tabName)
         {
@@ -615,7 +613,6 @@ namespace qpmodel.stat
 
         public void jsonPostProcess(ColumnStat stat)
         {
-
             if (stat.hist_ != null)
             {
                 for (int i = 0; i < stat.hist_.buckets_.Length; i++)
@@ -663,7 +660,6 @@ namespace qpmodel.stat
 
     public class LogicAnalyze : LogicNode
     {
-
         public LogicAnalyze(LogicNode child) => children_.Add(child);
 
         public BaseTableRef GetTargetTable()
