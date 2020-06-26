@@ -249,12 +249,12 @@ namespace qpmodel.unittest
             // 10: subquery memo not copy out
             // q000: jigzag memory allocation pattern but they are runnable with qpmodel Program.Main()
             //
-            string[] runnable = { 
+            string[] runnable = {
                 "q1", "q2", "q3", "q7", "q15", "q17", "q19", "q21", "q24", "q25",
                 "q26", "q28", "q30", "q32", "q34", "q35", "q37", "q39", "q42", "q43",
                 "q45", "q46", "q50", "q52", "q55", "q58", "q59", "q61", "q62", "q00065",
-                "q68", "q69", "q71", "q73", "q79", "q81", "q82", "q83", "q00084", 
-                "q00085", 
+                "q68", "q69", "q71", "q73", "q79", "q81", "q82", "q83", "q00084",
+                "q00085",
                 "q88", "q90", "q91", "q92", "q94", "q95", "q96", "q99"
             };
 
@@ -405,7 +405,7 @@ namespace qpmodel.unittest
                 result = TU.ExecuteSQL(File.ReadAllText(files[9]), out _, option);
                 if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
                 Assert.AreEqual(20, result.Count);
-                TU.ExecuteSQL(File.ReadAllText(files[10]), "",  out _, option);
+                TU.ExecuteSQL(File.ReadAllText(files[10]), "", out _, option);
                 if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
                 TU.ExecuteSQL(File.ReadAllText(files[11]), "MAIL,5,5;SHIP,5,10", out _, option);
                 // FIXME: agg on agg from
@@ -915,7 +915,6 @@ namespace qpmodel.unittest
                 var result = TU.ExecuteSQL(sql, out phyplan, option); Assert.IsTrue(TU.error_.Contains("one row"));
             }
         }
-
     }
 
     [TestClass]
@@ -1385,7 +1384,7 @@ namespace qpmodel.unittest
             {
                 var x = rand.NextDouble();
                 var y = rand.NextDouble();
-                var ret = x * x + y * y <= 1 ? 1 : 0;
+                var ret = ((x * x + y * y) <= 1) ? 1 : 0;
                 return ret;
             }
 
@@ -1947,9 +1946,9 @@ namespace qpmodel.unittest
             string allquery = File.ReadAllText("../../../regress/sql/ce.sql");
             string[] listquery = allquery.Split(';');
 
-            List<string> listoutput = new List<string>() ;
+            List<string> listoutput = new List<string>();
 
-            for (int i=0; i<listquery.Length; i++)
+            for (int i = 0; i < listquery.Length; i++)
             {
                 string sql = listquery[i].Trim();
                 if (sql.Length <= 0) continue;
