@@ -1,5 +1,5 @@
 ![Build Status](https://github.com/zhouqingqing/qpmodel/workflows/unittest/badge.svg)
-[![CodeFactor](https://www.codefactor.io/repository/github/zhouqingqing/qpmodel/badge/codefactor)](https://www.codefactor.io/repository/github/zhouqingqing/qpmodel/overview/codefactor)
+[![CodeFactor](https://www.codefactor.io/repository/github/zhouqingqing/qpmodel/badge)](https://www.codefactor.io/repository/github/zhouqingqing/qpmodel)
 
 # A Relational Optimizer and Executor Modeling
 This project implements a relational optimizer and executor in c#. It is called "model" because it does not have all the details carved. The main target is the optimizer, and the purpose is to prepare for a more serious production implementation later. The executor part is needed for plan correctness verification with TPCH/DS end to end runnable. See github project "issues" for bugs and todo items.
