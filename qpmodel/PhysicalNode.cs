@@ -24,8 +24,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-
-using Antlr4.Runtime;
 using qpmodel.codegen;
 using qpmodel.expr;
 using qpmodel.index;
@@ -41,7 +39,6 @@ using System.Linq;
 using System.Threading;
 using BitVector = System.Int64;
 using Value = System.Object;
-
 
 namespace qpmodel.physic
 {
@@ -638,7 +635,7 @@ namespace qpmodel.physic
             }
             return new KeyList(0);
         }
-    };
+    }
 
     public class TaggedRow
     {
@@ -937,7 +934,7 @@ namespace qpmodel.physic
 
         protected override double EstimateCost()
         {
-            return child_().Card() * 1.0 + logic_.Card() * 2.0;
+            return (child_().Card() * 1.0) + (logic_.Card() * 2.0);
         }
 
         public override void Open(ExecContext context)
@@ -1519,7 +1516,6 @@ namespace qpmodel.physic
 
     public class PhysicLimit : PhysicNode
     {
-
         public PhysicLimit(LogicLimit logic, PhysicNode l) : base(logic) => children_.Add(l);
         public override string ToString() => $"PLIMIT({child_()}: {Cost()})";
 
