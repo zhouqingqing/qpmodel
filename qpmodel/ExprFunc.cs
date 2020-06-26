@@ -742,7 +742,6 @@ namespace qpmodel.expr
                 Debug.Assert(type_.Compatible(else_().type_));
         }
 
-
         public override int GetHashCode() => base.GetHashCode();
 
         public override bool Equals(object obj)
