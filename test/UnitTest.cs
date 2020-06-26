@@ -1221,7 +1221,7 @@ namespace qpmodel.unittest
             TU.PlanAssertEqual(answer, phyplan);
             sql = "select b1+c1 from (select b1 from b) a, (select c1 from c) c where c1>1";
             stmt = RawParser.ParseSingleSqlStatement(sql);
-            SQLStatement.ExecSQL(sql, out phyplan, out _);// FIXME: filter is still there
+            SQLStatement.ExecSQL(sql, out phyplan, out _); // FIXME: filter is still there
             answer = @"PhysicFilter  (actual rows=3)
                         Output: {a.b1+c.c1}[0]
                         Filter: c.c1[1]>1
@@ -1384,7 +1384,7 @@ namespace qpmodel.unittest
             {
                 var x = rand.NextDouble();
                 var y = rand.NextDouble();
-                var ret = ((x * x + y * y) <= 1) ? 1 : 0;
+                var ret = ((x * x) + (y * y)) <= 1 ? 1 : 0;
                 return ret;
             }
 
