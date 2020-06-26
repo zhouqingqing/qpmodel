@@ -713,25 +713,58 @@ namespace qpmodel.logic
                 orders_ = bindOrderByOrGroupBy(context, orders_);
         }
 
+        void bindTableRef(BindContext context, TableRef table)
+        {
+            switch (table)
+            {
+                case BaseTableRef bref:
+                    Debug.Assert(Catalog.systable_.TryTable(bref.relname_) != null);
+                    context.RegisterTable(bref);
+                    break;
+                case ExternalTableRef eref:
+                    if (Catalog.systable_.TryTable(eref.baseref_.relname_) != null)
+                        context.RegisterTable(eref);
+                    else
+                        throw new SemanticAnalyzeException($@"base table '{eref.baseref_.relname_}' not exists");
+                    break;
+                case QueryRef qref:
+                    if (qref.query_.bindContext_ is null)
+                        qref.query_.Bind(context);
+
+                    if (qref is FromQueryRef qf)
+                        qf.CreateOutputNameMap();
+
+                    // the subquery itself in from clause can be seen as a new table, so register it here
+                    context.RegisterTable(qref);
+                    break;
+                case JoinQueryRef jref:
+                    jref.tables_.ForEach(x => bindTableRef(context, x));
+                    jref.constraints_.ForEach(x => x.Bind(context));
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+
+        CTEQueryRef chainUpToFindCte(BindContext context, string ctename, string alias)
+        {
+            var parent = context;
+            do
+            {
+                CteExpr cte;
+                var topctes = (parent.stmt_ as SelectStmt).ctes_;
+                if (topctes != null &&
+                    (cte = topctes.Find(x => x.cteName_.Equals(ctename))) != null)
+                {
+                    return new CTEQueryRef(cte, alias);
+                }
+            } while ((parent = parent.parent_) != null);
+            return null;
+        }
+
         void bindFrom(BindContext context)
         {
-            CTEQueryRef chainUpToFindCte(BindContext context, string ctename, string alias)
-            {
-                var parent = context;
-                do
-                {
-                    CteExpr cte;
-                    var topctes = (parent.stmt_ as SelectStmt).ctes_;
-                    if (topctes != null &&
-                        (cte = topctes.Find(x => x.cteName_.Equals(ctename))) != null)
-                    {
-                        return new CTEQueryRef(cte, alias);
-                    }
-                } while ((parent = parent.parent_) != null);
-                return null;
-            }
-
-            // replace any BaseTableRef that can't find in system to CTE
+             // replace any BaseTableRef that can't find in system to CTE
             for (int i = 0; i < from_.Count; i++)
             {
                 var x = from_[i];
@@ -744,44 +777,11 @@ namespace qpmodel.logic
                 }
             }
 
-            void bindTableRef(TableRef table)
-            {
-                switch (table)
-                {
-                    case BaseTableRef bref:
-                        Debug.Assert(Catalog.systable_.TryTable(bref.relname_) != null);
-                        context.RegisterTable(bref);
-                        break;
-                    case ExternalTableRef eref:
-                        if (Catalog.systable_.TryTable(eref.baseref_.relname_) != null)
-                            context.RegisterTable(eref);
-                        else
-                            throw new SemanticAnalyzeException($@"base table '{eref.baseref_.relname_}' not exists");
-                        break;
-                    case QueryRef qref:
-                        if (qref.query_.bindContext_ is null)
-                            qref.query_.Bind(context);
-
-                        if (qref is FromQueryRef qf)
-                            qf.CreateOutputNameMap();
-
-                        // the subquery itself in from clause can be seen as a new table, so register it here
-                        context.RegisterTable(qref);
-                        break;
-                    case JoinQueryRef jref:
-                        jref.tables_.ForEach(bindTableRef);
-                        jref.constraints_.ForEach(x => x.Bind(context));
-                        break;
-                    default:
-                        throw new NotImplementedException();
-                }
-            }
-
             // no duplicated table without alias not allowed
             var query = from_.GroupBy(x => x.alias_).Where(g => g.Count() > 1).Select(y => y.Key).ToList();
             if (query.Count > 0)
                 throw new SemanticAnalyzeException($"table name '{query[0]}' specified more than once");
-            from_.ForEach(bindTableRef);
+            from_.ForEach(x => bindTableRef(context, x));
         }
 
         // for each expr in @list, if expr has references an alias in selection list, 
