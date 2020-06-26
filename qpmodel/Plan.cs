@@ -123,10 +123,9 @@ namespace qpmodel.logic
         analyze,    // physical plan, estimates, actual cost, results muted
         full,       // analyze mode with results printed
     }
- 
+
     public class ExplainOption
     {
-
         [ThreadStatic]
         public static bool show_tablename_ = true;
         public ExplainMode mode_ { get; set; } = ExplainMode.full;
@@ -172,7 +171,7 @@ namespace qpmodel.logic
                         var memorycost = "";
                         var memory = phytop.InclusiveMemory();
                         if (memory != 0)
-                            memorycost = $", memory={memory}"; 
+                            memorycost = $", memory={memory}";
                         r += $"Total cost: {Math.Truncate(phytop.InclusiveCost() * 100) / 100}{memorycost}\n";
                     }
                 }
@@ -192,7 +191,7 @@ namespace qpmodel.logic
                         var memorycost = "";
                         var memory = phynode.Memory();
                         if (memory != 0)
-                            memorycost = $", memory={memory}";                            
+                            memorycost = $", memory={memory}";
                         r += $" (inccost={incCost}, cost={cost}, rows={phynode.logic_.Card()}{memorycost})";
                     }
                     if (exp_showactual)
@@ -635,37 +634,37 @@ namespace qpmodel.logic
             return byList;
         }
 
+        List<Expr> bindSelectionList(BindContext context)
+        {
+            // keep the expansion order
+            List<Expr> newselection = new List<Expr>();
+            for (int i = 0; i < selection_.Count; i++)
+            {
+                Expr x = selection_[i];
+                if (x is SelStar xs)
+                {
+                    // expand * into actual columns
+                    var list = xs.ExpandAndDeQuerRef(context);
+                    newselection.AddRange(list);
+                }
+                else
+                {
+                    x.Bind(context);
+                    if (x.HasAggFunc())
+                        hasAgg_ = true;
+                    x = x.ConstFolding();
+                    if (queryOpt_.optimize_.remove_from_)
+                        x = x.DeQueryRef();
+                    newselection.Add(x);
+                }
+            }
+            Debug.Assert(newselection.Count(x => x is SelStar) == 0);
+            Debug.Assert(newselection.Count >= selection_.Count);
+            return newselection;
+        }
+
         internal void BindWithContext(BindContext context)
         {
-            List<Expr> bindSelectionList(BindContext context)
-            {
-                // keep the expansion order
-                List<Expr> newselection = new List<Expr>();
-                for (int i = 0; i < selection_.Count; i++)
-                {
-                    Expr x = selection_[i];
-                    if (x is SelStar xs)
-                    {
-                        // expand * into actual columns
-                        var list = xs.ExpandAndDeQuerRef(context);
-                        newselection.AddRange(list);
-                    }
-                    else
-                    {
-                        x.Bind(context);
-                        if (x.HasAggFunc())
-                            hasAgg_ = true;
-                        x = x.ConstFolding();
-                        if (queryOpt_.optimize_.remove_from_)
-                            x = x.DeQueryRef();
-                        newselection.Add(x);
-                    }
-                }
-                Debug.Assert(newselection.Count(x => x is SelStar) == 0);
-                Debug.Assert(newselection.Count >= selection_.Count);
-                return newselection;
-            }
-
             // we don't consider setops in this level
             Debug.Assert(setops_ is null);
 
@@ -714,25 +713,58 @@ namespace qpmodel.logic
                 orders_ = bindOrderByOrGroupBy(context, orders_);
         }
 
+        void bindTableRef(BindContext context, TableRef table)
+        {
+            switch (table)
+            {
+                case BaseTableRef bref:
+                    Debug.Assert(Catalog.systable_.TryTable(bref.relname_) != null);
+                    context.RegisterTable(bref);
+                    break;
+                case ExternalTableRef eref:
+                    if (Catalog.systable_.TryTable(eref.baseref_.relname_) != null)
+                        context.RegisterTable(eref);
+                    else
+                        throw new SemanticAnalyzeException($@"base table '{eref.baseref_.relname_}' not exists");
+                    break;
+                case QueryRef qref:
+                    if (qref.query_.bindContext_ is null)
+                        qref.query_.Bind(context);
+
+                    if (qref is FromQueryRef qf)
+                        qf.CreateOutputNameMap();
+
+                    // the subquery itself in from clause can be seen as a new table, so register it here
+                    context.RegisterTable(qref);
+                    break;
+                case JoinQueryRef jref:
+                    jref.tables_.ForEach(x => bindTableRef(context, x));
+                    jref.constraints_.ForEach(x => x.Bind(context));
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+
+        CTEQueryRef chainUpToFindCte(BindContext context, string ctename, string alias)
+        {
+            var parent = context;
+            do
+            {
+                CteExpr cte;
+                var topctes = (parent.stmt_ as SelectStmt).ctes_;
+                if (topctes != null &&
+                    (cte = topctes.Find(x => x.cteName_.Equals(ctename))) != null)
+                {
+                    return new CTEQueryRef(cte, alias);
+                }
+            } while ((parent = parent.parent_) != null);
+            return null;
+        }
+
         void bindFrom(BindContext context)
         {
-            CTEQueryRef chainUpToFindCte(BindContext context, string ctename, string alias)
-            {
-                var parent = context;
-                do
-                {
-                    CteExpr cte;
-                    var topctes = (parent.stmt_ as SelectStmt).ctes_;
-                    if (topctes != null &&
-                        null != (cte = topctes.Find(x => x.cteName_.Equals(ctename))))
-                    {
-                        return new CTEQueryRef(cte, alias);
-                    }
-                } while ((parent = parent.parent_) != null);
-                return null;
-            }
-
-            // replace any BaseTableRef that can't find in system to CTE
+             // replace any BaseTableRef that can't find in system to CTE
             for (int i = 0; i < from_.Count; i++)
             {
                 var x = from_[i];
@@ -745,44 +777,11 @@ namespace qpmodel.logic
                 }
             }
 
-            void bindTableRef(TableRef table)
-            {
-                switch (table)
-                {
-                    case BaseTableRef bref:
-                        Debug.Assert(Catalog.systable_.TryTable(bref.relname_) != null);
-                        context.RegisterTable(bref);
-                        break;
-                    case ExternalTableRef eref:
-                        if (Catalog.systable_.TryTable(eref.baseref_.relname_) != null)
-                            context.RegisterTable(eref);
-                        else
-                            throw new SemanticAnalyzeException($@"base table '{eref.baseref_.relname_}' not exists");
-                        break;
-                    case QueryRef qref:
-                        if (qref.query_.bindContext_ is null)
-                            qref.query_.Bind(context);
-
-                        if (qref is FromQueryRef qf)
-                            qf.CreateOutputNameMap();
-
-                        // the subquery itself in from clause can be seen as a new table, so register it here
-                        context.RegisterTable(qref);
-                        break;
-                    case JoinQueryRef jref:
-                        jref.tables_.ForEach(bindTableRef);
-                        jref.constraints_.ForEach(x => x.Bind(context));
-                        break;
-                    default:
-                        throw new NotImplementedException();
-                }
-            }
-
             // no duplicated table without alias not allowed
             var query = from_.GroupBy(x => x.alias_).Where(g => g.Count() > 1).Select(y => y.Key).ToList();
             if (query.Count > 0)
                 throw new SemanticAnalyzeException($"table name '{query[0]}' specified more than once");
-            from_.ForEach(bindTableRef);
+            from_.ForEach(x => bindTableRef(context, x));
         }
 
         // for each expr in @list, if expr has references an alias in selection list, 

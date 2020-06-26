@@ -339,7 +339,7 @@ namespace qpmodel.optimizer
                 graph = new ClassChain().RandomGenerate(n);
                 solver.Reset().Run(graph, expectC1);
 
-                expectC1 = (BigInteger.Pow(n, 3) - 2 * BigInteger.Pow(n, 2) + n) / 2;
+                expectC1 = (BigInteger.Pow(n, 3) - (2 * BigInteger.Pow(n, 2)) + n) / 2;
                 graph = new ClassCycle().RandomGenerate(n);
                 solver.Reset().Run(graph, expectC1);
 
@@ -752,15 +752,15 @@ namespace qpmodel.optimizer
                 BigInteger expectC1;
 
                 // expected nubmer are from Phd 2.2.4 - shall be the same as DPSub
-                expectC1 = BigInteger.Pow(2, n + 2) - n * n - 3 * n - 4;
+                expectC1 = BigInteger.Pow(2, n + 2) - (n * n) - (3 * n) - 4;
                 graph = new ClassChain().RandomGenerate(n);
                 solver.Reset().Run(graph, expectC1);
 
-                expectC1 = (1 + n) * BigInteger.Pow(2, n) - 2 * n * n - 2;
+                expectC1 = (1 + n) * BigInteger.Pow(2, n) - (2 * n * n) - 2;
                 graph = new ClassCycle().RandomGenerate(n);
                 solver.Reset().Run(graph, expectC1);
 
-                expectC1 = 2 * BigInteger.Pow(3, n - 1) - BigInteger.Pow(2, n);
+                expectC1 = (2 * BigInteger.Pow(3, n - 1)) - BigInteger.Pow(2, n);
                 graph = new ClassStar().RandomGenerate(n);
                 solver.Reset().Run(graph, expectC1);
 

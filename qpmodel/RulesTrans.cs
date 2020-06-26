@@ -96,7 +96,6 @@ namespace qpmodel.optimizer
     //
     public class JoinCommutativeRule : ExplorationRule
     {
-
         public override bool Appliable(CGroupMember expr)
         {
             return expr.logic_ is LogicJoin lj && lj.IsInnerJoin();
@@ -220,7 +219,6 @@ namespace qpmodel.optimizer
                         return expr;
                 }
             }
-
 
             return new CGroupMember(ab_c, expr.group_);
         }
