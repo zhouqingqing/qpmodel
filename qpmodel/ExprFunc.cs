@@ -116,16 +116,16 @@ namespace qpmodel.expr
 
             switch (func)
             {
-                case "sum": r = new AggSum(args[0]); break;
-                case "min": r = new AggMin(args[0]); break;
-                case "max": r = new AggMax(args[0]); break;
-                case "avg": r = new AggAvg(args[0]); break;
-                case "stddev_samp": r = new AggStddevSamp(args[0]); break;
+                case "sum": r = new AggSum(args); break;
+                case "min": r = new AggMin(args); break;
+                case "max": r = new AggMax(args); break;
+                case "avg": r = new AggAvg(args); break;
+                case "stddev_samp": r = new AggStddevSamp(args); break;
                 case "count":
                     if (args.Count == 0)
                         r = new AggCountStar(null);
                     else
-                        r = new AggCount(args[0]);
+                        r = new AggCount(args);
                     break;
                 case "substr": case "substring": r = new SubstringFunc(args); break;
                 case "upper": r = new UpperFunc(args); break;
@@ -428,7 +428,7 @@ namespace qpmodel.expr
     {
         // Exec info
         internal Value sum_;
-        public AggSum(Expr arg) : base("sum", new List<Expr> { arg }) { }
+        public AggSum(List<Expr> args) : base("sum", args) { }
 
         public override Value Init(ExecContext context, Row input)
         {
@@ -459,7 +459,7 @@ namespace qpmodel.expr
     {
         // Exec info
         internal long count_;
-        public AggCount(Expr arg) : base("count", new List<Expr> { arg }) { }
+        public AggCount(List<Expr> args) : base("count", args) { }
 
         public override void Bind(BindContext context)
         {
@@ -487,7 +487,11 @@ namespace qpmodel.expr
     {
         // Exec info
         internal long count_;
-        public AggCountStar(Expr arg) : base("count(*)", new List<Expr> { new LiteralExpr("0", new IntType()) }) { argcnt_ = 0; }
+        public AggCountStar(List<Expr> args) : base("count(*)", new List<Expr> { new LiteralExpr("0", new IntType()) })
+        {
+            Debug.Assert(args is null);
+            argcnt_ = 0;
+        }
 
         public override void Bind(BindContext context)
         {
@@ -511,7 +515,7 @@ namespace qpmodel.expr
     {
         // Exec info
         Value min_;
-        public AggMin(Expr arg) : base("min", new List<Expr> { arg }) { }
+        public AggMin(List<Expr> args) : base("min", args) { }
         public override Value Init(ExecContext context, Row input)
         {
             min_ = args_()[0].Exec(context, input);
@@ -542,7 +546,7 @@ namespace qpmodel.expr
     {
         // Exec info
         Value max_;
-        public AggMax(Expr arg) : base("max", new List<Expr> { arg }) { }
+        public AggMax(List<Expr> args) : base("max", args) { }
         public override Value Init(ExecContext context, Row input)
         {
             max_ = arg_().Exec(context, input);
@@ -592,7 +596,7 @@ namespace qpmodel.expr
         }
         AvgPair pair_;
 
-        public AggAvg(Expr arg) : base("avg", new List<Expr> { arg }) { }
+        public AggAvg(List<Expr> args) : base("avg", args) { }
 
         public override Value Init(ExecContext context, Row input)
         {
@@ -648,12 +652,12 @@ namespace qpmodel.expr
                     int n = vals_.Count;
                     if (n != 1)
                     {
-                        dynamic sum = 0.0; vals_.ForEach(x => sum += x is null? 0: x);
+                        dynamic sum = 0.0; vals_.ForEach(x => sum += x is null ? 0 : x);
                         if (sum != null)
                         {
                             var mean = sum / n;
-                            dynamic stddev = 0; vals_.ForEach(x => stddev +=  
-                                            x is null? 0: ((x - mean) * (x - mean)));
+                            dynamic stddev = 0; vals_.ForEach(x => stddev +=
+                                            x is null ? 0 : ((x - mean) * (x - mean)));
                             if (stddev != null)
                             {
                                 stddev = Math.Sqrt(stddev / (n - 1));
@@ -670,7 +674,7 @@ namespace qpmodel.expr
         }
         AggStddevValues values_;
 
-        public AggStddevSamp(Expr arg) : base("stddev_samp", new List<Expr> { arg }) { }
+        public AggStddevSamp(List<Expr> args) : base("stddev_samp", args) { }
 
         public override Value Init(ExecContext context, Row input)
         {
