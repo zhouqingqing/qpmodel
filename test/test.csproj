@@ -22,6 +22,10 @@
     <LangVersion>8.0</LangVersion>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="coverlet.msbuild" Version="2.9.0-preview.6.ga0e22ec622" >
+	    <PrivateAssets>all</PrivateAssets>
+		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <ProjectReference Include="../psql/psql.csproj" />
     <ProjectReference Include="../qpmodel/qpmodel.csproj" />
   </ItemGroup>
