@@ -235,6 +235,9 @@ namespace qpmodel.unittest
             TestTpchAndComparePlan("1", new string[] { "" });
             TestTpchAndComparePlan("0001", new string[] { "" });
             TestTpchWithData();
+
+            // some primitives neeed tpch data
+            Aggregation.TestPullPushAgg();
         }
 
         void TestTpcdsWithData()
@@ -1033,6 +1036,98 @@ namespace qpmodel.unittest
         }
     }
 
+
+    [TestClass]
+    public class Aggregation
+    {
+        [TestMethod]
+        public void TestAggregation()
+        {
+            var sql = "select a1, sum(a1) from a group by a2";
+            var result = TU.ExecuteSQL(sql); Assert.IsNull(result);
+            Assert.IsTrue(TU.error_.Contains("appear"));
+            sql = "select max(sum(a)+1) from a;";
+            result = TU.ExecuteSQL(sql); Assert.IsNull(result);
+            Assert.IsTrue(TU.error_.Contains("nested"));
+            sql = "select a1, sum(a1) from a group by a1 having sum(a2) > a3;";
+            result = TU.ExecuteSQL(sql); Assert.IsNull(result);
+            Assert.IsTrue(TU.error_.Contains("appear"));
+            sql = "select * from a having sum(a2) > a1;";
+            result = TU.ExecuteSQL(sql); Assert.IsNull(result);
+            Assert.IsTrue(TU.error_.Contains("appear"));
+
+            sql = "select 'one', count(b1), count(*), avg(b1), min(b4), count(*), min(b2)+max(b3), sum(b2) from b where b3>1000;";
+            TU.ExecuteSQL(sql, "one,0,0,,,0,,");
+            sql = "select 'one', count(b1), count(*), avg(b1) from b where b3>1000 having avg(b2) is not null;";
+            TU.ExecuteSQL(sql, "");
+
+            sql = "select 7, (4-a3)/2*2+1+sum(a1), sum(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";
+            TU.ExecuteSQL(sql, "7,3,2;7,4,19", out string phyplan);
+            var answer = @"PhysicHashAgg  (actual rows=2)
+                            Output: 7,{4-a.a3/2}[0]*2+1+{sum(a.a1)}[1],{sum(a.a1)}[1]+{sum(a.a1+a.a2)}[2]*2
+                            Aggregates: sum(a.a1[0]), sum(a.a1[0]+a.a2[2])
+                            Group by: 4-a.a3[3]/2
+                            -> PhysicScanTable a (actual rows=3)
+                                Output: a.a1[0],a.a1[0]+a.a2[1],a.a2[1],a.a3[2]
+                        ";
+            TU.PlanAssertEqual(answer, phyplan);
+            sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1";
+            TU.ExecuteSQL(sql, "1,3,4,2;0,2,6,18");
+            sql = "select a1, a2  from a where a.a1 = (select sum(b1) from b where b2 = a2 and b3<4);";
+            TU.ExecuteSQL(sql, "0,1;1,2");
+            sql = "select a2, sum(a1) from a where a1>0 group by a2";
+            TU.ExecuteSQL(sql, "2,1;3,2");
+            sql = "select a3/2*2, sum(a3), count(a3), stddev_samp(a3) from a group by 1;";
+            TU.ExecuteSQL(sql, "2,5,2,0.7071;4,4,1,");
+            sql = "select count(*)+1 from (select b1+c1 from (select b1 from b) a, (select c1,c2 from c) c where c2>1) a;";
+            TU.ExecuteSQL(sql, "7");
+            sql = "select d1, sum(d2) from (select c1/2, sum(c1) from (select b1, count(*) as a1 from b group by b1)c(c1, c2) group by c1/2) d(d1, d2) group by d1;";
+            TU.ExecuteSQL(sql, "0,1;1,2");
+            sql = "select b1+b1 from b group by b1;";
+            TU.ExecuteSQL(sql, "0;2;4");
+            sql = "select sum(b1+b1) from b group by b1;";
+            TU.ExecuteSQL(sql, "0;2;4");
+            sql = "select 2+b1+b1+b2 from b group by b1,b2;";
+            TU.ExecuteSQL(sql, "3;6;9");
+            sql = "select sum(2+b1+b1+b2) from b group by b1,b2;";
+            TU.ExecuteSQL(sql, "3;6;9");
+            sql = "select max(b1) from (select sum(a1) from a)b(b1);";
+            TU.ExecuteSQL(sql, "3");
+            sql = "select sum(e1+e1*3) from (select sum(a1) a12 from a) d(e1);";
+            TU.ExecuteSQL(sql, "12");
+            sql = "select a1 from a group by a1 having sum(a2) > 2;";
+            TU.ExecuteSQL(sql, "2");
+            sql = "select a1, sum(a1) from a group by a1 having sum(a2) > 2;";
+            TU.ExecuteSQL(sql, "2,2");
+            sql = "select max(b1) from b having max(b1)>1;";
+            TU.ExecuteSQL(sql, "2");
+            sql = "select a3, sum(a1) from a group by a3 having sum(a2) > a3/2;";
+            TU.ExecuteSQL(sql, "3,1;4,2");
+
+            // subquery as group by expr
+            sql = "select count(a1) from a group by (select max(a1) from a);";
+            TU.ExecuteSQL(sql, "3");
+
+            // stream aggregation
+            sql = "";
+
+            // failed:
+            // sql = "select a1, sum(a1) from a group by a1 having sum(a2) > a3;";
+            // sql = "select * from a having sum(a2) > 1;";
+        }
+
+        public static void TestPullPushAgg()
+        {
+            var sql = "select count(*) from lineitem, partsupp where l_partkey=ps_suppkey group by ps_availqty>100";
+            TU.ExecuteSQL(sql, "23294;226", out string phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicHashAgg"));
+            sql = "select sum(c) from lineitem, (select ps_suppkey, ps_availqty>100, count(*) from partsupp group by ps_suppkey, ps_availqty>100) ps(ps_suppkey, ps_availqty100, c)"
+                + " where ps_suppkey=l_partkey group by ps_availqty100;";
+            TU.ExecuteSQL(sql, "23294;226", out phyplan);
+            Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicHashAgg"));
+        }
+    }
+
     [TestClass]
     public class CreatePlan
     {
@@ -1392,82 +1487,6 @@ namespace qpmodel.unittest
             sql = "SELECT 4.0*sum(inside(a1.a1))/count(*) from a a1, a a2, a a3, a a4, a a5, a a6, a a7, a a8, a a9, a a10";
             rows = SQLStatement.ExecSQL(sql, out _, out _);
             Assert.IsTrue((double)rows[0][0] > 3.12 && (double)rows[0][0] < 3.16);
-        }
-
-        [TestMethod]
-        public void TestAggregation()
-        {
-            var sql = "select a1, sum(a1) from a group by a2";
-            var result = ExecuteSQL(sql); Assert.IsNull(result);
-            Assert.IsTrue(TU.error_.Contains("appear"));
-            sql = "select max(sum(a)+1) from a;";
-            result = ExecuteSQL(sql); Assert.IsNull(result);
-            Assert.IsTrue(TU.error_.Contains("nested"));
-            sql = "select a1, sum(a1) from a group by a1 having sum(a2) > a3;";
-            result = ExecuteSQL(sql); Assert.IsNull(result);
-            Assert.IsTrue(TU.error_.Contains("appear"));
-            sql = "select * from a having sum(a2) > a1;";
-            result = ExecuteSQL(sql); Assert.IsNull(result);
-            Assert.IsTrue(TU.error_.Contains("appear"));
-
-            sql = "select 'one', count(b1), count(*), avg(b1), min(b4), count(*), min(b2)+max(b3), sum(b2) from b where b3>1000;";
-            TU.ExecuteSQL(sql, "one,0,0,,,0,,");
-            sql = "select 'one', count(b1), count(*), avg(b1) from b where b3>1000 having avg(b2) is not null;";
-            TU.ExecuteSQL(sql, "");
-
-            sql = "select 7, (4-a3)/2*2+1+sum(a1), sum(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";
-            TU.ExecuteSQL(sql, "7,3,2;7,4,19", out string phyplan);
-            var answer = @"PhysicHashAgg  (actual rows=2)
-                            Output: 7,{4-a.a3/2}[0]*2+1+{sum(a.a1)}[1],{sum(a.a1)}[1]+{sum(a.a1+a.a2)}[2]*2
-                            Aggregates: sum(a.a1[0]), sum(a.a1[0]+a.a2[2])
-                            Group by: 4-a.a3[3]/2
-                            -> PhysicScanTable a (actual rows=3)
-                                Output: a.a1[0],a.a1[0]+a.a2[1],a.a2[1],a.a3[2]
-                        ";
-            TU.PlanAssertEqual(answer, phyplan);
-            sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1";
-            TU.ExecuteSQL(sql, "1,3,4,2;0,2,6,18");
-            sql = "select a1, a2  from a where a.a1 = (select sum(b1) from b where b2 = a2 and b3<4);";
-            TU.ExecuteSQL(sql, "0,1;1,2");
-            sql = "select a2, sum(a1) from a where a1>0 group by a2";
-            TU.ExecuteSQL(sql, "2,1;3,2");
-            sql = "select a3/2*2, sum(a3), count(a3), stddev_samp(a3) from a group by 1;";
-            TU.ExecuteSQL(sql, "2,5,2,0.7071;4,4,1,");
-            sql = "select count(*)+1 from (select b1+c1 from (select b1 from b) a, (select c1,c2 from c) c where c2>1) a;";
-            TU.ExecuteSQL(sql, "7");
-            sql = "select d1, sum(d2) from (select c1/2, sum(c1) from (select b1, count(*) as a1 from b group by b1)c(c1, c2) group by c1/2) d(d1, d2) group by d1;";
-            TU.ExecuteSQL(sql, "0,1;1,2");
-            sql = "select b1+b1 from b group by b1;";
-            TU.ExecuteSQL(sql, "0;2;4");
-            sql = "select sum(b1+b1) from b group by b1;";
-            TU.ExecuteSQL(sql, "0;2;4");
-            sql = "select 2+b1+b1+b2 from b group by b1,b2;";
-            TU.ExecuteSQL(sql, "3;6;9");
-            sql = "select sum(2+b1+b1+b2) from b group by b1,b2;";
-            TU.ExecuteSQL(sql, "3;6;9");
-            sql = "select max(b1) from (select sum(a1) from a)b(b1);";
-            TU.ExecuteSQL(sql, "3");
-            sql = "select sum(e1+e1*3) from (select sum(a1) a12 from a) d(e1);";
-            TU.ExecuteSQL(sql, "12");
-            sql = "select a1 from a group by a1 having sum(a2) > 2;";
-            TU.ExecuteSQL(sql, "2");
-            sql = "select a1, sum(a1) from a group by a1 having sum(a2) > 2;";
-            TU.ExecuteSQL(sql, "2,2");
-            sql = "select max(b1) from b having max(b1)>1;";
-            TU.ExecuteSQL(sql, "2");
-            sql = "select a3, sum(a1) from a group by a3 having sum(a2) > a3/2;";
-            TU.ExecuteSQL(sql, "3,1;4,2");
-
-            // subquery as group by expr
-            sql = "select count(a1) from a group by (select max(a1) from a);";
-            TU.ExecuteSQL(sql, "3");
-
-            // stream aggregation
-            sql = "";
-
-            // failed:
-            // sql = "select a1, sum(a1) from a group by a1 having sum(a2) > a3;";
-            // sql = "select * from a having sum(a2) > 1;";
         }
 
         [TestMethod]

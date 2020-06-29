@@ -30,7 +30,7 @@
  */
  
  /*
-  * Further simplified and modified and simplified by moi
+  * Further simplified and modified by moi
   */
 grammar SQLite;
 
