@@ -25,10 +25,10 @@ jobs:
       run: dotnet test --no-restore --verbosity normal
 
     - name: Unit Test Cover
-      run: dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=lcov 
+      run: dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
         /p:CoverletOutput='/home/runner/work/qpmodel/qpmodel/test/lcov.info'
     - name: Coveralls
       uses: coverallsapp/github-action@master
-      with: 
+      with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path-to-lcov: "/home/runner/work/qpmodel/qpmodel/test/lcov.info"
