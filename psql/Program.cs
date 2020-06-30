@@ -36,7 +36,7 @@ namespace psql
             option.explain_.mode_ = explainOnly ? ExplainMode.explain : ExplainMode.full;
 
             // get a list of sql query fine names from the sql directory
-            string[] sqlFiles = Directory.GetFiles(sql_dir_fn);
+            string[] sqlFiles = Directory.GetFiles(sql_dir_fn, "*.sql");
 
             // execute the query in each file and and verify the result
             foreach (string sqlFn in sqlFiles)
