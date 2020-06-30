@@ -1,4 +1,5 @@
-![Build Status](https://github.com/zhouqingqing/qpmodel/workflows/unittest/badge.svg)
+![Build Status](https://github.com/zhouqingqing/qpmodel/workflows/Ubuntu/badge.svg)
+![Build Status](https://github.com/zhouqingqing/qpmodel/workflows/Windows/badge.svg)
 [![CodeFactor](https://www.codefactor.io/repository/github/zhouqingqing/qpmodel/badge)](https://www.codefactor.io/repository/github/zhouqingqing/qpmodel)
 [![Coverage Status](https://coveralls.io/repos/github/zhouqingqing/qpmodel/badge.svg?branch=master)](https://coveralls.io/github/zhouqingqing/qpmodel?branch=master)
 
