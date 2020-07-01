@@ -1036,7 +1036,6 @@ namespace qpmodel.unittest
         }
     }
 
-
     [TestClass]
     public class Aggregation
     {
