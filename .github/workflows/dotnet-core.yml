@@ -27,7 +27,7 @@ jobs:
     - name: Unit Test Cover
       run: dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
         /p:CoverletOutput='/home/runner/work/qpmodel/qpmodel/test/lcov.info'
-        /p:ExcludeByFile=\"**/qpmodel/program.cs,**/qsql/**/*.cs,**/qsql/*.cs,**/qpmodel/obj/**/*.cs\"
+        /p:ExcludeByFile=\"**/qpmodel/program.cs,**/psql/**/*.cs,**/psql/*.cs,**/qpmodel/obj/**/*.cs\"
     - name: Coveralls
       uses: coverallsapp/github-action@master
       with:
