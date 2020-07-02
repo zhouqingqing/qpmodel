@@ -1,0 +1,76 @@
+SELECT MIN(n.name) AS of_person,
+       MIN(t.title) AS biography_movie
+FROM aka_name AS an,
+     cast_info AS ci,
+     info_type AS it,
+     link_type AS lt,
+     movie_link AS ml,
+     name AS n,
+     person_info AS pi,
+     title AS t
+WHERE an.name LIKE '%a%'
+  AND it.info ='mini biography'
+  AND lt.link ='features'
+  AND n.name_pcode_cf LIKE 'D%'
+  AND n.gender='m'
+  AND pi.note ='Volker Boehm'
+  AND t.production_year BETWEEN (1980 , 1984)
+  AND n.id = an.person_id
+  AND n.id = pi.person_id
+  AND ci.person_id = n.id
+  AND t.id = ci.movie_id
+  AND ml.linked_movie_id = t.id
+  AND lt.id = ml.link_type_id
+  AND it.id = pi.info_type_id
+  AND pi.person_id = an.person_id
+  AND pi.person_id = ci.person_id
+  AND an.person_id = ci.person_id
+  AND ci.movie_id = ml.linked_movie_id
+Total cost: 95209746, memory=10737509336
+PhysicHashAgg  (inccost=95209746, cost=3, rows=1, memory=4294967296) (actual rows=1)
+    Output: {min(name)}[0],{min(title)}[1]
+    Aggregates: min(name[0]), min(title[1])
+    -> PhysicHashJoin  (inccost=95209743, cost=901346, rows=1, memory=4294967320) (actual rows=0)
+        Output: name[0],title[1]
+        Filter: id[2]=person_id[5] and person_id[3]=person_id[5] and person_id[5]=person_id[4]
+        -> PhysicHashJoin  (inccost=93407054, cost=78320, rows=1, memory=2147483688) (actual rows=0)
+            Output: name[0],title[6],id[1],person_id[2],person_id[3]
+            Filter: id[7]=movie_id[4] and linked_movie_id[5]=id[7]
+            -> PhysicHashJoin  (inccost=90800422, cost=2685502, rows=1, memory=24992) (actual rows=0)
+                Output: name[4],id[5],person_id[0],person_id[1],movie_id[2],linked_movie_id[3]
+                Filter: id[5]=person_id[0] and person_id[1]=id[5]
+                -> PhysicHashJoin  (inccost=83947429, cost=4207856, rows=781, memory=36048) (actual rows=0)
+                    Output: person_id[0],person_id[2],movie_id[3],linked_movie_id[4]
+                    Filter: id[5]=info_type_id[1] and person_id[0]=person_id[2]
+                    -> PhysicScanTable person_info as pi (inccost=2963664, cost=2963664, rows=2253) (actual rows=0)
+                        Output: person_id[1],info_type_id[2]
+                        Filter: note[4]='Volker Boehm'
+                    -> PhysicHashJoin  (inccost=76775909, cost=40448840, rows=4200748, memory=29984) (actual rows=0)
+                        Output: person_id[2],movie_id[3],linked_movie_id[0],id[1]
+                        Filter: movie_id[3]=linked_movie_id[0]
+                        -> PhysicNLJoin  (inccost=82725, cost=20724, rows=1874) (actual rows=0)
+                            Output: linked_movie_id[0],id[1]
+                            -> PhysicHashJoin  (inccost=61888, cost=31873, rows=1874, memory=8) (actual rows=0)
+                                Output: linked_movie_id[1]
+                                Filter: id[0]=link_type_id[2]
+                                -> PhysicScanTable link_type as lt (inccost=18, cost=18, rows=1) (actual rows=0)
+                                    Output: id[0]
+                                    Filter: link[1]='features'
+                                -> PhysicScanTable movie_link as ml (inccost=29997, cost=29997, rows=29997) (actual rows=0)
+                                    Output: linked_movie_id[2],link_type_id[3]
+                            -> PhysicScanTable info_type as it (inccost=113, cost=113, rows=1) (actual rows=0)
+                                Output: id[0]
+                                Filter: info[1]='mini biography'
+                        -> PhysicScanTable cast_info as ci (inccost=36244344, cost=36244344, rows=36244344) (actual rows=0)
+                            Output: person_id[1],movie_id[2]
+                -> PhysicScanTable name as n (inccost=4167491, cost=4167491, rows=2683939) (actual rows=0)
+                    Output: name[1],id[0]
+                    Filter: name_pcode_cf[5]like'D%' and gender[4]='m'
+            -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=78317) (actual rows=0)
+                Output: title[1],id[0]
+                Filter: production_year[4]>=1980 and production_year[4]<=1984
+        -> PhysicScanTable aka_name as an (inccost=901343, cost=901343, rows=901343) (actual rows=0)
+            Output: person_id[1]
+            Filter: name[2]like'%a%'
+,
+

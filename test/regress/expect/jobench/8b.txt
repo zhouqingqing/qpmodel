@@ -1,0 +1,73 @@
+SELECT MIN(an.name) AS acress_pseudonym,
+       MIN(t.title) AS japanese_anime_movie
+FROM aka_name AS an,
+     cast_info AS ci,
+     company_name AS cn,
+     movie_companies AS mc,
+     name AS n,
+     role_type AS rt,
+     title AS t
+WHERE ci.note ='(voice: English version)'
+  AND cn.country_code ='[jp]'
+  AND mc.note LIKE '%(Japan)%'
+  AND mc.note NOT LIKE '%(USA)%'
+  AND (mc.note LIKE '%(2006)%'
+       OR mc.note LIKE '%(2007)%')
+  AND n.name LIKE '%Yo%'
+  AND n.name NOT LIKE '%Yu%'
+  AND rt.role ='actress'
+  AND t.production_year BETWEEN (2006 , 2007)
+  AND (t.title LIKE 'One Piece%'
+       OR t.title LIKE 'Dragon Ball Z%')
+  AND an.person_id = n.id
+  AND n.id = ci.person_id
+  AND ci.movie_id = t.id
+  AND t.id = mc.movie_id
+  AND mc.company_id = cn.id
+  AND ci.role_id = rt.id
+  AND an.person_id = ci.person_id
+  AND ci.movie_id = mc.movie_id
+Total cost: 51999002, memory=8589934696
+PhysicHashAgg  (inccost=51999002, cost=3, rows=1, memory=4294967296) (actual rows=1)
+    Output: {min(name)}[0],{min(title)}[1]
+    Aggregates: min(name[0]), min(title[1])
+    -> PhysicHashJoin  (inccost=51998999, cost=901346, rows=1, memory=2147483664) (actual rows=0)
+        Output: name[3],title[0]
+        Filter: person_id[4]=id[1] and person_id[4]=person_id[2]
+        -> PhysicHashJoin  (inccost=50196310, cost=4, rows=1, memory=2147483656) (actual rows=0)
+            Output: title[0],id[2],person_id[3]
+            Filter: movie_id[4]=id[1] and id[1]=movie_id[5]
+            -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=1) (actual rows=0)
+                Output: title[1],id[0]
+                Filter: production_year[4]>=2006 and production_year[4]<=2007 and title[1]like'One Piece%' or title[1]like'Dragon Ball Z%'
+            -> PhysicHashJoin  (inccost=47667994, cost=4, rows=1, memory=8) (actual rows=0)
+                Output: id[1],person_id[2],movie_id[3],movie_id[4]
+                Filter: role_id[5]=id[0]
+                -> PhysicScanTable role_type as rt (inccost=12, cost=12, rows=1) (actual rows=0)
+                    Output: id[0]
+                    Filter: role[1]='actress'
+                -> PhysicHashJoin  (inccost=47667978, cost=4167494, rows=1, memory=32) (actual rows=0)
+                    Output: id[4],person_id[0],movie_id[1],movie_id[2],role_id[3]
+                    Filter: id[4]=person_id[0]
+                    -> PhysicHashJoin  (inccost=39332993, cost=237001, rows=1, memory=8) (actual rows=0)
+                        Output: person_id[1],movie_id[2],movie_id[0],role_id[3]
+                        Filter: movie_id[2]=movie_id[0]
+                        -> PhysicHashJoin  (inccost=2851648, cost=7522, rows=1, memory=32) (actual rows=0)
+                            Output: movie_id[0]
+                            Filter: company_id[1]=id[2]
+                            -> PhysicScanTable movie_companies as mc (inccost=2609129, cost=2609129, rows=2) (actual rows=0)
+                                Output: movie_id[1],company_id[2]
+                                Filter: note[4]like'%(Japan)%' and note[4]not like'%(USA)%' and note[4]like'%(2006)%' or note[4]like'%(2007)%'
+                            -> PhysicScanTable company_name as cn (inccost=234997, cost=234997, rows=7517) (actual rows=0)
+                                Output: id[0]
+                                Filter: country_code[2]='[jp]'
+                        -> PhysicScanTable cast_info as ci (inccost=36244344, cost=36244344, rows=236998) (actual rows=0)
+                            Output: person_id[1],movie_id[2],role_id[6]
+                            Filter: note[4]='(voice: English version)'
+                    -> PhysicScanTable name as n (inccost=4167491, cost=4167491, rows=4167491) (actual rows=0)
+                        Output: id[0]
+                        Filter: name[1]like'%Yo%' and name[1]not like'%Yu%'
+        -> PhysicScanTable aka_name as an (inccost=901343, cost=901343, rows=901343) (actual rows=0)
+            Output: name[2],person_id[1]
+,
+

@@ -1,0 +1,76 @@
+SELECT MIN(cn.name) AS from_company,
+       MIN(lt.link) AS movie_link_type,
+       MIN(t.title) AS non_polish_sequel_movie
+FROM company_name AS cn,
+     company_type AS ct,
+     keyword AS k,
+     link_type AS lt,
+     movie_companies AS mc,
+     movie_keyword AS mk,
+     movie_link AS ml,
+     title AS t
+WHERE cn.country_code !='[pl]'
+  AND (cn.name LIKE '%Film%'
+       OR cn.name LIKE '%Warner%')
+  AND ct.kind ='production companies'
+  AND k.keyword ='sequel'
+  AND lt.link LIKE '%follow%'
+  AND mc.note IS NULL
+  AND t.production_year BETWEEN (1950 , 2000)
+  AND lt.id = ml.link_type_id
+  AND ml.movie_id = t.id
+  AND t.id = mk.movie_id
+  AND mk.keyword_id = k.id
+  AND t.id = mc.movie_id
+  AND mc.company_type_id = ct.id
+  AND mc.company_id = cn.id
+  AND ml.movie_id = mk.movie_id
+  AND ml.movie_id = mc.movie_id
+  AND mk.movie_id = mc.movie_id
+Total cost: 18171307, memory=6442454960
+PhysicHashAgg  (inccost=18171307, cost=3, rows=1, memory=4294967360) (actual rows=1)
+    Output: {min(name)}[0],{min(link)}[1],{min(title)}[2]
+    Aggregates: min(name[0]), min(link[1]), min(title[2])
+    -> PhysicHashJoin  (inccost=18171304, cost=9763, rows=1, memory=2147483720) (actual rows=0)
+        Output: name[3],link[0],title[1]
+        Filter: company_id[2]=id[4]
+        -> PhysicHashJoin  (inccost=17926544, cost=937557, rows=1, memory=96) (actual rows=0)
+            Output: link[0],title[5],company_id[1]
+            Filter: movie_id[2]=id[6] and id[6]=movie_id[3] and id[6]=movie_id[4]
+            -> PhysicHashJoin  (inccost=14460675, cost=2609148, rows=1, memory=792) (actual rows=0)
+                Output: link[0],company_id[4],movie_id[1],movie_id[2],movie_id[5]
+                Filter: movie_id[2]=movie_id[5] and movie_id[1]=movie_id[5] and company_type_id[6]=id[3]
+                -> PhysicHashJoin  (inccost=9242398, cost=30072, rows=9, memory=2904) (actual rows=0)
+                    Output: link[0],movie_id[4],movie_id[1],id[2]
+                    Filter: id[3]=link_type_id[5] and movie_id[4]=movie_id[1]
+                    -> PhysicHashJoin  (inccost=9182329, cost=4523965, rows=33, memory=88) (actual rows=0)
+                        Output: link[0],movie_id[4],id[1],id[2]
+                        Filter: keyword_id[5]=id[3]
+                        -> PhysicNLJoin  (inccost=134434, cost=121, rows=1) (actual rows=0)
+                            Output: link[0],id[2],id[1],id[3]
+                            -> PhysicScanTable link_type as lt (inccost=18, cost=18, rows=1) (actual rows=0)
+                                Output: link[1],id[0]
+                                Filter: link[1]like'%follow%'
+                            -> PhysicNLJoin  (inccost=134295, cost=121, rows=1) (actual rows=0)
+                                Output: id[1],id[0]
+                                -> PhysicScanTable keyword as k (inccost=134170, cost=134170, rows=1) (actual rows=0)
+                                    Output: id[0]
+                                    Filter: keyword[1]='sequel'
+                                -> PhysicScanTable company_type as ct (inccost=4, cost=4, rows=1) (actual rows=0)
+                                    Output: id[0]
+                                    Filter: kind[1]='production companies'
+                        -> PhysicScanTable movie_keyword as mk (inccost=4523930, cost=4523930, rows=4523930) (actual rows=0)
+                            Output: movie_id[1],keyword_id[2]
+                    -> PhysicScanTable movie_link as ml (inccost=29997, cost=29997, rows=29997) (actual rows=0)
+                        Output: movie_id[1],link_type_id[3]
+                -> PhysicScanTable movie_companies as mc (inccost=2609129, cost=2609129, rows=2609129) (actual rows=0)
+                    Output: company_id[2],movie_id[1],company_type_id[3]
+                    Filter: note[4]isnull
+            -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=937554) (actual rows=0)
+                Output: title[1],id[0]
+                Filter: production_year[4]>=1950 and production_year[4]<=2000
+        -> PhysicScanTable company_name as cn (inccost=234997, cost=234997, rows=9760) (actual rows=0)
+            Output: name[1],id[0]
+            Filter: country_code[2]!='[pl]' and name[1]like'%Film%' or name[1]like'%Warner%'
+,,
+

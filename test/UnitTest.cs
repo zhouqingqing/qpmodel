@@ -211,17 +211,29 @@ namespace qpmodel.unittest
         public void TestJobench()
         {
             var files = Directory.GetFiles(@"../../../../jobench");
+            var stats_fn = "../../../../jobench/statistics/jobench_stats";
 
             JOBench.CreateTables();
+
+            Catalog.sysstat_.read_serialized_stats(stats_fn);
+
+            // run tests and compare plan
+            string sql_dir_fn = "../../../../jobench";
+            string write_dir_fn = $"../../../../test/regress/output/jobench";
+            string expect_dir_fn = $"../../../../test/regress/expect/jobench";
 
             // make sure all queries can generate phase one opt plan
             QueryOption option = new QueryOption();
             option.optimize_.TurnOnAllOptimizations();
-            foreach (var v in files)
+
+            try
             {
-                var sql = File.ReadAllText(v);
-                var result = TU.ExecuteSQL(sql, out string phyplan, option);
-                Assert.IsNotNull(phyplan); Assert.IsNotNull(result);
+                ExplainOption.show_tablename_ = false;
+                RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, new string[] { "" } );
+            }
+            finally
+            {
+                ExplainOption.show_tablename_ = true;
             }
         }
 

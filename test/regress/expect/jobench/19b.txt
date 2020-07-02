@@ -1,0 +1,100 @@
+SELECT MIN(n.name) AS voicing_actress,
+       MIN(t.title) AS kung_fu_panda
+FROM aka_name AS an,
+     char_name AS chn,
+     cast_info AS ci,
+     company_name AS cn,
+     info_type AS it,
+     movie_companies AS mc,
+     movie_info AS mi,
+     name AS n,
+     role_type AS rt,
+     title AS t
+WHERE ci.note = '(voice)'
+  AND cn.country_code ='[us]'
+  AND it.info = 'release dates'
+  AND mc.note LIKE '%(200%)%'
+  AND (mc.note LIKE '%(USA)%'
+       OR mc.note LIKE '%(worldwide)%')
+  AND mi.info IS NOT NULL
+  AND (mi.info LIKE 'Japan:%2007%'
+       OR mi.info LIKE 'USA:%2008%')
+  AND n.gender ='f'
+  AND n.name LIKE '%Angel%'
+  AND rt.role ='actress'
+  AND t.production_year BETWEEN (2007 , 2008)
+  AND t.title LIKE '%Kung%Fu%Panda%'
+  AND t.id = mi.movie_id
+  AND t.id = mc.movie_id
+  AND t.id = ci.movie_id
+  AND mc.movie_id = ci.movie_id
+  AND mc.movie_id = mi.movie_id
+  AND mi.movie_id = ci.movie_id
+  AND cn.id = mc.company_id
+  AND it.id = mi.info_type_id
+  AND n.id = ci.person_id
+  AND rt.id = ci.role_id
+  AND n.id = an.person_id
+  AND ci.person_id = an.person_id
+  AND chn.id = ci.person_role_id
+Total cost: 70628941, memory=10737418544
+PhysicHashAgg  (inccost=70628941, cost=3, rows=1, memory=4294967296) (actual rows=1)
+    Output: {min(name)}[0],{min(title)}[1]
+    Aggregates: min(name[0]), min(title[1])
+    -> PhysicHashJoin  (inccost=70628938, cost=901346, rows=1, memory=4294967312) (actual rows=0)
+        Output: name[0],title[1]
+        Filter: id[2]=person_id[4] and person_id[3]=person_id[4]
+        -> PhysicHashJoin  (inccost=68826249, cost=6, rows=1, memory=2147483688) (actual rows=0)
+            Output: name[0],title[6],id[1],person_id[2]
+            Filter: id[7]=movie_id[3] and id[7]=movie_id[4] and id[7]=movie_id[5]
+            -> PhysicHashJoin  (inccost=66297931, cost=4, rows=1, memory=8) (actual rows=0)
+                Output: name[1],id[2],person_id[3],movie_id[4],movie_id[5],movie_id[6]
+                Filter: id[0]=role_id[7]
+                -> PhysicScanTable role_type as rt (inccost=12, cost=12, rows=1) (actual rows=0)
+                    Output: id[0]
+                    Filter: role[1]='actress'
+                -> PhysicHashJoin  (inccost=66297915, cost=11871, rows=1, memory=40) (actual rows=0)
+                    Output: name[5],id[6],person_id[0],movie_id[1],movie_id[2],movie_id[3],role_id[4]
+                    Filter: id[6]=person_id[0]
+                    -> PhysicHashJoin  (inccost=62118553, cost=3140342, rows=1, memory=48) (actual rows=0)
+                        Output: person_id[0],movie_id[1],movie_id[2],movie_id[3],role_id[4]
+                        Filter: id[6]=person_role_id[5]
+                        -> PhysicHashJoin  (inccost=55837872, cost=1817244, rows=1, memory=16) (actual rows=0)
+                            Output: person_id[2],movie_id[0],movie_id[1],movie_id[3],role_id[4],person_role_id[5]
+                            Filter: movie_id[1]=movie_id[3] and movie_id[0]=movie_id[3]
+                            -> PhysicHashJoin  (inccost=17776284, cost=94462, rows=1, memory=24) (actual rows=0)
+                                Output: movie_id[0],movie_id[1]
+                                Filter: id[3]=company_id[2]
+                                -> PhysicHashJoin  (inccost=17446825, cost=861, rows=1, memory=104) (actual rows=0)
+                                    Output: movie_id[0],movie_id[1],company_id[2]
+                                    Filter: movie_id[1]=movie_id[0]
+                                    -> PhysicHashJoin  (inccost=14836835, cost=1002, rows=13, memory=8) (actual rows=0)
+                                        Output: movie_id[1]
+                                        Filter: id[0]=info_type_id[2]
+                                        -> PhysicScanTable info_type as it (inccost=113, cost=113, rows=1) (actual rows=0)
+                                            Output: id[0]
+                                            Filter: info[1]='release dates'
+                                        -> PhysicScanTable movie_info as mi (inccost=14835720, cost=14835720, rows=987) (actual rows=0)
+                                            Output: movie_id[1],info_type_id[2]
+                                            Filter: info[3]is notnull and info[3]like'Japan:%2007%' or info[3]like'USA:%2008%'
+                                    -> PhysicScanTable movie_companies as mc (inccost=2609129, cost=2609129, rows=834) (actual rows=0)
+                                        Output: movie_id[1],company_id[2]
+                                        Filter: note[4]like'%(200%)%' and note[4]like'%(USA)%' or note[4]like'%(worldwide)%'
+                                -> PhysicScanTable company_name as cn (inccost=234997, cost=234997, rows=94459) (actual rows=0)
+                                    Output: id[0]
+                                    Filter: country_code[2]='[us]'
+                            -> PhysicScanTable cast_info as ci (inccost=36244344, cost=36244344, rows=1817241) (actual rows=0)
+                                Output: person_id[1],movie_id[2],role_id[6],person_role_id[3]
+                                Filter: note[4]='(voice)'
+                        -> PhysicScanTable char_name as chn (inccost=3140339, cost=3140339, rows=3140339) (actual rows=0)
+                            Output: id[0]
+                    -> PhysicScanTable name as n (inccost=4167491, cost=4167491, rows=11868) (actual rows=0)
+                        Output: name[1],id[0]
+                        Filter: gender[4]='f' and name[1]like'%Angel%'
+            -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=3) (actual rows=0)
+                Output: title[1],id[0]
+                Filter: production_year[4]>=2007 and production_year[4]<=2008 and title[1]like'%Kung%Fu%Panda%'
+        -> PhysicScanTable aka_name as an (inccost=901343, cost=901343, rows=901343) (actual rows=0)
+            Output: person_id[1]
+,
+

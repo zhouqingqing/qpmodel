@@ -1,0 +1,49 @@
+SELECT MIN(mc.note) AS production_note,
+       MIN(t.title) AS movie_title,
+       MIN(t.production_year) AS movie_year
+FROM company_type AS ct,
+     info_type AS it,
+     movie_companies AS mc,
+     movie_info_idx AS mi_idx,
+     title AS t
+WHERE ct.kind = 'production companies'
+  AND it.info = 'bottom 10 rank'
+  AND mc.note NOT LIKE '%(as Metro-Goldwyn-Mayer Pictures)%'
+  AND t.production_year >2000
+  AND ct.id = mc.company_type_id
+  AND t.id = mc.movie_id
+  AND t.id = mi_idx.movie_id
+  AND mc.movie_id = mi_idx.movie_id
+  AND it.id = mi_idx.info_type_id
+Total cost: 17310258, memory=3053638020553152
+PhysicHashAgg  (inccost=17310258, cost=4, rows=1, memory=4294967304) (actual rows=1)
+    Output: {min(note)}[0],{min(title)}[1],{min(production_year)}[2]
+    Aggregates: min(note[0]), min(title[1]), min(production_year[2])
+    -> PhysicHashJoin  (inccost=17310254, cost=8, rows=2, memory=8) (actual rows=0)
+        Output: note[1],title[2],production_year[3]
+        Filter: id[0]=company_type_id[4]
+        -> PhysicScanTable company_type as ct (inccost=4, cost=4, rows=1) (actual rows=0)
+            Output: id[0]
+            Filter: kind[1]='production companies'
+        -> PhysicHashJoin  (inccost=17310242, cost=4409694, rows=4, memory=3053633723377776) (actual rows=0)
+            Output: note[3],title[0],production_year[1],company_type_id[4]
+            Filter: id[2]=movie_id[5] and id[2]=movie_id[6]
+            -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=1421959) (actual rows=0)
+                Output: title[1],production_year[4],id[0]
+                Filter: production_year[4]>2000
+            -> PhysicHashJoin  (inccost=10372236, cost=4726915, rows=1565772, memory=2208056) (actual rows=0)
+                Output: note[1],company_type_id[2],movie_id[3],movie_id[0]
+                Filter: movie_id[3]=movie_id[0]
+                -> PhysicHashJoin  (inccost=3036192, cost=1656044, rows=276007, memory=8) (actual rows=0)
+                    Output: movie_id[1]
+                    Filter: id[0]=info_type_id[2]
+                    -> PhysicScanTable info_type as it (inccost=113, cost=113, rows=1) (actual rows=0)
+                        Output: id[0]
+                        Filter: info[1]='bottom 10 rank'
+                    -> PhysicScanTable movie_info_idx as mi_idx (inccost=1380035, cost=1380035, rows=1380035) (actual rows=0)
+                        Output: movie_id[1],info_type_id[2]
+                -> PhysicScanTable movie_companies as mc (inccost=2609129, cost=2609129, rows=2609129) (actual rows=0)
+                    Output: note[4],company_type_id[3],movie_id[1]
+                    Filter: note[4]not like'%(as Metro-Goldwyn-Mayer Pictures)%'
+,,
+

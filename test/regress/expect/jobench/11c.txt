@@ -1,0 +1,78 @@
+SELECT MIN(cn.name) AS from_company,
+       MIN(mc.note) AS production_note,
+       MIN(t.title) AS movie_based_on_book
+FROM company_name AS cn,
+     company_type AS ct,
+     keyword AS k,
+     link_type AS lt,
+     movie_companies AS mc,
+     movie_keyword AS mk,
+     movie_link AS ml,
+     title AS t
+WHERE cn.country_code !='[pl]'
+  AND (cn.name LIKE '20th Century Fox%'
+       OR cn.name LIKE 'Twentieth Century Fox%')
+  AND ct.kind != 'production companies'
+  AND ct.kind IS NOT NULL
+  AND k.keyword IN ('sequel',
+                    'revenge',
+                    'based-on-novel')
+  AND mc.note IS NOT NULL
+  AND t.production_year > 1950
+  AND lt.id = ml.link_type_id
+  AND ml.movie_id = t.id
+  AND t.id = mk.movie_id
+  AND mk.keyword_id = k.id
+  AND t.id = mc.movie_id
+  AND mc.company_type_id = ct.id
+  AND mc.company_id = cn.id
+  AND ml.movie_id = mk.movie_id
+  AND ml.movie_id = mc.movie_id
+  AND mk.movie_id = mc.movie_id
+Total cost: 19582992, memory=2385854366184
+PhysicHashAgg  (inccost=19582992, cost=3, rows=1, memory=6442450944) (actual rows=1)
+    Output: {min(name)}[0],{min(note)}[1],{min(title)}[2]
+    Aggregates: min(name[0]), min(note[1]), min(title[2])
+    -> PhysicHashJoin  (inccost=19582989, cost=4, rows=1, memory=2147483656) (actual rows=0)
+        Output: name[0],note[2],title[3]
+        Filter: company_id[4]=id[1]
+        -> PhysicScanTable company_name as cn (inccost=234997, cost=234997, rows=1) (actual rows=0)
+            Output: name[1],id[0]
+            Filter: country_code[2]!='[pl]' and name[1]like'20th Century Fox%' or name[1]like'Twentieth Century Fox%'
+        -> PhysicHashJoin  (inccost=19347988, cost=2354613, rows=1, memory=2147483680) (actual rows=0)
+            Output: note[0],title[5],company_id[1]
+            Filter: movie_id[2]=id[6] and id[6]=movie_id[3] and id[6]=movie_id[4]
+            -> PhysicHashJoin  (inccost=14465063, cost=21, rows=1, memory=2147483688) (actual rows=0)
+                Output: note[0],company_id[1],movie_id[2],movie_id[3],movie_id[4]
+                Filter: id[6]=link_type_id[5]
+                -> PhysicHashJoin  (inccost=14465024, cost=32212, rows=1, memory=2372969457560) (actual rows=0)
+                    Output: note[0],company_id[1],movie_id[4],movie_id[2],movie_id[3],link_type_id[5]
+                    Filter: movie_id[4]=movie_id[3] and movie_id[4]=movie_id[2]
+                    -> PhysicHashJoin  (inccost=14402815, cost=2611042, rows=1105, memory=6464) (actual rows=0)
+                        Output: note[2],company_id[3],movie_id[0],movie_id[4]
+                        Filter: movie_id[0]=movie_id[4] and company_type_id[5]=id[1]
+                        -> PhysicHashJoin  (inccost=9182644, cost=4524358, rows=404, memory=192) (actual rows=0)
+                            Output: movie_id[2],id[0]
+                            Filter: keyword_id[3]=id[1]
+                            -> PhysicNLJoin  (inccost=134356, cost=182, rows=12) (actual rows=0)
+                                Output: id[1],id[0]
+                                -> PhysicScanTable keyword as k (inccost=134170, cost=134170, rows=3) (actual rows=0)
+                                    Output: id[0]
+                                    Filter: keyword[1] in ('sequel','revenge','based-on-novel')
+                                -> PhysicScanTable company_type as ct (inccost=4, cost=4, rows=4) (actual rows=0)
+                                    Output: id[0]
+                                    Filter: kind[1]!='production companies' and kind[1]is notnull
+                            -> PhysicScanTable movie_keyword as mk (inccost=4523930, cost=4523930, rows=4523930) (actual rows=0)
+                                Output: movie_id[1],keyword_id[2]
+                        -> PhysicScanTable movie_companies as mc (inccost=2609129, cost=2609129, rows=2609129) (actual rows=0)
+                            Output: note[4],company_id[2],movie_id[1],company_type_id[3]
+                            Filter: note[4]is notnull
+                    -> PhysicScanTable movie_link as ml (inccost=29997, cost=29997, rows=29997) (actual rows=0)
+                        Output: movie_id[1],link_type_id[3]
+                -> PhysicScanTable link_type as lt (inccost=18, cost=18, rows=18) (actual rows=0)
+                    Output: id[0]
+            -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=2354610) (actual rows=0)
+                Output: title[1],id[0]
+                Filter: production_year[4]>1950
+,,
+

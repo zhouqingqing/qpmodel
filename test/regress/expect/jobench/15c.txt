@@ -1,0 +1,84 @@
+SELECT MIN(mi.info) AS release_date,
+       MIN(t.title) AS modern_american_internet_movie
+FROM aka_title AS at,
+     company_name AS cn,
+     company_type AS ct,
+     info_type AS it1,
+     keyword AS k,
+     movie_companies AS mc,
+     movie_info AS mi,
+     movie_keyword AS mk,
+     title AS t
+WHERE cn.country_code = '[us]'
+  AND it1.info = 'release dates'
+  AND mi.note LIKE '%internet%'
+  AND mi.info IS NOT NULL
+  AND (mi.info LIKE 'USA:% 199%'
+       OR mi.info LIKE 'USA:% 200%')
+  AND t.production_year > 1990
+  AND t.id = at.movie_id
+  AND t.id = mi.movie_id
+  AND t.id = mk.movie_id
+  AND t.id = mc.movie_id
+  AND mk.movie_id = mi.movie_id
+  AND mk.movie_id = mc.movie_id
+  AND mk.movie_id = at.movie_id
+  AND mi.movie_id = mc.movie_id
+  AND mi.movie_id = at.movie_id
+  AND mc.movie_id = at.movie_id
+  AND k.id = mk.keyword_id
+  AND it1.id = mi.info_type_id
+  AND cn.id = mc.company_id
+  AND ct.id = mc.company_type_id
+Total cost: 34751416, memory=40802189600
+PhysicHashAgg  (inccost=34751416, cost=3, rows=1, memory=4294967296) (actual rows=1)
+    Output: {min(info)}[0],{min(title)}[1]
+    Aggregates: min(info[0]), min(title[1])
+    -> PhysicHashJoin  (inccost=34751413, cost=361475, rows=1, memory=4294967328) (actual rows=0)
+        Output: info[0],title[1]
+        Filter: id[2]=movie_id[6] and movie_id[3]=movie_id[6] and movie_id[4]=movie_id[6] and movie_id[5]=movie_id[6]
+        -> PhysicHashJoin  (inccost=34028466, cost=134173, rows=1, memory=4294967336) (actual rows=0)
+            Output: info[0],title[1],id[2],movie_id[3],movie_id[4],movie_id[5]
+            Filter: id[7]=keyword_id[6]
+            -> PhysicHashJoin  (inccost=33760123, cost=4523933, rows=1, memory=4294967320) (actual rows=0)
+                Output: info[0],title[1],id[2],movie_id[5],movie_id[3],movie_id[4],keyword_id[6]
+                Filter: id[2]=movie_id[5] and movie_id[5]=movie_id[4] and movie_id[5]=movie_id[3]
+                -> PhysicHashJoin  (inccost=24712260, cost=4, rows=1, memory=8589934656) (actual rows=0)
+                    Output: info[0],title[1],id[2],movie_id[3],movie_id[4]
+                    Filter: id[6]=info_type_id[5]
+                    -> PhysicHashJoin  (inccost=24712143, cost=8, rows=2, memory=4294967336) (actual rows=0)
+                        Output: info[0],title[1],id[2],movie_id[3],movie_id[4],info_type_id[5]
+                        Filter: id[7]=company_type_id[6]
+                        -> PhysicHashJoin  (inccost=24712131, cost=94462, rows=1, memory=4294967344) (actual rows=0)
+                            Output: info[0],title[1],id[2],movie_id[3],movie_id[4],info_type_id[5],company_type_id[6]
+                            Filter: id[8]=company_id[7]
+                            -> PhysicHashJoin  (inccost=24382672, cost=2609132, rows=1, memory=4294967320) (actual rows=0)
+                                Output: info[0],title[1],id[2],movie_id[3],movie_id[5],info_type_id[4],company_type_id[6],company_id[7]
+                                Filter: movie_id[3]=movie_id[5] and id[2]=movie_id[5]
+                                -> PhysicHashJoin  (inccost=19164411, cost=1800379, rows=1, memory=2147483664) (actual rows=0)
+                                    Output: info[0],title[3],id[4],movie_id[1],info_type_id[2]
+                                    Filter: id[4]=movie_id[1]
+                                    -> PhysicScanTable movie_info as mi (inccost=14835720, cost=14835720, rows=1) (actual rows=0)
+                                        Output: info[3],movie_id[1],info_type_id[2]
+                                        Filter: note[4]like'%internet%' and info[3]is notnull and info[3]like'USA:% 199%' or info[3]like'USA:% 200%'
+                                    -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=1800376) (actual rows=0)
+                                        Output: title[1],id[0]
+                                        Filter: production_year[4]>1990
+                                -> PhysicScanTable movie_companies as mc (inccost=2609129, cost=2609129, rows=2609129) (actual rows=0)
+                                    Output: movie_id[1],company_type_id[3],company_id[2]
+                            -> PhysicScanTable company_name as cn (inccost=234997, cost=234997, rows=94459) (actual rows=0)
+                                Output: id[0]
+                                Filter: country_code[2]='[us]'
+                        -> PhysicScanTable company_type as ct (inccost=4, cost=4, rows=4) (actual rows=0)
+                            Output: id[0]
+                    -> PhysicScanTable info_type as it1 (inccost=113, cost=113, rows=1) (actual rows=0)
+                        Output: id[0]
+                        Filter: info[1]='release dates'
+                -> PhysicScanTable movie_keyword as mk (inccost=4523930, cost=4523930, rows=4523930) (actual rows=0)
+                    Output: movie_id[1],keyword_id[2]
+            -> PhysicScanTable keyword as k (inccost=134170, cost=134170, rows=134170) (actual rows=0)
+                Output: id[0]
+        -> PhysicScanTable aka_title as at (inccost=361472, cost=361472, rows=361472) (actual rows=0)
+            Output: movie_id[1]
+,
+
