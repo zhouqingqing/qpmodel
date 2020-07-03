@@ -65,7 +65,7 @@ namespace qpmodel.physic
         public override string ExplainOutput(int depth, ExplainOption option) => logic_.ExplainOutput(depth, option);
         public override string ExplainInlineDetails() => logic_.ExplainInlineDetails();
         public override string ExplainMoreDetails(int depth, ExplainOption option) => logic_.ExplainMoreDetails(depth, option);
-
+        
         public void ValidateThis()
         {
             VisitEach(x =>
@@ -161,7 +161,7 @@ namespace qpmodel.physic
             children_.ForEach(x =>
             {
                 if (x is PhysicMemoRef xp)
-                    incCost += xp.Group().minIncCost_;
+                    incCost += xp.Group().nullMinIncCost_;
                 else
                     incCost += x.InclusiveCost();
             });
@@ -188,6 +188,9 @@ namespace qpmodel.physic
 
             return memory;
         }
+        public virtual PhysicProperty RequiredProperty() => null;
+        public virtual PhysicProperty SuppiedProperty() => null;
+        public virtual PhysicProperty PropagatedProperty() => null;
         #endregion
 
         public BitVector tableContained_ { get => logic_.tableContained_; }
@@ -1059,6 +1062,20 @@ namespace qpmodel.physic
         protected override double EstimateCost()
         {
             return logic_.Card() * 2.0;
+        }
+        public override PhysicProperty RequiredProperty()
+        {
+            var collist = (logic_ as LogicAgg).groupby_;
+            if (collist.Count > 0)
+                return new PhysicProperty(collist);
+            return null;
+        }
+        public override PhysicProperty SuppiedProperty()
+        {
+            var collist = (logic_ as LogicAgg).groupby_;
+            if (collist.Count > 0)
+                return new PhysicProperty(collist);
+            return null;
         }
 
         public override void Open(ExecContext context)

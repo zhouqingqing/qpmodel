@@ -65,6 +65,7 @@ namespace qpmodel.logic
         // it is possible to really have this value but ok to recompute
         protected LogicSignature logicSign_ = -1;
 
+        public virtual Property TopDownRequirement() => null;
         public override string ExplainMoreDetails(int depth, ExplainOption option) => ExplainFilter(filter_, depth, option);
 
         public override string ExplainOutput(int depth, ExplainOption option)
@@ -1024,6 +1025,11 @@ namespace qpmodel.logic
             children_.Add(child);
             orders_ = orders;
             descends_ = descends;
+        }
+
+        public override Property TopDownRequirement()
+        {
+            return new PhysicProperty(orders_, descends_);
         }
 
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)

@@ -207,8 +207,8 @@ namespace qpmodel
                 Console.WriteLine("***************** optimized plan *************");
                 var optplan = a.SubstitutionOptimize();
                 Console.WriteLine(optplan.Explain(a.queryOpt_.explain_));
-                a.optimizer_.InitRootPlan(a);
-                a.optimizer_.OptimizeRootPlan(a, null);
+                a.optimizer_.Initialize(a);
+                a.optimizer_.ExploreRootPlan(a, null);
                 Console.WriteLine(a.optimizer_.PrintMemo());
                 phyplan = a.optimizer_.CopyOutOptimalPlan();
                 Console.WriteLine(a.optimizer_.PrintMemo());
