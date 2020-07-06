@@ -540,6 +540,20 @@ namespace qpmodel.unittest
             Assert.AreEqual(11, memo.cgroups_.Count);
             Assert.AreEqual(26, tlogics); Assert.AreEqual(42, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
+            var mstr = stmt.optimizer_.PrintMemo();
+            Assert.IsTrue(mstr.Contains("Summary: 26,42"));
+
+            // test join resolver
+            option.optimize_.memo_use_joinorder_solver_ = true;
+            result = TU.ExecuteSQL(sql, out stmt, out _, option);
+            memo = stmt.optimizer_.memoset_[0];
+            memo.CalcStats(out tlogics, out tphysics);
+            Assert.AreEqual(5, memo.cgroups_.Count);
+            Assert.AreEqual(5, tlogics); Assert.AreEqual(5, tphysics);
+            Assert.AreEqual("0;1;2", string.Join(";", result));
+            mstr = stmt.optimizer_.PrintMemo();
+            Assert.IsTrue(mstr.Contains("Summary: 5,5"));
+            option.optimize_.memo_use_joinorder_solver_ = false;
 
             sql = "select count(b1) from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1";
             result = TU.ExecuteSQL(sql, out stmt, out _, option);
@@ -1644,14 +1658,22 @@ namespace qpmodel.unittest
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicIndexSeek"));
             Assert.AreEqual("3,3,5,6", string.Join(";", result));
+            sql = "select * from d where 2<=d1;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicIndexSeek"));
+            Assert.AreEqual("2,2,,5;3,3,5,6", string.Join(";", result));
             sql = "select * from d where 2>d1;";
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicIndexSeek"));
             Assert.AreEqual("0,1,2,3;1,2,,4", string.Join(";", result));
+            sql = "select * from d where 1>=d1;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicIndexSeek"));
+            Assert.AreEqual("0,1,2,3;1,2,,4", string.Join(";", result));
             // TODO: not support 2<d1 AND d1<5
-    }
+        }
 
-    [TestMethod]
+        [TestMethod]
         public void TestPushdown()
         {
             var option = new QueryOption();

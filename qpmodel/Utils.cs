@@ -41,9 +41,7 @@ namespace qpmodel.utils
     {
         static int id_ = 0;
 
-        internal static void Reset() { id_ = 0; }
         internal static int NewId() { return ++id_; }
-        internal static int CurId() { return id_; }
     }
 
     // A generic nary-tree node
@@ -209,7 +207,6 @@ namespace qpmodel.utils
 
         // a contains b?
         public static bool ContainsList<T>(this List<T> a, List<T> b) => !b.Except(a).Any();
-        public static bool ListAEqualsB<T>(this List<T> a, List<T> b) => a.ContainsList(b) && b.ContainsList(a);
 
         // order insensitive
         //   if you need the list to be order sensitive compared, do it in Equals()
@@ -219,14 +216,6 @@ namespace qpmodel.utils
             if (l != null)
                 l.ForEach(x => hash ^= x.GetHashCode());
             return hash;
-        }
-
-        public static string RetrieveQuotedString(this string str)
-        {
-            Debug.Assert(str.Count(x => x == '\'') == 2);
-            var quotedstr = str.Substring(str.IndexOf('\''),
-                                        str.LastIndexOf('\'') - str.IndexOf('\'') + 1);
-            return quotedstr;
         }
 
         public static string RemoveStringQuotes(this string str)
