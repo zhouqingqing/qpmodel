@@ -143,7 +143,7 @@ namespace qpmodel.physic
         {
             if (double.IsNaN(cost_))
                 cost_ = EstimateCost();
-            Debug.Assert(cost_ >= 0 || cost_ is double.NaN);
+            Debug.Assert(cost_ >= 0);
             return cost_;
         }
         protected virtual double EstimateCost() => double.NaN;
@@ -163,7 +163,7 @@ namespace qpmodel.physic
                     incCost += x.InclusiveCost();
             });
 
-            Debug.Assert(double.IsNaN(incCost) || (incCost > Cost() || children_.Count == 0));
+            Debug.Assert(incCost > Cost() || children_.Count == 0);
             return incCost;
         }
 
