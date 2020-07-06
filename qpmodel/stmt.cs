@@ -54,7 +54,7 @@ namespace qpmodel.logic
         public PhysicNode physicPlan_;
 
         // others
-        public Optimizer optimizer_ = new Optimizer();
+        public Optimizer optimizer_;
         public QueryOption queryOpt_ = new QueryOption();
 
         // mark if current plan is distirbuted: it does not include children plan
@@ -97,8 +97,8 @@ namespace qpmodel.logic
 
             if (queryOpt_.optimize_.use_memo_)
             {
-                optimizer_.InitRootPlan(this);
-                optimizer_.OptimizeRootPlan(this, null);
+                optimizer_ = new Optimizer(this);
+                optimizer_.ExploreRootPlan(this);
                 physicPlan_ = optimizer_.CopyOutOptimalPlan();
             }
 

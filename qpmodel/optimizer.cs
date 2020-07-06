@@ -47,7 +47,13 @@ namespace qpmodel.optimizer
     public class Property { }
 
     // ordering, distribution
-    public class PhysicProperty : Property { }
+    public class PhysicProperty : Property
+    {
+        // ordering: the ordered expression and whether is descending
+        KeyValuePair<Expr, bool> ordering_;
+        KeyValuePair<Expr, DistributionType> distribution_;
+    }
+    public enum DistributionType { }
 
     // CGroupMember is a member of CMemoGroup, all these memebers are logically
     // equvalent but different logical/physical implementations
@@ -148,7 +154,7 @@ namespace qpmodel.optimizer
 
         // Apply rule to current members and generate a set of new members for each
         // of the new memberes, find/add itself or its children in the group
-        internal List<CGroupMember> OptimizeMember(Memo memo)
+        internal List<CGroupMember> ExploreMember(Memo memo)
         {
             var list = group_.exprList_;
             foreach (var rule in Rule.ruleset_)
@@ -221,8 +227,8 @@ namespace qpmodel.optimizer
         public List<CGroupMember> exprList_ = new List<CGroupMember>();
 
         public bool explored_ = false;
-        public CGroupMember minMember_ { get; set; }
-        public double minIncCost_ = double.NaN;
+        public CGroupMember generalMinMember_ { get; set; }
+        public double generalMinIncCost_ = double.NaN;
 
         // debug info
         internal Memo memo_;
@@ -288,7 +294,7 @@ namespace qpmodel.optimizer
         public string Print()
         {
             CountMembers(out int clogics, out int cphysics);
-            var str = $"{clogics}, {cphysics}, [{logicSign_}][{minIncCost_}]: ";
+            var str = $"{clogics}, {cphysics}, [{logicSign_}][{generalMinIncCost_}]: ";
             str += string.Join(",", exprList_);
             return str;
         }
@@ -299,7 +305,7 @@ namespace qpmodel.optimizer
             return exprList_[0].Logic() is LogicJoinBlock;
         }
 
-        internal void OptimizeSolverOptimizedGroupChildren(Memo memo, PhysicProperty required)
+        internal void OptimizeSolverOptimizedGroupChildren(Memo memo)
         {
             Debug.Assert(IsSolverOptimizedGroup());
             CGroupMember member = exprList_[0];
@@ -308,32 +314,38 @@ namespace qpmodel.optimizer
             // optimize all children group and newly generated groups
             var prevGroupCount = memo.cgroups_.Count;
             joinblock.children_.ForEach(x =>
-                    (x as LogicMemoRef).group_.OptimizeGroup(memo, required));
+                    (x as LogicMemoRef).group_.ExploreGroup(memo));
             while (memo.stack_.Count > prevGroupCount)
-                memo.stack_.Pop().OptimizeGroup(memo, required);
+                memo.stack_.Pop().ExploreGroup(memo);
 
             // calculate the lowest inclusive members
             foreach (var c in joinblock.children_)
                 (c as LogicMemoRef).group_.CalculateMinInclusiveCostMember();
         }
 
-        // loop through optimize members of the group
-        public void OptimizeGroup(Memo memo, PhysicProperty required)
+        // loop through and explore members of the group
+        public void ExploreGroup(Memo memo)
         {
             // solver group shall optimize all its children before it can start
             if (IsSolverOptimizedGroup())
-                OptimizeSolverOptimizedGroupChildren(memo, required);
+                OptimizeSolverOptimizedGroupChildren(memo);
 
             for (int i = 0; i < exprList_.Count; i++)
             {
                 CGroupMember member = exprList_[i];
 
                 // optimize the member and it shall generate a set of member
-                member.OptimizeMember(memo);
+                member.ExploreMember(memo);
             }
 
             // mark the group explored
             explored_ = true;
+        }
+
+        // propagate the property requirement from the top
+        public void PropagateProperty(PhysicProperty property)
+        {
+            return;
         }
 
         // scan through the member list and return the least cost member
@@ -346,14 +358,14 @@ namespace qpmodel.optimizer
                 if (physic != null && physic.Cost() < mincost)
                 {
                     mincost = physic.Cost();
-                    minMember_ = v;
+                    generalMinMember_ = v;
                 }
             }
 
-            minIncCost_ = mincost;
+            generalMinIncCost_ = mincost;
             Debug.Assert(IsSolverOptimizedGroup() ||
-                minMember_.physic_.InclusiveCost() == minIncCost_);
-            return minMember_;
+                generalMinMember_.physic_.InclusiveCost() == generalMinIncCost_);
+            return generalMinMember_;
         }
 
         public CGroupMember CalculateMinInclusiveCostMember()
@@ -362,8 +374,8 @@ namespace qpmodel.optimizer
             Debug.Assert(explored_);
             Debug.Assert(exprList_.Count >= 2);
 
-            if (minMember_ != null)
-                return minMember_;
+            if (generalMinMember_ != null)
+                return generalMinMember_;
 
             if (exprList_[0].Logic().children_.Count == 0 || IsSolverOptimizedGroup())
             {
@@ -386,7 +398,7 @@ namespace qpmodel.optimizer
                         {
                             var childgroup = (child as PhysicMemoRef).Group();
                             childgroup.CalculateMinInclusiveCostMember();
-                            cost += childgroup.minIncCost_;
+                            cost += childgroup.generalMinIncCost_;
                         }
                     }
                     incCost.Add(cost);
@@ -405,14 +417,14 @@ namespace qpmodel.optimizer
                     }
                 }
                 Debug.Assert(minindex != -1);
-                minMember_ = exprList_[minindex];
-                minIncCost_ = mincost;
-                Debug.Assert(minMember_.physic_.InclusiveCost() == minIncCost_);
+                generalMinMember_ = exprList_[minindex];
+                generalMinIncCost_ = mincost;
+                Debug.Assert(generalMinMember_.physic_.InclusiveCost() == generalMinIncCost_);
             }
 
-            Debug.Assert(minMember_.physic_ != null);
-            Debug.Assert(!double.IsNaN(minIncCost_));
-            return minMember_;
+            Debug.Assert(generalMinMember_.physic_ != null);
+            Debug.Assert(!double.IsNaN(generalMinIncCost_));
+            return generalMinMember_;
         }
 
         public PhysicNode CopyOutMinLogicPhysicPlan()
@@ -463,6 +475,7 @@ namespace qpmodel.optimizer
     {
         public SQLStatement stmt_;
         public CMemoGroup rootgroup_;
+        public PhysicProperty baseproperty_;
         [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
         public Dictionary<LogicSignature, CMemoGroup> cgroups_ = new Dictionary<LogicSignature, CMemoGroup>();
 
@@ -621,19 +634,19 @@ namespace qpmodel.optimizer
     public class Optimizer
     {
         public List<Memo> memoset_ = new List<Memo>();
-        public SQLStatement topstmt_;
+        public SQLStatement stmt_;
         public SelectStmt select_;
 
-        public void InitRootPlan(SQLStatement stmt)
+        public Optimizer(SQLStatement stmt)
         {
             // call once
             Rule.Init(stmt.queryOpt_);
-            topstmt_ = stmt;
+            stmt_ = stmt;
             select_ = stmt.ExtractSelect();
             memoset_.Clear();
         }
 
-        public void OptimizeRootPlan(SQLStatement stmt, PhysicProperty required, bool enqueueit = true)
+        public void ExploreRootPlan(SQLStatement stmt, bool enqueueit = true)
         {
             var select = stmt.ExtractSelect();
 
@@ -656,16 +669,22 @@ namespace qpmodel.optimizer
             foreach (var v in subqueries)
             {
                 enqueueit = !select.SubqueryIsWithMainQuery(v);
-                OptimizeRootPlan(v.query_, required, enqueueit);
+                ExploreRootPlan(v.query_, enqueueit);
             }
 
-            // loop through the stack, optimize each one until empty
+            // loop through the stack, explore each group until empty
             //
             while (memo.stack_.Count > 0)
             {
                 var group = memo.stack_.Pop();
-                group.OptimizeGroup(memo, required);
+                group.ExploreGroup(memo);
             }
+
+            // propagate the base property from top, 
+            // also propagate the new properties required by the member nodes
+            if (enqueueit)
+                memo.rootgroup_?.PropagateProperty(memo.baseproperty_);
+
             memo.ValidateMemo();
         }
 
@@ -714,7 +733,7 @@ namespace qpmodel.optimizer
         public PhysicNode CopyOutOptimalPlan()
         {
             PhysicNode selectplan = CopyOutOptimalPlan(select_);
-            return topstmt_.InstallSelectPlan(selectplan);
+            return stmt_.InstallSelectPlan(selectplan);
         }
 
         public string PrintMemo()

@@ -158,7 +158,7 @@ namespace qpmodel.physic
             children_.ForEach(x =>
             {
                 if (x is PhysicMemoRef xp)
-                    incCost += xp.Group().minIncCost_;
+                    incCost += xp.Group().generalMinIncCost_;
                 else
                     incCost += x.InclusiveCost();
             });
