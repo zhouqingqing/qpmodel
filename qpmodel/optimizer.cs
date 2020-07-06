@@ -227,8 +227,8 @@ namespace qpmodel.optimizer
         public List<CGroupMember> exprList_ = new List<CGroupMember>();
 
         public bool explored_ = false;
-        public CGroupMember generalMinMember_ { get; set; }
-        public double generalMinIncCost_ = double.NaN;
+        public CGroupMember minMember_ { get; set; }
+        public double minIncCost_ = double.NaN;
 
         // debug info
         internal Memo memo_;
@@ -294,7 +294,7 @@ namespace qpmodel.optimizer
         public string Print()
         {
             CountMembers(out int clogics, out int cphysics);
-            var str = $"{clogics}, {cphysics}, [{logicSign_}][{generalMinIncCost_}]: ";
+            var str = $"{clogics}, {cphysics}, [{logicSign_}][{minIncCost_}]: ";
             str += string.Join(",", exprList_);
             return str;
         }
@@ -358,14 +358,14 @@ namespace qpmodel.optimizer
                 if (physic != null && physic.Cost() < mincost)
                 {
                     mincost = physic.Cost();
-                    generalMinMember_ = v;
+                    minMember_ = v;
                 }
             }
 
-            generalMinIncCost_ = mincost;
+            minIncCost_ = mincost;
             Debug.Assert(IsSolverOptimizedGroup() ||
-                generalMinMember_.physic_.InclusiveCost() == generalMinIncCost_);
-            return generalMinMember_;
+                minMember_.physic_.InclusiveCost() == minIncCost_);
+            return minMember_;
         }
 
         public CGroupMember CalculateMinInclusiveCostMember()
@@ -374,8 +374,8 @@ namespace qpmodel.optimizer
             Debug.Assert(explored_);
             Debug.Assert(exprList_.Count >= 2);
 
-            if (generalMinMember_ != null)
-                return generalMinMember_;
+            if (minMember_ != null)
+                return minMember_;
 
             if (exprList_[0].Logic().children_.Count == 0 || IsSolverOptimizedGroup())
             {
@@ -398,7 +398,7 @@ namespace qpmodel.optimizer
                         {
                             var childgroup = (child as PhysicMemoRef).Group();
                             childgroup.CalculateMinInclusiveCostMember();
-                            cost += childgroup.generalMinIncCost_;
+                            cost += childgroup.minIncCost_;
                         }
                     }
                     incCost.Add(cost);
@@ -417,14 +417,14 @@ namespace qpmodel.optimizer
                     }
                 }
                 Debug.Assert(minindex != -1);
-                generalMinMember_ = exprList_[minindex];
-                generalMinIncCost_ = mincost;
-                Debug.Assert(generalMinMember_.physic_.InclusiveCost() == generalMinIncCost_);
+                minMember_ = exprList_[minindex];
+                minIncCost_ = mincost;
+                Debug.Assert(minMember_.physic_.InclusiveCost() == minIncCost_);
             }
 
-            Debug.Assert(generalMinMember_.physic_ != null);
-            Debug.Assert(!double.IsNaN(generalMinIncCost_));
-            return generalMinMember_;
+            Debug.Assert(minMember_.physic_ != null);
+            Debug.Assert(!double.IsNaN(minIncCost_));
+            return minMember_;
         }
 
         public PhysicNode CopyOutMinLogicPhysicPlan()
