@@ -203,7 +203,6 @@ namespace qpmodel.expr
                 case 0: return fncode();
                 case 1: return fncode(args[0]);
                 case 2: return fncode(args[0], args[1]);
-                case 3: return fncode(args[0], args[1], args[2]);
                 default:
                     throw new NotImplementedException();
             }
@@ -235,6 +234,7 @@ namespace qpmodel.expr
             return str.Substring(start, Math.Min(end - start + 1, str.Length));
         }
     }
+
     public class UpperFunc : FuncExpr
     {
         public UpperFunc(List<Expr> args) : base("upper", args)
@@ -343,7 +343,7 @@ namespace qpmodel.expr
         public override void Bind(BindContext context)
         {
             base.Bind(context);
-            type_ = args_()[0].type_;
+            type_ = args_()[1].type_;
         }
 
         public override Value Exec(ExecContext context, Row input)

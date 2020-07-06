@@ -1058,8 +1058,23 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestMisc()
         {
+            // number section
             var sql = "select round(a1, 10), count(*) from a group by round(a1, 10)"; TU.ExecuteSQL(sql, "0,1;1,1;2,1");
             sql = "select abs(-a1), count(*) from a group by abs(-a1);"; TU.ExecuteSQL(sql, "0,1;1,1;2,1");
+
+            // string section
+            sql = "select upper('aBc');";
+            TU.ExecuteSQL(sql, "ABC");
+
+            // date section
+            sql = "select date '2020-07-06';";
+            TU.ExecuteSQL(sql, new DateTime(2020,07,06).ToString());
+
+            // others
+            sql = "select coalesce(coalesce(null, 'a'), 'b');";
+            TU.ExecuteSQL(sql, "a");
+            sql = "select hash(1), hash('abc'), hash(26.33)";
+            TU.ExecuteSQL(sql);
         }
     }
 
