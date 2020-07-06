@@ -89,29 +89,25 @@ namespace qpmodel.optimizer
         {
             Debug.Assert(Logic() != null);
 
-            // TODO: copy out destroy the memo so we can't apply checks here
-            bool beforeCopyOut = Stmt().optimizer_.copyoutCounter_ == 0;
-            if (beforeCopyOut)
-            {
-                // the node itself is a non-memo node
-                Debug.Assert(!(Logic() is LogicMemoRef));
+            // the node itself is a non-memo node
+            Debug.Assert(!(Logic() is LogicMemoRef));
 
-                if (group_.IsSolverOptimizedGroup())
-                    return;
+            // solver optimized group is autonomous
+            if (group_.IsSolverOptimizedGroup())
+                return;
+
+            // all its children shall be memo nodes and can be deref'ed to non-memo node
+            Logic().children_.ForEach(x => Debug.Assert(
+                    x is LogicMemoRef xl && !(xl.Deref() is LogicMemoRef)));
+
+            if (physic_ != null)
+            {
+                // the physical node itself is non-memo node
+                Debug.Assert(!(physic_ is PhysicMemoRef));
 
                 // all its children shall be memo nodes and can be deref'ed to non-memo node
-                Logic().children_.ForEach(x => Debug.Assert(
-                        x is LogicMemoRef xl && !(xl.Deref() is LogicMemoRef)));
-
-                if (physic_ != null)
-                {
-                    // the physical node itself is non-memo node
-                    Debug.Assert(!(physic_ is PhysicMemoRef));
-
-                    // all its children shall be memo nodes and can be deref'ed to non-memo node
-                    physic_.children_.ForEach(x => Debug.Assert(
-                        x is PhysicMemoRef xp && !(xp.Logic().Deref() is LogicMemoRef)));
-                }
+                physic_.children_.ForEach(x => Debug.Assert(
+                    x is PhysicMemoRef xp && !(xp.Logic().Deref() is LogicMemoRef)));
             }
         }
 
@@ -627,7 +623,6 @@ namespace qpmodel.optimizer
         public List<Memo> memoset_ = new List<Memo>();
         public SQLStatement topstmt_;
         public SelectStmt select_;
-        public int copyoutCounter_ = 0;
 
         public void InitRootPlan(SQLStatement stmt)
         {
@@ -706,7 +701,10 @@ namespace qpmodel.optimizer
             var select = stmt as SelectStmt;
             PhysicNode phyplan = null;
             if (dequeueit)
-                phyplan = CopyOutOnePlan(stmt, memoset_[copyoutCounter_++]);
+            {
+                var whichmemo = memoset_.Find(x => x.stmt_ == stmt);
+                phyplan = CopyOutOnePlan(stmt, whichmemo);
+            }
             var subqueries = select.Subqueries();
             foreach (var v in subqueries)
                 CopyOutOptimalPlan(v.query_, !select.SubqueryIsWithMainQuery(v));
@@ -715,8 +713,6 @@ namespace qpmodel.optimizer
 
         public PhysicNode CopyOutOptimalPlan()
         {
-            copyoutCounter_ = 0;
-
             PhysicNode selectplan = CopyOutOptimalPlan(select_);
             return topstmt_.InstallSelectPlan(selectplan);
         }
