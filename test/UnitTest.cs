@@ -1629,9 +1629,14 @@ namespace qpmodel.unittest
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicIndexSeek"));
             Assert.AreEqual("3,3,5,6", string.Join(";", result));
-        }
+            sql = "select * from d where 2>d1;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicIndexSeek"));
+            Assert.AreEqual("0,1,2,3;1,2,,4", string.Join(";", result));
+            // TODO: not support 2<d1 AND d1<5
+    }
 
-        [TestMethod]
+    [TestMethod]
         public void TestPushdown()
         {
             var option = new QueryOption();
