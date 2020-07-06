@@ -296,7 +296,7 @@ namespace qpmodel.unittest
             }
         }
 
-        void TestTpchAndComparePlan(string scale, string[] badQueries)
+        void TestTpchAndComparePlan(string scale, string[] badQueries, bool testIndexes = false)
         {
             var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
             if (scale == "1")
@@ -309,6 +309,10 @@ namespace qpmodel.unittest
             {
                 // load data for this cale
                 Tpch.LoadTables(scale);
+
+                if (testIndexes)
+                    Tpch.CreateIndexes();
+                
                 Tpch.AnalyzeTables();
             }
 
