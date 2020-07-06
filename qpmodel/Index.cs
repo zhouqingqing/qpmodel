@@ -100,7 +100,7 @@ namespace qpmodel.index
         public override List<Row> Exec()
         {
             Catalog.systable_.DropIndex(indName_);
-            return null;
+            return new List<Row>();
         }
     }
 
@@ -136,8 +136,10 @@ namespace qpmodel.index
 
         public override void Open(ExecContext context)
         {
-            base.Open(context);
             var logic = (logic_ as LogicIndex);
+            if (Catalog.systable_.Index(logic.def_.name_) != null)
+                throw new SemanticExecutionException("duplicated index name");
+            base.Open(context);
             var tabName = logic.GetTargetTable().relname_;
             index_ = new MemoryIndex(logic.def_.unique_);
         }
@@ -179,7 +181,6 @@ namespace qpmodel.index
 
     public class MemoryIndex : ISearchIndex
     {
-
         internal bool unique_;
         internal SortedDictionary<KeyList, List<Row>> data_ = new SortedDictionary<KeyList, List<Row>>();
 

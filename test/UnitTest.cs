@@ -191,7 +191,18 @@ namespace qpmodel.unittest
 
         [TestMethod]
         public void TestCreateIndex()
-        { }
+        {
+            var sql = "create index tt2 on test(t2);";
+            var result = TU.ExecuteSQL(sql); Assert.IsNotNull(result);
+            sql = "create unique index tt2 on test(t2);";
+            result = TU.ExecuteSQL(sql); Assert.IsNull(result); Assert.IsTrue(TU.error_.Contains("name"));
+            sql = "create unique index u_tt2 on test(t2);";
+            result = TU.ExecuteSQL(sql); Assert.IsNull(result); Assert.IsTrue(TU.error_.Contains("duplicated"));
+            sql = "drop index u_tt2;";
+            result = TU.ExecuteSQL(sql); Assert.IsNull(result); Assert.IsTrue(TU.error_.Contains("exists"));
+            sql = "drop index tt2;";
+            result = TU.ExecuteSQL(sql); Assert.IsNotNull(result);
+        }
 
         [TestMethod]
         public void TestAnalyze()
@@ -960,7 +971,7 @@ namespace qpmodel.unittest
             var sql = $"copy test from {filename};";
             var stmt = RawParser.ParseSingleSqlStatement(sql) as CopyStmt;
             Assert.AreEqual(filename, stmt.fileName_);
-            sql = $"copy test from {filename} where a1 >1;";
+            sql = $"copy test from {filename} where t1 >1;";
             var result = TU.ExecuteSQL(sql);
         }
     }

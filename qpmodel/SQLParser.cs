@@ -546,6 +546,12 @@ namespace qpmodel.sqlparser
             return new CreateIndexStmt(indexname, tableref, unique, columns, where, GetRawText(context));
         }
 
+        public override object VisitDrop_index_stmt([NotNull] SQLiteParser.Drop_index_stmtContext context)
+        {
+            string indexname = context.index_name().GetText();
+            return new DropIndexStmt(indexname, GetRawText(context));
+        }
+
         public override object VisitInsert_stmt([NotNull] SQLiteParser.Insert_stmtContext context)
         {
             var tabref = new BaseTableRef(context.table_name().GetText());
@@ -591,6 +597,8 @@ namespace qpmodel.sqlparser
                 r = Visit(context.analyze_stmt()) as SQLStatement;
             else if (context.create_index_stmt() != null)
                 r = Visit(context.create_index_stmt()) as SQLStatement;
+            else if (context.drop_index_stmt() != null)
+                r = Visit(context.drop_index_stmt()) as SQLStatement;
 
             if (r is null)
                 throw new NotImplementedException();

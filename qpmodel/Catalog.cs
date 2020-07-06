@@ -158,8 +158,9 @@ namespace qpmodel
         public void DropIndex(string indName)
         {
             var tab = IndexGetTable(indName);
-            if (tab != null)
-                tab.indexes_.RemoveAll(x => x.name_.Equals(indName));
+            if (tab is null)
+                throw new SemanticExecutionException("index not exists");
+            tab.indexes_.RemoveAll(x => x.name_.Equals(indName));
         }
 
         public TableDef TryTable(string tabName)
@@ -217,7 +218,7 @@ namespace qpmodel
         {
             // create tables
             string[] createtables = {
-                @"create table test (a1 int, a2 int, a3 int, a4 int);"
+                @"create table test (t1 int, t2 int, t3 int, t4 int);"
                 ,
                 @"create table a (a1 int, a2 int, a3 int, a4 int);",
                 @"create table b (b1 int, b2 int, b3 int, b4 int);",
@@ -238,7 +239,7 @@ namespace qpmodel
             // load tables
             var curdir = Directory.GetCurrentDirectory();
             var folder = $@"{curdir}/../../../../data";
-            var tables = new List<string>() { "a", "b", "c", "d", "r", "ad", "bd", "cd", "dd", "ast" };
+            var tables = new List<string>() {"test", "a", "b", "c", "d", "r", "ad", "bd", "cd", "dd", "ast" };
             foreach (var v in tables)
             {
                 string filename = $@"'{folder}/{v}.tbl'";
