@@ -146,7 +146,7 @@ namespace qpmodel.utils
         public int CountNodeTypeMatch<T1>() where T1 : TreeNode<T> => FindNodeTypeMatch<T1>(new List<T1>());
 
         // search @target and replace with @replacement
-        public T SearchAndReplace<T1>(T1 target, T replacement) where T1: T
+        public T SearchAndReplace<T1>(T1 target, T replacement) where T1 : T
         {
             bool checkfn(T e) => target == e;
             T replacefn(T e) => replacement;
@@ -195,13 +195,11 @@ namespace qpmodel.utils
     {
         internal static string Spaces(int depth) => new string(' ', depth * 2);
 
-        // this is shortcut for unhandled conditions - they shall be translated to 
-        // related exceptional handling code later
-        //
-        public static void Checks(bool cond) => Debug.Assert(cond);
-        public static void Assumes(bool cond) => Debug.Assert(cond);
-        public static void Checks(bool cond, string message) => Debug.Assert(cond, message);
-        public static void Assumes(bool cond, string message) => Debug.Assert(cond, message);
+        public static void Assumes(bool cond, string message = null)
+        {
+            if (!cond)
+                throw new NotImplementedException(message);
+        }
 
         public static string ToLower(this bool b) => b.ToString().ToLower();
 

@@ -415,7 +415,7 @@ namespace qpmodel.optimizer
             return minMember_;
         }
 
-        public PhysicNode CopyOutMinLogicPhysicPlan(PhysicNode physic = null)
+        public PhysicNode CopyOutMinLogicPhysicPlan(PhysicNode knownMinPhysic = null)
         {
             var queryOpt = memo_.stmt_.queryOpt_;
 
@@ -423,12 +423,12 @@ namespace qpmodel.optimizer
             // cost one from the member list. Either wya, always use a clone to
             // not change memo itself.
             //
-            if (physic is null)
+            if (knownMinPhysic is null)
             {
                 var minmember = CalculateMinInclusiveCostMember();
-                physic = minmember.physic_;
+                knownMinPhysic = minmember.physic_;
             }
-            var phyClone = physic.Clone();
+            var phyClone = knownMinPhysic.Clone();
 
             // recursively repeat the process for all its children
             //
@@ -447,7 +447,9 @@ namespace qpmodel.optimizer
                     }
                     else
                     {
-                        // this shall not happen if without join resolver
+                        // this shall not happen if without join resolver. With join resolver
+                        // the plan is already given, so 'v' is the known min physic node
+                        //
                         Debug.Assert(queryOpt.optimize_.memo_use_joinorder_solver_);
                         phychild = CopyOutMinLogicPhysicPlan(v);
                     }

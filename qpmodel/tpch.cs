@@ -146,13 +146,5 @@ namespace qpmodel.test
             var sql = File.ReadAllText(filename);
             SQLStatement.ExecSQLList(sql);
         }
-
-        static public void LoadTables(string subfolder)
-        {
-        }
-
-        static public void AnalyzeTables()
-        {
-        }
     }
 }

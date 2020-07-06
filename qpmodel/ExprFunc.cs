@@ -130,6 +130,7 @@ namespace qpmodel.expr
                 case "substr": case "substring": r = new SubstringFunc(args); break;
                 case "upper": r = new UpperFunc(args); break;
                 case "year": r = new YearFunc(args); break;
+                case "date": r = new DateFunc(args); break;
                 case "repeat": r = new RepeatFunc(args); break;
                 case "abs": r = new AbsFunc(args); break;
                 case "round": r = new RoundFunc(args); break;
@@ -149,7 +150,8 @@ namespace qpmodel.expr
             }
 
             // verify arguments count
-            Utils.Checks(args.Count == r.argcnt_, $"{r.argcnt_} argument is expected");
+            if (args.Count != r.argcnt_)
+                throw new SemanticAnalyzeException($"{r.argcnt_} argument is expected");
             return r;
         }
 
@@ -920,10 +922,11 @@ namespace qpmodel.expr
 
         public override Value Exec(ExecContext context, Row input)
         {
+            string[] nullops = { "is", "||" };
             dynamic lv = l_().Exec(context, input);
             dynamic rv = r_().Exec(context, input);
 
-            if (op_ != "is" && (lv is null || rv is null))
+            if (!nullops.Contains(op_) && (lv is null || rv is null))
                 return null;
 
             switch (op_)

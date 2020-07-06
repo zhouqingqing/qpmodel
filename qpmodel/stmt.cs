@@ -133,7 +133,7 @@ namespace qpmodel.logic
             return finalplan.rows_;
         }
 
-        public static List<Row> ExecSQL (SQLStatement stmt, out string physicplan, QueryOption option = null)
+        public static List<Row> ExecSQL(SQLStatement stmt, out string physicplan, QueryOption option = null)
         {
             var optCopy = option?.Clone();
             if (option != null)
@@ -158,8 +158,8 @@ namespace qpmodel.logic
             catch (Exception e)
             {
                 // supress two known possible expected exceptions
-                if (e is AntlrParserException || 
-                    e is SemanticAnalyzeException || 
+                if (e is AntlrParserException ||
+                    e is SemanticAnalyzeException ||
                     e is SemanticExecutionException)
                 {
                     // expected errors

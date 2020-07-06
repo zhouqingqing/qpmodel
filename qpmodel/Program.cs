@@ -166,6 +166,7 @@ namespace qpmodel
 
         doit:
             sql = "select * from a tablesample row (2)";
+            sql = "select upper('aBc') || upper('');";
 
             var datetime = new DateTime();
             datetime = DateTime.Now;

@@ -764,7 +764,7 @@ namespace qpmodel.logic
 
         void bindFrom(BindContext context)
         {
-             // replace any BaseTableRef that can't find in system to CTE
+            // replace any BaseTableRef that can't find in system to CTE
             for (int i = 0; i < from_.Count; i++)
             {
                 var x = from_[i];
