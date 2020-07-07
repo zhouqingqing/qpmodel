@@ -190,6 +190,9 @@ namespace qpmodel.physic
 
             return memory;
         }
+        public virtual PhysicProperty RequiredProperty() => null;
+        public virtual PhysicProperty SuppiedProperty() => null;
+        public virtual PhysicProperty PropagatedProperty() => null;
         #endregion
 
         public BitVector tableContained_ { get => logic_.tableContained_; }
@@ -1057,7 +1060,14 @@ namespace qpmodel.physic
     {
         public PhysicStreamAgg(LogicAgg logic, PhysicNode l) : base(logic, l) { }
         public override string ToString() => $"PStreamAgg({child_()}: {Cost()})";
-
+        public override PhysicProperty RequiredProperty()
+        {
+            return new PhysicProperty((logic_ as LogicAgg).groupby_);
+        }
+        public override PhysicProperty SuppiedProperty()
+        {
+            return new PhysicProperty((logic_ as LogicAgg).groupby_);
+        }
         protected override double EstimateCost()
         {
             return logic_.Card() * 2.0;

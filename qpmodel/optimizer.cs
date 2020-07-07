@@ -50,8 +50,44 @@ namespace qpmodel.optimizer
     public class PhysicProperty : Property
     {
         // ordering: the ordered expression and whether is descending
-        KeyValuePair<Expr, bool> ordering_;
-        KeyValuePair<Expr, DistributionType> distribution_;
+        List<KeyValuePair<Expr, bool>> ordering_;
+        List<KeyValuePair<Expr, DistributionType>> distribution_;
+        public PhysicProperty(List<Expr> order, List<bool> desc = null)
+        {
+            if (desc is null)
+                desc = new List<bool>(Enumerable.Repeat(true, order.Count).ToArray());
+            Debug.Assert(order.Count == desc.Count);
+            ordering_ = new List<KeyValuePair<Expr, bool>>();
+            for(int i=0; i<order.Count; i++)
+                ordering_.Add(new KeyValuePair<Expr, bool> (order[i], desc[i]));
+        }
+        public bool IsPropertySupplied(PhysicNode node)
+        {
+            if (this.Equals(node.SuppiedProperty()))
+                return true;
+            return false;
+        }
+        public bool Equals(PhysicProperty other)
+        {
+            if (ordering_.Count != other.ordering_.Count) return false;
+            if (distribution_.Count != other.distribution_.Count) return false;
+            for (int i = 0; i < ordering_.Count; i++)
+            {
+                if (!ordering_[i].Key.Equals(other.ordering_[i].Key)) return false;
+                if (ordering_[i].Value != other.ordering_[i].Value) return false;
+            }
+            for (int i = 0; i < distribution_.Count; i++)
+            {
+                if (!distribution_[i].Key.Equals(other.distribution_[i].Key)) return false;
+                if (distribution_[i].Value != other.distribution_[i].Value) return false;
+            }
+            return true;
+        }
+        public override bool Equals(object obj)
+        {
+            if (obj.GetType() != this.GetType()) return false;
+            return this.Equals(obj as PhysicProperty);
+        }
     }
     public enum DistributionType { }
 
@@ -230,6 +266,9 @@ namespace qpmodel.optimizer
         public CGroupMember minMember_ { get; set; }
         public double minIncCost_ = double.NaN;
 
+        public Dictionary<PhysicProperty, List<int>> propertyCandidates_
+            = new Dictionary<PhysicProperty, List<int>>();
+
         // debug info
         internal Memo memo_;
 
@@ -345,7 +384,29 @@ namespace qpmodel.optimizer
         // propagate the property requirement from the top
         public void PropagateProperty(PhysicProperty property)
         {
-            return;
+            // after exploration done
+            Debug.Assert(explored_);
+            Debug.Assert(exprList_.Count >= 2);
+
+            if ((property != null && propertyCandidates_.ContainsKey(property)) ||
+                (property is null && propertyCandidates_.Count > 0))
+                return;
+            if (property != null)
+                propertyCandidates_.Add(property, new List<int>());
+
+            for (int i = 0; i < exprList_.Count; i++)
+            {
+                if (exprList_[i].physic_ != null && exprList_[i].physic_.RequiredProperty() != null)
+                {
+                    var child = exprList_[i].physic_.child_();
+                    var group = (child as PhysicMemoRef).Group();
+                    group.PropagateProperty(exprList_[i].physic_.RequiredProperty());
+                }
+                if (property != null && property.IsPropertySupplied(exprList_[i].physic_))
+                {
+                    propertyCandidates_[property].Add(i);
+                }
+            }
         }
 
         // scan through the member list and return the least cost member
