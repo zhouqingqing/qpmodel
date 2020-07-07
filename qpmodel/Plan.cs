@@ -787,7 +787,7 @@ namespace qpmodel.logic
         // for each expr in @list, if expr has references an alias in selection list, 
         // replace that with the true expression.
         // example:
-        //      selection_: a1*5 as alias1, a2, b3
+        //      selection_: a1*5 as alias1, a2, b3, 12(=3*4, const already fold)
         //      orders_: alias1+b => a1*5+b
         //
         List<Expr> replaceOutputNameToExpr(List<Expr> list)

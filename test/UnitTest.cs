@@ -1160,6 +1160,10 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "2");
             sql = "select a3, sum(a1) from a group by a3 having sum(a2) > a3/2;";
             TU.ExecuteSQL(sql, "3,1;4,2");
+            sql = "select 'a'||'b' as k, count(*) from a group by k";
+            TU.ExecuteSQL(sql, "ab,3");
+            sql = "select 'a'||'b' as k, count(*) from a group by 1";
+            TU.ExecuteSQL(sql, "ab,3");
 
             // subquery as group by expr
             sql = "select count(a1) from a group by (select max(a1) from a);";

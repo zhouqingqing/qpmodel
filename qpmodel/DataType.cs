@@ -87,7 +87,6 @@ namespace qpmodel.expr
                     result = new AnyType();
                 else if (l is NumericType || r is NumericType)
                 {
-
                     // FIXME: this is a rough calculation
                     int prec = 0, scale = 0;
                     if (l is NumericType ln)

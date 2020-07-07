@@ -142,7 +142,7 @@ namespace qpmodel.logic
             // make a filter on top of the mark join collecting all filters
             Expr topfilter;
             if (nodeAIsOnMarkJoin)
-                topfilter = nodeAFilter.SearchAndReplace(existExpr, LiteralExpr.MakeLiteral("true", new BoolType()));
+                topfilter = nodeAFilter.SearchAndReplace(existExpr, LiteralExpr.MakeLiteralBool(true));
             else
                 topfilter = nodeAFilter.SearchAndReplace(existExpr, markerFilter);
             nodeBFilter.DeParameter(nodeA.InclusiveTableRefs());
@@ -242,7 +242,7 @@ namespace qpmodel.logic
 
             // nullify nodeA's filter: the rest is push to top filter. However,
             // if nodeA is a Filter|MarkJoin, keep its mark filter.
-            var trueCondition = LiteralExpr.MakeLiteral("true", new BoolType());
+            var trueCondition = LiteralExpr.MakeLiteralBool(true);
             var nodeLeftFilter = nodeLeft.filter_;
             if (nodeLeftFilter != null)
             {
