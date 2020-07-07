@@ -35,6 +35,7 @@ using qpmodel.logic;
 using qpmodel.physic;
 using qpmodel.utils;
 using qpmodel.index;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace qpmodel.expr
 {
@@ -264,8 +265,10 @@ namespace qpmodel.expr
             bool IsConstFn(Expr e) => !(e is LiteralExpr) && e.IsConst();
             Expr EvalConstFn(Expr e)
             {
-                e.TryEvalConst(out Value val);
-                return LiteralExpr.MakeLiteral(val, expr.type_);
+                var isconst = e.TryEvalConst(out Value val);
+                Debug.Assert(isconst);
+                var newe = LiteralExpr.MakeLiteral(val, expr.type_, expr.outputName_);
+                return newe;
             }
 
             if (expr is LiteralExpr)
@@ -330,6 +333,7 @@ namespace qpmodel.expr
                 return newcond.Clone();
             return LogicAndExpr.MakeExpr(basefilter, newcond.Clone());
         }
+
         public static void NullifyFilter(this LogicNode node)
         {
             node.filter_ = null;
@@ -337,7 +341,7 @@ namespace qpmodel.expr
             // and we leave the vacuum job to filter push down
             //
             if (node is LogicFilter)
-                node.filter_ = LiteralExpr.MakeLiteral("true", new BoolType());
+                node.filter_ = LiteralExpr.MakeLiteralBool(true);
         }
 
         public static bool FilterIsConst(this Expr filter, out bool trueOrfalse)
@@ -646,7 +650,7 @@ namespace qpmodel.expr
         {
             var n = base.Clone();
             n.tableRefs_ = new List<TableRef>();
-            tableRefs_.ForEach(n.tableRefs_.Add);            
+            tableRefs_.ForEach(n.tableRefs_.Add);
             Debug.Assert(Equals(n));
             return n;
         }
@@ -1202,17 +1206,20 @@ namespace qpmodel.expr
         // give @val and perform the necessary type conversion
         // 8.1, int => 8
         //
-        public static LiteralExpr MakeLiteral(Value val, ColumnType type)
+        public static LiteralExpr MakeLiteral(Value val, ColumnType type, string outputName = null)
         {
             LiteralExpr ret = null;
             if (type is CharType || type is VarCharType || type is DateTimeType)
                 ret = new LiteralExpr($"'{val}'", type);
             else
                 ret = new LiteralExpr($"{val}", type);
+            ret.outputName_ = outputName;
 
             ret.markBounded();
             return ret;
         }
+        public static LiteralExpr MakeLiteralBool(bool istrue) =>
+            istrue ? MakeLiteral("true", new BoolType()) : MakeLiteral("false", new BoolType());
     }
 
     // Runtime only used to reference an expr as a whole without recomputation

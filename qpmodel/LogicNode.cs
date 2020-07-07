@@ -769,7 +769,7 @@ namespace qpmodel.logic
         // x: b1+b2+3 => true, b1+b2 => false
         bool exprConsistPureKeys(Expr x, List<Expr> keys)
         {
-            var constTrue = LiteralExpr.MakeLiteral("true", new BoolType());
+            var constTrue = LiteralExpr.MakeLiteralBool(true);
             if (keys is null)
                 return false;
             if (keys.Contains(x))

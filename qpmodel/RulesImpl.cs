@@ -38,7 +38,7 @@ using qpmodel.physic;
 
 namespace qpmodel.optimizer
 {
-    public class ImplmentationRule : Rule { }
+    public abstract class ImplmentationRule : Rule { }
 
     public class NumberArgs
     {

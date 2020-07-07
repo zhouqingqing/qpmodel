@@ -133,7 +133,7 @@ namespace qpmodel.logic
             return finalplan.rows_;
         }
 
-        public static List<Row> ExecSQL (SQLStatement stmt, out string physicplan, QueryOption option = null)
+        public static List<Row> ExecSQL(SQLStatement stmt, out string physicplan, QueryOption option = null)
         {
             var optCopy = option?.Clone();
             if (option != null)
@@ -158,8 +158,8 @@ namespace qpmodel.logic
             catch (Exception e)
             {
                 // supress two known possible expected exceptions
-                if (e is AntlrParserException || 
-                    e is SemanticAnalyzeException || 
+                if (e is AntlrParserException ||
+                    e is SemanticAnalyzeException ||
                     e is SemanticExecutionException)
                 {
                     // expected errors
@@ -510,12 +510,13 @@ namespace qpmodel.logic
         }
 
         // group|order by 2 => selection_[2-1]
+        // group|order by 'a' => literal('a')
         List<Expr> seq2selection(List<Expr> list, List<Expr> selection)
         {
             var converted = new List<Expr>();
             list.ForEach(x =>
             {
-                if (x is LiteralExpr xl)
+                if (x is LiteralExpr xl && xl.type_ is IntType)
                 {
                     // clone is not necessary but we have some assertions to check
                     // redundant processing, say same colexpr bound twice, I'd rather
@@ -628,7 +629,7 @@ namespace qpmodel.logic
                     if (isConst)
                     {
                         if (!trueOrFalse)
-                            andlist.Add(LiteralExpr.MakeLiteral("false", new BoolType()));
+                            andlist.Add(LiteralExpr.MakeLiteralBool(false));
                         else
                             Debug.Assert(andlist.Count == 0);
                     }

@@ -34,6 +34,7 @@ using System.Diagnostics;
 
 using qpmodel.logic;
 using qpmodel.physic;
+using Microsoft.VisualBasic.CompilerServices;
 
 namespace qpmodel.expr
 {
@@ -51,6 +52,9 @@ namespace qpmodel.expr
 
         public static bool IsNumberType(ColumnType type)
             => type is NumericType || type is DoubleType || type is IntType;
+
+        public static bool IsStringType(ColumnType type)
+            => type is CharType || type is VarCharType;
 
         // 5/2.0 => 2.5
         public static ColumnType CoerseType(string op, Expr el, Expr er)
@@ -81,26 +85,25 @@ namespace qpmodel.expr
                     result = new DoubleType();
                 else if (l is AnyType || r is AnyType)
                     result = new AnyType();
-                else
+                else if (l is NumericType || r is NumericType)
                 {
-                    if (l is NumericType || r is NumericType)
+                    // FIXME: this is a rough calculation
+                    int prec = 0, scale = 0;
+                    if (l is NumericType ln)
                     {
-                        // FIXME: this is a rough calculation
-                        int prec = 0, scale = 0;
-                        if (l is NumericType ln)
-                        {
-                            prec = ln.len_; scale = ln.scale_;
-                        }
-                        if (r is NumericType rn)
-                        {
-                            prec = Math.Max(rn.len_, prec);
-                            scale = Math.Max(rn.scale_, scale);
-                        }
-                        result = new NumericType(prec, scale);
+                        prec = ln.len_; scale = ln.scale_;
                     }
-                    else
-                        throw new NotImplementedException("types coersion not implmeneted");
+                    if (r is NumericType rn)
+                    {
+                        prec = Math.Max(rn.len_, prec);
+                        scale = Math.Max(rn.scale_, scale);
+                    }
+                    result = new NumericType(prec, scale);
                 }
+                else if (IsStringType(l) && IsStringType(r))
+                    result = new VarCharType(Int32.MaxValue);
+                else
+                    throw new NotImplementedException("types coersion not implmeneted");
             }
 
             Debug.Assert(result != null);

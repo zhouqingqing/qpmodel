@@ -68,18 +68,23 @@ namespace qpmodel.physic
             VisitEach(x =>
             {
                 var phy = x as PhysicNode;
+                var phyType = phy.GetType();
                 List<Type> nocheck = new List<Type> {typeof(PhysicCollect), typeof(PhysicProfiling),
                     typeof(PhysicIndex), typeof(PhysicInsert), typeof(PhysicAnalyze)};
-                if (!nocheck.Contains(phy.GetType()))
+                if (!nocheck.Contains(phyType))
                 {
                     var log = phy.logic_;
 
-                    // we may want to check log.output_.Count != 0 but a special case is cross join 
-                    // may have one side output empty row, so let's do a rough check
+                    // we may want to check log.output_.Count != 0 but special cases inclue:
+                    // 1) cross join may have one side output empty row
+                    // 2) select 'a' from a, which does not require any columns
+                    // 3) intersect op may not require output from one side
+                    // so let's do forbid-list check
+                    //
                     if (log.output_.Count == 0)
                     {
-                        if (!VisitEachExists(x => x is PhysicNLJoin))
-                            Debug.Assert(false);
+                        List<Type> mustHaveOutput = new List<Type> {typeof(PhysicHashJoin), typeof(PhysicHashAgg), typeof(PhysicStreamAgg)};
+                        Debug.Assert(!mustHaveOutput.Contains(phyType) || VisitEachExists(x => x is PhysicNLJoin));
                     }
                 }
             });

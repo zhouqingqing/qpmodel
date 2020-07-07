@@ -37,11 +37,11 @@ namespace qpmodel.tools
 {
     public class PrestoColumnStats
     {
-        public float distinctValuesCount { get; set; }
-        public int nullsCount { get; set; }
-        public dynamic min { get; set; }
-        public dynamic max { get; set; }
-        public int? dataSize { get; set; }
+        public float distinctValuesCount_ { get; set; }
+        public int nullsCount_ { get; set; }
+        public dynamic min_ { get; set; }
+        public dynamic max_ { get; set; }
+        public int? dataSize_ { get; set; }
     }
 
     public class PrestoTableStats
@@ -71,9 +71,9 @@ namespace qpmodel.tools
         {
             ColumnStat stat = new ColumnStat();
 
-            stat.nullfrac_ = (double)stat_in.nullsCount / (double)nRows;
+            stat.nullfrac_ = (double)stat_in.nullsCount_ / (double)nRows;
             stat.n_rows_ = (ulong)nRows;
-            stat.n_distinct_ = (ulong)stat_in.distinctValuesCount;
+            stat.n_distinct_ = (ulong)stat_in.distinctValuesCount_;
             stat.mcv_ = null;
             stat.hist_ = null;
 

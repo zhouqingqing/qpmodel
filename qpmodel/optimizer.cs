@@ -427,15 +427,23 @@ namespace qpmodel.optimizer
             return minMember_;
         }
 
-        public PhysicNode CopyOutMinLogicPhysicPlan()
+        public PhysicNode CopyOutMinLogicPhysicPlan(PhysicNode knownMinPhysic = null)
         {
-            // get the lowest inclusive cost one from the member list
-            // always use a clone to not change memo itself
+            var queryOpt = memo_.stmt_.queryOpt_;
+
+            // if user does not provides a physic node, get the lowest inclusive
+            // cost one from the member list. Either wya, always use a clone to
+            // not change memo itself.
             //
-            var minmember = CalculateMinInclusiveCostMember();
-            var phyClone = minmember.physic_.Clone();
+            if (knownMinPhysic is null)
+            {
+                var minmember = CalculateMinInclusiveCostMember();
+                knownMinPhysic = minmember.physic_;
+            }
+            var phyClone = knownMinPhysic.Clone();
 
             // recursively repeat the process for all its children
+            //
             if (phyClone.children_.Count > 0 && !(phyClone is PhysicProfiling))
             {
                 var phychildren = new List<PhysicNode>();
@@ -444,8 +452,19 @@ namespace qpmodel.optimizer
                 {
                     // children shall be min cost
                     PhysicNode phychild;
-                    var g = (v as PhysicMemoRef).Group();
-                    phychild = g.CopyOutMinLogicPhysicPlan();
+                    if (v is PhysicMemoRef)
+                    {
+                        var g = (v as PhysicMemoRef).Group();
+                        phychild = g.CopyOutMinLogicPhysicPlan();
+                    }
+                    else
+                    {
+                        // this shall not happen if without join resolver. With join resolver
+                        // the plan is already given, so 'v' is the known min physic node
+                        //
+                        Debug.Assert(queryOpt.optimize_.memo_use_joinorder_solver_);
+                        phychild = CopyOutMinLogicPhysicPlan(v);
+                    }
 
                     // remount the physic and logic children list
                     phychildren.Add(phychild);
@@ -465,7 +484,7 @@ namespace qpmodel.optimizer
             // end of plan copy out to avoid revisit plan tree (including expr
             // tree again)
             //
-            if (memo_.stmt_.queryOpt_.profile_.enabled_)
+            if (queryOpt.profile_.enabled_)
                 phyClone = new PhysicProfiling(phyClone);
             return phyClone;
         }

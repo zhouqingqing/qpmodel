@@ -191,7 +191,18 @@ namespace qpmodel.unittest
 
         [TestMethod]
         public void TestCreateIndex()
-        { }
+        {
+            var sql = "create index tt2 on test(t2);";
+            var result = TU.ExecuteSQL(sql); Assert.IsNotNull(result);
+            sql = "create unique index tt2 on test(t2);";
+            result = TU.ExecuteSQL(sql); Assert.IsNull(result); Assert.IsTrue(TU.error_.Contains("name"));
+            sql = "create unique index u_tt2 on test(t2);";
+            result = TU.ExecuteSQL(sql); Assert.IsNull(result); Assert.IsTrue(TU.error_.Contains("duplicated"));
+            sql = "drop index u_tt2;";
+            result = TU.ExecuteSQL(sql); Assert.IsNull(result); Assert.IsTrue(TU.error_.Contains("exists"));
+            sql = "drop index tt2;";
+            result = TU.ExecuteSQL(sql); Assert.IsNotNull(result);
+        }
 
         [TestMethod]
         public void TestAnalyze()
@@ -529,6 +540,20 @@ namespace qpmodel.unittest
             Assert.AreEqual(11, memo.cgroups_.Count);
             Assert.AreEqual(26, tlogics); Assert.AreEqual(42, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
+            var mstr = stmt.optimizer_.PrintMemo();
+            Assert.IsTrue(mstr.Contains("Summary: 26,42"));
+
+            // test join resolver
+            option.optimize_.memo_use_joinorder_solver_ = true;
+            result = TU.ExecuteSQL(sql, out stmt, out _, option);
+            memo = stmt.optimizer_.memoset_[0];
+            memo.CalcStats(out tlogics, out tphysics);
+            Assert.AreEqual(5, memo.cgroups_.Count);
+            Assert.AreEqual(5, tlogics); Assert.AreEqual(5, tphysics);
+            Assert.AreEqual("0;1;2", string.Join(";", result));
+            mstr = stmt.optimizer_.PrintMemo();
+            Assert.IsTrue(mstr.Contains("Summary: 5,5"));
+            option.optimize_.memo_use_joinorder_solver_ = false;
 
             sql = "select count(b1) from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1";
             result = TU.ExecuteSQL(sql, out stmt, out _, option);
@@ -960,7 +985,7 @@ namespace qpmodel.unittest
             var sql = $"copy test from {filename};";
             var stmt = RawParser.ParseSingleSqlStatement(sql) as CopyStmt;
             Assert.AreEqual(filename, stmt.fileName_);
-            sql = $"copy test from {filename} where a1 >1;";
+            sql = $"copy test from {filename} where t1 >1;";
             var result = TU.ExecuteSQL(sql);
         }
     }
@@ -1047,8 +1072,25 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestMisc()
         {
+            // number section
             var sql = "select round(a1, 10), count(*) from a group by round(a1, 10)"; TU.ExecuteSQL(sql, "0,1;1,1;2,1");
             sql = "select abs(-a1), count(*) from a group by abs(-a1);"; TU.ExecuteSQL(sql, "0,1;1,1;2,1");
+
+            // string section
+            sql = "select upper('aBc') || upper('');";
+            TU.ExecuteSQL(sql, "ABC");
+
+            // date section
+            sql = "select date '2020-07-06';";
+            TU.ExecuteSQL(sql, new DateTime(2020,07,06).ToString());
+            sql = "select date('2020-07-06');";
+            TU.ExecuteSQL(sql, new DateTime(2020, 07, 06).ToString());
+
+            // others
+            sql = "select coalesce(coalesce(null, 'a'), 'b');";
+            TU.ExecuteSQL(sql, "a");
+            sql = "select hash(1), hash('abc'), hash(26.33)";
+            TU.ExecuteSQL(sql);
         }
     }
 
@@ -1118,6 +1160,10 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "2");
             sql = "select a3, sum(a1) from a group by a3 having sum(a2) > a3/2;";
             TU.ExecuteSQL(sql, "3,1;4,2");
+            sql = "select 'a'||'b' as k, count(*) from a group by k";
+            TU.ExecuteSQL(sql, "ab,3");
+            sql = "select 'a'||'b' as k, count(*) from a group by 1";
+            TU.ExecuteSQL(sql, "ab,3");
 
             // subquery as group by expr
             sql = "select count(a1) from a group by (select max(a1) from a);";
@@ -1618,6 +1664,19 @@ namespace qpmodel.unittest
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicIndexSeek"));
             Assert.AreEqual("3,3,5,6", string.Join(";", result));
+            sql = "select * from d where 2<=d1;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicIndexSeek"));
+            Assert.AreEqual("2,2,,5;3,3,5,6", string.Join(";", result));
+            sql = "select * from d where 2>d1;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicIndexSeek"));
+            Assert.AreEqual("0,1,2,3;1,2,,4", string.Join(";", result));
+            sql = "select * from d where 1>=d1;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicIndexSeek"));
+            Assert.AreEqual("0,1,2,3;1,2,,4", string.Join(";", result));
+            // TODO: not support 2<d1 AND d1<5
         }
 
         [TestMethod]
