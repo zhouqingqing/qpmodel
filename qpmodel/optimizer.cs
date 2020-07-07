@@ -590,7 +590,7 @@ namespace qpmodel.optimizer
             var queryOpt = memo_.stmt_.queryOpt_;
 
             // if user does not provides a physic node, get the lowest inclusive
-            // cost one from the member list. Either wya, always use a clone to
+            // cost one from the member list. Either way, always use a clone to
             // not change memo itself.
             //
             if (knownMinPhysic is null)
@@ -617,10 +617,9 @@ namespace qpmodel.optimizer
                     }
                     else
                     {
-                        // this shall not happen if without join resolver. With join resolver
-                        // the plan is already given, so 'v' is the known min physic node
-                        //
-                        Debug.Assert(queryOpt.optimize_.memo_use_joinorder_solver_);
+                        // this could be join solver or enforced node
+                        Debug.Assert(queryOpt.optimize_.memo_use_joinorder_solver_ ||
+                            phyClone is PhysicOrder);
                         phychild = CopyOutMinLogicPhysicPlan(v);
                     }
 
