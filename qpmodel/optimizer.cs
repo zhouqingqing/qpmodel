@@ -545,7 +545,6 @@ namespace qpmodel.optimizer
                     var childgroup = (child as PhysicMemoRef).Group();
                     childgroup.CalculateMinInclusiveCostMember(subproperty);
                     cost += childgroup.propertyOptimum_[subproperty].Value;
-
                 }
                 if (cost < propmincost)
                 {
