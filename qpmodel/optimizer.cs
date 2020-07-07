@@ -35,6 +35,7 @@ using qpmodel.physic;
 using qpmodel.expr;
 
 using LogicSignature = System.Int64;
+using qpmodel.utils;
 
 // TODO:
 //  - branch and bound prouning
@@ -67,6 +68,25 @@ namespace qpmodel.optimizer
                 return true;
             return false;
         }
+
+        public CGroupMember EnforceProperty(CMemoGroup group)
+        {
+            var physic = this.OrderEnforcement(group.minMember_.physic_);
+            return new CGroupMember(physic, group);
+        }
+        internal PhysicNode OrderEnforcement(PhysicNode node)
+        {
+            List<Expr> order = new List<Expr>();
+            List<bool> desc = new List<bool>();
+            foreach (var pair in ordering_)
+            {
+                order.Add(pair.Key);
+                desc.Add(pair.Value);
+            }
+            var logicnode = new LogicOrder(node.logic_, order, desc);
+            return new PhysicOrder(logicnode, node);
+        }
+
         public bool Equals(PhysicProperty other)
         {
             if (ordering_.Count != other.ordering_.Count) return false;
@@ -87,6 +107,10 @@ namespace qpmodel.optimizer
         {
             if (obj.GetType() != this.GetType()) return false;
             return this.Equals(obj as PhysicProperty);
+        }
+        public override int GetHashCode()
+        {
+            return ordering_.ListHashCode() ^ distribution_.ListHashCode();
         }
     }
     public enum DistributionType { }
@@ -268,6 +292,8 @@ namespace qpmodel.optimizer
 
         public Dictionary<PhysicProperty, List<int>> propertyCandidates_
             = new Dictionary<PhysicProperty, List<int>>();
+        public Dictionary<PhysicProperty, KeyValuePair<CGroupMember, double>> propertyOptimum_
+            = new Dictionary<PhysicProperty, KeyValuePair<CGroupMember, double>>();
 
         // debug info
         internal Memo memo_;
@@ -409,8 +435,8 @@ namespace qpmodel.optimizer
             }
         }
 
-        // scan through the member list and return the least cost member
-        public CGroupMember locateMinCostMember()
+        // scan through the member list and calculate the least cost member
+        public void calculateMinCostMember()
         {
             double mincost = double.MaxValue;
             foreach (var v in exprList_)
@@ -426,66 +452,137 @@ namespace qpmodel.optimizer
             minIncCost_ = mincost;
             Debug.Assert(IsSolverOptimizedGroup() ||
                 minMember_.physic_.InclusiveCost() == minIncCost_);
-            return minMember_;
+        }
+        public CGroupMember locateMinCostMember(PhysicProperty property)
+        {
+            if (minMember_ is null)
+                calculateMinCostMember();
+
+            if (property is null)
+                return minMember_;
+            else
+            {
+                if (propertyOptimum_.ContainsKey(property))
+                    return propertyOptimum_[property].Key;
+
+                var propminmember = property.EnforceProperty(this);
+                var propmincost = propminmember.physic_.Cost();
+                if (propertyCandidates_.ContainsKey(property))
+                {
+                    foreach (int i in propertyCandidates_[property])
+                    {
+                        var member = exprList_[i];
+                        if (member.physic_.Cost() < propmincost)
+                        {
+                            propmincost = member.physic_.Cost();
+                            propminmember = member;
+                        }
+                    }
+                }
+                propertyOptimum_.Add(property, new KeyValuePair<CGroupMember, double>(propminmember, propmincost));
+                return propminmember;
+            }
         }
 
-        public CGroupMember CalculateMinInclusiveCostMember()
+        internal void calculateNonLeafMinCostMember()
+        {
+            // since there are children, it is not the leaf node 
+            // So for each member in the list, we calculate the inclusive
+            // cost and return the lowest one
+            var incCost = new List<double>();
+            for (int i = 0; i < exprList_.Count; i++)
+            {
+                var physic = exprList_[i].physic_;
+                var cost = double.MaxValue;
+                if (physic != null)
+                {
+                    cost = physic.Cost();
+                    foreach (var child in physic.children_)
+                    {
+                        var childgroup = (child as PhysicMemoRef).Group();
+                        childgroup.CalculateMinInclusiveCostMember();
+                        cost += childgroup.minIncCost_;
+                    }
+                }
+                incCost.Add(cost);
+            }
+
+            // now find the lowest
+            Debug.Assert(incCost.Count == exprList_.Count);
+            double mincost = double.MaxValue;
+            int minindex = -1;
+            for (int i = 0; i < incCost.Count; i++)
+            {
+                if (incCost[i] < mincost)
+                {
+                    mincost = incCost[i];
+                    minindex = i;
+                }
+            }
+            Debug.Assert(minindex != -1);
+            minMember_ = exprList_[minindex];
+            minIncCost_ = mincost;
+            Debug.Assert(minMember_.physic_.InclusiveCost() == minIncCost_);
+        }
+        internal CGroupMember locateNonLeafMinCostMember(PhysicProperty property)
+        {
+            // calculate minMember
+            calculateNonLeafMinCostMember();
+            if (property is null)
+                return minMember_;
+
+            var propminmember = property.EnforceProperty(this);
+            var propmincost = propminmember.physic_.Cost() + minIncCost_;
+
+            Debug.Assert(propertyCandidates_.ContainsKey(property));
+            foreach (int i in propertyCandidates_[property])
+            {
+                var member = exprList_[i];
+                var subproperty = member.physic_.RequiredProperty();
+                double cost = member.physic_.Cost();
+                foreach (var child in member.physic_.children_)
+                {
+                    var childgroup = (child as PhysicMemoRef).Group();
+                    childgroup.CalculateMinInclusiveCostMember(subproperty);
+                    cost += childgroup.propertyOptimum_[subproperty].Value;
+
+                }
+                if (cost < propmincost)
+                {
+                    propmincost = cost;
+                    propminmember = member;
+                }
+            }
+            propertyOptimum_.Add(property, new KeyValuePair<CGroupMember, double>(propminmember, propmincost));
+            return propminmember;
+        }
+
+        public CGroupMember CalculateMinInclusiveCostMember(PhysicProperty property = null)
         {
             // inclusive cost is only possible after exploration done
             Debug.Assert(explored_);
             Debug.Assert(exprList_.Count >= 2);
 
-            if (minMember_ != null)
+            if (property is null && minMember_ != null)
                 return minMember_;
+            if (property != null && propertyOptimum_.ContainsKey(property))
+                return propertyOptimum_[property].Key;
 
+            CGroupMember optmember;
             if (exprList_[0].Logic().children_.Count == 0 || IsSolverOptimizedGroup())
             {
                 // if this group has no children node or a block optimization, simply locate the lowest one
-                locateMinCostMember();
+                optmember = locateMinCostMember(property);
             }
             else
             {
-                // there are children. So for each member in the list, we calculate the inclusive
-                // cost and return the lowest one
-                var incCost = new List<double>();
-                for (int i = 0; i < exprList_.Count; i++)
-                {
-                    var physic = exprList_[i].physic_;
-                    var cost = double.MaxValue;
-                    if (physic != null)
-                    {
-                        cost = physic.Cost();
-                        foreach (var child in physic.children_)
-                        {
-                            var childgroup = (child as PhysicMemoRef).Group();
-                            childgroup.CalculateMinInclusiveCostMember();
-                            cost += childgroup.minIncCost_;
-                        }
-                    }
-                    incCost.Add(cost);
-                }
-
-                // now find the lowest
-                Debug.Assert(incCost.Count == exprList_.Count);
-                double mincost = double.MaxValue;
-                int minindex = -1;
-                for (int i = 0; i < incCost.Count; i++)
-                {
-                    if (incCost[i] < mincost)
-                    {
-                        mincost = incCost[i];
-                        minindex = i;
-                    }
-                }
-                Debug.Assert(minindex != -1);
-                minMember_ = exprList_[minindex];
-                minIncCost_ = mincost;
-                Debug.Assert(minMember_.physic_.InclusiveCost() == minIncCost_);
+                // if this group is not leaf nor block optimization
+                optmember = locateNonLeafMinCostMember(property);
             }
 
-            Debug.Assert(minMember_.physic_ != null);
-            Debug.Assert(!double.IsNaN(minIncCost_));
-            return minMember_;
+            Debug.Assert(minMember_.physic_ != null && !double.IsNaN(minIncCost_));
+            Debug.Assert(optmember.physic_ != null);
+            return optmember;
         }
 
         public PhysicNode CopyOutMinLogicPhysicPlan(PhysicNode knownMinPhysic = null)
