@@ -1062,11 +1062,15 @@ namespace qpmodel.physic
         public override string ToString() => $"PStreamAgg({child_()}: {Cost()})";
         public override PhysicProperty RequiredProperty()
         {
-            return new PhysicProperty((logic_ as LogicAgg).groupby_);
+            var exprlist = (logic_ as LogicAgg).groupby_;
+            if (exprlist is null) return null;
+            return new PhysicProperty(exprlist);
         }
         public override PhysicProperty SuppiedProperty()
         {
-            return new PhysicProperty((logic_ as LogicAgg).groupby_);
+            var exprlist = (logic_ as LogicAgg).groupby_;
+            if (exprlist is null) return null;
+            return new PhysicProperty(exprlist);
         }
         protected override double EstimateCost()
         {
@@ -1109,7 +1113,7 @@ namespace qpmodel.physic
                     {
                         // output current grouped row if any
                         if (curGroupKey != null)
-                            FinalizeAGroupRow(context, keys, curGroupRow, callback);
+                            FinalizeAGroupRow(context, curGroupKey, curGroupRow, callback);
 
                         // start a new grouped row
                         curGroupRow = AggrCoreToRow(l);

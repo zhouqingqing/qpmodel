@@ -52,11 +52,10 @@ namespace qpmodel.optimizer
     {
         // ordering: the ordered expression and whether is descending
         List<KeyValuePair<Expr, bool>> ordering_;
-        List<KeyValuePair<Expr, DistributionType>> distribution_;
         public PhysicProperty(List<Expr> order, List<bool> desc = null)
         {
             if (desc is null)
-                desc = new List<bool>(Enumerable.Repeat(true, order.Count).ToArray());
+                desc = new List<bool>(Enumerable.Repeat(false, order.Count).ToArray());
             Debug.Assert(order.Count == desc.Count);
             ordering_ = new List<KeyValuePair<Expr, bool>>();
             for(int i=0; i<order.Count; i++)
@@ -91,16 +90,10 @@ namespace qpmodel.optimizer
         {
             if (other is null) return false;
             if (ordering_.Count != other.ordering_.Count) return false;
-            if (distribution_.Count != other.distribution_.Count) return false;
             for (int i = 0; i < ordering_.Count; i++)
             {
                 if (!ordering_[i].Key.Equals(other.ordering_[i].Key)) return false;
                 if (ordering_[i].Value != other.ordering_[i].Value) return false;
-            }
-            for (int i = 0; i < distribution_.Count; i++)
-            {
-                if (!distribution_[i].Key.Equals(other.distribution_[i].Key)) return false;
-                if (distribution_[i].Value != other.distribution_[i].Value) return false;
             }
             return true;
         }
@@ -111,7 +104,7 @@ namespace qpmodel.optimizer
         }
         public override int GetHashCode()
         {
-            return ordering_.ListHashCode() ^ distribution_.ListHashCode();
+            return ordering_.ListHashCode();
         }
     }
     public enum DistributionType { }
@@ -423,11 +416,13 @@ namespace qpmodel.optimizer
 
             for (int i = 0; i < exprList_.Count; i++)
             {
-                if (exprList_[i].physic_ != null && exprList_[i].physic_.RequiredProperty() != null)
+                if (exprList_[i].physic_ != null)
                 {
-                    var child = exprList_[i].physic_.child_();
-                    var group = (child as PhysicMemoRef).Group();
-                    group.PropagateProperty(exprList_[i].physic_.RequiredProperty());
+                    foreach (var child in exprList_[i].physic_.children_)
+                    {
+                        var group = (child as PhysicMemoRef).Group();
+                        group.PropagateProperty(exprList_[i].physic_.RequiredProperty());
+                    }
                 }
                 if (property != null && exprList_[i].physic_ != null &&
                     property.IsPropertySupplied(exprList_[i].physic_))
@@ -468,7 +463,7 @@ namespace qpmodel.optimizer
                     return propertyOptimum_[property].Key;
 
                 var propminmember = property.EnforceProperty(this);
-                var propmincost = propminmember.physic_.Cost();
+                var propmincost = propminmember.physic_.Cost() + minIncCost_;
                 if (propertyCandidates_.ContainsKey(property))
                 {
                     foreach (int i in propertyCandidates_[property])
@@ -498,12 +493,16 @@ namespace qpmodel.optimizer
                 var cost = double.MaxValue;
                 if (physic != null)
                 {
+                    var subproperty = physic.RequiredProperty();
                     cost = physic.Cost();
                     foreach (var child in physic.children_)
                     {
                         var childgroup = (child as PhysicMemoRef).Group();
-                        childgroup.CalculateMinInclusiveCostMember();
-                        cost += childgroup.minIncCost_;
+                        childgroup.CalculateMinInclusiveCostMember(subproperty);
+                        if (subproperty is null)
+                            cost += childgroup.minIncCost_;
+                        else
+                            cost += childgroup.propertyOptimum_[subproperty].Value;
                     }
                 }
                 incCost.Add(cost);
@@ -524,7 +523,6 @@ namespace qpmodel.optimizer
             Debug.Assert(minindex != -1);
             minMember_ = exprList_[minindex];
             minIncCost_ = mincost;
-            Debug.Assert(minMember_.physic_.InclusiveCost() == minIncCost_);
         }
         internal CGroupMember locateNonLeafMinCostMember(PhysicProperty property)
         {
@@ -586,7 +584,7 @@ namespace qpmodel.optimizer
             return optmember;
         }
 
-        public PhysicNode CopyOutMinLogicPhysicPlan(PhysicNode knownMinPhysic = null)
+        public PhysicNode CopyOutMinLogicPhysicPlan(PhysicProperty property, PhysicNode knownMinPhysic = null)
         {
             var queryOpt = memo_.stmt_.queryOpt_;
 
@@ -596,7 +594,7 @@ namespace qpmodel.optimizer
             //
             if (knownMinPhysic is null)
             {
-                var minmember = CalculateMinInclusiveCostMember();
+                var minmember = CalculateMinInclusiveCostMember(property);
                 knownMinPhysic = minmember.physic_;
             }
             var phyClone = knownMinPhysic.Clone();
@@ -614,14 +612,14 @@ namespace qpmodel.optimizer
                     if (v is PhysicMemoRef)
                     {
                         var g = (v as PhysicMemoRef).Group();
-                        phychild = g.CopyOutMinLogicPhysicPlan();
+                        phychild = g.CopyOutMinLogicPhysicPlan(phyClone.RequiredProperty());
                     }
                     else
                     {
                         // this could be join solver or enforced node
                         Debug.Assert(queryOpt.optimize_.memo_use_joinorder_solver_ ||
                             phyClone is PhysicOrder);
-                        phychild = CopyOutMinLogicPhysicPlan(v);
+                        phychild = CopyOutMinLogicPhysicPlan(phyClone.RequiredProperty(), v);
                     }
 
                     // remount the physic and logic children list
@@ -845,8 +843,7 @@ namespace qpmodel.optimizer
             var subqueries = select.Subqueries();
             foreach (var v in subqueries)
             {
-                enqueueit = !select.SubqueryIsWithMainQuery(v);
-                ExploreRootPlan(v.query_, enqueueit);
+                ExploreRootPlan(v.query_, !select.SubqueryIsWithMainQuery(v));
             }
 
             // loop through the stack, explore each group until empty
@@ -871,7 +868,7 @@ namespace qpmodel.optimizer
 
             // retrieve the lowest cost plan
             Debug.Assert(stmt.physicPlan_ is null);
-            stmt.physicPlan_ = memo.rootgroup_.CopyOutMinLogicPhysicPlan();
+            stmt.physicPlan_ = memo.rootgroup_.CopyOutMinLogicPhysicPlan(memo.baseproperty_);
             stmt.logicPlan_ = stmt.physicPlan_.logic_;
 
             // fix fromQueries - the fromQueries are optimized as part of LogicNode tree
