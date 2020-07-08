@@ -913,6 +913,12 @@ namespace qpmodel.optimizer
             return stmt_.InstallSelectPlan(selectplan);
         }
 
+        // Print memo: do not invoke it before copy out
+        // This is because before copy out stage, we haven't associated cost for all possible groups. 
+        // Calling print memo will print cost and causing assertions with cost is not NaN. Ideally, we
+        // shall allow user indicates printCost=true|false but this is troublesome to do as we are
+        // printing with ToString() interface which does not take extra argument.
+        //
         public string PrintMemo()
         {
             string str = "";
