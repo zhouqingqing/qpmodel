@@ -617,6 +617,12 @@ namespace qpmodel.unittest
 
             Assert.IsTrue(option.optimize_.use_memo_);
         }
+
+        [TestMethod]
+        public void TestEnforcer()
+        {
+
+        }
     }
 
     [TestClass]

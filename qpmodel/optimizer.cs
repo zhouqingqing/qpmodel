@@ -89,6 +89,7 @@ namespace qpmodel.optimizer
 
         public bool Equals(PhysicProperty other)
         {
+            if (other is null) return false;
             if (ordering_.Count != other.ordering_.Count) return false;
             if (distribution_.Count != other.distribution_.Count) return false;
             for (int i = 0; i < ordering_.Count; i++)
@@ -428,7 +429,8 @@ namespace qpmodel.optimizer
                     var group = (child as PhysicMemoRef).Group();
                     group.PropagateProperty(exprList_[i].physic_.RequiredProperty());
                 }
-                if (property != null && property.IsPropertySupplied(exprList_[i].physic_))
+                if (property != null && exprList_[i].physic_ != null &&
+                    property.IsPropertySupplied(exprList_[i].physic_))
                 {
                     propertyCandidates_[property].Add(i);
                 }
