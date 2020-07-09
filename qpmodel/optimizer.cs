@@ -106,6 +106,13 @@ namespace qpmodel.optimizer
         {
             return ordering_.ListHashCode();
         }
+        public override string ToString()
+        {
+            string s = "";
+            foreach (var o in ordering_)
+                s += o.Key.ToString();
+            return s;
+        }
     }
     public enum DistributionType { }
 
@@ -356,6 +363,13 @@ namespace qpmodel.optimizer
             CountMembers(out int clogics, out int cphysics);
             var str = $"{clogics}, {cphysics}, [{logicSign_}][{minIncCost_}]: ";
             str += string.Join(",", exprList_);
+
+            // add property member
+            List<string> l = new List<string>();
+            foreach (var pair in propertyOptimum_)
+                l.Add("property:" + pair.Key.ToString() + " member:" + pair.Value);
+            str += "\n\t";
+            str += string.Join(",", l);
             return str;
         }
 
