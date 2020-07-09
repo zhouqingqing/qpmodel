@@ -1099,7 +1099,7 @@ namespace qpmodel.physic
                     {
                         // output current grouped row if any
                         if (curGroupKey != null)
-                            FinalizeAGroupRow(context, keys, curGroupRow, callback);
+                            FinalizeAGroupRow(context, curGroupKey, curGroupRow, callback);
 
                         // start a new grouped row
                         curGroupRow = AggrCoreToRow(l);
