@@ -3,11 +3,13 @@
 [![CodeFactor](https://www.codefactor.io/repository/github/zhouqingqing/qpmodel/badge)](https://www.codefactor.io/repository/github/zhouqingqing/qpmodel)
 [![Coverage Status](https://coveralls.io/repos/github/zhouqingqing/qpmodel/badge.svg?branch=master)](https://coveralls.io/github/zhouqingqing/qpmodel?branch=master)
 
-# A Relational Optimizer and Executor Modeling
-This project implements a relational optimizer and executor in c#. It is called "model" because it does not have all the details carved. The main target is the optimizer, and the purpose is to prepare for a more serious production implementation later. The executor part is needed for plan correctness verification with TPCH/DS end to end runnable. See github project "issues" for bugs and todo items.
+# An Experimental Relational Optimizer and Executor
+This project implements a relational optimizer and executor in c#. It is called "experimental" because it does not have all the details carved. The main target is the optimizer, and the purpose is to prepare for a more serious production implementation later. The executor part is needed for plan correctness verification with TPCH/DS end to end runnable. 
+
+It is built on top of many database research results, and it has been open-sourced in the hope that others may find it useful and database community can provide feedback and ways to improve it.
 
 ## Why C#
-Optimizer is logic centric, so a high-level language is preferred. After modeling, production may want to turn it into some C/C++ code, so the language must be a close relative of them. C# (.net core) provides some great features like cross-platform, LINQ, dynamic types to make modeling easy, and it is close enough to C++ (and that's why not python). 
+Optimizer is logic centric, so a high-level language is preferred. After experiments, production may want to turn it into some C/C++ code, so the language must be a close relative of them. C# (.net core) provides some great features like cross-platform, LINQ, dynamic types to make modeling easy, and it is close enough to C++ (and that's why not python). 
 
 ## Optimizer
 The optimizer exercises the following constructs:
