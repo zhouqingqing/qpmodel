@@ -364,12 +364,26 @@ namespace qpmodel.optimizer
             var str = $"{clogics}, {cphysics}, [{logicSign_}][{minIncCost_}]: ";
             str += string.Join(",", exprList_);
 
-            // add property member
-            List<string> l = new List<string>();
-            foreach (var pair in propertyOptimum_)
-                l.Add("property:" + pair.Key.ToString() + " member:" + pair.Value);
-            str += "\n\t";
-            str += string.Join(",", l);
+            // add property candidates
+            if (propertyCandidates_.Count > 0)
+            {
+                List<string> l = new List<string>();
+                foreach (var pair in propertyCandidates_)
+                    l.Add("property:" + pair.Key.ToString() + ", candidate:" + string.Join(",",pair.Value));
+                str += "\n\t";
+                str += string.Join("|", l);
+            }
+
+            // add property optimal member
+            if (propertyOptimum_.Count > 0)
+            {
+                List<string> l = new List<string>();
+                foreach (var pair in propertyOptimum_)
+                    l.Add("property:" + pair.Key.ToString() + ", member:" + pair.Value);
+                str += "\n\t";
+                str += string.Join("|", l);
+            }
+
             return str;
         }
 
