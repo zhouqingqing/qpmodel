@@ -281,6 +281,7 @@ namespace qpmodel.optimizer
         public List<CGroupMember> exprList_ = new List<CGroupMember>();
 
         public bool explored_ = false;
+        public bool propagated_ = false;
         public CGroupMember minMember_ { get; set; }
         public double minIncCost_ = double.NaN;
 
@@ -408,19 +409,27 @@ namespace qpmodel.optimizer
             Debug.Assert(explored_);
             Debug.Assert(exprList_.Count >= 2);
 
+            bool solveroptimized = IsSolverOptimizedGroup();
+
             if ((property != null && propertyCandidates_.ContainsKey(property)) ||
                 (property is null && propertyCandidates_.Count > 0))
                 return;
             if (property != null)
                 propertyCandidates_.Add(property, new List<int>());
+            if (property is null)
+            {
+                if (propagated_) return;
+                propagated_ = true;
+            }
 
             for (int i = 0; i < exprList_.Count; i++)
             {
-                if (exprList_[i].physic_ != null)
+                if (exprList_[i].physic_ != null && !solveroptimized)
                 {
                     foreach (var child in exprList_[i].physic_.children_)
                     {
                         var group = (child as PhysicMemoRef).Group();
+                        if (group.memo_ != memo_) continue;
                         group.PropagateProperty(exprList_[i].physic_.RequiredProperty());
                     }
                 }
@@ -854,12 +863,17 @@ namespace qpmodel.optimizer
                 group.ExploreGroup(memo);
             }
 
+            memo.ValidateMemo();
+        }
+
+        public void PropagateProperty()
+        {
             // propagate the base property from top, 
             // also propagate the new properties required by the member nodes
-            if (enqueueit)
+            foreach (var memo in memoset_)
+            {
                 memo.rootgroup_?.PropagateProperty(memo.baseproperty_);
-
-            memo.ValidateMemo();
+            }
         }
 
         public PhysicNode CopyOutOnePlan(SQLStatement stmt, Memo memo)

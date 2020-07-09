@@ -76,6 +76,8 @@ namespace qpmodel.optimizer
                 ruleset_.RemoveAll(x => x is Scan2IndexSeek);
             if (!option.optimize_.enable_hashjoin_)
                 ruleset_.RemoveAll(x => x is Join2HashJoin);
+            if (!option.optimize_.enable_streamagg_)
+                ruleset_.RemoveAll(x => x is Agg2StreamAgg);
             if (!option.optimize_.enable_nljoin_)
                 ruleset_.RemoveAll(x => x is Join2NLJoin);
         }

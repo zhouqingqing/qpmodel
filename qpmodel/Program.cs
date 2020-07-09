@@ -209,6 +209,7 @@ namespace qpmodel
                 Console.WriteLine(optplan.Explain(a.queryOpt_.explain_));
                 a.optimizer_ = new Optimizer(a);
                 a.optimizer_.ExploreRootPlan(a);
+                a.optimizer_.PropagateProperty();
                 phyplan = a.optimizer_.CopyOutOptimalPlan();
                 Console.WriteLine(a.optimizer_.PrintMemo());
                 Console.WriteLine("***************** Memo plan *************");
