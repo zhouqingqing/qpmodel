@@ -30,12 +30,10 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Diagnostics;
 using qpmodel.expr;
 using qpmodel.logic;
 using qpmodel.physic;
-using System.Runtime.Remoting;
 
 using Value = System.Object;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -104,7 +102,7 @@ namespace qpmodel.stat
             //
             Debug.Assert(nbuckets > 0 && nbuckets <= NBuckets_);
             for (int i = 0; i < nbuckets; i++)
-                hist.buckets_[i] = (T)(min + width * i);
+                hist.buckets_[i] = (T)(min + (width * i));
             hist.nbuckets_ = nbuckets;
             hist.depth_ = ((double)nrows) / hist.nbuckets_;
         }
