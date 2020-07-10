@@ -41,6 +41,7 @@ using qpmodel.test;
 using qpmodel.expr;
 using qpmodel.dml;
 using qpmodel.tools;
+using qpmodel.stat;
 
 using psql;
 
@@ -140,6 +141,35 @@ namespace qpmodel.unittest
             Assert.AreEqual("2,2,3,4", r[1]);
             Assert.AreEqual("5,6,7,8", r[2]);
         }
+
+        [TestMethod]
+        public void TestStat()
+        {
+            var hist = Historgram.ConstructFromMinMax(0, 10, 1000);
+            Assert.AreEqual(0, hist.buckets_[0]);
+            Assert.AreEqual(10, hist.buckets_[10]);
+            Assert.AreEqual(11, hist.nbuckets_);
+            Assert.IsTrue(hist.depth_ > 90 && hist.depth_ < 91);
+            hist = Historgram.ConstructFromMinMax(0, 1000, 10);
+            Assert.AreEqual(Historgram.NBuckets_, hist.nbuckets_);
+            Assert.IsTrue(hist.depth_ <= ((double)10 / Historgram.NBuckets_) + StatConst.epsilon_);
+            hist = Historgram.ConstructFromMinMax(100, 100, 1000);
+            Assert.AreEqual(1, hist.nbuckets_);
+            Assert.AreEqual(1000, hist.depth_);
+            hist = Historgram.ConstructFromMinMax(new DateTime(2000, 1, 1), new DateTime(2000, 10, 1), 1000);
+            Assert.AreEqual(Historgram.NBuckets_, hist.nbuckets_);
+            hist = Historgram.ConstructFromMinMax(11.22, 110.22, 1000);
+            Assert.AreEqual(Historgram.NBuckets_, hist.nbuckets_);
+            // diff dividable by NBuckets_ for easier assertion without introduce epsilon
+            hist = Historgram.ConstructFromMinMax((decimal)11.22, (decimal)110.22, 1000);
+            Assert.AreEqual(Historgram.NBuckets_, hist.nbuckets_);
+            Assert.AreEqual((decimal)11.22, hist.buckets_[0]);
+            Assert.AreEqual((decimal)110.22, hist.buckets_[hist.nbuckets_ - 1]);
+
+            // exceptional case
+            hist = Historgram.ConstructFromMinMax("a", "bc", 1000);
+            Assert.IsNull(hist);
+        }
     }
 
     [TestClass]
@@ -171,7 +201,7 @@ namespace qpmodel.unittest
     public class DDL
     {
         [TestMethod]
-        public void TestCreateTable()
+        public void TestTable()
         {
             var sql = "create table a (a1 int, a2 char(10), a3 datetime, a4 numeric(9,2), a4 numeric(9));";
             try
@@ -190,7 +220,7 @@ namespace qpmodel.unittest
         }
 
         [TestMethod]
-        public void TestCreateIndex()
+        public void TestIndex()
         {
             var sql = "create index tt2 on test(t2);";
             var result = TU.ExecuteSQL(sql); Assert.IsNotNull(result);
@@ -240,7 +270,7 @@ namespace qpmodel.unittest
             try
             {
                 ExplainOption.show_tablename_ = false;
-                RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, new string[] { "" } );
+                RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, new string[] { "" });
             }
             finally
             {
@@ -323,7 +353,7 @@ namespace qpmodel.unittest
 
                 if (testIndexes)
                     Tpch.CreateIndexes();
-                
+
                 Tpch.AnalyzeTables();
             }
 
@@ -1082,7 +1112,7 @@ namespace qpmodel.unittest
 
             // date section
             sql = "select date '2020-07-06';";
-            TU.ExecuteSQL(sql, new DateTime(2020,07,06).ToString());
+            TU.ExecuteSQL(sql, new DateTime(2020, 07, 06).ToString());
             sql = "select date('2020-07-06');";
             TU.ExecuteSQL(sql, new DateTime(2020, 07, 06).ToString());
 

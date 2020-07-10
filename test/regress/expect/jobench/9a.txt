@@ -30,14 +30,14 @@ WHERE ci.note IN ('(voice)',
   AND chn.id = ci.person_role_id
   AND an.person_id = n.id
   AND an.person_id = ci.person_id
-Total cost: 57779263, memory=36848673547728
-PhysicHashAgg  (inccost=57779263, cost=3, rows=1, memory=6442450944) (actual rows=1)
+Total cost: 57779599, memory=36848673547728
+PhysicHashAgg  (inccost=57779599, cost=3, rows=1, memory=6442450944) (actual rows=1)
     Output: {min(name)}[0],{min(name)}[1],{min(title)}[2]
     Aggregates: min(name[0]), min(name[1]), min(title[2])
-    -> PhysicHashJoin  (inccost=57779260, cost=901346, rows=1, memory=4294967312) (actual rows=0)
+    -> PhysicHashJoin  (inccost=57779596, cost=901346, rows=1, memory=4294967312) (actual rows=0)
         Output: name[4],name[0],title[1]
         Filter: person_id[5]=id[2] and person_id[5]=person_id[3]
-        -> PhysicHashJoin  (inccost=55976571, cost=1140269, rows=1, memory=242665655840) (actual rows=0)
+        -> PhysicHashJoin  (inccost=55976907, cost=1140605, rows=1, memory=242665655840) (actual rows=0)
             Output: name[0],title[5],id[1],person_id[2]
             Filter: movie_id[3]=id[6] and id[6]=movie_id[4]
             -> PhysicHashJoin  (inccost=52307990, cost=1362, rows=113, memory=8) (actual rows=0)
@@ -72,7 +72,7 @@ PhysicHashAgg  (inccost=57779263, cost=3, rows=1, memory=6442450944) (actual row
                     -> PhysicScanTable name as n (inccost=4167491, cost=4167491, rows=296710) (actual rows=0)
                         Output: id[0]
                         Filter: gender[4]='f' and name[1]like'%Ang%'
-            -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=1140042) (actual rows=0)
+            -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=1140378) (actual rows=0)
                 Output: title[1],id[0]
                 Filter: production_year[4]>=2005 and production_year[4]<=2015
         -> PhysicScanTable aka_name as an (inccost=901343, cost=901343, rows=901343) (actual rows=0)
