@@ -67,15 +67,65 @@ namespace qpmodel.tools
 
     public class PrestoStatsFormatter
     {
-        static ColumnStat PrestoFormatConvert(PrestoColumnStats stat_in, int nRows)
+        static Historgram ConstructHistogram(PrestoColumnStats presto_stat, int nRows)
+        {
+            Historgram hist = null;
+
+            if (nRows == 0)
+                nRows = (int) 6;
+
+            int valuesCount = nRows - presto_stat.nullsCount_;
+            int nbuckets = (int)Math.Min(Historgram.NBuckets_, valuesCount);
+            double depth = ((double)valuesCount) / nbuckets;
+
+            // nbuckets -1 for special case
+            // 6 values: 1 through 6
+            // 6 buckets
+            // (max - min) / nbuckets  -->  (6 - 5) / 6 is less than 1
+            double chunkSize = (presto_stat.max_ - presto_stat.min_) / (nbuckets - 1);
+
+            hist = new Historgram();
+
+            for (int i = 0; i<nbuckets; i++)
+            {
+                if (i != nbuckets - 1)
+                    hist.buckets_[i] = presto_stat.min_ + (chunkSize* i);
+                else
+                    hist.buckets_[i] = presto_stat.max_;
+            }
+
+            hist.depth_ = depth;
+            hist.nbuckets_ = nbuckets;
+            return hist;
+        }
+static ColumnStat PrestoFormatConvert(PrestoColumnStats stat_in, int nRows)
         {
             ColumnStat stat = new ColumnStat();
+
+            stat.mcv_ = null;
+            stat.hist_ = null;
 
             stat.nullfrac_ = (double)stat_in.nullsCount_ / (double)nRows;
             stat.n_rows_ = (ulong)nRows;
             stat.n_distinct_ = (ulong)stat_in.distinctValuesCount_;
-            stat.mcv_ = null;
-            stat.hist_ = null;
+
+            if ((object)stat_in.min_ == null)
+                return stat;
+
+            //Type firstMinType = stat_in.min.GetType();
+            stat_in.min_ = Catalog.sysstat_.ExtractValue((JsonElement)stat_in.min_);
+            stat_in.max_ = Catalog.sysstat_.ExtractValue((JsonElement)stat_in.max_);
+
+            Type minType = stat_in.min_.GetType();
+            Type maxType = stat_in.max_.GetType();
+
+            if (minType == typeof(string) || minType == typeof(char) || minType != maxType)
+                return stat;
+
+            if (stat_in.min_ > stat_in.max_)
+                    return stat;
+
+            stat.hist_ = ConstructHistogram(stat_in, nRows);
 
             return stat;
         }
