@@ -52,7 +52,6 @@ namespace qpmodel.optimizer
             new ScanFile2ScanFile(),
             new Filter2Filter(),
             new Agg2HashAgg(),
-            new Agg2StreamAgg(),
             new Order2Sort(),
             new From2From(),
             new Limit2Limit(),
