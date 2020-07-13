@@ -52,6 +52,7 @@ namespace qpmodel.optimizer
             new ScanFile2ScanFile(),
             new Filter2Filter(),
             new Agg2HashAgg(),
+            new Agg2StreamAgg(),
             new Order2Sort(),
             new From2From(),
             new Limit2Limit(),
@@ -69,14 +70,16 @@ namespace qpmodel.optimizer
         };
 
         // TBD: besides static controls, we can examine the plan and quick trim rules impossible to apply
-        public static void Init(QueryOption option)
+        public static void Init(ref List<Rule> ruleset, QueryOption option)
         {
             if (!option.optimize_.enable_indexseek_)
-                ruleset_.RemoveAll(x => x is Scan2IndexSeek);
+                ruleset.RemoveAll(x => x is Scan2IndexSeek);
             if (!option.optimize_.enable_hashjoin_)
-                ruleset_.RemoveAll(x => x is Join2HashJoin);
+                ruleset.RemoveAll(x => x is Join2HashJoin);
+            if (!option.optimize_.enable_streamagg_)
+                ruleset.RemoveAll(x => x is Agg2StreamAgg);
             if (!option.optimize_.enable_nljoin_)
-                ruleset_.RemoveAll(x => x is Join2NLJoin);
+                ruleset.RemoveAll(x => x is Join2NLJoin);
         }
 
         public abstract bool Appliable(CGroupMember expr);

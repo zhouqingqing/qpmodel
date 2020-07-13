@@ -56,6 +56,7 @@ namespace qpmodel.logic
             // optimizer controls
             public bool enable_hashjoin_ { get; set; } = true;
             public bool enable_nljoin_ { get; set; } = true;
+            public bool enable_streamagg_ { get; set; } = false;
             public bool enable_indexseek_ { get; set; } = true;
             public bool use_memo_ { get; set; } = true;
             public bool memo_disable_crossjoin_ { get; set; } = true;
