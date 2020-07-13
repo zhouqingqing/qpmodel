@@ -1116,6 +1116,9 @@ namespace qpmodel.physic
                 }
                 else
                 {
+                    if (context.stop_)
+                        return null;
+
                     var keys = KeyList.ComputeKeys(context, logic.groupby_, l);
                     if (curGroupKey != null && keys.Equals(curGroupKey))
                     {
@@ -1172,6 +1175,8 @@ namespace qpmodel.physic
                     if (row != null)
                         callback(row);
                 }
+                // when there are still remaining output
+                // and output rows is not beyond limit
                 if (curGroupKey != null && !context.stop_)
                     FinalizeAGroupRow(context, curGroupKey, curGroupRow, callback);
             }
