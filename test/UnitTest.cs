@@ -187,7 +187,13 @@ namespace qpmodel.unittest
             option.optimize_.enable_subquery_unnest_ = false;
             option.optimize_.use_codegen_ = true;
 
+            option.optimize_.enable_streamagg_ = true;
             TU.ExecuteSQL(sql, "4,1;6,4", out string phyplan, option);
+
+            option.optimize_.enable_streamagg_ = false;
+            sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2 order by a2 desc;";
+            TU.ExecuteSQL(sql, "6,4;4,1", out phyplan, option);
+
             sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 limit 2;";
             TU.ExecuteSQL(sql, "2,1;4,1", out phyplan, option);
 
