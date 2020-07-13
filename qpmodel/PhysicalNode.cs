@@ -1092,6 +1092,9 @@ namespace qpmodel.physic
                     buildcode += $@"
                         var keys = KeyList.ComputeKeys(context, {_logic_}.groupby_, {lrow});";
                     buildcode += $@"
+                        if (context.stop_)
+                            return;
+
                         if (curGroupKey{_} != null && keys.Equals(curGroupKey{_}))
                         {{
                             for (int i = 0; i < {aggrcore.Count}; i++)
