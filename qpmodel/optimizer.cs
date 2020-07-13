@@ -157,7 +157,7 @@ namespace qpmodel.optimizer
         internal List<CGroupMember> ExploreMember(Memo memo)
         {
             var list = group_.exprList_;
-            foreach (var rule in Rule.ruleset_)
+            foreach (var rule in group_.memo_.optimizer_.ruleset_)
             {
                 if (rule.Appliable(this))
                 {
@@ -499,8 +499,13 @@ namespace qpmodel.optimizer
         public Dictionary<LogicSignature, CMemoGroup> cgroups_ = new Dictionary<LogicSignature, CMemoGroup>();
 
         public Stack<CMemoGroup> stack_ = new Stack<CMemoGroup>();
+        public Optimizer optimizer_;
 
-        public Memo(SQLStatement stmt) => stmt_ = stmt;
+        public Memo(SQLStatement stmt, Optimizer optimizer)
+        {
+            stmt_ = stmt;
+            optimizer_ = optimizer;
+        }
         public CMemoGroup LookupCGroup(LogicNode subtree)
         {
             if (subtree is LogicMemoRef sl)
@@ -655,11 +660,12 @@ namespace qpmodel.optimizer
         public List<Memo> memoset_ = new List<Memo>();
         public SQLStatement stmt_;
         public SelectStmt select_;
+        public List<Rule> ruleset_ = new List<Rule>(Rule.ruleset_);
 
         public Optimizer(SQLStatement stmt)
         {
             // call once
-            Rule.Init(stmt.queryOpt_);
+            Rule.Init(ref ruleset_, stmt.queryOpt_);
             stmt_ = stmt;
             select_ = stmt.ExtractSelect();
             memoset_.Clear();
@@ -670,7 +676,7 @@ namespace qpmodel.optimizer
             var select = stmt.ExtractSelect();
 
             // each statement sitting in a new memo
-            var memo = new Memo(select);
+            var memo = new Memo(select, this);
             if (enqueueit)
             {
                 memoset_.Add(memo);
