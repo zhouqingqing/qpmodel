@@ -653,6 +653,16 @@ namespace qpmodel.unittest
 
             Assert.IsTrue(option.optimize_.use_memo_);
         }
+
+        [TestMethod]
+        public void TestEnforcer()
+        {
+            QueryOption option = new QueryOption();
+            option.optimize_.use_memo_ = true;
+            option.optimize_.enable_subquery_unnest_ = true;
+            option.optimize_.enable_streamagg_ = true;
+
+        }
     }
 
     [TestClass]
