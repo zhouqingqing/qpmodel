@@ -1064,13 +1064,13 @@ namespace qpmodel.physic
         {
             var exprlist = (logic_ as LogicAgg).groupby_;
             if (exprlist is null) return null;
-            return new PhysicProperty(exprlist);
+            return new SortOrderProperty(exprlist);
         }
         public override PhysicProperty SuppiedProperty()
         {
             var exprlist = (logic_ as LogicAgg).groupby_;
             if (exprlist is null) return null;
-            return new PhysicProperty(exprlist);
+            return new SortOrderProperty(exprlist);
         }
         protected override double EstimateCost()
         {
@@ -1082,7 +1082,9 @@ namespace qpmodel.physic
             base.Open(context);
             if (context.option_.optimize_.use_codegen_)
             {
-                context.code_ += $@"";
+                context.code_ += $@"var aggrcore{_} = {_logic_}.aggrFns_;
+                    KeyList curGroupKey{_} = null;
+                    Row curGroupRow{_} = null;";
             }
         }
 
@@ -1098,8 +1100,42 @@ namespace qpmodel.physic
             string s = child_().Exec(l =>
             {
                 string buildcode = null;
-                if (!context.option_.optimize_.use_codegen_)
+                if (context.option_.optimize_.use_codegen_)
                 {
+                    var lrow = $"r{child_()._}";
+                    buildcode += $@"
+                        var keys = KeyList.ComputeKeys(context, {_logic_}.groupby_, {lrow});";
+                    buildcode += $@"
+                        if (context.stop_)
+                            return;
+
+                        if (curGroupKey{_} != null && keys.Equals(curGroupKey{_}))
+                        {{
+                            for (int i = 0; i < {aggrcore.Count}; i++)
+                            {{
+                                var old = curGroupRow{_}[i];
+                                curGroupRow{_}[i] = aggrcore{_}[i].Accum(context, old, {lrow});
+                            }}
+                        }}
+                        else
+                        {{
+                            if (curGroupKey{_} != null)
+                            {{
+                                var keys{_} = curGroupKey{_};
+                                Row aggvals{_} = curGroupRow{_};
+                                {FinalizeAGroupRow(context, null, null, callback)}
+                            }}
+                            curGroupRow{_} = {_physic_}.AggrCoreToRow({lrow});
+                            curGroupKey{_} = keys;
+                            for (int i = 0; i < {aggrcore.Count}; i++)
+                                curGroupRow{_}[i] = aggrcore{_}[i].Init(context, {lrow});
+                        }}";
+                }
+                else
+                {
+                    if (context.stop_)
+                        return null;
+
                     var keys = KeyList.ComputeKeys(context, logic.groupby_, l);
                     if (curGroupKey != null && keys.Equals(curGroupKey))
                     {
@@ -1127,7 +1163,28 @@ namespace qpmodel.physic
             });
 
             // special handling for emtpy resultset and last row
-            if (!context.option_.optimize_.use_codegen_)
+            if (context.option_.optimize_.use_codegen_)
+            {
+                if (logic.groupby_ is null)
+                    s += $@"
+                    if (curGroupRow{_} is null)
+                    {{
+                        Row r{_} = {_physic_}.HandleEmptyResult(context);
+                        if (r{_} != null)
+                        {{
+                            {callback(null)}
+                        }}
+                    }}
+                    ";
+                s += $@"
+                if (curGroupKey{_} != null && !context.stop_)
+                {{
+                    var keys{_} = curGroupKey{_};
+                    Row aggvals{_} = curGroupRow{_};
+                    {FinalizeAGroupRow(context, null, null, callback)}
+                }}";
+            }
+            else
             {
                 if (logic.groupby_ is null && curGroupRow is null)
                 {
@@ -1135,7 +1192,9 @@ namespace qpmodel.physic
                     if (row != null)
                         callback(row);
                 }
-                if (curGroupKey != null)
+                // when there are still remaining output
+                // and output rows is not beyond limit
+                if (curGroupKey != null && !context.stop_)
                     FinalizeAGroupRow(context, curGroupKey, curGroupRow, callback);
             }
 

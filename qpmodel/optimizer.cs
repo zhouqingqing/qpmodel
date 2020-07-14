@@ -33,9 +33,9 @@ using System.Diagnostics;
 using qpmodel.logic;
 using qpmodel.physic;
 using qpmodel.expr;
-
-using LogicSignature = System.Int64;
 using qpmodel.utils;
+using LogicSignature = System.Int64;
+
 
 // TODO:
 //  - branch and bound prouning
@@ -51,16 +51,8 @@ namespace qpmodel.optimizer
     public class PhysicProperty : Property
     {
         // ordering: the ordered expression and whether is descending
-        List<KeyValuePair<Expr, bool>> ordering_;
-        public PhysicProperty(List<Expr> order, List<bool> desc = null)
-        {
-            if (desc is null)
-                desc = new List<bool>(Enumerable.Repeat(false, order.Count).ToArray());
-            Debug.Assert(order.Count == desc.Count);
-            ordering_ = new List<KeyValuePair<Expr, bool>>();
-            for(int i=0; i<order.Count; i++)
-                ordering_.Add(new KeyValuePair<Expr, bool> (order[i], desc[i]));
-        }
+        public List<KeyValuePair<Expr, bool>> ordering_;
+        
         public bool IsPropertySupplied(PhysicNode node)
         {
             if (this.Equals(node.SuppiedProperty()))
@@ -114,7 +106,18 @@ namespace qpmodel.optimizer
             return s;
         }
     }
-    public enum DistributionType { }
+    public class SortOrderProperty : PhysicProperty
+    {
+        public SortOrderProperty(List<Expr> order, List<bool> desc = null)
+        {
+            if (desc is null)
+                desc = new List<bool>(Enumerable.Repeat(false, order.Count).ToArray());
+            Debug.Assert(order.Count == desc.Count);
+            ordering_ = new List<KeyValuePair<Expr, bool>>();
+            for (int i = 0; i < order.Count; i++)
+                ordering_.Add(new KeyValuePair<Expr, bool>(order[i], desc[i]));
+        }
+    }
 
     // CGroupMember is a member of CMemoGroup, all these memebers are logically
     // equvalent but different logical/physical implementations
@@ -250,6 +253,24 @@ namespace qpmodel.optimizer
             }
 
             return list;
+        }
+
+        // check if this member can supply certain propery during propagation
+        internal bool CheckPropertyMember(PhysicProperty property)
+        {
+            if (physic_ is null) return false;
+
+            foreach (var child in physic_.children_)
+            {
+                var group = (child as PhysicMemoRef).Group();
+                if (group.memo_ != group_.memo_) continue;
+                group.PropagateProperty(physic_.RequiredProperty());
+            }
+
+            if (property is null) return false;
+            if (property.IsPropertySupplied(physic_))
+                return true;
+            return false;
         }
     }
 
@@ -437,40 +458,33 @@ namespace qpmodel.optimizer
             Debug.Assert(explored_);
             Debug.Assert(exprList_.Count >= 2);
 
-            bool solveroptimized = IsSolverOptimizedGroup();
-
+            // when no property required but the group has already been propagated
+            // or when property is required but exists in property candidates
+            // the propagation is already completed
             if ((property != null && propertyCandidates_.ContainsKey(property)) ||
-                (property is null && propertyCandidates_.Count > 0))
+                (property is null && propagated_))
                 return;
+
             if (property != null)
                 propertyCandidates_.Add(property, new List<int>());
-            if (property is null)
-            {
-                if (propagated_) return;
-                propagated_ = true;
-            }
 
+            // for join group solver, assume no property can be supplied or propagated
+            if (IsSolverOptimizedGroup())
+                return;
+
+            // propagate each member and add to candidate if property supplied
             for (int i = 0; i < exprList_.Count; i++)
             {
-                if (exprList_[i].physic_ != null && !solveroptimized)
-                {
-                    foreach (var child in exprList_[i].physic_.children_)
-                    {
-                        var group = (child as PhysicMemoRef).Group();
-                        if (group.memo_ != memo_) continue;
-                        group.PropagateProperty(exprList_[i].physic_.RequiredProperty());
-                    }
-                }
-                if (property != null && exprList_[i].physic_ != null &&
-                    property.IsPropertySupplied(exprList_[i].physic_))
-                {
+                if(exprList_[i].CheckPropertyMember(property))
                     propertyCandidates_[property].Add(i);
-                }
             }
+
+            propagated_ = true;
         }
 
-        // scan through the member list and calculate the least cost member
-        public void calculateMinCostMember()
+        // scan through the member list and calculate the general minimum cost member
+        // this is only for leaf group (no child group) or group join optimized group
+        public void calculateLeafMinCostMember()
         {
             double mincost = double.MaxValue;
             foreach (var v in exprList_)
@@ -487,15 +501,16 @@ namespace qpmodel.optimizer
             Debug.Assert(IsSolverOptimizedGroup() ||
                 minMember_.physic_.InclusiveCost() == minIncCost_);
         }
-        public CGroupMember locateMinCostMember(PhysicProperty property)
+        public CGroupMember locateLeafMinCostMember(PhysicProperty property)
         {
-            if (minMember_ is null)
-                calculateMinCostMember();
+            // when general min cost member is not present, calculate it
+            if (minMember_ is null) calculateLeafMinCostMember();
 
-            if (property is null)
-                return minMember_;
+            // when no property is required, the general min cost member is the answer
+            if (property is null) return minMember_;
             else
             {
+                // check if the result is already calculated
                 if (propertyOptimum_.ContainsKey(property))
                     return propertyOptimum_[property].Key;
 
@@ -563,42 +578,50 @@ namespace qpmodel.optimizer
         }
         internal CGroupMember locateNonLeafMinCostMember(PhysicProperty property)
         {
-            // calculate minMember
-            calculateNonLeafMinCostMember();
-            if (property is null)
-                return minMember_;
-
-            var propminmember = property.EnforceProperty(this);
-            var propmincost = propminmember.physic_.Cost() + minIncCost_;
-
-            Debug.Assert(propertyCandidates_.ContainsKey(property));
-            foreach (int i in propertyCandidates_[property])
+            // calculate general minMember (no property requirement) if not present
+            // it is needed for both w and w/o requirement case
+            if (minMember_ is null) calculateNonLeafMinCostMember();
+            
+            if (property is null) return minMember_;
+            else
             {
-                var member = exprList_[i];
-                var subproperty = member.physic_.RequiredProperty();
-                double cost = member.physic_.Cost();
-                foreach (var child in member.physic_.children_)
+                // with property requirement, the optimization starts with
+                // enforcing property upon the general min cost memeber
+                var propminmember = property.EnforceProperty(this);
+                var propmincost = propminmember.physic_.Cost() + minIncCost_;
+
+                Debug.Assert(propertyCandidates_.ContainsKey(property));
+                // loop through candidates to find the optimal member
+                foreach (int i in propertyCandidates_[property])
                 {
-                    var childgroup = (child as PhysicMemoRef).Group();
-                    childgroup.CalculateMinInclusiveCostMember(subproperty);
-                    cost += childgroup.propertyOptimum_[subproperty].Value;
+                    var member = exprList_[i];
+                    var subproperty = member.physic_.RequiredProperty();
+                    double cost = member.physic_.Cost();
+                    foreach (var child in member.physic_.children_)
+                    {
+                        var childgroup = (child as PhysicMemoRef).Group();
+                        childgroup.CalculateMinInclusiveCostMember(subproperty);
+                        cost += childgroup.propertyOptimum_[subproperty].Value;
+                    }
+                    if (cost < propmincost)
+                    {
+                        propmincost = cost;
+                        propminmember = member;
+                    }
                 }
-                if (cost < propmincost)
-                {
-                    propmincost = cost;
-                    propminmember = member;
-                }
+                propertyOptimum_.Add(property, new KeyValuePair<CGroupMember, double>(propminmember, propmincost));
+                return propminmember;
             }
-            propertyOptimum_.Add(property, new KeyValuePair<CGroupMember, double>(propminmember, propmincost));
-            return propminmember;
         }
 
+        // general interface for calculating optimal member of group under property requirement
         public CGroupMember CalculateMinInclusiveCostMember(PhysicProperty property = null)
         {
             // inclusive cost is only possible after exploration done
             Debug.Assert(explored_);
             Debug.Assert(exprList_.Count >= 2);
 
+            // if the calculation is already completed, return the recorded answer
             if (property is null && minMember_ != null)
                 return minMember_;
             if (property != null && propertyOptimum_.ContainsKey(property))
@@ -607,8 +630,8 @@ namespace qpmodel.optimizer
             CGroupMember optmember;
             if (exprList_[0].Logic().children_.Count == 0 || IsSolverOptimizedGroup())
             {
-                // if this group has no children node or a block optimization, simply locate the lowest one
-                optmember = locateMinCostMember(property);
+                // if this group is leaf (no child) or a block optimization, simply locate the lowest one
+                optmember = locateLeafMinCostMember(property);
             }
             else
             {
@@ -616,6 +639,7 @@ namespace qpmodel.optimizer
                 optmember = locateNonLeafMinCostMember(property);
             }
 
+            // make sure general min member is calculated and the result member is valid
             Debug.Assert(minMember_.physic_ != null && !double.IsNaN(minIncCost_));
             Debug.Assert(optmember.physic_ != null);
             return optmember;

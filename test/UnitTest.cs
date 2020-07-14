@@ -661,7 +661,7 @@ namespace qpmodel.unittest
             option.optimize_.use_memo_ = true;
             option.optimize_.enable_subquery_unnest_ = true;
             option.optimize_.enable_streamagg_ = true;
-
+            
         }
     }
 
