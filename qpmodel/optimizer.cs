@@ -51,7 +51,7 @@ namespace qpmodel.optimizer
     public class PhysicProperty : Property
     {
         // ordering: the ordered expression and whether is descending
-        public List<KeyValuePair<Expr, bool>> ordering_;
+        public List<KeyValuePair<Expr, bool>> ordering_ = new List<KeyValuePair<Expr, bool>>();
         
         public bool IsPropertySupplied(PhysicNode node)
         {
@@ -76,6 +76,12 @@ namespace qpmodel.optimizer
             }
             var logicnode = new LogicOrder(node.logic_, order, desc);
             return new PhysicOrder(logicnode, node);
+        }
+        public void AddProperty (PhysicProperty property)
+        {
+            if (property is null) return;
+            foreach (var p in property.ordering_)
+                ordering_.Add(p);
         }
 
         public bool Equals(PhysicProperty other)
@@ -900,6 +906,14 @@ namespace qpmodel.optimizer
 
                 // the statment shall already have plan generated
                 var logicroot = select.logicPlan_;
+
+                // transform the logic nodes that served as requirement to base property
+                while (logicroot.ConvertToRequirement() != null)
+                {
+                    if (memo.baseproperty_ is null) memo.baseproperty_ = new PhysicProperty();
+                    memo.baseproperty_.AddProperty(logicroot.ConvertToRequirement() as PhysicProperty);
+                    logicroot = logicroot.child_();
+                }
                 memo.rootgroup_ = memo.EnquePlan(logicroot);
             }
 
