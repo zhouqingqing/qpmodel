@@ -662,6 +662,10 @@ namespace qpmodel.unittest
             option.optimize_.enable_subquery_unnest_ = true;
             option.optimize_.enable_streamagg_ = true;
             
+            string sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
+            TU.ExecuteSQL(sql, "4,1;6,4", out string phyplan, option);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicStreamAgg"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicOrder"));
         }
     }
 
