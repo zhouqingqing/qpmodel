@@ -671,6 +671,15 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "4,1;6,4", out phyplan, option);
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicStreamAgg"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicOrder"));
+
+            var result = TU.ExecuteSQL(sql, out SQLStatement stmt, out _, option);
+            var memo = stmt.optimizer_.memoset_[0];
+            memo.CalcStats(out int tlogics, out int tphysics);
+            Assert.AreEqual(8, memo.cgroups_.Count);
+            Assert.AreEqual(16, tlogics); Assert.AreEqual(17, tphysics);
+            Assert.AreEqual("4,1;6,4", string.Join(";", result));
+            var mstr = stmt.optimizer_.PrintMemo();
+            Assert.IsTrue(mstr.Contains("Summary: 16,17"));
         }
     }
 
