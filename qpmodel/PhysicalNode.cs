@@ -168,7 +168,7 @@ namespace qpmodel.physic
                     incCost += x.InclusiveCost();
             });
 
-            Debug.Assert(incCost > Cost() || children_.Count == 0);
+            Debug.Assert(Double.IsNaN(incCost) || incCost > Cost() || children_.Count == 0);
             return incCost;
         }
 
@@ -190,6 +190,9 @@ namespace qpmodel.physic
 
             return memory;
         }
+        public virtual PhysicProperty RequiredProperty() => null;
+        public virtual PhysicProperty SuppiedProperty() => null;
+        public virtual PhysicProperty PropagatedProperty() => null;
         #endregion
 
         public BitVector tableContained_ { get => logic_.tableContained_; }
@@ -1057,7 +1060,18 @@ namespace qpmodel.physic
     {
         public PhysicStreamAgg(LogicAgg logic, PhysicNode l) : base(logic, l) { }
         public override string ToString() => $"PStreamAgg({child_()}: {Cost()})";
-
+        public override PhysicProperty RequiredProperty()
+        {
+            var exprlist = (logic_ as LogicAgg).groupby_;
+            if (exprlist is null) return null;
+            return new SortOrderProperty(exprlist);
+        }
+        public override PhysicProperty SuppiedProperty()
+        {
+            var exprlist = (logic_ as LogicAgg).groupby_;
+            if (exprlist is null) return null;
+            return new SortOrderProperty(exprlist);
+        }
         protected override double EstimateCost()
         {
             return logic_.Card() * 2.0;

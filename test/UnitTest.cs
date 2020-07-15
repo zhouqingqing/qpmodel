@@ -653,6 +653,34 @@ namespace qpmodel.unittest
 
             Assert.IsTrue(option.optimize_.use_memo_);
         }
+
+        [TestMethod]
+        public void TestEnforcer()
+        {
+            QueryOption option = new QueryOption();
+            option.optimize_.use_memo_ = true;
+            option.optimize_.enable_subquery_unnest_ = true;
+            option.optimize_.enable_streamagg_ = true;
+            
+            string sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
+            TU.ExecuteSQL(sql, "4,1;6,4", out string phyplan, option);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicStreamAgg"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicOrder"));
+
+            sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2 order by a2;";
+            TU.ExecuteSQL(sql, "4,1;6,4", out phyplan, option);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicStreamAgg"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicOrder"));
+
+            var result = TU.ExecuteSQL(sql, out SQLStatement stmt, out _, option);
+            var memo = stmt.optimizer_.memoset_[0];
+            memo.CalcStats(out int tlogics, out int tphysics);
+            Assert.AreEqual(8, memo.cgroups_.Count);
+            Assert.AreEqual(16, tlogics); Assert.AreEqual(17, tphysics);
+            Assert.AreEqual("4,1;6,4", string.Join(";", result));
+            var mstr = stmt.optimizer_.PrintMemo();
+            Assert.IsTrue(mstr.Contains("Summary: 16,17"));
+        }
     }
 
     [TestClass]
