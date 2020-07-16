@@ -36,7 +36,6 @@ using qpmodel.expr;
 using qpmodel.utils;
 using LogicSignature = System.Int64;
 
-
 // TODO:
 //  - branch and bound prouning
 //  - enforcer: by test Join2MJ and indexing
