@@ -168,7 +168,7 @@ namespace qpmodel.physic
                     incCost += x.InclusiveCost();
             });
 
-            Debug.Assert(Double.IsNaN(incCost) || incCost > Cost() || children_.Count == 0);
+            Debug.Assert(incCost > Cost() || children_.Count == 0);
             return incCost;
         }
 

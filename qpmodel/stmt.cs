@@ -99,7 +99,6 @@ namespace qpmodel.logic
             {
                 optimizer_ = new Optimizer(this);
                 optimizer_.ExploreRootPlan(this);
-                optimizer_.PropagateProperty();
                 physicPlan_ = optimizer_.CopyOutOptimalPlan();
             }
 

@@ -655,7 +655,7 @@ namespace qpmodel.unittest
         }
 
         [TestMethod]
-        public void TestEnforcer()
+        public void TestPropertyEnforcement()
         {
             QueryOption option = new QueryOption();
             option.optimize_.use_memo_ = true;
