@@ -58,6 +58,14 @@ namespace qpmodel.optimizer
                 return true;
             return false;
         }
+        // check if the left key of NLJoin match the property
+        public bool IsExprMatch(List<Expr> exprs)
+        {
+            if (exprs.Count != ordering_.Count) return false;
+            for (int i=0; i<ordering_.Count; i++)
+                if (!exprs[i].Equals(ordering_[i].Key)) return false;
+            return true;
+        }
 
         internal PhysicNode OrderEnforcement(PhysicNode node)
         {
@@ -95,6 +103,7 @@ namespace qpmodel.optimizer
         public override string ToString()
         {
             string s = "";
+            if (ordering_.Count == 0) return "null";
             foreach (var o in ordering_)
                 s += o.Key.ToString();
             return s;
@@ -120,6 +129,9 @@ namespace qpmodel.optimizer
     {
         public LogicNode logic_;
         public PhysicNode physic_;
+
+        // record the property requirement of children
+        public List<PhysicProperty> childProperties_;
 
         internal CMemoGroup group_;
 
@@ -362,9 +374,9 @@ namespace qpmodel.optimizer
             {
                 List<string> l = new List<string>();
                 foreach (var pair in minMember_)
-                    l.Add($"property:{pair.Key.ToString()}, member:{pair.Value}");
+                    l.Add($"property:{pair.Key.ToString()}, member:{pair.Value.Key}, cost:{pair.Value.Value.ToString("0.##")}");
                 str += "\n\t";
-                str += string.Join("|", l);
+                str += string.Join("\n\t", l);
             }
 
             return str;
@@ -413,6 +425,62 @@ namespace qpmodel.optimizer
             explored_ = true;
         }
 
+        // preprocess exprList_ to get whether property can be supplied and subproperties
+        // also find members that can propagate required property and split them
+        internal void GnenerateCandidates(PhysicProperty property, out List<CGroupMember> candidates,
+            out List<bool> fulfilled, out List<List<PhysicProperty>> subproplist)
+        {
+            candidates = new List<CGroupMember>();
+            fulfilled = new List<bool>();
+            subproplist = new List<List<PhysicProperty>>();
+
+            foreach (var member in exprList_)
+            {
+                if (member.physic_ is null) continue;
+
+                var subproperties = ProcessChildProperty(member.physic_, property, out bool propagated);
+                if (propagated)
+                {
+                    candidates.Add(member);
+                    fulfilled.Add(true);
+                    subproplist.Add(subproperties);
+                    candidates.Add(member);
+                    fulfilled.Add(false);
+                    subproplist.Add(new List<PhysicProperty> (new PhysicProperty[member.physic_.children_.Count]));
+                }
+                else
+                {
+                    candidates.Add(member);
+                    fulfilled.Add(property?.IsPropertySupplied(member.physic_) ?? true);
+                    subproplist.Add(subproperties);
+                }
+            }
+            Debug.Assert(candidates.Count == fulfilled.Count && candidates.Count == subproplist.Count);
+        }
+        // find the property requirement on children
+        // also find if the property is propagated through the member
+        internal List<PhysicProperty> ProcessChildProperty(PhysicNode physic, PhysicProperty property, out bool propagated)
+        {
+            List<PhysicProperty> childprop = physic.PropagatedProperty(property);
+            propagated = false;
+
+            if(physic.RequiredProperty() != null)
+            {
+                var subproperty = physic.RequiredProperty();
+                for (int i = 0; i < childprop.Count; i++)
+                    childprop[i] = subproperty;
+            }
+            else
+            {
+                // when no required property and propagated is not all null
+                // meaning certain property is propagated to child
+                // the status is recorded
+                foreach (var prop in childprop)
+                    if (prop != null) propagated = true;
+            }
+            return childprop;
+        }
+
         internal CGroupMember CalculateMinInclusiveCostMember(PhysicProperty property = null)
         {
             var procproperty = property ?? new PhysicProperty();
@@ -422,16 +490,19 @@ namespace qpmodel.optimizer
                 double mincost = Double.MaxValue;
                 CGroupMember minmember = null;
 
-                foreach (var member in exprList_)
-                {
-                    if (member.physic_ is null) continue;
+                // generate a list of candidates to loop through
+                GnenerateCandidates(property, out List<CGroupMember> candidates,
+                    out List<bool> fulfilled, out List<List<PhysicProperty>> subproplist);
 
-                    var subproperty = member.physic_.RequiredProperty();
+                for (int i = 0; i < candidates.Count; i++)
+                {
+                    var member = candidates[i];
 
                     double cost = member.physic_.Cost();
                     // add subtree cost if there is child
-                    foreach (var child in member.physic_.children_)
+                    for (int j = 0; j < member.physic_.children_.Count; j++)
                     {
+                        var child = member.physic_.children_[j];
                         // for solver optimized group, child might not be physicmemoref
                         // directly use inclusive cost for this case
                         if (!(child is PhysicMemoRef))
@@ -442,14 +513,14 @@ namespace qpmodel.optimizer
                         else
                         {
                             var childgroup = (child as PhysicMemoRef).Group();
-                            childgroup.CalculateMinInclusiveCostMember(subproperty);
-                            cost += childgroup.minMember_[subproperty ?? new PhysicProperty()].Value;
+                            childgroup.CalculateMinInclusiveCostMember(subproplist[i][j]);
+                            cost += childgroup.minMember_[subproplist[i][j] ?? new PhysicProperty()].Value;
                         }
                     }
 
                     // when property requirement is not satisfied, enforcement node is added on top
                     CGroupMember procmember = null;
-                    if (!(property?.IsPropertySupplied(member.physic_) ?? true))
+                    if (!fulfilled[i])
                     {
                         cost += property.OrderEnforcement(member.physic_).Cost();
                         procmember = new CGroupMember(property.OrderEnforcement(member.physic_), this);
@@ -459,6 +530,9 @@ namespace qpmodel.optimizer
                     {
                         mincost = cost;
                         minmember = procmember ?? member;
+                        
+                        // attach child property requirement onto the min cost member
+                        minmember.childProperties_ = subproplist[i];
                     }
                 }
                 minMember_.Add(procproperty, new KeyValuePair<CGroupMember, double>(minmember, mincost));
@@ -476,9 +550,10 @@ namespace qpmodel.optimizer
             // cost one from the member list. Either way, always use a clone to
             // not change memo itself.
             //
+            CGroupMember minmember = null;
             if (knownMinPhysic is null)
             {
-                var minmember = CalculateMinInclusiveCostMember(property);
+                minmember = CalculateMinInclusiveCostMember(property);
                 knownMinPhysic = minmember.physic_;
             }
             var phyClone = knownMinPhysic.Clone();
@@ -489,21 +564,22 @@ namespace qpmodel.optimizer
             {
                 var phychildren = new List<PhysicNode>();
                 var logchildren = new List<LogicNode>();
-                foreach (var v in phyClone.children_)
+                for (int i = 0; i < phyClone.children_.Count; i++)
                 {
+                    var v = phyClone.children_[i];
                     // children shall be min cost
                     PhysicNode phychild;
                     if (v is PhysicMemoRef)
                     {
                         var g = (v as PhysicMemoRef).Group();
-                        phychild = g.CopyOutMinLogicPhysicPlan(phyClone.RequiredProperty());
+                        phychild = g.CopyOutMinLogicPhysicPlan(minmember?.childProperties_[i]);
                     }
                     else
                     {
                         // this could be join solver or enforced node
                         Debug.Assert(queryOpt.optimize_.memo_use_joinorder_solver_ ||
                             phyClone is PhysicOrder);
-                        phychild = CopyOutMinLogicPhysicPlan(phyClone.RequiredProperty(), v);
+                        phychild = CopyOutMinLogicPhysicPlan(property, v);
                     }
 
                     // remount the physic and logic children list

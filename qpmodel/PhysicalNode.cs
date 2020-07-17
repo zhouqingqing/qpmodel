@@ -192,7 +192,8 @@ namespace qpmodel.physic
         }
         public virtual PhysicProperty RequiredProperty() => null;
         public virtual PhysicProperty SuppiedProperty() => null;
-        public virtual PhysicProperty PropagatedProperty() => null;
+        public virtual List<PhysicProperty> PropagatedProperty(PhysicProperty property) 
+            => new List<PhysicProperty>( new PhysicProperty[children_.Count] );
         #endregion
 
         public BitVector tableContained_ { get => logic_.tableContained_; }
@@ -624,6 +625,17 @@ namespace qpmodel.physic
         {
             double cost = (l_().Card() + 10) * (r_().Card() + 10);
             return cost;
+        }
+
+        public override List<PhysicProperty> PropagatedProperty(PhysicProperty property)
+        {
+            var logic = logic_ as LogicJoin;
+            logic.CreateKeyList(false); // ensure existence of left/right keys
+            
+            if (property != null && property is SortOrderProperty sort)
+                if (sort.IsExprMatch(logic.leftKeys_))
+                    return new List<PhysicProperty> { sort, null };
+            return base.PropagatedProperty(property);
         }
     }
 
