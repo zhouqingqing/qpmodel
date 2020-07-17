@@ -681,15 +681,18 @@ namespace qpmodel.unittest
             var mstr = stmt.optimizer_.PrintMemo();
             Assert.IsTrue(mstr.Contains("Summary: 16,17"));
 
-            sql = "select a1 from a, b where a1 = b1 group by a1 order by a1";
-            result = TU.ExecuteSQL(sql, out stmt, out _, option);
+            sql = "select a1 from a, b where a1 <= b1 group by a1 order by a1";
+            result = TU.ExecuteSQL(sql, out stmt, out phyplan, option);
             memo = stmt.optimizer_.memoset_[0];
             memo.CalcStats(out tlogics, out tphysics);
             Assert.AreEqual(4, memo.cgroups_.Count);
-            Assert.AreEqual(5, tlogics); Assert.AreEqual(8, tphysics);
+            Assert.AreEqual(5, tlogics); Assert.AreEqual(6, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
             mstr = stmt.optimizer_.PrintMemo();
             Assert.AreEqual(6, TU.CountStr(mstr, "property"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicStreamAgg"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicOrder"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicNLJoin"));
         }
     }
 
