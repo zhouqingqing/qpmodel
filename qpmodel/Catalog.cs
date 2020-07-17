@@ -237,8 +237,8 @@ namespace qpmodel
             SQLStatement.ExecSQLList(string.Join("", createtables));
 
             // load tables
-            var curdir = Directory.GetCurrentDirectory();
-            var folder = $@"{curdir}/../../../../data";
+            var appbin_dir = AppContext.BaseDirectory.Substring(0, AppContext.BaseDirectory.LastIndexOf("bin"));
+            var folder = $@"{appbin_dir}/../data";
             var tables = new List<string>() {"test", "a", "b", "c", "d", "r", "ad", "bd", "cd", "dd", "ast" };
             foreach (var v in tables)
             {
