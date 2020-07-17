@@ -119,6 +119,17 @@ namespace qpmodel.unittest
             var count = CountStr(text, pattern);
             Assert.AreEqual(expected, count);
         }
+        public static bool OccurenceWithOrder(string text, List<string> patternlist)
+        {
+            Assert.IsNotNull(text);
+            int i = 0;
+            foreach (string pattern in patternlist)
+            {
+                i = text.IndexOf(pattern, i);
+                if (i < 0) return false;
+            }
+            return true;
+        }
     }
 
     [TestClass]
@@ -690,9 +701,8 @@ namespace qpmodel.unittest
             Assert.AreEqual("0;1;2", string.Join(";", result));
             mstr = stmt.optimizer_.PrintMemo();
             Assert.AreEqual(6, TU.CountStr(mstr, "property"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicStreamAgg"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicOrder"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicNLJoin"));
+            Assert.IsTrue(TU.OccurenceWithOrder(phyplan,
+                new List<string> { "PhysicStreamAgg", "PhysicNLJoin", "PhysicOrder" }));
         }
     }
 
