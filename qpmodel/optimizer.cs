@@ -506,7 +506,8 @@ namespace qpmodel.optimizer
                 // cost1 require subproperty on children
                 // either propagated from required or required by physic node
                 var subprop = physic.RequiredProperty() ?? physic.PropagatedProperty(required)[i];
-                propcost += childgroup.minMember_[subprop].Item2;
+                if (subprop != null)
+                    propcost += childgroup.minMember_[subprop].Item2;
                 propchildprop[i] = subprop;
             }
 
