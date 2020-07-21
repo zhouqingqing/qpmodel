@@ -119,6 +119,34 @@ namespace qpmodel.unittest
             var count = CountStr(text, pattern);
             Assert.AreEqual(expected, count);
         }
+
+        public static bool CheckPlanOrder(PhysicNode physic, List<string> patternlist)
+        {
+            bool FindInLevel(List<PhysicNode> curlevel, string pattern, out List<PhysicNode> nextlevel)
+            {
+                nextlevel = new List<PhysicNode>();
+                bool output = false;
+                foreach (var node in curlevel)
+                {
+                    if (node.GetType().ToString() == "qpmodel.physic."+pattern) output = true;
+                    nextlevel.AddRange(node.children_);
+                }
+                return output;
+            }
+
+            Assert.IsNotNull(physic);
+            List<PhysicNode> curlevel = new List<PhysicNode> { physic };
+            foreach (var pattern in patternlist)
+            {
+                List<PhysicNode> nextlevel;
+                while ( !FindInLevel(curlevel, pattern, out nextlevel) )
+                {
+                    curlevel = nextlevel;
+                    if (nextlevel.Count == 0) return false;
+                }
+            }
+            return true;
+        }
     }
 
     [TestClass]
@@ -652,6 +680,46 @@ namespace qpmodel.unittest
             Assert.AreEqual(2, TU.CountStr(phyplan, "HashJoin"));
 
             Assert.IsTrue(option.optimize_.use_memo_);
+        }
+
+        [TestMethod]
+        public void TestPropertyEnforcement()
+        {
+            QueryOption option = new QueryOption();
+            option.optimize_.use_memo_ = true;
+            option.optimize_.enable_subquery_unnest_ = true;
+            option.optimize_.enable_streamagg_ = true;
+            
+            string sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
+            TU.ExecuteSQL(sql, "4,1;6,4", out string phyplan, option);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicStreamAgg"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicOrder"));
+
+            sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2 order by a2;";
+            TU.ExecuteSQL(sql, "4,1;6,4", out phyplan, option);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicStreamAgg"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicOrder"));
+
+            var result = TU.ExecuteSQL(sql, out SQLStatement stmt, out _, option);
+            var memo = stmt.optimizer_.memoset_[0];
+            memo.CalcStats(out int tlogics, out int tphysics);
+            Assert.AreEqual(8, memo.cgroups_.Count);
+            Assert.AreEqual(16, tlogics); Assert.AreEqual(17, tphysics);
+            Assert.AreEqual("4,1;6,4", string.Join(";", result));
+            var mstr = stmt.optimizer_.PrintMemo();
+            Assert.IsTrue(mstr.Contains("Summary: 16,17"));
+
+            sql = "select a1 from a, b where a1 <= b1 group by a1 order by a1";
+            result = TU.ExecuteSQL(sql, out stmt, out phyplan, option);
+            memo = stmt.optimizer_.memoset_[0];
+            memo.CalcStats(out tlogics, out tphysics);
+            Assert.AreEqual(4, memo.cgroups_.Count);
+            Assert.AreEqual(5, tlogics); Assert.AreEqual(6, tphysics);
+            Assert.AreEqual("0;1;2", string.Join(";", result));
+            mstr = stmt.optimizer_.PrintMemo();
+            Assert.AreEqual(8, TU.CountStr(mstr, "property"));
+            Assert.IsTrue(TU.CheckPlanOrder(stmt.physicPlan_,
+                new List<string> { "PhysicStreamAgg", "PhysicNLJoin", "PhysicOrder" }));
         }
     }
 
