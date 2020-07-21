@@ -571,11 +571,14 @@ namespace qpmodel.optimizer
             minMember_.Add(required, new Tuple<CGroupMember, double>(minmember, mincost));
         }
 
-        public CGroupMember CalculateMinInclusiveCostMember(PhysicProperty required = null)
+        public CGroupMember CalculateMinInclusiveCostMember(PhysicProperty required = null, PhysicNode parent = null)
         {
             // inclusive cost is only possible after exploration done
             Debug.Assert(explored_);
             Debug.Assert(exprList_.Count >= 2);
+
+            // if there is parent node requirement, independently do this calculation
+            if (parent != null) CalculateMinInclusiveCostMember(parent.RequiredProperty());
 
             if (required == null && minMember_.ContainsKey(new PhysicProperty()))
                 return minMember_[new PhysicProperty()].Item1;
@@ -594,17 +597,19 @@ namespace qpmodel.optimizer
                 var supplied = new List<Tuple<CGroupMember, double>>();
                 var nullprop = new List<Tuple<CGroupMember, double>>();
 
-                foreach (var member in exprList_)
+                for (int i = 0; i < exprList_.Count; i++)
                 {
-                    if (member.physic_ is null) continue;
-
-                    foreach (var child in member.physic_.children_)
+                    var physic = exprList_[i].physic_;
+                    if (physic != null)
                     {
-                        var childgroup = (child as PhysicMemoRef).Group();
-                        childgroup.CalculateMinInclusiveCostMember(required);
-                        childgroup.CalculateMinInclusiveCostMember(member.physic_.RequiredProperty());
+                        foreach (var child in physic.children_)
+                        {
+                            var childgroup = (child as PhysicMemoRef).Group();
+                            childgroup.CalculateMinInclusiveCostMember(required, physic);
+                        }
+
+                        CalculateMemberCosts(required, exprList_[i], ref supplied, ref nullprop);
                     }
-                    CalculateMemberCosts(required, member, ref supplied, ref nullprop);
                 }
 
                 // calculate the null requirement min member when it is not already calculated
