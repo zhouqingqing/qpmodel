@@ -595,7 +595,6 @@ namespace qpmodel.optimizer
                 // calculate the min member for property requirement
                 if (required != null)
                     GetPropertyMinCostTuple(required, supplied);
-
             }
             Debug.Assert(!double.IsNaN(minIncCost_));
 

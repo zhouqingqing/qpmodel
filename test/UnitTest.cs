@@ -720,7 +720,6 @@ namespace qpmodel.unittest
             Assert.AreEqual(7, TU.CountStr(mstr, "property"));
             Assert.IsTrue(TU.CheckPlanOrder(stmt.physicPlan_,
                 new List<string> { "PhysicStreamAgg", "PhysicOrder", "PhysicNLJoin" }));
-            
         }
     }
 
