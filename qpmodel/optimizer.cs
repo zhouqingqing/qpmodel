@@ -431,7 +431,7 @@ namespace qpmodel.optimizer
         }
 
         // scan through the member list and return the least cost member
-        public CGroupMember locateMinCostMember(PhysicProperty required)
+        public void locateMinCostMember(PhysicProperty required)
         {
             double mincost = 0, propmincost = 0;
             if (required != null) propmincost = double.MaxValue;
@@ -472,53 +472,65 @@ namespace qpmodel.optimizer
 
             Debug.Assert(IsSolverOptimizedGroup() ||
                 minMember_[new PhysicProperty()].Item1.physic_.InclusiveCost() == minIncCost_);
-            return minMember_[required ?? new PhysicProperty()].Item1;
         }
 
+        // calculate the costs of the particular member
+        // in general, there are two kinds of cost:
+        // cost0 - no property required on children
+        // cost1 - some property required on children, either propagated or directly required
+        // correspondingly, two lists are maintained throught this function:
+        // list0 - no required property on members
+        // list1 - required property supplied by members
         internal void CalculateMemberCosts(PhysicProperty required, CGroupMember member,
             ref List<Tuple<CGroupMember, double>> supplied,
             ref List<Tuple<CGroupMember, double>> nullprop)
         {
             var physic = member.physic_;
-            // propagated is a special case that require more consideration
             var propagated = required?.IsPropertyPropagated(physic) ?? false;
 
-            double cost = physic.Cost();
-            member.childProperties_ = new List<PhysicProperty>();
+            double nullcost = physic.Cost(); // or cost0
+            double propcost = physic.Cost(); // or cost1
 
-            foreach (var child in physic.children_)
+            // initialize the childproperties corresponding to cost0 and cost1
+            var nullchildprop = new List<PhysicProperty>( new PhysicProperty[physic.children_.Count] );
+            var propchildprop = nullchildprop;
+
+            for (int i = 0; i < physic.children_.Count; i++)
             {
+                var child = physic.children_[i];
                 var childgroup = (child as PhysicMemoRef).Group();
-                childgroup.CalculateMinInclusiveCostMember(physic.RequiredProperty());
-                cost += childgroup.minMember_[physic.RequiredProperty() ?? new PhysicProperty()].Item2;
-                member.childProperties_.Add(physic.RequiredProperty());
+
+                // cost0 has no property required on children
+                nullcost += childgroup.minMember_[new PhysicProperty()].Item2;
+
+                // cost1 require subproperty on children
+                // either propagated from required or required by physic node
+                var subprop = physic.RequiredProperty() ?? physic.PropagatedProperty(required)[i];
+                propcost += childgroup.minMember_[subprop].Item2;
+                propchildprop[i] = subprop;
             }
 
-            // regardless of the requirement, plain member inclusive cost
-            // is part of the nullpropertytuple list
+            // initialize the default for cost and member childproperties
+            var cost = nullcost;
+            member.childProperties_ = nullchildprop;
+
+            // when subproperty is required by physic node
+            if (physic.RequiredProperty() != null)
+            {
+                member.childProperties_ = propchildprop;
+                cost = propcost;
+            }
+            // the plain member with no additional requirement is added to list0
             nullprop.Add(new Tuple<CGroupMember, double>(member, cost));
+
+            // when required is supplied by the current member
+            // or supplied through propagation, add to list 1
             if (required != null && required.IsPropertySupplied(physic))
                 supplied.Add(new Tuple<CGroupMember, double>(member, cost));
-
-            // when property requirement is not null and propagatable
-            // the case where property is enforced on top is considered above
-            // this is only for the case where property is propagated to children
             if (propagated)
             {
-                cost = physic.Cost();
-
-                var childproperties = physic.PropagatedProperty(required);
-                Debug.Assert(childproperties.Count == physic.children_.Count);
-
-                for (int i = 0; i < physic.children_.Count; i++)
-                {
-                    var child = physic.children_[i];
-                    var childgroup = (child as PhysicMemoRef).Group();
-                    childgroup.CalculateMinInclusiveCostMember(childproperties[i]);
-                    cost += childgroup.minMember_[childproperties[i] ?? new PhysicProperty()].Item2;
-                    member.childProperties_[i] = childproperties[i];
-                }
-                supplied.Add(new Tuple<CGroupMember, double>(member, cost));
+                member.childProperties_ = propchildprop;
+                supplied.Add(new Tuple<CGroupMember, double>(member, propcost));
             }
         }
         // compute min member for null property
@@ -581,11 +593,17 @@ namespace qpmodel.optimizer
                 var supplied = new List<Tuple<CGroupMember, double>>();
                 var nullprop = new List<Tuple<CGroupMember, double>>();
 
-                for (int i = 0; i < exprList_.Count; i++)
+                foreach (var member in exprList_)
                 {
-                    if (exprList_[i].physic_ is null) continue;
+                    if (member.physic_ is null) continue;
 
-                    CalculateMemberCosts(required, exprList_[i], ref supplied, ref nullprop);
+                    foreach (var child in member.physic_.children_)
+                    {
+                        var childgroup = (child as PhysicMemoRef).Group();
+                        childgroup.CalculateMinInclusiveCostMember(required);
+                        childgroup.CalculateMinInclusiveCostMember(member.physic_.RequiredProperty());
+                    }
+                    CalculateMemberCosts(required, member, ref supplied, ref nullprop);
                 }
 
                 // calculate the null requirement min member when it is not already calculated

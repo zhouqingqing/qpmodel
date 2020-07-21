@@ -717,9 +717,9 @@ namespace qpmodel.unittest
             Assert.AreEqual(5, tlogics); Assert.AreEqual(6, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
             mstr = stmt.optimizer_.PrintMemo();
-            Assert.AreEqual(7, TU.CountStr(mstr, "property"));
+            Assert.AreEqual(8, TU.CountStr(mstr, "property"));
             Assert.IsTrue(TU.CheckPlanOrder(stmt.physicPlan_,
-                new List<string> { "PhysicStreamAgg", "PhysicOrder", "PhysicNLJoin" }));
+                new List<string> { "PhysicStreamAgg", "PhysicNLJoin", "PhysicOrder" }));
         }
     }
 
