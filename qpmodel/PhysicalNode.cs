@@ -190,6 +190,13 @@ namespace qpmodel.physic
 
             return memory;
         }
+        // interface for physical property
+        // whether the property is required, directly supplied
+        // or propagated to children nodes
+        public virtual PhysicProperty RequiredProperty() => null;
+        public virtual PhysicProperty SuppiedProperty() => null;
+        public virtual List<PhysicProperty> PropagatedProperty(PhysicProperty property) 
+            => new List<PhysicProperty>( new PhysicProperty[children_.Count] );
         #endregion
 
         public BitVector tableContained_ { get => logic_.tableContained_; }
@@ -621,6 +628,24 @@ namespace qpmodel.physic
         {
             double cost = (l_().Card() + 10) * (r_().Card() + 10);
             return cost;
+        }
+
+        public override List<PhysicProperty> PropagatedProperty(PhysicProperty property)
+        {
+            var logic = logic_ as LogicJoin;
+            logic.CreateKeyList(false); // ensure existence of left/right keys
+            
+            if (property != null && property is SortOrderProperty sort)
+                if (IsExprMatch(sort, logic.leftKeys_))
+                    return new List<PhysicProperty> { sort, null };
+            return base.PropagatedProperty(property);
+        }
+        internal bool IsExprMatch(PhysicProperty sort, List<Expr> exprs)
+        {
+            if (exprs.Count != sort.ordering_.Count) return false;
+            for (int i = 0; i < sort.ordering_.Count; i++)
+                if (!exprs[i].Equals(sort.ordering_[i].Key)) return false;
+            return true;
         }
     }
 
@@ -1057,7 +1082,18 @@ namespace qpmodel.physic
     {
         public PhysicStreamAgg(LogicAgg logic, PhysicNode l) : base(logic, l) { }
         public override string ToString() => $"PStreamAgg({child_()}: {Cost()})";
-
+        public override PhysicProperty RequiredProperty()
+        {
+            var exprlist = (logic_ as LogicAgg).groupby_;
+            if (exprlist is null) return null;
+            return new SortOrderProperty(exprlist);
+        }
+        public override PhysicProperty SuppiedProperty()
+        {
+            var exprlist = (logic_ as LogicAgg).groupby_;
+            if (exprlist is null) return null;
+            return new SortOrderProperty(exprlist);
+        }
         protected override double EstimateCost()
         {
             return logic_.Card() * 2.0;
