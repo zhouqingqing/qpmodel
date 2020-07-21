@@ -83,7 +83,7 @@ namespace qpmodel.physic
                     //
                     if (log.output_.Count == 0)
                     {
-                        List<Type> mustHaveOutput = new List<Type> {typeof(PhysicHashJoin), typeof(PhysicHashAgg), typeof(PhysicStreamAgg)};
+                        List<Type> mustHaveOutput = new List<Type> { typeof(PhysicHashJoin), typeof(PhysicHashAgg), typeof(PhysicStreamAgg) };
                         Debug.Assert(!mustHaveOutput.Contains(phyType) || VisitEachExists(x => x is PhysicNLJoin));
                     }
                 }
@@ -190,13 +190,19 @@ namespace qpmodel.physic
 
             return memory;
         }
+
         // interface for physical property
-        // whether the property is required, directly supplied
-        // or propagated to children nodes
+        //
+        // what property current node requires to implment it
+        //      for example, StreamAgg requires Sort on grouping keys
         public virtual PhysicProperty RequiredProperty() => null;
+        // what property current node can supply
+        //      for example, StreamAgg can supply Sort on grouping keys
         public virtual PhysicProperty SuppiedProperty() => null;
-        public virtual List<PhysicProperty> PropagatedProperty(PhysicProperty property) 
-            => new List<PhysicProperty>( new PhysicProperty[children_.Count] );
+        // requirements of each children node if propogate the property
+        //      for example, NLJ sort order requires outer node the same order
+        public virtual List<PhysicProperty> PropagatedProperty(PhysicProperty property)
+            => new List<PhysicProperty>(new PhysicProperty[children_.Count]);
         #endregion
 
         public BitVector tableContained_ { get => logic_.tableContained_; }
@@ -213,7 +219,7 @@ namespace qpmodel.physic
             {
                 if ((x as PhysicNode)._ == objectid)
                 {
-                    Debug.Assert(target is null); 
+                    Debug.Assert(target is null);
                     target = x as PhysicNode;
                     return false;
                 }
@@ -634,18 +640,16 @@ namespace qpmodel.physic
         {
             var logic = logic_ as LogicJoin;
             logic.CreateKeyList(false); // ensure existence of left/right keys
-            
+
             if (property != null && property is SortOrderProperty sort)
                 if (IsExprMatch(sort, logic.leftKeys_))
                     return new List<PhysicProperty> { sort, null };
             return base.PropagatedProperty(property);
         }
+
         internal bool IsExprMatch(PhysicProperty sort, List<Expr> exprs)
         {
-            if (exprs.Count != sort.ordering_.Count) return false;
-            for (int i = 0; i < sort.ordering_.Count; i++)
-                if (!exprs[i].Equals(sort.ordering_[i].Key)) return false;
-            return true;
+            return sort.ordering_.Select(x => x.expr).SequenceEqual(exprs);
         }
     }
 
@@ -923,7 +927,7 @@ namespace qpmodel.physic
             var aggrcore = logic.aggrFns_;
             string srccode = null;
 
-            if (context.option_.optimize_.use_codegen_) 
+            if (context.option_.optimize_.use_codegen_)
             {
                 srccode = $@"
                     for (int i = 0; i < {aggrcore.Count}; i++)
@@ -1561,7 +1565,7 @@ namespace qpmodel.physic
                             newr[i] = r[i];
                     }
                     rows_.Add(newr);
-                    if (context.option_.explain_.mode_ >= ExplainMode.full )
+                    if (context.option_.explain_.mode_ >= ExplainMode.full)
                         Console.WriteLine($"{newr}");
                 }
                 return cs;
