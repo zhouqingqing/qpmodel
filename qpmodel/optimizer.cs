@@ -433,12 +433,6 @@ namespace qpmodel.optimizer
             explored_ = true;
         }
 
-        // propagate the property requirement from the top
-        public void PropagateProperty(PhysicProperty property)
-        {
-            return;
-        }
-
         // scan through the member list and return the least inclusive cost member
         //  since this procedure is for leaf nodes only, inclsuve cost equals cost
         //
