@@ -309,7 +309,6 @@ namespace qpmodel.optimizer
             get { return minMember_[PhysicProperty.nullprop].cost; }
         }
 
-
         // debug info
         internal Memo memo_;
 
