@@ -303,7 +303,6 @@ namespace qpmodel.optimizer
         //
         public Dictionary<PhysicProperty, (CGroupMember member, double cost)> minMember_ { get; set; }
             = new Dictionary<PhysicProperty, (CGroupMember, double)>();
-        public double minIncCost_ { get; set; }
 
         // debug info
         internal Memo memo_;
@@ -369,7 +368,7 @@ namespace qpmodel.optimizer
         public string Print()
         {
             CountMembers(out int clogics, out int cphysics);
-            var str = $"{clogics}, {cphysics}, [{logicSign_}][{minIncCost_}]: ";
+            var str = $"{clogics}, {cphysics}, [{logicSign_}][{minMember_[new PhysicProperty()].cost}]: ";
             str += string.Join(",", exprList_);
 
             // add property optimal member
@@ -478,11 +477,8 @@ namespace qpmodel.optimizer
                 }
             }
 
-            // record the null property minimum inclusive cost
-            if (mincost > 0) minIncCost_ = mincost;
-
             Debug.Assert(IsSolverOptimizedGroup() ||
-                minMember_[new PhysicProperty()].member.physic_.InclusiveCost() == minIncCost_);
+                minMember_[new PhysicProperty()].member.physic_.InclusiveCost() == minMember_[new PhysicProperty()].cost);
         }
 
         // calculate the costs of the particular member
@@ -505,7 +501,7 @@ namespace qpmodel.optimizer
 
             // initialize the childproperties corresponding to cost0 and cost1
             var nullchildprop = new List<PhysicProperty>(new PhysicProperty[physic.children_.Count]);
-            var propchildprop = nullchildprop;
+            var propchildprop = new List<PhysicProperty>(new PhysicProperty[physic.children_.Count]);
 
             for (int i = 0; i < physic.children_.Count; i++)
             {
@@ -518,8 +514,7 @@ namespace qpmodel.optimizer
                 // cost1 require subproperty on children
                 // either propagated from required or required by physic node
                 var subprop = physic.RequiredProperty() ?? physic.PropagatedProperty(required)[i];
-                if (subprop != null)
-                    cost1 += childgroup.minMember_[subprop].cost;
+                cost1 += childgroup.minMember_[subprop ?? new PhysicProperty()].cost;
                 propchildprop[i] = subprop;
             }
 
@@ -542,8 +537,9 @@ namespace qpmodel.optimizer
                 supplied.Add((member, cost));
             if (propagated)
             {
-                member.childProperties_ = propchildprop;
-                supplied.Add((member, cost1));
+                var clonemember = new CGroupMember(member.physic_, member.group_);
+                clonemember.childProperties_ = propchildprop;
+                supplied.Add((clonemember, cost1));
             }
         }
 
@@ -561,7 +557,6 @@ namespace qpmodel.optimizer
                 }
             }
             Debug.Assert(minmember != null);
-            minIncCost_ = mincost;
             minMember_.Add(new PhysicProperty(), (minmember, mincost));
         }
 
@@ -581,7 +576,6 @@ namespace qpmodel.optimizer
                 }
             }
             Debug.Assert(minmember != null);
-            minIncCost_ = mincost;
             minMember_.Add(required, (minmember, mincost));
         }
 
@@ -639,7 +633,7 @@ namespace qpmodel.optimizer
                 if (required != null)
                     GetPropertyMinCostTuple(required, supplied);
             }
-            Debug.Assert(!double.IsNaN(minIncCost_));
+            Debug.Assert(minMember_.ContainsKey(new PhysicProperty()));
 
             // we filled the dictionary <proerpty, member> during the process, but only return
             // the one with required property, which is convenient for tree root.
