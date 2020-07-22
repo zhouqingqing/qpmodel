@@ -128,7 +128,7 @@ namespace qpmodel.unittest
                 bool output = false;
                 foreach (var node in curlevel)
                 {
-                    if (node.GetType().ToString() == "qpmodel.physic."+pattern) output = true;
+                    if (node.GetType().ToString() == "qpmodel.physic." + pattern) output = true;
                     nextlevel.AddRange(node.children_);
                 }
                 return output;
@@ -139,7 +139,7 @@ namespace qpmodel.unittest
             foreach (var pattern in patternlist)
             {
                 List<PhysicNode> nextlevel;
-                while ( !FindInLevel(curlevel, pattern, out nextlevel) )
+                while (!FindInLevel(curlevel, pattern, out nextlevel))
                 {
                     curlevel = nextlevel;
                     if (nextlevel.Count == 0) return false;
@@ -686,10 +686,8 @@ namespace qpmodel.unittest
         public void TestPropertyEnforcement()
         {
             QueryOption option = new QueryOption();
-            option.optimize_.use_memo_ = true;
-            option.optimize_.enable_subquery_unnest_ = true;
             option.optimize_.enable_streamagg_ = true;
-            
+
             string sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2;";
             TU.ExecuteSQL(sql, "4,1;6,4", out string phyplan, option);
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicStreamAgg"));

@@ -39,7 +39,6 @@ using LogicSignature = System.Int64;
 
 // TODO:
 //  - branch and bound prouning
-//  - enforcer: by test Join2MJ and indexing
 //  - aggregation/ctes: by generate multiple memo
 //
 
@@ -51,7 +50,7 @@ namespace qpmodel.optimizer
     public class PhysicProperty : Property
     {
         // ordering: the ordered expression and whether is descending
-        public List<KeyValuePair<Expr, bool>> ordering_ = new List<KeyValuePair<Expr, bool>>();
+        public List<(Expr expr, bool desc)> ordering_ = new List<(Expr expr, bool desc)>();
 
         public bool IsPropertySupplied(PhysicNode node)
         {
@@ -73,8 +72,8 @@ namespace qpmodel.optimizer
             List<bool> desc = new List<bool>();
             foreach (var pair in ordering_)
             {
-                order.Add(pair.Key);
-                desc.Add(pair.Value);
+                order.Add(pair.expr);
+                desc.Add(pair.desc);
             }
             var logicnode = new LogicOrder(node.logic_, order, desc);
             return new PhysicOrder(logicnode, node);
@@ -82,12 +81,14 @@ namespace qpmodel.optimizer
 
         public bool Equals(PhysicProperty other)
         {
-            if (other is null) return false;
-            if (ordering_.Count != other.ordering_.Count) return false;
+            if (other is null || ordering_.Count != other.ordering_.Count)
+                return false;
             for (int i = 0; i < ordering_.Count; i++)
             {
-                if (!ordering_[i].Key.Equals(other.ordering_[i].Key)) return false;
-                if (ordering_[i].Value != other.ordering_[i].Value) return false;
+                if (!ordering_[i].expr.Equals(other.ordering_[i].expr))
+                    return false;
+                if (ordering_[i].desc != other.ordering_[i].desc)
+                    return false;
             }
             return true;
         }
@@ -102,13 +103,10 @@ namespace qpmodel.optimizer
         }
         public override string ToString()
         {
-            string s = "";
-            if (ordering_.Count == 0) return "null";
-            foreach (var o in ordering_)
-                s += o.Key.ToString();
-            return s;
+            return string.Join(",", ordering_);
         }
     }
+
     public class SortOrderProperty : PhysicProperty
     {
         public SortOrderProperty(List<Expr> order, List<bool> desc = null)
@@ -116,9 +114,9 @@ namespace qpmodel.optimizer
             if (desc is null)
                 desc = new List<bool>(Enumerable.Repeat(false, order.Count).ToArray());
             Debug.Assert(order.Count == desc.Count);
-            ordering_ = new List<KeyValuePair<Expr, bool>>();
+            ordering_ = new List<(Expr, bool)>();
             for (int i = 0; i < order.Count; i++)
-                ordering_.Add(new KeyValuePair<Expr, bool>(order[i], desc[i]));
+                ordering_.Add((order[i], desc[i]));
         }
     }
 
@@ -297,9 +295,15 @@ namespace qpmodel.optimizer
         public List<CGroupMember> exprList_ = new List<CGroupMember>();
 
         public bool explored_ = false;
-        public Dictionary<PhysicProperty, Tuple<CGroupMember, double>> minMember_
-            = new Dictionary<PhysicProperty, Tuple<CGroupMember, double>>();
-        public double minIncCost_;
+
+        // minMember_ depends on the property: each property has a different inclusive cost min member
+        //    0: <no property required>, hash join
+        //    1: <order on column a>, NLJ with outer table sorted on a (better than sort on HJ since
+        //      the join generate many rows).
+        //
+        public Dictionary<PhysicProperty, (CGroupMember member, double cost)> minMember_ { get; set; }
+            = new Dictionary<PhysicProperty, (CGroupMember, double)>();
+        public double minIncCost_ { get; set; }
 
         // debug info
         internal Memo memo_;
@@ -373,7 +377,7 @@ namespace qpmodel.optimizer
             {
                 List<string> l = new List<string>();
                 foreach (var pair in minMember_)
-                    l.Add($"property:{pair.Key}, member:{pair.Value.Item1}, cost:{pair.Value.Item2.ToString("0.##")}");
+                    l.Add($"property:{pair.Key}, member:{pair.Value.member}, cost:{pair.Value.cost.ToString("0.##")}");
                 str += "\n\t";
                 str += string.Join("\n\t", l);
             }
@@ -430,18 +434,25 @@ namespace qpmodel.optimizer
             return;
         }
 
-        // scan through the member list and return the least cost member
-        public void locateMinCostMember(PhysicProperty required)
+        // scan through the member list and return the least inclusive cost member
+        //  since this procedure is for leaf nodes only, inclsuve cost equals cost
+        //
+        public void locateMinCostMemberForLeafNodes(PhysicProperty required)
         {
             double mincost = 0, propmincost = 0;
-            if (required != null) propmincost = double.MaxValue;
+
+            if (required != null)
+                propmincost = double.MaxValue;
             // calculate null requirement min cost if not available
-            if (minMember_.Count == 0) mincost = double.MaxValue;
+            if (minMember_.Count == 0)
+                mincost = double.MaxValue;
 
             foreach (var v in exprList_)
             {
                 var physic = v.physic_;
-                if (physic is null) continue;
+                if (physic is null)
+                    continue;
+
                 // make sure childproperties is not null if there is children (for join resolver)
                 v.childProperties_ = new List<PhysicProperty>(new PhysicProperty[physic.children_?.Count ?? 0]);
 
@@ -449,29 +460,29 @@ namespace qpmodel.optimizer
                 if (physic.Cost() < mincost)
                 {
                     mincost = physic.Cost();
-                    minMember_[new PhysicProperty()] = new Tuple<CGroupMember, double>(v, mincost);
+                    minMember_[new PhysicProperty()] = (v, mincost);
                 }
 
                 // directly supply the property
                 if (required?.IsPropertySupplied(physic) ?? true && physic.Cost() < propmincost)
                 {
                     propmincost = physic.Cost();
-                    minMember_[required] = new Tuple<CGroupMember, double>(v, propmincost);
+                    minMember_[required] = (v, propmincost);
                 }
                 // property is enforced
                 else if (required != null && physic.Cost() + required.OrderEnforcement(physic).Cost() < propmincost)
                 {
                     propmincost = physic.Cost() + required.OrderEnforcement(physic).Cost();
                     var enforced = new CGroupMember(required.OrderEnforcement(physic), this);
-                    minMember_[required] = new Tuple<CGroupMember, double>(enforced, propmincost);
+                    minMember_[required] = (enforced, propmincost);
                 }
             }
 
             // record the null property minimum inclusive cost
-            if(mincost > 0) minIncCost_ = mincost;
+            if (mincost > 0) minIncCost_ = mincost;
 
             Debug.Assert(IsSolverOptimizedGroup() ||
-                minMember_[new PhysicProperty()].Item1.physic_.InclusiveCost() == minIncCost_);
+                minMember_[new PhysicProperty()].member.physic_.InclusiveCost() == minIncCost_);
         }
 
         // calculate the costs of the particular member
@@ -481,18 +492,19 @@ namespace qpmodel.optimizer
         // correspondingly, two lists are maintained throught this function:
         // list0 - no required property on members
         // list1 - required property supplied by members
+        //
         internal void CalculateMemberCosts(PhysicProperty required, CGroupMember member,
-            ref List<Tuple<CGroupMember, double>> supplied,
-            ref List<Tuple<CGroupMember, double>> nullprop)
+            List<(CGroupMember member, double cost)> supplied,
+            List<(CGroupMember member, double cost)> nullprop)
         {
             var physic = member.physic_;
             var propagated = required?.IsPropertyPropagated(physic) ?? false;
 
-            double nullcost = physic.Cost(); // or cost0
-            double propcost = physic.Cost(); // or cost1
+            double cost0 = physic.Cost();
+            double cost1 = physic.Cost();
 
             // initialize the childproperties corresponding to cost0 and cost1
-            var nullchildprop = new List<PhysicProperty>( new PhysicProperty[physic.children_.Count] );
+            var nullchildprop = new List<PhysicProperty>(new PhysicProperty[physic.children_.Count]);
             var propchildprop = nullchildprop;
 
             for (int i = 0; i < physic.children_.Count; i++)
@@ -501,74 +513,76 @@ namespace qpmodel.optimizer
                 var childgroup = (child as PhysicMemoRef).Group();
 
                 // cost0 has no property required on children
-                nullcost += childgroup.minMember_[new PhysicProperty()].Item2;
+                cost0 += childgroup.minMember_[new PhysicProperty()].cost;
 
                 // cost1 require subproperty on children
                 // either propagated from required or required by physic node
                 var subprop = physic.RequiredProperty() ?? physic.PropagatedProperty(required)[i];
                 if (subprop != null)
-                    propcost += childgroup.minMember_[subprop].Item2;
+                    cost1 += childgroup.minMember_[subprop].cost;
                 propchildprop[i] = subprop;
             }
 
             // initialize the default for cost and member childproperties
-            var cost = nullcost;
+            var cost = cost0;
             member.childProperties_ = nullchildprop;
 
             // when subproperty is required by physic node
             if (physic.RequiredProperty() != null)
             {
                 member.childProperties_ = propchildprop;
-                cost = propcost;
+                cost = cost1;
             }
             // the plain member with no additional requirement is added to list0
-            nullprop.Add(new Tuple<CGroupMember, double>(member, cost));
+            nullprop.Add((member, cost));
 
             // when required is supplied by the current member
             // or supplied through propagation, add to list 1
             if (required != null && required.IsPropertySupplied(physic))
-                supplied.Add(new Tuple<CGroupMember, double>(member, cost));
+                supplied.Add((member, cost));
             if (propagated)
             {
                 member.childProperties_ = propchildprop;
-                supplied.Add(new Tuple<CGroupMember, double>(member, propcost));
+                supplied.Add((member, cost1));
             }
         }
+
         // compute min member for null property
-        internal void GetNullRequireMinCostTuple (List<Tuple<CGroupMember, double>> nullprop)
+        internal void GetNullRequireMinCostTuple(List<(CGroupMember member, double cost)> nullprop)
         {
             double mincost = double.MaxValue;
             CGroupMember minmember = null;
             foreach (var pair in nullprop)
             {
-                if (mincost > pair.Item2)
+                if (mincost > pair.cost)
                 {
-                    mincost = pair.Item2;
-                    minmember = pair.Item1;
+                    mincost = pair.cost;
+                    minmember = pair.member;
                 }
             }
             Debug.Assert(minmember != null);
             minIncCost_ = mincost;
-            minMember_.Add(new PhysicProperty(), new Tuple<CGroupMember, double>(minmember, mincost));
+            minMember_.Add(new PhysicProperty(), (minmember, mincost));
         }
-        internal void GetPropertyMinCostTuple (PhysicProperty required, List<Tuple<CGroupMember, double>> supplied)
+
+        internal void GetPropertyMinCostTuple(PhysicProperty required, List<(CGroupMember member, double cost)> supplied)
         {
-            double mincost = minMember_[new PhysicProperty()].Item2;
-            CGroupMember minmember = minMember_[new PhysicProperty()].Item1;
+            double mincost = minMember_[new PhysicProperty()].cost;
+            CGroupMember minmember = minMember_[new PhysicProperty()].member;
             mincost += required.OrderEnforcement(minmember.physic_).Cost();
             minmember = new CGroupMember(required.OrderEnforcement(minmember.physic_), this);
 
             foreach (var pair in supplied)
             {
-                if (mincost > pair.Item2)
+                if (mincost > pair.cost)
                 {
-                    mincost = pair.Item2;
-                    minmember = pair.Item1;
+                    mincost = pair.cost;
+                    minmember = pair.member;
                 }
             }
             Debug.Assert(minmember != null);
             minIncCost_ = mincost;
-            minMember_.Add(required, new Tuple<CGroupMember, double>(minmember, mincost));
+            minMember_.Add(required, (minmember, mincost));
         }
 
         public CGroupMember CalculateMinInclusiveCostMember(PhysicProperty required = null, PhysicNode parent = null)
@@ -578,24 +592,29 @@ namespace qpmodel.optimizer
             Debug.Assert(exprList_.Count >= 2);
 
             // if there is parent node requirement, independently do this calculation
-            if (parent != null) CalculateMinInclusiveCostMember(parent.RequiredProperty());
+            if (parent != null)
+                CalculateMinInclusiveCostMember(parent.RequiredProperty());
 
+            // check if we already done the calculation
             if (required == null && minMember_.ContainsKey(new PhysicProperty()))
-                return minMember_[new PhysicProperty()].Item1;
+                return minMember_[new PhysicProperty()].member;
             if (required != null && minMember_.ContainsKey(required))
-                return minMember_[required].Item1;
+                return minMember_[required].member;
 
             if (exprList_[0].Logic().children_.Count == 0 || IsSolverOptimizedGroup())
             {
-                // if this group has no children node or a block optimization, simply locate the lowest one
-                locateMinCostMember(required);
+                // if this group has no children node or a block optimization, simply locate
+                // the lowest one
+                //
+                locateMinCostMemberForLeafNodes(required);
             }
             else
             {
                 // there are children. So for each member in the list, we calculate the inclusive
                 // cost and return the lowest one
-                var supplied = new List<Tuple<CGroupMember, double>>();
-                var nullprop = new List<Tuple<CGroupMember, double>>();
+                //
+                var supplied = new List<(CGroupMember member, double cost)>();
+                var nullprop = new List<(CGroupMember member, double cost)>();
 
                 for (int i = 0; i < exprList_.Count; i++)
                 {
@@ -608,7 +627,7 @@ namespace qpmodel.optimizer
                             childgroup.CalculateMinInclusiveCostMember(required, physic);
                         }
 
-                        CalculateMemberCosts(required, exprList_[i], ref supplied, ref nullprop);
+                        CalculateMemberCosts(required, exprList_[i], supplied, nullprop);
                     }
                 }
 
@@ -622,7 +641,10 @@ namespace qpmodel.optimizer
             }
             Debug.Assert(!double.IsNaN(minIncCost_));
 
-            return minMember_[required ?? new PhysicProperty()].Item1;
+            // we filled the dictionary <proerpty, member> during the process, but only return
+            // the one with required property, which is convenient for tree root.
+            // 
+            return minMember_[required ?? new PhysicProperty()].member;
         }
 
         public PhysicNode CopyOutMinLogicPhysicPlan(PhysicProperty property, PhysicNode knownMinPhysic = null)
@@ -695,7 +717,8 @@ namespace qpmodel.optimizer
     {
         public SQLStatement stmt_;
         public CMemoGroup rootgroup_;
-        public PhysicProperty baseproperty_;
+        public PhysicProperty rootProperty_;
+
         [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
         public Dictionary<LogicSignature, CMemoGroup> cgroups_ = new Dictionary<LogicSignature, CMemoGroup>();
 
@@ -876,7 +899,7 @@ namespace qpmodel.optimizer
         {
             if (logicroot is LogicOrder order)
             {
-                memo.baseproperty_ = new SortOrderProperty(order.orders_, order.descends_);
+                memo.rootProperty_ = new SortOrderProperty(order.orders_, order.descends_);
                 return order.child_();
             }
             else return logicroot;
@@ -925,7 +948,7 @@ namespace qpmodel.optimizer
 
             // retrieve the lowest cost plan
             Debug.Assert(stmt.physicPlan_ is null);
-            stmt.physicPlan_ = memo.rootgroup_.CopyOutMinLogicPhysicPlan(memo.baseproperty_);
+            stmt.physicPlan_ = memo.rootgroup_.CopyOutMinLogicPhysicPlan(memo.rootProperty_);
             stmt.logicPlan_ = stmt.physicPlan_.logic_;
 
             // fix fromQueries - the fromQueries are optimized as part of LogicNode tree
