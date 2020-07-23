@@ -163,7 +163,7 @@ namespace qpmodel.physic
             children_.ForEach(x =>
             {
                 if (x is PhysicMemoRef xp)
-                    incCost += xp.Group().minIncCost_;
+                    incCost += xp.Group().nullPropertyMinIncCost;
                 else
                     incCost += x.InclusiveCost();
             });
@@ -195,10 +195,10 @@ namespace qpmodel.physic
         //
         // what property current node requires to implment it
         //      for example, StreamAgg requires Sort on grouping keys
-        public virtual PhysicProperty RequiredProperty() => null;
+        public virtual PhysicProperty RequiredProperty() => new PhysicProperty();
         // what property current node can supply
         //      for example, StreamAgg can supply Sort on grouping keys
-        public virtual PhysicProperty SuppiedProperty() => null;
+        public virtual PhysicProperty SuppiedProperty() => new PhysicProperty();
         // requirements of each children node if propogate the property
         //      for example, NLJ sort order requires outer node the same order
         public virtual List<PhysicProperty> PropagatedProperty(PhysicProperty property)
