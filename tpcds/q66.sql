@@ -114,7 +114,7 @@ select
         and ws_sold_time_sk = t_time_sk
  	and ws_ship_mode_sk = sm_ship_mode_sk
         and d_year = 2001
- 	and t_time between (42970 ,42970+28800 )
+ 	and t_time between 42970  and 42970+28800 
  	and sm_carrier in ('ORIENTAL','BOXBUNDLES')
      group by 
         w_warehouse_name
@@ -194,7 +194,7 @@ select
         and cs_sold_time_sk = t_time_sk
  	and cs_ship_mode_sk = sm_ship_mode_sk
         and d_year = 2001
- 	and t_time between (42970 ,42970+28800 )
+ 	and t_time between 42970  and 42970+28800 
  	and sm_carrier in ('ORIENTAL','BOXBUNDLES')
      group by 
         w_warehouse_name

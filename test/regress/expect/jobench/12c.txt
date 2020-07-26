@@ -18,7 +18,7 @@ WHERE cn.country_code = '[us]'
                   'Western',
                   'Family')
   AND mi_idx.info > '7.0'
-  AND t.production_year BETWEEN (2000 , 2010)
+  AND t.production_year BETWEEN 2000  AND 2010
   AND t.id = mi.movie_id
   AND t.id = mi_idx.movie_id
   AND mi.info_type_id = it1.id

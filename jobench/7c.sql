@@ -16,12 +16,12 @@ WHERE an.name IS NOT NULL
                   'referenced in',
                   'features',
                   'featured in')
-  AND n.name_pcode_cf BETWEEN ('A' , 'F')
+  AND n.name_pcode_cf BETWEEN 'A'  AND 'F'
   AND (n.gender='m'
        OR (n.gender = 'f'
            AND n.name LIKE 'A%'))
   AND pi.note IS NOT NULL
-  AND t.production_year BETWEEN (1980 , 2010)
+  AND t.production_year BETWEEN 1980  AND 2010
   AND n.id = an.person_id
   AND n.id = pi.person_id
   AND ci.person_id = n.id

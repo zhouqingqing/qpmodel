@@ -21,7 +21,7 @@ WHERE ci.note IN ('(writer)',
   AND mi_idx.info > '8.0'
   AND n.gender IS NOT NULL
   AND n.gender = 'f'
-  AND t.production_year BETWEEN (2008 , 2014)
+  AND t.production_year BETWEEN 2008  AND 2014
   AND t.id = mi.movie_id
   AND t.id = mi_idx.movie_id
   AND t.id = ci.movie_id

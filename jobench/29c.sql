@@ -34,7 +34,7 @@ WHERE cct1.kind ='cast'
   AND n.gender ='f'
   AND n.name LIKE '%An%'
   AND rt.role ='actress'
-  AND t.production_year BETWEEN (2000 , 2010)
+  AND t.production_year BETWEEN 2000  AND 2010
   AND t.id = mi.movie_id
   AND t.id = mc.movie_id
   AND t.id = ci.movie_id

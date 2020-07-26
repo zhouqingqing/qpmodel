@@ -25,7 +25,7 @@ WHERE ci.note IN ('(voice)',
   AND n.gender ='f'
   AND n.name LIKE '%Ang%'
   AND rt.role ='actress'
-  AND t.production_year BETWEEN (2005 , 2009)
+  AND t.production_year BETWEEN 2005  AND 2009
   AND t.id = mi.movie_id
   AND t.id = mc.movie_id
   AND t.id = ci.movie_id

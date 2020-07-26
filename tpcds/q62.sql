@@ -18,7 +18,7 @@ from
   ,web_site
   ,date_dim
 where
-    d_month_seq between (1223 , 1223 + 11)
+    d_month_seq between 1223  and 1223 + 11
 and ws_ship_date_sk   = d_date_sk
 and ws_warehouse_sk   = w_warehouse_sk
 and ws_ship_mode_sk   = sm_ship_mode_sk

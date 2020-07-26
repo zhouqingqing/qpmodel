@@ -1355,7 +1355,7 @@ namespace qpmodel.unittest
         public void TestExpr()
         {
             string phyplan;
-            var sql = "select a2 from a where a1 between (1 , 2);";
+            var sql = "select a2 from a where a1 between 1  and 2;";
             TU.ExecuteSQL(sql, "2;3");
             sql = "select count(a1) from a where 3>2 or 2<5";
             var answer = @"PhysicHashAgg   (actual rows=1)
