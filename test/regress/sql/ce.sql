@@ -1,6 +1,6 @@
 select * from lineitem where l_extendedprice > 25000;
 select * from orders where o_orderdate >= date '1993-07-01' and o_orderdate < date '1997-07-01';
-select * from lineitem where l_discount between(.06 - 0.01 , .06 + 0.01);
+select * from lineitem where l_discount between .06 - 0.01  and .06 + 0.01;
 select * from lineitem where l_shipmode in ('RAIL', 'TRUCK', 'REG AIR', 'MAIL');
 select * from part where p_type like 'MEDIUM%';
 select * from lineitem, orders where l_orderkey = o_orderkey;

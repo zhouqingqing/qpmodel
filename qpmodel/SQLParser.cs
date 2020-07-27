@@ -95,7 +95,16 @@ namespace qpmodel.sqlparser
             => new LiteralExpr(context.STRING_LITERAL().GetText(), new DateTimeType());
         public override object VisitIntervalLiteral([NotNull] SQLiteParser.IntervalLiteralContext context)
             => new LiteralExpr(context.STRING_LITERAL().GetText(), context.date_unit_single().GetText());
-        public override object VisitNumericOrDateLiteral([NotNull] SQLiteParser.NumericOrDateLiteralContext context)
+
+        public override object VisitNumericLiteral([NotNull] SQLiteParser.NumericLiteralContext context)
+        {
+                Debug.Assert(context.signed_number() != null);
+                if (context.signed_number().GetText().Contains("."))
+                    return new LiteralExpr(context.signed_number().GetText(), new DoubleType());
+                else
+                    return new LiteralExpr(context.signed_number().GetText(), new IntType());
+        }
+        public override object VisitDateLiteral([NotNull] SQLiteParser.DateLiteralContext context)
         {
             if (context.date_unit_plural() != null)
                 return new LiteralExpr($"'{context.signed_number().GetText()}'", context.date_unit_plural().GetText());
@@ -108,31 +117,40 @@ namespace qpmodel.sqlparser
                     return new LiteralExpr(context.signed_number().GetText(), new IntType());
             }
         }
+
         public override object VisitCurrentTimeLiteral([NotNull] SQLiteParser.CurrentTimeLiteralContext context)
            => throw new NotImplementedException();
         public override object VisitStringLiteral([NotNull] SQLiteParser.StringLiteralContext context)
             => new LiteralExpr(context.GetText(), new CharType(context.GetText().Length));
         public override object VisitNullLiteral([NotNull] SQLiteParser.NullLiteralContext context)
                 => new LiteralExpr("null", new AnyType());
+
         public override object VisitBrackexpr([NotNull] SQLiteParser.BrackexprContext context)
+            => Visit(context.logical_expr());
+
+        public override object VisitOtherbrackexpr([NotNull] SQLiteParser.OtherbrackexprContext context)
             => Visit(context.expr());
+
+        public override object VisitArithbrackexpr([NotNull] SQLiteParser.ArithbrackexprContext context)
+            => Visit(context.arith_expr());
+
         public override object VisitArithtimesexpr([NotNull] SQLiteParser.ArithtimesexprContext context)
-            => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
+            => new BinExpr((Expr)Visit(context.arith_expr(0)), (Expr)Visit(context.arith_expr(1)), context.op.Text);
         public override object VisitArithplusexpr([NotNull] SQLiteParser.ArithplusexprContext context)
-            => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
+            => new BinExpr((Expr)Visit(context.arith_expr(0)), (Expr)Visit(context.arith_expr(1)), context.op.Text);
         public override object VisitStrconexpr([NotNull] SQLiteParser.StrconexprContext context)
             => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), "||");
         
         public override object VisitBetweenExpr([NotNull] SQLiteParser.BetweenExprContext context)
         {
-            var left = new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), ">=");
-            var right = new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(2)), "<=");
+            var left = new BinExpr((Expr)Visit(context.arith_expr(0)), (Expr)Visit(context.arith_expr(1)), ">=");
+            var right = new BinExpr((Expr)Visit(context.arith_expr(0)), (Expr)Visit(context.arith_expr(2)), "<=");
             return new LogicAndExpr(left, right);
         }
         public override object VisitFuncExpr([NotNull] SQLiteParser.FuncExprContext context)
         {
             List<Expr> args = new List<Expr>();
-            foreach (var v in context.expr())
+            foreach (var v in context.arith_expr())
                 args.Add(Visit(v) as Expr);
             return FuncExpr.BuildFuncExpr(context.function_name().GetText(), args);
         }
@@ -146,31 +164,39 @@ namespace qpmodel.sqlparser
             else
                 return new ColExpr(dbname, tabname, colname, null);
         }
+
+
         public override object VisitArithcompexpr([NotNull] SQLiteParser.ArithcompexprContext context)
-            => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
-        public override object VisitLogicAndExpr([NotNull] SQLiteParser.LogicAndExprContext context)
-            => new LogicAndExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)));
-        public override object VisitLogicOrExpr([NotNull] SQLiteParser.LogicOrExprContext context)
-            => new LogicOrExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)));
+            => new BinExpr((Expr)Visit(context.arith_expr(0)), (Expr)Visit(context.arith_expr(1)), context.op.Text);
+
+
         public override object VisitBoolEqualexpr([NotNull] SQLiteParser.BoolEqualexprContext context)
-            => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), context.op.Text);
+            => new BinExpr((Expr)Visit(context.arith_expr(0)), (Expr)Visit(context.arith_expr(1)), context.op.Text);
+
+
+        public override object VisitLogicAndExpr([NotNull] SQLiteParser.LogicAndExprContext context)
+            => new LogicAndExpr((Expr)Visit(context.logical_expr(0)), (Expr)Visit(context.logical_expr(1)));
+        public override object VisitLogicOrExpr([NotNull] SQLiteParser.LogicOrExprContext context)
+            => new LogicOrExpr((Expr)Visit(context.logical_expr(0)), (Expr)Visit(context.logical_expr(1)));
+
+
         public override object VisitIsExpr([NotNull] SQLiteParser.IsExprContext context)
         {
             var text = "is";
             if (context.K_NOT() != null)
                 text = "is not";
-            return new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), text);
+            return new BinExpr((Expr)Visit(context.arith_expr(0)), (Expr)Visit(context.arith_expr(1)), text);
         }
         public override object VisitLikeExpr([NotNull] SQLiteParser.LikeExprContext context)
         {
             var text = "like";
             if (context.K_NOT() != null)
                 text = "not like";
-            return new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), text);
+            return new BinExpr((Expr)Visit(context.arith_expr(0)), (Expr)Visit(context.arith_expr(1)), text);
         }
 
         public override object VisitCastExpr([NotNull] SQLiteParser.CastExprContext context)
-            => new CastExpr((Expr)Visit(context.expr()), (ColumnType)Visit(context.type_name()));
+            => new CastExpr((Expr)Visit(context.arith_expr()), (ColumnType)Visit(context.type_name()));
         public override object VisitSubqueryExpr([NotNull] SQLiteParser.SubqueryExprContext context)
         {
             if (context.K_EXISTS() != null)
@@ -181,7 +207,7 @@ namespace qpmodel.sqlparser
         public override object VisitUnaryexpr([NotNull] SQLiteParser.UnaryexprContext context)
         {
             string op = context.unary_operator().GetText();
-            var expr = Visit(context.expr()) as Expr;
+            var expr = Visit(context.arith_expr()) as Expr;
             if (expr is ExistSubqueryExpr ee)
             {
                 // ExistsSubquery needs to get hasNot together for easier processing
@@ -200,14 +226,14 @@ namespace qpmodel.sqlparser
             List<Expr> inlist = null;
             if (context.select_stmt() != null)
             {
-                Debug.Assert(context.expr().Count() == 1);
+                Debug.Assert(context.arith_expr().Count() == 1);
                 select = Visit(context.select_stmt()) as SelectStmt;
-                return new InSubqueryExpr(Visit(context.expr(0)) as Expr, select);
+                return new InSubqueryExpr(Visit(context.arith_expr(0)) as Expr, select);
             }
             else
             {
                 inlist = new List<Expr>();
-                foreach (var v in context.expr())
+                foreach (var v in context.arith_expr())
                     inlist.Add(Visit(v) as Expr);
                 Expr expr = inlist[0];
                 inlist.RemoveAt(0);
@@ -217,8 +243,10 @@ namespace qpmodel.sqlparser
         public override object VisitCaseExpr([NotNull] SQLiteParser.CaseExprContext context)
         {
             var exprs = new List<Expr>();
-            foreach (var v in context.expr())
-                exprs.Add(Visit(v) as Expr);
+            // TODO: koren
+            exprs.Add(Visit(context.logical_expr(0)) as Expr);
+            exprs.Add(Visit(context.arith_expr(0)) as Expr);
+            exprs.Add(Visit(context.arith_expr(1)) as Expr);
             Expr elsee = null;
             Expr eval = null;
             int start = 0, end = exprs.Count - 1;
@@ -241,10 +269,13 @@ namespace qpmodel.sqlparser
             }
 
             Debug.Assert(end > start && (end - start) % 2 == 1);
-            var when = new List<Expr>(); var then = new List<Expr>();
+            var when = new List<Expr>();
+            var then = new List<Expr>();
+
             for (int i = start; i <= end;)
             {
-                when.Add(exprs[i++]); then.Add(exprs[i++]);
+                when.Add(exprs[i++]);
+                then.Add(exprs[i++]);
             }
             return new CaseExpr(eval, when, then, elsee);
         }

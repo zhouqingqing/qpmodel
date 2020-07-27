@@ -12,7 +12,7 @@ select sum (ss_quantity)
    and 
    cd_education_status = 'Secondary'
    and 
-   ss_sales_price between (100.00 , 150.00  )
+   ss_sales_price between 100.00  and 150.00  
    )
  or
   (
@@ -22,7 +22,7 @@ select sum (ss_quantity)
    and 
    cd_education_status = '2 yr Degree'
    and 
-   ss_sales_price between (50.00 , 100.00   )
+   ss_sales_price between 50.00  and 100.00   
   )
  or 
  (
@@ -32,7 +32,7 @@ select sum (ss_quantity)
    and 
    cd_education_status = 'Advanced Degree'
    and 
-   ss_sales_price between (150.00 , 200.00  )
+   ss_sales_price between 150.00  and 200.00  
  )
  )
  and
@@ -43,7 +43,7 @@ select sum (ss_quantity)
   ca_country = 'United States'
   and
   ca_state in ('ND', 'NY', 'SD')
-  and ss_net_profit between (0 , 2000  )
+  and ss_net_profit between 0  and 2000  
   )
  or
   (ss_addr_sk = ca_address_sk
@@ -51,7 +51,7 @@ select sum (ss_quantity)
   ca_country = 'United States'
   and
   ca_state in ('MD', 'GA', 'KS')
-  and ss_net_profit between (150 , 3000 )
+  and ss_net_profit between 150  and 3000 
   )
  or
   (ss_addr_sk = ca_address_sk
@@ -59,7 +59,7 @@ select sum (ss_quantity)
   ca_country = 'United States'
   and
   ca_state in ('CO', 'MN', 'NC')
-  and ss_net_profit between (50 , 25000 )
+  and ss_net_profit between 50  and 25000 
   )
  )
 ;

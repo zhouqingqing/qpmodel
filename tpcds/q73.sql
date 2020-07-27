@@ -12,7 +12,7 @@ select c_last_name
     where store_sales.ss_sold_date_sk = date_dim.d_date_sk
     and store_sales.ss_store_sk = store.s_store_sk  
     and store_sales.ss_hdemo_sk = household_demographics.hd_demo_sk
-    and date_dim.d_dom between (1 , 2 )
+    and date_dim.d_dom between 1  and 2 
     and (household_demographics.hd_buy_potential = '1001-5000' or
          household_demographics.hd_buy_potential = '5001-10000')
     and household_demographics.hd_vehicle_count > 0
@@ -22,7 +22,7 @@ select c_last_name
     and store.s_county in ('Williamson County','Williamson County','Williamson County','Williamson County')
     group by ss_ticket_number,ss_customer_sk) dj,customer
     where ss_customer_sk = c_customer_sk
-      and cnt between (1 , 5)
+      and cnt between 1  and 5
     order by cnt desc, c_last_name asc;
 
 -- end query 73 in stream 0 using template query73.tpl

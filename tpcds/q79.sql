@@ -14,7 +14,7 @@ select
     and (household_demographics.hd_dep_count = 7 or household_demographics.hd_vehicle_count > -1)
     and date_dim.d_dow = 1
     and date_dim.d_year in (2000,2000+1,2000+2) 
-    and store.s_number_employees between (200 , 295)
+    and store.s_number_employees between 200  and 295
     group by ss_ticket_number,ss_customer_sk,ss_addr_sk,store.s_city) ms,customer
     where ss_customer_sk = c_customer_sk
  order by c_last_name,c_first_name,substr(s_city,1,30), profit

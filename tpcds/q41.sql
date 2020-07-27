@@ -1,7 +1,7 @@
 -- start query 41 in stream 0 using template query41.tpl
 select  distinct(i_product_name)
  from item i1
- where i_manufact_id between (704 , 704+40 )
+ where i_manufact_id between 704  and 704+40 
    and (select count(*) as item_cnt
         from item
         where (i_manufact = i1.i_manufact and

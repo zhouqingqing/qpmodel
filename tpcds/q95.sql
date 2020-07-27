@@ -14,8 +14,8 @@ from
   ,customer_address
   ,web_site
 where
-    d_date between (date '2001-4-01' , 
-           (cast('2001-4-01' as date) + 60 days))
+    d_date between date '2001-4-01' and
+           (cast('2001-4-01' as date) + 60 days)
 and ws1.ws_ship_date_sk = d_date_sk
 and ws1.ws_ship_addr_sk = ca_address_sk
 and ca_state = 'VA'

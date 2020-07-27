@@ -162,34 +162,62 @@ column_constraint
     AND
     OR
 */
-expr
- : literal_value											#LiteralExpr
- | BIND_PARAMETER											#bindexpr
- | ( ( database_name '.' )? table_name '.' )? column_name	#ColExpr
- | unary_operator expr										#unaryexpr
- | expr '||' expr											#strconexpr
- | expr op=( '*' | '/' | '%' ) expr							#arithtimesexpr
- | expr op=( PLUS | MINUS ) expr							#arithplusexpr
- | expr op=( '<<' | '>>' | '&' | '|' ) expr					#arithbitexpr
- | expr op=( '<' | '<=' | '>' | '>=' ) expr					#arithcompexpr																		
- | expr K_NOT? K_BETWEEN '(' expr ',' expr ')'				#BetweenExpr
- | expr K_IS K_NOT? expr									#IsExpr
- | expr K_NOT? K_LIKE expr									#LikeExpr
- | expr op=( '=' | '==' | '!=' | '<>' 
-	 | K_GLOB | K_MATCH | K_REGEXP ) expr	                #BoolEqualexpr
- | expr K_NOT? K_IN ( '(' ( select_stmt						
-                          | expr ( ',' expr )*
+logical_expr
+ : logical_expr K_AND logical_expr											#LogicAndExpr
+ | logical_expr K_OR logical_expr											#LogicOrExpr
+ | bool_expr                                                         #boolexpr
+ | '(' logical_expr ')'												#brackexpr
+;
+
+bool_expr
+ : arith_expr op=( '<' | '<=' | '>' | '>=' ) arith_expr					                                #arithcompexpr
+ | arith_expr op=( '=' | '==' | '!=' | '<>' | K_GLOB | K_MATCH | K_REGEXP ) arith_expr	                #BoolEqualexpr
+
+ | arith_expr K_NOT? K_BETWEEN   arith_expr K_AND arith_expr  		#BetweenExpr
+ | arith_expr K_IS K_NOT? arith_expr									#IsExpr
+ | arith_expr K_NOT? K_LIKE arith_expr									#LikeExpr
+ | arith_expr ( K_ISNULL | K_NOTNULL | K_NOT K_NULL )				#NullExpr
+
+
+ | arith_expr K_NOT? K_IN ( '(' ( select_stmt
+                          | arith_expr ( ',' arith_expr )*
                           )? 
                       ')'
                     | ( database_name '.' )? table_name )	#InSubqueryExpr
+
+| arith_expr #barithexpr
+
+;
+
+arith_expr
+ : literal_value											#LiteralExpr
+ | unary_operator arith_expr								#unaryexpr
+ | BIND_PARAMETER											#bindexpr
+ | ( ( database_name '.' )? table_name '.' )? column_name	#ColExpr
+ | signed_number                                            #NumericLiteral
+
+
+ | arith_expr op=( '*' | '/' | '%' ) arith_expr							#arithtimesexpr
+ | arith_expr op=( PLUS | MINUS ) arith_expr							#arithplusexpr
+ | arith_expr op=( '<<' | '>>' | '&' | '|' ) arith_expr					#arithbitexpr
+
  | (K_EXISTS )? '(' select_stmt ')'							#SubqueryExpr
- | expr K_AND expr											#LogicAndExpr
- | expr K_OR expr											#LogicOrExpr
- | function_name '(' ( K_DISTINCT? expr ( ',' expr )* | '*' )? ')'	#FuncExpr
- | '(' expr ')'												#brackexpr
- | K_CAST '(' expr K_AS type_name ')'						#CastExpr
- | expr ( K_ISNULL | K_NOTNULL | K_NOT K_NULL )				#NullExpr
- | K_CASE expr? ( K_WHEN expr K_THEN expr )+ ( K_ELSE expr )? K_END		#CaseExpr
+
+ | function_name '(' ( K_DISTINCT? arith_expr ( ',' arith_expr )* | '*' )? ')'	#FuncExpr
+
+ | K_CAST '(' arith_expr K_AS type_name ')'						#CastExpr
+ | K_CASE arith_expr? ( K_WHEN logical_expr K_THEN arith_expr )+ ( K_ELSE arith_expr )? K_END		#CaseExpr
+ | '(' arith_expr ')'												#arithbrackexpr
+;
+
+expr
+ :
+ logical_expr #logicalexpr
+ | arith_expr #arithexpr
+
+ | expr '||' expr											#strconexpr
+ | '(' expr ')'												#otherbrackexpr
+
  ;
 
 foreign_key_clause
@@ -300,7 +328,7 @@ date_unit_plural
 ;
 
 literal_value
-: signed_number  (date_unit_plural)?          #NumericOrDateLiteral
+: signed_number  date_unit_plural            #DateLiteral
  | K_DATE STRING_LITERAL                        #DateStringLiteral
  | K_INTERVAL STRING_LITERAL date_unit_single   #IntervalLiteral
  | STRING_LITERAL                               #StringLiteral

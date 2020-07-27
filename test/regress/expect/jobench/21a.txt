@@ -25,7 +25,7 @@ WHERE cn.country_code !='[pl]'
                   'Denish',
                   'Norwegian',
                   'German')
-  AND t.production_year BETWEEN (1950 , 2000)
+  AND t.production_year BETWEEN 1950  AND 2000
   AND lt.id = ml.link_type_id
   AND ml.movie_id = t.id
   AND t.id = mk.movie_id

@@ -16,7 +16,7 @@ WHERE ci.note ='(voice: English version)'
   AND n.name LIKE '%Yo%'
   AND n.name NOT LIKE '%Yu%'
   AND rt.role ='actress'
-  AND t.production_year BETWEEN (2006 , 2007)
+  AND t.production_year BETWEEN 2006  AND 2007
   AND (t.title LIKE 'One Piece%'
        OR t.title LIKE 'Dragon Ball Z%')
   AND an.person_id = n.id
