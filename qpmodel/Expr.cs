@@ -600,17 +600,6 @@ namespace qpmodel.expr
         public void VisitEachIgnoreRef<T>(Action<T> callback) where T : Expr
             => VisitEachIgnore<ExprRef, T>(callback);
 
-        public void VisitEachIgnore<T1, T2>(Action<T2> callback) where T1 : Expr where T2 : Expr
-        {
-            if (!(this is T1))
-            {
-                if (this is T2)
-                    callback(this as T2);
-                foreach (var v in children_)
-                    v.VisitEachIgnore<T1, T2>(callback);
-            }
-        }
-
         public bool HasSubQuery() => VisitEachExists(e => e is SubqueryExpr);
         public bool HasAggFunc() => VisitEachExists(e => e is AggFunc);
         public bool HasAggrRef() => VisitEachExists(e => e is AggrRef);

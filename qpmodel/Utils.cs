@@ -122,6 +122,17 @@ namespace qpmodel.utils
             return exists;
         }
 
+        public void VisitEachIgnore<T1, T2>(Action<T2> callback) where T2: TreeNode<T>
+        {
+            if (!(this is T1))
+            {
+                if (this is T2)
+                    callback(this as T2);
+                foreach (var v in children_)
+                    v.VisitEachIgnore<T1, T2>(callback);
+            }
+        }
+
         // lookup all T1 types in the tree and return the parent-target relationship
         public int FindNodeTypeMatch<T1>(List<T> parents,
             List<int> childIndex, List<T1> targets, Type skipParentType = null) where T1 : TreeNode<T>
