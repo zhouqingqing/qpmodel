@@ -609,10 +609,10 @@ namespace qpmodel.optimizer
             Debug.Assert(pred.IsBoolean());
             int[] index = new int[2];
 
-            Utils.Assumes(pred.l_().tableRefs_.Count == 1);
-            var j1 = pred.l_().tableRefs_[0];
-            Utils.Assumes(pred.r_().tableRefs_.Count == 1);
-            var j2 = pred.r_().tableRefs_[0];
+            Utils.Assumes(pred.lchild_().tableRefs_.Count == 1);
+            var j1 = pred.lchild_().tableRefs_[0];
+            Utils.Assumes(pred.rchild_().tableRefs_.Count == 1);
+            var j2 = pred.rchild_().tableRefs_[0];
             int i1 = vertices_.FindIndex(x => {
                 var refs = x.InclusiveTableRefs();
                 Utils.Assumes(refs.Count == 1);

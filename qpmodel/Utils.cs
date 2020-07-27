@@ -60,8 +60,8 @@ namespace qpmodel.utils
 
         // shortcut for conventional names
         public T child_() { Debug.Assert(children_.Count == 1); return children_[0]; }
-        public T l_() { Debug.Assert(children_.Count == 2); return children_[0]; }
-        public T r_() { Debug.Assert(children_.Count == 2); return children_[1]; }
+        public T lchild_() { Debug.Assert(children_.Count == 2); return children_[0]; }
+        public T rchild_() { Debug.Assert(children_.Count == 2); return children_[1]; }
 
         public TreeNode()
         {

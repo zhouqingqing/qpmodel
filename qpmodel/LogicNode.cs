@@ -95,14 +95,14 @@ namespace qpmodel.logic
             {
                 case LogicJoin lj:
                     LogicNode leftshuffle, rightshuffle;
-                    if (l_() is LogicScanTable ls && !ls.tabref_.IsDistributed())
-                        leftshuffle = l_();
+                    if (lchild_() is LogicScanTable ls && !ls.tabref_.IsDistributed())
+                        leftshuffle = lchild_();
                     else
-                        leftshuffle = new LogicRedistribute(l_().MarkExchange(option));
-                    if (r_() is LogicScanTable rs && !rs.tabref_.IsDistributed())
-                        rightshuffle = r_();
+                        leftshuffle = new LogicRedistribute(lchild_().MarkExchange(option));
+                    if (rchild_() is LogicScanTable rs && !rs.tabref_.IsDistributed())
+                        rightshuffle = rchild_();
                     else
-                        rightshuffle = new LogicRedistribute(r_().MarkExchange(option));
+                        rightshuffle = new LogicRedistribute(rchild_().MarkExchange(option));
                     lj.children_[0] = leftshuffle;
                     lj.children_[1] = rightshuffle;
                     break;
@@ -140,8 +140,8 @@ namespace qpmodel.logic
                     break;
                 case LogicJoin lc:
                     var phyleft = phyfirst;
-                    var phyright = r_().DirectToPhysical(option);
-                    Debug.Assert(!l_().LeftReferencesRight(r_()));
+                    var phyright = rchild_().DirectToPhysical(option);
+                    Debug.Assert(!lchild_().LeftReferencesRight(rchild_()));
                     switch (lc)
                     {
                         case LogicSingleJoin lsmj:
@@ -155,7 +155,7 @@ namespace qpmodel.logic
                             // subquries, we need to use NLJ to pass variables. It is can be fixed by changing
                             // the way runtime pass parameters though.
                             //
-                            bool lhasSubqCol = TableRef.HasColsUsedBySubquries(l_().InclusiveTableRefs());
+                            bool lhasSubqCol = TableRef.HasColsUsedBySubquries(lchild_().InclusiveTableRefs());
                             if (lc.filter_.FilterHashable() && !lhasSubqCol
                                 && (lc.type_ == JoinType.Inner || lc.type_ == JoinType.Left))
                                 result = new PhysicHashJoin(lc, phyleft, phyright);
@@ -197,7 +197,7 @@ namespace qpmodel.logic
                     result = new PhysicLimit(limit, phyfirst);
                     break;
                 case LogicAppend append:
-                    result = new PhysicAppend(append, phyfirst, r_().DirectToPhysical(option));
+                    result = new PhysicAppend(append, phyfirst, rchild_().DirectToPhysical(option));
                     break;
                 case LogicCteProducer cteproducer:
                     result = new PhysicCteProducer(cteproducer, phyfirst);
@@ -435,7 +435,7 @@ namespace qpmodel.logic
 
         public static void SwapJoinSideIfNeeded(this LogicJoin join)
         {
-            var oldl = join.l_(); var oldr = join.r_();
+            var oldl = join.lchild_(); var oldr = join.rchild_();
             if (oldl.LeftReferencesRight(oldr))
             {
                 join.children_[0] = oldr;
@@ -505,7 +505,7 @@ namespace qpmodel.logic
         public List<Expr> rightKeys_ = new List<Expr>();
         internal List<string> ops_ = new List<string>();
 
-        public override string ToString() => $"({l_()} {type_} {r_()})";
+        public override string ToString() => $"({lchild_()} {type_} {rchild_()})";
         public override string ExplainInlineDetails() { return type_ == JoinType.Inner ? "" : type_.ToString(); }
         public LogicJoin(LogicNode l, LogicNode r)
         {
@@ -526,7 +526,7 @@ namespace qpmodel.logic
         public override LogicSignature MemoLogicSign()
         {
             if (logicSign_ == -1)
-                logicSign_ = l_().MemoLogicSign() ^ r_().MemoLogicSign() ^ filter_.FilterHashCode();
+                logicSign_ = lchild_().MemoLogicSign() ^ rchild_().MemoLogicSign() ^ filter_.FilterHashCode();
             return logicSign_;
         }
 
@@ -553,14 +553,14 @@ namespace qpmodel.logic
         {
             void createOneKeyList(BinExpr fb)
             {
-                var ltabrefs = l_().InclusiveTableRefs();
-                var rtabrefs = r_().InclusiveTableRefs();
-                var lkeyrefs = fb.l_().tableRefs_;
-                var rkeyrefs = fb.r_().tableRefs_;
+                var ltabrefs = lchild_().InclusiveTableRefs();
+                var rtabrefs = rchild_().InclusiveTableRefs();
+                var lkeyrefs = fb.lchild_().tableRefs_;
+                var rkeyrefs = fb.rchild_().tableRefs_;
                 if (ltabrefs.ContainsList(lkeyrefs))
                 {
-                    leftKeys_.Add(fb.l_());
-                    rightKeys_.Add(fb.r_());
+                    leftKeys_.Add(fb.lchild_());
+                    rightKeys_.Add(fb.rchild_());
                     ops_.Add(fb.op_);
                 }
                 else
@@ -574,8 +574,8 @@ namespace qpmodel.logic
                     //
                     if (rtabrefs.ContainsList(lkeyrefs))
                     {
-                        leftKeys_.Add(fb.r_());
-                        rightKeys_.Add(fb.l_());
+                        leftKeys_.Add(fb.rchild_());
+                        rightKeys_.Add(fb.lchild_());
                         ops_.Add(BinExpr.SwapSideOp(fb.op_));
                     }
                 }
@@ -617,8 +617,8 @@ namespace qpmodel.logic
                 reqFromChild.Add(filter_);
 
             // push to left and right: to which side depends on the TableRef it contains
-            var ltables = l_().InclusiveTableRefs();
-            var rtables = r_().InclusiveTableRefs();
+            var ltables = lchild_().InclusiveTableRefs();
+            var rtables = rchild_().InclusiveTableRefs();
             var lreq = new HashSet<Expr>();
             var rreq = new HashSet<Expr>();
             foreach (var v in reqFromChild)
@@ -647,10 +647,10 @@ namespace qpmodel.logic
             }
 
             // get left and right child to resolve columns
-            l_().ResolveColumnOrdinal(lreq.ToList());
-            var lout = l_().output_;
-            r_().ResolveColumnOrdinal(rreq.ToList());
-            var rout = r_().output_;
+            lchild_().ResolveColumnOrdinal(lreq.ToList());
+            var lout = lchild_().output_;
+            rchild_().ResolveColumnOrdinal(rreq.ToList());
+            var rout = rchild_().output_;
             Debug.Assert(lout.Intersect(rout).Count() == 0);
 
             // assuming left output first followed with right output
@@ -1217,7 +1217,7 @@ namespace qpmodel.logic
 
     public class LogicAppend : LogicNode
     {
-        public override string ToString() => $"Append({l_()},{r_()})";
+        public override string ToString() => $"Append({lchild_()},{rchild_()})";
 
         public LogicAppend(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
 

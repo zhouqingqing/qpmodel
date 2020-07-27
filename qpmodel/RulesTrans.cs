@@ -107,7 +107,7 @@ namespace qpmodel.optimizer
         public override CGroupMember Apply(CGroupMember expr)
         {
             LogicJoin join = expr.logic_ as LogicJoin;
-            var l = join.l_(); var r = join.r_(); var f = join.filter_;
+            var l = join.lchild_(); var r = join.rchild_(); var f = join.filter_;
 
             Debug.Assert(!l.LeftReferencesRight(r));
             if (r.LeftReferencesRight(l))
@@ -139,7 +139,7 @@ namespace qpmodel.optimizer
             if (a_bc is null || !a_bc.IsInnerJoin())
                 return false;
 
-            var bc = (a_bc.r_() as LogicMemoRef).Deref();
+            var bc = (a_bc.rchild_() as LogicMemoRef).Deref();
             var bcfilter = bc.filter_;
             if (bc is LogicJoin bcj)
             {
@@ -157,11 +157,11 @@ namespace qpmodel.optimizer
         public override CGroupMember Apply(CGroupMember expr)
         {
             LogicJoin a_bc = expr.logic_ as LogicJoin;
-            LogicNode a = (a_bc.l_() as LogicMemoRef).Deref<LogicNode>();
-            LogicJoin bc = (a_bc.r_() as LogicMemoRef).Deref<LogicJoin>();
+            LogicNode a = (a_bc.lchild_() as LogicMemoRef).Deref<LogicNode>();
+            LogicJoin bc = (a_bc.rchild_() as LogicMemoRef).Deref<LogicJoin>();
             Expr bcfilter = bc.filter_;
-            var ab = new LogicJoin(a_bc.l_(), bc.l_());
-            var c = bc.r_();
+            var ab = new LogicJoin(a_bc.lchild_(), bc.lchild_());
+            var c = bc.rchild_();
             var ab_c = new LogicJoin(ab, c);
 
             Debug.Assert(!a.LeftReferencesRight(bc));

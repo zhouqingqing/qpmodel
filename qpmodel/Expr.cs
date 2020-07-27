@@ -320,7 +320,7 @@ namespace qpmodel.expr
             {
                 var andexpr = LogicAndExpr.MakeExpr(andlist[0], andlist[1]);
                 for (int i = 2; i < andlist.Count; i++)
-                    andexpr.children_[0] = LogicAndExpr.MakeExpr(andexpr.l_(), andlist[i]);
+                    andexpr.children_[0] = LogicAndExpr.MakeExpr(andexpr.lchild_(), andlist[i]);
                 return andexpr;
             }
         }
@@ -406,8 +406,8 @@ namespace qpmodel.expr
                     //
                     if (filter.TableRefsContainedBy(nodejoinIncl))
                     {
-                        if (!nodeJoin.l_().PushJoinFilter(filter) &&
-                            !nodeJoin.r_().PushJoinFilter(filter))
+                        if (!nodeJoin.lchild_().PushJoinFilter(filter) &&
+                            !nodeJoin.rchild_().PushJoinFilter(filter))
                             return nodeJoin.AddFilter(filter);
                         else
                             return true;
@@ -428,8 +428,8 @@ namespace qpmodel.expr
             if (filter is BinExpr fb)
             {
                 // expression is already normalized, so no swap side shall considered
-                Debug.Assert(!(fb.l_() is LiteralExpr && fb.r_() is ColExpr));
-                if (indexops.Contains(fb.op_) && fb.l_() is ColExpr cl && fb.r_() is LiteralExpr)
+                Debug.Assert(!(fb.lchild_() is LiteralExpr && fb.rchild_() is ColExpr));
+                if (indexops.Contains(fb.op_) && fb.lchild_() is ColExpr cl && fb.rchild_() is LiteralExpr)
                 {
                     var index = table.Table().IndexContains(cl.colName_);
                     if (index != null)
@@ -450,7 +450,7 @@ namespace qpmodel.expr
 
             filter.VisitEachT<BinExpr>(x =>
             {
-                if (x.IsBoolean() && x.l_() is LiteralExpr)
+                if (x.IsBoolean() && x.lchild_() is LiteralExpr)
                     x.SwapSide();
             });
             return filter;
@@ -470,8 +470,8 @@ namespace qpmodel.expr
             {
                 if (filter is BinExpr bf && bf.op_.Equals("="))
                 {
-                    var ltabrefs = bf.l_().tableRefs_;
-                    var rtabrefs = bf.r_().tableRefs_;
+                    var ltabrefs = bf.lchild_().tableRefs_;
+                    var rtabrefs = bf.rchild_().tableRefs_;
                     // TODO: a.i+b.i=0 => a.i=-b.i
                     return ltabrefs.Count > 0 && rtabrefs.Count > 0;
                 }
