@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
+    <Antlr4UseCSharpGenerator>True</Antlr4UseCSharpGenerator>
     <OutputType>Exe</OutputType>
     <IsWebBootstrapper>false</IsWebBootstrapper>
     <PublishUrl>publish\</PublishUrl>
@@ -39,10 +40,11 @@
     <LangVersion>8.0</LangVersion>
   </PropertyGroup>
   <ItemGroup>
-    <Antlr4 Update="SQLite.g4">
+    <Antlr4 Include="SQLite.g4">
       <Generator>MSBuild:Compile</Generator>
       <CustomToolNamespace>qpmodel.sqlparser</CustomToolNamespace>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetLanguage>CSharp</TargetLanguage>
     </Antlr4>
   </ItemGroup>
   <ItemGroup>
