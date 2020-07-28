@@ -98,11 +98,11 @@ namespace qpmodel.logic
                     if (lchild_() is LogicScanTable ls && !ls.tabref_.IsDistributed())
                         leftshuffle = lchild_();
                     else
-                        leftshuffle = new LogicRedistribute(lchild_().MarkExchange(option));
+                        leftshuffle = new LogicRedistribute(lchild_().MarkExchange(option), lj.leftKeys_);
                     if (rchild_() is LogicScanTable rs && !rs.tabref_.IsDistributed())
                         rightshuffle = rchild_();
                     else
-                        rightshuffle = new LogicRedistribute(rchild_().MarkExchange(option));
+                        rightshuffle = new LogicRedistribute(rchild_().MarkExchange(option), lj.rightKeys_);
                     lj.children_[0] = leftshuffle;
                     lj.children_[1] = rightshuffle;
                     break;
