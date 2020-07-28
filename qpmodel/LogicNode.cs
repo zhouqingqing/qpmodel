@@ -98,11 +98,11 @@ namespace qpmodel.logic
                     if (l_() is LogicScanTable ls && !ls.tabref_.IsDistributed())
                         leftshuffle = l_();
                     else
-                        leftshuffle = new LogicRedistribute(l_().MarkExchange(option));
+                        leftshuffle = new LogicRedistribute(l_().MarkExchange(option), lj.leftKeys_);
                     if (r_() is LogicScanTable rs && !rs.tabref_.IsDistributed())
                         rightshuffle = r_();
                     else
-                        rightshuffle = new LogicRedistribute(r_().MarkExchange(option));
+                        rightshuffle = new LogicRedistribute(r_().MarkExchange(option), lj.rightKeys_);
                     lj.children_[0] = leftshuffle;
                     lj.children_[1] = rightshuffle;
                     break;
@@ -546,6 +546,8 @@ namespace qpmodel.logic
         public bool AddFilter(Expr filter)
         {
             filter_ = filter_.AddAndFilter(filter);
+            // produce left/right key at initialization
+            CreateKeyList(false);
             return true;
         }
 
@@ -1279,8 +1281,26 @@ namespace qpmodel.logic
 
     public class LogicRedistribute : LogicRemoteExchange
     {
-        public LogicRedistribute(LogicNode child) : base(child) { }
+        public List<Expr> distributeby_ { get; set; }
+        public LogicRedistribute(LogicNode child, List<Expr> distributeby) : base(child) 
+        {
+            distributeby_ = distributeby;
+        }
         public override string ToString() => $"Redistribute({child_()})";
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
+        {
+            // request from child including reqOutput and distributeby
+            List<Expr> reqFromChild = new List<Expr>();
+            reqFromChild.AddRange(reqOutput.CloneList());
+            reqFromChild.AddRange(distributeby_);
+            child_().ResolveColumnOrdinal(reqFromChild);
+            var childout = child_().output_;
+
+            distributeby_ = CloneFixColumnOrdinal(distributeby_, childout, false);
+            output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
+            RefreshOutputRegisteration();
+            return new List<int>();
+        }
     }
 
     // Consider this query:
