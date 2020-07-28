@@ -71,14 +71,14 @@ namespace qpmodel.expr
                 {
                     result = new NumericType(rnum.len_, rnum.scale_);
                     el.type_ = result;
-                    if (el is LiteralExpr ell)
+                    if (el is ConstExpr ell)
                         ell.val_ = Convert.ToDecimal(ell.val_);
                 }
                 else if (r is DoubleType && l is NumericType lnum)
                 {
                     result = new NumericType(lnum.len_, lnum.scale_);
                     er.type_ = result;
-                    if (er is LiteralExpr erl)
+                    if (er is ConstExpr erl)
                         erl.val_ = Convert.ToDecimal(erl.val_);
                 }
                 else if (l is DoubleType || r is DoubleType)

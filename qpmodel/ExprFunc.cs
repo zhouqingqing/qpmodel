@@ -489,7 +489,7 @@ namespace qpmodel.expr
     {
         // Exec info
         internal long count_;
-        public AggCountStar(List<Expr> args) : base("count(*)", new List<Expr> { new LiteralExpr("0", new IntType()) })
+        public AggCountStar(List<Expr> args) : base("count(*)", new List<Expr> { new ConstExpr("0", new IntType()) })
         {
             Debug.Assert(args is null);
             argcnt_ = 0;

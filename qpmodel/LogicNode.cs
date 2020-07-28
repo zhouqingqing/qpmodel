@@ -771,7 +771,7 @@ namespace qpmodel.logic
         // x: b1+b2+3 => true, b1+b2 => false
         bool exprConsistPureKeys(Expr x, List<Expr> keys)
         {
-            var constTrue = LiteralExpr.MakeLiteralBool(true);
+            var constTrue = ConstExpr.MakeConstBool(true);
             if (keys is null)
                 return false;
             if (keys.Contains(x))
@@ -781,7 +781,7 @@ namespace qpmodel.logic
             foreach (var v in keys)
                 xchanged = xchanged.SearchAndReplace(v, constTrue);
             if (!xchanged.VisitEachExists(
-                    e => e.IsLeaf() && !(e is LiteralExpr) && !e.Equals(constTrue)))
+                    e => e.IsLeaf() && !(e is ConstExpr) && !e.Equals(constTrue)))
                 return true;
             return false;
         }
@@ -916,7 +916,7 @@ namespace qpmodel.logic
             List<int> ordinals = new List<int>();
 
             // reqOutput may contain ExprRef which is generated during FromQuery removal process, remove them
-            var reqList = reqOutput.CloneList(new List<Type> { typeof(LiteralExpr) });
+            var reqList = reqOutput.CloneList(new List<Type> { typeof(ConstExpr) });
 
             // request from child including reqOutput and filter. Don't use whole expression
             // matching push down like k+k => (k+k)[0] instead, we need k[0]+k[0] because 
@@ -1141,7 +1141,7 @@ namespace qpmodel.logic
                 {
                     switch (y)
                     {
-                        case LiteralExpr ly:    // select 2+3, ...
+                        case ConstExpr ly:    // select 2+3, ...
                         case SubqueryExpr sy:   // select ..., sx = (select b1 from b limit 1) from a;
                             break;
                         default:

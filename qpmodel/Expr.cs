@@ -262,16 +262,16 @@ namespace qpmodel.expr
         public static Expr ConstFolding(this Expr expr)
         {
             Debug.Assert(expr.bounded_);
-            bool IsConstFn(Expr e) => !(e is LiteralExpr) && e.IsConst();
+            bool IsConstFn(Expr e) => !(e is ConstExpr) && e.IsConst();
             Expr EvalConstFn(Expr e)
             {
                 var isconst = e.TryEvalConst(out Value val);
                 Debug.Assert(isconst);
-                var newe = LiteralExpr.MakeLiteral(val, expr.type_, expr.outputName_);
+                var newe = ConstExpr.MakeConst(val, expr.type_, expr.outputName_);
                 return newe;
             }
 
-            if (expr is LiteralExpr)
+            if (expr is ConstExpr)
                 return expr;
             else
                 return expr.SearchAndReplace<Expr>(IsConstFn, EvalConstFn);
@@ -341,7 +341,7 @@ namespace qpmodel.expr
             // and we leave the vacuum job to filter push down
             //
             if (node is LogicFilter)
-                node.filter_ = LiteralExpr.MakeLiteralBool(true);
+                node.filter_ = ConstExpr.MakeConstBool(true);
         }
 
         public static bool FilterIsConst(this Expr filter, out bool trueOrfalse)
@@ -428,8 +428,8 @@ namespace qpmodel.expr
             if (filter is BinExpr fb)
             {
                 // expression is already normalized, so no swap side shall considered
-                Debug.Assert(!(fb.lchild_() is LiteralExpr && fb.rchild_() is ColExpr));
-                if (indexops.Contains(fb.op_) && fb.lchild_() is ColExpr cl && fb.rchild_() is LiteralExpr)
+                Debug.Assert(!(fb.lchild_() is ConstExpr && fb.rchild_() is ColExpr));
+                if (indexops.Contains(fb.op_) && fb.lchild_() is ColExpr cl && fb.rchild_() is ConstExpr)
                 {
                     var index = table.Table().IndexContains(cl.colName_);
                     if (index != null)
@@ -450,7 +450,7 @@ namespace qpmodel.expr
 
             filter.VisitEachT<BinExpr>(x =>
             {
-                if (x.IsBoolean() && x.lchild_() is LiteralExpr)
+                if (x.IsBoolean() && x.lchild_() is ConstExpr)
                     x.SwapSide();
             });
             return filter;
@@ -1062,12 +1062,12 @@ namespace qpmodel.expr
         }
     }
 
-    public class LiteralExpr : Expr
+    public class ConstExpr : Expr
     {
         internal string str_;
         internal Value val_;
 
-        public LiteralExpr(string str, ColumnType type) : base()
+        public ConstExpr(string str, ColumnType type) : base()
         {
             str_ = str;
             type_ = type;
@@ -1120,7 +1120,7 @@ namespace qpmodel.expr
             Debug.Assert(val_ != null || type_ is AnyType);
         }
 
-        public LiteralExpr(string interval, string unit)
+        public ConstExpr(string interval, string unit)
         {
             int day = 0;
             interval = interval.RemoveStringQuotes();
@@ -1185,7 +1185,7 @@ namespace qpmodel.expr
         public override int GetHashCode() => str_.GetHashCode();
         public override bool Equals(object obj)
         {
-            if (obj is LiteralExpr lo)
+            if (obj is ConstExpr lo)
             {
                 return str_.Equals(lo.str_);
             }
@@ -1195,20 +1195,20 @@ namespace qpmodel.expr
         // give @val and perform the necessary type conversion
         // 8.1, int => 8
         //
-        public static LiteralExpr MakeLiteral(Value val, ColumnType type, string outputName = null)
+        public static ConstExpr MakeConst(Value val, ColumnType type, string outputName = null)
         {
-            LiteralExpr ret = null;
+            ConstExpr ret = null;
             if (type is CharType || type is VarCharType || type is DateTimeType)
-                ret = new LiteralExpr($"'{val}'", type);
+                ret = new ConstExpr($"'{val}'", type);
             else
-                ret = new LiteralExpr($"{val}", type);
+                ret = new ConstExpr($"{val}", type);
             ret.outputName_ = outputName;
 
             ret.markBounded();
             return ret;
         }
-        public static LiteralExpr MakeLiteralBool(bool istrue) =>
-            istrue ? MakeLiteral("true", new BoolType()) : MakeLiteral("false", new BoolType());
+        public static ConstExpr MakeConstBool(bool istrue) =>
+            istrue ? MakeConst("true", new BoolType()) : MakeConst("false", new BoolType());
     }
 
     // Runtime only used to reference an expr as a whole without recomputation
