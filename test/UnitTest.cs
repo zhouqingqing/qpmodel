@@ -2090,6 +2090,18 @@ namespace qpmodel.unittest
             Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
             Assert.AreEqual(6, TU.CountStr(phyplan, "Redistribute"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "70 threads"));
+
+            // ensure redistribution can shuffle by expression
+            sql = "select a2, b2 from ad, bd where a2*2+a1=b2 order by a2;";
+            TU.ExecuteSQL(sql, "1,2", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+            Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
+
+            // no output if by previous r[0] method for redistribution
+            sql = "select d2, a1 from ad, dd where d3=a1 order by d2;";
+            TU.ExecuteSQL(sql, "1,2", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+            Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
         }
     }
 
