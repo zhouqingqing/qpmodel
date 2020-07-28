@@ -546,6 +546,8 @@ namespace qpmodel.logic
         public bool AddFilter(Expr filter)
         {
             filter_ = filter_.AddAndFilter(filter);
+            // produce left/right key at initialization
+            CreateKeyList(false);
             return true;
         }
 
@@ -1279,8 +1281,26 @@ namespace qpmodel.logic
 
     public class LogicRedistribute : LogicRemoteExchange
     {
-        public LogicRedistribute(LogicNode child) : base(child) { }
+        public List<Expr> distributeby_ { get; set; }
+        public LogicRedistribute(LogicNode child, List<Expr> distributeby) : base(child) 
+        {
+            distributeby_ = distributeby;
+        }
         public override string ToString() => $"Redistribute({child_()})";
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
+        {
+            // request from child including reqOutput and distributeby
+            List<Expr> reqFromChild = new List<Expr>();
+            reqFromChild.AddRange(reqOutput.CloneList());
+            reqFromChild.AddRange(distributeby_);
+            child_().ResolveColumnOrdinal(reqFromChild);
+            var childout = child_().output_;
+
+            distributeby_ = CloneFixColumnOrdinal(distributeby_, childout, false);
+            output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
+            RefreshOutputRegisteration();
+            return new List<int>();
+        }
     }
 
     // Consider this query:

@@ -1879,12 +1879,16 @@ namespace qpmodel.physic
             var context = context_ as DistributedContext;
             int dop = context.option_.optimize_.query_dop_;
 
+            var distributeby = (logic_ as LogicRedistribute).distributeby_;
+
             string s = child_().Exec(r =>
             {
                 string srccode = null;
                 if (!context.option_.optimize_.use_codegen_)
                 {
-                    var sendtoMachine = r[0].GetHashCode() % dop;
+                    // hash by distribution keys
+                    var key = KeyList.ComputeKeys(context_, distributeby, r);
+                    var sendtoMachine = key.GetHashCode() % dop;
                     upChannels_[sendtoMachine].Send(r);
 
 #if debug
