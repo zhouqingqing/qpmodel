@@ -485,9 +485,9 @@ namespace qpmodel.stat
 
             if (filter is BinExpr pred)
             {
-                if (pred.l_() is ColExpr pl && pl.tabRef_ is BaseTableRef bpl)
+                if (pred.lchild_() is ColExpr pl && pl.tabRef_ is BaseTableRef bpl)
                 {
-                    if (pred.r_() is LiteralExpr pr)
+                    if (pred.rchild_() is ConstExpr pr)
                     {
                         // a.a1 >= <const>
                         var stat = Catalog.sysstat_.GetColumnStat(bpl.relname_, pl.colName_);
@@ -504,7 +504,7 @@ namespace qpmodel.stat
                     var stat = Catalog.sysstat_.GetColumnStat(bpl.relname_, pl.colName_);
                     for (int i = 1; i < inPred.children_.Count; ++i)
                     {
-                        if (inPred.children_[i] is LiteralExpr pr)
+                        if (inPred.children_[i] is ConstExpr pr)
                             selectivity += stat.EstSelectivity("=", pr.val_);
                     }
                     selectivity = Math.Min(1.0, selectivity);
@@ -523,8 +523,8 @@ namespace qpmodel.stat
         static ColExpr ExtractColumn(Expr filter)
         {
             if (filter is BinExpr pred)
-                if (pred.l_() is ColExpr pl && pl.tabRef_ is BaseTableRef bpl)
-                    if (pred.r_() is LiteralExpr pr && new List<String>() { "=", ">", ">=", "<", "<=" }.Contains(pred.op_))
+                if (pred.lchild_() is ColExpr pl && pl.tabRef_ is BaseTableRef bpl)
+                    if (pred.rchild_() is ConstExpr pr && new List<String>() { "=", ">", ">=", "<", "<=" }.Contains(pred.op_))
                         return pl;
             return null;
         }

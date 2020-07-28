@@ -465,7 +465,7 @@ namespace qpmodel.logic
             if (newfilter.Count > 0)
                 return newfilter.AndListToExpr();
             else
-                return new LiteralExpr("true", new BoolType());
+                return new ConstExpr("true", new BoolType());
         }
 
         public override LogicNode CreatePlan()

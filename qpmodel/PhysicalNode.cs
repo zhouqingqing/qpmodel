@@ -402,7 +402,7 @@ namespace qpmodel.physic
             var filter = logic.filter_ as BinExpr;
             var index = index_.index_;
 
-            bool ok = filter.r_().TryEvalConst(out Value searchval);
+            bool ok = filter.rchild_().TryEvalConst(out Value searchval);
             Debug.Assert(ok);
             KeyList key = new KeyList(1);
             key[0] = searchval;
@@ -528,7 +528,7 @@ namespace qpmodel.physic
     public class PhysicNLJoin : PhysicJoin
     {
         public PhysicNLJoin(LogicJoin logic, PhysicNode l, PhysicNode r) : base(logic, l, r) { }
-        public override string ToString() => $"PNLJ({l_()},{r_()}: {Cost()},{InclusiveCost()})";
+        public override string ToString() => $"PNLJ({lchild_()},{rchild_()}: {Cost()},{InclusiveCost()})";
 
         public override string Exec(Func<Row, string> callback)
         {
@@ -540,7 +540,7 @@ namespace qpmodel.physic
             bool antisemi = type == JoinType.AntiSemi;
             bool left = type == JoinType.Left;
 
-            string s = l_().Exec(l =>
+            string s = lchild_().Exec(l =>
             {
                 string out_code = "";
                 if (context.stop_)
@@ -551,7 +551,7 @@ namespace qpmodel.physic
 
                 bool foundOneMatch = false;
                 out_code += codegen($"bool foundOneMatch{_} = false;");
-                out_code += r_().Exec(r =>
+                out_code += rchild_().Exec(r =>
                 {
                     string inner_code = null;
                     if (context.option_.optimize_.use_codegen_)
@@ -559,7 +559,7 @@ namespace qpmodel.physic
                         inner_code += $@"
                         if (!{semi.ToLower()} || !foundOneMatch{_})
                         {{
-                            Row r{_} = new Row(r{l_()._}, r{r_()._});";
+                            Row r{_} = new Row(r{lchild_()._}, r{rchild_()._});";
                         if (filter != null)
                             inner_code += $"if ({filter.ExecCode(context, $"r{_}")} is true)";
                         inner_code += $@"    
@@ -597,14 +597,14 @@ namespace qpmodel.physic
                     out_code += codegen_if(antisemi, $@"
                     if (!foundOneMatch{_})
                     {{
-                        Row r{_} = new Row(r{l_()._}, null);
+                        Row r{_} = new Row(r{lchild_()._}, null);
                         {ExecProjectCode($"r{_}")}
                         {callback(null)}
                     }}");
                     out_code += codegen_if(left, $@"
                     if (!foundOneMatch{_})
                     {{
-                        Row r{_} = new Row(r{l_()._}, new Row{r_().logic_.output_.Count});
+                        Row r{_} = new Row(r{lchild_()._}, new Row{rchild_().logic_.output_.Count});
                         {ExecProjectCode($"r{_}")}
                         {callback(null)}
                     }}");
@@ -619,7 +619,7 @@ namespace qpmodel.physic
                     }
                     if (left && !foundOneMatch)
                     {
-                        Row n = new Row(l, new Row(r_().logic_.output_.Count));
+                        Row n = new Row(l, new Row(rchild_().logic_.output_.Count));
                         n = ExecProject(n);
                         callback(n);
                     }
@@ -632,7 +632,7 @@ namespace qpmodel.physic
 
         protected override double EstimateCost()
         {
-            double cost = (l_().Card() + 10) * (r_().Card() + 10);
+            double cost = (lchild_().Card() + 10) * (rchild_().Card() + 10);
             return cost;
         }
 
@@ -681,11 +681,11 @@ namespace qpmodel.physic
     public class PhysicHashJoin : PhysicJoin
     {
         public PhysicHashJoin(LogicJoin logic, PhysicNode l, PhysicNode r) : base(logic, l, r) { }
-        public override string ToString() => $"PHJ({l_()},{r_()}: {Cost()},{InclusiveCost()})";
+        public override string ToString() => $"PHJ({lchild_()},{rchild_()}: {Cost()},{InclusiveCost()})";
 
         protected override ulong EstimateMemory()
         {
-            var bytes = l_().Card() * l_().logic_.EstOutputWidth() * 2;
+            var bytes = lchild_().Card() * lchild_().logic_.EstOutputWidth() * 2;
             return bytes;
         }
 
@@ -717,12 +717,12 @@ namespace qpmodel.physic
             bool left = type == JoinType.Left;
 
             // build hash table with left side 
-            string s = l_().Exec(l =>
+            string s = lchild_().Exec(l =>
             {
                 string buildcode = null;
                 if (context.option_.optimize_.use_codegen_)
                 {
-                    var lname = $"r{l_()._}";
+                    var lname = $"r{lchild_()._}";
                     buildcode += $@"
                     var keys{_} = KeyList.ComputeKeys(context, {_logic_}.leftKeys_, {lname});
                     if (hm{_}.TryGetValue(keys{_}, out List<TaggedRow> exist))
@@ -766,17 +766,17 @@ namespace qpmodel.physic
                 if (hm.Count == 0)
                     return null;
             }
-            s += r_().Exec(r =>
+            s += rchild_().Exec(r =>
             {
                 string probecode = null;
                 if (context.option_.optimize_.use_codegen_)
                 {
-                    var rname = $"r{r_()._}";
+                    var rname = $"r{rchild_()._}";
                     probecode += $@"
                     if (context.stop_)
                         return;
 
-                    Row fakel{_} = new Row({l_().logic_.output_.Count});
+                    Row fakel{_} = new Row({lchild_().logic_.output_.Count});
                     Row r{_} = new Row(fakel{_}, {rname});
                     var keys{_} = KeyList.ComputeKeys(context, {_logic_}.rightKeys_, r{_});
                     bool foundOneMatch{_} = false;
@@ -806,7 +806,7 @@ namespace qpmodel.physic
                         {codegen_if(right, $@"
                         if (!foundOneMatch{_})
                         {{
-                            r{_} = new Row(new Row{l_().logic_.output_.Count}, r{_});
+                            r{_} = new Row(new Row{lchild_().logic_.output_.Count}, r{_});
                             {ExecProjectCode($"r{_}")}
                             {callback(null)}
                         }}")}
@@ -818,7 +818,7 @@ namespace qpmodel.physic
                     if (context.stop_)
                         return null;
 
-                    Row fakel = new Row(l_().logic_.output_.Count);
+                    Row fakel = new Row(lchild_().logic_.output_.Count);
                     Row n = new Row(fakel, r);
                     var keys = KeyList.ComputeKeys(context, logic.rightKeys_, n);
                     bool foundOneMatch = false;
@@ -847,7 +847,7 @@ namespace qpmodel.physic
                         }
                         if (right && !foundOneMatch)
                         {
-                            n = new Row(new Row(l_().logic_.output_.Count), r);
+                            n = new Row(new Row(lchild_().logic_.output_.Count), r);
                             n = ExecProject(n);
                             callback(n);
                         }
@@ -864,7 +864,7 @@ namespace qpmodel.physic
                     {
                         if (!r.matched_)
                         {
-                            var n = new Row(r.row_, new Row(r_().logic_.output_.Count));
+                            var n = new Row(r.row_, new Row(rchild_().logic_.output_.Count));
                             n = ExecProject(n);
                             callback(n);
                         }
@@ -876,8 +876,8 @@ namespace qpmodel.physic
 
         protected override double EstimateCost()
         {
-            var buildcost = l_().Card() * 2.0;
-            var probecost = r_().Card() * 1.0;
+            var buildcost = lchild_().Card() * 2.0;
+            var probecost = rchild_().Card() * 1.0;
             var outputcost = logic_.Card() * 1.0;
             return buildcost + probecost + outputcost;
         }
@@ -1578,7 +1578,7 @@ namespace qpmodel.physic
     public class PhysicAppend : PhysicNode
     {
         public PhysicAppend(LogicAppend logic, PhysicNode l, PhysicNode r) : base(logic) { children_.Add(l); children_.Add(r); }
-        public override string ToString() => $"PAPPEND({l_()},{r_()}): {Cost()})";
+        public override string ToString() => $"PAPPEND({lchild_()},{rchild_()}): {Cost()})";
 
         protected override double EstimateCost()
         {
@@ -1891,8 +1891,8 @@ namespace qpmodel.physic
                     var sendtoMachine = key.GetHashCode() % dop;
                     upChannels_[sendtoMachine].Send(r);
 
-                    var tid = Thread.CurrentThread.ManagedThreadId;
 #if debug
+                    var tid = Thread.CurrentThread.ManagedThreadId;
                     Console.WriteLine($"{Thread.CurrentThread.Name} by {tid} => {r} => {sendtoMachine}");
 #endif
                 }
