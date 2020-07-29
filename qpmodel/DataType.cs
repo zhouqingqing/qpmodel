@@ -261,6 +261,20 @@ namespace qpmodel.expr
         }
 
         public bool IsDistributed() => Table().distributedBy_ != null;
+        public bool IsDistributionMatch(List<Expr> keys)
+        {
+            // check if the list of expressions match
+            // the distribution of this table
+            if (!IsDistributed())
+                return true;
+            else
+            {
+                if (keys.Count == 1 && keys[0] is ColExpr key)
+                    if (key.colName_ == Table().distributedBy_.name_)
+                        return true;
+            }
+            return false;
+        }
         public TableDef Table() => Catalog.systable_.Table(relname_);
 
         public override string ToString()

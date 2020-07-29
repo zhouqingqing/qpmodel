@@ -94,12 +94,13 @@ namespace qpmodel.logic
             switch (this)
             {
                 case LogicJoin lj:
+                    // when distribution match join keys, redistribution is not necessary
                     LogicNode leftshuffle, rightshuffle;
-                    if (l_() is LogicScanTable ls && !ls.tabref_.IsDistributed())
+                    if (l_() is LogicScanTable ls && ls.tabref_.IsDistributionMatch(lj.leftKeys_))
                         leftshuffle = l_();
                     else
                         leftshuffle = new LogicRedistribute(l_().MarkExchange(option), lj.leftKeys_);
-                    if (r_() is LogicScanTable rs && !rs.tabref_.IsDistributed())
+                    if (r_() is LogicScanTable rs && rs.tabref_.IsDistributionMatch(lj.rightKeys_))
                         rightshuffle = r_();
                     else
                         rightshuffle = new LogicRedistribute(r_().MarkExchange(option), lj.rightKeys_);
@@ -586,26 +587,29 @@ namespace qpmodel.logic
             }
 
             // reset the old values
-            if (!canReUse)
+            lock (this)
             {
-                leftKeys_.Clear();
-                rightKeys_.Clear();
-                ops_.Clear();
-            }
-            else
-            {
-                if (leftKeys_.Count != 0)
-                    return;
-            }
-
-            // cross join does not have join filter
-            if (filter_ != null)
-            {
-                var andlist = filter_.FilterToAndList();
-                foreach (var v in andlist)
+                if (!canReUse)
                 {
-                    Debug.Assert(v is BinExpr);
-                    createOneKeyList(v as BinExpr);
+                    leftKeys_.Clear();
+                    rightKeys_.Clear();
+                    ops_.Clear();
+                }
+                else
+                {
+                    if (leftKeys_.Count != 0)
+                        return;
+                }
+
+                // cross join does not have join filter
+                if (filter_ != null)
+                {
+                    var andlist = filter_.FilterToAndList();
+                    foreach (var v in andlist)
+                    {
+                        Debug.Assert(v is BinExpr);
+                        createOneKeyList(v as BinExpr);
+                    }
                 }
             }
         }

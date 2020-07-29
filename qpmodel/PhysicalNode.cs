@@ -1431,12 +1431,18 @@ namespace qpmodel.physic
 
         public override string Exec(Func<Row, string> callback)
         {
+            var dop = context_.option_.optimize_.query_dop_;
+
             child_().Exec(l =>
             {
                 var table = (logic_ as LogicInsert).targetref_.Table();
                 int partid = 0;
+                // insert data row according to distribution column
                 if (table.distributedBy_ != null)
-                    partid = 0;
+                {
+                    var distrord = table.distributedBy_.ordinal_;
+                    partid = l[distrord].GetHashCode() % dop;
+                }
                 table.distributions_[partid].heap_.Add(l);
                 return null;
             });
