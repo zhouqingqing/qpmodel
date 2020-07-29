@@ -1432,8 +1432,6 @@ namespace qpmodel.physic
         {
             var table = (logic_ as LogicInsert).targetref_.Table();
             var dop = context_.option_.optimize_.query_dop_;
-            if (table.distributedBy_ != null)
-                Debug.Assert(dop == table.distributions_.Count);
 
             child_().Exec(l =>
             {

@@ -260,6 +260,7 @@ namespace qpmodel.expr
             tableSample_ = tableSample;
         }
 
+        public bool IsDopMatch(QueryOption option) => Table().distributions_.Count == option.optimize_.query_dop_;
         public bool IsDistributed() => Table().distributedBy_ != null;
         public bool IsDistributionMatch(List<Expr> keys, QueryOption option)
         {
@@ -268,7 +269,7 @@ namespace qpmodel.expr
                 return true;
             else
             {
-                Debug.Assert(Table().distributions_.Count == option.optimize_.query_dop_);
+                Debug.Assert(IsDopMatch(option));
                 // table distribution is by one column, check match
                 if (keys.Count == 1 && keys[0] is ColExpr key)
                     if (key.colName_ == Table().distributedBy_.name_)
