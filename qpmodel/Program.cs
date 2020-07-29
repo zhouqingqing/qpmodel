@@ -133,6 +133,11 @@ namespace qpmodel
 
             string sql = "";
 
+            if (args.Length != 0)
+            {
+                sql = args[0];
+            }
+
             if (false)
             {
                 JOBench.CreateTables();
@@ -165,7 +170,11 @@ namespace qpmodel
             }
 
         doit:
-            sql = "select * from a tablesample row (2)";
+
+            if (sql.Length == 0)
+            {
+                sql = "select * from a tablesample row (2);";
+            }
 
             var datetime = new DateTime();
             datetime = DateTime.Now;
