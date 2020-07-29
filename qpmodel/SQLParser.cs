@@ -92,38 +92,38 @@ namespace qpmodel.sqlparser
         }
 
         public override object VisitDateStringLiteral([NotNull] SQLiteParser.DateStringLiteralContext context)
-            => new LiteralExpr(context.STRING_LITERAL().GetText(), new DateTimeType());
+            => new ConstExpr(context.STRING_LITERAL().GetText(), new DateTimeType());
         public override object VisitIntervalLiteral([NotNull] SQLiteParser.IntervalLiteralContext context)
-            => new LiteralExpr(context.STRING_LITERAL().GetText(), context.date_unit_single().GetText());
+            => new ConstExpr(context.STRING_LITERAL().GetText(), context.date_unit_single().GetText());
 
         public override object VisitNumericLiteral([NotNull] SQLiteParser.NumericLiteralContext context)
         {
                 Debug.Assert(context.signed_number() != null);
                 if (context.signed_number().GetText().Contains("."))
-                    return new LiteralExpr(context.signed_number().GetText(), new DoubleType());
+                    return new ConstExpr(context.signed_number().GetText(), new DoubleType());
                 else
-                    return new LiteralExpr(context.signed_number().GetText(), new IntType());
+                    return new ConstExpr(context.signed_number().GetText(), new IntType());
         }
         public override object VisitDateLiteral([NotNull] SQLiteParser.DateLiteralContext context)
         {
             if (context.date_unit_plural() != null)
-                return new LiteralExpr($"'{context.signed_number().GetText()}'", context.date_unit_plural().GetText());
+                return new ConstExpr($"'{context.signed_number().GetText()}'", context.date_unit_plural().GetText());
             else
             {
                 Debug.Assert(context.signed_number() != null);
                 if (context.signed_number().GetText().Contains("."))
-                    return new LiteralExpr(context.signed_number().GetText(), new DoubleType());
+                    return new ConstExpr(context.signed_number().GetText(), new DoubleType());
                 else
-                    return new LiteralExpr(context.signed_number().GetText(), new IntType());
+                    return new ConstExpr(context.signed_number().GetText(), new IntType());
             }
         }
 
         public override object VisitCurrentTimeLiteral([NotNull] SQLiteParser.CurrentTimeLiteralContext context)
            => throw new NotImplementedException();
         public override object VisitStringLiteral([NotNull] SQLiteParser.StringLiteralContext context)
-            => new LiteralExpr(context.GetText(), new CharType(context.GetText().Length));
+            => new ConstExpr(context.GetText(), new CharType(context.GetText().Length));
         public override object VisitNullLiteral([NotNull] SQLiteParser.NullLiteralContext context)
-                => new LiteralExpr("null", new AnyType());
+                => new ConstExpr("null", new AnyType());
 
         public override object VisitBrackexpr([NotNull] SQLiteParser.BrackexprContext context)
             => Visit(context.logical_expr());

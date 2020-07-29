@@ -83,7 +83,7 @@ namespace qpmodel.logic
                 case LogicAgg an:
                     return ce.LogicAggCE(an);
                 case LogicAppend la:
-                    return la.l_().EstimateCard() + la.r_().EstimateCard();
+                    return la.lchild_().EstimateCard() + la.rchild_().EstimateCard();
                 case LogicJoin jn:
                     return ce.LogicJoinCE(jn);
                 case LogicProjectSet ps:
@@ -178,8 +178,8 @@ namespace qpmodel.logic
 
             ulong card;
             node.CreateKeyList();
-            var cardl = node.l_().Card();
-            var cardr = node.r_().Card();
+            var cardl = node.lchild_().Card();
+            var cardr = node.rchild_().Card();
 
             ulong dl = 0, dr = 0, mindlr = 1;
             for (int i = 0; i < node.leftKeys_.Count; i++)

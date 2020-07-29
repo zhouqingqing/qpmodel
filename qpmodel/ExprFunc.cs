@@ -489,7 +489,7 @@ namespace qpmodel.expr
     {
         // Exec info
         internal long count_;
-        public AggCountStar(List<Expr> args) : base("count(*)", new List<Expr> { new LiteralExpr("0", new IntType()) })
+        public AggCountStar(List<Expr> args) : base("count(*)", new List<Expr> { new ConstExpr("0", new IntType()) })
         {
             Debug.Assert(args is null);
             argcnt_ = 0;
@@ -823,13 +823,13 @@ namespace qpmodel.expr
     {
         internal string op_;
 
-        public override int GetHashCode() => l_().GetHashCode() ^ r_().GetHashCode() ^ op_.GetHashCode();
+        public override int GetHashCode() => lchild_().GetHashCode() ^ rchild_().GetHashCode() ^ op_.GetHashCode();
         public override bool Equals(object obj)
         {
             if (obj is ExprRef oe)
                 return this.Equals(oe.expr_());
             else if (obj is BinExpr bo)
-                return exprEquals(l_(), bo.l_()) && exprEquals(r_(), bo.r_()) && op_.Equals(bo.op_);
+                return exprEquals(lchild_(), bo.lchild_()) && exprEquals(rchild_(), bo.rchild_()) && op_.Equals(bo.op_);
             return false;
         }
         public BinExpr(Expr l, Expr r, string op) : base()
@@ -855,7 +855,7 @@ namespace qpmodel.expr
             base.Bind(context);
 
             // derive return type
-            Debug.Assert(l_().type_ != null && r_().type_ != null);
+            Debug.Assert(lchild_().type_ != null && rchild_().type_ != null);
             switch (op_)
             {
                 case "+":
@@ -864,21 +864,21 @@ namespace qpmodel.expr
                 case "/":
                 case "||":
                     // notice that CoerseType() may change l/r underneath
-                    type_ = ColumnType.CoerseType(op_, l_(), r_());
+                    type_ = ColumnType.CoerseType(op_, lchild_(), rchild_());
                     break;
                 case ">":
                 case ">=":
                 case "<":
                 case "<=":
-                    if (ColumnType.IsNumberType(l_().type_))
-                        ColumnType.CoerseType(op_, l_(), r_());
+                    if (ColumnType.IsNumberType(lchild_().type_))
+                        ColumnType.CoerseType(op_, lchild_(), rchild_());
                     type_ = new BoolType();
                     break;
                 case "=":
                 case "<>":
                 case "!=":
-                    if (ColumnType.IsNumberType(l_().type_))
-                        ColumnType.CoerseType(op_, l_(), r_());
+                    if (ColumnType.IsNumberType(lchild_().type_))
+                        ColumnType.CoerseType(op_, lchild_(), rchild_());
                     type_ = new BoolType();
                     break;
                 case " and ":
@@ -912,19 +912,19 @@ namespace qpmodel.expr
 
         public void SwapSide()
         {
-            var oldl = l_();
-            children_[0] = r_();
+            var oldl = lchild_();
+            children_[0] = rchild_();
             children_[1] = oldl;
             op_ = SwapSideOp(op_);
         }
 
-        public override string ToString() => $"{l_()}{op_}{r_()}{outputName()}";
+        public override string ToString() => $"{lchild_()}{op_}{rchild_()}{outputName()}";
 
         public override Value Exec(ExecContext context, Row input)
         {
             string[] nullops = { "is", "||" };
-            dynamic lv = l_().Exec(context, input);
-            dynamic rv = r_().Exec(context, input);
+            dynamic lv = lchild_().Exec(context, input);
+            dynamic rv = rchild_().Exec(context, input);
 
             if (!nullops.Contains(op_) && (lv is null || rv is null))
                 return null;
@@ -973,8 +973,8 @@ namespace qpmodel.expr
 
         public override string ExecCode(ExecContext context, string input)
         {
-            string lv = "(dynamic)" + l_().ExecCode(context, input);
-            string rv = "(dynamic)" + r_().ExecCode(context, input);
+            string lv = "(dynamic)" + lchild_().ExecCode(context, input);
+            string rv = "(dynamic)" + rchild_().ExecCode(context, input);
 
             string code = null;
             switch (op_)
@@ -1009,7 +1009,7 @@ namespace qpmodel.expr
             var andorlist = new List<Expr>();
             for (int i = 0; i < 2; i++)
             {
-                Expr e = i == 0 ? l_() : r_();
+                Expr e = i == 0 ? lchild_() : rchild_();
                 if (isAnd && e is LogicAndExpr ea)
                     andorlist.AddRange(ea.BreakToList(isAnd));
                 else if (!isAnd && e is LogicOrExpr eo)
@@ -1044,8 +1044,8 @@ namespace qpmodel.expr
 
         public override Value Exec(ExecContext context, Row input)
         {
-            dynamic lv = l_().Exec(context, input);
-            dynamic rv = r_().Exec(context, input);
+            dynamic lv = lchild_().Exec(context, input);
+            dynamic rv = rchild_().Exec(context, input);
 
             if (lv is null) lv = false;
             if (rv is null) rv = false;

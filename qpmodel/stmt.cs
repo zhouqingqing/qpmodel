@@ -516,7 +516,7 @@ namespace qpmodel.logic
             var converted = new List<Expr>();
             list.ForEach(x =>
             {
-                if (x is LiteralExpr xl && xl.type_ is IntType)
+                if (x is ConstExpr xl && xl.type_ is IntType)
                 {
                     // clone is not necessary but we have some assertions to check
                     // redundant processing, say same colexpr bound twice, I'd rather
@@ -629,7 +629,7 @@ namespace qpmodel.logic
                     if (isConst)
                     {
                         if (!trueOrFalse)
-                            andlist.Add(LiteralExpr.MakeLiteralBool(false));
+                            andlist.Add(ConstExpr.MakeConstBool(false));
                         else
                             Debug.Assert(andlist.Count == 0);
                     }

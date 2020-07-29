@@ -60,8 +60,8 @@ namespace qpmodel.utils
 
         // shortcut for conventional names
         public T child_() { Debug.Assert(children_.Count == 1); return children_[0]; }
-        public T l_() { Debug.Assert(children_.Count == 2); return children_[0]; }
-        public T r_() { Debug.Assert(children_.Count == 2); return children_[1]; }
+        public T lchild_() { Debug.Assert(children_.Count == 2); return children_[0]; }
+        public T rchild_() { Debug.Assert(children_.Count == 2); return children_[1]; }
 
         public TreeNode()
         {
@@ -120,6 +120,17 @@ namespace qpmodel.utils
                         return true;
             }
             return exists;
+        }
+
+        public void VisitEachIgnore<T1, T2>(Action<T2> callback) where T2: TreeNode<T>
+        {
+            if (!(this is T1))
+            {
+                if (this is T2)
+                    callback(this as T2);
+                foreach (var v in children_)
+                    v.VisitEachIgnore<T1, T2>(callback);
+            }
         }
 
         // lookup all T1 types in the tree and return the parent-target relationship

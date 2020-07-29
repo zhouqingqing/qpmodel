@@ -72,7 +72,7 @@ namespace qpmodel.optimizer
                     args = new Object[] { log, new PhysicMemoRef(log.child_()) };
                     break;
                 case NumberArgs.N2 n2:
-                    args = new Object[] { log, new PhysicMemoRef(log.l_()), new PhysicMemoRef(log.r_()) };
+                    args = new Object[] { log, new PhysicMemoRef(log.lchild_()), new PhysicMemoRef(log.rchild_()) };
                     break;
                 case NumberArgs.NList nlist:
                     List<PhysicNode> children = log.children_.Select(x => new PhysicMemoRef(x) as PhysicNode).ToList();
@@ -99,7 +99,7 @@ namespace qpmodel.optimizer
             {
                 var stmt = expr.Stmt() as SelectStmt;
                 bool lhasSubqCol = stmt.PlanContainsCorrelatedSubquery() &&
-                    TableRef.HasColsUsedBySubquries(join.l_().InclusiveTableRefs());
+                    TableRef.HasColsUsedBySubquries(join.lchild_().InclusiveTableRefs());
                 if (!lhasSubqCol)
                     return true;
             }
@@ -109,8 +109,8 @@ namespace qpmodel.optimizer
         public override CGroupMember Apply(CGroupMember expr)
         {
             LogicJoin log = expr.logic_ as LogicJoin;
-            var l = new PhysicMemoRef(log.l_());
-            var r = new PhysicMemoRef(log.r_());
+            var l = new PhysicMemoRef(log.lchild_());
+            var r = new PhysicMemoRef(log.rchild_());
             var hashjoin = new PhysicHashJoin(log, l, r);
             return new CGroupMember(hashjoin, expr.group_);
         }
@@ -129,8 +129,8 @@ namespace qpmodel.optimizer
         public override CGroupMember Apply(CGroupMember expr)
         {
             LogicJoin log = expr.logic_ as LogicJoin;
-            var l = new PhysicMemoRef(log.l_());
-            var r = new PhysicMemoRef(log.r_());
+            var l = new PhysicMemoRef(log.lchild_());
+            var r = new PhysicMemoRef(log.rchild_());
             PhysicNode phy = new PhysicNLJoin(log, l, r);
             return new CGroupMember(phy, expr.group_);
         }

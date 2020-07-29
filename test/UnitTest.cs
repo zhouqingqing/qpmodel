@@ -978,6 +978,9 @@ namespace qpmodel.unittest
             sql = "select a1,a1,a3,a3, (select * from b where b2=2) from a where a1>1"; // * handling
             result = ExecuteSQL(sql); Assert.IsNull(result);
             Assert.IsTrue(TU.error_.Contains("one"));
+            sql = "select * from a where a1 > (select b2 from b where a1<>b1)";
+            result = ExecuteSQL(sql); Assert.IsNull(result);
+            Assert.IsTrue(TU.error_.Contains("subquery must return only one row"));
 
             // subquery in selection
             sql = "select a1,a1,a3,a3, (select b3 from b where b2=2) from a where a1>1"; TU.ExecuteSQL(sql, "2,2,4,4,3");

@@ -165,11 +165,11 @@ column_constraint
 logical_expr
  : logical_expr K_AND logical_expr											#LogicAndExpr
  | logical_expr K_OR logical_expr											#LogicOrExpr
- | bool_expr                                                         #boolexpr
+ | pred_expr                                                         #predexpr
  | '(' logical_expr ')'												#brackexpr
 ;
 
-bool_expr
+pred_expr
  : arith_expr op=( '<' | '<=' | '>' | '>=' ) arith_expr					                                #arithcompexpr
  | arith_expr op=( '=' | '==' | '!=' | '<>' | K_GLOB | K_MATCH | K_REGEXP ) arith_expr	                #BoolEqualexpr
 
@@ -190,7 +190,7 @@ bool_expr
 ;
 
 arith_expr
- : literal_value											#LiteralExpr
+ : literal_value											#xxLiteralExpr
  | unary_operator arith_expr								#unaryexpr
  | BIND_PARAMETER											#bindexpr
  | ( ( database_name '.' )? table_name '.' )? column_name	#ColExpr
