@@ -263,20 +263,19 @@ namespace qpmodel.expr
         public bool IsDistributed() => Table().distributedBy_ != null;
         public bool IsDistributionMatch(List<Expr> keys, QueryOption option)
         {
-            // check if the list of expressions match
-            // the distribution of this table
+            // only check match when it is distributed deployment
             if (!IsDistributed())
                 return true;
             else
             {
-                // check if number of partitions agree
-                if (option.optimize_.query_dop_ == Table().distributions_.Count)
-                    // table distribution is by one column, check match
-                    if (keys.Count == 1 && keys[0] is ColExpr key)
-                        if (key.colName_ == Table().distributedBy_.name_)
-                            return true;
+                Debug.Assert(Table().distributions_.Count == option.optimize_.query_dop_);
+                // table distribution is by one column, check match
+                if (keys.Count == 1 && keys[0] is ColExpr key)
+                    if (key.colName_ == Table().distributedBy_.name_)
+                        return true;
+
+                return false;
             }
-            return false;
         }
         public TableDef Table() => Catalog.systable_.Table(relname_);
 

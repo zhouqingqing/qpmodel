@@ -2109,14 +2109,6 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "1,3", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
             Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
-
-            // check redistribution for different partition number
-            var option = new QueryOption();
-            option.optimize_.query_dop_ = 3;
-            sql = "select a1,b1 from ad, b where a1=b1 order by a1;";
-            TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan, option);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Redistribute"));
         }
     }
 

@@ -639,7 +639,6 @@ namespace qpmodel.physic
         public override List<PhysicProperty> PropagatedProperty(PhysicProperty property)
         {
             var logic = logic_ as LogicJoin;
-            logic.CreateKeyList(false); // ensure existence of left/right keys
 
             if (property != null && property is SortOrderProperty sort)
                 if (IsExprMatch(sort, logic.leftKeys_))

@@ -517,9 +517,10 @@ namespace qpmodel.logic
                 tableContained_ = SetOp.Union(l.tableContained_, r.tableContained_);
             }
         }
-        public LogicJoin(LogicNode l, LogicNode r, Expr filter) : this(l, r)
+        public LogicJoin(LogicNode l, LogicNode r, Expr filter, bool createkey = true) : this(l, r)
         {
             filter_ = filter;
+            if (createkey) CreateKeyList(false);
         }
 
         public bool IsInnerJoin() => type_ == JoinType.Inner && !(this is LogicMarkJoin);
@@ -547,7 +548,6 @@ namespace qpmodel.logic
         public bool AddFilter(Expr filter)
         {
             filter_ = filter_.AddAndFilter(filter);
-            // produce left/right key at initialization
             CreateKeyList(false);
             return true;
         }
@@ -586,31 +586,27 @@ namespace qpmodel.logic
                 Debug.Assert(leftKeys_.Count == rightKeys_.Count);
             }
 
-            // make sure multithreading does not mess up shared logic node
-            lock (this) 
+            // reset the old values
+            if (!canReUse)
             {
-                // reset the old values
-                if (!canReUse)
-                {
-                    leftKeys_.Clear();
-                    rightKeys_.Clear();
-                    ops_.Clear();
-                }
-                else
-                {
-                    if (leftKeys_.Count != 0)
-                        return;
-                }
+                leftKeys_.Clear();
+                rightKeys_.Clear();
+                ops_.Clear();
+            }
+            else
+            {
+                if (leftKeys_.Count != 0)
+                    return;
+            }
 
-                // cross join does not have join filter
-                if (filter_ != null)
+            // cross join does not have join filter
+            if (filter_ != null)
+            {
+                var andlist = filter_.FilterToAndList();
+                foreach (var v in andlist)
                 {
-                    var andlist = filter_.FilterToAndList();
-                    foreach (var v in andlist)
-                    {
-                        Debug.Assert(v is BinExpr);
-                        createOneKeyList(v as BinExpr);
-                    }
+                    Debug.Assert(v is BinExpr);
+                    createOneKeyList(v as BinExpr);
                 }
             }
         }
