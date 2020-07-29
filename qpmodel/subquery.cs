@@ -578,7 +578,7 @@ namespace qpmodel.logic
                         bool foundDups = foundOneMatch && filter != null;
 
                         if (foundDups)
-                            throw new SemanticExecutionException("more than one row matched");
+                            throw new SemanticExecutionException("subquery must return only one row");
                         foundOneMatch = true;
 
                         // there is at least one match, mark true
