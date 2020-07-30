@@ -517,10 +517,9 @@ namespace qpmodel.logic
                 tableContained_ = SetOp.Union(l.tableContained_, r.tableContained_);
             }
         }
-        public LogicJoin(LogicNode l, LogicNode r, Expr filter, bool createkey = true) : this(l, r)
+        public LogicJoin(LogicNode l, LogicNode r, Expr filter) : this(l, r)
         {
             filter_ = filter;
-            if (createkey) CreateKeyList(false);
         }
 
         public bool IsInnerJoin() => type_ == JoinType.Inner && !(this is LogicMarkJoin);

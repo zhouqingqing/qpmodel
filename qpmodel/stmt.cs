@@ -866,7 +866,7 @@ namespace qpmodel.logic
 
         public DataSet join(DataSet other, string condition)
         {
-            logicPlan_ = new LogicJoin(logicPlan_, other.logicPlan_, parseExpr(condition), false);
+            logicPlan_ = new LogicJoin(logicPlan_, other.logicPlan_, parseExpr(condition));
             return this;
         }
 
