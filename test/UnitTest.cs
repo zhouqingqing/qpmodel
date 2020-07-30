@@ -2079,11 +2079,11 @@ namespace qpmodel.unittest
             var sql = "select a1,b1 from ad, b where a1=b1 order by a1;";
             TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Redistribute"));
+            Assert.AreEqual(0, TU.CountStr(phyplan, "Redistribute"));
             sql = "select a1,b1 from ad, bd where a1=b1 order by a1;";
             TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-            Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
+            Assert.AreEqual(0, TU.CountStr(phyplan, "Redistribute"));
             sql = "select a2,b2,c2 from ad, bd, cd where a2=b2 and c2 = b2 order by c2";
             TU.ExecuteSQL(sql, "1,1,1;2,2,2;3,3,3", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
@@ -2103,6 +2103,10 @@ namespace qpmodel.unittest
             // no output if by previous r[0] method for redistribution
             sql = "select d2, a1 from ad, dd where d3=a1 order by d2;";
             TU.ExecuteSQL(sql, "1,2", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Redistribute"));
+            sql = "select d2, a2 from ad, dd where d4=a2 order by d2;";
+            TU.ExecuteSQL(sql, "1,3", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
             Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
         }

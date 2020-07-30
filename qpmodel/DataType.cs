@@ -260,7 +260,24 @@ namespace qpmodel.expr
             tableSample_ = tableSample;
         }
 
+        public bool IsDopMatch(QueryOption option) => Table().distributions_.Count == option.optimize_.query_dop_;
         public bool IsDistributed() => Table().distributedBy_ != null;
+        public bool IsDistributionMatch(List<Expr> keys, QueryOption option)
+        {
+            // only check match when it is distributed deployment
+            if (!IsDistributed())
+                return true;
+            else
+            {
+                Debug.Assert(IsDopMatch(option));
+                // table distribution is by one column, check match
+                if (keys.Count == 1 && keys[0] is ColExpr key)
+                    if (key.colName_ == Table().distributedBy_.name_)
+                        return true;
+
+                return false;
+            }
+        }
         public TableDef Table() => Catalog.systable_.Table(relname_);
 
         public override string ToString()

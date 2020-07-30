@@ -639,7 +639,6 @@ namespace qpmodel.physic
         public override List<PhysicProperty> PropagatedProperty(PhysicProperty property)
         {
             var logic = logic_ as LogicJoin;
-            logic.CreateKeyList(false); // ensure existence of left/right keys
 
             if (property != null && property is SortOrderProperty sort)
                 if (IsExprMatch(sort, logic.leftKeys_))
@@ -1431,12 +1430,18 @@ namespace qpmodel.physic
 
         public override string Exec(Func<Row, string> callback)
         {
+            var table = (logic_ as LogicInsert).targetref_.Table();
+            var dop = context_.option_.optimize_.query_dop_;
+
             child_().Exec(l =>
             {
-                var table = (logic_ as LogicInsert).targetref_.Table();
                 int partid = 0;
+                // insert data row according to distribution column
                 if (table.distributedBy_ != null)
-                    partid = 0;
+                {
+                    var distrord = table.distributedBy_.ordinal_;
+                    partid = l[distrord].GetHashCode() % dop;
+                }
                 table.distributions_[partid].heap_.Add(l);
                 return null;
             });
