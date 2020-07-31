@@ -159,7 +159,7 @@ namespace qpmodel.index
             return null;
         }
 
-        public override string Close()
+        public override void Close()
         {
             var logic = (logic_ as LogicIndex);
             var def = logic.def_;
@@ -168,7 +168,6 @@ namespace qpmodel.index
             Debug.Assert(def.index_ is null);
             def.index_ = index_;
             Catalog.systable_.CreateIndex(logic.GetTargetTable().relname_, def);
-            return null;
         }
     }
 

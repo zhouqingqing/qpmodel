@@ -119,7 +119,9 @@ namespace qpmodel.logic
             finalplan.Open(context);
             var code = context.code_;
             code += finalplan.Exec(null);
-            code += finalplan.Close();
+            context.code_ = "";
+            finalplan.Close();
+            code += context.code_;
 
             if (queryOpt_.optimize_.use_codegen_)
             {
@@ -909,7 +911,9 @@ namespace qpmodel.logic
             finalplan.Open(context);
             var code = context.code_;
             code += finalplan.Exec(null);
-            code += finalplan.Close();
+            context.code_ = "";
+            finalplan.Close();
+            code += context.code_;
 
             return finalplan.rows_;
         }

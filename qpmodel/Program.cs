@@ -248,7 +248,9 @@ namespace qpmodel
             final.Open(context);
             var code = context.code_;
             code += final.Exec(null);
-            code += final.Close();
+            context.code_ = "";
+            final.Close();
+            code += context.code_;
 
             if (a.queryOpt_.optimize_.use_codegen_)
             {
