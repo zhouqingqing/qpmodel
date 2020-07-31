@@ -364,8 +364,10 @@ namespace qpmodel.physic
 
             plan.Open(context);
             var code = context.code_;
-            code = plan.Exec(null);
-            code = plan.Close();
+            code += plan.Exec(null);
+            context.code_ = "";
+            plan.Close();
+            code += context.code_;
         }
     }
 }

@@ -90,6 +90,8 @@ namespace qpmodel.physic
             });
         }
 
+        // Preorder traversal is used to generate code from
+        // nary-tree to @context when open.
         public virtual void Open(ExecContext context)
         {
             string s = null;
@@ -109,12 +111,15 @@ namespace qpmodel.physic
             children_.ForEach(x => x.Open(context));
         }
 
-        public virtual string Close()
+        // Preorder traversal is used to generate code from
+        // nary-tree to @context when close.
+        public virtual void Close()
         {
             Debug.Assert(context_ != null);
-            string s = ""; children_.ForEach(x => s += x.Close());
+            string s = null;
+            context_.code_ += s;
+            children_.ForEach(x => x.Close());
             context_ = null;
-            return s;
         }
         // @context is to carray parameters etc, @callback.Row is current row for processing
         public abstract string Exec(Func<Row, string> callback);
@@ -1521,10 +1526,18 @@ namespace qpmodel.physic
             base.Open(context);
         }
 
-        public override string Close()
+        public override void Close()
         {
+            // @context_ is null after @base.Close()
+            // is issued.
+            // Keep the reference of @context_ in this
+            // stack to append '}}' to @context_.code_
+            // after @base.Close() is issued.
+            var ctx = context_;
+            base.Close();
+
             string s = "}}";
-            return base.Close() + s;
+            ctx.code_ += s;
         }
 
         public override string Exec(Func<Row, string> callback)
@@ -1685,12 +1698,15 @@ namespace qpmodel.physic
             Debug.Assert(asConsumer_); children_.Add(l);
         }
 
-        public override string Close()
+        public override void Close()
         {
             var code = "";
+
+            context_.code_ += code;
             if (!asConsumer_)
-                code += base.Close();
-            return code;
+            {
+                base.Close();
+            }
         }
 
         public virtual string OpenConsumer(ExecContext context) => null;
