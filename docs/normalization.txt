@@ -1,0 +1,58 @@
+This is breif document about the change in the internal woking of qpmodel
+after new Normalization, constant folding, expr equal semantics, and
+proper handling of from(from(from)).
+
+These tranformations are in addition to what are already impelmented.
+The underlying assumptions for the design is that expression signature
+is built as Postfix expression string (Reverse Polish Notation).
+
+These wil be turned into tests and moved into appropriate unit test file
+as normalization starts working. For now it lists a sample/prototype of
+normalizations expeted to work, and those which wouldn't.
+
+Tranformable  expressions:
+T01:
+a + 1 + 2				-> a + 3
+a + 1 + b + 3 + 4			-> a + 1 + b + 7
+1 * 3 - 1				-> 2
+1 <> 2					-> FALSE/0 Node may be deleted
+3 == 3					-> TRUE/1
+	PROTOTYPE: if there are a series of integer constants involving
+	+, -, *, <>, == that sequence will be reduced to the resulting
+	constant.
+	Divison may or may not be included because of truncation, insufficient
+	type inforamtion.
+T02:
+a ARITH_OP 1				-> a
+a ATITH_OP 0				-> a if ARITH_OP is not /, %
+	PROTOTYPE: Binary arithmetic operators with 1 or zero as one argument
+	and column reference as others will be reduced column reference only
+	if the operator doesn't riase exception with zero.
+
+T03:
+FUNC(integer)				-> Result of FUNC(integer)
+	PROTOTYPE: non aggreagte and non date/time functions with integer
+	constants will be reduced to the result of that function with that
+	value as argument. Aggregate functions MIN, MAX, AVG are
+	a canidate for sonstant simplification.
+	Example:  max(4) + min(6)	-> 10
+
+
+Non Tranformable expressions:
+N01:
+a * 1 + 2 * b				-> a * 1 + 2 * b
+	PROTOTYPE: Operator precedence doesn't allow this to be reduced.
+	In every case the semantics after transformation are going to be
+	different, such transformations will not be attempted.
+
+
+
+May be Tranformable expressions:
+M01:
+a + 2 + b + 2			-> a + b + 4
+a * b + 2 + c + 2		-> a * b + c + 4		
+	PROTOTYPE: If integer constants are not directly connected, the
+	expression may still be simplified in some cases.
+
+
+
