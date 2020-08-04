@@ -425,8 +425,20 @@ namespace qpmodel.logic
             // shape with main queyr not distributed but subquery is.
             //
             bool hasdtable = false;
-            from_.ForEach(x => hasdtable |=
-                (x is BaseTableRef bx && bx.IsDistributed()));
+            bool onlyreplicated = true;
+            from_.ForEach(x =>
+            {
+                if (x is BaseTableRef bx)
+                {
+                    var method = bx.Table().distMethod_;
+                    if (bx.IsDistributed())
+                    {
+                        hasdtable = true;
+                        if (method != TableDef.DistributionMethod.Replicated)
+                            onlyreplicated = false;
+                    }
+                }
+            });
             if (hasdtable)
             {
                 Debug.Assert(!distributed_);
@@ -434,7 +446,10 @@ namespace qpmodel.logic
 
                 // FIXME: we have to disable memo optimization before property enforcement done
                 queryOpt_.optimize_.use_memo_ = false;
-                root = new LogicGather(root);
+                if (onlyreplicated)
+                    root = new LogicGather(root, new List<int> { 0 });
+                else
+                    root = new LogicGather(root);
             }
 
             return root;

@@ -79,7 +79,7 @@ create_table_stmt
  : K_CREATE K_TABLE ( K_IF K_NOT K_EXISTS )?
    ( database_name '.' )? table_name
    ( '(' column_def ( ',' column_def )* ( ',' table_constraint )* ')'
-   ( K_DISTRIBUTED K_BY column_name)?
+   ( K_ROUNDROBIN | K_REPLICATED | ( K_DISTRIBUTED K_BY column_name) )?
    )
  ;
 
@@ -655,6 +655,8 @@ K_REFERENCES : R E F E R E N C E S;
 K_REGEXP : R E G E X P;
 K_RENAME : R E N A M E;
 K_REPLACE : R E P L A C E;
+K_REPLICATED: R E P L I C A T E D;
+K_ROUNDROBIN: R O U N D R O B I N;
 K_RESTRICT : R E S T R I C T;
 K_RIGHT : R I G H T;
 K_ROW : R O W;
