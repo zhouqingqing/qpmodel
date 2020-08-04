@@ -1436,18 +1436,28 @@ namespace qpmodel.physic
         public override string Exec(Func<Row, string> callback)
         {
             var table = (logic_ as LogicInsert).targetref_.Table();
-            var dop = context_.option_.optimize_.query_dop_;
+            var nparts = QueryOption.num_machines_;
 
             child_().Exec(l =>
             {
-                int partid = 0;
-                // insert data row according to distribution column
-                if (table.distributedBy_ != null)
+                // insert data row according to distribution
+                if (table.distMethod_ == TableDef.DistributionMethod.Replicated)
                 {
-                    var distrord = table.distributedBy_.ordinal_;
-                    partid = l[distrord].GetHashCode() % dop;
+                    for (int i = 0; i < nparts; i++)
+                        table.distributions_[i].heap_.Add(l);
                 }
-                table.distributions_[partid].heap_.Add(l);
+                else
+                {
+                    int partid = 0;
+                    if (table.distMethod_ == TableDef.DistributionMethod.Roundrobin)
+                        partid = Catalog.rand_.Next() % nparts;
+                    else if (table.distMethod_ == TableDef.DistributionMethod.Distributed)
+                    {
+                        var distrord = table.distributedBy_.ordinal_;
+                        partid = l[distrord].GetHashCode() % nparts;
+                    }
+                    table.distributions_[partid].heap_.Add(l);
+                }
                 return null;
             });
             return null;
@@ -1747,7 +1757,9 @@ namespace qpmodel.physic
         public override string OpenConsumer(ExecContext econtext)
         {
             var context = econtext as DistributedContext;
-            int dop = context.option_.optimize_.query_dop_;
+            var logic = logic_ as LogicGather;
+            List<int> targets = logic.producerIds_;
+            int dop = targets.Count;
             string cs = base.OpenConsumer(context);
 
             // create producer threads, establish connections and set up 
@@ -1758,11 +1770,9 @@ namespace qpmodel.physic
 
             Debug.Assert(context.machines_ != null);
             List<Thread> workers = new List<Thread>();
-            for (int i = 0; i < dop; i++)
+            foreach(var machineId in targets)
             {
-                var machineId = i;
                 var planId = _;
-
                 var wo = new WorkerObject(Thread.CurrentThread.Name,
                                         context.machines_,
                                         machineId,

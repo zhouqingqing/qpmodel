@@ -261,20 +261,30 @@ namespace qpmodel.expr
         }
 
         public bool IsDopMatch(QueryOption option) => Table().distributions_.Count == option.optimize_.query_dop_;
-        public bool IsDistributed() => Table().distributedBy_ != null;
+        public bool IsDistributed() => Table().distMethod_ != TableDef.DistributionMethod.NonDistributed;
         public bool IsDistributionMatch(List<Expr> keys, QueryOption option)
         {
+            var method = Table().distMethod_;
+
             // only check match when it is distributed deployment
             if (!IsDistributed())
                 return true;
             else
             {
                 Debug.Assert(IsDopMatch(option));
-                // table distribution is by one column, check match
-                if (keys.Count == 1 && keys[0] is ColExpr key)
-                    if (key.colName_ == Table().distributedBy_.name_)
-                        return true;
 
+                // replicated always match
+                if (method == TableDef.DistributionMethod.Replicated)
+                    return true;
+                else if (method == TableDef.DistributionMethod.Distributed)
+                {
+                    // table distribution is by one column, check match
+                    if (keys.Count == 1 && keys[0] is ColExpr key)
+                        if (key.colName_ == Table().distributedBy_.name_)
+                            return true;
+                }
+
+                // otherwise, incuding roundrobin, never match
                 return false;
             }
         }

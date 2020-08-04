@@ -66,7 +66,7 @@ namespace qpmodel
         }
         static void TestDataSet2()
         {
-            Random rand = new Random();
+            Random rand = Catalog.rand_;
             int inside(int d)
             {
                 var x = rand.NextDouble();
@@ -174,6 +174,7 @@ namespace qpmodel
             if (sql.Length == 0)
             {
                 sql = "select * from a tablesample row (2);";
+                sql = "select a1,b1 from ad, br where a2=b2 order by a1;";
             }
 
             var datetime = new DateTime();

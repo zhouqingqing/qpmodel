@@ -43,7 +43,7 @@ namespace qpmodel.logic
 {
     public class SemanticAnalyzeException : Exception
     {
-        public SemanticAnalyzeException(string msg) : base (msg) => Console.WriteLine($"ERROR[Optimizer]: {msg }");
+        public SemanticAnalyzeException(string msg) : base(msg) => Console.WriteLine($"ERROR[Optimizer]: {msg }");
     }
 
     public abstract class LogicNode : PlanNode<LogicNode>
@@ -89,6 +89,10 @@ namespace qpmodel.logic
 
             return bytes;
         }
+
+        // MarkExchange is implmented in a conservative way, meaning it may adds unnessary shuffle node 
+        // to the plan. The right plan shall be in the memo optimization with property enforcement.
+        //
         public LogicNode MarkExchange(QueryOption option)
         {
             switch (this)
@@ -1265,26 +1269,45 @@ namespace qpmodel.logic
             children_.Add(child);
         }
     }
+
     public class LogicGather : LogicRemoteExchange
     {
-        public LogicGather(LogicNode child) : base(child) { }
+        public List<int> producerIds_;
+
+        public LogicGather(LogicNode child, List<int> producerIds = null) : base(child)
+        {
+            producerIds_ = producerIds;
+            if (producerIds_ is null)
+                producerIds_ = new List<int>(Enumerable.Range(0, QueryOption.num_machines_));
+        }
         public override string ToString() => $"Gather({child_()})";
 
-        public override string ExplainInlineDetails() => $"1 : {QueryOption.num_machines_}";
+        public override string ExplainInlineDetails() => $"1 : {producerIds_.Count}";
     }
 
     public class LogicBroadcast : LogicRemoteExchange
     {
-        public LogicBroadcast(LogicNode child) : base(child) { }
+        public List<int> consumerIds_;
+        public LogicBroadcast(LogicNode child, List<int> consumerIds = null) : base(child)
+        {
+            consumerIds_ = consumerIds;
+            if (consumerIds_ is null)
+                consumerIds_ = new List<int>(Enumerable.Range(0, QueryOption.num_machines_));
+        }
+
         public override string ToString() => $"Broadcast({child_()})";
     }
 
     public class LogicRedistribute : LogicRemoteExchange
     {
+        public List<int> consumerIds_;
         public List<Expr> distributeby_ { get; set; }
-        public LogicRedistribute(LogicNode child, List<Expr> distributeby) : base(child) 
+        public LogicRedistribute(LogicNode child, List<Expr> distributeby, List<int> consumerIds = null) : base(child)
         {
             distributeby_ = distributeby;
+            consumerIds_ = consumerIds;
+            if (consumerIds_ is null)
+                consumerIds_ = new List<int>(Enumerable.Range(0, QueryOption.num_machines_));
         }
         public override string ToString() => $"Redistribute({child_()})";
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)

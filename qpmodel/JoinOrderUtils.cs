@@ -277,7 +277,7 @@ namespace qpmodel.optimizer.test
     {
         internal override JoinGraph RandomGenerate(int n)
         {
-            var rand = new Random();
+            var rand = Catalog.rand_;
             int nedges = rand.Next(n - 1, n * (n - 1) / 2 + 1);
 
             // first construct a random tree, then random add rest edges

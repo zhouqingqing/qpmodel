@@ -67,12 +67,20 @@ namespace qpmodel
 
     public class TableDef
     {
+        public enum DistributionMethod
+        {
+            NonDistributed,
+            Distributed,
+            Replicated,
+            Roundrobin
+        }
         public string name_;
         public Dictionary<string, ColumnDef> columns_;
+        public DistributionMethod distMethod_ = DistributionMethod.NonDistributed;
         public ColumnDef distributedBy_;
         public List<IndexDef> indexes_ = new List<IndexDef>();
 
-        // emulated storage across multiple machines
+        // emulated storage across multiple machines: replicated or distributed
         public List<Distribution> distributions_ = new List<Distribution>();
 
         public TableDef(string tabName, List<ColumnDef> columns, string distributedBy)
@@ -82,17 +90,29 @@ namespace qpmodel
             foreach (var c in columns)
                 cols.Add(c.name_, c);
             name_ = tabName; columns_ = cols;
+            Debug.Assert(distMethod_ == DistributionMethod.NonDistributed);
 
             if (distributedBy != null)
             {
-                cols.TryGetValue(distributedBy, out var partcol);
-                if (partcol is null)
-                    throw new SemanticAnalyzeException($"can't find distribution column '{distributedBy}'");
-                distributedBy_ = partcol;
+                ColumnDef partcol;
+                if (distributedBy == "REPLICATED")
+                    distMethod_ = DistributionMethod.Replicated;
+                else if (distributedBy == "ROUNDROBIN")
+                    distMethod_ = DistributionMethod.Roundrobin;
+                else
+                {
+                    cols.TryGetValue(distributedBy, out partcol);
+                    if (partcol is null)
+                        throw new SemanticAnalyzeException($"can't find distribution column '{distributedBy}'");
+
+                    distMethod_ = DistributionMethod.Distributed;
+                    distributedBy_ = partcol;
+                }
                 npart = QueryOption.num_machines_;
             }
             for (int i = 0; i < npart; i++)
                 distributions_.Add(new Distribution());
+            Debug.Assert(distributedBy_ is null || distMethod_ == DistributionMethod.Distributed);
         }
 
         public List<ColumnDef> ColumnsInOrder()
@@ -198,6 +218,9 @@ namespace qpmodel
 
     public static class Catalog
     {
+        // global random generator
+        public static Random rand_ = new Random();
+
         // list of system tables
         public static SysTable systable_ = new SysTable();
         public static SysStats sysstat_ = new SysStats();
@@ -231,6 +254,10 @@ namespace qpmodel
                 @"create table bd (b1 int, b2 int, b3 int, b4 int) distributed by b1;",
                 @"create table cd (c1 int, c2 int, c3 int, c4 int) distributed by c1;",
                 @"create table dd (d1 int, d2 int, d3 int, d4 int) distributed by d1;",
+                @"create table ar (a1 int, a2 int, a3 int, a4 int) replicated;",
+                @"create table br (b1 int, b2 int, b3 int, b4 int) replicated;",
+                @"create table arb (a1 int, a2 int, a3 int, a4 int) roundrobin;",
+                @"create table brb (b1 int, b2 int, b3 int, b4 int) roundrobin;",
                 // steaming tables
                 @"create table ast (a0 datetime, a1 int, a2 int, a3 int, a4 int);",
             };
@@ -239,7 +266,7 @@ namespace qpmodel
             // load tables
             var appbin_dir = AppContext.BaseDirectory.Substring(0, AppContext.BaseDirectory.LastIndexOf("bin"));
             var folder = $@"{appbin_dir}/../data";
-            var tables = new List<string>() {"test", "a", "b", "c", "d", "r", "ad", "bd", "cd", "dd", "ast" };
+            var tables = new List<string>() { "test", "a", "b", "c", "d", "r", "ad", "bd", "cd", "dd", "ar", "br", "arb", "brb", "ast" };
             foreach (var v in tables)
             {
                 string filename = $@"'{folder}/{v}.tbl'";
