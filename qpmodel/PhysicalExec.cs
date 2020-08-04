@@ -363,11 +363,8 @@ namespace qpmodel.physic
             plan.asConsumer_ = false;
 
             plan.Open(context);
-            var code = context.code_;
-            code += plan.Exec(null);
-            context.code_ = "";
+            plan.Exec(null);
             plan.Close();
-            code += context.code_;
         }
     }
 }
