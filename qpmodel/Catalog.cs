@@ -73,7 +73,7 @@ namespace qpmodel
             Distributed,
             Replicated,
             Roundrobin
-        };
+        }
         public string name_;
         public Dictionary<string, ColumnDef> columns_;
         public DistributionMethod distMethod_ = DistributionMethod.NonDistributed;
