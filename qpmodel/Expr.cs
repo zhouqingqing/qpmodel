@@ -848,15 +848,15 @@ namespace qpmodel.expr
         {
             if (dbName != null)
             {
-                dbName_ = dbName.StartsWith('"') ? dbName : dbName.ToLower();
+                dbName_ = Utils.normalizeName(dbName);
             }
 
             if (tabName != null)
             {
-                tabName_ = tabName.StartsWith('"') ? tabName : tabName.ToLower();
+                tabName_ = Utils.normalizeName(tabName);
             }
 
-            colName_ = colName.StartsWith('"') ? colName : colName.ToLower();
+            colName_ = Utils.normalizeName(colName);
             outputName_ = colName_;
             type_ = type;
             Debug.Assert(Clone().Equals(this));
@@ -1048,13 +1048,11 @@ namespace qpmodel.expr
             query_ = query as SelectStmt;
             Debug.Assert(!query_.isCteDefinition_);
             query_.isCteDefinition_ = true;
-            cteName_ = cteName.StartsWith('"') ? cteName : cteName.ToLower();
+            cteName_ = Utils.normalizeName(cteName);
             colNames_ = colNames;
             for (int i = 0; i < colNames_.Count; ++i)
             {
-                if (colNames_[i].StartsWith('"'))
-                    continue;
-                colNames_[i] = colNames_[i].ToLower();
+                colNames_[i] = Utils.normalizeName(colNames_[i]);
             }
             refcnt_ = 0;
         }

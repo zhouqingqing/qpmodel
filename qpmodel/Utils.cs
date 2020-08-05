@@ -286,5 +286,6 @@ namespace qpmodel.utils
                 };
             }
         }
+        public static string normalizeName(string name) => name.StartsWith('"') ? name : name.ToLower();
     }
 }

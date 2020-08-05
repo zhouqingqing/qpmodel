@@ -596,9 +596,8 @@ namespace qpmodel.sqlparser
             foreach (var v in context.column_name())
             {
                 string colNam = v.GetText();
-                if (!colNam.StartsWith('"'))
-                    colNam = colNam.ToLower();
 
+                colNam = qpmodel.utils.Utils.normalizeName(colNam);
                 cols.Add(colNam);
             }
             var vals = new List<Expr>();
