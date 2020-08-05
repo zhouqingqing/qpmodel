@@ -1640,7 +1640,7 @@ namespace qpmodel.unittest
             Assert.AreEqual(string.Join(",", rows), "2,2.449");
 
             // Pi Monte-carlo evaluation 
-            Random rand = new Random();
+            Random rand = Catalog.rand_;
             int inside(int d)
             {
                 var x = rand.NextDouble();
@@ -2134,7 +2134,13 @@ namespace qpmodel.unittest
         public void Gather()
         {
             var phyplan = "";
-            var sql = "select a1,a2 from ad;";
+            var sql = "select a1,a2 from ad order by a1;";
+            TU.ExecuteSQL(sql, "0,1;1,2;2,3", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+            sql = "select a1,a2 from ar;";
+            TU.ExecuteSQL(sql, "0,1;1,2;2,3", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+            sql = "select a1,a2 from arb order by a1;";
             TU.ExecuteSQL(sql, "0,1;1,2;2,3", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
         }
@@ -2177,6 +2183,38 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "1,3", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
             Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
+
+            // mixed with replicated table
+            sql = "select a1,b1 from ad, br where a1=b1 order by a1;";
+            TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+            Assert.AreEqual(0, TU.CountStr(phyplan, "Redistribute"));
+            sql = "select a1,b1 from ad, br where a2=b2 order by a1;";
+            TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Redistribute")); // FIXME: redistribution is not needed if replica is on the build side
+            sql = "select a1,b1 from ar, br where a2=b2 order by a1;";
+            TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+            Assert.AreEqual(0, TU.CountStr(phyplan, "Redistribute"));
+
+            // mixed with rounbrobin table
+            sql = "select a1,b1 from ad, brb where a1=b1 order by a1;";
+            TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Redistribute"));
+            sql = "select a1,b1 from ad, brb where a2=b2 order by a1;";
+            TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+            Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
+            sql = "select a1,b1 from arb, brb where a2=b2 order by a1;";
+            TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+            Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
+            sql = "select a1,b1 from ar, brb where a2=b2 order by a1;";
+            TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Redistribute"));
         }
     }
 

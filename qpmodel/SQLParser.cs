@@ -545,6 +545,10 @@ namespace qpmodel.sqlparser
             string distributedBy = null;
             if (context.K_DISTRIBUTED() != null)
                 distributedBy = context.column_name().GetText();
+            else if (context.K_REPLICATED() != null)
+                distributedBy = "REPLICATED";
+            else if (context.K_ROUNDROBIN()!= null)
+                distributedBy = "ROUNDROBIN";
             return new CreateTableStmt(context.table_name().GetText(), cols, cons, distributedBy, GetRawText(context));
         }
 
