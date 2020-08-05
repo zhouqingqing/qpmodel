@@ -2057,6 +2057,74 @@ namespace qpmodel.unittest
                 "null+8, null-8, null*8, null/8, null/8 is null;";
             TU.ExecuteSQL(sql, ",,,,,,,,,,,,,,True", out phyplan);
         }
+
+        [TestMethod]
+        public void TestCaseSensitivity()
+        {
+            string createTable = "create table Case_Sensitive_01(Col1 int, COL2 int, \"Col3\" int, \"COL4\" int, \"GROUP BY\" int);";
+            // INSERT shoud work
+            var stmtResult = TU.ExecuteSQL(createTable);
+            Assert.IsNull(stmtResult);
+            Assert.AreEqual("", TU.error_);
+
+            // should work
+            string insertStmt = "insert into CASE_SENSITIVE_01 Values(1, 2, 3, 4, 5)";
+            stmtResult = TU.ExecuteSQL(insertStmt);
+            Assert.AreEqual(0, stmtResult.Count);
+            Assert.AreEqual("", TU.error_);
+
+            insertStmt = "insert into CASE_SENSITIVE_01 values(10, 20, 30, 40, 50)";
+            Assert.AreEqual(0, stmtResult.Count);
+            Assert.AreEqual("", TU.error_);
+
+            insertStmt = "insert into CASE_SENSITIVE_01 values(100, 200, 300, 400, 500);";
+            stmtResult = TU.ExecuteSQL(insertStmt);
+            Assert.AreEqual(0, stmtResult.Count);
+            Assert.AreEqual("", TU.error_);
+
+            insertStmt = "insert into case_sensitive_01(COL1, col2, \"Col3\", \"COL4\", \"GROUP BY\") Values(11, 22, 33, 44, 55)";
+            stmtResult = TU.ExecuteSQL(insertStmt);
+            Assert.AreEqual(0, stmtResult.Count);
+            Assert.AreEqual("", TU.error_);
+
+            insertStmt = "insert into case_sensitive_01(COL1, col2, \"Col3\", \"COL4\", \"GROUP BY\") values(101, 201, 301, 401, 501)";
+            stmtResult = TU.ExecuteSQL(insertStmt);
+            Assert.AreEqual(0, stmtResult.Count);
+            Assert.AreEqual("", TU.error_);
+
+            insertStmt = "insert into case_sensitive_01(COL1, col2, \"Col3\", \"COL4\", \"GROUP BY\") values(121, 231, 351, 471, 591);";
+            stmtResult = TU.ExecuteSQL(insertStmt);
+            Assert.AreEqual(0, stmtResult.Count);
+            Assert.AreEqual("", TU.error_);
+
+            string select = "select * from case_sensitive_01";
+            stmtResult = TU.ExecuteSQL(select);
+            Assert.AreEqual(5, stmtResult.Count);
+
+            select = "select sum(col1), \"GROUP BY\" from Case_SENSITIVE_01 group by \"GROUP BY\"";
+            stmtResult = TU.ExecuteSQL(select);
+            Assert.AreEqual(5, stmtResult.Count);
+
+            select = "select Col1, \"Col3\" from case_sensitive_01 where \"Col3\" + \"COL4\" > \"COL4\" - COL1";
+            stmtResult = TU.ExecuteSQL(select);
+            Assert.AreEqual(5, stmtResult.Count);
+
+            select = "select \"Col3\" as COL3, \"COL4\" as col4, \"GROUP BY\" as \"ORDER BY\" from case_SENSITIVE_01";
+            stmtResult = TU.ExecuteSQL(select);
+            Assert.AreEqual(5, stmtResult.Count);
+
+            select = "select \"T1\".\"GROUP BY\" as gb, t2.\"COL4\" as c4 from case_SENSITIVE_01 as \"T1\" join case_sensitive_01 as T2 on (T2.Col1 / 10 = \"T1\".Col1)";
+            stmtResult = TU.ExecuteSQL(select);
+            Assert.AreEqual(1, stmtResult.Count);
+            Assert.AreEqual(5, stmtResult[0][0]);
+            Assert.AreEqual(44, stmtResult[0][1]);
+
+            select = "select \"T1\".Col3 as gb, \"T1\".COL4 as c4 from case_SENSITIVE_01 as \"T1\"";
+            stmtResult = TU.ExecuteSQL(select);
+            Assert.IsNull(stmtResult);
+            Assert.IsTrue(TU.error_.Contains("column not exists \"T1\".col3"));
+
+        }
     }
 
     [TestClass]

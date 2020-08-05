@@ -255,8 +255,13 @@ namespace qpmodel.expr
         public BaseTableRef(string name, string alias = null, SelectStmt.TableSample tableSample = null)
         {
             Debug.Assert(name != null);
-            relname_ = name;
-            alias_ = alias ?? relname_;
+            relname_ = name.StartsWith('"') ? name : name.ToLower();
+            if (alias is null)
+                alias_ = relname_;
+            else if (alias.StartsWith('"'))
+                alias_ = alias;
+            else
+                alias_ = alias.ToLower();
             tableSample_ = tableSample;
         }
 
@@ -323,7 +328,7 @@ namespace qpmodel.expr
         {
             Debug.Assert(alias != null);
             query_ = query;
-            alias_ = alias;
+            alias_ = alias.StartsWith('"') ? alias : alias.ToLower();
         }
 
         public override List<Expr> AllColumnsRefs(bool refresh = false)
@@ -385,6 +390,14 @@ namespace qpmodel.expr
         {
             Debug.Assert(alias != null);
             colOutputNames_ = colOutputNames;
+            colOutputNames_.ForEach(x =>
+            {
+                if (x.StartsWith('"') == false)
+                {
+                    x = x.ToLower();
+
+                }
+            });
         }
 
         public override List<Expr> AllColumnsRefs(bool refresh = false)

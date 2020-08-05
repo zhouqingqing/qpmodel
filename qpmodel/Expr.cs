@@ -846,7 +846,19 @@ namespace qpmodel.expr
 
         public ColExpr(string dbName, string tabName, string colName, ColumnType type) : base()
         {
-            dbName_ = dbName; tabName_ = tabName; colName_ = colName; outputName_ = colName; type_ = type;
+            if (dbName != null)
+            {
+                dbName_ = dbName.StartsWith('"') ? dbName : dbName.ToLower();
+            }
+
+            if (tabName != null)
+            {
+                tabName_ = tabName.StartsWith('"') ? tabName : tabName.ToLower();
+            }
+
+            colName_ = colName.StartsWith('"') ? colName : colName.ToLower();
+            outputName_ = colName_;
+            type_ = type;
             Debug.Assert(Clone().Equals(this));
         }
 
@@ -1036,8 +1048,14 @@ namespace qpmodel.expr
             query_ = query as SelectStmt;
             Debug.Assert(!query_.isCteDefinition_);
             query_.isCteDefinition_ = true;
-            cteName_ = cteName;
+            cteName_ = cteName.StartsWith('"') ? cteName : cteName.ToLower();
             colNames_ = colNames;
+            for (int i = 0; i < colNames_.Count; ++i)
+            {
+                if (colNames_[i].StartsWith('"'))
+                    continue;
+                colNames_[i] = colNames_[i].ToLower();
+            }
             refcnt_ = 0;
         }
 

@@ -57,7 +57,8 @@ namespace qpmodel.dml
         public CreateTableStmt(string tabName, List<ColumnDef> cols, List<TableConstraint> cons,
             string distributedBy, string text) : base(text)
         {
-            tabName_ = tabName; cols_ = cols;
+            tabName_ = tabName.StartsWith('"') ? tabName : tabName.ToLower();
+            cols_ = cols;
             int ord = 0; cols_.ForEach(x => x.ordinal_ = ord++);
             if (cols.GroupBy(x => x.name_).Count() < cols.Count)
                 throw new SemanticAnalyzeException("duplicated column name");
@@ -81,7 +82,7 @@ namespace qpmodel.dml
         public readonly string tabName_;
         public DropTableStmt(string tabName, string text) : base(text)
         {
-            tabName_ = tabName;
+            tabName_ = tabName.StartsWith('"') ? tabName : tabName.ToLower();
         }
         public override string ToString() => $"DROP {tabName_}";
 

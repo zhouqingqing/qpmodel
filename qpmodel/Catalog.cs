@@ -51,7 +51,11 @@ namespace qpmodel
         readonly public ColumnType type_;
         public int ordinal_;
 
-        public ColumnDef(string name, ColumnType type, int ord) { name_ = name; type_ = type; ordinal_ = ord; }
+        public ColumnDef(string name, ColumnType type, int ord)
+        {
+            name_ = name.StartsWith('"') ? name : name.ToLower();
+            type_ = type; ordinal_ = ord;
+        }
         public ColumnDef(string name, int ord) : this(name, new IntType(), ord) { }
 
         public override string ToString() => $"{name_} {type_} [{ordinal_}]";
@@ -81,7 +85,8 @@ namespace qpmodel
             Dictionary<string, ColumnDef> cols = new Dictionary<string, ColumnDef>();
             foreach (var c in columns)
                 cols.Add(c.name_, c);
-            name_ = tabName; columns_ = cols;
+            name_ = tabName.StartsWith('"') ? tabName : tabName.ToLower();
+            columns_ = cols;
 
             if (distributedBy != null)
             {
@@ -142,6 +147,8 @@ namespace qpmodel
 
         public void CreateTable(string tabName, List<ColumnDef> columns, string distributedBy)
         {
+            if (!tabName.StartsWith('"'))
+                tabName = tabName.ToLower();
             records_.Add(tabName,
                 new TableDef(tabName, columns, distributedBy));
         }
