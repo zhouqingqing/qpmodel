@@ -594,7 +594,12 @@ namespace qpmodel.sqlparser
             var tabref = new BaseTableRef(context.table_name().GetText());
             var cols = new List<string>();
             foreach (var v in context.column_name())
-                cols.Add(v.GetText());
+            {
+                string colNam = v.GetText();
+
+                colNam = qpmodel.utils.Utils.normalizeName(colNam);
+                cols.Add(colNam);
+            }
             var vals = new List<Expr>();
             foreach (var v in context.expr())
                 vals.Add(Visit(v) as Expr);

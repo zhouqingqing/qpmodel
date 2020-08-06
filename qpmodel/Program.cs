@@ -170,7 +170,15 @@ namespace qpmodel
             }
 
         doit:
-
+            // Application Arguments in Project properties seem to be
+            // effective only after rebuilding.
+            // This is a last ditch effort to be able to debug arbitrary
+            // statements without rebuilding the solution.
+            if (sql.Length == 1 && sql.Equals("-"))
+            {
+                System.Console.Write("Enter SQL: ");
+                sql = System.Console.ReadLine();
+            }
             if (sql.Length == 0)
             {
                 sql = "select * from a tablesample row (2);";
@@ -203,6 +211,13 @@ namespace qpmodel
             // -- Semantic analysis:
             //  - bind the query
             a.queryOpt_.optimize_.ValidateOptions();
+
+            if (!(a is SelectStmt))
+            {
+                SQLStatement.ExecSQLList(sql);
+                goto done;
+            }
+
             a.Bind(null);
 
             // -- generate an initial plan
@@ -259,7 +274,7 @@ namespace qpmodel
                 Compiler.Run(Compiler.Compile(), a, context);
             }
             Console.WriteLine(phyplan.Explain(a.queryOpt_.explain_));
-
+done:
             stopWatch.Stop();
             Console.WriteLine("RunTime: " + stopWatch.Elapsed);
             Console.ReadKey();

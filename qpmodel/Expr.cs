@@ -846,7 +846,19 @@ namespace qpmodel.expr
 
         public ColExpr(string dbName, string tabName, string colName, ColumnType type) : base()
         {
-            dbName_ = dbName; tabName_ = tabName; colName_ = colName; outputName_ = colName; type_ = type;
+            if (dbName != null)
+            {
+                dbName_ = Utils.normalizeName(dbName);
+            }
+
+            if (tabName != null)
+            {
+                tabName_ = Utils.normalizeName(tabName);
+            }
+
+            colName_ = Utils.normalizeName(colName);
+            outputName_ = colName_;
+            type_ = type;
             Debug.Assert(Clone().Equals(this));
         }
 
@@ -1036,8 +1048,12 @@ namespace qpmodel.expr
             query_ = query as SelectStmt;
             Debug.Assert(!query_.isCteDefinition_);
             query_.isCteDefinition_ = true;
-            cteName_ = cteName;
+            cteName_ = Utils.normalizeName(cteName);
             colNames_ = colNames;
+            for (int i = 0; i < colNames_.Count; ++i)
+            {
+                colNames_[i] = Utils.normalizeName(colNames_[i]);
+            }
             refcnt_ = 0;
         }
 

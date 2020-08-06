@@ -32,6 +32,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
 
+using qpmodel.utils;
 using qpmodel.logic;
 using qpmodel.physic;
 using Microsoft.VisualBasic.CompilerServices;
@@ -255,8 +256,11 @@ namespace qpmodel.expr
         public BaseTableRef(string name, string alias = null, SelectStmt.TableSample tableSample = null)
         {
             Debug.Assert(name != null);
-            relname_ = name;
-            alias_ = alias ?? relname_;
+            relname_ = qpmodel.utils.Utils.normalizeName(name);
+            if (alias is null)
+                alias_ = relname_;
+            else
+                alias_ = qpmodel.utils.Utils.normalizeName(alias);
             tableSample_ = tableSample;
         }
 
@@ -333,7 +337,7 @@ namespace qpmodel.expr
         {
             Debug.Assert(alias != null);
             query_ = query;
-            alias_ = alias;
+            alias_ = qpmodel.utils.Utils.normalizeName(alias);
         }
 
         public override List<Expr> AllColumnsRefs(bool refresh = false)
@@ -395,6 +399,10 @@ namespace qpmodel.expr
         {
             Debug.Assert(alias != null);
             colOutputNames_ = colOutputNames;
+            colOutputNames_.ForEach(x =>
+            {
+                    x = qpmodel.utils.Utils.normalizeName(x);
+            });
         }
 
         public override List<Expr> AllColumnsRefs(bool refresh = false)

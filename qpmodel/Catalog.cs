@@ -35,6 +35,7 @@ using System.Threading;
 
 using qpmodel.stat;
 using qpmodel.sqlparser;
+using qpmodel.utils;
 using qpmodel.expr;
 using qpmodel.logic;
 using qpmodel.physic;
@@ -51,7 +52,11 @@ namespace qpmodel
         readonly public ColumnType type_;
         public int ordinal_;
 
-        public ColumnDef(string name, ColumnType type, int ord) { name_ = name; type_ = type; ordinal_ = ord; }
+        public ColumnDef(string name, ColumnType type, int ord)
+        {
+            name_ = Utils.normalizeName(name);
+            type_ = type; ordinal_ = ord;
+        }
         public ColumnDef(string name, int ord) : this(name, new IntType(), ord) { }
 
         public override string ToString() => $"{name_} {type_} [{ordinal_}]";
@@ -89,7 +94,8 @@ namespace qpmodel
             Dictionary<string, ColumnDef> cols = new Dictionary<string, ColumnDef>();
             foreach (var c in columns)
                 cols.Add(c.name_, c);
-            name_ = tabName; columns_ = cols;
+            name_ = Utils.normalizeName(tabName);
+            columns_ = cols;
             Debug.Assert(distMethod_ == DistributionMethod.NonDistributed);
 
             if (distributedBy != null)
@@ -162,6 +168,7 @@ namespace qpmodel
 
         public void CreateTable(string tabName, List<ColumnDef> columns, string distributedBy)
         {
+            tabName = Utils.normalizeName(tabName);
             records_.Add(tabName,
                 new TableDef(tabName, columns, distributedBy));
         }
