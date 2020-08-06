@@ -144,7 +144,7 @@ namespace qpmodel.index
             index_ = new MemoryIndex(logic.def_.unique_);
         }
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             child_().Exec(r =>
             {
@@ -154,9 +154,7 @@ namespace qpmodel.index
                 for (int i = 1; i < r.ColCount(); i++)
                     key[i - 1] = r[i];
                 index_.Insert(key, tablerow as Row);
-                return null;
             });
-            return null;
         }
 
         public override void Close()

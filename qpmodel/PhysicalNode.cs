@@ -122,7 +122,7 @@ namespace qpmodel.physic
             context_ = null;
         }
         // @context is to carray parameters etc, @callback.Row is current row for processing
-        public abstract string Exec(Func<Row, string> callback);
+        public abstract void Exec(Action<Row> callback);
 
         public string ExecProjectCode(string input)
         {
@@ -291,7 +291,7 @@ namespace qpmodel.physic
         public PhysicMemoRef(LogicNode logic) : base(logic) { Debug.Assert(logic is LogicMemoRef); }
         public override string ToString() => Logic().ToString();
 
-        public override string Exec(Func<Row, string> callback) => throw new InvalidProgramException("not executable");
+        public override void Exec(Action<Row> callback) => throw new InvalidProgramException("not executable");
         public override int GetHashCode() => Group().memoid_;
         public override bool Equals(object obj)
         {
@@ -332,7 +332,7 @@ namespace qpmodel.physic
             children_.ForEach(x => x.Open(context));
         }
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             var context = context_;
             var logic = logic_ as LogicScanTable;
@@ -340,10 +340,9 @@ namespace qpmodel.physic
             var distId = (logic.tabref_).IsDistributed() ? (context as DistributedContext).machineId_ : 0;
             var heap = (logic.tabref_).Table().distributions_[distId].heap_;
 
-            string cs = null;
             if (context.option_.optimize_.use_codegen_)
             {
-                cs += $@"
+                context.code_ += $@"
                 var heap{_} = ({_logic_}.tabref_).Table().distributions_[{distId}].heap_;
                 foreach (var l{_} in heap{_})
                 {{
@@ -353,12 +352,20 @@ namespace qpmodel.physic
 
                     {codegen_if(logic.tabref_.colRefedBySubq_.Count != 0,
                             $@"context.AddParam({_logic_}.tabref_, r{_});")}";
+
                 if (filter != null)
-                    cs += $"if ({filter.ExecCode(context, $"r{_}")} is true)";
-                cs += $@"
+                {
+                    context.code_ += $"if ({filter.ExecCode(context, $"r{_}")} is true)";
+                }
+                    
+                context.code_ += $@"
                     {{
-                        {ExecProjectCode($"r{_}")}
-                        {callback(null)}
+                        {ExecProjectCode($"r{_}")}";
+
+                // generate code to @context_code_ in callback
+                callback(null);
+
+                context.code_ += $@"
                     }}
                 }}";
             }
@@ -378,8 +385,6 @@ namespace qpmodel.physic
                     }
                 }
             }
-
-            return cs;
         }
 
         protected override double EstimateCost()
@@ -400,7 +405,7 @@ namespace qpmodel.physic
         public override string ExplainInlineDetails() => $"{index_}";
         public override string ToString() => $"ISeek({index_}: {Cost()})";
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             ExecContext context = context_;
             var logic = logic_ as LogicScanTable;
@@ -413,7 +418,7 @@ namespace qpmodel.physic
             key[0] = searchval;
             var rlist = index.Search(filter.op_, key);
             if (rlist is null)
-                return null;
+                return;
             foreach (var r in rlist)
             {
                 if (logic.tabref_.colRefedBySubq_.Count != 0)
@@ -424,8 +429,6 @@ namespace qpmodel.physic
                     callback(n);
                 }
             }
-
-            return null;
         }
 
         protected override double EstimateCost()
@@ -440,7 +443,7 @@ namespace qpmodel.physic
     {
         public PhysicScanFile(LogicNode logic) : base(logic) { }
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             ExecContext context = context_;
             var logic = logic_ as LogicScanFile;
@@ -488,8 +491,6 @@ namespace qpmodel.physic
 
                 callback(r);
             });
-
-            return null;
         }
         protected override double EstimateCost()
         {
@@ -535,7 +536,7 @@ namespace qpmodel.physic
         public PhysicNLJoin(LogicJoin logic, PhysicNode l, PhysicNode r) : base(logic, l, r) { }
         public override string ToString() => $"PNLJ({lchild_()},{rchild_()}: {Cost()},{InclusiveCost()})";
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             ExecContext context = context_;
             var logic = logic_ as LogicJoin;
@@ -545,36 +546,46 @@ namespace qpmodel.physic
             bool antisemi = type == JoinType.AntiSemi;
             bool left = type == JoinType.Left;
 
-            string s = lchild_().Exec(l =>
+            lchild_().Exec(l =>
             {
-                string out_code = "";
                 if (context.stop_)
-                    return null;
-                out_code += codegen($@"
+                    return;
+                context.code_ += codegen($@"
                     if (context.stop_)
                         return;");
 
                 bool foundOneMatch = false;
-                out_code += codegen($"bool foundOneMatch{_} = false;");
-                out_code += rchild_().Exec(r =>
+                context.code_ += codegen($"bool foundOneMatch{_} = false;");
+
+                rchild_().Exec(r =>
                 {
-                    string inner_code = null;
                     if (context.option_.optimize_.use_codegen_)
                     {
-                        inner_code += $@"
+                        context.code_ += $@"
                         if (!{semi.ToLower()} || !foundOneMatch{_})
                         {{
                             Row r{_} = new Row(r{lchild_()._}, r{rchild_()._});";
+
                         if (filter != null)
-                            inner_code += $"if ({filter.ExecCode(context, $"r{_}")} is true)";
-                        inner_code += $@"    
+                        {
+                            context.code_ += $"if ({filter.ExecCode(context, $"r{_}")} is true)";
+                        }
+                            
+                        context.code_ += $@"    
                             {{
-                                foundOneMatch{_} = true;
-                                {codegen_if(!antisemi, $@"
+                                foundOneMatch{_} = true;";
+
+                        if (!antisemi)
+                        {
+                            context.code_ += $@"
                                 {{
-                                   {ExecProjectCode($"r{_}")}
-                                   {callback(null)}
-                                }}")}
+                                   {ExecProjectCode($"r{_}")}";
+                            // generate code to @context_code_ in callback
+                            callback(null);
+                            context.code_ += $@"}}";
+                        }
+
+                        context.code_ += $@"
                             }}
                         }}";
                     }
@@ -594,25 +605,39 @@ namespace qpmodel.physic
                             }
                         }
                     }
-                    return inner_code;
                 });
 
                 if (context.option_.optimize_.use_codegen_)
                 {
-                    out_code += codegen_if(antisemi, $@"
-                    if (!foundOneMatch{_})
-                    {{
-                        Row r{_} = new Row(r{lchild_()._}, null);
-                        {ExecProjectCode($"r{_}")}
-                        {callback(null)}
-                    }}");
-                    out_code += codegen_if(left, $@"
-                    if (!foundOneMatch{_})
-                    {{
-                        Row r{_} = new Row(r{lchild_()._}, new Row{rchild_().logic_.output_.Count});
-                        {ExecProjectCode($"r{_}")}
-                        {callback(null)}
-                    }}");
+                    if (antisemi)
+                    {
+                        context.code_ += $@"
+                        if (!foundOneMatch{_})
+                        {{
+                            Row r{_} = new Row(r{lchild_()._}, null);
+                            {ExecProjectCode($"r{_}")}";
+
+                        // generate code to @context_code_ in callback
+                        callback(null);
+
+                        context.code_ += $@"
+                        }}";
+                    }
+
+                    if (left)
+                    {
+                        context.code_ += $@"
+                        if (!foundOneMatch{_})
+                        {{
+                            Row r{_} = new Row(r{lchild_()._}, new Row{rchild_().logic_.output_.Count});
+                            {ExecProjectCode($"r{_}")}";
+
+                        // generate code to @context_code_ in callback
+                        callback(null);
+
+                        context.code_ += $@"
+                        }}";
+                    }
                 }
                 else
                 {
@@ -629,10 +654,7 @@ namespace qpmodel.physic
                         callback(n);
                     }
                 }
-                return out_code;
             });
-
-            return s;
         }
 
         protected override double EstimateCost()
@@ -709,7 +731,7 @@ namespace qpmodel.physic
             }
         }
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             ExecContext context = context_;
             var logic = logic_ as LogicJoin;
@@ -721,13 +743,12 @@ namespace qpmodel.physic
             bool left = type == JoinType.Left;
 
             // build hash table with left side 
-            string s = lchild_().Exec(l =>
+            lchild_().Exec(l =>
             {
-                string buildcode = null;
                 if (context.option_.optimize_.use_codegen_)
                 {
                     var lname = $"r{lchild_()._}";
-                    buildcode += $@"
+                    context.code_ += $@"
                     var keys{_} = KeyList.ComputeKeys(context, {_logic_}.leftKeys_, {lname});
                     if (hm{_}.TryGetValue(keys{_}, out List<TaggedRow> exist))
                     {{
@@ -755,28 +776,27 @@ namespace qpmodel.physic
                         hm.Add(keys, rows);
                     }
                 }
-                return buildcode;
             });
 
             // right side probes the hash table
             if (context.option_.optimize_.use_codegen_)
             {
-                s += $@"
+                context.code_ += $@"
                 if (hm{_}.Count == 0)
                     return;";
             }
             else
             {
                 if (hm.Count == 0)
-                    return null;
+                    return;
             }
-            s += rchild_().Exec(r =>
+
+            rchild_().Exec(r =>
             {
-                string probecode = null;
                 if (context.option_.optimize_.use_codegen_)
                 {
                     var rname = $"r{rchild_()._}";
-                    probecode += $@"
+                    context.code_ += $@"
                     if (context.stop_)
                         return;
 
@@ -791,36 +811,58 @@ namespace qpmodel.physic
                         foreach (var v{_} in exist{_})
                         {{
                             r{_} = new Row(v{_}.row_, {rname});
-                            {ExecProjectCode($"r{_}")}
-                            {callback(null)}
-                            {codegen_if(semi,
+                            {ExecProjectCode($"r{_}")}";
+
+                    // generate code to @context_code_ in callback
+                    callback(null);
+
+                    context.code_ += $@"
+                    {codegen_if(semi,
                                 "break;")}
                         }}
                     }}
                     else
                     {{
-                        // no match for antisemi
-                        {codegen_if(antisemi, $@"
+                        // no match for antisemi";
+                    
+                    if (antisemi)
+                    {
+                        context.code_ += $@"
                         if (!foundOneMatch{_})
                         {{
                             r{_} = new Row(null, r{_});
-                            {ExecProjectCode($"r{_}")}
-                            {callback(null)}
-                        }}")}
-                        {codegen_if(right, $@"
+                            {ExecProjectCode($"r{_}")}";
+                        
+                        // generate code to @context_code_ in callback
+                        callback(null);
+
+                        context.code_ += $@"
+                        }}";
+                    }
+
+                    if (right)
+                    {
+                        context.code_ += $@"
                         if (!foundOneMatch{_})
                         {{
                             r{_} = new Row(new Row{lchild_().logic_.output_.Count}, r{_});
-                            {ExecProjectCode($"r{_}")}
-                            {callback(null)}
-                        }}")}
+                            {ExecProjectCode($"r{_}")}";
+
+                        // generate code to @context_code_ in callback
+                        callback(null);
+
+                        context.code_ += $@"
+                        }}";
+                    }
+
+                    context.code_ += $@"
                     }}
                     ";
                 }
                 else
                 {
                     if (context.stop_)
-                        return null;
+                        return;
 
                     Row fakel = new Row(lchild_().logic_.output_.Count);
                     Row n = new Row(fakel, r);
@@ -857,7 +899,6 @@ namespace qpmodel.physic
                         }
                     }
                 }
-                return probecode;
             });
 
             // left join shall examine hash table and output all non-matched rows
@@ -874,8 +915,6 @@ namespace qpmodel.physic
                         }
                     }
             }
-
-            return s;
         }
 
         protected override double EstimateCost()
@@ -925,22 +964,25 @@ namespace qpmodel.physic
             return null;
         }
 
-        public string FinalizeAGroupRow(ExecContext context, Row keys, Row aggvals, Func<Row, string> callback)
+        public void FinalizeAGroupRow(ExecContext context, Row keys, Row aggvals, Action<Row> callback)
         {
             var logic = logic_ as LogicAgg;
             var aggrcore = logic.aggrFns_;
-            string srccode = null;
 
             if (context.option_.optimize_.use_codegen_)
             {
-                srccode = $@"
+                context.code_ += $@"
                     for (int i = 0; i < {aggrcore.Count}; i++)
                         aggvals{_}[i] = aggrcore{_}[i].Finalize(context, aggvals{_}[i]);
                     var r{_} = new Row(keys{_}, aggvals{_});
                     if ({(logic.having_ is null).ToLower()} || {_logic_}.having_.Exec(context, r{_}) is true)
                     {{
-                        {ExecProjectCode($"r{_}")}
-                        {callback(null)}
+                        {ExecProjectCode($"r{_}")}";
+
+                // generate code to @context_code_ in callback
+                callback(null);
+
+                context.code_ += $@"
                     }}";
             }
             else
@@ -954,8 +996,6 @@ namespace qpmodel.physic
                     callback(newr);
                 }
             }
-
-            return srccode;
         }
     }
 
@@ -985,7 +1025,7 @@ namespace qpmodel.physic
             }
         }
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             ExecContext context = context_;
             var logic = logic_ as LogicAgg;
@@ -993,15 +1033,14 @@ namespace qpmodel.physic
             var hm = new Dictionary<KeyList, Row>();
 
             // aggregation is working on aggCore targets
-            string s = child_().Exec(l =>
+            child_().Exec(l =>
             {
-                string buildcode = null;
                 if (context.option_.optimize_.use_codegen_)
                 {
                     var lrow = $"r{child_()._}";
-                    buildcode += $@" 
+                    context.code_ += $@" 
                         var keys = KeyList.ComputeKeys(context, {_logic_}.groupby_, {lrow});";
-                    buildcode += $@"
+                    context.code_ += $@"
                         if (hm{_}.TryGetValue(keys, out Row exist))
                         {{
                             for (int i = 0; i < {aggrcore.Count}; i++)
@@ -1037,33 +1076,40 @@ namespace qpmodel.physic
                             exist[i] = aggrcore[i].Init(context, l);
                     }
                 }
-
-                return buildcode;
             });
 
             // stitch keys+aggcore into final output
             if (context.option_.optimize_.use_codegen_)
             {
                 if (logic.groupby_ is null)
-                    s += $@"
+                {
+                    context.code_ += $@"
                     if (hm{_}.Count == 0)
                     {{
                         Row r{_} = {_physic_}.HandleEmptyResult(context);
                         if (r{_} != null)
-                        {{
-                            {callback(null)}
+                        {{";
+
+                    // generate code to @context_code_ in callback
+                    callback(null);
+
+                    context.code_ += $@"
                         }}
                     }}
                     ";
-                s += $@"
+                }
+                context.code_ += $@"
                 foreach (var v{_} in hm{_})
                 {{
                     if (context.stop_)
                         break;
 
                     var keys{_} = v{_}.Key;
-                    Row aggvals{_} = v{_}.Value;
-                    {FinalizeAGroupRow(context, null, null, callback)}
+                    Row aggvals{_} = v{_}.Value;";
+
+                FinalizeAGroupRow(context, null, null, callback);
+                
+                context.code_ += $@"
                 }}";
             }
             else
@@ -1081,8 +1127,6 @@ namespace qpmodel.physic
                     FinalizeAGroupRow(context, v.Key, v.Value, callback);
                 }
             }
-
-            return s;
         }
     }
 
@@ -1118,7 +1162,7 @@ namespace qpmodel.physic
             }
         }
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             ExecContext context = context_;
             var logic = logic_ as LogicAgg;
@@ -1127,15 +1171,14 @@ namespace qpmodel.physic
             Row curGroupRow = null;
 
             // aggregation is working on aggCore targets
-            string s = child_().Exec(l =>
+            child_().Exec(l =>
             {
-                string buildcode = null;
                 if (context.option_.optimize_.use_codegen_)
                 {
                     var lrow = $"r{child_()._}";
-                    buildcode += $@"
+                    context.code_ += $@"
                         var keys = KeyList.ComputeKeys(context, {_logic_}.groupby_, {lrow});";
-                    buildcode += $@"
+                    context.code_ += $@"
                         if (context.stop_)
                             return;
 
@@ -1152,8 +1195,11 @@ namespace qpmodel.physic
                             if (curGroupKey{_} != null)
                             {{
                                 var keys{_} = curGroupKey{_};
-                                Row aggvals{_} = curGroupRow{_};
-                                {FinalizeAGroupRow(context, null, null, callback)}
+                                Row aggvals{_} = curGroupRow{_};";
+                    
+                    FinalizeAGroupRow(context, null, null, callback);
+
+                    context.code_ += $@"
                             }}
                             curGroupRow{_} = {_physic_}.AggrCoreToRow({lrow});
                             curGroupKey{_} = keys;
@@ -1164,7 +1210,7 @@ namespace qpmodel.physic
                 else
                 {
                     if (context.stop_)
-                        return null;
+                        return;
 
                     var keys = KeyList.ComputeKeys(context, logic.groupby_, l);
                     if (curGroupKey != null && keys.Equals(curGroupKey))
@@ -1188,30 +1234,38 @@ namespace qpmodel.physic
                             curGroupRow[i] = aggrcore[i].Init(context, l);
                     }
                 }
-
-                return buildcode;
             });
 
             // special handling for emtpy resultset and last row
             if (context.option_.optimize_.use_codegen_)
             {
                 if (logic.groupby_ is null)
-                    s += $@"
+                {
+                    context.code_ += $@"
                     if (curGroupRow{_} is null)
                     {{
                         Row r{_} = {_physic_}.HandleEmptyResult(context);
                         if (r{_} != null)
-                        {{
-                            {callback(null)}
+                        {{";
+
+                    // generate code to @context_code_ in callback
+                    callback(null);
+
+                    context.code_ += $@"
                         }}
                     }}
                     ";
-                s += $@"
+                }
+
+                context.code_ += $@"
                 if (curGroupKey{_} != null && !context.stop_)
                 {{
                     var keys{_} = curGroupKey{_};
-                    Row aggvals{_} = curGroupRow{_};
-                    {FinalizeAGroupRow(context, null, null, callback)}
+                    Row aggvals{_} = curGroupRow{_};";
+
+                FinalizeAGroupRow(context, null, null, callback);
+
+                context.code_ += $@"
                 }}";
             }
             else
@@ -1227,8 +1281,6 @@ namespace qpmodel.physic
                 if (curGroupKey != null && !context.stop_)
                     FinalizeAGroupRow(context, curGroupKey, curGroupRow, callback);
             }
-
-            return s;
         }
     }
 
@@ -1264,36 +1316,39 @@ namespace qpmodel.physic
             return lkey.CompareTo(rkey, descends);
         }
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             ExecContext context = context_;
             var logic = logic_ as LogicOrder;
             var set = new List<Row>();
 
-            string s = child_().Exec(l =>
+            child_().Exec(l =>
             {
-                string build = null;
                 if (context.option_.optimize_.use_codegen_)
                 {
-                    build = $@"set{_}.Add(r{child_()._});";
+                    context.code_ += $@"set{_}.Add(r{child_()._});";
                 }
                 else
                     set.Add(l);
-                return build;
             });
+
             set.Sort(compareRow);
-            s += codegen($@"set{_}.Sort({_physic_}.compareRow);");
+            context.code_ += codegen($@"set{_}.Sort({_physic_}.compareRow);");
 
             // output sorted set
             if (context.option_.optimize_.use_codegen_)
             {
-                s += $@"
+                context.code_ += $@"
                 foreach (var rs{_} in set{_})
                 {{
                     if (context.stop_)
                         break;
-                    var r{_} = {_physic_}.ExecProject(rs{_});
-                    {callback(null)}
+                    var r{_} = {_physic_}.ExecProject(rs{_});";
+
+                // generate code to @context_code_ in callback
+                callback(null);
+
+                context.code_ += $@"
                 }}";
             }
             else
@@ -1306,7 +1361,6 @@ namespace qpmodel.physic
                     callback(r);
                 }
             }
-            return s;
         }
 
         protected override double EstimateCost()
@@ -1335,29 +1389,30 @@ namespace qpmodel.physic
                 cteCache_ = context.TryGetCteProducer(qref.cte_.cteName_);
         }
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             ExecContext context = context_;
             var logic = logic_ as LogicFromQuery;
 
             if (cteCache_ != null)
-                return ExecAsCteConsumer(callback);
+            {
+                ExecAsCteConsumer(callback);
+                return;
+            }
 
             child_().Exec(l =>
             {
                 if (context.stop_)
-                    return null;
+                    return;
 
                 if (logic.queryRef_.colRefedBySubq_.Count != 0)
                     context.AddParam(logic.queryRef_, l);
                 var r = ExecProject(l);
                 callback(r);
-                return null;
             });
-            return null;
         }
 
-        public string ExecAsCteConsumer(Func<Row, string> callback)
+        public void ExecAsCteConsumer(Action<Row> callback)
         {
             ExecContext context = context_;
             var logic = logic_ as LogicFromQuery;
@@ -1372,8 +1427,6 @@ namespace qpmodel.physic
                 var r = ExecProject(l);
                 callback(r);
             }
-
-            return null;
         }
 
         protected override double EstimateCost()
@@ -1389,7 +1442,7 @@ namespace qpmodel.physic
 
         public override string ToString() => $"PFILTER({child_()}: {Cost()})";
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             ExecContext context = context_;
             Expr filter = (logic_ as LogicFilter).filter_;
@@ -1397,16 +1450,14 @@ namespace qpmodel.physic
             child_().Exec(l =>
             {
                 if (context.stop_)
-                    return null;
+                    return;
 
                 if (filter is null || filter.Exec(context, l) is true)
                 {
                     var r = ExecProject(l);
                     callback(r);
                 }
-                return null;
             });
-            return null;
         }
         public override int GetHashCode()
         {
@@ -1433,7 +1484,7 @@ namespace qpmodel.physic
     {
         public PhysicInsert(LogicInsert logic, PhysicNode l) : base(logic) => children_.Add(l);
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             var table = (logic_ as LogicInsert).targetref_.Table();
             var nparts = QueryOption.num_machines_;
@@ -1458,9 +1509,7 @@ namespace qpmodel.physic
                     }
                     table.distributions_[partid].heap_.Add(l);
                 }
-                return null;
             });
-            return null;
         }
     }
 
@@ -1469,11 +1518,10 @@ namespace qpmodel.physic
         public PhysicResult(LogicResult logic) : base(logic) { }
         public override string ToString() => $"PResult";
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             Row r = ExecProject(null);
             callback(r);
-            return null;
         }
         protected override double EstimateCost() => logic_.Card() * 1.0;
     }
@@ -1492,33 +1540,34 @@ namespace qpmodel.physic
             Debug.Assert(profile_ is null);
         }
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
-            string s = null;
             ExecContext context = context_;
 
             if (context.option_.optimize_.use_codegen_)
-                s = $"{_physic_}.nloops_ ++;";
-            else
-                nloops_++;
-            s += child_().Exec(l =>
             {
-                string code = null;
+                context.code_ += $"{_physic_}.nloops_ ++;";
+            }
+            else
+            {
+                nloops_++;
+            }
+                
+            child_().Exec(l =>
+            {
                 if (context.option_.optimize_.use_codegen_)
                 {
-                    code = $@"
+                    context.code_ += $@"
                     {_physic_}.nrows_++;
-                    var r{_} = r{child_()._};
-                    {callback(null)}";
+                    var r{_} = r{child_()._};";
+                    callback(null);
                 }
                 else
                 {
                     nrows_++;
                     callback(l);
                 }
-                return code;
             });
-            return s;
         }
 
         protected override double EstimateCost() => 0;
@@ -1550,7 +1599,7 @@ namespace qpmodel.physic
             ctx.code_ += s;
         }
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             ExecContext context = context_;
             var child = (child_() is PhysicProfiling) ?
@@ -1569,20 +1618,21 @@ namespace qpmodel.physic
                 CodeWriter.Reset(header);
             }
 
-            string s = child_().Exec(r =>
+            child_().Exec(r =>
             {
-                string cs = null;
                 if (context.option_.optimize_.use_codegen_)
                 {
-                    cs += $@"
+                    context.code_ += $@"
                         Row newr = new Row({ncolumns});";
                     for (int i = 0; i < output.Count; i++)
                     {
                         if (output[i].isVisible_)
-                            cs += $"newr[{i}] = r{child_()._}[{i}];";
+                        {
+                            context.code_ += $"newr[{i}] = r{child_()._}[{i}];";
+                        }
                     }
-                    cs += $"{_physic_}.rows_.Add(newr);";
-                    cs += $"Console.WriteLine(newr);";
+                    context.code_ += $"{_physic_}.rows_.Add(newr);";
+                    context.code_ += $"Console.WriteLine(newr);";
                 }
                 else
                 {
@@ -1596,10 +1646,7 @@ namespace qpmodel.physic
                     if (context.option_.explain_.mode_ >= ExplainMode.full)
                         Console.WriteLine($"{newr}");
                 }
-                return cs;
             });
-
-            return s;
         }
     }
 
@@ -1620,29 +1667,24 @@ namespace qpmodel.physic
             }
         }
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             ExecContext context = context_;
 
-            string s = null;
             foreach (var child in children_)
             {
-                s += child.Exec(r =>
+                child.Exec(r =>
                 {
-                    string appendcode = null;
                     if (context.option_.optimize_.use_codegen_)
                     {
-                        appendcode += $"{callback(null)}";
+                        callback(null);
                     }
                     else
                     {
                         callback(r);
                     }
-                    return appendcode;
                 });
             }
-
-            return s;
         }
     }
 
@@ -1665,24 +1707,23 @@ namespace qpmodel.physic
             }
         }
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             ExecContext context = context_;
             int nrows = 0;
             int limit = (logic_ as LogicLimit).limit_;
 
-            string s = child_().Exec(l =>
+            child_().Exec(l =>
             {
-                string srccode = null;
                 if (context.option_.optimize_.use_codegen_)
                 {
-                    srccode = $@"                    
+                    context.code_ += $@"                    
                     nrows{_}++;
                     Debug.Assert(nrows{_} <= {limit});
                     if (nrows{_} == {limit})
                         context.stop_ = true;
-                    var r{_} = r{child_()._};
-                    {callback(null)}";
+                    var r{_} = r{child_()._};";
+                    callback(null);
                 }
                 else
                 {
@@ -1692,10 +1733,7 @@ namespace qpmodel.physic
                         context.stop_ = true;
                     callback(l);
                 }
-
-                return srccode;
             });
-            return s;
         }
     }
 
@@ -1736,10 +1774,19 @@ namespace qpmodel.physic
             }
         }
 
-        public virtual string ExecConsumer(Func<Row, string> callback) => null;
-        public virtual string ExecProducer(Func<Row, string> callback) => null;
-        public override string Exec(Func<Row, string> callback)
-            => asConsumer_ ? ExecConsumer(callback) : ExecProducer(callback);
+        public virtual void ExecConsumer(Action<Row> callback) {}
+        public virtual void ExecProducer(Action<Row> callback) {}
+        public override void Exec(Action<Row> callback)
+        {
+            if (asConsumer_)
+            {
+                ExecConsumer(callback);
+            } 
+            else
+            {
+                ExecProducer(callback);
+            }
+        }
 
         protected override double EstimateCost()
         {
@@ -1795,7 +1842,7 @@ namespace qpmodel.physic
             return cs;
         }
 
-        public override string ExecConsumer(Func<Row, string> callback)
+        public override void ExecConsumer(Action<Row> callback)
         {
             ExecContext context = context_;
 
@@ -1804,26 +1851,21 @@ namespace qpmodel.physic
             {
                 callback(r);
             }
-            return null;
         }
 
-        public override string ExecProducer(Func<Row, string> callback)
+        public override void ExecProducer(Action<Row> callback)
         {
             var context = context_ as DistributedContext;
 
-            string s = child_().Exec(r =>
+            child_().Exec(r =>
             {
-                string srccode = null;
                 if (!context.option_.optimize_.use_codegen_)
                 {
                     channel_.Send(r);
                 }
-
-                return srccode;
             });
 
             channel_.MarkSendDone(context.machineId_);
-            return s;
         }
     }
 
@@ -1832,21 +1874,17 @@ namespace qpmodel.physic
         public PhysicBroadcast(LogicBroadcast logic, PhysicNode l) : base(logic, l) { }
         public override string ToString() => $"PBORADCAST({child_()}: {Cost()})";
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             ExecContext context = context_;
 
-            string s = child_().Exec(l =>
+            child_().Exec(l =>
             {
-                string srccode = null;
                 if (!context.option_.optimize_.use_codegen_)
                 {
                     callback(l);
                 }
-
-                return srccode;
             });
-            return s;
         }
     }
 
@@ -1905,16 +1943,15 @@ namespace qpmodel.physic
             return code;
         }
 
-        public override string ExecProducer(Func<Row, string> callback)
+        public override void ExecProducer(Action<Row> callback)
         {
             var context = context_ as DistributedContext;
             int dop = context.option_.optimize_.query_dop_;
 
             var distributeby = (logic_ as LogicRedistribute).distributeby_;
 
-            string s = child_().Exec(r =>
+            child_().Exec(r =>
             {
-                string srccode = null;
                 if (!context.option_.optimize_.use_codegen_)
                 {
                     // hash by distribution keys
@@ -1927,15 +1964,12 @@ namespace qpmodel.physic
                     Console.WriteLine($"{Thread.CurrentThread.Name} by {tid} => {r} => {sendtoMachine}");
 #endif
                 }
-
-                return srccode;
             });
 
             for (int i = 0; i < dop; i++)
                 upChannels_[i].MarkSendDone(context.machineId_);
-            return s;
         }
-        public override string ExecConsumer(Func<Row, string> callback)
+        public override void ExecConsumer(Action<Row> callback)
         {
             ExecContext context = context_;
 
@@ -1944,7 +1978,6 @@ namespace qpmodel.physic
             {
                 callback(r);
             }
-            return null;
         }
     }
 
@@ -1976,14 +2009,13 @@ namespace qpmodel.physic
             return srfcol;
         }
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             ExecContext context = context_;
             var output = logic_.output_;
 
-            string s = child_().Exec(l =>
+            child_().Exec(l =>
             {
-                string srccode = null;
                 var cache = new List<Row>();
                 if (!context.option_.optimize_.use_codegen_)
                 {
@@ -2011,10 +2043,7 @@ namespace qpmodel.physic
                     // return one by one from the cache
                     cache.ForEach(r => callback(r));
                 }
-
-                return srccode;
             });
-            return s;
         }
     }
 
@@ -2061,7 +2090,7 @@ namespace qpmodel.physic
             base.Open(context);
         }
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             ExecContext context = context_;
             var logic = logic_ as LogicSampleScan;
@@ -2074,9 +2103,8 @@ namespace qpmodel.physic
                 curSample_ = 0;
             }
 
-            string s = child_().Exec(l =>
+            child_().Exec(l =>
             {
-                string srccode = null;
                 var cache = new List<Row>();
                 if (!context.option_.optimize_.use_codegen_)
                 {
@@ -2085,8 +2113,6 @@ namespace qpmodel.physic
                     else
                         PercentSampling(l);
                 }
-
-                return srccode;
             });
 
             // now output samples to upper layer
@@ -2096,7 +2122,6 @@ namespace qpmodel.physic
                     if (array_[i] != null)
                         callback(array_[i]);
             }
-            return s;
         }
     }
 }

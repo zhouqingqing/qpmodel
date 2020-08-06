@@ -116,16 +116,14 @@ namespace qpmodel.logic
             ExecContext context = CreateExecContext();
             if (this is SelectStmt select)
                 select.OpenSubQueries(context);
+
             finalplan.Open(context);
-            var code = context.code_;
-            code += finalplan.Exec(null);
-            context.code_ = "";
+            finalplan.Exec(null);
             finalplan.Close();
-            code += context.code_;
 
             if (queryOpt_.optimize_.use_codegen_)
             {
-                CodeWriter.WriteLine(code);
+                CodeWriter.WriteLine(context.code_);
                 Compiler.Run(Compiler.Compile(), this, context);
             }
             if (queryOpt_.explain_.mode_ >= ExplainMode.analyze)
@@ -908,12 +906,10 @@ namespace qpmodel.logic
             Console.WriteLine(physicPlan_.Explain());
 
             finalplan.ValidateThis();
+
             finalplan.Open(context);
-            var code = context.code_;
-            code += finalplan.Exec(null);
-            context.code_ = "";
+            finalplan.Exec(null);
             finalplan.Close();
-            code += context.code_;
 
             return finalplan.rows_;
         }

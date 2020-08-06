@@ -173,7 +173,6 @@ namespace qpmodel.expr
             {
                 // exists check can immediately return after receiving a row
                 r = l;
-                return null;
             });
 
             bool exists = r != null;
@@ -210,7 +209,6 @@ namespace qpmodel.expr
                 var prevr = r; r = l;
                 if (prevr != null)
                     throw new SemanticExecutionException("subquery more than one row returned");
-                return null;
             });
             context.option_.PopCodeGen();
 
@@ -250,7 +248,6 @@ namespace qpmodel.expr
             {
                 // it may have hidden columns but that's after [0]
                 set.Add(l[0]);
-                return null;
             });
 
             cachedVal_ = set;

@@ -480,7 +480,7 @@ namespace qpmodel.logic
         // always the first column
         void fixMarkerValue(Row r, Value value) => r[0] = value;
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             ExecContext context = context_;
             var logic = logic_ as LogicMarkJoin;
@@ -508,7 +508,6 @@ namespace qpmodel.logic
                             callback(n);
                         }
                     }
-                    return null;
                 });
 
                 // if there is no match, mark false
@@ -518,9 +517,7 @@ namespace qpmodel.logic
                     fixMarkerValue(n, semi ? false : true);
                     callback(n);
                 }
-                return null;
             });
-            return null;
         }
 
         protected override double EstimateCost()
@@ -556,7 +553,7 @@ namespace qpmodel.logic
         public override string ToString() => $"PSingleJOIN({lchild_()},{rchild_()}: {Cost()})";
 
         // always the first column
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             ExecContext context = context_;
             var logic = logic_ as LogicSingleJoin;
@@ -585,7 +582,6 @@ namespace qpmodel.logic
                         n = ExecProject(n);
                         callback(n);
                     }
-                    return null;
                 });
 
                 // if there is no match, output it if outer join
@@ -596,9 +592,7 @@ namespace qpmodel.logic
                     n = ExecProject(n);
                     callback(n);
                 }
-                return null;
             });
-            return null;
         }
 
         protected override double EstimateCost()
@@ -652,28 +646,24 @@ namespace qpmodel.logic
             }
         }
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             ExecContext context = context_;
             var logic = logic_ as LogicSequence;
 
             ExecNonOutputChildren();
 
-            string s = null;
-            s += OutputChild().Exec(r =>
+            OutputChild().Exec(r =>
             {
-                string code = null;
                 if (context.option_.optimize_.use_codegen_)
                 {
+                    context.code_ += $@"";
                 }
                 else
                 {
                     callback(r);
                 }
-                return code;
             });
-
-            return s;
         }
         protected override double EstimateCost()
         {
@@ -712,27 +702,23 @@ namespace qpmodel.logic
             context.RegisterCteProducer(logic.cte_.cteName_, heap_);
         }
 
-        public override string Exec(Func<Row, string> callback)
+        public override void Exec(Action<Row> callback)
         {
             ExecContext context = context_;
             var logic = logic_ as LogicCteProducer;
 
-            string s = null;
-            s += child_().Exec(r =>
+            child_().Exec(r =>
             {
-                string code = null;
                 if (context.option_.optimize_.use_codegen_)
                 {
+                    context.code_ += $@"";
                 }
                 else
                 {
                     // cache the results
                     heap_.Add(r);
                 }
-                return code;
             });
-
-            return s;
         }
 
         protected override double EstimateCost()

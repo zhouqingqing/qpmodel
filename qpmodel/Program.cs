@@ -261,16 +261,14 @@ namespace qpmodel
             final.ValidateThis();
             if (a is SelectStmt select)
                 select.OpenSubQueries(context);
+
             final.Open(context);
-            var code = context.code_;
-            code += final.Exec(null);
-            context.code_ = "";
+            final.Exec(null);
             final.Close();
-            code += context.code_;
 
             if (a.queryOpt_.optimize_.use_codegen_)
             {
-                CodeWriter.WriteLine(code);
+                CodeWriter.WriteLine(context.code_);
                 Compiler.Run(Compiler.Compile(), a, context);
             }
             Console.WriteLine(phyplan.Explain(a.queryOpt_.explain_));
