@@ -2123,7 +2123,6 @@ namespace qpmodel.unittest
             stmtResult = TU.ExecuteSQL(select);
             Assert.IsNull(stmtResult);
             Assert.IsTrue(TU.error_.Contains("column not exists \"T1\".col3"));
-
         }
     }
 
