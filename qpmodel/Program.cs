@@ -212,7 +212,6 @@ namespace qpmodel
             //  - bind the query
             a.queryOpt_.optimize_.ValidateOptions();
 
-
             if (!(a is SelectStmt))
             {
                 SQLStatement.ExecSQLList(sql);
