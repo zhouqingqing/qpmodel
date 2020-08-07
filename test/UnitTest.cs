@@ -225,6 +225,12 @@ namespace qpmodel.unittest
             sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 limit 2;";
             TU.ExecuteSQL(sql, "2,1;4,1", out phyplan, option);
 
+            sql = "select a1, b1 from a left join b on a1>b1;";
+            TU.ExecuteSQL(sql, "0,;1,0;2,0;2,1", out phyplan, option);
+            sql = "select a1 from a except select b3 from b;";
+            TU.ExecuteSQL(sql, "0;1", out phyplan, option);
+            TU.ExecuteSQL("select count(1) from a;", "3", out phyplan, option);
+
             // demonstrate we can fallback to any non-codegen execution
             sql = "select a2*a1, repeat('a', a2) from a where a1>= (select b1 from b where a2=b2);";
             TU.ExecuteSQL(sql, "0,a;2,aa;6,aaa", out phyplan, option);
@@ -285,7 +291,6 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestJobench()
         {
-            var files = Directory.GetFiles(@"../../../../jobench");
             var stats_fn = "../../../../jobench/statistics/jobench_stats";
 
             JOBench.CreateTables();
@@ -296,10 +301,6 @@ namespace qpmodel.unittest
             string sql_dir_fn = "../../../../jobench";
             string write_dir_fn = $"../../../../test/regress/output/jobench";
             string expect_dir_fn = $"../../../../test/regress/expect/jobench";
-
-            // make sure all queries can generate phase one opt plan
-            QueryOption option = new QueryOption();
-            option.optimize_.TurnOnAllOptimizations();
 
             try
             {

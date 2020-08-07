@@ -629,7 +629,7 @@ namespace qpmodel.physic
                         context.code_ += $@"
                         if (!foundOneMatch{_})
                         {{
-                            Row r{_} = new Row(r{lchild_()._}, new Row{rchild_().logic_.output_.Count});
+                            Row r{_} = new Row(r{lchild_()._}, new Row({rchild_().logic_.output_.Count}));
                             {ExecProjectCode($"r{_}")}";
 
                         // generate code to @context_code_ in callback
