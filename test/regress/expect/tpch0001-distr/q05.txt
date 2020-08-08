@@ -1,0 +1,77 @@
+select
+	n_name,
+	sum(l_extendedprice * (1 - l_discount)) as revenue
+from
+	customer_dstr,
+	orders_dstr,
+	lineitem_dstr,
+	supplier_dstr,
+	nation_rep,
+	region_rep
+where
+	c_custkey = o_custkey
+	and l_orderkey = o_orderkey
+	and l_suppkey = s_suppkey
+	and c_nationkey = s_nationkey
+	and s_nationkey = n_nationkey
+	and n_regionkey = r_regionkey
+	and r_name = 'ASIA'
+	and o_orderdate >= date '1994-01-01'
+	and o_orderdate < date '1994-01-01' + interval '1' year
+group by
+	n_name
+order by
+	revenue desc
+Total cost: 30652.87, memory=488293
+PhysicOrder  (inccost=30652.87, cost=82.97, rows=25, memory=825) (actual rows=0)
+    Output: n_name[0],{sum(l_extendedprice*1-l_discount)}[1]
+    Order by: {sum(l_extendedprice*1-l_discount)}[1]
+    -> PhysicHashAgg  (inccost=30569.9, cost=132, rows=25, memory=1650) (actual rows=0)
+        Output: {n_name}[0],{sum(l_extendedprice*1-l_discount)}[1]
+        Aggregates: sum(l_extendedprice[2]*1-l_discount[5])
+        Group by: n_name[0]
+        -> PhysicGather 1 : 10 (inccost=30437.9, cost=8.2, rows=82) (actual rows=0)
+            Output: n_name[3],{l_extendedprice*1-l_discount}[4],l_extendedprice[5],{1-l_discount}[6],1,l_discount[7]
+            -> PhysicHashJoin  (inccost=30429.69, cost=879, rows=82, memory=3600) (actual rows=0)
+                Output: n_name[3],{l_extendedprice*1-l_discount}[4],l_extendedprice[5],{1-l_discount}[6],1,l_discount[7]
+                Filter: c_custkey[1]=o_custkey[8] and c_nationkey[2]=s_nationkey[9]
+                -> PhysicRedistribute  (inccost=165, cost=15, rows=150) (actual rows=0)
+                    Output: {1}[0],c_custkey[1],c_nationkey[2]
+                    -> PhysicScanTable customer_dstr (inccost=150, cost=150, rows=150) (actual rows=0)
+                        Output: 1,c_custkey[0],c_nationkey[3]
+                -> PhysicRedistribute  (inccost=29385.69, cost=49.7, rows=497) (actual rows=0)
+                    Output: n_name[0],{l_extendedprice*1-l_discount}[1],l_extendedprice[2],{1-l_discount}[3],l_discount[4],o_custkey[5],s_nationkey[6]
+                    -> PhysicHashJoin  (inccost=29335.99, cost=2987, rows=497, memory=8) (actual rows=0)
+                        Output: n_name[1],{l_extendedprice*1-l_discount}[2],l_extendedprice[3],{1-l_discount}[4],l_discount[5],o_custkey[6],s_nationkey[7]
+                        Filter: n_regionkey[8]=r_regionkey[0]
+                        -> PhysicScanTable region_rep (inccost=5, cost=5, rows=1) (actual rows=0)
+                            Output: r_regionkey[0]
+                            Filter: r_name[1]='ASIA'
+                        -> PhysicRedistribute  (inccost=26343.99, cost=248.8, rows=2488) (actual rows=0)
+                            Output: n_name[0],{l_extendedprice*1-l_discount}[1],l_extendedprice[2],{1-l_discount}[3],l_discount[4],o_custkey[5],s_nationkey[6],n_regionkey[7]
+                            -> PhysicHashJoin  (inccost=26095.19, cost=3434, rows=2488, memory=1650) (actual rows=0)
+                                Output: n_name[0],{l_extendedprice*1-l_discount}[3],l_extendedprice[4],{1-l_discount}[5],l_discount[6],o_custkey[7],s_nationkey[8],n_regionkey[1]
+                                Filter: s_nationkey[8]=n_nationkey[2]
+                                -> PhysicScanTable nation_rep (inccost=25, cost=25, rows=25) (actual rows=0)
+                                    Output: n_name[1],n_regionkey[2],n_nationkey[0]
+                                -> PhysicRedistribute  (inccost=22636.19, cost=89.6, rows=896) (actual rows=0)
+                                    Output: {l_extendedprice*1-l_discount}[0],l_extendedprice[1],{1-l_discount}[2],l_discount[3],o_custkey[4],s_nationkey[5]
+                                    -> PhysicHashJoin  (inccost=22546.6, cost=1812, rows=896, memory=160) (actual rows=0)
+                                        Output: {l_extendedprice*1-l_discount}[2],l_extendedprice[3],{1-l_discount}[4],l_discount[5],o_custkey[6],s_nationkey[0]
+                                        Filter: l_suppkey[7]=s_suppkey[1]
+                                        -> PhysicScanTable supplier_dstr (inccost=10, cost=10, rows=10) (actual rows=0)
+                                            Output: s_nationkey[3],s_suppkey[0]
+                                        -> PhysicRedistribute  (inccost=20724.59, cost=89.6, rows=896) (actual rows=0)
+                                            Output: {l_extendedprice*1-l_discount}[0],l_extendedprice[1],{1-l_discount}[2],l_discount[3],o_custkey[4],l_suppkey[5]
+                                            -> PhysicHashJoin  (inccost=20635, cost=13130, rows=896, memory=480400) (actual rows=0)
+                                                Output: {l_extendedprice*1-l_discount}[0],l_extendedprice[1],{1-l_discount}[2],l_discount[3],o_custkey[6],l_suppkey[4]
+                                                Filter: l_orderkey[5]=o_orderkey[7]
+                                                -> PhysicScanTable lineitem_dstr (inccost=6005, cost=6005, rows=6005) (actual rows=0)
+                                                    Output: l_extendedprice[5]*1-l_discount[6],l_extendedprice[5],1-l_discount[6],l_discount[6],l_suppkey[2],l_orderkey[0]
+                                                -> PhysicScanTable orders_dstr (inccost=1500, cost=1500, rows=224) (actual rows=0)
+                                                    Output: o_custkey[1],o_orderkey[0]
+                                                    Filter: o_orderdate[4]>='1994-01-01' and o_orderdate[4]<'1/1/1995 12:00:00 AM'
+
+Emulated 10 machines distributed run with 60 threads
+
+
