@@ -26,7 +26,6 @@
 	    <PrivateAssets>all</PrivateAssets>
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <ProjectReference Include="../psql/psql.csproj" />
     <ProjectReference Include="../qpmodel/qpmodel.csproj" />
   </ItemGroup>
   <ItemGroup>
