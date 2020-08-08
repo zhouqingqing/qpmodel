@@ -163,7 +163,8 @@ column_constraint
     OR
 */
 logical_expr
- : logical_expr K_AND logical_expr							#LogicAndExpr
+ : K_NOT logical_expr                                       #LogicNotExpr
+ | logical_expr K_AND logical_expr							#LogicAndExpr
  | logical_expr K_OR logical_expr							#LogicOrExpr
  | pred_expr                                                #predexpr
  | '(' logical_expr ')'										#brackexpr
@@ -184,7 +185,7 @@ pred_expr
                           )? 
                       ')'
                     | ( database_name '.' )? table_name )	#InSubqueryExpr
- | K_NOT? K_EXISTS  '(' select_stmt ')'						#ExistsSubqueryExpr
+ | K_EXISTS  '(' select_stmt ')'						    #ExistsSubqueryExpr
  | arith_expr                                               #barithExpr
 ;
 

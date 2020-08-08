@@ -788,7 +788,7 @@ namespace qpmodel.expr
         internal Expr arg_() => children_[0];
         public UnaryExpr(string op, Expr expr) : base()
         {
-            string[] supportops = { "+", "-" };
+            string[] supportops = { "+", "-", "!" };
 
             op = op.ToLower();
             if (!supportops.Contains(op))
@@ -810,6 +810,8 @@ namespace qpmodel.expr
             {
                 case "-":
                     return -(dynamic)arg;
+                case "!":
+                    return !(bool)arg;
                 default:
                     return arg;
             }

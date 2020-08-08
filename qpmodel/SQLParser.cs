@@ -173,11 +173,20 @@ namespace qpmodel.sqlparser
         public override object VisitBoolEqualexpr([NotNull] SQLiteParser.BoolEqualexprContext context)
             => new BinExpr((Expr)Visit(context.arith_expr(0)), (Expr)Visit(context.arith_expr(1)), context.op.Text);
 
-
         public override object VisitLogicAndExpr([NotNull] SQLiteParser.LogicAndExprContext context)
             => new LogicAndExpr((Expr)Visit(context.logical_expr(0)), (Expr)Visit(context.logical_expr(1)));
         public override object VisitLogicOrExpr([NotNull] SQLiteParser.LogicOrExprContext context)
             => new LogicOrExpr((Expr)Visit(context.logical_expr(0)), (Expr)Visit(context.logical_expr(1)));
+        public override object VisitLogicNotExpr([NotNull] SQLiteParser.LogicNotExprContext context)
+        {
+            var expr = (Expr)Visit(context.logical_expr());
+            if (expr is ExistSubqueryExpr ee) {
+                // to simplify EXISTS subquery handling, we don't want an extra unary on top
+                ee.hasNot_ = !ee.hasNot_;
+                return ee;
+            }
+            return new UnaryExpr("!", expr);
+        }
 
         public override object VisitScalarSubqueryExpr([NotNull] SQLiteParser.ScalarSubqueryExprContext context)
             => new ScalarSubqueryExpr(Visit(context.select_stmt()) as SelectStmt);
@@ -200,7 +209,7 @@ namespace qpmodel.sqlparser
         public override object VisitCastExpr([NotNull] SQLiteParser.CastExprContext context)
             => new CastExpr((Expr)Visit(context.arith_expr()), (ColumnType)Visit(context.type_name()));
         public override object VisitExistsSubqueryExpr([NotNull] SQLiteParser.ExistsSubqueryExprContext context)
-            => new ExistSubqueryExpr(context.K_NOT() != null, Visit(context.select_stmt()) as SelectStmt);
+            => new ExistSubqueryExpr(false, Visit(context.select_stmt()) as SelectStmt);
 
         public override object VisitUnaryexpr([NotNull] SQLiteParser.UnaryexprContext context)
         {
