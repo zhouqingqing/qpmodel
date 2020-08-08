@@ -39,34 +39,37 @@ namespace qpmodel.test
 {
     public class Tpch
     {
-        static public void CreateTables()
+        static public void CreateTables(bool isdistr = false)
         {
-            DropTables();
+            DropTables(isdistr);
 
             string curdir = Directory.GetCurrentDirectory();
             string folder = $@"{curdir}/../../../../tpch/sql_scripts";
-            string filename = $@"{folder}/tpch.sql";
+            string postfix = isdistr ? "-distr" : "";
+            string filename = $@"{folder}/tpch{postfix}.sql";
             var sql = File.ReadAllText(filename);
             SQLStatement.ExecSQLList(sql);
         }
 
-        static public void DropTables()
+        static public void DropTables(bool isdistr = false)
         {
             string curdir = Directory.GetCurrentDirectory();
             string folder = $@"{curdir}/../../../../tpch/sql_scripts";
-            string filename = $@"{folder}/DropTables.sql";
+            string postfix = isdistr ? "-distr" : "";
+            string filename = $@"{folder}/DropTables{postfix}.sql";
             var sql = File.ReadAllText(filename);
 
             SQLStatement.ExecSQLList(sql);
             System.GC.Collect();
         }
-        static public void LoadTables(string subfolder)
+        static public void LoadTables(string subfolder, bool isdistr = false)
         {
             string save_curdir = Directory.GetCurrentDirectory();
             string folder = $@"{save_curdir}/../../../../tpch/sql_scripts";
 
             Directory.SetCurrentDirectory(folder);
-            var sql = File.ReadAllText($@"LoadTables-{subfolder}.sql");
+            string postfix = isdistr ? "-distr" : "";
+            var sql = File.ReadAllText($@"LoadTables-{subfolder}{postfix}.sql");
             SQLStatement.ExecSQLList(sql);
             Directory.SetCurrentDirectory(save_curdir);
         }
@@ -81,11 +84,12 @@ namespace qpmodel.test
             SQLStatement.ExecSQLList(sql);
         }
 
-        static public void AnalyzeTables()
+        static public void AnalyzeTables(bool isdistr = false)
         {
             string curdir = Directory.GetCurrentDirectory();
             string folder = $@"{curdir}/../../../../tpch/sql_scripts";
-            string filename = $@"{folder}/AnalyzeTables.sql";
+            string postfix = isdistr ? "-distr" : "";
+            string filename = $@"{folder}/AnalyzeTables{postfix}.sql";
 
             var sql = File.ReadAllText(filename);
             SQLStatement.ExecSQLList(sql);

@@ -327,6 +327,27 @@ namespace qpmodel.unittest
             Aggregation.TestPullPushAgg();
         }
 
+        [TestMethod]
+        public void TestTpchDistributed()
+        {
+            var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
+            string scale = "0001";
+
+            Tpch.CreateTables(true);
+            Tpch.LoadTables(scale, true);
+            
+            Tpch.AnalyzeTables(true);
+
+            // run tests and compare plan
+            string sql_dir_fn = "../../../../tpch/distributed_queries";
+            string write_dir_fn = $"../../../../test/regress/output/tpch{scale}-distr";
+            string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}";
+            
+            ExplainOption.show_tablename_ = false;
+            var badQueries = new string[] { "q02", "" }; 
+            RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries);
+        }
+
         void TestTpcdsWithData()
         {
             // table already created
