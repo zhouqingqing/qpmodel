@@ -614,12 +614,15 @@ namespace qpmodel.expr
 
             Debug.Assert(old != null);
             AvgPair oldpair = old as AvgPair;
+            pair_ = oldpair;
+            Debug.Assert(oldpair.count_ >= 0);
             if (oldpair.sum_ is null)
             {
                 if (arg != null)
+                {
                     pair_.sum_ = arg;
-                else
                     pair_.count_ = 1;
+                }
             }
             else
             {
@@ -788,7 +791,7 @@ namespace qpmodel.expr
         internal Expr arg_() => children_[0];
         public UnaryExpr(string op, Expr expr) : base()
         {
-            string[] supportops = { "+", "-" };
+            string[] supportops = { "+", "-", "!" };
 
             op = op.ToLower();
             if (!supportops.Contains(op))
@@ -810,6 +813,8 @@ namespace qpmodel.expr
             {
                 case "-":
                     return -(dynamic)arg;
+                case "!":
+                    return !(bool)arg;
                 default:
                     return arg;
             }

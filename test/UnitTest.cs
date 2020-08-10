@@ -830,7 +830,7 @@ namespace qpmodel.unittest
                 sql = "select a2 from a where not exists (select * from a b where b.a3>=a.a1+b.a1+1);";
                 TU.ExecuteSQL(sql, "3", out phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin"));
-                sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and a2>2;";
+                sql = "select a2 from a where not not not not exists (select * from a b where b.a3>=a.a1+b.a1+1) and a2>2;";
                 var result = TU.ExecuteSQL(sql, out phyplan);
                 Assert.AreEqual(0, result.Count);
                 sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2;";
@@ -839,9 +839,9 @@ namespace qpmodel.unittest
                 sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
                 TU.ExecuteSQL(sql, "0,1;1,2", out phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin"));
-                // multiple subquery - FIXME: shall be two mark join
+                // multiple subquery - not exists ... and ... to test not <logical_expr> precedence
                 sql = @"select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1)
-                     and a2>1 and not exists (select * from a b where b.a2+7=a.a1+b.a1);";
+                     and a2>1 and not exists (select * from a b where b.a2+7=a.a1+b.a1) and a2>1 and a2<4;";
                 TU.ExecuteSQL(sql, "2", out phyplan, option);
                 Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicMarkJoin"));
             }
@@ -1457,6 +1457,18 @@ namespace qpmodel.unittest
             sql = "select 1 + 1.5, 1.75+1.5, 1*1.5, 1.75*1.5";
             TU.ExecuteSQL(sql, "2.5,3.25,1.5,2.625");
             // TBD: add numeric types
+
+            // NOT expr
+            sql = "select a1 from a where not (a1 = 1)";
+            TU.ExecuteSQL(sql, "0;2");
+            sql = "select a1 from a where not not (a1 = 1)";
+            TU.ExecuteSQL(sql, "1");
+            sql = "select a1 from a where not not not (a1 = 1)";
+            TU.ExecuteSQL(sql, "0;2");
+            sql = "select * from a where not (a1 = 1 or a3 = 4)";
+            TU.ExecuteSQL(sql, "0,1,2,3");
+            sql = "select a1 from a where not not not a1 in (1)";
+            TU.ExecuteSQL(sql, "0;2");
         }
 
         [TestMethod]
