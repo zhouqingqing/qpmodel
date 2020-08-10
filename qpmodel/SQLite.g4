@@ -163,32 +163,35 @@ column_constraint
     OR
 */
 logical_expr
- : logical_expr K_AND logical_expr											#LogicAndExpr
- | logical_expr K_OR logical_expr											#LogicOrExpr
- | pred_expr                                                         #predexpr
- | '(' logical_expr ')'												#brackexpr
+ : K_NOT logical_expr                                       #LogicNotExpr
+ | logical_expr K_AND logical_expr							#LogicAndExpr
+ | logical_expr K_OR logical_expr							#LogicOrExpr
+ | pred_expr                                                #predexpr
+ | '(' logical_expr ')'										#brackexpr
 ;
 
+/* every expr here returns a boolean */
 pred_expr
  : arith_expr op=( '<' | '<=' | '>' | '>=' ) arith_expr					                                #arithcompexpr
  | arith_expr op=( '=' | '==' | '!=' | '<>' | K_GLOB | K_MATCH | K_REGEXP ) arith_expr	                #BoolEqualexpr
 
- | arith_expr K_NOT? K_BETWEEN   arith_expr K_AND arith_expr  		#BetweenExpr
- | arith_expr K_IS K_NOT? arith_expr									#IsExpr
- | arith_expr K_NOT? K_LIKE arith_expr									#LikeExpr
- | arith_expr ( K_ISNULL | K_NOTNULL | K_NOT K_NULL )				#NullExpr
-
+ | arith_expr K_NOT? K_BETWEEN  arith_expr K_AND arith_expr #BetweenExpr
+ | arith_expr K_IS K_NOT? arith_expr						#IsExpr
+ | arith_expr K_NOT? K_LIKE arith_expr						#LikeExpr
+ | arith_expr ( K_ISNULL | K_NOTNULL | K_NOT K_NULL )		#NullExpr
 
  | arith_expr K_NOT? K_IN ( '(' ( select_stmt
                           | arith_expr ( ',' arith_expr )*
                           )? 
                       ')'
                     | ( database_name '.' )? table_name )	#InSubqueryExpr
-
-| arith_expr #barithexpr
-
+ | K_EXISTS  '(' select_stmt ')'						    #ExistsSubqueryExpr
+ | arith_expr                                               #barithExpr
 ;
 
+/* every expr here returns a value - if the value is a boolean, arith_expr can be a 
+ * predicate, for example: WHERE case when ... then true ... end
+ */
 arith_expr
  : literal_value											#xxLiteralExpr
  | unary_operator arith_expr								#unaryexpr
@@ -197,17 +200,16 @@ arith_expr
  | signed_number                                            #NumericLiteral
 
 
- | arith_expr op=( '*' | '/' | '%' ) arith_expr							#arithtimesexpr
- | arith_expr op=( PLUS | MINUS ) arith_expr							#arithplusexpr
- | arith_expr op=( '<<' | '>>' | '&' | '|' ) arith_expr					#arithbitexpr
+ | arith_expr op=( '*' | '/' | '%' ) arith_expr				#arithtimesexpr
+ | arith_expr op=( PLUS | MINUS ) arith_expr				#arithplusexpr
+ | arith_expr op=( '<<' | '>>' | '&' | '|' ) arith_expr		#arithbitexpr
 
- | (K_EXISTS )? '(' select_stmt ')'							#SubqueryExpr
-
+ | '(' select_stmt ')'                                      #ScalarSubqueryExpr
  | function_name '(' ( K_DISTINCT? arith_expr ( ',' arith_expr )* | '*' )? ')'	#FuncExpr
 
- | K_CAST '(' arith_expr K_AS type_name ')'						#CastExpr
+ | K_CAST '(' arith_expr K_AS type_name ')'					#CastExpr
  | K_CASE arith_expr? ( K_WHEN logical_expr K_THEN arith_expr )+ ( K_ELSE arith_expr )? K_END		#CaseExpr
- | '(' arith_expr ')'												#arithbrackexpr
+ | '(' arith_expr ')'										#arithbrackexpr
 ;
 
 expr

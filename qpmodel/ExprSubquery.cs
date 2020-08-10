@@ -151,9 +151,9 @@ namespace qpmodel.expr
 
     public class ExistSubqueryExpr : SubqueryExpr
     {
-        internal bool hasNot_ = false;
+        internal bool hasNot_;
 
-        public ExistSubqueryExpr(SelectStmt query) : base(query) { }
+        public ExistSubqueryExpr(bool hasNot, SelectStmt query) : base(query) { hasNot_ = hasNot; }
 
         public override void Bind(BindContext context)
         {

@@ -179,7 +179,9 @@ namespace qpmodel
             if (false)
             {
                 JOBench.CreateTables();
-                sql = File.ReadAllText("../../../../../jobench/10a.sql");
+                var stats_fn = "../../../../jobench/statistics/jobench_stats";
+                Catalog.sysstat_.read_serialized_stats(stats_fn);
+                sql = File.ReadAllText("../../../../jobench/10a.sql");
                 goto doit;
             }
 

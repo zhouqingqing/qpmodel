@@ -43,11 +43,6 @@ using qpmodel.dml;
 using qpmodel.tools;
 using qpmodel.stat;
 
-using psql;
-using System.Security.Cryptography;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using IronPython.Modules;
-
 namespace qpmodel.unittest
 {
     // Test Utils
@@ -228,6 +223,12 @@ namespace qpmodel.unittest
             sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 limit 2;";
             TU.ExecuteSQL(sql, "2,1;4,1", out phyplan, option);
 
+            sql = "select a1, b1 from a left join b on a1>b1;";
+            TU.ExecuteSQL(sql, "0,;1,0;2,0;2,1", out phyplan, option);
+            sql = "select a1 from a except select b3 from b;";
+            TU.ExecuteSQL(sql, "0;1", out phyplan, option);
+            TU.ExecuteSQL("select count(1) from a;", "3", out phyplan, option);
+
             // demonstrate we can fallback to any non-codegen execution
             sql = "select a2*a1, repeat('a', a2) from a where a1>= (select b1 from b where a2=b2);";
             TU.ExecuteSQL(sql, "0,a;2,aa;6,aaa", out phyplan, option);
@@ -285,10 +286,71 @@ namespace qpmodel.unittest
     [TestClass]
     public class UBenchmarks
     {
+        public class QueryVerify
+        {
+            static bool resultVerify(string resultFn, string expectFn)
+            {
+                // read  strings from result file and expected file
+                string expectText = File.ReadAllText(expectFn).Replace("\r\n", "\n");
+                string resultText = File.ReadAllText(resultFn).Replace("\r\n", "\n");
+
+                // compare the test result with the expected result
+                if (string.Compare(resultText, expectText) != 0)
+                {
+                    return false;
+                }
+
+                return true;
+            }
+
+            public string SQLQueryVerify(string sql_dir_fn, string write_dir_fn, string expect_dir_fn, string[] badQueries, bool explainOnly)
+            {
+                string result = null;
+                QueryOption option = new QueryOption();
+                option.optimize_.TurnOnAllOptimizations();
+                option.optimize_.remove_from_ = false;
+
+                option.explain_.show_output_ = true;
+                option.explain_.show_estCost_ = option.optimize_.use_memo_;
+                option.explain_.mode_ = explainOnly ? ExplainMode.explain : ExplainMode.full;
+
+                // get a list of sql query fine names from the sql directory
+                string[] sqlFiles = Directory.GetFiles(sql_dir_fn, "*.sql");
+
+                // execute the query in each file and and verify the result
+                foreach (string sqlFn in sqlFiles)
+                {
+                    string dbg_name = Path.GetFileNameWithoutExtension(sqlFn);
+
+                    if (badQueries.Contains(dbg_name) == true)
+                        continue;
+
+                    // execute query
+                    var sql = File.ReadAllText(sqlFn);
+                    var test_result = SQLStatement.ExecSQLList(sql, option);
+
+                    // construct file name for result file and write result
+                    string f_name = Path.GetFileNameWithoutExtension(sqlFn);
+                    string write_fn = $@"{write_dir_fn}/{f_name}.txt";
+
+                    File.WriteAllText(write_fn, test_result);
+
+                    // construct file name of expected result
+                    string expect_fn = $@"{expect_dir_fn}/{f_name}.txt";
+
+                    // verify query result against the expected result
+                    if (!resultVerify(write_fn, expect_fn))
+                    {
+                        result += write_fn + ";";
+                    }
+                }
+                return result;
+            }
+        }
+
         [TestMethod]
         public void TestJobench()
         {
-            var files = Directory.GetFiles(@"../../../../jobench");
             var stats_fn = "../../../../jobench/statistics/jobench_stats";
 
             JOBench.CreateTables();
@@ -299,10 +361,6 @@ namespace qpmodel.unittest
             string sql_dir_fn = "../../../../jobench";
             string write_dir_fn = $"../../../../test/regress/output/jobench";
             string expect_dir_fn = $"../../../../test/regress/expect/jobench";
-
-            // make sure all queries can generate phase one opt plan
-            QueryOption option = new QueryOption();
-            option.optimize_.TurnOnAllOptimizations();
 
             try
             {
@@ -749,7 +807,7 @@ namespace qpmodel.unittest
                 sql = "select a2 from a where not exists (select * from a b where b.a3>=a.a1+b.a1+1);";
                 TU.ExecuteSQL(sql, "3", out phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin"));
-                sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) and a2>2;";
+                sql = "select a2 from a where not not not not exists (select * from a b where b.a3>=a.a1+b.a1+1) and a2>2;";
                 var result = TU.ExecuteSQL(sql, out phyplan);
                 Assert.AreEqual(0, result.Count);
                 sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2;";
@@ -758,9 +816,9 @@ namespace qpmodel.unittest
                 sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
                 TU.ExecuteSQL(sql, "0,1;1,2", out phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin"));
-                // multiple subquery - FIXME: shall be two mark join
+                // multiple subquery - not exists ... and ... to test not <logical_expr> precedence
                 sql = @"select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1)
-                     and a2>1 and not exists (select * from a b where b.a2+7=a.a1+b.a1);";
+                     and a2>1 and not exists (select * from a b where b.a2+7=a.a1+b.a1) and a2>1 and a2<4;";
                 TU.ExecuteSQL(sql, "2", out phyplan, option);
                 Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicMarkJoin"));
             }
@@ -1376,6 +1434,18 @@ namespace qpmodel.unittest
             sql = "select 1 + 1.5, 1.75+1.5, 1*1.5, 1.75*1.5";
             TU.ExecuteSQL(sql, "2.5,3.25,1.5,2.625");
             // TBD: add numeric types
+
+            // NOT expr
+            sql = "select a1 from a where not (a1 = 1)";
+            TU.ExecuteSQL(sql, "0;2");
+            sql = "select a1 from a where not not (a1 = 1)";
+            TU.ExecuteSQL(sql, "1");
+            sql = "select a1 from a where not not not (a1 = 1)";
+            TU.ExecuteSQL(sql, "0;2");
+            sql = "select * from a where not (a1 = 1 or a3 = 4)";
+            TU.ExecuteSQL(sql, "0,1,2,3");
+            sql = "select a1 from a where not not not a1 in (1)";
+            TU.ExecuteSQL(sql, "0;2");
         }
 
         [TestMethod]
