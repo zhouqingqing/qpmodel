@@ -44,6 +44,9 @@ using qpmodel.tools;
 using qpmodel.stat;
 
 using psql;
+using System.Security.Cryptography;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using IronPython.Modules;
 
 namespace qpmodel.unittest
 {
@@ -2123,6 +2126,277 @@ namespace qpmodel.unittest
             stmtResult = TU.ExecuteSQL(select);
             Assert.IsNull(stmtResult);
             Assert.IsTrue(TU.error_.Contains("column not exists \"T1\".col3"));
+        }
+
+        [TestMethod]
+        public void TestCanonical()
+        {
+            // Test cases for Normalization/Tranformation/Cananonicalization
+            // No feature implemented yet.
+            return;
+
+#pragma warning disable CS0162 // Unreachable code detected
+            /*
+             * Rule1: Constant move. Bring all possible constants together so that later
+             *        transformations can simplify or even remove some of the constants.
+             *        Some of them will change when other rules are implmented.
+             */
+            string sql = "select 1 + a1, 2 + 3 + a2 from a;";
+
+            var result = ExecuteSQL(sql, out string phyplan);
+            Assert.IsTrue(phyplan.Contains(" Output: a1[0]+1,a2[1]+5"));
+
+            sql = "select 10 + a1 + 2 + abs(-10) + round(101.78, 0) + a2 from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("10+a1[0]+a2[1]+114"));
+
+            // Select expr (4 - a3) / 2 * 2 should not be transformed since (4 - a3) / 2 is
+            // a grouping expression.
+            sql = "select 7, (4-a3)/2*2+1+sum(a1), sum(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: 7,{4-a3/2}[0]*2+1+{sum(a1)}[1],{sum(a1)}[1]+{sum(a1+a2)}[2]*2"));
+
+            // CAST arg: This may be suspicious: DOUBLE should be printed as a double (101.0)
+            sql = "select 1 + a1, 2 + 3 + a2, cast(101.0 + a3 as double) dcol from a;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: a1[0]+1,a2[1]+5,cast(a3[2]+101 to double)"));
+
+            // FUNC arg, two levels deep.
+            sql = "select sum(abs(100 + a1)), count(a2) from a;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains(" Output: {sum(abs(100+a1))}[0],{count(a2)}[1]"));
+
+            // FUNC arg, two.
+            sql = "select sum(abs(-10.3 * a1)), sum(round(10.7 * a2, 2)) from a;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: {sum(abs(a1*-10.3))}[0],{sum(round(10.7*a2,2))}[1]"));
+
+            // Inside subquery. Seems like incorrect result, though. c1 should be 30.9 and c2 should be 64.2
+            // The subquery does prodcue the correct result on its own.
+            sql = "select c1, c1 from (select sum(abs(-10.3 * a1)) c1, sum(round(10.7 * a2, 2)) c2 from a) x;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: { sum(abs(a1 * -10.3))}[0],{ sum(round(a2 * 10.7, 2))}[1]"));
+
+            // In WHERE clause.
+            sql = "select c1, c1 from (select sum(abs(a1 * -10.3)) c1, sum(round(10.7 * a2, 2)) c2 from a) x where 10 + c1 < c2";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: c1[0]+10<c2[1]"));
+
+            // In Comparision. This is happening without any of the new ruls.
+            sql = "select a1, a2 from a where 100 > a1 + a2;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a1[0]+a2[1]<100"));
+
+            // Move constant to right side modify the RHS
+            sql = "select a1 from a where a1 + 1 < 3";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a1[0]<2"));
+
+            sql = "select a1 from a where a1 - 1 < 3";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a1[0]<4"));
+
+            // Rule 2: Constant folding. Replace expressions involving constants with the value of that part of the expression.
+            //         Some of this is laready in place.
+            //         Rule 1 runs first and converts 3+a1[0] to a1[0]+3.
+            sql = "select 1 + 2 + a1, a2 + 4 + 5 from a;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: a1[0]+3,a2[1]+9"));
+
+            // Scattered constants
+            sql = "select 1 + a1 + 2, 100 + a2 + 15 from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: a1[0]+3,a2[1]+115"));   // Rule 1 + Rule 2
+
+            // FUNC(const). Some of it is already done.
+            sql = "select round(10.245 + a1 + 10, 2), a2 from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: round(a1[0]+24.245,2),a2[1]"));
+
+            // FUNC(const).
+            sql = "select avg(10), a2 from a group by a2";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: 10,{ a2}[0]"));
+
+            // Rule 3: The Arithmetic Simplification. Eliminate unneeded computations.
+            // expr + 0, expr - 0, expr * 0
+            sql = "select a1 * 0, a2 + 0, a3 - 0 from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: 0,a2[1],a3[2]"));
+
+            // expr * 1, expr / 1
+            sql = "select a1 * (14 + 17 - 30), a2 / (14 + 17 - 30) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: a1[0],a2[1]"));
+
+            // expr / 0 => ERROR
+            sql = "select * from a where a1 / 0 = a2 / 0";
+            // Assert.IsTrue(TU.error_.Contains("DivideByZeroException:D"));
+            // Currently plan contains: "Filter: a1[0]/0=a2[1]/0";
+            // Exception is thrown at runtime.
+
+            // Rule 4: Comparison Simplification. Eliminate unneeded comparisons.
+            // CONST relop CONST
+            // a1 + 1 < a1 4 => 1 < 4 => TRUE => eliminate filter.
+            sql = "select a1 from a where a1 + 1 < a1 + 4";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+
+            // NULL comparisons yeild NULL regardless. NULL testing
+            // should be done only as X IS NULL and X IS NOT NULL.
+            // Return NULL
+            sql = "select * from a where a1 = null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+
+            sql = "select * from a where a1 <> null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+
+            sql = "select * from a where a1 < null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+
+            sql = "select * from a where a1 > null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+
+            // Rule 5: CASE simplification.
+            sql = "select CASE WHEN a2 + 110 = 100 + 10 + a2 THEN a1 + 201 ELSE a1 + 501 END as C1 from a";
+            result = ExecuteSQL(sql, out phyplan);
+            // At the moment there is no way to check from outside if this transformation has happened
+            // or not. The plan output simply contains " Output: case with 1" regardless.
+            // May need to instrument with extra output for CASE expressionsa and add
+            // something like "NORMTRAN: Constant case folded"
+            // Assert.IsTrue(phyplan.Contains("NORMTRAN: Constant case folded"));
+
+            sql = "select CASE WHEN 1 = 1 THEN a1 + 1 ELSE a2 + 2 END from a";
+            result = ExecuteSQL(sql, out phyplan);
+            // Assert.IsTrue(phyplan.Contains("NORMTRAN: Constant case folded"));
+
+            sql = "select CASE WHEN 1 = 0 THEN a1 + 1 ELSE a2 + 2 END from a";
+            result = ExecuteSQL(sql, out phyplan);
+            // Assert.IsTrue(phyplan.Contains("NORMTRAN: Constant case folded"));
+
+            sql = "select CASE WHEN NULL > 1 THEN a1 + 1 ELSE a2 + 2 END from a";
+            result = ExecuteSQL(sql, out phyplan);
+            // Assert.IsTrue(phyplan.Contains("NORMTRAN: Constant case folded"));
+
+            // Rule 6: Logical Simplification.
+            sql = "select * from a, b where ((a1 = b1) AND (a2 = b2)) OR ((a1 = 2) AND (a3 = b3))";
+            result = ExecuteSQL(sql, out phyplan);
+            // This is already happenning but the printing is misleading, it should be changed to
+            // Filter: a1[0]=b1[4] and (a2[1]=b2[5] or a3[2]=b3[6])
+            Assert.IsTrue(phyplan.Contains("Filter: a1[0]=b1[4] and a2[1]=b2[5] or a3[2]=b3[6]"));
+
+            sql = "select * from a where (a1 = 1 and a2 = 2) or (a1 = 1 and a3 = 1)";
+            result = ExecuteSQL(sql, out phyplan);
+            // This is already happenning but the printing is misleading, it should be changed to
+            // Filter: a1[0]=b1[4] and (a2[1]=b2[5] or a3[2]=b3[6])
+            Assert.IsTrue(phyplan.Contains("Filter: a1[0]=b1[4] and a2[1]=b2[5] or a3[2]=b3[6]"));
+
+            // NOTE: TRUE and FALSE are not supported in the current code base.
+            // Simulating TRUE and FALSE
+            // X AND TRU. Drop TRUE.
+            sql = "select * from a where (a1 = a2) AND (a3 = a3)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a1[0]=1 and (a2[1]=2 or a3[2]=1)"));
+
+            // X AND FALSE. Eliminate the predicate
+            sql = "select * from a where (a1 = a2) AND (a3 <> a3)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter: a1[0]=a2[1]"));
+
+            // This is a bug:
+            // Result should be:
+            // 0,1,2,3
+            // But it is:
+            // 0,1,2,3
+            // 1,2,3,4
+            // 2,3,4,5
+            // NOT is is disappearing right from out of the parser.
+            // The parsed statement doesn't have the WHERE clause.
+            // In fact the following generates error incoreectly.
+            // select* from a where not a1 = 1;
+            // ERROR[Optimizer]: not on .a1 is not supported
+            // Unhandled exception. qpmodel.logic.SemanticAnalyzeException: not on .a1 is not supported
+            sql = "select * from a where not (a1 = 1 or a3 = 4);";
+            // Assert.IsTrue(phyplan.Contains("Filter: NOT a1[0]=1 AND NOT a3[2]=4"))
+            // Or
+            // Assert.IsTrue(phyplan.Contains("Filter: a1[0]<>1 AND a3[2]<>4"))
+
+            // TRUE and FALSE
+            sql = "select * from a where a1 + a2 <> a4 AND 1 = 0";
+            // BUG: Assert fails in FilterPushDown: Assert(trueOrFalse) because trueOtFalse is False
+            // In debugger, continuing further (I am not sure how this can happen)
+            // Produces output:
+            // 0,1,2,3
+            // 1,2,3,4
+            // result = ExecuteSQL(sql, out phyplan);
+            // Assert.IsTrue(phyplan.Contains("Filter: False"));
+
+            // Rule 7: IN clause simplification. This may not be needed as it is already happenning.
+            // It doesn't seem to be applied in many cases but here is one that should happen.
+            sql = "select a1 from a where a2 in (0, 1, 3)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a2[1]=0 OR a2[1]=1 OR a2[1]=3)"));
+
+            // Rule 8: ORDER BY negetive oridinal or column reference.
+            // Replace, as in this test case, -a1 by a1 DESCENDING.
+            // This will address a very specific bug in the current code base.
+            // TODO: The plan is not showing the direction of sort, it should be added.
+            sql = "select * from a order by -a1";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Order by: a1[0] DESC"));
+
+            // Rule 9: DISTINCT elimination from aggregate functions not sensitive to duplicates.
+            // MIN and MAX are not sensitive to duplicates, so eliminating DISTINCT is present may
+            // give the optimizer a chance eliminate sort operatior, depending on other
+            // conditions, of course.
+            sql = "select min(distinct a1), max(unique a2) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            // Currently the plan looks the same with and without distinct, both do
+            // Hash Aggregation. When distinct is removed, I think hashing can be elimated and the table
+            // scan may it self be able to handle min, max but I am not sure. Need to figure out.
+            // But if the plan looks like the following, we know hashing/sorting was NOT done.
+            // The exact wording in the plan is not clear at this time.
+            Assert.IsFalse(phyplan.Contains("PhysicHashAgg"));
+
+            // Rule 10: Multi-valued predicate simplification.
+            // This may be already happeinning but the filter is not present in the plan,
+            // need to inverstigate what exactly is hapenning.
+            sql = "select * from a where (a1 + 10, a2 + 20, a3 * 30) = (11, 22, 90);";
+            result = ExecuteSQL(sql, out phyplan);
+            // If filter disappeared as part of some optimization it is good and that can be
+            // asserted, otherwise the presence of a disjunctive. At the moment, absense of
+            // the filter is what I can look for.
+            // Actually this may be a bug (Issue 179), the disapperance of the filter is not
+            // optimzation and results are incorrect.
+            Assert.IsTrue(phyplan.Contains("Filter: Filter: (((a1[0] + 10) = 11) AND ((a2[1] + 20) = 22) AND ((a3[2] * 30) = 90))"));
+
+            // Rule 11: 11) CAST elimination. When possible, eliminate redundant and unneeded
+            // CAST.
+            sql = "select cast(a1 * 17.678 as double) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Output: cast(a1[0]*17.678 to double"));
+
+            sql = "select (select cast(a1 * 17.678 as double) from a where a1 = (select min(a1) from a)) C1, (select cast(a2 * 27.678 as double) from a where a2 = (select max(a2) from a)) C2 from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Output: cast(a"));
+            // In addition, Rule 9 may also have been applied and elimiated so that the following may also
+            // be asserted
+            Assert.IsFalse(phyplan.Contains("PhysicHashAgg"));
+
+            // Rule 12: Common sub expression elimination.
+            // This is somewhat unexpcted, usually the result of AVG is not integral even if the argument is
+            // of intergal type but the standard does allow implementation defined type. Postgres promotes
+            // to NUEMERIC or DECIMAL or DOUBLE, essentially the result is not truncated and not rounded.
+            // In the plan the one of the twice occuring {4-a3/2} may be elimiated but it may already be
+            // happenning.
+            sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: {4-a3/2}[0],{4-a3/2}[0]*2+1+{min(a1)}[1],{avg(a4)}[2]+{count(a1)}[3],{max(a1)}[4]+{sum(a1+a2)}[5]*2"));
+#pragma warning restore CS0162 // Unreachable code detected
         }
     }
 
