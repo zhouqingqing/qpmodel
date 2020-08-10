@@ -614,12 +614,15 @@ namespace qpmodel.expr
 
             Debug.Assert(old != null);
             AvgPair oldpair = old as AvgPair;
+            pair_ = oldpair;
+            Debug.Assert(oldpair.count_ >= 0);
             if (oldpair.sum_ is null)
             {
                 if (arg != null)
+                {
                     pair_.sum_ = arg;
-                else
                     pair_.count_ = 1;
+                }
             }
             else
             {
