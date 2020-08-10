@@ -132,7 +132,8 @@ namespace qpmodel
             // Not working as expected, need to investigate.
             var option = new QueryOption();
             option.explain_.mode_ = ExplainMode.analyze;
-            option.explain_.show_estCost_ = true;
+            option.optimize_.use_memo_ = true;
+            option.explain_.show_estCost_ = false;
 
             string allquery = File.ReadAllText(filename);
             string[] listquery = allquery.Split(';');
