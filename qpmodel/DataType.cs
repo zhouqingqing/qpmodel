@@ -33,7 +33,6 @@ using System.Diagnostics;
 using qpmodel.utils;
 using qpmodel.logic;
 using qpmodel.physic;
-using Microsoft.Scripting.Utils;
 
 namespace qpmodel.expr
 {
@@ -47,7 +46,7 @@ namespace qpmodel.expr
         // if double preceeds, then the result is double. We may actually prefer
         // better precision here.
         // 
-        internal static Type[] precedence_ = {
+        internal static List<Type> precedence_ = new List<Type> {
             typeof(AnyType),
             typeof(NumericType),
             typeof(DoubleType),
