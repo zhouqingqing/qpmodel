@@ -35,7 +35,6 @@ using qpmodel.logic;
 using qpmodel.physic;
 using qpmodel.utils;
 using qpmodel.index;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace qpmodel.expr
 {
@@ -1098,20 +1097,20 @@ namespace qpmodel.expr
                 switch (type)
                 {
                     case IntType it:
-                        if (int.TryParse(str, out int value))
+                        if (int.TryParse(str, out var value))
                             val_ = value;
                         else
                             throw new SemanticAnalyzeException("wrong integer format");
                         break;
                     case DoubleType dt:
-                        if (double.TryParse(str, out double valued))
+                        if (double.TryParse(str, out var valued))
                             val_ = valued;
                         else
                             throw new SemanticAnalyzeException("wrong double precision format");
                         break;
                     case DateTimeType dtt:
                         var datestr = str.RemoveStringQuotes();
-                        if (DateTime.TryParse(datestr, out DateTime valuedt))
+                        if (DateTime.TryParse(datestr, out var valuedt))
                             val_ = valuedt;
                         else
                             throw new SemanticAnalyzeException("wrong datetime format");

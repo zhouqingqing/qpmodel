@@ -28,25 +28,38 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Diagnostics;
 
 using qpmodel.utils;
 using qpmodel.logic;
 using qpmodel.physic;
-using Microsoft.VisualBasic.CompilerServices;
+using Microsoft.Scripting.Utils;
 
 namespace qpmodel.expr
 {
-    public class ColumnType
+    // This class stores the knowledge of type conversion
+    public class TypeBase
     {
-        public Type type_;
-        public int len_;
-        public ColumnType(Type type, int len) { type_ = type; len_ = len; }
+        // Numeric and Double which one has high precedence? SQL Server choose 
+        // double. A rationale is that double has wider range so it less overflow
+        // can happen. However, this can lead strange result: for example, say
+        //   numeric_col + 1.5 (double)
+        // if double preceeds, then the result is double. We may actually prefer
+        // better precision here.
+        // 
+        internal static Type[] precedence_ = {
+            typeof(AnyType),
+            typeof(NumericType),
+            typeof(DoubleType),
+            typeof(IntType),
+            typeof(BoolType),
+            typeof(DateTimeType),
+            typeof(VarCharType),
+            typeof(CharType)
+        };
 
         // TODO: data type compatible tests
-        public bool Compatible(ColumnType type)
+        public static bool Compatible(ColumnType l, ColumnType r)
         {
             return true;
         }
@@ -57,7 +70,29 @@ namespace qpmodel.expr
         public static bool IsStringType(ColumnType type)
             => type is CharType || type is VarCharType;
 
-        // 5/2.0 => 2.5
+        public static int GetPrecedence(ColumnType type)
+            => precedence_.FindIndex(x => x == type.GetType());
+
+        public static Type HigherPrecedence(ColumnType l, ColumnType r)
+        {
+            var lp = GetPrecedence(l);
+            var rp = GetPrecedence(r);
+            return precedence_[Math.Min(lp, rp)];
+        }
+    }
+
+    public class ColumnType
+    {
+        public Type type_;
+        public int len_;
+
+        public ColumnType(Type type, int len) { type_ = type; len_ = len; }
+
+        // during type coerse, we may have to change el/er type. Consider this case:
+        //  el+er where el= 2.5 double, er = 10 decimal
+        // their result is decimal as decimal has higher precedence so we have to 
+        // convert el to decimal to avoid later operator+ suprise.
+        //
         public static ColumnType CoerseType(string op, Expr el, Expr er)
         {
             ColumnType result = null;
@@ -68,43 +103,45 @@ namespace qpmodel.expr
                 return l;
             else
             {
-                if (l is DoubleType && r is NumericType rnum)
+                Type coertype = TypeBase.HigherPrecedence(l, r);
+
+                // these types needs precision etc further handling
+                if (coertype == typeof(NumericType))
                 {
-                    result = new NumericType(rnum.len_, rnum.scale_);
-                    el.type_ = result;
-                    if (el is ConstExpr ell)
-                        ell.val_ = Convert.ToDecimal(ell.val_);
-                }
-                else if (r is DoubleType && l is NumericType lnum)
-                {
-                    result = new NumericType(lnum.len_, lnum.scale_);
-                    er.type_ = result;
-                    if (er is ConstExpr erl)
-                        erl.val_ = Convert.ToDecimal(erl.val_);
-                }
-                else if (l is DoubleType || r is DoubleType)
-                    result = new DoubleType();
-                else if (l is AnyType || r is AnyType)
-                    result = new AnyType();
-                else if (l is NumericType || r is NumericType)
-                {
-                    // FIXME: this is a rough calculation
-                    int prec = 0, scale = 0;
-                    if (l is NumericType ln)
+                    if (l is DoubleType && r is NumericType rnum)
                     {
-                        prec = ln.len_; scale = ln.scale_;
+                        result = new NumericType(rnum.len_, rnum.scale_);
+                        el.type_ = result;
+                        if (el is ConstExpr ell)
+                            ell.val_ = Convert.ToDecimal(ell.val_);
                     }
-                    if (r is NumericType rn)
+                    else if (r is DoubleType && l is NumericType lnum)
                     {
-                        prec = Math.Max(rn.len_, prec);
-                        scale = Math.Max(rn.scale_, scale);
+                        result = new NumericType(lnum.len_, lnum.scale_);
+                        er.type_ = result;
+                        if (er is ConstExpr erl)
+                            erl.val_ = Convert.ToDecimal(erl.val_);
                     }
-                    result = new NumericType(prec, scale);
+                    else if (l is NumericType || r is NumericType)
+                    {
+                        // FIXME: this is a rough calculation
+                        int prec = 0, scale = 0;
+                        if (l is NumericType ln)
+                        {
+                            prec = ln.len_; scale = ln.scale_;
+                        }
+                        if (r is NumericType rn)
+                        {
+                            prec = Math.Max(rn.len_, prec);
+                            scale = Math.Max(rn.scale_, scale);
+                        }
+                        result = new NumericType(prec, scale);
+                    }
                 }
-                else if (IsStringType(l) && IsStringType(r))
+                else if (TypeBase.IsStringType(l) && TypeBase.IsStringType(r))
                     result = new VarCharType(Int32.MaxValue);
                 else
-                    throw new NotImplementedException("types coersion not implmeneted");
+                    result = (ColumnType)Activator.CreateInstance(coertype);
             }
 
             Debug.Assert(result != null);
@@ -401,7 +438,7 @@ namespace qpmodel.expr
             colOutputNames_ = colOutputNames;
             colOutputNames_.ForEach(x =>
             {
-                    x = qpmodel.utils.Utils.normalizeName(x);
+                x = qpmodel.utils.Utils.normalizeName(x);
             });
         }
 
