@@ -301,7 +301,6 @@ namespace qpmodel.optimizer
     //
     public class CMemoGroup
     {
-        
         // insertion order in memo
         public int memoid_;
 
