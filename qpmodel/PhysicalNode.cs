@@ -198,16 +198,24 @@ namespace qpmodel.physic
 
         // interface for physical property
         //
-        // what property current node requires to implment it
-        //      for example, StreamAgg requires Sort on grouping keys
-        public virtual PhysicProperty RequiredProperty() => new PhysicProperty();
-        // what property current node can supply
-        //      for example, StreamAgg can supply Sort on grouping keys
-        public virtual PhysicProperty SuppiedProperty() => new PhysicProperty();
-        // requirements of each children node if propogate the property
-        //      for example, NLJ sort order requires outer node the same order
-        public virtual List<PhysicProperty> PropagatedProperty(PhysicProperty property)
-            => new List<PhysicProperty>(new PhysicProperty[children_.Count]);
+        // determine if a required property can be satisfied through physic node
+        // if it can be satisfied, then property requirement on children is returned
+        public virtual bool IsPropertySatisfied(PhysicProperty required, out List<PhysicProperty> childprops)
+        {
+            // when there is no property requirement, it is always satisfied
+            if (required.Equals(PhysicProperty.nullprop))
+            {
+                childprops = new List<PhysicProperty>();
+                for (int i = 0; i < children_.Count; i++)
+                    childprops.Add(PhysicProperty.nullprop);
+                return true;
+            }
+            else
+            {
+                childprops = null;
+                return false;
+            }
+        }
         #endregion
 
         public BitVector tableContained_ { get => logic_.tableContained_; }
@@ -663,14 +671,22 @@ namespace qpmodel.physic
             return cost;
         }
 
-        public override List<PhysicProperty> PropagatedProperty(PhysicProperty property)
+        public override bool IsPropertySatisfied(PhysicProperty required, out List<PhysicProperty> childprops)
         {
-            var logic = logic_ as LogicJoin;
-
-            if (property != null && property is SortOrderProperty sort)
-                if (IsExprMatch(sort, logic.leftKeys_))
-                    return new List<PhysicProperty> { sort, null };
-            return base.PropagatedProperty(property);
+            // TODO: distribution determination, no distribution supplied
+            if (required.ordering_.Count > 0)
+            {
+                var logic = logic_ as LogicJoin;
+                if (IsExprMatch(required, logic.leftKeys_))
+                {
+                    childprops = new List<PhysicProperty> { required, PhysicProperty.nullprop };
+                    return true;
+                }
+                childprops = null;
+                return false;
+            }
+            childprops = new List<PhysicProperty> { PhysicProperty.nullprop, PhysicProperty.nullprop };
+            return true;
         }
 
         internal bool IsExprMatch(PhysicProperty sort, List<Expr> exprs)
@@ -1134,17 +1150,17 @@ namespace qpmodel.physic
     {
         public PhysicStreamAgg(LogicAgg logic, PhysicNode l) : base(logic, l) { }
         public override string ToString() => $"PStreamAgg({child_()}: {Cost()})";
-        public override PhysicProperty RequiredProperty()
+        public override bool IsPropertySatisfied(PhysicProperty required, out List<PhysicProperty> childprops)
         {
             var exprlist = (logic_ as LogicAgg).groupby_;
-            if (exprlist is null) return null;
-            return new SortOrderProperty(exprlist);
-        }
-        public override PhysicProperty SuppiedProperty()
-        {
-            var exprlist = (logic_ as LogicAgg).groupby_;
-            if (exprlist is null) return null;
-            return new SortOrderProperty(exprlist);
+            var prop = new SortOrderProperty(exprlist);
+            if (required.IsPropertySupplied(prop))
+            {
+                childprops = new List<PhysicProperty> { prop };
+                return true;
+            }
+            childprops = null;
+            return false;
         }
         protected override double EstimateCost()
         {
