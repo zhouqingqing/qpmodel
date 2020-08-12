@@ -511,6 +511,7 @@ namespace qpmodel.optimizer
 
                 if (member.physic_.IsPropertySatisfied(required, out var childprops))
                 {
+                    member.propertypairs_.Add(required, childprops);
                     double cost = member.physic_.Cost();
                     if (!isleaf)
                     {
