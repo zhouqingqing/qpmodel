@@ -763,20 +763,20 @@ namespace qpmodel.unittest
             var memo = stmt.optimizer_.memoset_[0];
             memo.CalcStats(out int tlogics, out int tphysics);
             Assert.AreEqual(8, memo.cgroups_.Count);
-            Assert.AreEqual(16, tlogics); Assert.AreEqual(17, tphysics);
+            Assert.AreEqual(16, tlogics); Assert.AreEqual(20, tphysics);
             Assert.AreEqual("4,1;6,4", string.Join(";", result));
             var mstr = stmt.optimizer_.PrintMemo();
-            Assert.IsTrue(mstr.Contains("Summary: 16,17"));
+            Assert.IsTrue(mstr.Contains("Summary: 16,20"));
 
             sql = "select a1 from a, b where a1 <= b1 and a2 = 2 group by a1 order by a1";
             result = TU.ExecuteSQL(sql, out stmt, out phyplan, option);
             memo = stmt.optimizer_.memoset_[0];
             memo.CalcStats(out tlogics, out tphysics);
             Assert.AreEqual(4, memo.cgroups_.Count);
-            Assert.AreEqual(5, tlogics); Assert.AreEqual(6, tphysics);
+            Assert.AreEqual(5, tlogics); Assert.AreEqual(9, tphysics);
             Assert.AreEqual("1", string.Join(";", result));
             mstr = stmt.optimizer_.PrintMemo();
-            Assert.AreEqual(8, TU.CountStr(mstr, "property"));
+            Assert.AreEqual(7, TU.CountStr(mstr, "property"));
             Assert.IsTrue(TU.CheckPlanOrder(stmt.physicPlan_,
                 new List<string> { "PhysicStreamAgg", "PhysicNLJoin", "PhysicOrder" }));
         }
