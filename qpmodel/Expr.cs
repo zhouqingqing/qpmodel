@@ -35,7 +35,9 @@ using qpmodel.logic;
 using qpmodel.physic;
 using qpmodel.utils;
 using qpmodel.index;
+using qpmodel.normalizer;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using System.IO;
 
 namespace qpmodel.expr
 {
@@ -585,6 +587,9 @@ namespace qpmodel.expr
         // output type of the expression
         internal ColumnType type_;
 
+        // Normalizer instance
+        internal static Normalizer normalizer_ = new Normalizer();
+
         protected string outputName() => outputName_ != null ? $"(as {outputName_})" : null;
 
         void validateAfterBound()
@@ -746,12 +751,19 @@ namespace qpmodel.expr
                 Expr x = children_[i];
 
                 x.Bind(context);
-                x = x.ConstFolding();
+                // x = x.normalize(); // x.ConstFolding();
                 children_[i] = x;
             }
             ResetAggregateTableRefs();
 
             markBounded();
+
+            for (int i = 0; i < children_.Count; ++i)
+            {
+                Expr x = children_[i];
+                x = x.normalize();
+                children_[i] = x;
+            }
         }
 
         public Expr DeQueryRef()
@@ -771,6 +783,13 @@ namespace qpmodel.expr
         public virtual string ExecCode(ExecContext context, string input)
         {
             return $@"ExprSearch.Locate(""{_}"").Exec(context, {input}) /*{ToString()}*/";
+        }
+
+        public Expr normalize()
+        {
+            Expr ne = normalizer_.normalize(this);
+
+            return ne;
         }
     }
 
