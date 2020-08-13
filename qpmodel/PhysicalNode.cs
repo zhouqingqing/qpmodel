@@ -740,7 +740,7 @@ namespace qpmodel.physic
             // because earlier optimization time keylist may have wrong bindings
             //
             var logic = logic_ as LogicJoin;
-            logic.CreateKeyList(false);
+            logic.RecreateKeyList(false);
             if (context.option_.optimize_.use_codegen_)
             {
                 context.code_ += $@"var hm{_} = new Dictionary<KeyList, List<TaggedRow>>();";
