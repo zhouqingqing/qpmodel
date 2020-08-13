@@ -509,6 +509,7 @@ namespace qpmodel.logic
         public List<Expr> leftKeys_ = new List<Expr>();
         public List<Expr> rightKeys_ = new List<Expr>();
         internal List<string> ops_ = new List<string>();
+        internal bool isRecreated_ = false;
 
         public override string ToString() => $"({lchild_()} {type_} {rchild_()})";
         public override string ExplainInlineDetails() { return type_ == JoinType.Inner ? "" : type_.ToString(); }
@@ -553,6 +554,25 @@ namespace qpmodel.logic
             filter_ = filter_.AddAndFilter(filter);
             CreateKeyList(false);
             return true;
+        }
+
+        internal void RecreateKeyList(bool canReUse)
+        {
+            if (isRecreated_)
+            {
+                return;
+            }
+
+            lock(this)
+            {
+                if (isRecreated_)
+                {
+                    return;
+                }
+
+                CreateKeyList(canReUse);
+                isRecreated_ = true;
+            }
         }
 
         internal void CreateKeyList(bool canReUse = true)
