@@ -754,6 +754,11 @@ namespace qpmodel.unittest
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicStreamAgg"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicOrder"));
 
+            sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2 order by count(a1) desc;";
+            TU.ExecuteSQL(sql, "6,4;4,1", out phyplan, option);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicStreamAgg"));
+            Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicOrder"));
+
             sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2 order by a2;";
             TU.ExecuteSQL(sql, "4,1;6,4", out phyplan, option);
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicStreamAgg"));

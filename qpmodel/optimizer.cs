@@ -479,6 +479,7 @@ namespace qpmodel.optimizer
             {
                 var member = CalculateMinInclusiveCostMember(prop);
                 var enforcement = required.OrderEnforcement(member.physic_);
+                enforcement.children_ = new List<PhysicNode> { new PhysicMemoRef(new LogicMemoRef(this)) }; 
 
                 var newmember = new CGroupMember(enforcement, this);
                 if (!exprList_.Contains(newmember)) exprList_.Add(newmember);
@@ -490,12 +491,12 @@ namespace qpmodel.optimizer
 
                 // calculate the derived members from less strict property
                 // an important assumption here is that enforcement member does not change cardinality
-                (var childmember, var cost) = minMember_[prop];
+                (var _, var cost) = minMember_[prop];
                 cost += newmember.physic_.Cost();
                 if (cost < optinccost)
                 {
                     optinccost = cost;
-                    optmember = new CGroupMember(required.OrderEnforcement(childmember.physic_), this);
+                    optmember = newmember;
                 }
             }
 
@@ -577,9 +578,7 @@ namespace qpmodel.optimizer
                     {
                         // this shall not happen if without join resolver. With join resolver
                         // the plan is already given, so 'v' is the known min physic node
-                        // or the member is enforced an order node on top
-                        Debug.Assert(queryOpt.optimize_.memo_use_joinorder_solver_ ||
-                            phyClone is PhysicOrder);
+                        Debug.Assert(queryOpt.optimize_.memo_use_joinorder_solver_);
                         phychild = CopyOutMinLogicPhysicPlan(property, v);
                     }
 
