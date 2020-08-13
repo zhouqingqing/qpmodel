@@ -2201,21 +2201,23 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestCanonical()
         {
-            // Test cases for Normalization/Tranformation/Cananonicalization
-            // No feature implemented yet.
-            return;
 
-#pragma warning disable CS0162 // Unreachable code detected
+
             /*
              * Rule1: Constant move. Bring all possible constants together so that later
              *        transformations can simplify or even remove some of the constants.
              *        Some of them will change when other rules are implmented.
              */
-            string sql = "select 1 + a1, 2 + 3 + a2 from a;";
+            string sql = "select 1 + a1 + 2 + a2 + 3 + 4 + a4 + 5 + 6 from a";
 
             var result = ExecuteSQL(sql, out string phyplan);
-            Assert.IsTrue(phyplan.Contains(" Output: a1[0]+1,a2[1]+5"));
+            Assert.IsTrue(phyplan.Contains("Output: a.a1[0]+3+a.a2[1]+7+a.a4[3]+11"));
 
+            // Test cases for Normalization/Tranformation/Cananonicalization
+            // No feature implemented yet.
+            return;
+
+#pragma warning disable CS0162 // Unreachable code detected
             sql = "select 10 + a1 + 2 + abs(-10) + round(101.78, 0) + a2 from a";
             result = ExecuteSQL(sql, out phyplan);
             Assert.IsTrue(phyplan.Contains("10+a1[0]+a2[1]+114"));

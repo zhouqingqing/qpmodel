@@ -755,13 +755,6 @@ namespace qpmodel.expr
             ResetAggregateTableRefs();
 
             markBounded();
-
-            for (int i = 0; i < children_.Count; ++i)
-            {
-                Expr x = children_[i];
-                x = x.normalize();
-                children_[i] = x;
-            }
         }
 
         public Expr DeQueryRef()

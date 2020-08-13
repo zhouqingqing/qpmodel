@@ -61,7 +61,7 @@ namespace qpmodel.normalizer
         };
 
         public abstract bool Applicable(Expr e);
-        public abstract void Apply(Expr e, out Expr newexp);
+        public abstract Expr Apply(Expr e);
 
         public bool isCommutativeConstOper(BinExpr be) => (be.op_ == "+" || be.op_ == "*");
         public bool isFoldableConstOper(BinExpr be) => (be.op_ == "+" || be.op_ == "-" || be.op_ == "*" || be.op_ == "/");
@@ -88,10 +88,8 @@ namespace qpmodel.normalizer
                     // require modifying the LSH/RHS value.
                     case "<>":
                     case "!=":
-                        if (e.children_[0] is ConstExpr || e.children_[1] is ConstExpr)
+                        // if (e.children_[0] is ConstExpr || e.children_[1] is ConstExpr)
                             return true;
-                        else
-                            return false; // To satisify the Compiler
                 }
             }
 
@@ -103,30 +101,30 @@ namespace qpmodel.normalizer
             return DecideConstantMoveFold(e);
         }
 
-        public override void Apply(Expr e, out Expr newexp)
+        public override Expr Apply(Expr e)
         {
-            newexp = e;
+            Expr newexp = null;
 
             if (e is null)
             {
-                return;
+                return null;
             }
 
             if (!Applicable(e))
-                return;
+                return e;
 
             Expr l = null, r = null;
             BinExpr be = null;
             if (e is BinExpr)
             {
                 be = (BinExpr)e;
-                Apply(be.children_[0], out l);
-                Apply(be.children_[1], out r);
+                l = Apply(be.children_[0]);
+                r = Apply(be.children_[1]);
             }
             else
             {
                 /* others will have to wait. */
-                return;
+                return e;
             }
 
             if (l is ConstExpr && r is ConstExpr)
@@ -153,7 +151,7 @@ namespace qpmodel.normalizer
                 }
                 /* deal with Change swappable later */
             }
-            else if (l is BinExpr le && (r is ConstExpr) && isCommutativeConstOper(be) && isCommutativeConstOper(le))
+            else if (l is BinExpr le && le.children_[1].IsConst() && (r is ConstExpr) && isCommutativeConstOper(be) && isCommutativeConstOper(le))
             {
                 /*
                     * Here root is distributive operator (only * in this context) left is Commutative
@@ -190,16 +188,15 @@ namespace qpmodel.normalizer
                     tmpexp.children_[0] = le.children_[1];
                     tmpexp.children_[1] = r;
                     Value val;
-                    tmpexp.TryEvalConst(out val);
+                    bool wasConst = tmpexp.TryEvalConst(out val);
                     Expr newr = ConstExpr.MakeConst(val, be.type_, r.outputName_);
 
                     // create new root
                     newexp = be.Clone();
 
-                    // old left is still left of root but new the right
+                    // new left is old left's left child
                     // of left will be right of the root.
-                    l.children_[1] = r;
-                    newexp.children_[0] = l;
+                    newexp.children_[0] = l.children_[0];
 
                     // new right is the new constant node
                     newexp.children_[1] = newr;
@@ -242,6 +239,17 @@ namespace qpmodel.normalizer
                 }
                 /* we can't do any thing about + at the top and * as left child. */
             }
+            else if (l != null && r != null && (be.children_[0] != l || be.children_[1] != r))
+            {
+                newexp = be.Clone();
+                newexp.children_[0] = l;
+                newexp.children_[1] = r;
+            }
+
+            if (newexp != null)
+                return newexp;
+
+            return e;
         }
     }
 
@@ -252,7 +260,7 @@ namespace qpmodel.normalizer
             throw new NotImplementedException();
         }
 
-        public override void Apply(Expr e, out Expr newexp)
+        public override Expr Apply(Expr e)
         {
                 throw new NotImplementedException();
         }
@@ -265,7 +273,7 @@ namespace qpmodel.normalizer
             throw new NotImplementedException();
         }
 
-        public override void Apply(Expr e, out Expr newexp)
+        public override Expr Apply(Expr e)
         {
             throw new NotImplementedException();
         }
@@ -278,7 +286,7 @@ namespace qpmodel.normalizer
             throw new NotImplementedException();
         }
 
-        public override void Apply(Expr e, out Expr newexp)
+        public override Expr Apply(Expr e)
         {
             throw new NotImplementedException();
         }
@@ -292,7 +300,7 @@ namespace qpmodel.normalizer
             throw new NotImplementedException();
         }
 
-        public override void Apply(Expr e, out Expr newexp)
+        public override Expr Apply(Expr e)
         {
             throw new NotImplementedException();
         }
@@ -305,7 +313,7 @@ namespace qpmodel.normalizer
             throw new NotImplementedException();
         }
 
-        public override void Apply(Expr e, out Expr newexp)
+        public override Expr Apply(Expr e)
         {
             throw new NotImplementedException();
         }
@@ -318,7 +326,7 @@ namespace qpmodel.normalizer
             throw new NotImplementedException();
         }
 
-        public override void Apply(Expr e, out Expr newexp)
+        public override Expr Apply(Expr e)
         {
             throw new NotImplementedException();
         }
@@ -331,7 +339,7 @@ namespace qpmodel.normalizer
             throw new NotImplementedException();
         }
 
-        public override void Apply(Expr e, out Expr newexp)
+        public override Expr Apply(Expr e)
         {
             throw new NotImplementedException();
         }
@@ -345,7 +353,7 @@ namespace qpmodel.normalizer
             throw new NotImplementedException();
         }
 
-        public override void Apply(Expr e, out Expr newexp)
+        public override Expr Apply(Expr e)
         {
             throw new NotImplementedException();
         }
@@ -358,11 +366,18 @@ namespace qpmodel.normalizer
         public Expr normalize(Expr e)
         {
             Expr ne = e;
+            Expr ecp = e;
             ruleset_.ForEach(r =>
             {
-                if (r.Applicable(e))
+                if (r.Applicable(ecp))
                 {
-                    r.Apply(e, out ne);
+                    while (true)
+                    {
+                        ne = r.Apply(ecp);
+                        if (ne == ecp)
+                            break;
+                        ecp = ne;
+                    }
                 }
             });
 

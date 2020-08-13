@@ -695,6 +695,7 @@ namespace qpmodel.logic
             bindFrom(context);
 
             selection_ = bindSelectionList(context);
+            
             if (where_ != null)
             {
                 where_.Bind(context);
@@ -727,6 +728,8 @@ namespace qpmodel.logic
 
             if (orders_ != null)
                 orders_ = bindOrderByOrGroupBy(context, orders_);
+
+            normalize();
         }
 
         void bindTableRef(BindContext context, TableRef table)
@@ -827,6 +830,36 @@ namespace qpmodel.logic
 
             Debug.Assert(newlist.Count == list.Count);
             return newlist;
+        }
+
+        public void normalize()
+        {
+            for (int i = 0; i < selection_.Count; ++i)
+            {
+                Expr x = selection_[i];
+                x = x.normalize();
+                selection_[i] = x;
+            }
+
+            if (where_ != null)
+            {
+                // normalize where
+            }
+
+            if (groupby_ != null)
+            {
+                // normalize group by
+            }
+
+            if (having_ != null)
+            {
+                // normalize having
+            }
+
+            if (orders_ != null)
+            {
+                // normalize orders
+            }
         }
     }
 }
