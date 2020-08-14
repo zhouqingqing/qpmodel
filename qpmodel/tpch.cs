@@ -45,7 +45,7 @@ namespace qpmodel.test
 
             string curdir = Directory.GetCurrentDirectory();
             string folder = $@"{curdir}/../../../../tpch/sql_scripts";
-            string postfix = isdistr ? "-distr" : "";
+            string postfix = isdistr ? "_d" : "";
             string filename = $@"{folder}/tpch{postfix}.sql";
             var sql = File.ReadAllText(filename);
             SQLStatement.ExecSQLList(sql);
@@ -55,7 +55,7 @@ namespace qpmodel.test
         {
             string curdir = Directory.GetCurrentDirectory();
             string folder = $@"{curdir}/../../../../tpch/sql_scripts";
-            string postfix = isdistr ? "-distr" : "";
+            string postfix = isdistr ? "_d" : "";
             string filename = $@"{folder}/DropTables{postfix}.sql";
             var sql = File.ReadAllText(filename);
 
@@ -68,7 +68,7 @@ namespace qpmodel.test
             string folder = $@"{save_curdir}/../../../../tpch/sql_scripts";
 
             Directory.SetCurrentDirectory(folder);
-            string postfix = isdistr ? "-distr" : "";
+            string postfix = isdistr ? "_d" : "";
             var sql = File.ReadAllText($@"LoadTables-{subfolder}{postfix}.sql");
             SQLStatement.ExecSQLList(sql);
             Directory.SetCurrentDirectory(save_curdir);
@@ -88,7 +88,7 @@ namespace qpmodel.test
         {
             string curdir = Directory.GetCurrentDirectory();
             string folder = $@"{curdir}/../../../../tpch/sql_scripts";
-            string postfix = isdistr ? "-distr" : "";
+            string postfix = isdistr ? "_d" : "";
             string filename = $@"{folder}/AnalyzeTables{postfix}.sql";
 
             var sql = File.ReadAllText(filename);

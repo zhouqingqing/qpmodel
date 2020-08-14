@@ -10,7 +10,7 @@ select
 	avg(l_discount) as avg_disc,
 	count(*) as count_order
 from
-	lineitem_dstr
+	lineitem_d
 where
 	l_shipdate <= date '1998-12-01' - interval '90' day
 group by
@@ -29,7 +29,7 @@ PhysicOrder  (inccost=12532.65, cost=11.35, rows=6, memory=372) (actual rows=4)
         Group by: l_returnflag[0], l_linestatus[1]
         -> PhysicGather 1 : 10 (inccost=6596.3, cost=591.3, rows=5913) (actual rows=5914)
             Output: l_returnflag[8],l_linestatus[9],l_quantity[4],l_extendedprice[5],l_extendedprice[5]*1-l_discount[6],1-l_discount[6],1,l_discount[6],l_extendedprice[5]*1-l_discount[6]*1+l_tax[7],1+l_tax[7],l_tax[7]
-            -> PhysicScanTable lineitem_dstr (inccost=6005, cost=6005, rows=5913) (actual rows=0)
+            -> PhysicScanTable lineitem_d (inccost=6005, cost=6005, rows=5913) (actual rows=0)
                 Output: l_returnflag[8],l_linestatus[9],l_quantity[4],l_extendedprice[5],l_extendedprice[5]*1-l_discount[6],1-l_discount[6],1,l_discount[6],l_extendedprice[5]*1-l_discount[6]*1+l_tax[7],1+l_tax[7],l_tax[7]
                 Filter: l_shipdate[10]<='9/2/1998 12:00:00 AM'
 

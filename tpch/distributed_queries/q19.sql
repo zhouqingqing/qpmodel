@@ -3,8 +3,8 @@
 select
 	sum(l_extendedprice* (1 - l_discount)) as revenue
 from
-	lineitem_dstr,
-	part_dstr
+	lineitem_d,
+	part_d
 where
 	(
 		p_partkey = l_partkey

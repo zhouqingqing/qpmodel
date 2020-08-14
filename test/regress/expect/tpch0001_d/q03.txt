@@ -4,9 +4,9 @@ select
 	o_orderdate,
 	o_shippriority
 from
-	customer_dstr,
-	orders_dstr,
-	lineitem_dstr
+	customer_d,
+	orders_d,
+	lineitem_d
 where
 	c_mktsegment = 'BUILDING'
 	and c_custkey = o_custkey
@@ -36,7 +36,7 @@ PhysicLimit (10) (inccost=23009.8, cost=10, rows=10) (actual rows=8)
                 -> PhysicHashJoin  (inccost=18728.09, cost=2097, rows=458, memory=464) (actual rows=0)
                     Output: l_orderkey[2],o_orderdate[3],o_shippriority[4],{l_extendedprice*1-l_discount}[5],l_extendedprice[6],{1-l_discount}[7],{1}[0],l_discount[8]
                     Filter: c_custkey[1]=o_custkey[9]
-                    -> PhysicScanTable customer_dstr (inccost=150, cost=150, rows=29) (actual rows=0)
+                    -> PhysicScanTable customer_d (inccost=150, cost=150, rows=29) (actual rows=0)
                         Output: 1,c_custkey[0]
                         Filter: c_mktsegment[6]='BUILDING'
                     -> PhysicRedistribute  (inccost=16481.09, cost=158.1, rows=1581) (actual rows=0)
@@ -44,10 +44,10 @@ PhysicLimit (10) (inccost=23009.8, cost=10, rows=10) (actual rows=8)
                         -> PhysicHashJoin  (inccost=16323, cost=8818, rows=1581, memory=234288) (actual rows=0)
                             Output: l_orderkey[0],o_orderdate[5],o_shippriority[6],{l_extendedprice*1-l_discount}[1],l_extendedprice[2],{1-l_discount}[3],l_discount[4],o_custkey[7]
                             Filter: l_orderkey[0]=o_orderkey[8]
-                            -> PhysicScanTable lineitem_dstr (inccost=6005, cost=6005, rows=3254) (actual rows=0)
+                            -> PhysicScanTable lineitem_d (inccost=6005, cost=6005, rows=3254) (actual rows=0)
                                 Output: l_orderkey[0],l_extendedprice[5]*1-l_discount[6],l_extendedprice[5],1-l_discount[6],l_discount[6]
                                 Filter: l_shipdate[10]>'1995-03-15'
-                            -> PhysicScanTable orders_dstr (inccost=1500, cost=1500, rows=729) (actual rows=0)
+                            -> PhysicScanTable orders_d (inccost=1500, cost=1500, rows=729) (actual rows=0)
                                 Output: o_orderdate[4],o_shippriority[7],o_custkey[1],o_orderkey[0]
                                 Filter: o_orderdate[4]<'1995-03-15'
 

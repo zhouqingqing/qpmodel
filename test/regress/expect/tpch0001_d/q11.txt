@@ -2,9 +2,9 @@ select
 	ps_partkey,
 	sum(ps_supplycost * ps_availqty) as value
 from
-	partsupp_dstr,
-	supplier_dstr,
-	nation_rep
+	partsupp_d,
+	supplier_d,
+	nation_r
 where
 	ps_suppkey = s_suppkey
 	and s_nationkey = n_nationkey
@@ -15,9 +15,9 @@ group by
 			select
 				sum(ps_supplycost * ps_availqty) * 0.0001000000
 			from
-				partsupp_dstr,
-				supplier_dstr,
-				nation_rep
+				partsupp_d,
+				supplier_d,
+				nation_r
 			where
 				ps_suppkey = s_suppkey
 				and s_nationkey = n_nationkey
@@ -43,19 +43,19 @@ PhysicOrder  (inccost=3136.66, cost=358.56, rows=80, memory=960) (actual rows=0)
                     -> PhysicHashJoin  (inccost=2530.1, cost=1681, rows=80, memory=38400) (actual rows=0)
                         Output: {ps_supplycost*ps_availqty}[0],ps_supplycost[1],ps_availqty[2]
                         Filter: ps_suppkey[3]=s_suppkey[4]
-                        -> PhysicScanTable partsupp_dstr as partsupp_dstr__1 (inccost=800, cost=800, rows=800) (actual rows=0)
+                        -> PhysicScanTable partsupp_d as partsupp_d__1 (inccost=800, cost=800, rows=800) (actual rows=0)
                             Output: ps_supplycost[3]*ps_availqty[2],ps_supplycost[3],ps_availqty[2],ps_suppkey[1]
                         -> PhysicRedistribute  (inccost=49.1, cost=0.1, rows=1) (actual rows=0)
                             Output: s_suppkey[0]
                             -> PhysicHashJoin  (inccost=49, cost=13, rows=1, memory=8) (actual rows=0)
                                 Output: s_suppkey[1]
                                 Filter: s_nationkey[2]=n_nationkey[0]
-                                -> PhysicScanTable nation_rep as nation_rep__1 (inccost=25, cost=25, rows=1) (actual rows=0)
+                                -> PhysicScanTable nation_r as nation_r__1 (inccost=25, cost=25, rows=1) (actual rows=0)
                                     Output: n_nationkey[0]
                                     Filter: n_name[1]='GERMANY'
                                 -> PhysicRedistribute  (inccost=11, cost=1, rows=10) (actual rows=0)
                                     Output: s_suppkey[0],s_nationkey[1]
-                                    -> PhysicScanTable supplier_dstr as supplier_dstr__1 (inccost=10, cost=10, rows=10) (actual rows=0)
+                                    -> PhysicScanTable supplier_d as supplier_d__1 (inccost=10, cost=10, rows=10) (actual rows=0)
                                         Output: s_suppkey[0],s_nationkey[3]
 
 Emulated 10 machines distributed run with 30 threads
@@ -64,19 +64,19 @@ Emulated 10 machines distributed run with 30 threads
             -> PhysicHashJoin  (inccost=2530.1, cost=1681, rows=80, memory=44800) (actual rows=0)
                 Output: ps_partkey[0],{ps_supplycost*ps_availqty}[1],ps_supplycost[2],ps_availqty[3]
                 Filter: ps_suppkey[4]=s_suppkey[5]
-                -> PhysicScanTable partsupp_dstr (inccost=800, cost=800, rows=800) (actual rows=0)
+                -> PhysicScanTable partsupp_d (inccost=800, cost=800, rows=800) (actual rows=0)
                     Output: ps_partkey[0],ps_supplycost[3]*ps_availqty[2],ps_supplycost[3],ps_availqty[2],ps_suppkey[1]
                 -> PhysicRedistribute  (inccost=49.1, cost=0.1, rows=1) (actual rows=0)
                     Output: s_suppkey[0]
                     -> PhysicHashJoin  (inccost=49, cost=13, rows=1, memory=8) (actual rows=0)
                         Output: s_suppkey[1]
                         Filter: s_nationkey[2]=n_nationkey[0]
-                        -> PhysicScanTable nation_rep (inccost=25, cost=25, rows=1) (actual rows=0)
+                        -> PhysicScanTable nation_r (inccost=25, cost=25, rows=1) (actual rows=0)
                             Output: n_nationkey[0]
                             Filter: n_name[1]='GERMANY'
                         -> PhysicRedistribute  (inccost=11, cost=1, rows=10) (actual rows=0)
                             Output: s_suppkey[0],s_nationkey[1]
-                            -> PhysicScanTable supplier_dstr (inccost=10, cost=10, rows=10) (actual rows=0)
+                            -> PhysicScanTable supplier_d (inccost=10, cost=10, rows=10) (actual rows=0)
                                 Output: s_suppkey[0],s_nationkey[3]
 
 Emulated 10 machines distributed run with 30 threads

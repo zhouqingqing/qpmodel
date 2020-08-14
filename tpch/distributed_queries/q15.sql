@@ -5,7 +5,7 @@ with revenue0 as
 		l_suppkey as supplier_no,
 		sum(l_extendedprice * (1 - l_discount)) as total_revenue
 	from
-		lineitem_dstr
+		lineitem_d
 	where
 		l_shipdate >= date '1996-01-01'
 		and l_shipdate < date '1996-01-01' + interval '3' month
@@ -20,7 +20,7 @@ select
 	s_phone,
 	total_revenue
 from
-	supplier_dstr,
+	supplier_d,
 	revenue0
 where
 	s_suppkey = supplier_no

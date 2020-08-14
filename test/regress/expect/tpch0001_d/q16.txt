@@ -4,8 +4,8 @@ select
 	p_size,
 	count(distinct ps_suppkey) as supplier_cnt
 from
-	partsupp_dstr,
-	part_dstr
+	partsupp_d,
+	part_d
 where
 	p_partkey = ps_partkey
 	and p_brand <> 'Brand#45'
@@ -15,9 +15,9 @@ where
 		select
 			s_suppkey
 		from
-			supplier_dstr
+			supplier_d
 		where
-			s_comment like '%customer_dstr%Complaints%'
+			s_comment like '%customer_d%Complaints%'
 	)
 group by
 	p_brand,
@@ -43,18 +43,18 @@ PhysicOrder  (inccost=4078.18, cost=754.38, rows=148, memory=6364) (actual rows=
                 Filter: p_partkey[5]=ps_partkey[1]
                 -> PhysicRedistribute  (inccost=880, cost=80, rows=800) (actual rows=0)
                     Output: ps_suppkey[0],ps_partkey[1]
-                    -> PhysicScanTable partsupp_dstr (inccost=800, cost=800, rows=800) (actual rows=0)
+                    -> PhysicScanTable partsupp_d (inccost=800, cost=800, rows=800) (actual rows=0)
                         Output: ps_suppkey[1],ps_partkey[0]
                         Filter: ps_suppkey[1] in @1
                         <InSubqueryExpr> cached 1
                             -> PhysicGather 1 : 10 (inccost=10.1, cost=0.1, rows=1) (actual rows=0)
                                 Output: s_suppkey[0]
-                                -> PhysicScanTable supplier_dstr (inccost=10, cost=10, rows=1) (actual rows=0)
+                                -> PhysicScanTable supplier_d (inccost=10, cost=10, rows=1) (actual rows=0)
                                     Output: s_suppkey[0]
-                                    Filter: s_comment[6]like'%customer_dstr%Complaints%'
+                                    Filter: s_comment[6]like'%customer_d%Complaints%'
 
 Emulated 10 machines distributed run with 10 threads
-                -> PhysicScanTable part_dstr (inccost=200, cost=200, rows=37) (actual rows=0)
+                -> PhysicScanTable part_d (inccost=200, cost=200, rows=37) (actual rows=0)
                     Output: p_brand[3],p_type[4],p_size[5],p_partkey[0]
                     Filter: p_brand[3]<>'Brand#45' and p_type[4]not like'MEDIUM POLISHED%' and p_size[5] in (49,14,23, ... <Total: 8> )
 

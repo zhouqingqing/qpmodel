@@ -4,20 +4,20 @@ select
 	s_name,
 	s_address
 from
-	supplier_dstr,
-	nation_rep
+	supplier_d,
+	nation_r
 where
 	s_suppkey in (
 		select
 			ps_suppkey
 		from
-			partsupp_dstr
+			partsupp_d
 		where
 			ps_partkey in (
 				select
 					p_partkey
 				from
-					part_dstr
+					part_d
 				where
 					p_name like 'forest%'
 			)
@@ -25,7 +25,7 @@ where
 				select
 					0.5 * sum(l_quantity)
 				from
-					lineitem_dstr
+					lineitem_d
 				where
 					l_partkey = ps_partkey
 					and l_suppkey = ps_suppkey

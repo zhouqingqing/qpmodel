@@ -13,8 +13,8 @@ select
 		else 0
 	end) as low_line_count
 from
-	orders_dstr,
-	lineitem_dstr
+	orders_d,
+	lineitem_d
 where
 	o_orderkey = l_orderkey
 	and l_shipmode in ('MAIL', 'SHIP')
@@ -39,9 +39,9 @@ PhysicOrder  (inccost=11311.42, cost=14.32, rows=7, memory=126) (actual rows=2)
             -> PhysicHashJoin  (inccost=11007, cost=3502, rows=251, memory=177000) (actual rows=0)
                 Output: l_shipmode[14],{case with 1}[0],{o_orderpriority='1-URGENT' or o_orderpriority='2-HIGH'}[1],{o_orderpriority='1-URGENT'}[2],o_orderpriority[3],{'1-URGENT'}[4],{o_orderpriority='2-HIGH'}[5],{'2-HIGH'}[6],{1}[7],{0}[8],{case with 1}[9],{o_orderpriority<>'1-URGENT' and o_orderpriority<>'2-HIGH'}[10],{o_orderpriority<>'1-URGENT'}[11],{o_orderpriority<>'2-HIGH'}[12]
                 Filter: o_orderkey[13]=l_orderkey[15]
-                -> PhysicScanTable orders_dstr (inccost=1500, cost=1500, rows=1500) (actual rows=0)
+                -> PhysicScanTable orders_d (inccost=1500, cost=1500, rows=1500) (actual rows=0)
                     Output: case with 1,o_orderpriority[5]='1-URGENT' or o_orderpriority[5]='2-HIGH',o_orderpriority[5]='1-URGENT',o_orderpriority[5],'1-URGENT',o_orderpriority[5]='2-HIGH','2-HIGH',1,0,case with 1,o_orderpriority[5]<>'1-URGENT' and o_orderpriority[5]<>'2-HIGH',o_orderpriority[5]<>'1-URGENT',o_orderpriority[5]<>'2-HIGH',o_orderkey[0]
-                -> PhysicScanTable lineitem_dstr (inccost=6005, cost=6005, rows=251) (actual rows=0)
+                -> PhysicScanTable lineitem_d (inccost=6005, cost=6005, rows=251) (actual rows=0)
                     Output: l_shipmode[14],l_orderkey[0]
                     Filter: l_shipmode[14] in ('MAIL','SHIP') and l_commitdate[11]<l_receiptdate[12] and l_shipdate[10]<l_commitdate[11] and l_receiptdate[12]>='1994-01-01' and l_receiptdate[12]<'1/1/1995 12:00:00 AM'
 

@@ -8,15 +8,15 @@ select
 	o_totalprice,
 	sum(l_quantity)
 from
-	customer_dstr,
-	orders_dstr,
-	lineitem_dstr
+	customer_d,
+	orders_d,
+	lineitem_d
 where
 	o_orderkey in (
 		select
 			l_orderkey
 		from
-			lineitem_dstr
+			lineitem_d
 		group by
 			l_orderkey having
 				sum(l_quantity) > 300

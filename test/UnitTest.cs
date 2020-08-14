@@ -401,8 +401,8 @@ namespace qpmodel.unittest
 
             // run tests and compare plan
             string sql_dir_fn = "../../../../tpch/distributed_queries";
-            string write_dir_fn = $"../../../../test/regress/output/tpch{scale}-distr";
-            string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}-distr";
+            string write_dir_fn = $"../../../../test/regress/output/tpch{scale}_d";
+            string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}_d";
             
             ExplainOption.show_tablename_ = false;
             var badQueries = new string[] { "q02", "q04", "q07", "q08", "q09", "q13", "q14", "q15", "q17",

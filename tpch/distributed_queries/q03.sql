@@ -6,9 +6,9 @@ select
 	o_orderdate,
 	o_shippriority
 from
-	customer_dstr,
-	orders_dstr,
-	lineitem_dstr
+	customer_d,
+	orders_d,
+	lineitem_d
 where
 	c_mktsegment = 'BUILDING'
 	and c_custkey = o_custkey

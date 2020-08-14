@@ -13,12 +13,12 @@ from
 			year(l_shipdate) as l_year,
 			l_extendedprice * (1 - l_discount) as volume
 		from
-			supplier_dstr,
-			lineitem_dstr,
-			orders_dstr,
-			customer_dstr,
-			nation_rep n1,
-			nation_rep n2
+			supplier_d,
+			lineitem_d,
+			orders_d,
+			customer_d,
+			nation_r n1,
+			nation_r n2
 		where
 			s_suppkey = l_suppkey
 			and o_orderkey = l_orderkey

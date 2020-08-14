@@ -4,9 +4,9 @@ select
 	ps_partkey,
 	sum(ps_supplycost * ps_availqty) as value
 from
-	partsupp_dstr,
-	supplier_dstr,
-	nation_rep
+	partsupp_d,
+	supplier_d,
+	nation_r
 where
 	ps_suppkey = s_suppkey
 	and s_nationkey = n_nationkey
@@ -17,9 +17,9 @@ group by
 			select
 				sum(ps_supplycost * ps_availqty) * 0.0001000000
 			from
-				partsupp_dstr,
-				supplier_dstr,
-				nation_rep
+				partsupp_d,
+				supplier_d,
+				nation_r
 			where
 				ps_suppkey = s_suppkey
 				and s_nationkey = n_nationkey

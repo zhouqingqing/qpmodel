@@ -1,22 +1,22 @@
 -- using default substitutions
 
 select
-	nation_rep,
+	nation_r,
 	o_year,
 	sum(amount) as sum_profit
 from
 	(
 		select
-			n_name as nation_rep,
+			n_name as nation_r,
 			year(o_orderdate) as o_year,
 			l_extendedprice * (1 - l_discount) - ps_supplycost * l_quantity as amount
 		from
-			part_dstr,
-			supplier_dstr,
-			lineitem_dstr,
-			partsupp_dstr,
-			orders_dstr,
-			nation_rep
+			part_d,
+			supplier_d,
+			lineitem_d,
+			partsupp_d,
+			orders_d,
+			nation_r
 		where
 			s_suppkey = l_suppkey
 			and ps_suppkey = l_suppkey
@@ -27,8 +27,8 @@ from
 			and p_name like '%green%'
 	) as profit
 group by
-	nation_rep,
+	nation_r,
 	o_year
 order by
-	nation_rep,
+	nation_r,
 	o_year desc

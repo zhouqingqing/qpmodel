@@ -15,8 +15,8 @@ select
 		else 0
 	end) as low_line_count
 from
-	orders_dstr,
-	lineitem_dstr
+	orders_d,
+	lineitem_d
 where
 	o_orderkey = l_orderkey
 	and l_shipmode in ('MAIL', 'SHIP')

@@ -1,15 +1,15 @@
-CREATE TABLE region_rep  (
+CREATE TABLE region_r  (
                 r_regionkey  INTEGER not null,
                 r_name       CHAR(25) not null,
                 r_comment    VARCHAR(152))
             REPLICATED;
-CREATE TABLE nation_rep  ( 
+CREATE TABLE nation_r  ( 
                 n_nationkey  INTEGER not null,
                 n_name       CHAR(25) not null,
                 n_regionkey  INTEGER not null,
                 n_comment    VARCHAR(152))
             REPLICATED;
-CREATE TABLE part_dstr (
+CREATE TABLE part_d (
                 p_partkey     INTEGER not null,
                 p_name        VARCHAR(55) not null,
                 p_mfgr        CHAR(25) not null,
@@ -20,7 +20,7 @@ CREATE TABLE part_dstr (
                 p_retailprice DOUBLE not null,
                 p_comment     VARCHAR(23) not null)
             DISTRIBUTED BY p_partkey;
-CREATE TABLE supplier_dstr (
+CREATE TABLE supplier_d (
                 s_suppkey     INTEGER not null,
                 s_name        CHAR(25) not null,
                 s_address     VARCHAR(40) not null,
@@ -29,14 +29,14 @@ CREATE TABLE supplier_dstr (
                 s_acctbal     DOUBLE not null,
                 s_comment     VARCHAR(101) not null)
             DISTRIBUTED BY s_suppkey;
-CREATE TABLE partsupp_dstr (
+CREATE TABLE partsupp_d (
                 ps_partkey     INTEGER not null,
                 ps_suppkey     INTEGER not null,
                 ps_availqty    INTEGER not null,
                 ps_supplycost  DOUBLE not null,
                 ps_comment     VARCHAR(199) not null)
             DISTRIBUTED BY ps_suppkey;
-CREATE TABLE customer_dstr (
+CREATE TABLE customer_d (
                 c_custkey     INTEGER not null,
                 c_name        VARCHAR(25) not null,
                 c_address     VARCHAR(40) not null,
@@ -46,7 +46,7 @@ CREATE TABLE customer_dstr (
                 c_mktsegment  CHAR(10) not null,
                 c_comment     VARCHAR(117) not null)
             DISTRIBUTED BY c_custkey;
-CREATE TABLE orders_dstr (
+CREATE TABLE orders_d (
                 o_orderkey       INTEGER not null,
                 o_custkey        INTEGER not null,
                 o_orderstatus    CHAR(1) not null,
@@ -57,7 +57,7 @@ CREATE TABLE orders_dstr (
                 o_shippriority   INTEGER not null,
                 o_comment        VARCHAR(79) not null)
             DISTRIBUTED BY o_orderkey;
-CREATE TABLE lineitem_dstr (
+CREATE TABLE lineitem_d (
                 l_orderkey    INTEGER not null,
                 l_partkey     INTEGER not null,
                 l_suppkey     INTEGER not null,

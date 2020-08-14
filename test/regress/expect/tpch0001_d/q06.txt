@@ -1,7 +1,7 @@
 select
 	sum(l_extendedprice * l_discount) as revenue
 from
-	lineitem_dstr
+	lineitem_d
 where
 	l_shipdate >= date '1994-01-01'
 	and l_shipdate < date '1994-01-01' + interval '1' year
@@ -13,7 +13,7 @@ PhysicHashAgg  (inccost=6095, cost=82, rows=1, memory=16) (actual rows=1)
     Aggregates: sum(l_extendedprice[1]*l_discount[2])
     -> PhysicGather 1 : 10 (inccost=6013, cost=8, rows=80) (actual rows=74)
         Output: l_extendedprice[5]*l_discount[6],l_extendedprice[5],l_discount[6]
-        -> PhysicScanTable lineitem_dstr (inccost=6005, cost=6005, rows=80) (actual rows=0)
+        -> PhysicScanTable lineitem_d (inccost=6005, cost=6005, rows=80) (actual rows=0)
             Output: l_extendedprice[5]*l_discount[6],l_extendedprice[5],l_discount[6]
             Filter: l_shipdate[10]>='1994-01-01' and l_shipdate[10]<'1/1/1995 12:00:00 AM' and l_discount[6]>=0.05 and l_discount[6]<=0.07 and l_quantity[4]<24
 
