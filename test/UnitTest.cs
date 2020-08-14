@@ -395,12 +395,12 @@ namespace qpmodel.unittest
             string scale = "0001";
 
             Tpch.CreateTables(true);
-            Tpch.LoadTables(scale, true);
+            Tpch.LoadTables(scale);
             
-            Tpch.AnalyzeTables(true);
+            Tpch.AnalyzeTables();
 
             // run tests and compare plan
-            string sql_dir_fn = "../../../../tpch/distributed_queries";
+            string sql_dir_fn = "../../../../tpch";
             string write_dir_fn = $"../../../../test/regress/output/tpch{scale}_d";
             string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}_d";
             

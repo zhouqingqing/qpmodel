@@ -41,7 +41,7 @@ namespace qpmodel.test
     {
         static public void CreateTables(bool isdistr = false)
         {
-            DropTables(isdistr);
+            DropTables();
 
             string curdir = Directory.GetCurrentDirectory();
             string folder = $@"{curdir}/../../../../tpch/sql_scripts";
@@ -51,25 +51,23 @@ namespace qpmodel.test
             SQLStatement.ExecSQLList(sql);
         }
 
-        static public void DropTables(bool isdistr = false)
+        static public void DropTables()
         {
             string curdir = Directory.GetCurrentDirectory();
             string folder = $@"{curdir}/../../../../tpch/sql_scripts";
-            string postfix = isdistr ? "_d" : "";
-            string filename = $@"{folder}/DropTables{postfix}.sql";
+            string filename = $@"{folder}/DropTables.sql";
             var sql = File.ReadAllText(filename);
 
             SQLStatement.ExecSQLList(sql);
             System.GC.Collect();
         }
-        static public void LoadTables(string subfolder, bool isdistr = false)
+        static public void LoadTables(string subfolder)
         {
             string save_curdir = Directory.GetCurrentDirectory();
             string folder = $@"{save_curdir}/../../../../tpch/sql_scripts";
 
             Directory.SetCurrentDirectory(folder);
-            string postfix = isdistr ? "_d" : "";
-            var sql = File.ReadAllText($@"LoadTables-{subfolder}{postfix}.sql");
+            var sql = File.ReadAllText($@"LoadTables-{subfolder}.sql");
             SQLStatement.ExecSQLList(sql);
             Directory.SetCurrentDirectory(save_curdir);
         }
@@ -84,12 +82,11 @@ namespace qpmodel.test
             SQLStatement.ExecSQLList(sql);
         }
 
-        static public void AnalyzeTables(bool isdistr = false)
+        static public void AnalyzeTables()
         {
             string curdir = Directory.GetCurrentDirectory();
             string folder = $@"{curdir}/../../../../tpch/sql_scripts";
-            string postfix = isdistr ? "_d" : "";
-            string filename = $@"{folder}/AnalyzeTables{postfix}.sql";
+            string filename = $@"{folder}/AnalyzeTables.sql";
 
             var sql = File.ReadAllText(filename);
             SQLStatement.ExecSQLList(sql);
