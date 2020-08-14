@@ -407,7 +407,16 @@ namespace qpmodel.unittest
             ExplainOption.show_tablename_ = false;
             var badQueries = new string[] { "q02", "q04", "q07", "q08", "q09", "q13", "q14", "q15", "q17",
                                             "q18", "q20", "q21", "q22" };
-            RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries);
+
+            try
+            {
+                ExplainOption.show_tablename_ = false;
+                RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries);
+            }
+            finally
+            {
+                ExplainOption.show_tablename_ = true;
+            }
         }
 
         void TestTpcdsWithData()
