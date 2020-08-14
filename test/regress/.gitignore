@@ -2,5 +2,6 @@ output/*
 
 # exception - keep the folders
 !output/tpch0001/.gitkeep
+!output/tpch0001_d/.gitkeep
 !output/ce/.gitkeep
 !output/.gitkeep
