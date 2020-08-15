@@ -365,7 +365,7 @@ namespace qpmodel.physic
                 {
                     context.code_ += $"if ({filter.ExecCode(context, $"r{_}")} is true)";
                 }
-                    
+
                 context.code_ += $@"
                     {{
                         {ExecProjectCode($"r{_}")}";
@@ -578,7 +578,7 @@ namespace qpmodel.physic
                         {
                             context.code_ += $"if ({filter.ExecCode(context, $"r{_}")} is true)";
                         }
-                            
+
                         context.code_ += $@"    
                             {{
                                 foundOneMatch{_} = true;";
@@ -740,7 +740,7 @@ namespace qpmodel.physic
             // because earlier optimization time keylist may have wrong bindings
             //
             var logic = logic_ as LogicJoin;
-            logic.RecreateKeyList(false);
+            logic.CreateKeyList(false);
             if (context.option_.optimize_.use_codegen_)
             {
                 context.code_ += $@"var hm{_} = new Dictionary<KeyList, List<TaggedRow>>();";
@@ -840,7 +840,7 @@ namespace qpmodel.physic
                     else
                     {{
                         // no match for antisemi";
-                    
+
                     if (antisemi)
                     {
                         context.code_ += $@"
@@ -848,7 +848,7 @@ namespace qpmodel.physic
                         {{
                             r{_} = new Row(null, r{_});
                             {ExecProjectCode($"r{_}")}";
-                        
+
                         // generate code to @context_code_ in callback
                         callback(null);
 
@@ -1124,7 +1124,7 @@ namespace qpmodel.physic
                     Row aggvals{_} = v{_}.Value;";
 
                 FinalizeAGroupRow(context, null, null, callback);
-                
+
                 context.code_ += $@"
                 }}";
             }
@@ -1212,7 +1212,7 @@ namespace qpmodel.physic
                             {{
                                 var keys{_} = curGroupKey{_};
                                 Row aggvals{_} = curGroupRow{_};";
-                    
+
                     FinalizeAGroupRow(context, null, null, callback);
 
                     context.code_ += $@"
@@ -1568,7 +1568,7 @@ namespace qpmodel.physic
             {
                 nloops_++;
             }
-                
+
             child_().Exec(l =>
             {
                 if (context.option_.optimize_.use_codegen_)
@@ -1773,6 +1773,16 @@ namespace qpmodel.physic
             }
         }
 
+        // this function emulates a full serialization of a given physic node for network
+        // transfer purpose, so it shall include every information we'd like the receiver
+        // have, including the physic node itself and its logic node and could be more.
+        //
+        public PhysicNode EmulateSerialization(PhysicNode node)
+        {
+            var newnode = node.Clone();
+            newnode.logic_ = node.logic_.Clone();
+            return newnode;
+        }
         public virtual string OpenConsumer(ExecContext context) => null;
         public virtual string OpenProducer(ExecContext context) => null;
         public override void Open(ExecContext econtext)
@@ -1790,14 +1800,14 @@ namespace qpmodel.physic
             }
         }
 
-        public virtual void ExecConsumer(Action<Row> callback) {}
-        public virtual void ExecProducer(Action<Row> callback) {}
+        public virtual void ExecConsumer(Action<Row> callback) { }
+        public virtual void ExecProducer(Action<Row> callback) { }
         public override void Exec(Action<Row> callback)
         {
             if (asConsumer_)
             {
                 ExecConsumer(callback);
-            } 
+            }
             else
             {
                 ExecProducer(callback);
@@ -1833,14 +1843,14 @@ namespace qpmodel.physic
 
             Debug.Assert(context.machines_ != null);
             List<Thread> workers = new List<Thread>();
-            foreach(var machineId in targets)
+            foreach (var machineId in targets)
             {
                 var planId = _;
                 var wo = new WorkerObject(Thread.CurrentThread.Name,
                                         context.machines_,
                                         machineId,
                                         planId,
-                                        this.Clone(),
+                                        EmulateSerialization(this),
                                         context.option_);
                 var thread = new Thread(new ThreadStart(wo.EntryPoint));
                 thread.Name = $"Gather_{planId}@{machineId}";
@@ -1928,7 +1938,7 @@ namespace qpmodel.physic
                                     context.machines_,
                                     machineId,
                                     planId,
-                                    this.Clone(),
+                                    EmulateSerialization(this),
                                     context.option_);
             var thread = new Thread(new ThreadStart(wo.EntryPoint));
             thread.Name = $"Redis_{planId}@{machineId}";
