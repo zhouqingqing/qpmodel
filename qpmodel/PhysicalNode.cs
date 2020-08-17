@@ -740,7 +740,6 @@ namespace qpmodel.physic
             // because earlier optimization time keylist may have wrong bindings
             //
             var logic = logic_ as LogicJoin;
-            logic.CreateKeyList(false);
             if (context.option_.optimize_.use_codegen_)
             {
                 context.code_ += $@"var hm{_} = new Dictionary<KeyList, List<TaggedRow>>();";
@@ -1780,7 +1779,6 @@ namespace qpmodel.physic
         public PhysicNode EmulateSerialization(PhysicNode node)
         {
             var newnode = node.Clone();
-            newnode.logic_ = node.logic_.Clone();
             return newnode;
         }
         public virtual string OpenConsumer(ExecContext context) => null;

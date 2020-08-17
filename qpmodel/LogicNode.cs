@@ -366,7 +366,9 @@ namespace qpmodel.logic
         // 2. compute children's output by requesting reqOutput from them
         // 3. find mapping from children's output
         //
-        // this parent class implments a default one for using first child output without any change
+        // this parent class implments a default one for using first child output without any change. You can
+        // also piggy back in this method to "finalize" your logic node.
+        //
         public virtual List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             List<int> ordinals = new List<int>();
@@ -551,11 +553,11 @@ namespace qpmodel.logic
         public bool AddFilter(Expr filter)
         {
             filter_ = filter_.AddAndFilter(filter);
-            CreateKeyList(false);
+            CreateKeyList();
             return true;
         }
 
-        internal void CreateKeyList(bool canReUse = true)
+        internal void CreateKeyList()
         {
             void createOneKeyList(BinExpr fb)
             {
@@ -590,17 +592,9 @@ namespace qpmodel.logic
             }
 
             // reset the old values
-            if (!canReUse)
-            {
-                leftKeys_.Clear();
-                rightKeys_.Clear();
-                ops_.Clear();
-            }
-            else
-            {
-                if (leftKeys_.Count != 0)
-                    return;
-            }
+            leftKeys_.Clear();
+            rightKeys_.Clear();
+            ops_.Clear();
 
             // cross join does not have join filter
             if (filter_ != null)
@@ -666,6 +660,7 @@ namespace qpmodel.logic
             output_ = CloneFixColumnOrdinal(reqOutput, childrenout, removeRedundant);
 
             RefreshOutputRegisteration();
+            CreateKeyList();
             return ordinals;
         }
     }
