@@ -753,7 +753,9 @@ namespace qpmodel.expr
                 Expr x = children_[i];
 
                 x.Bind(context);
-                // x = x.normalize(); // x.ConstFolding();
+                // this can't removed until normaliztion
+                // changes are all in place.
+                x = x.ConstFolding();
                 children_[i] = x;
             }
             ResetAggregateTableRefs();
