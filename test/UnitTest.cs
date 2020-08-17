@@ -2238,12 +2238,12 @@ namespace qpmodel.unittest
             sql = "select a2,b2,c2 from ad, bd, cd where a2=b2 and c2 = b2 order by c2";
             TU.ExecuteSQL(sql, "1,1,1;2,2,2;3,3,3", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-            Assert.AreEqual(4, TU.CountStr(phyplan, "Redistribute"));
+            Assert.AreEqual(3, TU.CountStr(phyplan, "Redistribute"));
             sql = "select a2,b2,c2,d2 from ad, bd, cd, dd where a2=b2 and c2 = b2 and c2=d2 order by b2";
             TU.ExecuteSQL(sql, "1,1,1,1;2,2,2,2;2,2,2,2;3,3,3,3", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-            Assert.AreEqual(6, TU.CountStr(phyplan, "Redistribute"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "70 threads"));
+            Assert.AreEqual(4, TU.CountStr(phyplan, "Redistribute"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "50 threads"));
 
             // ensure redistribution can shuffle by expression
             sql = "select a2, b2 from ad, bd where a2*2+a1=b2 order by a2;";

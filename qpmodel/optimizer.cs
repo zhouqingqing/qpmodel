@@ -52,10 +52,11 @@ namespace qpmodel.optimizer
         public static PhysicProperty nullprop = new PhysicProperty();
         // ordering: the ordered expression and whether is descending
         public List<(Expr expr, bool desc)> ordering_ = new List<(Expr expr, bool desc)>();
+        public (DistributionType disttype, List<Expr> exprs) distribution_ = (DistributionType.Any, null);
 
         public bool IsPropertySupplied(PhysicProperty property)
         {
-            if (IsOrderSupplied(property))
+            if (IsOrderSupplied(property) && IsDistributionSupplied(property))
                 return true;
             return false;
         }
@@ -71,6 +72,44 @@ namespace qpmodel.optimizer
             }
             return false;
         }
+        public bool IsDistributionSupplied(PhysicProperty property)
+        {
+            switch (distribution_.disttype)
+            {
+                case DistributionType.Any:
+                    return property.distribution_.disttype != DistributionType.Replicated;
+                case DistributionType.Singleton:
+                    return property.distribution_.disttype == DistributionType.Singleton;
+                case DistributionType.Distributed:
+                    if (property.distribution_.disttype == DistributionType.Singleton)
+                        return true;
+                    if (property.distribution_.disttype == DistributionType.Distributed)
+                    {
+                        if (distribution_.exprs.Count <= property.distribution_.exprs.Count)
+                        {
+                            foreach (var expr in distribution_.exprs)
+                                if (!property.distribution_.exprs.Contains(expr))
+                                    return false;
+                        }
+                        return true;
+                    }
+                    return false;
+                case DistributionType.Replicated:
+                    return property.distribution_.disttype == DistributionType.Replicated;
+            }
+            Debug.Assert(false);
+            return false;
+        }
+
+        internal PhysicNode PropertyEnforcement(PhysicNode node, PhysicProperty nodeprop)
+        {
+            if (IsOrderSupplied(nodeprop))
+                return DistributionEnforcement(node, nodeprop);
+            if (IsDistributionSupplied(nodeprop))
+                return OrderEnforcement(node);
+            Debug.Assert(false);
+            return null;
+        }
 
         internal PhysicNode OrderEnforcement(PhysicNode node)
         {
@@ -84,6 +123,33 @@ namespace qpmodel.optimizer
             var logicnode = new LogicOrder(node.logic_, order, desc);
             return new PhysicOrder(logicnode, node);
         }
+        internal PhysicNode DistributionEnforcement(PhysicNode node, PhysicProperty nodeprop)
+        {
+            // if distribution need to be enforced, there are these different scenarios
+            // 1.1 required is singleton, node is for any
+            // 1.2 required is singleton, node is for replicated
+            // 2 required is distributed, node is different distribution
+            // TODO: replicated can be enforced by a broadcast node
+            if (distribution_.disttype == DistributionType.Singleton)
+            {
+                if (nodeprop.distribution_.disttype == DistributionType.Any)
+                {
+                    var logicnode = new LogicGather(node.logic_);
+                    return new PhysicGather(logicnode, node);
+                }
+                else
+                {
+                    var logicnode = new LogicGather(node.logic_, new List<int> { 0 });
+                    return new PhysicGather(logicnode, node);
+                }
+            }
+            else
+            {
+                Debug.Assert(distribution_.disttype == DistributionType.Distributed);
+                var logicnode = new LogicRedistribute(node.logic_, distribution_.exprs);
+                return new PhysicRedistribute(logicnode, node);
+            }
+        }
 
         public bool Equals(PhysicProperty other)
         {
@@ -96,11 +162,23 @@ namespace qpmodel.optimizer
                 if (ordering_[i].desc != other.ordering_[i].desc)
                     return false;
             }
+            if (other.distribution_.disttype != distribution_.disttype)
+                return false;
+            if (distribution_.disttype == DistributionType.Distributed)
+            {
+                if (distribution_.exprs.Count != other.distribution_.exprs.Count)
+                    return false;
+                for (int i = 0; i < distribution_.exprs.Count; i++)
+                {
+                    if (!distribution_.exprs[i].Equals(other.distribution_.exprs[i]))
+                        return false;
+                }
+            }
             return true;
         }
         public override bool Equals(object obj)
         {
-            if (obj.GetType() != this.GetType()) return false;
+            if ((obj as PhysicProperty) is null) return false;
             return this.Equals(obj as PhysicProperty);
         }
         public override int GetHashCode()
@@ -109,12 +187,18 @@ namespace qpmodel.optimizer
         }
         public override string ToString()
         {
-            return string.Join(",", ordering_);
+            var s = $"{{{string.Join(",", ordering_)}|{distribution_.disttype}";
+            if (distribution_.disttype == DistributionType.Distributed)
+                s += $":{string.Join(",", distribution_.exprs)}}}";
+            else
+                s += "}";
+            return s;
         }
     }
 
     public class SortOrderProperty : PhysicProperty
     {
+        // default order property is only for singleton
         public SortOrderProperty(List<Expr> order, List<bool> desc = null)
         {
             if (desc is null)
@@ -123,6 +207,38 @@ namespace qpmodel.optimizer
             ordering_ = new List<(Expr, bool)>();
             for (int i = 0; i < order.Count; i++)
                 ordering_.Add((order[i], desc[i]));
+            distribution_ = (DistributionType.Singleton, null);
+        }
+    }
+
+    public enum DistributionType
+    {
+        Any, // does not include replicated
+        Singleton,
+        Distributed,
+        // Replicated refers to only replicated, 
+        Replicated // individually considered
+    }
+    public class DistributionProperty : PhysicProperty
+    {
+        public static PhysicProperty singleton = new DistributionProperty();
+        public static PhysicProperty replicated = EmptyReplicated();
+        static public DistributionProperty EmptyReplicated()
+        {
+            var rep = new DistributionProperty();
+            rep.distribution_.disttype = DistributionType.Replicated;
+            return rep;
+        }
+        public DistributionProperty(List<Expr> dist)
+        {
+            if (dist.Count > 0)
+                distribution_ = (DistributionType.Distributed, dist);
+        }
+
+        //constructor for base property
+        public DistributionProperty()
+        {
+            distribution_ = (DistributionType.Singleton, null);
         }
     }
 
@@ -323,7 +439,15 @@ namespace qpmodel.optimizer
 
         public double nullPropertyMinIncCost
         {
-            get { return minMember_[PhysicProperty.nullprop].cost; }
+            get
+            {
+                if (minMember_.ContainsKey(PhysicProperty.nullprop))
+                    return minMember_[PhysicProperty.nullprop].cost;
+                else if (minMember_.ContainsKey(PhysicProperty.nullprop))
+                    return minMember_[DistributionProperty.singleton].cost;
+                else
+                    return minMember_[minMember_.Keys.ToList()[0]].cost;
+            }
         }
 
         // debug info
@@ -398,7 +522,12 @@ namespace qpmodel.optimizer
             {
                 List<string> l = new List<string>();
                 foreach (var pair in minMember_)
-                    l.Add($"property:{pair.Key}, member:{pair.Value.member}, cost:{pair.Value.cost.ToString("0.##")}");
+                {
+                    var s = $"property:{pair.Key}, member:{pair.Value.member}, cost:{pair.Value.cost.ToString("0.##")}";
+                    foreach (var childpair in pair.Value.member.propertypairs_)
+                        s += $"\n\t\treq:{childpair.Key}, child:({string.Join(",",childpair.Value ?? new List<PhysicProperty>())})";
+                    l.Add(s);
+                }
                 str += "\n\t";
                 str += string.Join("\n\t", l);
             }
@@ -449,13 +578,31 @@ namespace qpmodel.optimizer
             explored_ = true;
         }
 
+        // generate a list of properties that can be derived from the required property
+        // using only on enforcement node
         internal List<PhysicProperty> GenerateProperties(PhysicProperty required)
         {
             var output = new List<PhysicProperty>();
+            // if there is order and the distribution requirement is singleton, 
+            // remove order and add to list
             if (required.ordering_.Count > 0)
             {
-                var nonorder = new PhysicProperty();
-                output.Add(nonorder);
+                if (required.distribution_.disttype == DistributionType.Singleton)
+                {
+                    var nonorder = new PhysicProperty();
+                    nonorder.distribution_ = required.distribution_;
+                    output.Add(nonorder);
+                }
+            }
+            // distribution requirement tranformation is only enabled
+            // if table is replicated or distributed
+            else if (memo_.stmt_.queryOpt_.optimize_.memo_use_remoteexchange_)
+            {
+                if (required.distribution_.disttype == DistributionType.Distributed ||
+                required.distribution_.disttype == DistributionType.Singleton)
+                    output.Add(new PhysicProperty());
+                if (required.distribution_.disttype == DistributionType.Singleton)
+                    output.Add(DistributionProperty.replicated);
             }
             return output;
         }
@@ -478,14 +625,13 @@ namespace qpmodel.optimizer
             foreach (var prop in childproperties)
             {
                 var member = CalculateMinInclusiveCostMember(prop);
-                var enforcement = required.OrderEnforcement(member.physic_);
+                if (member is null) continue;
+
+                var enforcement = required.PropertyEnforcement(member.physic_, prop);
                 enforcement.children_ = new List<PhysicNode> { new PhysicMemoRef(new LogicMemoRef(this)) }; 
 
                 var newmember = new CGroupMember(enforcement, this);
-                if (!exprList_.Contains(newmember)) exprList_.Add(newmember);
-
-                newmember = exprList_.FirstOrDefault(x => x.Equals(newmember));
-                Debug.Assert(newmember != null);
+                exprList_.Add(newmember);
                 newmember.isenforcement_ = true;
                 newmember.propertypairs_.Add(required, new List<PhysicProperty> { prop });
 
@@ -509,20 +655,37 @@ namespace qpmodel.optimizer
                 if (member.physic_ is null || member.isenforcement_)
                     continue;
 
-                if (member.physic_.IsPropertySatisfied(required, out var childprops))
+                if (member.physic_.IsPropertySatisfied(required, out var listchildprops))
                 {
-                    member.propertypairs_.Add(required, childprops);
                     double cost = member.physic_.Cost();
                     if (!isleaf)
                     {
-                        cost = member.physic_.Cost();
-                        for(int i = 0; i < member.physic_.children_.Count; i++)
+                        List<PhysicProperty> minchildprops = null;
+                        var minchildcost = Double.MaxValue;
+                        foreach (var childprops in listchildprops)
                         {
-                            var child = member.physic_.children_[i];
-                            var childgroup = (child as PhysicMemoRef).Group();
-                            childgroup.CalculateMinInclusiveCostMember(childprops[i]);
-                            cost += childgroup.minMember_[childprops[i]].cost;
+                            var childcost = member.physic_.Cost();
+                            for (int i = 0; i < member.physic_.children_.Count; i++)
+                            {
+                                var child = member.physic_.children_[i];
+                                var childgroup = (child as PhysicMemoRef).Group();
+                                childgroup.CalculateMinInclusiveCostMember(childprops[i]);
+                                
+                                // it is possible that the child group cannot satisfy the property
+                                if (childgroup.minMember_.ContainsKey(childprops[i]))
+                                    childcost += childgroup.minMember_[childprops[i]].cost;
+                                else
+                                    childcost = Double.MaxValue;
+                            }
+                            if (childcost < minchildcost)
+                            {
+                                minchildcost = childcost;
+                                minchildprops = childprops;
+                            }
                         }
+                        cost += minchildcost;
+                        if (minchildprops != null)
+                            member.propertypairs_.Add(required, minchildprops);
                     }
                     if (cost < optinccost)
                     {
@@ -532,9 +695,10 @@ namespace qpmodel.optimizer
                 }
             }
             
+            // when there exist at least one feasible member
             // add the optimal member and inclusive cost into the dictionary
-            Debug.Assert(optmember != null);
-            minMember_.Add(required, (optmember, optinccost));
+            if (optmember != null)
+                minMember_.Add(required, (optmember, optinccost));
 
             return optmember;
         }
@@ -571,7 +735,10 @@ namespace qpmodel.optimizer
                     if (v is PhysicMemoRef)
                     {
                         var g = (v as PhysicMemoRef).Group();
-                        var subprop = minmember?.propertypairs_[property][i] ?? PhysicProperty.nullprop;
+                        PhysicProperty subprop;
+                        if (minmember != null && minmember.propertypairs_.ContainsKey(property))
+                            subprop = minmember.propertypairs_[property][i];
+                        else subprop = PhysicProperty.nullprop;
                         phychild = g.CopyOutMinLogicPhysicPlan(subprop);
                     }
                     else
@@ -610,7 +777,7 @@ namespace qpmodel.optimizer
     {
         public SQLStatement stmt_;
         public CMemoGroup rootgroup_;
-        public PhysicProperty rootProperty_ = new PhysicProperty();
+        public PhysicProperty rootProperty_ = new DistributionProperty();
 
         [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
         public Dictionary<LogicSignature, CMemoGroup> cgroups_ = new Dictionary<LogicSignature, CMemoGroup>();
@@ -797,6 +964,21 @@ namespace qpmodel.optimizer
             }
             else return logicroot;
         }
+        internal LogicNode RemoveDataExchange(LogicNode logic)
+        {
+            var children = new List<LogicNode>();
+            logic.children_.ForEach(x =>
+            {
+                if (x is LogicRemoteExchange)
+                    children.Add(x.child_());
+                else
+                    children.Add(x);
+            });
+            logic.children_ = children;
+            logic.children_.ForEach(x => RemoveDataExchange(x));
+            if (logic is LogicRemoteExchange) return logic.child_();
+            else return logic;
+        }
         public void ExploreRootPlan(SQLStatement stmt, bool enqueueit = true)
         {
             var select = stmt.ExtractSelect();
@@ -809,6 +991,8 @@ namespace qpmodel.optimizer
 
                 // the statment shall already have plan generated
                 var logicroot = select.logicPlan_;
+                // remove all remote exchange nodes
+                logicroot = RemoveDataExchange(logicroot);
                 // convert top order node to requirement and extract root node
                 memo.rootgroup_ = memo.EnquePlan(ConvertOrder(logicroot, memo));
             }
