@@ -843,13 +843,7 @@ namespace qpmodel.logic
 
             if (where_ != null)
             {
-                for (int i = 0; i < where_.children_.Count; ++i)
-                {
-                    Expr w = where_.children_[i];
-                    w = w.Normalize();
-                }
-
-                where_.FilterNormalize();
+                where_ = where_.Normalize();
             }
 
             if (groupby_ != null)

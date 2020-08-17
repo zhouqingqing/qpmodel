@@ -781,8 +781,8 @@ namespace qpmodel.expr
 
         public bool isFoldableConstOper(BinExpr be) => (be.op_ == "+" || be.op_ == "-" || be.op_ == "*" || be.op_ == "/");
 
-        public bool isPlainSwappableConstOper(BinExpr be) => (be.op_ == "+" || be.op_ == "*" || be.op_ == "<>" ||
-            be.op_ == "!=" || be.op_ == "<=" || be.op_ == ">=");
+        public bool isPlainSwappableConstOper(BinExpr be) => (be.op_ == "+" || be.op_ == "*" || be.op_ == "=" ||
+            be.op_ == "<>" || be.op_ == "!=" || be.op_ == "<=" || be.op_ == ">=");
 
         public bool isChangeSwappableConstOper(BinExpr be) => (be.op_ == "<" || be.op_ == ">");
 

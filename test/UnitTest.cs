@@ -1399,8 +1399,8 @@ namespace qpmodel.unittest
             sql = "select 1+2*3, 1+2+a1 from a where a1+2+(1*5+1)>2*3 and 1+2=2+1;";
             TU.ExecuteSQL(sql, "7,3;7,4;7,5", out phyplan);
             Assert.AreEqual(0, TU.CountStr(phyplan, "True"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "7,3+a.a1[0]"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "a.a1[0]+2+6>6")); // FIXME
+            Assert.AreEqual(1, TU.CountStr(phyplan, "7,a.a1[0]+3"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "a.a1[0]+8>6")); // FIXME
             sql = "select 1+20*3, 1+2.1+a1 from a where a1+2+(1*5+1)>2*4.6 and 1+2<2+1.4;";
             TU.ExecuteSQL(sql, "61,5.1", out phyplan);
             Assert.AreEqual(0, TU.CountStr(phyplan, "True"));

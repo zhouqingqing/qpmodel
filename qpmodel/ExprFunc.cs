@@ -1172,7 +1172,7 @@ namespace qpmodel.expr
                     else
                     if (l is ConstExpr && !(r is ConstExpr))
                     {
-                        if (isCommutativeConstOper(this))
+                        if (isPlainSwappableConstOper(this))
                         {
                             SwapSide();
                         }

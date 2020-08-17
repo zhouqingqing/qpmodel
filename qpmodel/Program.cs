@@ -149,6 +149,7 @@ namespace qpmodel
                     continue;
                 try
                 {
+                    Console.WriteLine(sql);
                     var result = SQLStatement.ExecSQL(sql, out string physicplan, out string error_, option);
                     // Assert.IsNotNull(physicplan);
 
