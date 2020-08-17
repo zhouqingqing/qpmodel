@@ -744,7 +744,7 @@ namespace qpmodel.expr
             base.Bind(context);
             type_ = then_()[0].type_;
             if (else_() != null)
-                Debug.Assert(type_.Compatible(else_().type_));
+                Debug.Assert(TypeBase.Compatible(type_, else_().type_));
         }
 
         public override int GetHashCode() => base.GetHashCode();
@@ -875,14 +875,14 @@ namespace qpmodel.expr
                 case ">=":
                 case "<":
                 case "<=":
-                    if (ColumnType.IsNumberType(lchild_().type_))
+                    if (TypeBase.IsNumberType(lchild_().type_))
                         ColumnType.CoerseType(op_, lchild_(), rchild_());
                     type_ = new BoolType();
                     break;
                 case "=":
                 case "<>":
                 case "!=":
-                    if (ColumnType.IsNumberType(lchild_().type_))
+                    if (TypeBase.IsNumberType(lchild_().type_))
                         ColumnType.CoerseType(op_, lchild_(), rchild_());
                     type_ = new BoolType();
                     break;

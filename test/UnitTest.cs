@@ -388,6 +388,37 @@ namespace qpmodel.unittest
             Aggregation.TestPullPushAgg();
         }
 
+        [TestMethod]
+        public void TestTpchDistributed()
+        {
+            var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
+            string scale = "0001";
+
+            Tpch.CreateTables(true);
+            Tpch.LoadTables(scale);
+            
+            Tpch.AnalyzeTables();
+
+            // run tests and compare plan
+            string sql_dir_fn = "../../../../tpch";
+            string write_dir_fn = $"../../../../test/regress/output/tpch{scale}_d";
+            string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}_d";
+            
+            ExplainOption.show_tablename_ = false;
+            var badQueries = new string[] { "q02", "q04", "q07", "q08", "q09", "q13", "q14", "q15", "q17",
+                                            "q18", "q20", "q21", "q22" };
+
+            try
+            {
+                ExplainOption.show_tablename_ = false;
+                RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries);
+            }
+            finally
+            {
+                ExplainOption.show_tablename_ = true;
+            }
+        }
+
         void TestTpcdsWithData()
         {
             // table already created
@@ -2226,72 +2257,75 @@ namespace qpmodel.unittest
         public void Redistribute()
         {
             // needs order by to force result order
-            var phyplan = "";
-            var sql = "select a1,b1 from ad, b where a1=b1 order by a1;";
-            TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-            Assert.AreEqual(0, TU.CountStr(phyplan, "Redistribute"));
-            sql = "select a1,b1 from ad, bd where a1=b1 order by a1;";
-            TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-            Assert.AreEqual(0, TU.CountStr(phyplan, "Redistribute"));
-            sql = "select a2,b2,c2 from ad, bd, cd where a2=b2 and c2 = b2 order by c2";
-            TU.ExecuteSQL(sql, "1,1,1;2,2,2;3,3,3", out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-            Assert.AreEqual(3, TU.CountStr(phyplan, "Redistribute"));
-            sql = "select a2,b2,c2,d2 from ad, bd, cd, dd where a2=b2 and c2 = b2 and c2=d2 order by b2";
-            TU.ExecuteSQL(sql, "1,1,1,1;2,2,2,2;2,2,2,2;3,3,3,3", out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-            Assert.AreEqual(4, TU.CountStr(phyplan, "Redistribute"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "50 threads"));
+            for (int i = 0; i < 3; i++)
+            {
+                var phyplan = "";
+                var sql = "select a1,b1 from ad, b where a1=b1 order by a1;";
+                TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
+                Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+                Assert.AreEqual(0, TU.CountStr(phyplan, "Redistribute"));
+                sql = "select a1,b1 from ad, bd where a1=b1 order by a1;";
+                TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
+                Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+                Assert.AreEqual(0, TU.CountStr(phyplan, "Redistribute"));
+                sql = "select a2,b2,c2 from ad, bd, cd where a2=b2 and c2 = b2 order by c2";
+                TU.ExecuteSQL(sql, "1,1,1;2,2,2;3,3,3", out phyplan);
+                Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+                Assert.AreEqual(4, TU.CountStr(phyplan, "Redistribute"));
+                sql = "select a2,b2,c2,d2 from ad, bd, cd, dd where a2=b2 and c2 = b2 and c2=d2 order by b2";
+                TU.ExecuteSQL(sql, "1,1,1,1;2,2,2,2;2,2,2,2;3,3,3,3", out phyplan);
+                Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+                Assert.AreEqual(6, TU.CountStr(phyplan, "Redistribute"));
+                Assert.AreEqual(1, TU.CountStr(phyplan, "70 threads"));
 
-            // ensure redistribution can shuffle by expression
-            sql = "select a2, b2 from ad, bd where a2*2+a1=b2 order by a2;";
-            TU.ExecuteSQL(sql, "1,2", out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-            Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
+                // ensure redistribution can shuffle by expression
+                sql = "select a2, b2 from ad, bd where a2*2+a1=b2 order by a2;";
+                TU.ExecuteSQL(sql, "1,2", out phyplan);
+                Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+                Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
 
-            // no output if by previous r[0] method for redistribution
-            sql = "select d2, a1 from ad, dd where d3=a1 order by d2;";
-            TU.ExecuteSQL(sql, "1,2", out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Redistribute"));
-            sql = "select d2, a2 from ad, dd where d4=a2 order by d2;";
-            TU.ExecuteSQL(sql, "1,3", out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-            Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
+                // no output if by previous r[0] method for redistribution
+                sql = "select d2, a1 from ad, dd where d3=a1 order by d2;";
+                TU.ExecuteSQL(sql, "1,2", out phyplan);
+                Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+                Assert.AreEqual(1, TU.CountStr(phyplan, "Redistribute"));
+                sql = "select d2, a2 from ad, dd where d4=a2 order by d2;";
+                TU.ExecuteSQL(sql, "1,3", out phyplan);
+                Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+                Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
 
-            // mixed with replicated table
-            sql = "select a1,b1 from ad, br where a1=b1 order by a1;";
-            TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-            Assert.AreEqual(0, TU.CountStr(phyplan, "Redistribute"));
-            sql = "select a1,b1 from ad, br where a2=b2 order by a1;";
-            TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Redistribute")); // FIXME: redistribution is not needed if replica is on the build side
-            sql = "select a1,b1 from ar, br where a2=b2 order by a1;";
-            TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-            Assert.AreEqual(0, TU.CountStr(phyplan, "Redistribute"));
+                // mixed with replicated table
+                sql = "select a1,b1 from ad, br where a1=b1 order by a1;";
+                TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
+                Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+                Assert.AreEqual(0, TU.CountStr(phyplan, "Redistribute"));
+                sql = "select a1,b1 from ad, br where a2=b2 order by a1;";
+                TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
+                Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+                Assert.AreEqual(1, TU.CountStr(phyplan, "Redistribute")); // FIXME: redistribution is not needed if replica is on the build side
+                sql = "select a1,b1 from ar, br where a2=b2 order by a1;";
+                TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
+                Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+                Assert.AreEqual(0, TU.CountStr(phyplan, "Redistribute"));
 
-            // mixed with rounbrobin table
-            sql = "select a1,b1 from ad, brb where a1=b1 order by a1;";
-            TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Redistribute"));
-            sql = "select a1,b1 from ad, brb where a2=b2 order by a1;";
-            TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-            Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
-            sql = "select a1,b1 from arb, brb where a2=b2 order by a1;";
-            TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-            Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
-            sql = "select a1,b1 from ar, brb where a2=b2 order by a1;";
-            TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Redistribute"));
+                // mixed with rounbrobin table
+                sql = "select a1,b1 from ad, brb where a1=b1 order by a1;";
+                TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
+                Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+                Assert.AreEqual(1, TU.CountStr(phyplan, "Redistribute"));
+                sql = "select a1,b1 from ad, brb where a2=b2 order by a1;";
+                TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
+                Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+                Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
+                sql = "select a1,b1 from arb, brb where a2=b2 order by a1;";
+                TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
+                Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+                Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
+                sql = "select a1,b1 from ar, brb where a2=b2 order by a1;";
+                TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
+                Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
+                Assert.AreEqual(1, TU.CountStr(phyplan, "Redistribute"));
+            }
         }
     }
 

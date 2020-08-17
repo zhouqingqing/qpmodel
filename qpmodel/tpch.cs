@@ -39,13 +39,14 @@ namespace qpmodel.test
 {
     public class Tpch
     {
-        static public void CreateTables()
+        static public void CreateTables(bool isdistr = false)
         {
             DropTables();
 
             string curdir = Directory.GetCurrentDirectory();
             string folder = $@"{curdir}/../../../../tpch/sql_scripts";
-            string filename = $@"{folder}/tpch.sql";
+            string postfix = isdistr ? "_d" : "";
+            string filename = $@"{folder}/tpch{postfix}.sql";
             var sql = File.ReadAllText(filename);
             SQLStatement.ExecSQLList(sql);
         }
