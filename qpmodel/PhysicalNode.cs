@@ -1137,6 +1137,18 @@ namespace qpmodel.physic
             return (child_().Card() * 1.0) + (logic_.Card() * 2.0);
         }
 
+        public override bool IsPropertySatisfied(PhysicProperty required, out List<List<PhysicProperty>> listchildprops)
+        {
+            listchildprops = new List<List<PhysicProperty>>();
+            if (required.Equals(DistributionProperty.singleton))
+            {
+                listchildprops.Add(new List<PhysicProperty> { DistributionProperty.singleton });
+                return true;
+            }
+            listchildprops = null;
+            return false;
+        }
+
         public override void Open(ExecContext context)
         {
             base.Open(context);
@@ -1263,7 +1275,8 @@ namespace qpmodel.physic
             var exprlist = (logic_ as LogicAgg).groupby_;
             var prop = new SortOrderProperty(exprlist);
 
-            if (required.IsPropertySupplied(prop))
+            if (required.distribution_.disttype == DistributionType.Singleton
+                && required.IsPropertySupplied(prop))
             {
                 listchildprops.Add(new List<PhysicProperty> { prop });
                 return true;
