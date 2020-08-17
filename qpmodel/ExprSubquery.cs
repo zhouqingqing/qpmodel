@@ -147,6 +147,11 @@ namespace qpmodel.expr
                 return os.subqueryid_ == subqueryid_;
             return false;
         }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
+        }
     }
 
     public class ExistSubqueryExpr : SubqueryExpr
@@ -303,6 +308,10 @@ namespace qpmodel.expr
                 return $"{expr_()} in ({string.Join(",", inlist.GetRange(0, 3))}, ... <Total: {inlist.Count}> )";
             }
         }
-    }
 
+        public override Expr Normalize()
+        {
+            return base.Normalize();
+        }
+    }
 }

@@ -71,6 +71,11 @@ namespace qpmodel.logic
         }
 
         public override string ToString() => $"#marker";
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
+        }
     }
 
     public partial class SelectStmt : SQLStatement

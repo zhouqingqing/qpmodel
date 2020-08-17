@@ -36,6 +36,7 @@ using qpmodel.physic;
 using qpmodel.utils;
 using qpmodel.index;
 using qpmodel.normalizer;
+using IronPython.Compiler.Ast;
 
 namespace qpmodel.expr
 {
@@ -585,9 +586,9 @@ namespace qpmodel.expr
         // output type of the expression
         internal ColumnType type_;
 
-        // Normalizer instance
-        internal static Normalizer normalizer_ = new Normalizer();
-
+        // normalizer state: which rule is currently running.
+        public NormalizerState normalizerState_ = NormalizerState.RuleNormalizerNone;
+        
         protected string outputName() => outputName_ != null ? $"(as {outputName_})" : null;
 
         void validateAfterBound()
@@ -776,11 +777,28 @@ namespace qpmodel.expr
             return $@"ExprSearch.Locate(""{_}"").Exec(context, {input}) /*{ToString()}*/";
         }
 
-        public Expr normalize()
-        {
-            Expr ne = normalizer_.normalize(this);
+        public bool isCommutativeConstOper(BinExpr be) => (be.op_ == "+" || be.op_ == "*");
 
-            return ne;
+        public bool isFoldableConstOper(BinExpr be) => (be.op_ == "+" || be.op_ == "-" || be.op_ == "*" || be.op_ == "/");
+
+        public bool isPlainSwappableConstOper(BinExpr be) => (be.op_ == "+" || be.op_ == "*" || be.op_ == "<>" ||
+            be.op_ == "!=" || be.op_ == "<=" || be.op_ == ">=");
+
+        public bool isChangeSwappableConstOper(BinExpr be) => (be.op_ == "<" || be.op_ == ">");
+
+        public virtual Expr Normalize()
+        {
+            // Expr ne = normalizer_.normalize(this);
+
+            for (int i = 0; i < children_.Count; i++)
+            {
+                Expr x = children_[i];
+
+                x.Normalize();
+                children_[i] = x;
+            }
+
+            return this;
         }
     }
 
@@ -832,6 +850,11 @@ namespace qpmodel.expr
                 exprs.AddRange(list);
             });
             return exprs;
+        }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
         }
     }
 
@@ -1007,6 +1030,11 @@ namespace qpmodel.expr
             else
                 return $"{input}[{ordinal_}]";
         }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
+        }
     }
 
     public class SysColExpr : ColExpr
@@ -1074,6 +1102,11 @@ namespace qpmodel.expr
                 throw new SemanticAnalyzeException(
                     $"WITH query '{cteName_}' only have {query_.selection_.Count} columns but {colNames_.Count} specified");
         }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
+        }
     }
 
     public class OrderTerm : Expr
@@ -1085,6 +1118,11 @@ namespace qpmodel.expr
         public OrderTerm(Expr expr, bool descend) : base()
         {
             children_.Add(expr); descend_ = descend;
+        }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
         }
     }
 
@@ -1235,6 +1273,11 @@ namespace qpmodel.expr
         }
         public static ConstExpr MakeConstBool(bool istrue) =>
             istrue ? MakeConst("true", new BoolType()) : MakeConst("false", new BoolType());
+
+        public override Expr Normalize()
+        {
+            return this;
+        }
     }
 
     // Runtime only used to reference an expr as a whole without recomputation
@@ -1284,6 +1327,11 @@ namespace qpmodel.expr
             Debug.Assert(type_ != null);
             return $"{input}[{ordinal_}]";
         }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
+        }
     }
 
     // This is a special type of ExprRef: functionalities same as ExprRef but only for AggFunc
@@ -1296,6 +1344,11 @@ namespace qpmodel.expr
         public AggrRef(Expr expr, int ordinal) : base(expr, ordinal)
         {
             Debug.Assert(expr.HasAggFunc());
+        }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
         }
     }
 }

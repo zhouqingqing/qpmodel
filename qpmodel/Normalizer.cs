@@ -43,6 +43,21 @@ using System.Reflection.Metadata.Ecma335;
 namespace qpmodel.normalizer
 {
 
+    public enum NormalizerState
+    {
+        RuleNormalizerNone
+      , RuleSimplifyConstants
+      , RuleSimplifyArithmetic
+      , RuleSimplifyLogical
+      , RuleSimplifyRelational
+      , RuleSimplifyCase
+      , RuleSimplifyInlist
+      , RuleRemoveDistinctAgg
+      , RuleRemoveCast
+      , RuleRemoveCSE
+      , RuleNormalizerAll // All done
+    }
+
     public abstract class NormalizerRule
     {
         public static List<NormalizerRule> ruleset_ = new List<NormalizerRule>()
@@ -60,8 +75,8 @@ namespace qpmodel.normalizer
             */
         };
 
-        public abstract bool Applicable(Expr e);
-        public abstract Expr Apply(Expr e);
+        public abstract bool NormalizerRuleApplicable(Expr e);
+        public abstract Expr NormalizerRuleApply(Expr e);
 
         public bool isCommutativeConstOper(BinExpr be) => (be.op_ == "+" || be.op_ == "*");
         public bool isFoldableConstOper(BinExpr be) => (be.op_ == "+" || be.op_ == "-" || be.op_ == "*" || be.op_ == "/");
@@ -96,21 +111,28 @@ namespace qpmodel.normalizer
             return false;
         }
 
-        public override bool Applicable(Expr e)
+        public override bool NormalizerRuleApplicable(Expr e)
         {
-            return DecideConstantMoveFold(e);
+            // basically if you are not a const, or colref, you may be const
+            // simplified if other conditions permit.
+            if (e is ConstExpr || e is ColExpr || !(e is Expr))
+                return false;
+            return true; // DecideConstantMoveFold(e);
         }
 
-        public override Expr Apply(Expr e)
+        public override Expr NormalizerRuleApply(Expr e)
         {
-            Expr newexp = null;
+            return e;
+            e.normalizerState_ = NormalizerState.RuleSimplifyConstants;
+            
+            Expr newexp = e.Clone();
 
             if (e is null)
             {
                 return null;
             }
 
-            if (!Applicable(e))
+            if (!NormalizerRuleApplicable(e))
                 return e;
 
             Expr l = null, r = null;
@@ -118,8 +140,8 @@ namespace qpmodel.normalizer
             if (e is BinExpr)
             {
                 be = (BinExpr)e;
-                l = Apply(be.children_[0]);
-                r = Apply(be.children_[1]);
+                l = NormalizerRuleApply(be.children_[0]);
+                r = NormalizerRuleApply(be.children_[1]);
             }
             else
             {
@@ -255,12 +277,12 @@ namespace qpmodel.normalizer
 
     public class SimplifyArithmetic : NormalizerRule
     {
-        public override bool Applicable(Expr e)
+        public override bool NormalizerRuleApplicable(Expr e)
         {
             throw new NotImplementedException();
         }
 
-        public override Expr Apply(Expr e)
+        public override Expr NormalizerRuleApply(Expr e)
         {
                 throw new NotImplementedException();
         }
@@ -268,12 +290,12 @@ namespace qpmodel.normalizer
     
     public class SimplifyLogical : NormalizerRule
     {
-        public override bool Applicable(Expr e)
+        public override bool NormalizerRuleApplicable(Expr e)
         {
             throw new NotImplementedException();
         }
 
-        public override Expr Apply(Expr e)
+        public override Expr NormalizerRuleApply(Expr e)
         {
             throw new NotImplementedException();
         }
@@ -281,12 +303,12 @@ namespace qpmodel.normalizer
     
     public class SimplifyRelational : NormalizerRule
     {
-        public override bool Applicable(Expr e)
+        public override bool NormalizerRuleApplicable(Expr e)
         {
             throw new NotImplementedException();
         }
 
-        public override Expr Apply(Expr e)
+        public override Expr NormalizerRuleApply(Expr e)
         {
             throw new NotImplementedException();
         }
@@ -295,12 +317,12 @@ namespace qpmodel.normalizer
 
     public class SimplifyCase : NormalizerRule
     {
-        public override bool Applicable(Expr e)
+        public override bool NormalizerRuleApplicable(Expr e)
         {
             throw new NotImplementedException();
         }
 
-        public override Expr Apply(Expr e)
+        public override Expr NormalizerRuleApply(Expr e)
         {
             throw new NotImplementedException();
         }
@@ -308,12 +330,12 @@ namespace qpmodel.normalizer
 
     public class SimplifyInlist : NormalizerRule
     {
-        public override bool Applicable(Expr e)
+        public override bool NormalizerRuleApplicable(Expr e)
         {
             throw new NotImplementedException();
         }
 
-        public override Expr Apply(Expr e)
+        public override Expr NormalizerRuleApply(Expr e)
         {
             throw new NotImplementedException();
         }
@@ -321,12 +343,12 @@ namespace qpmodel.normalizer
             
     public class RemoveDistinctAgg : NormalizerRule
     {
-        public override bool Applicable(Expr e)
+        public override bool NormalizerRuleApplicable(Expr e)
         {
             throw new NotImplementedException();
         }
 
-        public override Expr Apply(Expr e)
+        public override Expr NormalizerRuleApply(Expr e)
         {
             throw new NotImplementedException();
         }
@@ -334,12 +356,12 @@ namespace qpmodel.normalizer
             
     public class RemoveCast : NormalizerRule
     {
-        public override bool Applicable(Expr e)
+        public override bool NormalizerRuleApplicable(Expr e)
         {
             throw new NotImplementedException();
         }
 
-        public override Expr Apply(Expr e)
+        public override Expr NormalizerRuleApply(Expr e)
         {
             throw new NotImplementedException();
         }
@@ -348,16 +370,17 @@ namespace qpmodel.normalizer
 
     public class RemoveCSE : NormalizerRule
     {
-        public override bool Applicable(Expr e)
+        public override bool NormalizerRuleApplicable(Expr e)
         {
             throw new NotImplementedException();
         }
 
-        public override Expr Apply(Expr e)
+        public override Expr NormalizerRuleApply(Expr e)
         {
             throw new NotImplementedException();
         }
     }
+
 
     public class Normalizer
     {
@@ -365,15 +388,17 @@ namespace qpmodel.normalizer
 
         public Expr normalize(Expr e)
         {
+            return e;
+
             Expr ne = e;
             Expr ecp = e;
             ruleset_.ForEach(r =>
             {
-                if (r.Applicable(ecp))
+                if (r.NormalizerRuleApplicable(ecp))
                 {
                     while (true)
                     {
-                        ne = r.Apply(ecp);
+                        ne = r.NormalizerRuleApply(ecp);
                         if (ne == ecp)
                             break;
                         ecp = ne;

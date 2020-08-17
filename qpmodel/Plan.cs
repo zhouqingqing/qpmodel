@@ -729,7 +729,7 @@ namespace qpmodel.logic
             if (orders_ != null)
                 orders_ = bindOrderByOrGroupBy(context, orders_);
 
-            normalize();
+            Normalize();
         }
 
         void bindTableRef(BindContext context, TableRef table)
@@ -832,18 +832,24 @@ namespace qpmodel.logic
             return newlist;
         }
 
-        public void normalize()
+        public void Normalize()
         {
             for (int i = 0; i < selection_.Count; ++i)
             {
                 Expr x = selection_[i];
-                x = x.normalize();
+                x = x.Normalize();
                 selection_[i] = x;
             }
 
             if (where_ != null)
             {
-                // normalize where
+                for (int i = 0; i < where_.children_.Count; ++i)
+                {
+                    Expr w = where_.children_[i];
+                    w = w.Normalize();
+                }
+
+                where_.FilterNormalize();
             }
 
             if (groupby_ != null)

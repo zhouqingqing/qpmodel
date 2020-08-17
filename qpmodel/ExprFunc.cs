@@ -34,8 +34,10 @@ using qpmodel.logic;
 using qpmodel.physic;
 using qpmodel.utils;
 using qpmodel.stream;
+using qpmodel.normalizer;
 
 using Value = System.Object;
+using Microsoft.CodeAnalysis;
 
 namespace qpmodel.expr
 {
@@ -170,6 +172,11 @@ namespace qpmodel.expr
             return false;
         }
         public override string ToString() => $"{funcName_}({string.Join(",", args_())})";
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
+        }
     }
 
     // As a wrapper of external functions
@@ -209,6 +216,11 @@ namespace qpmodel.expr
                     throw new NotImplementedException();
             }
         }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
+        }
     }
 
     public class SubstringFunc : FuncExpr
@@ -235,6 +247,11 @@ namespace qpmodel.expr
             // SQL allows substr() function go beyond length, guard it
             return str.Substring(start, Math.Min(end - start + 1, str.Length));
         }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
+        }
     }
 
     public class UpperFunc : FuncExpr
@@ -254,6 +271,11 @@ namespace qpmodel.expr
         {
             string str = (string)args_()[0].Exec(context, input);
             return str.ToUpper();
+        }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
         }
     }
 
@@ -278,7 +300,13 @@ namespace qpmodel.expr
 
             return string.Join("", Enumerable.Repeat(str, times));
         }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
+        }
     }
+
     public class RoundFunc : FuncExpr
     {
         public RoundFunc(List<Expr> args) : base("round", args)
@@ -307,6 +335,11 @@ namespace qpmodel.expr
             else
                 return Math.Round((double)number, decimals);
         }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
+        }
     }
 
     public class AbsFunc : FuncExpr
@@ -333,6 +366,11 @@ namespace qpmodel.expr
             else
                 return Math.Abs((double)number);
         }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
+        }
     }
 
     public class CoalesceFunc : FuncExpr
@@ -355,6 +393,11 @@ namespace qpmodel.expr
                 return args_()[1].Exec(context, input);
             return val;
         }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
+        }
     }
 
     public class YearFunc : FuncExpr
@@ -368,6 +411,11 @@ namespace qpmodel.expr
         {
             var date = (DateTime)arg_().Exec(context, input);
             return date.Year;
+        }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
         }
     }
 
@@ -383,6 +431,11 @@ namespace qpmodel.expr
             var date = DateTime.Parse((string)arg_().Exec(context, input));
             return date;
         }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
+        }
     }
 
     public class HashFunc : FuncExpr
@@ -397,6 +450,11 @@ namespace qpmodel.expr
             dynamic val = arg_();
             int hashval = val.GetHashCode();
             return hashval;
+        }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
         }
     }
 
@@ -424,6 +482,11 @@ namespace qpmodel.expr
 
         public override object Exec(ExecContext context, Row input)
             => throw new InvalidProgramException("aggfn [some] are stateful, they use different set of APIs");
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
+        }
     }
 
     public class AggSum : AggFunc
@@ -455,6 +518,11 @@ namespace qpmodel.expr
 
             return sum_;
         }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
+        }
     }
 
     public class AggCount : AggFunc
@@ -483,6 +551,11 @@ namespace qpmodel.expr
                 count_ = old is null ? 1 : (long)old + 1;
             return count_;
         }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
+        }
     }
 
     public class AggCountStar : AggFunc
@@ -510,6 +583,11 @@ namespace qpmodel.expr
         {
             count_ = (long)old + 1;
             return count_;
+        }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
         }
     }
 
@@ -542,6 +620,11 @@ namespace qpmodel.expr
 
             return min_;
         }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
+        }
     }
 
     public class AggMax : AggFunc
@@ -572,6 +655,11 @@ namespace qpmodel.expr
             }
 
             return max_;
+        }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
         }
     }
 
@@ -639,6 +727,11 @@ namespace qpmodel.expr
         }
 
         public override Value Finalize(ExecContext context, Value old) => (old as AvgPair).Finalize();
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
+        }
     }
 
     // sqrt(sum((x_i - mean)^2)/(n-1)) where n is sample size
@@ -782,6 +875,11 @@ namespace qpmodel.expr
                 return else_().Exec(context, input);
             return null;
         }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
+        }
     }
 
     public class UnaryExpr : Expr
@@ -818,6 +916,11 @@ namespace qpmodel.expr
                 default:
                     return arg;
             }
+        }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
         }
     }
 
@@ -999,6 +1102,171 @@ namespace qpmodel.expr
             }
             return code;
         }
+
+        internal ColumnType TypeFromOperator(string op, ColumnType inType)
+        {
+            switch (op)
+            {
+                case ">":
+                case ">=":
+                case "<":
+                case "<=":
+                case "=":
+                case "<>":
+                case "!=":
+                    return new BoolType();
+            }
+
+            return inType;
+        }
+
+        public override Expr Normalize()
+        {
+            if (normalizerState_ > NormalizerState.RuleSimplifyConstants)
+                return this;
+
+            if (normalizerState_ == NormalizerState.RuleNormalizerNone)
+                normalizerState_ = NormalizerState.RuleSimplifyConstants;
+
+            var newChildren = new List<Expr>();
+            do
+            {
+                newChildren.Clear();
+
+                // all children get normalized first
+                for (int i = 0; i < children_.Count; ++i)
+                {
+                    Expr x = children_[i];
+                    newChildren.Add(x.Normalize());
+
+                }
+            } while (false /*!children_.SequenceEqual(newChildren)*/);
+
+            children_ = newChildren;
+
+            Expr l = lchild_();
+            Expr r = rchild_();
+
+            switch (op_)
+            {
+                case "+":
+                case "-":
+                case "*":
+                case "/":
+                case ">":
+                case ">=":
+                case "<":
+                case "<=":
+                /* LATER: case "||": */
+                case "=":
+                case "<>":
+                case "!=":
+                    if (l is ConstExpr && r is ConstExpr)
+                    {
+                        // Simplify Constants
+                        Value val;
+                        TryEvalConst(out val);
+                        type_ = TypeFromOperator(op_, type_);
+                        return ConstExpr.MakeConst(val, type_, outputName_);
+                    }
+                    else
+                    if (l is ConstExpr && !(r is ConstExpr))
+                    {
+                        if (isCommutativeConstOper(this))
+                        {
+                            SwapSide();
+                        }
+                    }
+                    else
+                    if (l is BinExpr le && le.children_[1].IsConst() && (r is ConstExpr) &&
+                        isCommutativeConstOper(this) && isCommutativeConstOper(le))
+                    {
+                        /*
+                            * Here root is distributive operator (only * in this context) left is Commutative
+                            * operator, +, or * right is constant, furthermore, left's right is a constant
+                            * (becuase we swapped cosntant to be on the right).
+                            * if be == + and l == +: add left's right value to root's right value,
+                            * make  left's left as left of root
+                            * 
+                            * if be == * and l == +: create a expr node as left (x + 10), create (5 * 10)
+                            * as right, change operator to +
+                            * In either case left and right's children must be nulled out
+                            * and since we are going bottom up, this doesn't create any problem. 
+                            * 
+                            * Here is a pictorial description:
+                            *                         *         root           +
+                            *              old left  / \ old right   new left / \  new right
+                            *                       /   \                    /   \
+                            *                      +     10        =>       *     50
+                            *  left of old left   / \                      / \
+                            *                    /   \ ROL         LNL    /   \ RNL (right of New Left)
+                            *                   x     5                  x     10
+                            */
+
+                        /*
+                         * Simple case: when current and left are same operators, distributive
+                         * opeartion and node creation is uncessary.
+                         * ??? What about ordinal positions ???
+                         */
+                        if ((op_ == "+" && le.op_ == "+") || (op_ == "*" && le.op_ == "*"))
+                        {
+
+                            /* create new right node as constant. */
+                            Expr tmpexp = Clone();
+                            tmpexp.children_[0] = le.children_[1];
+                            tmpexp.children_[1] = r;
+                            Value val;
+                            bool wasConst = tmpexp.TryEvalConst(out val);
+                            Expr newr = ConstExpr.MakeConst(val, type_, r.outputName_);
+
+                            // new left is old left's left child
+                            // of left will be right of the root.
+                            children_[0] = l.children_[0];
+
+                            // new right is the new constant node
+                            children_[1] = newr;
+
+                            // be.children_.Clear();
+                        }
+                        else
+                        if (op_ == "*")
+                        {
+                            /* case of (a + const1) * const2  => (a * const2) + (const1 * const2)) */
+                            /* make a newe left node to house (a * const2) */
+                            Expr newl = le.Clone();
+                            newl.children_[0] = le;
+                            newl.children_[1] = r;
+
+                            /* make a const expr node to evaluate and house (const1 op const 2) */
+                            Expr tmpexp = Clone();
+                            tmpexp.children_[0] = le.children_[1]; // right of left is const
+                            tmpexp.children_[1] = r;               // our right is const
+                            Value val;
+
+                            tmpexp.TryEvalConst(out val);
+                            Expr newr = ConstExpr.MakeConst(val, type_, r.outputName_);
+
+                            /* now make a new root and attach newl and new r to it. */
+                            children_[0] = newl;
+                            children_[1] = newr;
+
+                            /* swap the operators */
+                            string op = op_;
+                            op_ = le.op_;
+
+                            BinExpr ble = (BinExpr)children_[1];
+                            ble.op_ = op;
+                            // l.children_.Clear();
+                            // r.children_.Clear();
+                            // be.children_.Clear();
+                        }
+                        /* we can't do any thing about + at the top and * as left child. */
+                    }
+                    return this;
+            }
+
+            return this;
+        }
     }
 
     public class LogicAndOrExpr : BinExpr
@@ -1024,6 +1292,11 @@ namespace qpmodel.expr
             }
             return andorlist;
         }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
+        }
     }
 
     public class LogicAndExpr : LogicAndOrExpr
@@ -1041,6 +1314,11 @@ namespace qpmodel.expr
 
         // a AND (b OR c) AND d => [a, b OR c, d]
         //
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
+        }
     }
 
     public class LogicOrExpr : LogicAndOrExpr
@@ -1055,6 +1333,11 @@ namespace qpmodel.expr
             if (lv is null) lv = false;
             if (rv is null) rv = false;
             return lv || rv;
+        }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
         }
     }
 
@@ -1083,6 +1366,11 @@ namespace qpmodel.expr
                     break;
             }
             return to;
+        }
+
+        public override Expr Normalize()
+        {
+            return base.Normalize();
         }
     }
 }
