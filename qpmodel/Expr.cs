@@ -268,7 +268,10 @@ namespace qpmodel.expr
             {
                 var isconst = e.TryEvalConst(out Value val);
                 Debug.Assert(isconst);
-                var newe = ConstExpr.MakeConst(val, expr.type_, expr.outputName_);
+                // Here the type of the new const value should be that of e.type_
+                // This may not have been a problem is that ConstFolding may not have
+                // been called right after bind with new normlaiztion code.
+                var newe = ConstExpr.MakeConst(val, e.type_, expr.outputName_);
                 return newe;
             }
 
