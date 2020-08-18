@@ -313,6 +313,9 @@ namespace qpmodel.optimizer
 
         public bool explored_ = false;
 
+        // expression in the same group shall have the same cardinality
+        public ulong groupcard_ = LogicNode.CARD_INVALID;
+
         // minMember_ depends on the property: each property has a different inclusive cost min member
         //    0: <no property required>, hash join
         //    1: <order on column a>, NLJ with outer table sorted on a (better than sort on HJ since
@@ -350,6 +353,8 @@ namespace qpmodel.optimizer
                 // all members within a group are logically equavalent
                 var member = exprList_[i];
                 member.ValidateMember(optimizationDone);
+
+                Debug.Assert(groupcard_ == member.Logic().Card());
                 Debug.Assert(exprList_[0].MemoSignature() == member.MemoSignature());
             }
         }
@@ -460,10 +465,10 @@ namespace qpmodel.optimizer
             return output;
         }
 
-        public CGroupMember CalculateMinInclusiveCostMember (PhysicProperty required)
+        public CGroupMember CalculateMinInclusiveCostMember(PhysicProperty required)
         {
             // directly return min cost member if already calculated
-            if (minMember_.ContainsKey(required) )
+            if (minMember_.ContainsKey(required))
                 return minMember_[required].member;
 
             // start computation
@@ -515,7 +520,7 @@ namespace qpmodel.optimizer
                     if (!isleaf)
                     {
                         cost = member.physic_.Cost();
-                        for(int i = 0; i < member.physic_.children_.Count; i++)
+                        for (int i = 0; i < member.physic_.children_.Count; i++)
                         {
                             var child = member.physic_.children_[i];
                             var childgroup = (child as PhysicMemoRef).Group();
@@ -530,7 +535,7 @@ namespace qpmodel.optimizer
                     }
                 }
             }
-            
+
             // add the optimal member and inclusive cost into the dictionary
             Debug.Assert(optmember != null);
             minMember_.Add(required, (optmember, optinccost));
@@ -749,6 +754,31 @@ namespace qpmodel.optimizer
             }
         }
 
+        // Expressions in the same group logically shall have the same cardinality. This is not
+        // possible however if we compute CE for both AxBxC and AxCxB because the formula does 
+        // guarantee associative. So we compoute the first expression in the group and align
+        // all others to it. This is not perfect though, as the order of expression in the group
+        // actually decides the cardinalty. 
+        // 
+        public void FixGroupCardinality()
+        {
+            foreach (var v in cgroups_)
+            {
+                CMemoGroup g = v.Value;
+                Debug.Assert(g.explored_);
+
+                var exprlist = g.exprList_;
+                var firstexpr = exprlist[0].logic_;
+                var card = firstexpr.Card();
+                foreach (var e in exprlist)
+                {
+                    if (e.logic_ != null)
+                        e.logic_.card_ = card;
+                }
+                g.groupcard_ = card;
+            }
+        }
+
         public string Print()
         {
             var str = "\nMemo:\n";
@@ -833,6 +863,7 @@ namespace qpmodel.optimizer
                 group.ExploreGroup(memo);
             }
 
+            memo.FixGroupCardinality();
             memo.ValidateMemo();
         }
 

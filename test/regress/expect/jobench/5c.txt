@@ -23,20 +23,20 @@ WHERE ct.kind = 'production companies'
   AND mc.movie_id = mi.movie_id
   AND ct.id = mc.company_type_id
   AND it.id = mi.info_type_id
-Total cost: 22597246, memory=2148325696
-PhysicHashAgg  (inccost=22597246, cost=3, rows=1, memory=2147483648) (actual rows=1)
+Total cost: 22597247, memory=2148325720
+PhysicHashAgg  (inccost=22597247, cost=3, rows=1, memory=2147483648) (actual rows=1)
     Output: {min(title)}[0]
     Aggregates: min(title[0])
-    -> PhysicHashJoin  (inccost=22597243, cost=4, rows=1, memory=8) (actual rows=0)
+    -> PhysicHashJoin  (inccost=22597244, cost=4, rows=1, memory=8) (actual rows=0)
         Output: title[1]
         Filter: id[0]=company_type_id[2]
         -> PhysicScanTable company_type as ct (inccost=4, cost=4, rows=1) (actual rows=0)
             Output: id[0]
             Filter: kind[1]='production companies'
-        -> PhysicHashJoin  (inccost=22597235, cost=1842643, rows=1, memory=507168) (actual rows=0)
+        -> PhysicHashJoin  (inccost=22597236, cost=1842643, rows=1, memory=507192) (actual rows=0)
             Output: title[3],company_type_id[0]
             Filter: id[4]=movie_id[1] and id[4]=movie_id[2]
-            -> PhysicHashJoin  (inccost=18226280, cost=34636, rows=21132, memory=904) (actual rows=0)
+            -> PhysicHashJoin  (inccost=18226281, cost=34637, rows=21133, memory=904) (actual rows=0)
                 Output: company_type_id[1],movie_id[2],movie_id[3]
                 Filter: id[0]=info_type_id[4]
                 -> PhysicScanTable info_type as it (inccost=113, cost=113, rows=113) (actual rows=0)
