@@ -14,25 +14,25 @@ WHERE k.keyword ='character-name-in-title'
   AND ml.linked_movie_id = t2.id
   AND lt.id = ml.link_type_id
   AND mk.movie_id = t1.id
-Total cost: 21967616, memory=5430187302124728
-PhysicHashAgg  (inccost=21967616, cost=3, rows=1, memory=4294967360) (actual rows=1)
+Total cost: 21967618, memory=5430187302124728
+PhysicHashAgg  (inccost=21967618, cost=3, rows=1, memory=4294967360) (actual rows=1)
     Output: {min(link)}[0],{min(title)}[1],{min(title)}[2]
     Aggregates: min(link[0]), min(title[1]), min(title[2])
-    -> PhysicHashJoin  (inccost=21967613, cost=41284, rows=1, memory=8) (actual rows=0)
+    -> PhysicHashJoin  (inccost=21967615, cost=41284, rows=1, memory=8) (actual rows=0)
         Output: link[1],title[2],title[3]
         Filter: keyword_id[4]=id[0]
         -> PhysicScanTable keyword as k (inccost=134170, cost=134170, rows=1) (actual rows=0)
             Output: id[0]
             Filter: keyword[1]='character-name-in-title'
-        -> PhysicHashJoin  (inccost=21792159, cost=2570121, rows=41281, memory=566935704192) (actual rows=0)
+        -> PhysicHashJoin  (inccost=21792161, cost=2570121, rows=41281, memory=566935704192) (actual rows=0)
             Output: link[0],title[1],title[4],keyword_id[2]
             Filter: linked_movie_id[3]=id[5]
-            -> PhysicHashJoin  (inccost=16693726, cost=535, rows=264, memory=1296) (actual rows=0)
+            -> PhysicHashJoin  (inccost=16693728, cost=535, rows=264, memory=1296) (actual rows=0)
                 Output: link[0],title[2],keyword_id[3],linked_movie_id[4]
                 Filter: id[1]=link_type_id[5]
                 -> PhysicScanTable link_type as lt (inccost=18, cost=18, rows=18) (actual rows=0)
                     Output: link[1],id[0]
-                -> PhysicHashJoin  (inccost=16693173, cost=30330, rows=233, memory=107374183200) (actual rows=0)
+                -> PhysicHashJoin  (inccost=16693175, cost=30332, rows=235, memory=107374183200) (actual rows=0)
                     Output: title[0],keyword_id[1],linked_movie_id[3],link_type_id[4]
                     Filter: movie_id[5]=id[2]
                     -> PhysicHashJoin  (inccost=16632846, cost=9580604, rows=50, memory=5429508697268672) (actual rows=0)

@@ -14,20 +14,20 @@ WHERE it.info ='rating'
   AND mk.movie_id = mi_idx.movie_id
   AND k.id = mk.keyword_id
   AND it.id = mi_idx.info_type_id
-Total cost: 14693920, memory=17336635743448
-PhysicHashAgg  (inccost=14693920, cost=3, rows=1, memory=4294967296) (actual rows=1)
+Total cost: 14693921, memory=17338783227120
+PhysicHashAgg  (inccost=14693921, cost=3, rows=1, memory=4294967296) (actual rows=1)
     Output: {min(info)}[0],{min(title)}[1]
     Aggregates: min(info[0]), min(title[1])
-    -> PhysicHashJoin  (inccost=14693917, cost=4, rows=1, memory=8) (actual rows=0)
+    -> PhysicHashJoin  (inccost=14693918, cost=4, rows=1, memory=8) (actual rows=0)
         Output: info[1],title[2]
         Filter: id[0]=info_type_id[3]
         -> PhysicScanTable info_type as it (inccost=113, cost=113, rows=1) (actual rows=0)
             Output: id[0]
             Filter: info[1]='rating'
-        -> PhysicHashJoin  (inccost=14693800, cost=1058729, rows=1, memory=17332340716712) (actual rows=0)
+        -> PhysicHashJoin  (inccost=14693801, cost=1058729, rows=1, memory=17334488200384) (actual rows=0)
             Output: info[0],title[4],info_type_id[1]
             Filter: id[5]=movie_id[2] and id[5]=movie_id[3]
-            -> PhysicHashJoin  (inccost=11106759, cost=537051, rows=8071, memory=57720) (actual rows=0)
+            -> PhysicHashJoin  (inccost=11106760, cost=537052, rows=8072, memory=57720) (actual rows=0)
                 Output: info[1],info_type_id[2],movie_id[3],movie_id[0]
                 Filter: movie_id[0]=movie_id[3]
                 -> PhysicHashJoin  (inccost=9189673, cost=4531573, rows=7215, memory=1712) (actual rows=0)

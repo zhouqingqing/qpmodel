@@ -38,29 +38,29 @@ order by
 	numwait desc,
 	s_name
 limit 100
-Total cost: 38044918.02, memory=6744
-PhysicLimit (100) (inccost=38044918.02, cost=100, rows=100) (actual rows=0)
+Total cost: 38044950.02, memory=6744
+PhysicLimit (100) (inccost=38044950.02, cost=100, rows=100) (actual rows=0)
     Output: s_name[0],{count(*)(0)}[1]
-    -> PhysicOrder  (inccost=38044818.02, cost=24.02, rows=10, memory=290) (actual rows=0)
+    -> PhysicOrder  (inccost=38044850.02, cost=24.02, rows=10, memory=290) (actual rows=0)
         Output: s_name[0],{count(*)(0)}[1]
         Order by: {count(*)(0)}[1], s_name[0]
-        -> PhysicHashAgg  (inccost=38044794, cost=6025, rows=10, memory=580) (actual rows=0)
+        -> PhysicHashAgg  (inccost=38044826, cost=6025, rows=10, memory=580) (actual rows=0)
             Output: {s_name}[0],{count(*)(0)}[1]
             Aggregates: count(*)(0)
             Group by: s_name[0]
-            -> PhysicFilter  (inccost=38038769, cost=6005, rows=6005) (actual rows=0)
+            -> PhysicFilter  (inccost=38038801, cost=6005, rows=6005) (actual rows=0)
                 Output: s_name[1]
                 Filter: {#marker}[0]
-                -> PhysicMarkJoin Left (inccost=38032764, cost=36060025, rows=6005) (actual rows=0)
+                -> PhysicMarkJoin Left (inccost=38032796, cost=36060025, rows=6005) (actual rows=0)
                     Output: #marker,s_name[0]
                     Filter: l_orderkey[3]=l_orderkey[1] and l_suppkey[4]<>l_suppkey[2]
-                    -> PhysicFilter  (inccost=1966734, cost=6005, rows=6005) (actual rows=0)
+                    -> PhysicFilter  (inccost=1966766, cost=6005, rows=6005) (actual rows=0)
                         Output: s_name[1],l_orderkey[2],l_suppkey[3]
                         Filter: {#marker}[0]
-                        -> PhysicMarkJoin Left (inccost=1960729, cost=1933610, rows=6005) (actual rows=0)
+                        -> PhysicMarkJoin Left (inccost=1960761, cost=1933610, rows=6005) (actual rows=0)
                             Output: #marker,s_name[0],l_orderkey[1],l_suppkey[2]
                             Filter: l_orderkey[3]=l_orderkey[1] and l_suppkey[4]<>l_suppkey[2]
-                            -> PhysicHashJoin  (inccost=21114, cost=3198, rows=290, memory=58) (actual rows=0)
+                            -> PhysicHashJoin  (inccost=21146, cost=3230, rows=322, memory=58) (actual rows=0)
                                 Output: s_name[0],l_orderkey[2],l_suppkey[3]
                                 Filter: s_suppkey[1]=l_suppkey[3]
                                 -> PhysicHashJoin  (inccost=48, cost=13, rows=1, memory=8) (actual rows=0)
