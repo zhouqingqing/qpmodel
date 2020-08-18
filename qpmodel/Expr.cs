@@ -799,11 +799,23 @@ namespace qpmodel.expr
             {
                 Expr x = children_[i];
 
-                x.Normalize();
+                x = x.Normalize();
                 children_[i] = x;
             }
 
             return this;
+        }
+
+        public bool AllArgsConst()
+        {
+            int constCount = 0;
+            children_.ForEach(x =>
+            {
+                if (x is ConstExpr)
+                    ++constCount;
+            });
+
+            return children_.Count == constCount;
         }
     }
 

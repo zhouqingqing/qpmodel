@@ -38,6 +38,8 @@ using qpmodel.normalizer;
 
 using Value = System.Object;
 using Microsoft.CodeAnalysis;
+using System.ComponentModel;
+using System.Collections.Specialized;
 
 namespace qpmodel.expr
 {
@@ -175,7 +177,44 @@ namespace qpmodel.expr
 
         public override Expr Normalize()
         {
-            return base.Normalize();
+            Expr x = base.Normalize();
+
+            if (!x.AllArgsConst())
+                return x;
+
+            switch(funcName_)
+            {
+                case "min":
+                case "max":
+                case "avg":
+                case "upper":
+                case "year":
+                case "date":
+                case "abs":
+                    // TryEvalConst doesn't work, these are single child
+                    // functions, just return the only child.
+                    return child_();
+                    break;
+
+                case "substr":
+                case "substring":
+                case "round":
+
+                /*
+                 *  case "repeat": r = new RepeatFunc(args); break;
+                    case "coalesce": r = new CoalesceFunc(args); break;
+                    case "hash": r = new HashFunc(args); break;
+                    case "tumble": r = new TumbleWindow(args); break;
+                    case "tumble_start": r = new TumbleStart(args); break;
+                    case "tumble_end": r = new TumbleEnd(args); break;
+                    case "hop": r = new HopWindow(args); break;
+                    case "session": r = new SessionWindow(args); break;
+                */
+                default:
+                    break;
+            }
+
+            return x;
         }
     }
 
@@ -236,6 +275,7 @@ namespace qpmodel.expr
             type_ = args_()[0].type_;
             Debug.Assert(type_ is CharType || type_ is VarCharType);
         }
+
         public override Value Exec(ExecContext context, Row input)
         {
             string str = (string)args_()[0].Exec(context, input);
@@ -250,7 +290,14 @@ namespace qpmodel.expr
 
         public override Expr Normalize()
         {
-            return base.Normalize();
+            Expr x = base.Normalize();
+            if (x.AllArgsConst())
+            {
+                Value val = Exec(null, null);
+                return ConstExpr.MakeConst(val, type_, outputName_);
+            }
+
+            return x;
         }
     }
 
@@ -275,7 +322,17 @@ namespace qpmodel.expr
 
         public override Expr Normalize()
         {
-            return base.Normalize();
+            Expr x = base.Normalize();
+            if (x.AllArgsConst())
+            {
+                Value val;
+                if (x.TryEvalConst(out val))
+                {
+                    x = ConstExpr.MakeConst(val, type_, outputName_);
+                }
+            }
+
+            return x;
         }
     }
 
@@ -338,7 +395,17 @@ namespace qpmodel.expr
 
         public override Expr Normalize()
         {
-            return base.Normalize();
+            Expr x = base.Normalize();
+            if (x.AllArgsConst())
+            {
+                Value val;
+                if (x.TryEvalConst(out val))
+                {
+                    x = ConstExpr.MakeConst(val, type_, outputName_);
+                }
+            }
+
+            return x;
         }
     }
 
@@ -369,7 +436,17 @@ namespace qpmodel.expr
 
         public override Expr Normalize()
         {
-            return base.Normalize();
+            Expr x = base.Normalize();
+            if (x.AllArgsConst())
+            {
+                Value val;
+                if (x.TryEvalConst(out val))
+                {
+                    x = ConstExpr.MakeConst(val, type_, outputName_);
+                }
+            }
+
+            return x;
         }
     }
 
@@ -415,7 +492,17 @@ namespace qpmodel.expr
 
         public override Expr Normalize()
         {
-            return base.Normalize();
+            Expr x = base.Normalize();
+            if (x.AllArgsConst())
+            {
+                Value val;
+                if (x.TryEvalConst(out val))
+                {
+                    x = ConstExpr.MakeConst(val, type_, outputName_);
+                }
+            }
+
+            return x;
         }
     }
 
@@ -434,7 +521,17 @@ namespace qpmodel.expr
 
         public override Expr Normalize()
         {
-            return base.Normalize();
+            Expr x = base.Normalize();
+            if (x.AllArgsConst())
+            {
+                Value val;
+                if (x.TryEvalConst(out val))
+                {
+                    x = ConstExpr.MakeConst(val, type_, outputName_);
+                }
+            }
+
+            return x;
         }
     }
 
@@ -920,7 +1017,17 @@ namespace qpmodel.expr
 
         public override Expr Normalize()
         {
-            return base.Normalize();
+            Expr x = base.Normalize();
+            if (x.AllArgsConst())
+            {
+                Value val;
+                if (x.TryEvalConst(out val))
+                {
+                    x = ConstExpr.MakeConst(val, type_, outputName_);
+                }
+            }
+
+            return x;
         }
     }
 
@@ -1147,6 +1254,9 @@ namespace qpmodel.expr
             Expr l = lchild_();
             Expr r = rchild_();
 
+            ConstExpr lce = (l is ConstExpr) ? (ConstExpr)l : null;
+            ConstExpr rce = (r is ConstExpr) ? (ConstExpr)r : null;
+
             switch (op_)
             {
                 case "+":
@@ -1161,7 +1271,14 @@ namespace qpmodel.expr
                 case "=":
                 case "<>":
                 case "!=":
-                    if (l is ConstExpr && r is ConstExpr)
+                    if (op_ != "=" && (lce != null  && lce.val_ is null) || (rce != null && rce.val_ is null))
+                    {
+                        // NULL simplification, but leave x = NULL alone which will generate
+                        // a proper error. Error can be returned from here too.
+                        return ConstExpr.MakeConst("null", new AnyType(), outputName_);
+                    }
+
+                    if (lce != null && rce != null)
                     {
                         // Simplify Constants
                         Value val;
@@ -1170,7 +1287,7 @@ namespace qpmodel.expr
                         return ConstExpr.MakeConst(val, type_, outputName_);
                     }
                     else
-                    if (l is ConstExpr && !(r is ConstExpr))
+                    if (lce != null && rce == null)
                     {
                         if (isPlainSwappableConstOper(this))
                         {
@@ -1178,7 +1295,7 @@ namespace qpmodel.expr
                         }
                     }
                     else
-                    if (l is BinExpr le && le.children_[1].IsConst() && (r is ConstExpr) &&
+                    if (l is BinExpr le && le.children_[1].IsConst() && (rce != null) &&
                         isCommutativeConstOper(this) && isCommutativeConstOper(le))
                     {
                         /*
