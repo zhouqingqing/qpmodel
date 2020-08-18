@@ -28,26 +28,26 @@ WHERE an.name LIKE '%a%'
   AND pi.person_id = ci.person_id
   AND an.person_id = ci.person_id
   AND ci.movie_id = ml.linked_movie_id
-Total cost: 93661185, memory=10737509336
-PhysicHashAgg  (inccost=93661185, cost=3, rows=1, memory=4294967296) (actual rows=1)
+Total cost: 93663006, memory=10737509336
+PhysicHashAgg  (inccost=93663006, cost=3, rows=1, memory=4294967296) (actual rows=1)
     Output: {min(name)}[0],{min(title)}[1]
     Aggregates: min(name[0]), min(title[1])
-    -> PhysicHashJoin  (inccost=93661182, cost=901346, rows=1, memory=4294967320) (actual rows=0)
+    -> PhysicHashJoin  (inccost=93663003, cost=901346, rows=1, memory=4294967320) (actual rows=0)
         Output: name[0],title[1]
         Filter: id[2]=person_id[5] and person_id[3]=person_id[5] and person_id[5]=person_id[4]
-        -> PhysicHashJoin  (inccost=91858493, cost=350247, rows=1, memory=2147483688) (actual rows=0)
+        -> PhysicHashJoin  (inccost=91860314, cost=350247, rows=1, memory=2147483688) (actual rows=0)
             Output: name[0],title[6],id[1],person_id[2],person_id[3]
             Filter: id[7]=movie_id[4] and linked_movie_id[5]=id[7]
-            -> PhysicHashJoin  (inccost=88979934, cost=865014, rows=1, memory=24992) (actual rows=0)
+            -> PhysicHashJoin  (inccost=88981755, cost=865014, rows=1, memory=24992) (actual rows=0)
                 Output: name[4],id[5],person_id[0],person_id[1],movie_id[2],linked_movie_id[3]
                 Filter: id[5]=person_id[0] and person_id[1]=id[5]
-                -> PhysicHashJoin  (inccost=83947429, cost=4207856, rows=781, memory=36048) (actual rows=0)
+                -> PhysicHashJoin  (inccost=83949250, cost=4207856, rows=781, memory=36048) (actual rows=0)
                     Output: person_id[0],person_id[2],movie_id[3],linked_movie_id[4]
                     Filter: id[5]=info_type_id[1] and person_id[0]=person_id[2]
                     -> PhysicScanTable person_info as pi (inccost=2963664, cost=2963664, rows=2253) (actual rows=0)
                         Output: person_id[1],info_type_id[2]
                         Filter: note[4]='Volker Boehm'
-                    -> PhysicHashJoin  (inccost=76775909, cost=40448840, rows=4200748, memory=29984) (actual rows=0)
+                    -> PhysicHashJoin  (inccost=76777730, cost=40450661, rows=4202569, memory=29984) (actual rows=0)
                         Output: person_id[2],movie_id[3],linked_movie_id[0],id[1]
                         Filter: movie_id[3]=linked_movie_id[0]
                         -> PhysicNLJoin  (inccost=82725, cost=20724, rows=1874) (actual rows=0)

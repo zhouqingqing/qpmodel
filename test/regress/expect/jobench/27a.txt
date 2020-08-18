@@ -49,7 +49,7 @@ WHERE cct1.kind IN ('cast',
   AND mk.movie_id = cc.movie_id
   AND mc.movie_id = cc.movie_id
   AND mi.movie_id = cc.movie_id
-Total cost: 33403653, memory=19327353688
+Total cost: 33403653, memory=17179870000
 PhysicHashAgg  (inccost=33403653, cost=3, rows=1, memory=4294967360) (actual rows=1)
     Output: {min(name)}[0],{min(link)}[1],{min(title)}[2]
     Aggregates: min(name[0]), min(link[1]), min(title[2])
@@ -62,10 +62,10 @@ PhysicHashAgg  (inccost=33403653, cost=3, rows=1, memory=4294967360) (actual row
             -> PhysicHashJoin  (inccost=33133453, cost=937557, rows=1, memory=2147483704) (actual rows=0)
                 Output: name[0],title[8],id[9],id[1],id[2],movie_id[3],movie_id[4],movie_id[5],movie_id[6],link_type_id[7]
                 Filter: id[9]=movie_id[5] and movie_id[6]=id[9] and id[9]=movie_id[4] and movie_id[3]=id[9]
-                -> PhysicHashJoin  (inccost=29667584, cost=30000, rows=1, memory=4294967376) (actual rows=0)
+                -> PhysicHashJoin  (inccost=29667584, cost=30000, rows=1, memory=2147483688) (actual rows=0)
                     Output: name[0],id[1],id[2],movie_id[6],movie_id[3],movie_id[4],movie_id[5],link_type_id[7]
                     Filter: movie_id[6]=movie_id[4] and movie_id[6]=movie_id[5] and movie_id[6]=movie_id[3]
-                    -> PhysicNLJoin  (inccost=29607587, cost=132, rows=2) (actual rows=0)
+                    -> PhysicNLJoin  (inccost=29607587, cost=132, rows=1) (actual rows=0)
                         Output: name[0],id[5],id[1],movie_id[2],movie_id[3],movie_id[4]
                         -> PhysicNLJoin  (inccost=29607451, cost=121, rows=1) (actual rows=0)
                             Output: name[0],id[4],movie_id[1],movie_id[2],movie_id[3]
