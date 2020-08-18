@@ -37,23 +37,23 @@ WHERE it1.info = 'countries'
   AND k.id = mk.keyword_id
   AND it1.id = mi.info_type_id
   AND it2.id = mi_idx.info_type_id
-Total cost: 30360181, memory=45097160400
-PhysicHashAgg  (inccost=30360181, cost=3, rows=1, memory=4294967296) (actual rows=1)
+Total cost: 30360182, memory=47244644072
+PhysicHashAgg  (inccost=30360182, cost=3, rows=1, memory=4294967296) (actual rows=1)
     Output: {min(info)}[0],{min(title)}[1]
     Aggregates: min(info[0]), min(title[1])
-    -> PhysicHashJoin  (inccost=30360178, cost=4, rows=1, memory=8) (actual rows=0)
+    -> PhysicHashJoin  (inccost=30360179, cost=4, rows=1, memory=8) (actual rows=0)
         Output: info[1],title[2]
         Filter: id[0]=info_type_id[3]
         -> PhysicScanTable info_type as it1 (inccost=113, cost=113, rows=1) (actual rows=0)
             Output: id[0]
             Filter: info[1]='countries'
-        -> PhysicHashJoin  (inccost=30360061, cost=1338340, rows=1, memory=2147483688) (actual rows=0)
+        -> PhysicHashJoin  (inccost=30360062, cost=1338340, rows=1, memory=2147483688) (actual rows=0)
             Output: info[6],title[0],info_type_id[1]
             Filter: movie_id[2]=movie_id[7] and id[3]=movie_id[7] and movie_id[4]=movie_id[7] and id[5]=info_type_id[8]
-            -> PhysicHashJoin  (inccost=27641686, cost=691697, rows=1, memory=38654706096) (actual rows=0)
+            -> PhysicHashJoin  (inccost=27641687, cost=691697, rows=1, memory=40802189768) (actual rows=0)
                 Output: title[0],info_type_id[4],movie_id[1],id[2],movie_id[5],id[3]
                 Filter: movie_id[1]=movie_id[5] and id[2]=movie_id[5]
-                -> PhysicHashJoin  (inccost=12114269, cost=403357, rows=18, memory=3216) (actual rows=0)
+                -> PhysicHashJoin  (inccost=12114270, cost=403358, rows=19, memory=3216) (actual rows=0)
                     Output: title[3],movie_id[0],id[4],id[1]
                     Filter: id[2]=kind_id[5] and id[4]=movie_id[0]
                     -> PhysicHashJoin  (inccost=9182600, cost=4524072, rows=134, memory=96) (actual rows=0)

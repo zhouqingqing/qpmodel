@@ -23,26 +23,26 @@ WHERE cn.country_code ='[us]'
   AND ci.movie_id = mc.movie_id
   AND ci.movie_id = mk.movie_id
   AND mc.movie_id = mk.movie_id
-Total cost: 101473407, memory=6442455664
-PhysicHashAgg  (inccost=101473407, cost=3, rows=1, memory=4294967296) (actual rows=1)
+Total cost: 101473411, memory=6442455760
+PhysicHashAgg  (inccost=101473411, cost=3, rows=1, memory=4294967296) (actual rows=1)
     Output: {min(name)}[0],{min(title)}[1]
     Aggregates: min(name[0]), min(title[1])
-    -> PhysicHashJoin  (inccost=101473404, cost=901346, rows=1, memory=2147483664) (actual rows=0)
+    -> PhysicHashJoin  (inccost=101473408, cost=901346, rows=1, memory=2147483664) (actual rows=0)
         Output: name[3],title[0]
         Filter: person_id[4]=id[1] and person_id[4]=person_id[2]
-        -> PhysicHashJoin  (inccost=99670715, cost=1588333, rows=1, memory=40) (actual rows=0)
+        -> PhysicHashJoin  (inccost=99670719, cost=1588333, rows=1, memory=40) (actual rows=0)
             Output: title[5],id[0],person_id[1]
             Filter: movie_id[2]=id[6] and id[6]=movie_id[3] and id[6]=movie_id[4]
-            -> PhysicHashJoin  (inccost=95554070, cost=4167494, rows=1, memory=32) (actual rows=0)
+            -> PhysicHashJoin  (inccost=95554074, cost=4167494, rows=1, memory=32) (actual rows=0)
                 Output: id[4],person_id[0],movie_id[1],movie_id[2],movie_id[3]
                 Filter: id[4]=person_id[0]
-                -> PhysicHashJoin  (inccost=87219085, cost=94462, rows=1, memory=40) (actual rows=0)
+                -> PhysicHashJoin  (inccost=87219089, cost=94462, rows=1, memory=40) (actual rows=0)
                     Output: person_id[0],movie_id[1],movie_id[2],movie_id[3]
                     Filter: company_id[4]=id[5]
-                    -> PhysicHashJoin  (inccost=86889626, cost=36244713, rows=1, memory=4320) (actual rows=0)
+                    -> PhysicHashJoin  (inccost=86889630, cost=36244713, rows=1, memory=4416) (actual rows=0)
                         Output: person_id[3],movie_id[4],movie_id[0],movie_id[1],company_id[2]
                         Filter: movie_id[4]=movie_id[1] and movie_id[4]=movie_id[0]
-                        -> PhysicHashJoin  (inccost=14400569, cost=2609375, rows=180, memory=264) (actual rows=0)
+                        -> PhysicHashJoin  (inccost=14400573, cost=2609379, rows=184, memory=264) (actual rows=0)
                             Output: movie_id[0],movie_id[1],company_id[2]
                             Filter: movie_id[1]=movie_id[0]
                             -> PhysicHashJoin  (inccost=9182065, cost=4523965, rows=33, memory=8) (actual rows=0)
