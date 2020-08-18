@@ -211,16 +211,9 @@ namespace qpmodel.physic
         {
             listchildprops = new List<List<PhysicProperty>>();
             listchildprops.Add(new List<PhysicProperty>());
-            // when there is no property requirement, it is always satisfied
-            if (required.Equals(PhysicProperty.nullprop))
-            {
-                for (int i = 0; i < children_.Count; i++)
-                    listchildprops[0].Add(PhysicProperty.nullprop);
-                return true;
-            }
             // the default is singleton with no order requirement
             // assume all the physic nodes can process singleton
-            else if (required.IsPropertySupplied(DistributionProperty.singleton))
+            if (required.IsPropertySupplied(DistributionProperty.singleton))
             {
                 for (int i = 0; i < children_.Count; i++)
                     listchildprops[0].Add(DistributionProperty.singleton);
@@ -1642,11 +1635,11 @@ namespace qpmodel.physic
                 {
                     int partid = 0;
                     if (table.distMethod_ == TableDef.DistributionMethod.Roundrobin)
-                        partid = Catalog.rand_.Next() % nparts;
+                        partid = Utils.mod(Catalog.rand_.Next(), nparts);
                     else if (table.distMethod_ == TableDef.DistributionMethod.Distributed)
                     {
                         var distrord = table.distributedBy_.ordinal_;
-                        partid = l[distrord].GetHashCode() % nparts;
+                        partid = Utils.mod(l[distrord].GetHashCode(), nparts);
                     }
                     table.distributions_[partid].heap_.Add(l);
                 }
@@ -2101,7 +2094,7 @@ namespace qpmodel.physic
                 {
                     // hash by distribution keys
                     var key = KeyList.ComputeKeys(context_, distributeby, r);
-                    var sendtoMachine = key.GetHashCode() % dop;
+                    var sendtoMachine = Utils.mod(key.GetHashCode(), dop);
                     upChannels_[sendtoMachine].Send(r);
 
 #if debug

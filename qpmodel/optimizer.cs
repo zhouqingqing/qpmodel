@@ -78,7 +78,7 @@ namespace qpmodel.optimizer
             switch (distribution_.disttype)
             {
                 case DistributionType.Any:
-                    return property.distribution_.disttype != DistributionType.Replicated;
+                    return property.distribution_.disttype == DistributionType.Distributed;
                 case DistributionType.Singleton:
                     return property.distribution_.disttype == DistributionType.Singleton;
                 // distribution expr list must match to be considered supplied
