@@ -1028,9 +1028,14 @@ namespace qpmodel.physic
                 || required.IsDistributionSupplied(new DistributionProperty(logic.rightKeys_)))
             {
                 listchildprops.Add(new List<PhysicProperty> { new DistributionProperty(logic.leftKeys_), new DistributionProperty(logic.rightKeys_) });
-                listchildprops.Add(new List<PhysicProperty> { DistributionProperty.replicated, new DistributionProperty(logic.rightKeys_) });
                 listchildprops.Add(new List<PhysicProperty> { DistributionProperty.singleton, new DistributionProperty(logic.rightKeys_) });
                 listchildprops.Add(new List<PhysicProperty> { new DistributionProperty(logic.leftKeys_), DistributionProperty.singleton });
+                if (required.distribution_.disttype == DistributionType.Any)
+                {
+                    listchildprops.Add(new List<PhysicProperty> { DistributionProperty.replicated, PhysicProperty.nullprop });
+                    listchildprops.Add(new List<PhysicProperty> { DistributionProperty.singleton, new DistributionProperty(logic.rightKeys_) });
+                    listchildprops.Add(new List<PhysicProperty> { new DistributionProperty(logic.leftKeys_), DistributionProperty.singleton });
+                }
                 return true;
             }
             else
