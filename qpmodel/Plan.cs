@@ -445,9 +445,10 @@ namespace qpmodel.logic
                 Debug.Assert(!distributed_);
                 distributed_ = true;
 
-                // FIXME: we have to disable memo optimization before property enforcement done
-                //queryOpt_.optimize_.use_memo_ = false;
+                // distributed table query can also use memo
+                // remote exchange is considered in memo optimization
                 queryOpt_.optimize_.memo_use_remoteexchange_ = true;
+
                 if (onlyreplicated)
                     root = new LogicGather(root, new List<int> { 0 });
                 else

@@ -56,6 +56,7 @@ namespace qpmodel.optimizer
 
         public bool IsPropertySupplied(PhysicProperty property)
         {
+            // property is considered supplied when both order and property is supplied
             if (IsOrderSupplied(property) && IsDistributionSupplied(property))
                 return true;
             return false;
@@ -80,6 +81,7 @@ namespace qpmodel.optimizer
                     return property.distribution_.disttype != DistributionType.Replicated;
                 case DistributionType.Singleton:
                     return property.distribution_.disttype == DistributionType.Singleton;
+                // distribution expr list must match to be considered supplied
                 case DistributionType.Distributed:
                     if (property.distribution_.disttype == DistributionType.Singleton)
                         return true;
@@ -94,6 +96,8 @@ namespace qpmodel.optimizer
                         return true;
                     }
                     return false;
+                // replicated can only be satisfied by replicated
+                // sin the gather node for that is different
                 case DistributionType.Replicated:
                     return property.distribution_.disttype == DistributionType.Replicated;
             }
@@ -103,6 +107,9 @@ namespace qpmodel.optimizer
 
         internal PhysicNode PropertyEnforcement(PhysicNode node, PhysicProperty nodeprop)
         {
+            // since the property tranformation process is
+            // one enforcement node, either the order is supplied
+            // or the distribution is supplied
             if (IsOrderSupplied(nodeprop))
                 return DistributionEnforcement(node, nodeprop);
             if (IsDistributionSupplied(nodeprop))
@@ -660,6 +667,9 @@ namespace qpmodel.optimizer
                     double cost = member.physic_.Cost();
                     if (!isleaf)
                     {
+                        // when the group is not leaf, it is possible
+                        // that there are more than one set of viable child properties,
+                        // need to find the best set
                         List<PhysicProperty> minchildprops = null;
                         var minchildcost = Double.MaxValue;
                         foreach (var childprops in listchildprops)

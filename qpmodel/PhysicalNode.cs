@@ -1140,6 +1140,7 @@ namespace qpmodel.physic
         public override bool IsPropertySatisfied(PhysicProperty required, out List<List<PhysicProperty>> listchildprops)
         {
             listchildprops = new List<List<PhysicProperty>>();
+            // hash agg can only support singleton with no order requirement by default
             if (required.Equals(DistributionProperty.singleton))
             {
                 listchildprops.Add(new List<PhysicProperty> { DistributionProperty.singleton });
@@ -1275,6 +1276,8 @@ namespace qpmodel.physic
             var exprlist = (logic_ as LogicAgg).groupby_;
             var prop = new SortOrderProperty(exprlist);
 
+            // stream agg can support certain order property
+            // but distribution must be singleton
             if (required.distribution_.disttype == DistributionType.Singleton
                 && required.IsPropertySupplied(prop))
             {
