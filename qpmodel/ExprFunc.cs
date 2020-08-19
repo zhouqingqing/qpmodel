@@ -34,7 +34,6 @@ using qpmodel.logic;
 using qpmodel.physic;
 using qpmodel.utils;
 using qpmodel.stream;
-using qpmodel.normalizer;
 
 using Value = System.Object;
 using Microsoft.CodeAnalysis;
@@ -196,20 +195,6 @@ namespace qpmodel.expr
                     return child_();
                     break;
 
-                case "substr":
-                case "substring":
-                case "round":
-
-                /*
-                 *  case "repeat": r = new RepeatFunc(args); break;
-                    case "coalesce": r = new CoalesceFunc(args); break;
-                    case "hash": r = new HashFunc(args); break;
-                    case "tumble": r = new TumbleWindow(args); break;
-                    case "tumble_start": r = new TumbleStart(args); break;
-                    case "tumble_end": r = new TumbleEnd(args); break;
-                    case "hop": r = new HopWindow(args); break;
-                    case "session": r = new SessionWindow(args); break;
-                */
                 default:
                     break;
             }
@@ -255,11 +240,6 @@ namespace qpmodel.expr
                     throw new NotImplementedException();
             }
         }
-
-        public override Expr Normalize()
-        {
-            return base.Normalize();
-        }
     }
 
     public class SubstringFunc : FuncExpr
@@ -291,13 +271,12 @@ namespace qpmodel.expr
         public override Expr Normalize()
         {
             Expr x = base.Normalize();
-            if (x.AllArgsConst())
-            {
-                Value val = Exec(null, null);
-                return ConstExpr.MakeConst(val, type_, outputName_);
-            }
+            if (!x.AllArgsConst())
+                return x;
 
-            return x;
+            Value val = Exec(null, null);
+
+            return ConstExpr.MakeConst(val, type_, outputName_);
         }
     }
 
@@ -323,16 +302,12 @@ namespace qpmodel.expr
         public override Expr Normalize()
         {
             Expr x = base.Normalize();
-            if (x.AllArgsConst())
-            {
-                Value val;
-                if (x.TryEvalConst(out val))
-                {
-                    x = ConstExpr.MakeConst(val, type_, outputName_);
-                }
-            }
+            if (!x.AllArgsConst())
+                return x;
 
-            return x;
+            Value val = Exec(null, null);
+
+            return ConstExpr.MakeConst(val, type_, outputName_); ;
         }
     }
 
@@ -360,7 +335,13 @@ namespace qpmodel.expr
 
         public override Expr Normalize()
         {
-            return base.Normalize();
+            Expr x = base.Normalize();
+            if (!x.AllArgsConst())
+                return x;
+
+            Value val = Exec(null, null);
+
+            return ConstExpr.MakeConst(val, type_, outputName_);
         }
     }
 
@@ -396,16 +377,12 @@ namespace qpmodel.expr
         public override Expr Normalize()
         {
             Expr x = base.Normalize();
-            if (x.AllArgsConst())
-            {
-                Value val;
-                if (x.TryEvalConst(out val))
-                {
-                    x = ConstExpr.MakeConst(val, type_, outputName_);
-                }
-            }
+            if (!x.AllArgsConst())
+                return x;
 
-            return x;
+            Value val = Exec(null, null);
+
+            return ConstExpr.MakeConst(val, type_, outputName_);
         }
     }
 
@@ -437,16 +414,12 @@ namespace qpmodel.expr
         public override Expr Normalize()
         {
             Expr x = base.Normalize();
-            if (x.AllArgsConst())
-            {
-                Value val;
-                if (x.TryEvalConst(out val))
-                {
-                    x = ConstExpr.MakeConst(val, type_, outputName_);
-                }
-            }
+            if (!x.AllArgsConst())
+                return x;
 
-            return x;
+            Value val = Exec(null, null);
+
+            return ConstExpr.MakeConst(val, type_, outputName_);
         }
     }
 
@@ -473,7 +446,13 @@ namespace qpmodel.expr
 
         public override Expr Normalize()
         {
-            return base.Normalize();
+            Expr x = base.Normalize();
+            if (!x.AllArgsConst())
+                return x;
+
+            Value val = Exec(null, null);
+
+            return ConstExpr.MakeConst(val, type_, outputName_);
         }
     }
 
@@ -493,16 +472,12 @@ namespace qpmodel.expr
         public override Expr Normalize()
         {
             Expr x = base.Normalize();
-            if (x.AllArgsConst())
-            {
-                Value val;
-                if (x.TryEvalConst(out val))
-                {
-                    x = ConstExpr.MakeConst(val, type_, outputName_);
-                }
-            }
+            if (!x.AllArgsConst())
+                return x;
 
-            return x;
+            Value val = Exec(null, null);
+
+            return ConstExpr.MakeConst(val, type_, outputName_);
         }
     }
 
@@ -522,16 +497,12 @@ namespace qpmodel.expr
         public override Expr Normalize()
         {
             Expr x = base.Normalize();
-            if (x.AllArgsConst())
-            {
-                Value val;
-                if (x.TryEvalConst(out val))
-                {
-                    x = ConstExpr.MakeConst(val, type_, outputName_);
-                }
-            }
+            if (!x.AllArgsConst())
+                return x;
 
-            return x;
+            Value val = Exec(null, null);
+
+            return ConstExpr.MakeConst(val, type_, outputName_);
         }
     }
 
@@ -547,11 +518,6 @@ namespace qpmodel.expr
             dynamic val = arg_();
             int hashval = val.GetHashCode();
             return hashval;
-        }
-
-        public override Expr Normalize()
-        {
-            return base.Normalize();
         }
     }
 
@@ -579,11 +545,6 @@ namespace qpmodel.expr
 
         public override object Exec(ExecContext context, Row input)
             => throw new InvalidProgramException("aggfn [some] are stateful, they use different set of APIs");
-
-        public override Expr Normalize()
-        {
-            return base.Normalize();
-        }
     }
 
     public class AggSum : AggFunc
@@ -615,11 +576,6 @@ namespace qpmodel.expr
 
             return sum_;
         }
-
-        public override Expr Normalize()
-        {
-            return base.Normalize();
-        }
     }
 
     public class AggCount : AggFunc
@@ -648,11 +604,6 @@ namespace qpmodel.expr
                 count_ = old is null ? 1 : (long)old + 1;
             return count_;
         }
-
-        public override Expr Normalize()
-        {
-            return base.Normalize();
-        }
     }
 
     public class AggCountStar : AggFunc
@@ -680,11 +631,6 @@ namespace qpmodel.expr
         {
             count_ = (long)old + 1;
             return count_;
-        }
-
-        public override Expr Normalize()
-        {
-            return base.Normalize();
         }
     }
 
@@ -717,11 +663,6 @@ namespace qpmodel.expr
 
             return min_;
         }
-
-        public override Expr Normalize()
-        {
-            return base.Normalize();
-        }
     }
 
     public class AggMax : AggFunc
@@ -752,11 +693,6 @@ namespace qpmodel.expr
             }
 
             return max_;
-        }
-
-        public override Expr Normalize()
-        {
-            return base.Normalize();
         }
     }
 
@@ -824,11 +760,6 @@ namespace qpmodel.expr
         }
 
         public override Value Finalize(ExecContext context, Value old) => (old as AvgPair).Finalize();
-
-        public override Expr Normalize()
-        {
-            return base.Normalize();
-        }
     }
 
     // sqrt(sum((x_i - mean)^2)/(n-1)) where n is sample size
@@ -975,7 +906,13 @@ namespace qpmodel.expr
 
         public override Expr Normalize()
         {
-            return base.Normalize();
+            Expr x = base.Normalize();
+            if (!x.AllArgsConst())
+                return x;
+
+            Value val = Exec(null, null);
+
+            return ConstExpr.MakeConst(val, type_, outputName_);
         }
     }
 
@@ -1018,20 +955,16 @@ namespace qpmodel.expr
         public override Expr Normalize()
         {
             Expr x = base.Normalize();
-            if (x.AllArgsConst())
-            {
-                Value val;
-                if (x.TryEvalConst(out val))
-                {
-                    x = ConstExpr.MakeConst(val, type_, outputName_);
-                }
-            }
+            if (!x.AllArgsConst())
+                return x;
 
-            return x;
+            Value val = Exec(null, null);
+
+            return ConstExpr.MakeConst(val, type_, outputName_);
         }
     }
 
-    // we can actually put all binary ops in BinExpr class but we want to keep 
+    // we can actually put all binary ops in BinExpr class but we want to keep
     // some special ones (say AND/OR) so we can coding easier
     //
     public class BinExpr : Expr
@@ -1146,15 +1079,15 @@ namespace qpmodel.expr
 
             switch (op_)
             {
-                // we can do a compile type type coerse for addition/multiply etc to align 
-                // data types, say double+decimal will require both side become decimal. 
+                // we can do a compile type type coerse for addition/multiply etc to align
+                // data types, say double+decimal will require both side become decimal.
                 // However, for comparison, we cam't do that, because that depends the actual
                 // value: decimal has better precision and double has better range, if double
                 // if out of decimal's range, we shall convert both to double; otherwise they
                 // shall be converted to decimals.
                 //
                 // We do a simplification here by forcing type coerse for any op at Bind().
-                // 
+                //
                 case "+": return lv + rv;
                 case "-": return lv - rv;
                 case "*": return lv * rv;
@@ -1227,29 +1160,58 @@ namespace qpmodel.expr
             return inType;
         }
 
-        public override Expr Normalize()
+        // Arthmentic Simplification:
+        /*
+        * +/- zero to a column, or multiply/divide a column by 1
+        */
+        internal bool IsArithIdentity(ConstExpr lce, ConstExpr rce)
         {
-            if (normalizerState_ > NormalizerState.RuleSimplifyConstants)
+            ConstExpr ve = lce != null ? lce : rce;
+            ColExpr ce = (children_[0] is ColExpr) ? (ColExpr)children_[0] : (children_[1] is ColExpr ? (ColExpr)children_[1] : null);
+
+            if (ce == null)
+                return false;
+
+            if (!(TypeBase.IsNumberType(ve.type_) && TypeBase.IsNumberType(ce.type_)))
+                return false;
+
+            if ((op_ == "+" || op_ == "-") && ve.IsZero())
+                return true;
+
+            if ((op_ == "*" || op_ == "/") && ve.IsOne())
+                return true;
+
+            return false;
+        }
+
+        internal Expr SimplifyArithmetic(ConstExpr lve, ConstExpr rve)
+        {
+            // we know we have a BinExpr with numeric chhildren
+            ConstExpr ve = lve != null ? lve : rve;
+            ColExpr ce = (children_[0] is ColExpr) ? (ColExpr)children_[0] : (children_[1] is ColExpr ? (ColExpr)children_[1] : null);
+
+            if (ce is null || ve is null)
                 return this;
 
-            if (normalizerState_ == NormalizerState.RuleNormalizerNone)
-                normalizerState_ = NormalizerState.RuleSimplifyConstants;
+            // Col + 0, or Col - 0 => return col
+            if ((op_ == "+" || op_ == "-") && ve.IsZero())
+                return ce;
 
-            var newChildren = new List<Expr>();
-            do
+            if ((op_ == "*" || op_ == "/") && ve.IsOne())
+                return ce;
+
+            return this;
+        }
+
+        public override Expr Normalize()
+        {
+
+            // all children get normalized first
+            for (int i = 0; i < children_.Count; ++i)
             {
-                newChildren.Clear();
-
-                // all children get normalized first
-                for (int i = 0; i < children_.Count; ++i)
-                {
-                    Expr x = children_[i];
-                    newChildren.Add(x.Normalize());
-
-                }
-            } while (false /*!children_.SequenceEqual(newChildren)*/);
-
-            children_ = newChildren;
+                Expr x = children_[i];
+                children_[i] = x.Normalize();
+            }
 
             Expr l = lchild_();
             Expr r = rchild_();
@@ -1281,12 +1243,16 @@ namespace qpmodel.expr
                     if (lce != null && rce != null)
                     {
                         // Simplify Constants
-                        Value val;
-                        TryEvalConst(out val);
-                        type_ = TypeFromOperator(op_, type_);
+                        Value val = Exec(null, null);
+
                         return ConstExpr.MakeConst(val, type_, outputName_);
                     }
-                    else
+
+                    if ((lce != null || rce != null) && (IsArithIdentity(lce, rce)))
+                    {
+                        return SimplifyArithmetic(lce, rce);
+                    }
+
                     if (lce != null && rce == null)
                     {
                         if (isPlainSwappableConstOper(this))
@@ -1304,12 +1270,12 @@ namespace qpmodel.expr
                             * (becuase we swapped cosntant to be on the right).
                             * if be == + and l == +: add left's right value to root's right value,
                             * make  left's left as left of root
-                            * 
+                            *
                             * if be == * and l == +: create a expr node as left (x + 10), create (5 * 10)
                             * as right, change operator to +
                             * In either case left and right's children must be nulled out
-                            * and since we are going bottom up, this doesn't create any problem. 
-                            * 
+                            * and since we are going bottom up, this doesn't create any problem.
+                            *
                             * Here is a pictorial description:
                             *                         *         root           +
                             *              old left  / \ old right   new left / \  new right
@@ -1412,7 +1378,13 @@ namespace qpmodel.expr
 
         public override Expr Normalize()
         {
-            return base.Normalize();
+            Expr x = base.Normalize();
+            if (!x.AllArgsConst())
+                return x;
+
+            Value val = Exec(null, null);
+
+            return ConstExpr.MakeConst(val, type_, outputName_);
         }
     }
 
@@ -1434,7 +1406,13 @@ namespace qpmodel.expr
 
         public override Expr Normalize()
         {
-            return base.Normalize();
+            Expr x = base.Normalize();
+            if (!x.AllArgsConst())
+                return x;
+
+            Value val = Exec(null, null);
+
+            return ConstExpr.MakeConst(val, type_, outputName_);
         }
     }
 
@@ -1454,7 +1432,13 @@ namespace qpmodel.expr
 
         public override Expr Normalize()
         {
-            return base.Normalize();
+            Expr x = base.Normalize();
+            if (!x.AllArgsConst())
+                return x;
+
+            Value val = Exec(null, null);
+
+            return ConstExpr.MakeConst(val, type_, outputName_);
         }
     }
 
@@ -1487,7 +1471,13 @@ namespace qpmodel.expr
 
         public override Expr Normalize()
         {
-            return base.Normalize();
+            Expr x = base.Normalize();
+            if (!x.AllArgsConst())
+                return x;
+
+            Value val = Exec(null, null);
+
+            return ConstExpr.MakeConst(val, type_, outputName_);
         }
     }
 }
