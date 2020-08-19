@@ -30,45 +30,59 @@ group by
 order by
 	revenue desc
 limit 20
-Total cost: 15939.98, memory=235344
-PhysicLimit (20) (inccost=15939.98, cost=20, rows=20) (actual rows=3)
+Total cost: 11634.98, memory=72302
+PhysicLimit (20) (inccost=11634.98, cost=20, rows=20) (actual rows=20)
     Output: c_custkey[0],c_name[1],{sum(l_extendedprice*1-l_discount)}[2],c_acctbal[3],n_name[4],c_address[5],c_phone[6],c_comment[7]
-    -> PhysicOrder  (inccost=15919.98, cost=413.98, rows=90, memory=21780) (actual rows=3)
+    -> PhysicOrder  (inccost=11614.98, cost=413.98, rows=90, memory=21780) (actual rows=20)
         Output: c_custkey[0],c_name[1],{sum(l_extendedprice*1-l_discount)}[2],c_acctbal[3],n_name[4],c_address[5],c_phone[6],c_comment[7]
         Order by: {sum(l_extendedprice*1-l_discount)}[2]
-        -> PhysicHashAgg  (inccost=15506, cost=270, rows=90, memory=43560) (actual rows=3)
+        -> PhysicHashAgg  (inccost=11201, cost=270, rows=90, memory=43560) (actual rows=43)
             Output: {c_custkey}[0],{c_name}[1],{sum(l_extendedprice*1-l_discount)}[7],{c_acctbal}[2],{n_name}[4],{c_address}[5],{c_phone}[3],{c_comment}[6]
             Aggregates: sum(l_extendedprice[8]*1-l_discount[11])
             Group by: c_custkey[0], c_name[1], c_acctbal[2], c_phone[5], n_name[3], c_address[4], c_comment[6]
-            -> PhysicGather 1 : 10 (inccost=15236, cost=9, rows=90) (actual rows=8)
-                Output: c_custkey[0],c_name[1],c_acctbal[2],n_name[8],c_address[3],c_phone[4],c_comment[5],{l_extendedprice*1-l_discount}[9],l_extendedprice[10],{1-l_discount}[11],1,l_discount[12]
-                -> PhysicHashJoin  (inccost=15227, cost=1890, rows=90, memory=65100) (actual rows=0)
-                    Output: c_custkey[0],c_name[1],c_acctbal[2],n_name[8],c_address[3],c_phone[4],c_comment[5],{l_extendedprice*1-l_discount}[9],l_extendedprice[10],{1-l_discount}[11],1,l_discount[12]
-                    Filter: c_custkey[0]=o_custkey[13] and c_nationkey[7]=n_nationkey[14]
-                    -> PhysicRedistribute  (inccost=165, cost=15, rows=150) (actual rows=0)
-                        Output: c_custkey[0],c_name[1],c_acctbal[2],c_address[3],c_phone[4],c_comment[5],{1}[6],c_nationkey[7]
+            -> PhysicGather 1 : 10 (inccost=10931, cost=900, rows=90) (actual rows=140)
+                Output: c_custkey[3],c_name[4],c_acctbal[5],n_name[0],c_address[6],c_phone[7],c_comment[8],{l_extendedprice*1-l_discount}[9],l_extendedprice[10],{1-l_discount}[11],{1}[1],l_discount[12]
+                -> PhysicHashJoin  (inccost=10031, cost=230, rows=90, memory=1650) (actual rows=0)
+                    Output: c_custkey[3],c_name[4],c_acctbal[5],n_name[0],c_address[6],c_phone[7],c_comment[8],{l_extendedprice*1-l_discount}[9],l_extendedprice[10],{1-l_discount}[11],{1}[1],l_discount[12]
+                    Filter: c_nationkey[13]=n_nationkey[2]
+                    -> PhysicScanTable nation (inccost=25, cost=25, rows=25) (actual rows=0)
+                        Output: n_name[1],1,n_nationkey[0]
+                    -> PhysicHashJoin  (inccost=9776, cost=360, rows=90, memory=4320) (actual rows=0)
+                        Output: c_custkey[5],c_name[6],c_acctbal[7],c_address[8],c_phone[9],c_comment[10],{l_extendedprice*1-l_discount}[0],l_extendedprice[1],{1-l_discount}[2],l_discount[3],c_nationkey[11]
+                        Filter: c_custkey[5]=o_custkey[4]
+                        -> PhysicRedistribute  (inccost=9266, cost=120, rows=60) (actual rows=0)
+                            Output: {l_extendedprice*1-l_discount}[0],l_extendedprice[1],{1-l_discount}[2],l_discount[3],o_custkey[4]
+                            -> PhysicHashJoin  (inccost=9146, cost=1641, rows=60, memory=992) (actual rows=0)
+                                Output: {l_extendedprice*1-l_discount}[2],l_extendedprice[3],{1-l_discount}[4],l_discount[5],o_custkey[0]
+                                Filter: l_orderkey[6]=o_orderkey[1]
+                                -> PhysicScanTable orders (inccost=1500, cost=1500, rows=62) (actual rows=0)
+                                    Output: o_custkey[1],o_orderkey[0]
+                                    Filter: o_orderdate[4]>='1993-10-01' and o_orderdate[4]<'12/30/1993 12:00:00 AM'
+                                -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=1457) (actual rows=0)
+                                    Output: l_extendedprice[5]*1-l_discount[6],l_extendedprice[5],1-l_discount[6],l_discount[6],l_orderkey[0]
+                                    Filter: l_returnflag[8]='R'
                         -> PhysicScanTable customer (inccost=150, cost=150, rows=150) (actual rows=0)
-                            Output: c_custkey[0],c_name[1],c_acctbal[5],c_address[2],c_phone[4],c_comment[7],1,c_nationkey[3]
-                    -> PhysicRedistribute  (inccost=13172, cost=150, rows=1500) (actual rows=0)
-                        Output: n_name[0],{l_extendedprice*1-l_discount}[1],l_extendedprice[2],{1-l_discount}[3],l_discount[4],o_custkey[5],n_nationkey[6]
-                        -> PhysicNLJoin  (inccost=13022, cost=2450, rows=1500) (actual rows=0)
-                            Output: n_name[0],{l_extendedprice*1-l_discount}[2],l_extendedprice[3],{1-l_discount}[4],l_discount[5],o_custkey[6],n_nationkey[1]
-                            -> PhysicScanTable nation (inccost=25, cost=25, rows=25) (actual rows=0)
-                                Output: n_name[1],n_nationkey[0]
-                            -> PhysicRedistribute  (inccost=10547, cost=6, rows=60) (actual rows=0)
-                                Output: {l_extendedprice*1-l_discount}[0],l_extendedprice[1],{1-l_discount}[2],l_discount[3],o_custkey[4]
-                                -> PhysicHashJoin  (inccost=10541, cost=3036, rows=60, memory=104904) (actual rows=0)
-                                    Output: {l_extendedprice*1-l_discount}[0],l_extendedprice[1],{1-l_discount}[2],l_discount[3],o_custkey[5]
-                                    Filter: l_orderkey[4]=o_orderkey[6]
-                                    -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=1457) (actual rows=0)
-                                        Output: l_extendedprice[5]*1-l_discount[6],l_extendedprice[5],1-l_discount[6],l_discount[6],l_orderkey[0]
-                                        Filter: l_returnflag[8]='R'
-                                    -> PhysicScanTable orders (inccost=1500, cost=1500, rows=62) (actual rows=0)
-                                        Output: o_custkey[1],o_orderkey[0]
-                                        Filter: o_orderdate[4]>='1993-10-01' and o_orderdate[4]<'12/30/1993 12:00:00 AM'
+                            Output: c_custkey[0],c_name[1],c_acctbal[5],c_address[2],c_phone[4],c_comment[7],c_nationkey[3]
 
-Emulated 10 machines distributed run with 40 threads
-76,Customer#000000076,71918.906,5745.33,ALGERIA,m3sbCvjMOHyaOofH,e UkGPtqc4,10-349-718-3044,pecial deposits. ironic ideas boost blithely according to the closely ironic theodolites! furiously final deposits n
-29,Customer#000000029,56516.475,7618.27,ALGERIA,sJ5adtfyAkCK63df2,vF25zyQMVYE34uh,10-773-203-7342,its after the carefully final platelets x-ray against
-86,Customer#000000086,24827.0646,3306.32,ALGERIA,US6EGGHXbTTXPL9SBsxQJsuvy,10-677-951-2353,quests. pending dugouts are carefully aroun
+Emulated 10 machines distributed run with 20 threads
+121,Customer#000000121,282635.1719,6428.32,PERU,tv nCR2YKupGN73mQudO,27-411-990-2959,uriously stealthy ideas. carefully final courts use carefully
+124,Customer#000000124,222182.5188,1842.49,CHINA,aTbyVAW5tCd,v09O,28-183-750-7809,le fluffily even dependencies. quietly s
+106,Customer#000000106,190241.3334,3288.42,ARGENTINA,xGCOEAUjUNG,11-751-989-4627,lose slyly. ironic accounts along the evenly regular theodolites wake about the special, final gifts.
+16,Customer#000000016,161422.0461,4681.03,IRAN,cYiaeMLZSMAOQ2 d0W,,20-781-609-3107,kly silent courts. thinly regular theodolites sleep fluffily after
+44,Customer#000000044,149364.5652,7315.94,MOZAMBIQUE,Oi,dOSPwDu4jo4x,,P85E0dmhZGvNtBwi,26-190-260-5375,r requests around the unusual, bold a
+71,Customer#000000071,129481.0245,-611.19,GERMANY,TlGalgdXWBmMV,6agLyWYDyIz9MKzcY8gl,w6t1B,17-710-812-5403,g courts across the regular, final pinto beans are blithely pending ac
+89,Customer#000000089,121663.1243,1530.76,KENYA,dtR, y9JQWUO6FoJExyp8whOU,24-394-451-5404,counts are slyly beyond the slyly final accounts. quickly final ideas wake. r
+112,Customer#000000112,111137.7141,2953.35,ROMANIA,RcfgG3bO7QeCnfjqJT1,29-233-262-8382,rmanently unusual multipliers. blithely ruthless deposits are furiously along the
+62,Customer#000000062,106368.0153,595.61,GERMANY,upJK2Dnw13,,17-361-978-7059,kly special dolphins. pinto beans are slyly. quickly regular accounts are furiously a
+146,Customer#000000146,103265.9888,3328.68,CANADA,GdxkdXG9u7iyI1,,y5tq4ZyrcEy,13-835-723-3223,ffily regular dinos are slyly unusual requests. slyly specia
+19,Customer#000000019,99306.0127,8914.71,CHINA,uc,3bHIx84H,wdrmLOjVsiqXCq2tr,28-396-526-5053,nag. furiously careful packages are slyly at the accounts. furiously regular in
+145,Customer#000000145,99256.9018,9748.93,JORDAN,kQjHmt2kcec cy3hfMh969u,23-562-444-8454,ests? express, express instructions use. blithely fina
+103,Customer#000000103,97311.7724,2757.45,INDONESIA,8KIsQX4LJ7QMsj6DrtFtXu0nUEdV,8a,19-216-107-2107,furiously pending notornis boost slyly around the blithely ironic ideas? final, even instructions cajole fl
+136,Customer#000000136,95855.398,-842.39,GERMANY,QoLsJ0v5C1IQbh,DS1,17-501-210-4726,ackages sleep ironic, final courts. even requests above the blithely bold requests g
+53,Customer#000000053,92568.9124,4113.64,MOROCCO,HnaxHzTfFTZs8MuCpJyTbZ47Cm4wFOOgib,25-168-852-5363,ar accounts are. even foxes are blithely. fluffily pending deposits boost
+49,Customer#000000049,90965.7262,4573.94,IRAN,cNgAeX7Fqrdf7HQN9EwjUa4nxT,68L FKAxzl,20-908-631-4424,nusual foxes! fluffily pending packages maintain to the regular
+37,Customer#000000037,88065.7458,-917.75,INDIA,7EV4Pwh,3SboctTWt,18-385-235-7162,ilent packages are carefully among the deposits. furiousl
+82,Customer#000000082,86998.9644,9468.34,CHINA,zhG3EZbap4c992Gj3bK,3Ne,Xn,28-159-442-5305,s wake. bravely regular accounts are furiously. regula
+125,Customer#000000125,84808.068,-234.12,ROMANIA,,wSZXdVR xxIIfm9s8ITyLl3kgjT6UC07GY0Y,29-261-996-3120,x-ray finally after the packages? regular requests c
+59,Customer#000000059,84655.5711,3458.6,ARGENTINA,zLOCP0wh92OtBihgspOGl4,11-355-584-3112,ously final packages haggle blithely after the express deposits. furiou
 

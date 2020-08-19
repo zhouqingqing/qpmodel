@@ -7,11 +7,11 @@ where
 	and l_shipdate < date '1994-01-01' + interval '1' year
 	and l_discount between .06 - 0.01  and .06 + 0.01
 	and l_quantity < 24
-Total cost: 6095, memory=16
-PhysicHashAgg  (inccost=6095, cost=82, rows=1, memory=16) (actual rows=1)
+Total cost: 6887, memory=16
+PhysicHashAgg  (inccost=6887, cost=82, rows=1, memory=16) (actual rows=1)
     Output: {sum(l_extendedprice*l_discount)}[0]
     Aggregates: sum(l_extendedprice[1]*l_discount[2])
-    -> PhysicGather 1 : 10 (inccost=6013, cost=8, rows=80) (actual rows=74)
+    -> PhysicGather 1 : 10 (inccost=6805, cost=800, rows=80) (actual rows=74)
         Output: l_extendedprice[5]*l_discount[6],l_extendedprice[5],l_discount[6]
         -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=80) (actual rows=0)
             Output: l_extendedprice[5]*l_discount[6],l_extendedprice[5],l_discount[6]

@@ -785,6 +785,11 @@ namespace qpmodel.unittest
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicStreamAgg"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicOrder"));
 
+            sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2 order by count(a1) desc;";
+            TU.ExecuteSQL(sql, "6,4;4,1", out phyplan, option);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicStreamAgg"));
+            Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicOrder"));
+
             sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2 order by a2;";
             TU.ExecuteSQL(sql, "4,1;6,4", out phyplan, option);
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicStreamAgg"));
@@ -2266,12 +2271,12 @@ namespace qpmodel.unittest
                 sql = "select a2,b2,c2 from ad, bd, cd where a2=b2 and c2 = b2 order by c2";
                 TU.ExecuteSQL(sql, "1,1,1;2,2,2;3,3,3", out phyplan);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-                Assert.AreEqual(4, TU.CountStr(phyplan, "Redistribute"));
+                Assert.AreEqual(3, TU.CountStr(phyplan, "Redistribute"));
                 sql = "select a2,b2,c2,d2 from ad, bd, cd, dd where a2=b2 and c2 = b2 and c2=d2 order by b2";
                 TU.ExecuteSQL(sql, "1,1,1,1;2,2,2,2;2,2,2,2;3,3,3,3", out phyplan);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-                Assert.AreEqual(6, TU.CountStr(phyplan, "Redistribute"));
-                Assert.AreEqual(1, TU.CountStr(phyplan, "70 threads"));
+                Assert.AreEqual(4, TU.CountStr(phyplan, "Redistribute"));
+                Assert.AreEqual(1, TU.CountStr(phyplan, "50 threads"));
 
                 // ensure redistribution can shuffle by expression
                 sql = "select a2, b2 from ad, bd where a2*2+a1=b2 order by a2;";
@@ -2297,7 +2302,7 @@ namespace qpmodel.unittest
                 sql = "select a1,b1 from ad, br where a2=b2 order by a1;";
                 TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-                Assert.AreEqual(1, TU.CountStr(phyplan, "Redistribute")); // FIXME: redistribution is not needed if replica is on the build side
+                Assert.AreEqual(0, TU.CountStr(phyplan, "Redistribute")); // FIXME: redistribution is not needed if replica is on the build side
                 sql = "select a1,b1 from ar, br where a2=b2 order by a1;";
                 TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
@@ -2319,7 +2324,7 @@ namespace qpmodel.unittest
                 sql = "select a1,b1 from ar, brb where a2=b2 order by a1;";
                 TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-                Assert.AreEqual(1, TU.CountStr(phyplan, "Redistribute"));
+                Assert.AreEqual(0, TU.CountStr(phyplan, "Redistribute"));
             }
         }
     }
