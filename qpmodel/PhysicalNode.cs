@@ -1878,7 +1878,10 @@ namespace qpmodel.physic
     public abstract class PhysicRemoteExchange : PhysicNode
     {
         internal bool asConsumer_ { get; set; } = true;
-
+        // consumer only: channel it recieve from
+        internal ExchangeChannel channel_ { get; set; }
+        // producer only: channels it shall send data to, so the number equals nubmer of machines
+        internal List<ExchangeChannel> upChannels_ { get; set; }
         public PhysicRemoteExchange(LogicRemoteExchange logic, PhysicNode l) : base(logic)
         {
             Debug.Assert(asConsumer_); children_.Add(l);
@@ -1906,6 +1909,47 @@ namespace qpmodel.physic
         }
         public virtual string OpenConsumer(ExecContext context) => null;
         public virtual string OpenProducer(ExecContext context) => null;
+        protected string createConsumerStartThread(ExecContext econtext)
+        {
+            var context = econtext as DistributedContext;
+            int dop = context.option_.optimize_.query_dop_;
+            var planId = _;
+
+            Debug.Assert(context.machineId_ >= 0);
+            var machineId = context.machineId_;
+            var wo = new WorkerObject(Thread.CurrentThread.Name,
+                                    context.machines_,
+                                    machineId,
+                                    planId,
+                                    EmulateSerialization(this),
+                                    context.option_);
+            var thread = new Thread(new ThreadStart(wo.EntryPoint));
+            thread.Name = $"Redis_{planId}@{machineId}";
+            thread.Start();
+
+            upChannels_ = null;
+            channel_ = new ExchangeChannel(dop);
+            context.machines_.RegisterChannel(planId, machineId, channel_);
+            return null;
+        }
+        protected string createProducerAndChannel(ExecContext econtext)
+        {
+            var context = econtext as DistributedContext;
+            int dop = context.option_.optimize_.query_dop_;
+            var planId = _;
+
+            // establish all up channels
+            Debug.Assert(upChannels_ is null);
+            upChannels_ = new List<ExchangeChannel>();
+            for (int i = 0; i < dop; i++)
+            {
+                var channel = context.machines_.WaitForChannelReady(planId, i);
+                upChannels_.Add(channel);
+            }
+
+            channel_ = null;
+            return null;
+        }
         public override void Open(ExecContext econtext)
         {
             var context = econtext as DistributedContext;
@@ -1923,6 +1967,48 @@ namespace qpmodel.physic
 
         public virtual void ExecConsumer(Action<Row> callback) { }
         public virtual void ExecProducer(Action<Row> callback) { }
+        protected void redisBroadExec(Action<Row> callback)
+        {
+            ExecContext context = context_;
+
+            Row r;
+            while ((r = channel_.Recv()) != null)
+            {
+                callback(r);
+            }
+        }
+        protected virtual List<int> machineList(Row r)
+        {
+            // default is send to all machines (broadcast)
+            var outlist = new List<int>();
+
+            var context = context_ as DistributedContext;
+            int dop = context.option_.optimize_.query_dop_;
+
+            outlist.AddRange(Enumerable.Range(0, dop));
+            return outlist;
+        }
+        protected void sendProducerResult(Action<Row> callback)
+        {
+            var context = context_ as DistributedContext;
+            int dop = context.option_.optimize_.query_dop_;
+
+            child_().Exec(r =>
+            {
+                if (!context.option_.optimize_.use_codegen_)
+                {
+                    var machines = machineList(r);
+                    foreach (var idx in machines)
+                    {
+                        upChannels_[idx].Send(r);
+                    }
+                }
+            });
+
+            for (int i = 0; i < dop; i++)
+                upChannels_[i].MarkSendDone(context.machineId_);
+        }
+
         public override void Exec(Action<Row> callback)
         {
             if (asConsumer_)
@@ -1943,8 +2029,6 @@ namespace qpmodel.physic
 
     public class PhysicGather : PhysicRemoteExchange
     {
-        internal ExchangeChannel channel_ { get; set; }
-
         public PhysicGather(LogicGather logic, PhysicNode l) : base(logic, l) { }
         public override string ToString() => $"PGATHER({child_()}: {Cost()})";
 
@@ -1954,7 +2038,6 @@ namespace qpmodel.physic
             var logic = logic_ as LogicGather;
             List<int> targets = logic.producerIds_;
             int dop = targets.Count;
-            string cs = base.OpenConsumer(context);
 
             // create producer threads, establish connections and set up 
             // communication channel etc. It uses threads to emulate execution
@@ -1979,14 +2062,13 @@ namespace qpmodel.physic
             }
             workers.ForEach(x => x.Start());
 
-            return cs;
+            return null;
         }
 
         public override string OpenProducer(ExecContext context)
         {
-            string cs = base.OpenProducer(context);
             Debug.Assert(channel_ != null);
-            return cs;
+            return null;
         }
 
         public override void ExecConsumer(Action<Row> callback)
@@ -2016,6 +2098,7 @@ namespace qpmodel.physic
         }
         protected override double EstimateCost()
         {
+            // penalize gather to discourage serialization at bottom
             return child_().Card() *10.0;
         }
     }
@@ -2023,113 +2106,56 @@ namespace qpmodel.physic
     public class PhysicBroadcast : PhysicRemoteExchange
     {
         public PhysicBroadcast(LogicBroadcast logic, PhysicNode l) : base(logic, l) { }
-        public override string ToString() => $"PBORADCAST({child_()}: {Cost()})";
+        public override string ToString() => $"PBROADCAST({child_()}: {Cost()})";
 
-        public override void Exec(Action<Row> callback)
+        public override string OpenConsumer(ExecContext context)
+            => createConsumerStartThread(context);
+        public override string OpenProducer(ExecContext context)
+            => createProducerAndChannel(context);
+
+        public override void ExecConsumer(Action<Row> callback)
+            => redisBroadExec(callback);
+        public override void ExecProducer(Action<Row> callback)
+            => sendProducerResult(callback);
+
+        protected override double EstimateCost()
         {
-            ExecContext context = context_;
-
-            child_().Exec(l =>
-            {
-                if (!context.option_.optimize_.use_codegen_)
-                {
-                    callback(l);
-                }
-            });
+            return child_().Card() * 2.0;
         }
     }
 
     public class PhysicRedistribute : PhysicRemoteExchange
     {
-        // consumer only: channel it recieve from
-        internal ExchangeChannel channel_ { get; set; }
-
-        // producer only: channels it shall send data to, so the number equals nubmer of machines
-        List<ExchangeChannel> upChannels_ { get; set; }
-
         public PhysicRedistribute(LogicRedistribute logic, PhysicNode l) : base(logic, l) { }
         public override string ToString() => $"PREDISTRIBUTE({child_()}: {Cost()})";
 
-        public override string OpenConsumer(ExecContext econtext)
-        {
-            var context = econtext as DistributedContext;
-            int dop = context.option_.optimize_.query_dop_;
-            var code = base.OpenConsumer(context);
-            var planId = _;
+        public override string OpenConsumer(ExecContext context)
+            => createConsumerStartThread(context);
+        public override string OpenProducer(ExecContext context)
+            => createProducerAndChannel(context);
 
-            Debug.Assert(context.machineId_ >= 0);
-            var machineId = context.machineId_;
-            var wo = new WorkerObject(Thread.CurrentThread.Name,
-                                    context.machines_,
-                                    machineId,
-                                    planId,
-                                    EmulateSerialization(this),
-                                    context.option_);
-            var thread = new Thread(new ThreadStart(wo.EntryPoint));
-            thread.Name = $"Redis_{planId}@{machineId}";
-            thread.Start();
-
-            upChannels_ = null;
-            channel_ = new ExchangeChannel(dop);
-            context.machines_.RegisterChannel(planId, machineId, channel_);
-            return code;
-        }
-        public override string OpenProducer(ExecContext econtext)
-        {
-            var context = econtext as DistributedContext;
-            int dop = context.option_.optimize_.query_dop_;
-            var code = base.OpenProducer(context);
-            var planId = _;
-
-            // establish all up channels
-            Debug.Assert(upChannels_ is null);
-            upChannels_ = new List<ExchangeChannel>();
-            for (int i = 0; i < dop; i++)
-            {
-                var channel = context.machines_.WaitForChannelReady(planId, i);
-                upChannels_.Add(channel);
-            }
-
-            channel_ = null;
-            return code;
-        }
-
+        public override void ExecConsumer(Action<Row> callback)
+            => redisBroadExec(callback);
         public override void ExecProducer(Action<Row> callback)
+            => sendProducerResult(callback);
+        protected override List<int> machineList(Row r)
         {
             var context = context_ as DistributedContext;
             int dop = context.option_.optimize_.query_dop_;
-
             var distributeby = (logic_ as LogicRedistribute).distributeby_;
 
-            child_().Exec(r =>
-            {
-                if (!context.option_.optimize_.use_codegen_)
-                {
-                    // hash by distribution keys
-                    var key = KeyList.ComputeKeys(context_, distributeby, r);
-                    var sendtoMachine = Utils.mod(key.GetHashCode(), dop);
-                    upChannels_[sendtoMachine].Send(r);
+            var outlist = new List<int>();
+            var key = KeyList.ComputeKeys(context_, distributeby, r);
+            var sendtoMachine = Utils.mod(key.GetHashCode(), dop);
+            outlist.Add(sendtoMachine);
 
 #if debug
                     var tid = Thread.CurrentThread.ManagedThreadId;
                     Console.WriteLine($"{Thread.CurrentThread.Name} by {tid} => {r} => {sendtoMachine}");
 #endif
-                }
-            });
-
-            for (int i = 0; i < dop; i++)
-                upChannels_[i].MarkSendDone(context.machineId_);
+            return outlist;
         }
-        public override void ExecConsumer(Action<Row> callback)
-        {
-            ExecContext context = context_;
 
-            Row r;
-            while ((r = channel_.Recv()) != null)
-            {
-                callback(r);
-            }
-        }
         protected override double EstimateCost()
         {
             return child_().Card() * 2.0;

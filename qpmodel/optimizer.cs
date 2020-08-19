@@ -136,7 +136,6 @@ namespace qpmodel.optimizer
             // 1.1 required is singleton, node is for any
             // 1.2 required is singleton, node is for replicated
             // 2 required is distributed, node is different distribution
-            // TODO: replicated can be enforced by a broadcast node
             if (distribution_.disttype == DistributionType.Singleton)
             {
                 if (nodeprop.distribution_.disttype == DistributionType.Any)
@@ -149,6 +148,11 @@ namespace qpmodel.optimizer
                     var logicnode = new LogicGather(node.logic_, new List<int> { 0 });
                     return new PhysicGather(logicnode, node);
                 }
+            }
+            else if (distribution_.disttype == DistributionType.Replicated)
+            {
+                var logicnode = new LogicBroadcast(node.logic_);
+                return new PhysicBroadcast(logicnode, node);
             }
             else
             {
@@ -611,7 +615,9 @@ namespace qpmodel.optimizer
             else if (memo_.stmt_.queryOpt_.optimize_.memo_use_remoteexchange_)
             {
                 if (required.distribution_.disttype == DistributionType.Distributed ||
-                required.distribution_.disttype == DistributionType.Singleton)
+                required.distribution_.disttype == DistributionType.Singleton ||
+                (memo_.stmt_.queryOpt_.optimize_.enable_broadcast_ &&
+                required.distribution_.disttype == DistributionType.Replicated))
                     output.Add(new PhysicProperty());
                 if (required.distribution_.disttype == DistributionType.Singleton)
                     output.Add(DistributionProperty.replicated);
