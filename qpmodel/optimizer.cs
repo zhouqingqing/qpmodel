@@ -150,11 +150,16 @@ namespace qpmodel.optimizer
                     return new PhysicGather(logicnode, node);
                 }
             }
-            else
+            else if (distribution_.disttype == DistributionType.Distributed)
             {
-                Debug.Assert(distribution_.disttype == DistributionType.Distributed);
                 var logicnode = new LogicRedistribute(node.logic_, distribution_.exprs);
                 return new PhysicRedistribute(logicnode, node);
+            }
+            else
+            {
+                Debug.Assert(distribution_.disttype == DistributionType.Replicated);
+                var logicnode = new LogicBroadcast(node.logic_);
+                return new PhysicBroadcast(logicnode, node);
             }
         }
 
@@ -611,7 +616,8 @@ namespace qpmodel.optimizer
             else if (memo_.stmt_.queryOpt_.optimize_.memo_use_remoteexchange_)
             {
                 if (required.distribution_.disttype == DistributionType.Distributed ||
-                required.distribution_.disttype == DistributionType.Singleton)
+                required.distribution_.disttype == DistributionType.Singleton ||
+                required.distribution_.disttype == DistributionType.Replicated)
                     output.Add(new PhysicProperty());
                 if (required.distribution_.disttype == DistributionType.Singleton)
                     output.Add(DistributionProperty.replicated);
