@@ -1,10 +1,10 @@
 Total cost: 6005
-PhysicScanTable lineitem (inccost=6005, cost=6005, rows=3039) (actual rows=3033)
+PhysicScanTable lineitem (inccost=6005, cost=6005, rows=3036) (actual rows=3033)
     Output: lineitem.l_orderkey[0],lineitem.l_partkey[1],lineitem.l_suppkey[2],lineitem.l_linenumber[3],lineitem.l_quantity[4],lineitem.l_extendedprice[5],lineitem.l_discount[6],lineitem.l_tax[7],lineitem.l_returnflag[8],lineitem.l_linestatus[9],lineitem.l_shipdate[10],lineitem.l_commitdate[11],lineitem.l_receiptdate[12],lineitem.l_shipinstruct[13],lineitem.l_shipmode[14],lineitem.l_comment[15]
     Filter: lineitem.l_extendedprice[5]>25000
 
 Total cost: 1500
-PhysicScanTable orders (inccost=1500, cost=1500, rows=914) (actual rows=912)
+PhysicScanTable orders (inccost=1500, cost=1500, rows=915) (actual rows=912)
     Output: orders.o_orderkey[0],orders.o_custkey[1],orders.o_orderstatus[2],orders.o_totalprice[3],orders.o_orderdate[4],orders.o_orderpriority[5],orders.o_clerk[6],orders.o_shippriority[7],orders.o_comment[8]
     Filter: orders.o_orderdate[4]>='1993-07-01' and orders.o_orderdate[4]<'1997-07-01'
 

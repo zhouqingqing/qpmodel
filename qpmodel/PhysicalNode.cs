@@ -1684,6 +1684,7 @@ namespace qpmodel.physic
     {
         public Int64 nrows_ = 0;
         public Int64 nloops_ = 0;
+        public PhysicProfiling aggProfiling_ = null;
 
         public override string ToString() => $"${child_()}";
 
@@ -1700,11 +1701,20 @@ namespace qpmodel.physic
 
             if (context.option_.optimize_.use_codegen_)
             {
-                context.code_ += $"{_physic_}.nloops_ ++;";
+                context.code_ += $@"
+                System.Threading.Interlocked.Increment(ref {_physic_}.nloops_);
+                if ({_physic_}.aggProfiling_ != null)
+                {{
+                    System.Threading.Interlocked.Increment(ref {_physic_}.aggProfiling_.nloops_);
+                }}";
             }
             else
             {
-                nloops_++;
+                Interlocked.Increment(ref nloops_);
+                if (aggProfiling_ != null)
+                {
+                    Interlocked.Increment(ref aggProfiling_.nloops_);
+                }
             }
 
             child_().Exec(l =>
@@ -1712,16 +1722,41 @@ namespace qpmodel.physic
                 if (context.option_.optimize_.use_codegen_)
                 {
                     context.code_ += $@"
-                    {_physic_}.nrows_++;
+                    System.Threading.Interlocked.Increment(ref {_physic_}.nrows_);
+                    if ({_physic_}.aggProfiling_ != null)
+                    {{
+                        System.Threading.Interlocked.Increment(ref {_physic_}.aggProfiling_.nrows_);
+                    }}
                     var r{_} = r{child_()._};";
                     callback(null);
                 }
                 else
                 {
-                    nrows_++;
+                    Interlocked.Increment(ref nrows_);
+                    if (aggProfiling_ != null)
+                    {
+                        Interlocked.Increment(ref aggProfiling_.nrows_);
+                    }
                     callback(l);
                 }
             });
+        }
+
+        // assign aggregation profiling to cloned profiling.
+        public override PhysicNode Clone()
+        {
+            var n = (PhysicProfiling)(base.Clone());
+
+            if (aggProfiling_ == null)
+            {
+                n.aggProfiling_ = this;
+            }
+            else
+            {
+                n.aggProfiling_ = aggProfiling_;
+            }
+
+            return n;
         }
 
         protected override double EstimateCost() => 0;
@@ -1941,6 +1976,7 @@ namespace qpmodel.physic
                                     context.option_);
             var thread = new Thread(new ThreadStart(wo.EntryPoint));
             thread.Name = $"Redis_{planId}@{machineId}";
+            context.machines_.AddThread(thread);
             thread.Start();
 
             upChannels_ = null;
@@ -2078,6 +2114,7 @@ namespace qpmodel.physic
                 var thread = new Thread(new ThreadStart(wo.EntryPoint));
                 thread.Name = $"Gather_{planId}@{machineId}";
                 workers.Add(thread);
+                context.machines_.AddThread(thread);
             }
             workers.ForEach(x => x.Start());
 

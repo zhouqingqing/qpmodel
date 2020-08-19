@@ -38,21 +38,21 @@ PhysicOrder  (inccost=4774.38, cost=754.38, rows=148, memory=6364) (actual rows=
         Group by: p_brand[0], p_type[1], p_size[2]
         -> PhysicGather Threads: 20 (inccost=3576, cost=1480, rows=148) (actual rows=0)
             Output: p_brand[0],p_type[1],p_size[2],ps_suppkey[4]
-            -> PhysicHashJoin  (inccost=2096, cost=1022, rows=148, memory=3182) (actual rows=0)
+            -> PhysicHashJoin  (inccost=2096, cost=1022, rows=148, memory=3182) (actual rows=0, loops=10)
                 Output: p_brand[0],p_type[1],p_size[2],ps_suppkey[4]
                 Filter: p_partkey[3]=ps_partkey[5]
-                -> PhysicBroadcast  (inccost=274, cost=74, rows=37) (actual rows=0)
+                -> PhysicBroadcast  (inccost=274, cost=74, rows=37) (actual rows=34, loops=10)
                     Output: p_brand[3],p_type[4],p_size[5],p_partkey[0]
-                    -> PhysicScanTable part (inccost=200, cost=200, rows=37) (actual rows=0)
+                    -> PhysicScanTable part (inccost=200, cost=200, rows=37) (actual rows=3, loops=10)
                         Output: p_brand[3],p_type[4],p_size[5],p_partkey[0]
                         Filter: p_brand[3]<>'Brand#45' and p_type[4]not like'MEDIUM POLISHED%' and p_size[5] in (49,14,23, ... <Total: 8> )
-                -> PhysicScanTable partsupp (inccost=800, cost=800, rows=800) (actual rows=0)
+                -> PhysicScanTable partsupp (inccost=800, cost=800, rows=800) (actual rows=0, loops=10)
                     Output: ps_suppkey[1],ps_partkey[0]
                     Filter: ps_suppkey[1] in @1
                     <InSubqueryExpr> cached 1
                         -> PhysicGather Threads: 10 (inccost=20, cost=10, rows=1) (actual rows=0)
                             Output: s_suppkey[0]
-                            -> PhysicScanTable supplier (inccost=10, cost=10, rows=1) (actual rows=0)
+                            -> PhysicScanTable supplier (inccost=10, cost=10, rows=1) (actual rows=0, loops=10)
                                 Output: s_suppkey[0]
                                 Filter: s_comment[6]like'%Customer%Complaints%'
 

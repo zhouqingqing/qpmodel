@@ -11,21 +11,21 @@ where
 	l_partkey = p_partkey
 	and l_shipdate >= date '1995-09-01'
 	and l_shipdate < date '1995-09-01' + interval '1' month
-Total cost: 7719, memory=8544
-PhysicHashAgg  (inccost=7719, cost=84, rows=1, memory=16) (actual rows=1)
+Total cost: 7655, memory=8128
+PhysicHashAgg  (inccost=7655, cost=80, rows=1, memory=16) (actual rows=1)
     Output: 100*{sum(case with 1)}[0]/{sum(l_extendedprice*1-l_discount)}[1](as promo_revenue)
     Aggregates: sum(case with 1), sum(l_extendedprice[5]*1-l_discount[8])
-    -> PhysicGather Threads: 20 (inccost=7635, cost=820, rows=82) (actual rows=84)
+    -> PhysicGather Threads: 20 (inccost=7575, cost=780, rows=78) (actual rows=84)
         Output: case with 1,{p_typelike'PROMO%'}[9],p_type[8],'PROMO%',{l_extendedprice*1-l_discount}[3],l_extendedprice[0],{1-l_discount}[4],1,l_discount[1],0
-        -> PhysicHashJoin  (inccost=6815, cost=446, rows=82, memory=8528) (actual rows=0)
+        -> PhysicHashJoin  (inccost=6795, cost=434, rows=78, memory=8112) (actual rows=8, loops=10)
             Output: case with 1,{p_typelike'PROMO%'}[9],p_type[8],'PROMO%',{l_extendedprice*1-l_discount}[3],l_extendedprice[0],{1-l_discount}[4],1,l_discount[1],0
             Filter: l_partkey[7]=p_partkey[10]
-            -> PhysicRedistribute  (inccost=6169, cost=164, rows=82) (actual rows=0)
+            -> PhysicRedistribute  (inccost=6161, cost=156, rows=78) (actual rows=8, loops=10)
                 Output: l_extendedprice[0],l_discount[1],{'PROMO%'}[2],{l_extendedprice*1-l_discount}[3],{1-l_discount}[4],{1}[5],{0}[6],l_partkey[7]
-                -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=82) (actual rows=0)
+                -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=78) (actual rows=8, loops=10)
                     Output: l_extendedprice[5],l_discount[6],'PROMO%',l_extendedprice[5]*1-l_discount[6],1-l_discount[6],1,0,l_partkey[1]
                     Filter: l_shipdate[10]>='1995-09-01' and l_shipdate[10]<'10/1/1995 12:00:00 AM'
-            -> PhysicScanTable part (inccost=200, cost=200, rows=200) (actual rows=0)
+            -> PhysicScanTable part (inccost=200, cost=200, rows=200) (actual rows=20, loops=10)
                 Output: p_type[4],p_type[4]like'PROMO%',p_partkey[0]
 15.2302
 

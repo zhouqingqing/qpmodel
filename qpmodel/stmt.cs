@@ -131,6 +131,13 @@ namespace qpmodel.logic
             {
                 Console.WriteLine(physicPlan_.Explain(queryOpt_.explain_));
             }
+
+            var dcontext = context as DistributedContext;
+            if (dcontext != null)
+            {
+                dcontext.machines_.WaitThreads();
+            }
+
             return finalplan.rows_;
         }
 
@@ -143,7 +150,9 @@ namespace qpmodel.logic
             var result = stmt.Exec();
             physicplan = "";
             if (stmt.physicPlan_ != null)
+            {
                 physicplan = stmt.physicPlan_.Explain(option?.explain_ ?? stmt.queryOpt_.explain_);
+            }
             return result;
         }
 
