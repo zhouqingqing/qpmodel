@@ -58,6 +58,7 @@ namespace qpmodel.logic
             public bool enable_nljoin_ { get; set; } = true;
             public bool enable_streamagg_ { get; set; } = false;
             public bool enable_indexseek_ { get; set; } = true;
+            public bool enable_broadcast_ { get; set; } = true;
             public bool use_memo_ { get; set; } = true;
             public bool memo_use_remoteexchange_ { get; set; } = false;
             public bool memo_disable_crossjoin_ { get; set; } = true;

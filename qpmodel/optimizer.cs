@@ -136,7 +136,6 @@ namespace qpmodel.optimizer
             // 1.1 required is singleton, node is for any
             // 1.2 required is singleton, node is for replicated
             // 2 required is distributed, node is different distribution
-            // TODO: replicated can be enforced by a broadcast node
             if (distribution_.disttype == DistributionType.Singleton)
             {
                 if (nodeprop.distribution_.disttype == DistributionType.Any)
@@ -150,16 +149,16 @@ namespace qpmodel.optimizer
                     return new PhysicGather(logicnode, node);
                 }
             }
-            else if (distribution_.disttype == DistributionType.Distributed)
+            else if (distribution_.disttype == DistributionType.Replicated)
             {
-                var logicnode = new LogicRedistribute(node.logic_, distribution_.exprs);
-                return new PhysicRedistribute(logicnode, node);
+                var logicnode = new LogicBroadcast(node.logic_);
+                return new PhysicBroadcast(logicnode, node);
             }
             else
             {
-                Debug.Assert(distribution_.disttype == DistributionType.Replicated);
-                var logicnode = new LogicBroadcast(node.logic_);
-                return new PhysicBroadcast(logicnode, node);
+                Debug.Assert(distribution_.disttype == DistributionType.Distributed);
+                var logicnode = new LogicRedistribute(node.logic_, distribution_.exprs);
+                return new PhysicRedistribute(logicnode, node);
             }
         }
 
@@ -617,7 +616,8 @@ namespace qpmodel.optimizer
             {
                 if (required.distribution_.disttype == DistributionType.Distributed ||
                 required.distribution_.disttype == DistributionType.Singleton ||
-                required.distribution_.disttype == DistributionType.Replicated)
+                (memo_.stmt_.queryOpt_.optimize_.enable_broadcast_ &&
+                required.distribution_.disttype == DistributionType.Replicated))
                     output.Add(new PhysicProperty());
                 if (required.distribution_.disttype == DistributionType.Singleton)
                     output.Add(DistributionProperty.replicated);
