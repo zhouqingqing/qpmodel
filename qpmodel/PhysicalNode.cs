@@ -2106,8 +2106,6 @@ namespace qpmodel.physic
         public PhysicRedistribute(LogicRedistribute logic, PhysicNode l) : base(logic, l) { }
         public override string ToString() => $"PREDISTRIBUTE({child_()}: {Cost()})";
 
-        
-
         public override void ExecProducer(Action<Row> callback)
         {
             var context = context_ as DistributedContext;
