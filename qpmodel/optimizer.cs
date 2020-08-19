@@ -104,50 +104,6 @@ namespace qpmodel.optimizer
             Debug.Assert(false);
             return false;
         }
-        public bool IsDistributionSupplied(PhysicProperty property)
-        {
-            switch (distribution_.disttype)
-            {
-                case DistributionType.Any:
-                    return property.distribution_.disttype == DistributionType.Distributed;
-                case DistributionType.Singleton:
-                    return property.distribution_.disttype == DistributionType.Singleton;
-                // distribution expr list must match to be considered supplied
-                case DistributionType.Distributed:
-                    if (property.distribution_.disttype == DistributionType.Singleton)
-                        return true;
-                    if (property.distribution_.disttype == DistributionType.Distributed)
-                    {
-                        if (distribution_.exprs.Count <= property.distribution_.exprs.Count)
-                        {
-                            foreach (var expr in distribution_.exprs)
-                                if (!property.distribution_.exprs.Contains(expr))
-                                    return false;
-                        }
-                        return true;
-                    }
-                    return false;
-                // replicated can only be satisfied by replicated
-                // sin the gather node for that is different
-                case DistributionType.Replicated:
-                    return property.distribution_.disttype == DistributionType.Replicated;
-            }
-            Debug.Assert(false);
-            return false;
-        }
-
-        internal PhysicNode PropertyEnforcement(PhysicNode node, PhysicProperty nodeprop)
-        {
-            // since the property tranformation process is
-            // one enforcement node, either the order is supplied
-            // or the distribution is supplied
-            if (IsOrderSupplied(nodeprop))
-                return DistributionEnforcement(node, nodeprop);
-            if (IsDistributionSupplied(nodeprop))
-                return OrderEnforcement(node);
-            Debug.Assert(false);
-            return null;
-        }
 
         internal PhysicNode PropertyEnforcement(PhysicNode node, PhysicProperty nodeprop)
         {
