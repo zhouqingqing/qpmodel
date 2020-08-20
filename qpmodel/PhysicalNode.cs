@@ -2032,6 +2032,9 @@ namespace qpmodel.physic
         public PhysicGather(LogicGather logic, PhysicNode l) : base(logic, l) { }
         public override string ToString() => $"PGATHER({child_()}: {Cost()})";
 
+        // cache serialized output for looped case
+        private List<Row> cache_ { get; set; }
+
         public override string OpenConsumer(ExecContext econtext)
         {
             var context = econtext as DistributedContext;
@@ -2075,10 +2078,20 @@ namespace qpmodel.physic
         {
             ExecContext context = context_;
 
-            Row r;
-            while ((r = channel_.Recv()) != null)
+            if (cache_ != null)
             {
-                callback(r);
+                foreach (var row in cache_)
+                    callback(row);
+            }
+            else
+            {
+                cache_ = new List<Row>();
+                Row r;
+                while ((r = channel_.Recv()) != null)
+                {
+                    callback(r);
+                    cache_.Add(r);
+                }
             }
         }
 

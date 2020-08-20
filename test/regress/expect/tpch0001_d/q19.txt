@@ -46,7 +46,7 @@ PhysicHashAgg  (inccost=2532407, cost=1201002, rows=1, memory=16) (actual rows=1
                 Output: l_extendedprice[5]*1-l_discount[6],l_extendedprice[5],1-l_discount[6],1,l_discount[6],l_partkey[1],l_quantity[4],l_shipmode[14],l_shipinstruct[13]
 
 Emulated 10 machines distributed run with 10 threads
-        -> PhysicGather 1 : 10 (inccost=2200, cost=2000, rows=200) (actual rows=0, loops=6005)
+        -> PhysicGather 1 : 10 (inccost=2200, cost=2000, rows=200) (actual rows=200, loops=6005)
             Output: p_partkey[0],p_brand[3],p_container[6],p_size[5]
             -> PhysicScanTable part (inccost=200, cost=200, rows=200) (actual rows=0)
                 Output: p_partkey[0],p_brand[3],p_container[6],p_size[5]
