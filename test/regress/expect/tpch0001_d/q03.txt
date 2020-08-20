@@ -31,7 +31,7 @@ PhysicLimit (10) (inccost=24918.9, cost=10, rows=10) (actual rows=8)
             Output: {l_orderkey}[0],{sum(l_extendedprice*1-l_discount)}[3],{o_orderdate}[1],{o_shippriority}[2]
             Aggregates: sum(l_extendedprice[4]*1-l_discount[7])
             Group by: l_orderkey[0], o_orderdate[1], o_shippriority[2]
-            -> PhysicGather 1 : 10 (inccost=20683, cost=4580, rows=458) (actual rows=14)
+            -> PhysicGather Threads: 20 (inccost=20683, cost=4580, rows=458) (actual rows=14)
                 Output: l_orderkey[2],o_orderdate[3],o_shippriority[4],{l_extendedprice*1-l_discount}[5],l_extendedprice[6],{1-l_discount}[7],{1}[0],l_discount[8]
                 -> PhysicHashJoin  (inccost=16103, cost=2097, rows=458, memory=464) (actual rows=0)
                     Output: l_orderkey[2],o_orderdate[3],o_shippriority[4],{l_extendedprice*1-l_discount}[5],l_extendedprice[6],{1-l_discount}[7],{1}[0],l_discount[8]
@@ -50,8 +50,6 @@ PhysicLimit (10) (inccost=24918.9, cost=10, rows=10) (actual rows=8)
                         -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=3254) (actual rows=0)
                             Output: l_orderkey[0],l_extendedprice[5]*1-l_discount[6],l_extendedprice[5],1-l_discount[6],l_discount[6]
                             Filter: l_shipdate[10]>'1995-03-15'
-
-Emulated 10 machines distributed run with 20 threads
 1637,164224.9253,2/8/1995 12:00:00 AM,0
 5191,49378.3094,12/11/1994 12:00:00 AM,0
 742,43728.048,12/23/1994 12:00:00 AM,0

@@ -2283,8 +2283,8 @@ namespace qpmodel.unittest
                 Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
                 Assert.AreEqual(enable_bc ? 0 : 4, TU.CountStr(phyplan, "Redistribute"));
                 Assert.AreEqual(enable_bc ? 3 : 0, TU.CountStr(phyplan, "Broadcast"));
-                Assert.AreEqual(enable_bc ? 0 : 1, TU.CountStr(phyplan, "50 threads"));
-                Assert.AreEqual(enable_bc ? 1 : 0, TU.CountStr(phyplan, "40 threads"));
+                Assert.AreEqual(enable_bc ? 0 : 1, TU.CountStr(phyplan, "threads: 50"));
+                Assert.AreEqual(enable_bc ? 1 : 0, TU.CountStr(phyplan, "threads: 40"));
 
                 // ensure redistribution can shuffle by expression
                 sql = "select a2, b2 from ad, bd where a2*2+a1=b2 order by a2;";

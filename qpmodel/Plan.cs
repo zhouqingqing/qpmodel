@@ -235,19 +235,6 @@ namespace qpmodel.logic
                     children_.ForEach(x => r += x.Explain(option, depth));
             }
 
-            // details of distributed query emulation
-            if (this is PhysicGather)
-            {
-                int nthreads = QueryOption.num_machines_;
-                int nshuffle = 0;
-                VisitEach(x =>
-                {
-                    if (x is PhysicRedistribute || x is PhysicBroadcast)
-                        nshuffle++;
-                });
-                r += $"\nEmulated {QueryOption.num_machines_} machines distributed run " +
-                     $"with {nthreads * (1 + nshuffle)} threads\n";
-            }
             return r;
         }
 

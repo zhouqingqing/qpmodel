@@ -1277,7 +1277,19 @@ namespace qpmodel.logic
         }
         public override string ToString() => $"Gather({child_()})";
 
-        public override string ExplainInlineDetails() => $"1 : {producerIds_.Count}";
+        int countAllParallelFragments()
+        {
+            int nthreads = QueryOption.num_machines_;
+            int nshuffle = 0;
+            VisitEach(x =>
+            {
+                if (x is LogicRedistribute || x is LogicBroadcast)
+                    nshuffle++;
+            });
+            return nthreads * (1 + nshuffle);
+        }
+
+        public override string ExplainInlineDetails() => $"Threads: {countAllParallelFragments()}";
     }
 
     public class LogicBroadcast : LogicRemoteExchange

@@ -60,7 +60,7 @@ PhysicLimit (100) (inccost=38168272.02, cost=100, rows=100) (actual rows=0)
                         -> PhysicMarkJoin Left (inccost=2024033, cost=1933610, rows=6005) (actual rows=0)
                             Output: #marker,s_name[0],l_orderkey[1],l_suppkey[2]
                             Filter: l_orderkey[3]=l_orderkey[1] and l_suppkey[4]<>l_suppkey[2]
-                            -> PhysicGather 1 : 10 (inccost=24368, cost=3220, rows=322) (actual rows=0)
+                            -> PhysicGather Threads: 20 (inccost=24368, cost=3220, rows=322) (actual rows=0)
                                 Output: s_name[0],l_orderkey[2],l_suppkey[3]
                                 -> PhysicHashJoin  (inccost=21148, cost=3230, rows=322, memory=58) (actual rows=0)
                                     Output: s_name[0],l_orderkey[2],l_suppkey[3]
@@ -84,20 +84,14 @@ PhysicLimit (100) (inccost=38168272.02, cost=100, rows=100) (actual rows=0)
                                         -> PhysicScanTable lineitem as l1 (inccost=6005, cost=6005, rows=6005) (actual rows=0)
                                             Output: l_orderkey[0],l_suppkey[2]
                                             Filter: l_receiptdate[12]>l_commitdate[11]
-
-Emulated 10 machines distributed run with 20 threads
-                            -> PhysicGather 1 : 10 (inccost=66055, cost=60050, rows=6005) (actual rows=0)
+                            -> PhysicGather Threads: 10 (inccost=66055, cost=60050, rows=6005) (actual rows=0)
                                 Output: l_orderkey[0],l_suppkey[2]
                                 -> PhysicScanTable lineitem as l3 (inccost=6005, cost=6005, rows=6005) (actual rows=0)
                                     Output: l_orderkey[0],l_suppkey[2]
                                     Filter: l_receiptdate[12]>l_commitdate[11]
-
-Emulated 10 machines distributed run with 10 threads
-                    -> PhysicGather 1 : 10 (inccost=66055, cost=60050, rows=6005) (actual rows=0)
+                    -> PhysicGather Threads: 10 (inccost=66055, cost=60050, rows=6005) (actual rows=0)
                         Output: l_orderkey[0],l_suppkey[2]
                         -> PhysicScanTable lineitem as l2 (inccost=6005, cost=6005, rows=6005) (actual rows=0)
                             Output: l_orderkey[0],l_suppkey[2]
-
-Emulated 10 machines distributed run with 10 threads
 
 
