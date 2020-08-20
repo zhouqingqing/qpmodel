@@ -227,7 +227,7 @@ namespace qpmodel.expr
                 r += "\n";
                 expr.VisitEachT<SubqueryExpr>(x =>
                 {
-                    string cached = x.IsCacheable() ? "cached " : "";
+                    string cached = x.isCacheable_ ? "cached " : "";
                     r += Utils.Spaces(depth + 2) + $"<{x.GetType().Name}> {cached}{x.subqueryid_}\n";
                     Debug.Assert(x.query_.bindContext_ != null);
                     if (x.query_.physicPlan_ != null)
