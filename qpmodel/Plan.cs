@@ -58,7 +58,9 @@ namespace qpmodel.logic
             public bool enable_nljoin_ { get; set; } = true;
             public bool enable_streamagg_ { get; set; } = false;
             public bool enable_indexseek_ { get; set; } = true;
+            public bool enable_broadcast_ { get; set; } = true;
             public bool use_memo_ { get; set; } = true;
+            public bool memo_use_remoteexchange_ { get; set; } = false;
             public bool memo_disable_crossjoin_ { get; set; } = true;
             public bool memo_use_joinorder_solver_ { get; set; } = false;   // make it true by default
 
@@ -444,8 +446,10 @@ namespace qpmodel.logic
                 Debug.Assert(!distributed_);
                 distributed_ = true;
 
-                // FIXME: we have to disable memo optimization before property enforcement done
-                queryOpt_.optimize_.use_memo_ = false;
+                // distributed table query can also use memo
+                // remote exchange is considered in memo optimization
+                queryOpt_.optimize_.memo_use_remoteexchange_ = true;
+
                 if (onlyreplicated)
                     root = new LogicGather(root, new List<int> { 0 });
                 else

@@ -302,7 +302,7 @@ namespace qpmodel.expr
 
         public bool IsDopMatch(QueryOption option) => Table().distributions_.Count == option.optimize_.query_dop_;
         public bool IsDistributed() => Table().distMethod_ != TableDef.DistributionMethod.NonDistributed;
-        public bool IsDistributionMatch(List<Expr> keys, QueryOption option)
+        public bool IsDistributionMatch(List<Expr> keys, QueryOption option = null)
         {
             var method = Table().distMethod_;
 
@@ -311,7 +311,7 @@ namespace qpmodel.expr
                 return true;
             else
             {
-                Debug.Assert(IsDopMatch(option));
+                if (option != null) Debug.Assert(IsDopMatch(option));
 
                 // replicated always match
                 if (method == TableDef.DistributionMethod.Replicated)

@@ -287,5 +287,6 @@ namespace qpmodel.utils
             }
         }
         public static string normalizeName(string name) => name.StartsWith('"') ? name : name.ToLower();
+        public static int mod(int a, int b) => (a % b + b) % b; // ensure positive
     }
 }

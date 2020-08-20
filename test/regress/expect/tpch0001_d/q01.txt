@@ -19,15 +19,15 @@ group by
 order by
 	l_returnflag,
 	l_linestatus
-Total cost: 12532.65, memory=1116
-PhysicOrder  (inccost=12532.65, cost=11.35, rows=6, memory=372) (actual rows=4)
+Total cost: 71071.35, memory=1116
+PhysicOrder  (inccost=71071.35, cost=11.35, rows=6, memory=372) (actual rows=4)
     Output: l_returnflag[0],l_linestatus[1],{sum(l_quantity)}[2],{sum(l_extendedprice)}[3],{sum(l_extendedprice*1-l_discount)}[4],{sum(l_extendedprice*1-l_discount*1+l_tax)}[5],{avg(l_quantity)}[6],{avg(l_extendedprice)}[7],{avg(l_discount)}[8],{count(*)(0)}[9]
     Order by: l_returnflag[0], l_linestatus[1]
-    -> PhysicHashAgg  (inccost=12521.3, cost=5925, rows=6, memory=744) (actual rows=4)
+    -> PhysicHashAgg  (inccost=71060, cost=5925, rows=6, memory=744) (actual rows=4)
         Output: {l_returnflag}[0],{l_linestatus}[1],{sum(l_quantity)}[2],{sum(l_extendedprice)}[3],{sum(l_extendedprice*1-l_discount)}[4],{sum(l_extendedprice*1-l_discount*1+l_tax)}[5],{avg(l_quantity)}[6],{avg(l_extendedprice)}[7],{avg(l_discount)}[8],{count(*)(0)}[9]
         Aggregates: sum(l_quantity[2]), sum(l_extendedprice[3]), sum(l_extendedprice[3]*1-l_discount[7]), sum(l_extendedprice[3]*1-l_discount[7]*1+l_tax[10]), avg(l_quantity[2]), avg(l_extendedprice[3]), avg(l_discount[7]), count(*)(0)
         Group by: l_returnflag[0], l_linestatus[1]
-        -> PhysicGather 1 : 10 (inccost=6596.3, cost=591.3, rows=5913) (actual rows=5914)
+        -> PhysicGather 1 : 10 (inccost=65135, cost=59130, rows=5913) (actual rows=5914)
             Output: l_returnflag[8],l_linestatus[9],l_quantity[4],l_extendedprice[5],l_extendedprice[5]*1-l_discount[6],1-l_discount[6],1,l_discount[6],l_extendedprice[5]*1-l_discount[6]*1+l_tax[7],1+l_tax[7],l_tax[7]
             -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=5913) (actual rows=0)
                 Output: l_returnflag[8],l_linestatus[9],l_quantity[4],l_extendedprice[5],l_extendedprice[5]*1-l_discount[6],1-l_discount[6],1,l_discount[6],l_extendedprice[5]*1-l_discount[6]*1+l_tax[7],1+l_tax[7],l_tax[7]

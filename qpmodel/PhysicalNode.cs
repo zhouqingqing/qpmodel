@@ -200,19 +200,28 @@ namespace qpmodel.physic
         //
         // determine if a required property can be satisfied through physic node
         // if it can be satisfied, then property requirement on children is returned
-        public virtual bool IsPropertySatisfied(PhysicProperty required, out List<PhysicProperty> childprops)
+        // since for each property and physic node, there are more that one set of child properties
+        // there for the output is a list (set) of list (children)
+        // example:
+        // required: <null, distributed>, node: hashjoin
+        // viable child properties:
+        // 1) (<null, distributed>, <null, distributed>)
+        // 2) (<null, distributed>, <null, replicated>)
+        public virtual bool IsPropertySatisfied(PhysicProperty required, out List<List<PhysicProperty>> listchildprops)
         {
-            // when there is no property requirement, it is always satisfied
-            if (required.Equals(PhysicProperty.nullprop))
+            listchildprops = new List<List<PhysicProperty>>();
+            listchildprops.Add(new List<PhysicProperty>());
+            // the default is singleton with no order requirement
+            // assume all the physic nodes can process singleton
+            if (required.IsPropertySupplied(DistributionProperty.singleton))
             {
-                childprops = new List<PhysicProperty>();
                 for (int i = 0; i < children_.Count; i++)
-                    childprops.Add(PhysicProperty.nullprop);
+                    listchildprops[0].Add(DistributionProperty.singleton);
                 return true;
             }
             else
             {
-                childprops = null;
+                listchildprops = null;
                 return false;
             }
         }
@@ -401,6 +410,44 @@ namespace qpmodel.physic
             var tablerows = Math.Max(1,
                         Catalog.sysstat_.EstCardinality(logic.tabref_.relname_));
             return tablerows * 1.0;
+        }
+        public override bool IsPropertySatisfied(PhysicProperty required, out List<List<PhysicProperty>> listchildprops)
+        {
+            // leaf node, no child
+            listchildprops = null;
+
+            // does not supply order property by default
+            if (required.ordering_.Count > 0)
+                return false;
+
+            var logic = logic_ as LogicScanTable;
+            var tableref = logic.tabref_;
+            
+            switch (required.distribution_.disttype)
+            {
+                case DistributionType.Singleton:
+                    if (!tableref.IsDistributed())
+                        return true;
+                    else
+                        return false;
+                case DistributionType.Any:
+                    if (tableref.Table().distMethod_ != TableDef.DistributionMethod.Replicated)
+                        return true;
+                    else
+                        return false;
+                case DistributionType.Replicated:
+                    if (tableref.Table().distMethod_ == TableDef.DistributionMethod.Replicated)
+                        return true;
+                    else
+                        return false;
+            }
+            // the rest case is specific distributed property
+            Debug.Assert(required.distribution_.disttype == DistributionType.Distributed);
+            if (tableref.Table().distMethod_ != TableDef.DistributionMethod.Replicated &&
+                tableref.IsDistributionMatch(required.distribution_.exprs))
+                return true;
+            else
+                return false;
         }
     }
 
@@ -671,22 +718,34 @@ namespace qpmodel.physic
             return cost;
         }
 
-        public override bool IsPropertySatisfied(PhysicProperty required, out List<PhysicProperty> childprops)
+        public override bool IsPropertySatisfied(PhysicProperty required, out List<List<PhysicProperty>> listchildprops)
         {
             // TODO: distribution determination, no distribution supplied
-            if (required.ordering_.Count > 0)
+            // for NLJoin, consider only singleton situation
+            if (!required.IsDistributionSupplied(DistributionProperty.singleton))
             {
-                var logic = logic_ as LogicJoin;
-                if (IsExprMatch(required, logic.leftKeys_))
-                {
-                    childprops = new List<PhysicProperty> { required, PhysicProperty.nullprop };
-                    return true;
-                }
-                childprops = null;
+                listchildprops = null;
                 return false;
             }
-            childprops = new List<PhysicProperty> { PhysicProperty.nullprop, PhysicProperty.nullprop };
-            return true;
+            else
+            {
+                listchildprops = new List<List<PhysicProperty>>();
+                if (required.ordering_.Count > 0)
+                {
+                    var logic = logic_ as LogicJoin;
+                    if (IsExprMatch(required, logic.leftKeys_))
+                    {
+                        var outerreq = new DistributionProperty();
+                        outerreq.ordering_ = required.ordering_;
+                        listchildprops.Add( new List<PhysicProperty> { outerreq, DistributionProperty.singleton } );
+                        return true;
+                    }
+                    listchildprops = null;
+                    return false;
+                }
+                listchildprops.Add( new List<PhysicProperty> { DistributionProperty.singleton, DistributionProperty.singleton } );
+                return true;
+            }
         }
 
         internal bool IsExprMatch(PhysicProperty sort, List<Expr> exprs)
@@ -939,6 +998,51 @@ namespace qpmodel.physic
             var outputcost = logic_.Card() * 1.0;
             return buildcost + probecost + outputcost;
         }
+        public override bool IsPropertySatisfied(PhysicProperty required, out List<List<PhysicProperty>> listchildprops)
+        {
+            // cannot handle order property
+            if (required.ordering_.Count > 0)
+            {
+                listchildprops = null;
+                return false;
+            }
+
+            var logic = logic_ as LogicJoin;
+            logic.CreateKeyList();
+
+            listchildprops = new List<List<PhysicProperty>>();
+
+            switch (required.distribution_.disttype)
+            {
+                case DistributionType.Singleton:
+                    listchildprops.Add(new List<PhysicProperty> { DistributionProperty.singleton, DistributionProperty.singleton });
+                    return true;
+                case DistributionType.Replicated:
+                    listchildprops.Add(new List<PhysicProperty> { DistributionProperty.replicated, DistributionProperty.replicated });
+                    return true;
+            }
+            Debug.Assert(required.distribution_.disttype == DistributionType.Distributed
+                || required.distribution_.disttype == DistributionType.Any);
+            if (required.IsDistributionSupplied(new DistributionProperty(logic.leftKeys_))
+                || required.IsDistributionSupplied(new DistributionProperty(logic.rightKeys_)))
+            {
+                listchildprops.Add(new List<PhysicProperty> { new DistributionProperty(logic.leftKeys_), new DistributionProperty(logic.rightKeys_) });
+                listchildprops.Add(new List<PhysicProperty> { DistributionProperty.singleton, new DistributionProperty(logic.rightKeys_) });
+                listchildprops.Add(new List<PhysicProperty> { new DistributionProperty(logic.leftKeys_), DistributionProperty.singleton });
+                if (required.distribution_.disttype == DistributionType.Any)
+                {
+                    listchildprops.Add(new List<PhysicProperty> { DistributionProperty.replicated, PhysicProperty.nullprop });
+                    listchildprops.Add(new List<PhysicProperty> { DistributionProperty.singleton, new DistributionProperty(logic.rightKeys_) });
+                    listchildprops.Add(new List<PhysicProperty> { new DistributionProperty(logic.leftKeys_), DistributionProperty.singleton });
+                }
+                return true;
+            }
+            else
+            {
+                listchildprops = null;
+                return false;
+            }
+        }
     }
 
     public abstract class PhysicAgg : PhysicNode
@@ -1028,6 +1132,19 @@ namespace qpmodel.physic
         protected override double EstimateCost()
         {
             return (child_().Card() * 1.0) + (logic_.Card() * 2.0);
+        }
+
+        public override bool IsPropertySatisfied(PhysicProperty required, out List<List<PhysicProperty>> listchildprops)
+        {
+            listchildprops = new List<List<PhysicProperty>>();
+            // hash agg can only support singleton with no order requirement by default
+            if (required.Equals(DistributionProperty.singleton))
+            {
+                listchildprops.Add(new List<PhysicProperty> { DistributionProperty.singleton });
+                return true;
+            }
+            listchildprops = null;
+            return false;
         }
 
         public override void Open(ExecContext context)
@@ -1149,16 +1266,22 @@ namespace qpmodel.physic
     {
         public PhysicStreamAgg(LogicAgg logic, PhysicNode l) : base(logic, l) { }
         public override string ToString() => $"PStreamAgg({child_()}: {Cost()})";
-        public override bool IsPropertySatisfied(PhysicProperty required, out List<PhysicProperty> childprops)
+        public override bool IsPropertySatisfied(PhysicProperty required, out List<List<PhysicProperty>> listchildprops)
         {
+            listchildprops = new List<List<PhysicProperty>>();
+
             var exprlist = (logic_ as LogicAgg).groupby_;
             var prop = new SortOrderProperty(exprlist);
-            if (required.IsPropertySupplied(prop))
+
+            // stream agg can support certain order property
+            // but distribution must be singleton
+            if (required.distribution_.disttype == DistributionType.Singleton
+                && required.IsPropertySupplied(prop))
             {
-                childprops = new List<PhysicProperty> { prop };
+                listchildprops.Add(new List<PhysicProperty> { prop });
                 return true;
             }
-            childprops = null;
+            listchildprops = null;
             return false;
         }
         protected override double EstimateCost()
@@ -1516,11 +1639,11 @@ namespace qpmodel.physic
                 {
                     int partid = 0;
                     if (table.distMethod_ == TableDef.DistributionMethod.Roundrobin)
-                        partid = Catalog.rand_.Next() % nparts;
+                        partid = Utils.mod(Catalog.rand_.Next(), nparts);
                     else if (table.distMethod_ == TableDef.DistributionMethod.Distributed)
                     {
                         var distrord = table.distributedBy_.ordinal_;
-                        partid = l[distrord].GetHashCode() % nparts;
+                        partid = Utils.mod(l[distrord].GetHashCode(), nparts);
                     }
                     table.distributions_[partid].heap_.Add(l);
                 }
@@ -1755,7 +1878,10 @@ namespace qpmodel.physic
     public abstract class PhysicRemoteExchange : PhysicNode
     {
         internal bool asConsumer_ { get; set; } = true;
-
+        // consumer only: channel it recieve from
+        internal ExchangeChannel channel_ { get; set; }
+        // producer only: channels it shall send data to, so the number equals nubmer of machines
+        internal List<ExchangeChannel> upChannels_ { get; set; }
         public PhysicRemoteExchange(LogicRemoteExchange logic, PhysicNode l) : base(logic)
         {
             Debug.Assert(asConsumer_); children_.Add(l);
@@ -1783,6 +1909,47 @@ namespace qpmodel.physic
         }
         public virtual string OpenConsumer(ExecContext context) => null;
         public virtual string OpenProducer(ExecContext context) => null;
+        protected string createConsumerStartThread(ExecContext econtext)
+        {
+            var context = econtext as DistributedContext;
+            int dop = context.option_.optimize_.query_dop_;
+            var planId = _;
+
+            Debug.Assert(context.machineId_ >= 0);
+            var machineId = context.machineId_;
+            var wo = new WorkerObject(Thread.CurrentThread.Name,
+                                    context.machines_,
+                                    machineId,
+                                    planId,
+                                    EmulateSerialization(this),
+                                    context.option_);
+            var thread = new Thread(new ThreadStart(wo.EntryPoint));
+            thread.Name = $"Redis_{planId}@{machineId}";
+            thread.Start();
+
+            upChannels_ = null;
+            channel_ = new ExchangeChannel(dop);
+            context.machines_.RegisterChannel(planId, machineId, channel_);
+            return null;
+        }
+        protected string createProducerAndChannel(ExecContext econtext)
+        {
+            var context = econtext as DistributedContext;
+            int dop = context.option_.optimize_.query_dop_;
+            var planId = _;
+
+            // establish all up channels
+            Debug.Assert(upChannels_ is null);
+            upChannels_ = new List<ExchangeChannel>();
+            for (int i = 0; i < dop; i++)
+            {
+                var channel = context.machines_.WaitForChannelReady(planId, i);
+                upChannels_.Add(channel);
+            }
+
+            channel_ = null;
+            return null;
+        }
         public override void Open(ExecContext econtext)
         {
             var context = econtext as DistributedContext;
@@ -1800,6 +1967,48 @@ namespace qpmodel.physic
 
         public virtual void ExecConsumer(Action<Row> callback) { }
         public virtual void ExecProducer(Action<Row> callback) { }
+        protected void redisBroadExec(Action<Row> callback)
+        {
+            ExecContext context = context_;
+
+            Row r;
+            while ((r = channel_.Recv()) != null)
+            {
+                callback(r);
+            }
+        }
+        protected virtual List<int> machineList(Row r)
+        {
+            // default is send to all machines (broadcast)
+            var outlist = new List<int>();
+
+            var context = context_ as DistributedContext;
+            int dop = context.option_.optimize_.query_dop_;
+
+            outlist.AddRange(Enumerable.Range(0, dop));
+            return outlist;
+        }
+        protected void sendProducerResult(Action<Row> callback)
+        {
+            var context = context_ as DistributedContext;
+            int dop = context.option_.optimize_.query_dop_;
+
+            child_().Exec(r =>
+            {
+                if (!context.option_.optimize_.use_codegen_)
+                {
+                    var machines = machineList(r);
+                    foreach (var idx in machines)
+                    {
+                        upChannels_[idx].Send(r);
+                    }
+                }
+            });
+
+            for (int i = 0; i < dop; i++)
+                upChannels_[i].MarkSendDone(context.machineId_);
+        }
+
         public override void Exec(Action<Row> callback)
         {
             if (asConsumer_)
@@ -1820,8 +2029,6 @@ namespace qpmodel.physic
 
     public class PhysicGather : PhysicRemoteExchange
     {
-        internal ExchangeChannel channel_ { get; set; }
-
         public PhysicGather(LogicGather logic, PhysicNode l) : base(logic, l) { }
         public override string ToString() => $"PGATHER({child_()}: {Cost()})";
 
@@ -1831,7 +2038,6 @@ namespace qpmodel.physic
             var logic = logic_ as LogicGather;
             List<int> targets = logic.producerIds_;
             int dop = targets.Count;
-            string cs = base.OpenConsumer(context);
 
             // create producer threads, establish connections and set up 
             // communication channel etc. It uses threads to emulate execution
@@ -1856,14 +2062,13 @@ namespace qpmodel.physic
             }
             workers.ForEach(x => x.Start());
 
-            return cs;
+            return null;
         }
 
         public override string OpenProducer(ExecContext context)
         {
-            string cs = base.OpenProducer(context);
             Debug.Assert(channel_ != null);
-            return cs;
+            return null;
         }
 
         public override void ExecConsumer(Action<Row> callback)
@@ -1891,117 +2096,69 @@ namespace qpmodel.physic
 
             channel_.MarkSendDone(context.machineId_);
         }
+        protected override double EstimateCost()
+        {
+            // penalize gather to discourage serialization at bottom
+            return child_().Card() *10.0;
+        }
     }
 
     public class PhysicBroadcast : PhysicRemoteExchange
     {
         public PhysicBroadcast(LogicBroadcast logic, PhysicNode l) : base(logic, l) { }
-        public override string ToString() => $"PBORADCAST({child_()}: {Cost()})";
+        public override string ToString() => $"PBROADCAST({child_()}: {Cost()})";
 
-        public override void Exec(Action<Row> callback)
+        public override string OpenConsumer(ExecContext context)
+            => createConsumerStartThread(context);
+        public override string OpenProducer(ExecContext context)
+            => createProducerAndChannel(context);
+
+        public override void ExecConsumer(Action<Row> callback)
+            => redisBroadExec(callback);
+        public override void ExecProducer(Action<Row> callback)
+            => sendProducerResult(callback);
+
+        protected override double EstimateCost()
         {
-            ExecContext context = context_;
-
-            child_().Exec(l =>
-            {
-                if (!context.option_.optimize_.use_codegen_)
-                {
-                    callback(l);
-                }
-            });
+            return child_().Card() * 2.0;
         }
     }
 
     public class PhysicRedistribute : PhysicRemoteExchange
     {
-        // consumer only: channel it recieve from
-        internal ExchangeChannel channel_ { get; set; }
-
-        // producer only: channels it shall send data to, so the number equals nubmer of machines
-        List<ExchangeChannel> upChannels_ { get; set; }
-
         public PhysicRedistribute(LogicRedistribute logic, PhysicNode l) : base(logic, l) { }
         public override string ToString() => $"PREDISTRIBUTE({child_()}: {Cost()})";
 
-        public override string OpenConsumer(ExecContext econtext)
-        {
-            var context = econtext as DistributedContext;
-            int dop = context.option_.optimize_.query_dop_;
-            var code = base.OpenConsumer(context);
-            var planId = _;
+        public override string OpenConsumer(ExecContext context)
+            => createConsumerStartThread(context);
+        public override string OpenProducer(ExecContext context)
+            => createProducerAndChannel(context);
 
-            Debug.Assert(context.machineId_ >= 0);
-            var machineId = context.machineId_;
-            var wo = new WorkerObject(Thread.CurrentThread.Name,
-                                    context.machines_,
-                                    machineId,
-                                    planId,
-                                    EmulateSerialization(this),
-                                    context.option_);
-            var thread = new Thread(new ThreadStart(wo.EntryPoint));
-            thread.Name = $"Redis_{planId}@{machineId}";
-            thread.Start();
-
-            upChannels_ = null;
-            channel_ = new ExchangeChannel(dop);
-            context.machines_.RegisterChannel(planId, machineId, channel_);
-            return code;
-        }
-        public override string OpenProducer(ExecContext econtext)
-        {
-            var context = econtext as DistributedContext;
-            int dop = context.option_.optimize_.query_dop_;
-            var code = base.OpenProducer(context);
-            var planId = _;
-
-            // establish all up channels
-            Debug.Assert(upChannels_ is null);
-            upChannels_ = new List<ExchangeChannel>();
-            for (int i = 0; i < dop; i++)
-            {
-                var channel = context.machines_.WaitForChannelReady(planId, i);
-                upChannels_.Add(channel);
-            }
-
-            channel_ = null;
-            return code;
-        }
-
+        public override void ExecConsumer(Action<Row> callback)
+            => redisBroadExec(callback);
         public override void ExecProducer(Action<Row> callback)
+            => sendProducerResult(callback);
+        protected override List<int> machineList(Row r)
         {
             var context = context_ as DistributedContext;
             int dop = context.option_.optimize_.query_dop_;
-
             var distributeby = (logic_ as LogicRedistribute).distributeby_;
 
-            child_().Exec(r =>
-            {
-                if (!context.option_.optimize_.use_codegen_)
-                {
-                    // hash by distribution keys
-                    var key = KeyList.ComputeKeys(context_, distributeby, r);
-                    var sendtoMachine = key.GetHashCode() % dop;
-                    upChannels_[sendtoMachine].Send(r);
+            var outlist = new List<int>();
+            var key = KeyList.ComputeKeys(context_, distributeby, r);
+            var sendtoMachine = Utils.mod(key.GetHashCode(), dop);
+            outlist.Add(sendtoMachine);
 
 #if debug
                     var tid = Thread.CurrentThread.ManagedThreadId;
                     Console.WriteLine($"{Thread.CurrentThread.Name} by {tid} => {r} => {sendtoMachine}");
 #endif
-                }
-            });
-
-            for (int i = 0; i < dop; i++)
-                upChannels_[i].MarkSendDone(context.machineId_);
+            return outlist;
         }
-        public override void ExecConsumer(Action<Row> callback)
-        {
-            ExecContext context = context_;
 
-            Row r;
-            while ((r = channel_.Recv()) != null)
-            {
-                callback(r);
-            }
+        protected override double EstimateCost()
+        {
+            return child_().Card() * 2.0;
         }
     }
 
