@@ -54,7 +54,7 @@ PhysicLimit (100) (inccost=11642.58, cost=100, rows=100) (actual rows=0)
             -> PhysicHashJoin Left (inccost=11539, cost=206, rows=2, memory=1004) (actual rows=0)
                 Output: s_acctbal[0],s_name[1],n_name[2],p_partkey[3],p_mfgr[4],s_address[5],s_phone[6],s_comment[7],ps_supplycost[8],{min(ps_supplycost)}[9]
                 Filter: p_partkey[3]=ps_partkey[10]
-                -> PhysicGather 1 : 10 (inccost=4416, cost=20, rows=2) (actual rows=0)
+                -> PhysicGather Threads: 20 (inccost=4416, cost=20, rows=2) (actual rows=0)
                     Output: s_acctbal[2],s_name[3],n_name[4],p_partkey[0],p_mfgr[1],s_address[5],s_phone[6],s_comment[7],ps_supplycost[8]
                     -> PhysicHashJoin  (inccost=4396, cost=448, rows=2, memory=58) (actual rows=0)
                         Output: s_acctbal[2],s_name[3],n_name[4],p_partkey[0],p_mfgr[1],s_address[5],s_phone[6],s_comment[7],ps_supplycost[8]
@@ -82,13 +82,11 @@ PhysicLimit (100) (inccost=11642.58, cost=100, rows=100) (actual rows=0)
                                     Output: s_acctbal[5],s_name[1],s_address[2],s_phone[4],s_comment[6],s_nationkey[3],s_suppkey[0]
                                 -> PhysicScanTable partsupp (inccost=800, cost=800, rows=800) (actual rows=0)
                                     Output: ps_supplycost[3],ps_partkey[0],ps_suppkey[1]
-
-Emulated 10 machines distributed run with 20 threads
                 -> PhysicHashAgg  (inccost=6917, cost=800, rows=200, memory=4800) (actual rows=0)
                     Output: {min(ps_supplycost)}[1],{ps_partkey}[0]
                     Aggregates: min(ps_supplycost[1])
                     Group by: ps_partkey[0]
-                    -> PhysicGather 1 : 10 (inccost=6117, cost=4000, rows=400) (actual rows=0)
+                    -> PhysicGather Threads: 20 (inccost=6117, cost=4000, rows=400) (actual rows=0)
                         Output: ps_partkey[1],ps_supplycost[2]
                         -> PhysicHashJoin  (inccost=2117, cost=1210, rows=400, memory=40) (actual rows=0)
                             Output: ps_partkey[1],ps_supplycost[2]
@@ -110,7 +108,5 @@ Emulated 10 machines distributed run with 20 threads
                                         Output: s_suppkey[0],s_nationkey[3]
                             -> PhysicScanTable partsupp as partsupp__1 (inccost=800, cost=800, rows=800) (actual rows=0)
                                 Output: ps_partkey[0],ps_supplycost[3],ps_suppkey[1]
-
-Emulated 10 machines distributed run with 20 threads
 
 

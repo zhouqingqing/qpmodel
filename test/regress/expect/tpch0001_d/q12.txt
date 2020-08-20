@@ -34,7 +34,7 @@ PhysicOrder  (inccost=12547.32, cost=14.32, rows=7, memory=126) (actual rows=2)
         Output: {l_shipmode}[0],{sum(case with 1)}[1],{sum(case with 1)}[2]
         Aggregates: sum(case with 1), sum(case with 1)
         Group by: l_shipmode[0]
-        -> PhysicGather 1 : 10 (inccost=12268, cost=2510, rows=251) (actual rows=25)
+        -> PhysicGather Threads: 10 (inccost=12268, cost=2510, rows=251) (actual rows=25)
             Output: l_shipmode[0],{case with 1}[6],{o_orderpriority='1-URGENT' or o_orderpriority='2-HIGH'}[7],{o_orderpriority='1-URGENT'}[8],o_orderpriority[9],{'1-URGENT'}[1],{o_orderpriority='2-HIGH'}[10],{'2-HIGH'}[2],{1}[3],{0}[4],{case with 1}[11],{o_orderpriority<>'1-URGENT' and o_orderpriority<>'2-HIGH'}[12],{o_orderpriority<>'1-URGENT'}[13],{o_orderpriority<>'2-HIGH'}[14]
             -> PhysicHashJoin  (inccost=9758, cost=2253, rows=251, memory=20080) (actual rows=0)
                 Output: l_shipmode[0],{case with 1}[6],{o_orderpriority='1-URGENT' or o_orderpriority='2-HIGH'}[7],{o_orderpriority='1-URGENT'}[8],o_orderpriority[9],{'1-URGENT'}[1],{o_orderpriority='2-HIGH'}[10],{'2-HIGH'}[2],{1}[3],{0}[4],{case with 1}[11],{o_orderpriority<>'1-URGENT' and o_orderpriority<>'2-HIGH'}[12],{o_orderpriority<>'1-URGENT'}[13],{o_orderpriority<>'2-HIGH'}[14]
@@ -44,8 +44,6 @@ PhysicOrder  (inccost=12547.32, cost=14.32, rows=7, memory=126) (actual rows=2)
                     Filter: l_shipmode[14] in ('MAIL','SHIP') and l_commitdate[11]<l_receiptdate[12] and l_shipdate[10]<l_commitdate[11] and l_receiptdate[12]>='1994-01-01' and l_receiptdate[12]<'1/1/1995 12:00:00 AM'
                 -> PhysicScanTable orders (inccost=1500, cost=1500, rows=1500) (actual rows=0)
                     Output: case with 1,o_orderpriority[5]='1-URGENT' or o_orderpriority[5]='2-HIGH',o_orderpriority[5]='1-URGENT',o_orderpriority[5],o_orderpriority[5]='2-HIGH',case with 1,o_orderpriority[5]<>'1-URGENT' and o_orderpriority[5]<>'2-HIGH',o_orderpriority[5]<>'1-URGENT',o_orderpriority[5]<>'2-HIGH',o_orderkey[0]
-
-Emulated 10 machines distributed run with 10 threads
 MAIL,5,5
 SHIP,5,10
 

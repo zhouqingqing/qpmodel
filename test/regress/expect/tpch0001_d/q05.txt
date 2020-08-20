@@ -30,7 +30,7 @@ PhysicOrder  (inccost=18755.97, cost=82.97, rows=25, memory=825) (actual rows=0)
         Output: {n_name}[0],{sum(l_extendedprice*1-l_discount)}[1]
         Aggregates: sum(l_extendedprice[2]*1-l_discount[5])
         Group by: n_name[0]
-        -> PhysicGather 1 : 10 (inccost=18540, cost=830, rows=83) (actual rows=0)
+        -> PhysicGather Threads: 30 (inccost=18540, cost=830, rows=83) (actual rows=0)
             Output: n_name[3],{l_extendedprice*1-l_discount}[4],l_extendedprice[5],{1-l_discount}[6],{1}[0],l_discount[7]
             -> PhysicHashJoin  (inccost=17710, cost=883, rows=83, memory=3600) (actual rows=0)
                 Output: n_name[3],{l_extendedprice*1-l_discount}[4],l_extendedprice[5],{1-l_discount}[6],{1}[0],l_discount[7]
@@ -65,7 +65,5 @@ PhysicOrder  (inccost=18755.97, cost=82.97, rows=25, memory=825) (actual rows=0)
                             Filter: o_orderdate[4]>='1994-01-01' and o_orderdate[4]<'1/1/1995 12:00:00 AM'
                         -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=6005) (actual rows=0)
                             Output: l_extendedprice[5]*1-l_discount[6],l_extendedprice[5],1-l_discount[6],l_discount[6],l_suppkey[2],l_orderkey[0]
-
-Emulated 10 machines distributed run with 30 threads
 
 
