@@ -144,6 +144,27 @@ namespace qpmodel.expr
             SetIsCacheable();
         }
 
+        public virtual Value ExecNonDistributed(ExecContext context, Row input) => null;
+
+        // for distributed execution, we don't copy logic plan which means this expression
+        // is also not copied thus multiple threads may racing updating cacheVal_. A simple
+        // way is to Lock the code section to prevent it.
+        //
+        Value ExecDistributed(ExecContext context, Row input)
+        {
+            lock (this)
+            {
+                return ExecNonDistributed(context, input);
+            }
+        }
+
+        public override Value Exec(ExecContext context, Row input)
+        {
+            if (context is DistributedContext)
+                return ExecDistributed(context, input);
+            return ExecNonDistributed(context, input);
+        }
+
         public override int GetHashCode() => subqueryid_.GetHashCode();
         public override bool Equals(object obj)
         {
@@ -166,7 +187,7 @@ namespace qpmodel.expr
             markBounded();
         }
 
-        public override Value Exec(ExecContext context, Row input)
+        public override Value ExecNonDistributed(ExecContext context, Row input)
         {
             Debug.Assert(type_ != null);
             if (isCacheable_ && cachedValSet_)
@@ -199,7 +220,7 @@ namespace qpmodel.expr
             markBounded();
         }
 
-        public override Value Exec(ExecContext context, Row input)
+        public override Value ExecNonDistributed(ExecContext context, Row input)
         {
             Debug.Assert(type_ != null);
             if (isCacheable_ && cachedValSet_)
@@ -240,7 +261,7 @@ namespace qpmodel.expr
             markBounded();
         }
 
-        public override Value Exec(ExecContext context, Row input)
+        public override Value ExecNonDistributed(ExecContext context, Row input)
         {
             Debug.Assert(type_ != null);
             Value expr = expr_().Exec(context, input);
