@@ -405,7 +405,7 @@ namespace qpmodel.unittest
             string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}_d";
             
             ExplainOption.show_tablename_ = false;
-            var badQueries = new string[] { "q07", "q08", "q09", "q13", "q15", "q18", "q20", "q22" };
+            var badQueries = new string[] { "q07", "q08", "q09", "q13", "q15", "q22" };
 
             try
             {
