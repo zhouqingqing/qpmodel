@@ -2248,11 +2248,12 @@ namespace qpmodel.unittest
             // No feature implemented yet.
             return;
 
-#pragma warning disable CS0162 // Unreachable code detected
+
             sql = "select 10 + a1 + 2 + abs(-10) + round(101.78, 0) + a2 from a";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.IsTrue(phyplan.Contains("10+a1[0]+a2[1]+114"));
+            Assert.IsTrue(phyplan.Contains("Output: a.a1[0]+124+a.a2[1]"));
 
+#pragma warning disable CS0162 // Unreachable code detected
             // Select expr (4 - a3) / 2 * 2 should not be transformed since (4 - a3) / 2 is
             // a grouping expression.
             sql = "select 7, (4-a3)/2*2+1+sum(a1), sum(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";

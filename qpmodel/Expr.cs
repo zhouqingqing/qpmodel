@@ -35,6 +35,7 @@ using qpmodel.logic;
 using qpmodel.physic;
 using qpmodel.utils;
 using qpmodel.index;
+using IronPython.Compiler.Ast;
 
 namespace qpmodel.expr
 {
@@ -587,7 +588,7 @@ namespace qpmodel.expr
         // output type of the expression
         internal ColumnType type_;
 
-        internal bool normalized_;
+        internal bool normalized_ = false;
         
         protected string outputName() => outputName_ != null ? $"(as {outputName_})" : null;
 
@@ -779,15 +780,6 @@ namespace qpmodel.expr
             return $@"ExprSearch.Locate(""{_}"").Exec(context, {input}) /*{ToString()}*/";
         }
 
-        public bool isCommutativeConstOper(BinExpr be) => (be.op_ == "+" || be.op_ == "*");
-
-        public bool isFoldableConstOper(BinExpr be) => (be.op_ == "+" || be.op_ == "-" || be.op_ == "*" || be.op_ == "/");
-
-        public bool isPlainSwappableConstOper(BinExpr be) => (be.op_ == "+" || be.op_ == "*" || be.op_ == "=" ||
-            be.op_ == "<>" || be.op_ == "!=" || be.op_ == "<=" || be.op_ == ">=");
-
-        public bool isChangeSwappableConstOper(BinExpr be) => (be.op_ == "<" || be.op_ == ">");
-
         public virtual Expr Normalize()
         {
 
@@ -812,6 +804,20 @@ namespace qpmodel.expr
             });
 
             return children_.Count == constCount;
+        }
+
+        public bool AnyArgNull()
+        {
+
+            for (int i = 0; i < children_.Count; ++i)
+            {
+                if (children_[i] is ConstExpr ce && ce.IsNull())
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 

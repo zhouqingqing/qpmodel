@@ -625,6 +625,11 @@ namespace qpmodel.logic
                     // it there - shall we try hard to stop query early? Nope, it is no deserved
                     // to poke around for this corner case.
                     //
+                    // One of the expression normalization rules replaces terms like
+                    // COL > NULL, COL < NULL COL <> NULL with a FALSE term and
+                    // if all of the terms where reduced to WHERE FALSE
+                    // the above policy and assert are no longer valid.
+                    // Now FALSE filter gets pushed down.
                     var isConst = filterexpr.FilterIsConst(out bool trueOrFalse);
                     if (isConst)
                     {
@@ -640,9 +645,9 @@ namespace qpmodel.logic
                         andlist.RemoveAll(e =>
                         {
                             var isConst = e.FilterIsConst(out bool trueOrFalse);
-                            if (isConst)
+                            if (isConst && trueOrFalse)
                             {
-                                Debug.Assert(trueOrFalse);
+                                // Debug.Assert(trueOrFalse);
                                 return true;
                             }
                             return pushdownFilter(plan, e, pushJoinFilter);
@@ -670,7 +675,7 @@ namespace qpmodel.logic
         {
             // FromQuery or decorrelated subqueries are merged with main plan
             var r = (fromQueries_.ContainsKey(subquery) ||
-                decorrelatedSubs_.Contains(subquery));
+            decorrelatedSubs_.Contains(subquery));
             return r;
         }
 
@@ -678,7 +683,7 @@ namespace qpmodel.logic
         {
             var ret = new List<NamedQuery>();
             Debug.Assert(subQueries_.Count >=
-                    fromQueries_.Count + decorrelatedSubs_.Count);
+            fromQueries_.Count + decorrelatedSubs_.Count);
             if (excludeFromAndDecorrelated)
             {
                 foreach (var x in subQueries_)
@@ -923,10 +928,10 @@ namespace qpmodel.logic
         }
 
         public static void Register<T1, TResult>(string name, Func<T1, TResult> fn)
-            => ExternalFunctions.Register(name, fn, 1, typeof(TResult));
+        => ExternalFunctions.Register(name, fn, 1, typeof(TResult));
         public static void Register<T1, T2, TResult>(string name, Func<T1, T2, TResult> fn)
-            => ExternalFunctions.Register(name, fn, 2, typeof(TResult));
+        => ExternalFunctions.Register(name, fn, 2, typeof(TResult));
         public static void Register<T1, T2, T3, TResult>(string name, Func<T1, T2, T3, TResult> fn)
-            => ExternalFunctions.Register(name, fn, 3, typeof(TResult));
+        => ExternalFunctions.Register(name, fn, 3, typeof(TResult));
     }
 }

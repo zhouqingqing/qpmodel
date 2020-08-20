@@ -844,10 +844,14 @@ namespace qpmodel.logic
             if (where_ != null)
             {
                 Expr x = where_.Normalize();
-                if (x is ConstExpr ce && (ce.val_ is null || ce.IsFalse()))
+                if (x is null || (x is ConstExpr ce && (ce.val_ is null || ce.IsFalse())))
                 {
                     // Normalization elimintaed WHERE which is always FALSE
                     where_ = ConstExpr.MakeConstBool(false);
+                }
+                else
+                {
+                    where_ = x;
                 }
             }
 

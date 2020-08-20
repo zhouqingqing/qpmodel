@@ -180,8 +180,15 @@ namespace qpmodel.expr
 
             if (!x.AllArgsConst())
                 return x;
+            if (ExternalFunctions.set_.ContainsKey(funcName_))
+                return x;
 
-            switch(funcName_)
+            if (x.AnyArgNull())
+            {
+                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
+            }
+
+            switch (funcName_)
             {
                 case "min":
                 case "max":
@@ -274,6 +281,11 @@ namespace qpmodel.expr
             if (!x.AllArgsConst())
                 return x;
 
+            if (x.AnyArgNull())
+            {
+                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
+            }
+
             Value val = Exec(null, null);
 
             return ConstExpr.MakeConst(val, type_, outputName_);
@@ -304,6 +316,11 @@ namespace qpmodel.expr
             Expr x = base.Normalize();
             if (!x.AllArgsConst())
                 return x;
+
+            if (x.AnyArgNull())
+            {
+                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
+            }
 
             Value val = Exec(null, null);
 
@@ -338,6 +355,11 @@ namespace qpmodel.expr
             Expr x = base.Normalize();
             if (!x.AllArgsConst())
                 return x;
+
+            if (x.AnyArgNull())
+            {
+                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
+            }
 
             Value val = Exec(null, null);
 
@@ -380,6 +402,11 @@ namespace qpmodel.expr
             if (!x.AllArgsConst())
                 return x;
 
+            if (x.AnyArgNull())
+            {
+                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
+            }
+
             Value val = Exec(null, null);
 
             return ConstExpr.MakeConst(val, type_, outputName_);
@@ -417,6 +444,11 @@ namespace qpmodel.expr
             if (!x.AllArgsConst())
                 return x;
 
+            if (x.AnyArgNull())
+            {
+                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
+            }
+
             Value val = Exec(null, null);
 
             return ConstExpr.MakeConst(val, type_, outputName_);
@@ -450,9 +482,13 @@ namespace qpmodel.expr
             if (!x.AllArgsConst())
                 return x;
 
-            Value val = Exec(null, null);
+            for (int i = 0; i < children_.Count; ++i)
+            {
+                if (children_[i] is ConstExpr ce && !ce.IsNull())
+                    return ce;
+            }
 
-            return ConstExpr.MakeConst(val, type_, outputName_);
+            return x;
         }
     }
 
@@ -474,6 +510,11 @@ namespace qpmodel.expr
             Expr x = base.Normalize();
             if (!x.AllArgsConst())
                 return x;
+
+            if (x.AnyArgNull())
+            {
+                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
+            }
 
             Value val = Exec(null, null);
 
@@ -499,6 +540,11 @@ namespace qpmodel.expr
             Expr x = base.Normalize();
             if (!x.AllArgsConst())
                 return x;
+
+            if (x.AnyArgNull())
+            {
+                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
+            }
 
             Value val = Exec(null, null);
 
@@ -952,15 +998,87 @@ namespace qpmodel.expr
             }
         }
 
-        public override Expr Normalize()
+
+        // This is a general purpose helper, so do not use it to make
+        // "correct" logical operator node based on the operator, it used
+        // here in the context of children already are bound only the
+        // new node needs to marked bound. This is to be used only
+        // within the context of Normalize method.
+        internal Expr makeAnyLogicalExpr(Expr l, Expr r, string op)
+        {
+
+            if (op == " and ")
+            {
+                LogicAndExpr newe = new LogicAndExpr(l, r);
+                newe.bounded_ = true;
+
+                return newe;
+            }
+            else
+            {
+                LogicOrExpr newe = new LogicOrExpr(l, r);
+                newe.bounded_ = true;
+
+                return newe;
+            }
+        }
+
+public override Expr Normalize()
         {
             Expr x = base.Normalize();
-            if (!x.AllArgsConst())
-                return x;
+            if (x.AllArgsConst())
+            {
+                Value val = Exec(null, null);
 
-            Value val = Exec(null, null);
+                return ConstExpr.MakeConst(val, type_, outputName_);
+            }
 
-            return ConstExpr.MakeConst(val, type_, outputName_);
+            // NOT NOT X => X
+            if (op_ == "!") {
+                if (child_() is UnaryExpr ue && ue.op_ == "!")
+                {
+                    return ue.child_();
+                }
+
+                // NOT (X AND Y)    => NOT A OR NOT B
+                // NOT (X OR Y)     => NOT A AND NOT B
+                /*
+                 *           NOT                  OR
+                 *            |                  /  \
+                 *           AND      =>       NOT    NOT
+                 *          /    \              |      |
+                 *         X      Y             X      Y
+                 */
+
+                if (child_() is LogicAndOrExpr le)
+                {
+
+                    // Make two Unary expressions for NOT X and NOT Y
+                    // Cloning avoids messing with bounded_ flag
+                    UnaryExpr nlu = (UnaryExpr)Clone();
+                    UnaryExpr nru = (UnaryExpr)Clone();
+
+                    // get the new logical operator, reverse of current one
+                    string nop = le.op_ == " and " ? " or " : " and ";
+
+                    // save X, Y
+                    Expr ole = le.lchild_();
+                    Expr ore = le.rchild_();
+
+                    string leftName = ole.outputName_;
+                    string rightName = ore.outputName_;
+                    string thisName = outputName_;
+
+                    // New Unary nodes point to old left and right
+                    // logical expressions.
+                    nlu.children_[0] = ole;
+                    nru.children_[0] = ore;
+
+                    return makeAnyLogicalExpr(nlu, nru, nop);
+                }
+            }
+
+            return x;
         }
     }
 
@@ -997,6 +1115,25 @@ namespace qpmodel.expr
             expr.type_ = new BoolType();
             return expr;
         }
+
+        public bool isCommutativeConstOp() => (op_ == "+" || op_ == "*");
+
+        public bool isFoldableConstOp() => (op_ == "+" || op_ == "-" || op_ == "*" || op_ == "/");
+
+        public bool isPlainSwappableConstOp() => (op_ == "+" || op_ == "*" || op_ == "=" ||
+            op_ == "<>" || op_ == "!=" || op_ == "<=" || op_ == ">=");
+
+        public bool isChangeSwappableConstOp() => (op_ == "<" || op_ == ">");
+
+        // Looks the same as isFoldableConstOp but the context/purpose is
+        // different. If it turns out that they are one and the same, one of
+        // them will be removed.
+        internal bool IsLogicalOp() => (op_ == " and " || op_ == " or " || op_ == "not");
+
+        internal bool IsArithmeticOp() => (op_ == "+" || op_ == "-" || op_ == "*" || op_ == "/");
+
+        internal bool IsRelOp() => (op_ == "=" || op_ == "=<" || op_ == "<" || op_ == ">=" || op_ == ">" || op_ == "<>" || op_ == "!=");
+
 
         public override void Bind(BindContext context)
         {
@@ -1143,6 +1280,7 @@ namespace qpmodel.expr
             return code;
         }
 
+
         internal ColumnType TypeFromOperator(string op, ColumnType inType)
         {
             switch (op)
@@ -1203,6 +1341,62 @@ namespace qpmodel.expr
             return this;
         }
 
+        internal Expr SimplifyRelop()
+        {
+            ConstExpr lce = lchild_() is ConstExpr ? (ConstExpr)lchild_() : null;
+            ConstExpr rce = lchild_() is ConstExpr ? (ConstExpr)rchild_() : null;
+
+            if (lce == null && rce == null)
+            {
+                return this;
+            }
+
+            if (lce is null || rce is null || lce.IsNull() || rce.IsNull() || lce.IsFalse() || rce.IsFalse())
+            {
+                return ConstExpr.MakeConst("false", new BoolType(), outputName_);
+            }
+
+            if (lce.IsTrue() && rce.IsTrue())
+            {
+                return ConstExpr.MakeConst("true", new BoolType(), outputName_);
+            }
+
+            if (lce.IsTrue() || rce.IsTrue())
+            {
+                return lce.IsTrue() ? lce : rce;
+            }
+
+            return this;
+        }
+
+        /*
+         * Apply all possible logical simplification rules.
+         * Assumptions:
+         *  1) children have been normalized
+         *  2) NULL simplification and const move rules have been applied. 
+         */
+
+        internal Expr SimplifyLogic()
+        {
+
+            Expr l = lchild_();
+            Expr r = rchild_();
+
+            // simplify X relop CONST
+            if (l is ConstExpr lce && r is ConstExpr rce)
+            {
+                if ((lce.IsTrue() && rce.IsTrue()) || (lce.IsFalse() && rce.IsFalse()))
+                {
+                    return lce;
+                }
+
+                return lce.IsFalse() ? lce : rce;
+            }
+
+            return this;
+        }
+
+
         public override Expr Normalize()
         {
 
@@ -1233,19 +1427,28 @@ namespace qpmodel.expr
                 case "=":
                 case "<>":
                 case "!=":
-                    if (op_ != "=" && (lce != null  && lce.val_ is null) || (rce != null && rce.val_ is null))
+                case " and ":
+                case " or ":
+                    if (!IsRelOp() && (lce != null  && lce.val_ is null) || (rce != null && rce.val_ is null))
                     {
-                        // NULL simplification, but leave x = NULL alone which will generate
-                        // a proper error. Error can be returned from here too.
-                        return ConstExpr.MakeConst("null", new AnyType(), outputName_);
+                        // NULL simplification: if operator is not relational, X op NULL is NULL
+                        return lce is null ? lce : rce;
                     }
 
                     if (lce != null && rce != null)
                     {
-                        // Simplify Constants
+                        // Simplify Constants: children are not non null constants, evaluate them.
                         Value val = Exec(null, null);
 
                         return ConstExpr.MakeConst(val, type_, outputName_);
+                    }
+
+                    if (lce != null && rce == null)
+                    {
+                        if (isPlainSwappableConstOp())
+                        {
+                            SwapSide();
+                        }
                     }
 
                     if ((lce != null || rce != null) && (IsArithIdentity(lce, rce)))
@@ -1253,16 +1456,19 @@ namespace qpmodel.expr
                         return SimplifyArithmetic(lce, rce);
                     }
 
-                    if (lce != null && rce == null)
+                    if (IsLogicalOp())
                     {
-                        if (isPlainSwappableConstOper(this))
-                        {
-                            SwapSide();
-                        }
+                        return SimplifyLogic();
                     }
-                    else
+
+                    if (IsRelOp())
+                    {
+                        return SimplifyRelop();
+                    }
+
+                    // arithmetic operators?
                     if (l is BinExpr le && le.children_[1].IsConst() && (rce != null) &&
-                        isCommutativeConstOper(this) && isCommutativeConstOper(le))
+                        isCommutativeConstOp() && le.isCommutativeConstOp())
                     {
                         /*
                             * Here root is distributive operator (only * in this context) left is Commutative
@@ -1339,12 +1545,10 @@ namespace qpmodel.expr
 
                             BinExpr ble = (BinExpr)children_[1];
                             ble.op_ = op;
-                            // l.children_.Clear();
-                            // r.children_.Clear();
-                            // be.children_.Clear();
                         }
                         /* we can't do any thing about + at the top and * as left child. */
                     }
+
                     return this;
             }
 
@@ -1379,8 +1583,13 @@ namespace qpmodel.expr
         public override Expr Normalize()
         {
             Expr x = base.Normalize();
-            if (!x.AllArgsConst())
+            if (x is null || !x.AllArgsConst())
                 return x;
+
+            if (x.AnyArgNull())
+            {
+                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
+            }
 
             Value val = Exec(null, null);
 
@@ -1407,8 +1616,13 @@ namespace qpmodel.expr
         public override Expr Normalize()
         {
             Expr x = base.Normalize();
-            if (!x.AllArgsConst())
+            if (x is null || !x.AllArgsConst())
                 return x;
+
+            if (x.AnyArgNull())
+            {
+                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
+            }
 
             Value val = Exec(null, null);
 
@@ -1433,8 +1647,13 @@ namespace qpmodel.expr
         public override Expr Normalize()
         {
             Expr x = base.Normalize();
-            if (!x.AllArgsConst())
+            if (x is null || !x.AllArgsConst())
                 return x;
+
+            if (x.AnyArgNull())
+            {
+                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
+            }
 
             Value val = Exec(null, null);
 
@@ -1474,6 +1693,11 @@ namespace qpmodel.expr
             Expr x = base.Normalize();
             if (!x.AllArgsConst())
                 return x;
+
+            if (x.AnyArgNull())
+            {
+                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
+            }
 
             Value val = Exec(null, null);
 
