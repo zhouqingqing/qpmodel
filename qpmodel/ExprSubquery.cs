@@ -34,6 +34,7 @@ using Value = System.Object;
 using qpmodel.logic;
 using qpmodel.physic;
 using qpmodel.utils;
+using IronPython.Compiler.Ast;
 
 namespace qpmodel.expr
 {
