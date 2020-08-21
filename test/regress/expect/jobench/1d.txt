@@ -27,7 +27,7 @@ PhysicHashAgg  (inccost=17310258, cost=4, rows=1, memory=4294967304) (actual row
             Filter: kind[1]='production companies'
         -> PhysicHashJoin  (inccost=17310242, cost=4409694, rows=4, memory=3053633723377776) (actual rows=0)
             Output: note[3],title[0],production_year[1],company_type_id[4]
-            Filter: id[2]=movie_id[5] and id[2]=movie_id[6]
+            Filter: (id[2]=movie_id[5] and id[2]=movie_id[6])
             -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=1421959) (actual rows=0)
                 Output: title[1],production_year[4],id[0]
                 Filter: production_year[4]>2000
@@ -44,6 +44,6 @@ PhysicHashAgg  (inccost=17310258, cost=4, rows=1, memory=4294967304) (actual row
                         Output: movie_id[1],info_type_id[2]
                 -> PhysicScanTable movie_companies as mc (inccost=2609129, cost=2609129, rows=2609129) (actual rows=0)
                     Output: note[4],company_type_id[3],movie_id[1]
-                    Filter: note[4]not like'%(as Metro-Goldwyn-Mayer Pictures)%'
+                    Filter: note[4] not like '%(as Metro-Goldwyn-Mayer Pictures)%'
 ,,
 

@@ -1132,7 +1132,7 @@ public override Expr Normalize()
 
         internal bool IsArithmeticOp() => (op_ == "+" || op_ == "-" || op_ == "*" || op_ == "/");
 
-        internal bool IsRelOp() => (op_ == "=" || op_ == "=<" || op_ == "<" || op_ == ">=" || op_ == ">" || op_ == "<>" || op_ == "!=");
+        internal bool IsRelOp() => (op_ == "=" || op_ == "<=" || op_ == "<" || op_ == ">=" || op_ == ">" || op_ == "<>" || op_ == "!=");
 
 
         public override void Bind(BindContext context)
@@ -1203,7 +1203,41 @@ public override Expr Normalize()
             op_ = SwapSideOp(op_);
         }
 
-        public override string ToString() => $"{lchild_()}{op_}{rchild_()}{outputName()}";
+        public override string ToString()
+        {
+            bool addParen = false;
+            string space = null;
+
+            switch(op_)
+            {
+                case "like":
+                case "not like":
+                case "in":
+                case "is":
+                case "is not":
+                    space = " ";
+                    break;
+
+                case "+":
+                case "-":
+                case " or ":
+                case " and ":
+                    addParen = true;
+                    break;
+            }
+
+            string str = "";
+
+            if (addParen)
+                str += "(";
+
+            str += $"{lchild_()}{space}{op_}{space}{rchild_()}{outputName()}";
+
+            if (addParen)
+                str += ")";
+
+            return str;
+        }
 
         public override Value Exec(ExecContext context, Row input)
         {
@@ -1343,28 +1377,67 @@ public override Expr Normalize()
 
         internal Expr SimplifyRelop()
         {
-            ConstExpr lce = lchild_() is ConstExpr ? (ConstExpr)lchild_() : null;
-            ConstExpr rce = lchild_() is ConstExpr ? (ConstExpr)rchild_() : null;
+            Expr l = lchild_();
+            Expr r = rchild_();
+
+            ConstExpr lce = l is ConstExpr ? (ConstExpr)l : null;
+            ConstExpr rce = r is ConstExpr ? (ConstExpr)r : null;
 
             if (lce == null && rce == null)
             {
                 return this;
             }
 
-            if (lce is null || rce is null || lce.IsNull() || rce.IsNull() || lce.IsFalse() || rce.IsFalse())
+            if (!(lce is null || rce is null))
+            {
+                if (lce.IsTrue() && rce.IsTrue())
+                    return lce;
+                else
+                    return lce.IsTrue() ? lce : rce;
+            }
+            else
+            if ((!(lce is null) && (lce.IsNull() || lce.IsFalse())) || (!(rce is null) && (rce.IsNull() || rce.IsFalse())))
             {
                 return ConstExpr.MakeConst("false", new BoolType(), outputName_);
             }
 
-            if (lce.IsTrue() && rce.IsTrue())
-            {
-                return ConstExpr.MakeConst("true", new BoolType(), outputName_);
-            }
+            /*
+             * X + C1 = C2      => X = C2 - C1
+             * X + C1 > C2      => X > C2 - C1
+             * X + C1 >= C2     => X >= C2 - C1
+             * 
+             * X - C1 = C2      => X = C2 + C1
+             * X - C1 >= C2     => X >= C2 + C1
+             * etc.
+             *                                        (relop)
+             *                                        /      \
+             *                                      arith    const
+             *                                     /    \
+             *                                    x     const
+             */
 
-            if (lce.IsTrue() || rce.IsTrue())
+            if (!(rce is null) && l is BinExpr lbe && lbe.IsArithmeticOp() && lbe.rchild_() is ConstExpr lrc)
             {
-                return lce.IsTrue() ? lce : rce;
-            }
+                string curOp = op_, nop;
+                if (lbe.op_ == "+" || lbe.op_ == "-")
+                {
+                    if (lbe.op_ == "+")
+                        nop = "-";
+                    else
+                        nop = "+";
+
+                    BinExpr newe = new BinExpr(rce, lrc, nop);
+                    newe.type_ = ColumnType.CoerseType(nop, lrc, rce);
+                    newe.bounded_ = true;
+
+                    Value val = newe.Exec(null, null);
+                    ConstExpr newc = ConstExpr.MakeConst(val, newe.type_);
+
+                    newc.bounded_ = true;
+                    children_[0] = l.lchild_();
+                    children_[1] = newc;
+                }
+            }          
 
             return this;
         }
@@ -1468,7 +1541,7 @@ public override Expr Normalize()
 
                     // arithmetic operators?
                     if (l is BinExpr le && le.children_[1].IsConst() && (rce != null) &&
-                        isCommutativeConstOp() && le.isCommutativeConstOp())
+                        isCommutativeConstOp() && le.isCommutativeConstOp() && TypeBase.SameArithType(l.type_, r.type_))
                     {
                         /*
                             * Here root is distributive operator (only * in this context) left is Commutative
@@ -1504,9 +1577,11 @@ public override Expr Normalize()
                             Expr tmpexp = Clone();
                             tmpexp.children_[0] = le.children_[1];
                             tmpexp.children_[1] = r;
+                            tmpexp.type_ = r.type_;
+
                             Value val;
                             bool wasConst = tmpexp.TryEvalConst(out val);
-                            Expr newr = ConstExpr.MakeConst(val, type_, r.outputName_);
+                            Expr newr = ConstExpr.MakeConst(val, tmpexp.type_, r.outputName_);
 
                             // new left is old left's left child
                             // of left will be right of the root.
@@ -1530,10 +1605,11 @@ public override Expr Normalize()
                             Expr tmpexp = Clone();
                             tmpexp.children_[0] = le.children_[1]; // right of left is const
                             tmpexp.children_[1] = r;               // our right is const
+                            tmpexp.type_ = r.type_;
+                            
                             Value val;
-
                             tmpexp.TryEvalConst(out val);
-                            Expr newr = ConstExpr.MakeConst(val, type_, r.outputName_);
+                            Expr newr = ConstExpr.MakeConst(val, tmpexp.type_, r.outputName_);
 
                             /* now make a new root and attach newl and new r to it. */
                             children_[0] = newl;

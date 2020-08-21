@@ -37,10 +37,10 @@ PhysicHashAgg  (inccost=17234112, cost=3, rows=1, memory=4294967360) (actual row
         Filter: company_id[2]=id[4]
         -> PhysicHashJoin  (inccost=16989349, cost=30000, rows=1, memory=2147483752) (actual rows=0)
             Output: link[0],title[1],company_id[2]
-            Filter: movie_id[7]=id[3] and id[4]=link_type_id[8] and movie_id[7]=movie_id[5] and movie_id[7]=movie_id[6]
+            Filter: (((movie_id[7]=id[3] and id[4]=link_type_id[8]) and movie_id[7]=movie_id[5]) and movie_id[7]=movie_id[6])
             -> PhysicHashJoin  (inccost=16929352, cost=2609132, rows=1, memory=2147483744) (actual rows=0)
                 Output: link[0],title[1],company_id[6],id[2],id[3],movie_id[4],movie_id[7]
-                Filter: movie_id[4]=movie_id[7] and id[2]=movie_id[7] and company_type_id[8]=id[5]
+                Filter: ((movie_id[4]=movie_id[7] and id[2]=movie_id[7]) and company_type_id[8]=id[5])
                 -> PhysicHashJoin  (inccost=11711091, cost=450, rows=1, memory=2904) (actual rows=0)
                     Output: link[0],title[4],id[5],id[1],movie_id[2],id[3]
                     Filter: id[5]=movie_id[2]
@@ -51,7 +51,7 @@ PhysicHashAgg  (inccost=17234112, cost=3, rows=1, memory=4294967360) (actual row
                             Output: link[0],id[1],id[2],id[3]
                             -> PhysicScanTable link_type as lt (inccost=18, cost=18, rows=1) (actual rows=0)
                                 Output: link[1],id[0]
-                                Filter: link[1]like'%follows%'
+                                Filter: link[1] like '%follows%'
                             -> PhysicNLJoin  (inccost=134295, cost=121, rows=1) (actual rows=0)
                                 Output: id[1],id[0]
                                 -> PhysicScanTable keyword as k (inccost=134170, cost=134170, rows=1) (actual rows=0)
@@ -64,14 +64,14 @@ PhysicHashAgg  (inccost=17234112, cost=3, rows=1, memory=4294967360) (actual row
                             Output: movie_id[1],keyword_id[2]
                     -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=383) (actual rows=0)
                         Output: title[1],id[0]
-                        Filter: production_year[4]=1998 and title[1]like'%Money%'
+                        Filter: (production_year[4]=1998 and title[1] like '%Money%')
                 -> PhysicScanTable movie_companies as mc (inccost=2609129, cost=2609129, rows=2609129) (actual rows=0)
                     Output: company_id[2],movie_id[1],company_type_id[3]
-                    Filter: note[4]isnull
+                    Filter: note[4] is null
             -> PhysicScanTable movie_link as ml (inccost=29997, cost=29997, rows=29997) (actual rows=0)
                 Output: movie_id[1],link_type_id[3]
         -> PhysicScanTable company_name as cn (inccost=234997, cost=234997, rows=9760) (actual rows=0)
             Output: name[1],id[0]
-            Filter: country_code[2]!='[pl]' and name[1]like'%Film%' or name[1]like'%Warner%'
+            Filter: (country_code[2]!='[pl]' and (name[1] like '%Film%' or name[1] like '%Warner%'))
 ,,
 

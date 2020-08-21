@@ -33,13 +33,13 @@ PhysicHashAgg  (inccost=51999002, cost=3, rows=1, memory=4294967296) (actual row
     Aggregates: min(name[0]), min(title[1])
     -> PhysicHashJoin  (inccost=51998999, cost=901346, rows=1, memory=2147483664) (actual rows=0)
         Output: name[3],title[0]
-        Filter: person_id[4]=id[1] and person_id[4]=person_id[2]
+        Filter: (person_id[4]=id[1] and person_id[4]=person_id[2])
         -> PhysicHashJoin  (inccost=50196310, cost=4, rows=1, memory=2147483656) (actual rows=0)
             Output: title[0],id[2],person_id[3]
-            Filter: movie_id[4]=id[1] and id[1]=movie_id[5]
+            Filter: (movie_id[4]=id[1] and id[1]=movie_id[5])
             -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=1) (actual rows=0)
                 Output: title[1],id[0]
-                Filter: production_year[4]>=2006 and production_year[4]<=2007 and title[1]like'One Piece%' or title[1]like'Dragon Ball Z%'
+                Filter: ((production_year[4]>=2006 and production_year[4]<=2007) and (title[1] like 'One Piece%' or title[1] like 'Dragon Ball Z%'))
             -> PhysicHashJoin  (inccost=47667994, cost=4, rows=1, memory=8) (actual rows=0)
                 Output: id[1],person_id[2],movie_id[3],movie_id[4]
                 Filter: role_id[5]=id[0]
@@ -57,7 +57,7 @@ PhysicHashAgg  (inccost=51999002, cost=3, rows=1, memory=4294967296) (actual row
                             Filter: company_id[1]=id[2]
                             -> PhysicScanTable movie_companies as mc (inccost=2609129, cost=2609129, rows=2) (actual rows=0)
                                 Output: movie_id[1],company_id[2]
-                                Filter: note[4]like'%(Japan)%' and note[4]not like'%(USA)%' and note[4]like'%(2006)%' or note[4]like'%(2007)%'
+                                Filter: ((note[4] like '%(Japan)%' and note[4] not like '%(USA)%') and (note[4] like '%(2006)%' or note[4] like '%(2007)%'))
                             -> PhysicScanTable company_name as cn (inccost=234997, cost=234997, rows=7517) (actual rows=0)
                                 Output: id[0]
                                 Filter: country_code[2]='[jp]'
@@ -66,7 +66,7 @@ PhysicHashAgg  (inccost=51999002, cost=3, rows=1, memory=4294967296) (actual row
                             Filter: note[4]='(voice: English version)'
                     -> PhysicScanTable name as n (inccost=4167491, cost=4167491, rows=4167491) (actual rows=0)
                         Output: id[0]
-                        Filter: name[1]like'%Yo%' and name[1]not like'%Yu%'
+                        Filter: (name[1] like '%Yo%' and name[1] not like '%Yu%')
         -> PhysicScanTable aka_name as an (inccost=901343, cost=901343, rows=901343) (actual rows=0)
             Output: name[2],person_id[1]
 ,

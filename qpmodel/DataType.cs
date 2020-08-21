@@ -63,6 +63,15 @@ namespace qpmodel.expr
             return true;
         }
 
+        public static bool SameArithType(ColumnType l, ColumnType r)
+        {
+            // why doesn't (l == r) work?
+            if ((l is IntType && r is IntType) || (l is DoubleType && r is DoubleType) || (l is NumericType && r is NumericType))
+                return true;
+            return false;
+        }
+
+
         public static bool IsNumberType(ColumnType type)
             => type is NumericType || type is DoubleType || type is IntType;
 

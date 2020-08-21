@@ -49,13 +49,13 @@ PhysicHashAgg  (inccost=30360182, cost=3, rows=1, memory=4294967296) (actual row
             Filter: info[1]='countries'
         -> PhysicHashJoin  (inccost=30360062, cost=1338340, rows=1, memory=2147483688) (actual rows=0)
             Output: info[6],title[0],info_type_id[1]
-            Filter: movie_id[2]=movie_id[7] and id[3]=movie_id[7] and movie_id[4]=movie_id[7] and id[5]=info_type_id[8]
+            Filter: (((movie_id[2]=movie_id[7] and id[3]=movie_id[7]) and movie_id[4]=movie_id[7]) and id[5]=info_type_id[8])
             -> PhysicHashJoin  (inccost=27641687, cost=691697, rows=1, memory=40802189768) (actual rows=0)
                 Output: title[0],info_type_id[4],movie_id[1],id[2],movie_id[5],id[3]
-                Filter: movie_id[1]=movie_id[5] and id[2]=movie_id[5]
+                Filter: (movie_id[1]=movie_id[5] and id[2]=movie_id[5])
                 -> PhysicHashJoin  (inccost=12114270, cost=403358, rows=19, memory=3216) (actual rows=0)
                     Output: title[3],movie_id[0],id[4],id[1]
-                    Filter: id[2]=kind_id[5] and id[4]=movie_id[0]
+                    Filter: (id[2]=kind_id[5] and id[4]=movie_id[0])
                     -> PhysicHashJoin  (inccost=9182600, cost=4524072, rows=134, memory=96) (actual rows=0)
                         Output: movie_id[3],id[0],id[1]
                         Filter: id[2]=keyword_id[4]

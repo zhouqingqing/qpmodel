@@ -45,13 +45,13 @@ PhysicHashAgg  (inccost=78130458, cost=3, rows=1, memory=8589934592) (actual row
     Aggregates: min(info[0]), min(info[1]), min(name[2]), min(title[3])
     -> PhysicHashJoin  (inccost=78130455, cost=2528315, rows=1, memory=6442450976) (actual rows=0)
         Output: info[0],info[1],name[2],title[7]
-        Filter: id[8]=movie_id[3] and id[8]=movie_id[4] and id[8]=movie_id[5] and id[8]=movie_id[6]
+        Filter: (((id[8]=movie_id[3] and id[8]=movie_id[4]) and id[8]=movie_id[5]) and id[8]=movie_id[6])
         -> PhysicHashJoin  (inccost=73073828, cost=2683942, rows=1, memory=4294967336) (actual rows=0)
             Output: info[0],info[1],name[7],movie_id[2],movie_id[3],movie_id[4],movie_id[5]
             Filter: id[8]=person_id[6]
             -> PhysicHashJoin  (inccost=66222395, cost=3168762, rows=1, memory=4294967320) (actual rows=0)
                 Output: info[0],info[1],movie_id[5],movie_id[2],movie_id[3],movie_id[4],person_id[6]
-                Filter: movie_id[5]=movie_id[2] and movie_id[5]=movie_id[3] and movie_id[5]=movie_id[4]
+                Filter: ((movie_id[5]=movie_id[2] and movie_id[5]=movie_id[3]) and movie_id[5]=movie_id[4])
                 -> PhysicHashJoin  (inccost=26809289, cost=4, rows=1, memory=4294967328) (actual rows=0)
                     Output: info[0],info[1],movie_id[2],movie_id[3],movie_id[4]
                     Filter: id[6]=info_type_id[5]
@@ -60,7 +60,7 @@ PhysicHashAgg  (inccost=78130458, cost=3, rows=1, memory=8589934592) (actual row
                         Filter: id[7]=info_type_id[6]
                         -> PhysicHashJoin  (inccost=26809055, cost=1380052, rows=1, memory=17179869376) (actual rows=0)
                             Output: info[0],info[4],movie_id[1],movie_id[5],movie_id[2],info_type_id[3],info_type_id[6]
-                            Filter: movie_id[5]=movie_id[2] and movie_id[1]=movie_id[5]
+                            Filter: (movie_id[5]=movie_id[2] and movie_id[1]=movie_id[5])
                             -> PhysicHashJoin  (inccost=24048968, cost=31076, rows=8, memory=1072) (actual rows=0)
                                 Output: info[1],movie_id[2],movie_id[0],info_type_id[3]
                                 Filter: movie_id[2]=movie_id[0]

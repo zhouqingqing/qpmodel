@@ -240,6 +240,7 @@ namespace qpmodel
                 {
                     System.Console.Write("QSQL> ");
                     sql = System.Console.ReadLine();
+                    System.Console.WriteLine(sql);
                 }
 
                 var datetime = new DateTime();

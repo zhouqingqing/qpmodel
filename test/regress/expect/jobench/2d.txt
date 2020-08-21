@@ -20,7 +20,7 @@ PhysicHashAgg  (inccost=19787028, cost=3, rows=1, memory=2147483648) (actual row
         Filter: id[2]=company_id[1]
         -> PhysicHashJoin  (inccost=19457566, cost=2528681, rows=1, memory=4416) (actual rows=0)
             Output: title[3],company_id[0]
-            Filter: movie_id[1]=id[4] and id[4]=movie_id[2]
+            Filter: (movie_id[1]=id[4] and id[4]=movie_id[2])
             -> PhysicHashJoin  (inccost=14400573, cost=2609379, rows=184, memory=264) (actual rows=0)
                 Output: company_id[1],movie_id[2],movie_id[0]
                 Filter: movie_id[2]=movie_id[0]

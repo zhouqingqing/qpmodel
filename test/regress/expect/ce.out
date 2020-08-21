@@ -6,12 +6,12 @@ PhysicScanTable lineitem (inccost=6005, cost=6005, rows=3039) (actual rows=3033)
 Total cost: 1500
 PhysicScanTable orders (inccost=1500, cost=1500, rows=914) (actual rows=912)
     Output: orders.o_orderkey[0],orders.o_custkey[1],orders.o_orderstatus[2],orders.o_totalprice[3],orders.o_orderdate[4],orders.o_orderpriority[5],orders.o_clerk[6],orders.o_shippriority[7],orders.o_comment[8]
-    Filter: orders.o_orderdate[4]>='1993-07-01' and orders.o_orderdate[4]<'1997-07-01'
+    Filter: (orders.o_orderdate[4]>='1993-07-01' and orders.o_orderdate[4]<'1997-07-01')
 
 Total cost: 6005
 PhysicScanTable lineitem (inccost=6005, cost=6005, rows=1131) (actual rows=1131)
     Output: lineitem.l_orderkey[0],lineitem.l_partkey[1],lineitem.l_suppkey[2],lineitem.l_linenumber[3],lineitem.l_quantity[4],lineitem.l_extendedprice[5],lineitem.l_discount[6],lineitem.l_tax[7],lineitem.l_returnflag[8],lineitem.l_linestatus[9],lineitem.l_shipdate[10],lineitem.l_commitdate[11],lineitem.l_receiptdate[12],lineitem.l_shipinstruct[13],lineitem.l_shipmode[14],lineitem.l_comment[15]
-    Filter: lineitem.l_discount[6]>=0.05 and lineitem.l_discount[6]<=0.07
+    Filter: (lineitem.l_discount[6]>=0.05 and lineitem.l_discount[6]<=0.07)
 
 Total cost: 6005
 PhysicScanTable lineitem (inccost=6005, cost=6005, rows=3474) (actual rows=3474)
@@ -21,7 +21,7 @@ PhysicScanTable lineitem (inccost=6005, cost=6005, rows=3474) (actual rows=3474)
 Total cost: 200
 PhysicScanTable part (inccost=200, cost=200, rows=1) (actual rows=35)
     Output: part.p_partkey[0],part.p_name[1],part.p_mfgr[2],part.p_brand[3],part.p_type[4],part.p_size[5],part.p_container[6],part.p_retailprice[7],part.p_comment[8]
-    Filter: part.p_type[4]like'MEDIUM%'
+    Filter: part.p_type[4] like 'MEDIUM%'
 
 Total cost: 22515, memory=414000
 PhysicHashJoin  (inccost=22515, cost=15010, rows=6005, memory=414000) (actual rows=6005)
@@ -35,7 +35,7 @@ PhysicHashJoin  (inccost=22515, cost=15010, rows=6005, memory=414000) (actual ro
 Total cost: 16812, memory=350400
 PhysicHashJoin  (inccost=16812, cost=10007, rows=2402, memory=350400) (actual rows=8447)
     Output: lineitem.l_orderkey[5],lineitem.l_partkey[6],lineitem.l_suppkey[7],lineitem.l_linenumber[8],lineitem.l_quantity[9],lineitem.l_extendedprice[10],lineitem.l_discount[11],lineitem.l_tax[12],lineitem.l_returnflag[13],lineitem.l_linestatus[14],lineitem.l_shipdate[15],lineitem.l_commitdate[16],lineitem.l_receiptdate[17],lineitem.l_shipinstruct[18],lineitem.l_shipmode[19],lineitem.l_comment[20],partsupp.ps_partkey[0],partsupp.ps_suppkey[1],partsupp.ps_availqty[2],partsupp.ps_supplycost[3],partsupp.ps_comment[4]
-    Filter: partsupp.ps_suppkey[1]=lineitem.l_suppkey[7] and partsupp.ps_partkey[0]=lineitem.l_partkey[6]
+    Filter: (partsupp.ps_suppkey[1]=lineitem.l_suppkey[7] and partsupp.ps_partkey[0]=lineitem.l_partkey[6])
     -> PhysicScanTable partsupp (inccost=800, cost=800, rows=800) (actual rows=800)
         Output: partsupp.ps_partkey[0],partsupp.ps_suppkey[1],partsupp.ps_availqty[2],partsupp.ps_supplycost[3],partsupp.ps_comment[4]
     -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=6005) (actual rows=6005)

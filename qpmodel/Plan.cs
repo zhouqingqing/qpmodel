@@ -847,31 +847,68 @@ namespace qpmodel.logic
 
             if (where_ != null)
             {
-                Expr x = where_.Normalize();
-                if (x is null || (x is ConstExpr ce && (ce.val_ is null || ce.IsFalse())))
-                {
-                    // Normalization elimintaed WHERE which is always FALSE
-                    where_ = ConstExpr.MakeConstBool(false);
-                }
-                else
-                {
-                    where_ = x;
-                }
+                where_ = NormalizeClause(where_);
             }
 
             if (groupby_ != null)
             {
-                // normalize group by
+                List<Expr> newg = new List<Expr>();
+
+                groupby_.ForEach(x =>
+                {
+                    Expr ng = NormalizeClause(x);
+                    if (!(ng is null))
+                        newg.Add(ng);
+                });
+
+                if (newg.Count > 0)
+                    groupby_ = newg;
+                else
+                    groupby_ = null;
             }
 
             if (having_ != null)
             {
-                // normalize having
+                having_ = NormalizeClause(having_);
+
             }
 
             if (orders_ != null)
             {
-                // normalize orders
+
+                List<Expr> newo = new List<Expr>();
+
+                orders_.ForEach(x =>
+                {
+                    Expr no = NormalizeClause(x);
+                    if (!(no is null))
+                        newo.Add(no);
+                });
+
+                if (newo.Count > 0)
+                    orders_ = newo;
+                else
+                    orders_ = null;
+            }
+        }
+
+        internal Expr NormalizeClause(Expr clause)
+        {
+            Expr x = clause.Normalize();
+            if (x is null || (x is ConstExpr ce && (ce.val_ is null || ce.IsFalse())))
+            {
+                // Normalization elimintaed a clause which is always FALSE
+                return ConstExpr.MakeConstBool(false);
+            }
+            else
+            if (!(x is null) && x is ConstExpr ce2 && !(ce2.val_ is null) && ce2.IsTrue())
+            {
+                // eliminate always true clause.
+                return null;
+            }
+            else
+            {
+                return x;
             }
         }
     }

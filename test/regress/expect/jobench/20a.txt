@@ -42,10 +42,10 @@ PhysicHashAgg  (inccost=98346808, cost=3, rows=1, memory=2147483648) (actual row
     Aggregates: min(title[0])
     -> PhysicHashJoin  (inccost=98346805, cost=135089, rows=1, memory=2147483688) (actual rows=0)
         Output: title[0]
-        Filter: id[1]=movie_id[6] and movie_id[2]=movie_id[6] and movie_id[3]=movie_id[6] and id[4]=subject_id[7] and id[5]=status_id[8]
+        Filter: ((((id[1]=movie_id[6] and movie_id[2]=movie_id[6]) and movie_id[3]=movie_id[6]) and id[4]=subject_id[7]) and id[5]=status_id[8])
         -> PhysicHashJoin  (inccost=98076630, cost=2354669, rows=1, memory=1160) (actual rows=0)
             Output: title[5],id[6],movie_id[0],movie_id[1],id[2],id[3]
-            Filter: id[4]=kind_id[7] and id[6]=movie_id[0] and id[6]=movie_id[1]
+            Filter: ((id[4]=kind_id[7] and id[6]=movie_id[0]) and id[6]=movie_id[1])
             -> PhysicHashJoin  (inccost=93193649, cost=4167578, rows=29, memory=1392) (actual rows=0)
                 Output: movie_id[0],movie_id[1],id[2],id[3],id[4]
                 Filter: id[6]=person_id[5]
@@ -54,7 +54,7 @@ PhysicHashAgg  (inccost=98346808, cost=3, rows=1, memory=2147483648) (actual row
                     Filter: id[0]=person_role_id[7]
                     -> PhysicScanTable char_name as chn (inccost=3140339, cost=3140339, rows=5225) (actual rows=0)
                         Output: id[0]
-                        Filter: name[1]not like'%Sherlock%' and name[1]like'%Tony%Stark%' or name[1]like'%Iron%Man%'
+                        Filter: (name[1] not like '%Sherlock%' and (name[1] like '%Tony%Stark%' or name[1] like '%Iron%Man%'))
                     -> PhysicHashJoin  (inccost=81689823, cost=36262755, rows=17939, memory=7552) (actual rows=0)
                         Output: movie_id[0],movie_id[4],id[1],id[2],id[3],person_id[5],person_role_id[6]
                         Filter: movie_id[0]=movie_id[4]
@@ -72,7 +72,7 @@ PhysicHashAgg  (inccost=98346808, cost=3, rows=1, memory=2147483648) (actual row
                                         Output: id[1],id[0]
                                         -> PhysicScanTable comp_cast_type as cct2 (inccost=4, cost=4, rows=1) (actual rows=0)
                                             Output: id[0]
-                                            Filter: kind[1]like'%complete%'
+                                            Filter: kind[1] like '%complete%'
                                         -> PhysicScanTable comp_cast_type as cct1 (inccost=4, cost=4, rows=1) (actual rows=0)
                                             Output: id[0]
                                             Filter: kind[1]='cast'

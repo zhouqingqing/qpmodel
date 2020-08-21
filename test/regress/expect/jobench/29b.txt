@@ -68,13 +68,13 @@ PhysicHashAgg  (inccost=87467526, cost=3, rows=1, memory=6442450944) (actual row
     Aggregates: min(name[0]), min(name[1]), min(title[2])
     -> PhysicHashJoin  (inccost=87467523, cost=901346, rows=1, memory=6442450960) (actual rows=0)
         Output: name[0],name[1],title[2]
-        Filter: id[3]=person_id[5] and person_id[4]=person_id[5]
+        Filter: (id[3]=person_id[5] and person_id[4]=person_id[5])
         -> PhysicHashJoin  (inccost=85664834, cost=4, rows=1, memory=2147483656) (actual rows=0)
             Output: name[2],name[3],title[0],id[4],person_id[5]
-            Filter: id[1]=movie_id[6] and id[1]=movie_id[7] and id[1]=movie_id[8] and id[1]=movie_id[9] and id[1]=movie_id[10]
+            Filter: ((((id[1]=movie_id[6] and id[1]=movie_id[7]) and id[1]=movie_id[8]) and id[1]=movie_id[9]) and id[1]=movie_id[10])
             -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=1) (actual rows=0)
                 Output: title[1],id[0]
-                Filter: title[1]='Shrek 2' and production_year[4]>=2000 and production_year[4]<=2005
+                Filter: ((title[1]='Shrek 2' and production_year[4]>=2000) and production_year[4]<=2005)
             -> PhysicHashJoin  (inccost=83136518, cost=4, rows=1, memory=8) (actual rows=0)
                 Output: name[1],name[2],id[3],person_id[4],movie_id[5],movie_id[6],movie_id[7],movie_id[8],movie_id[9]
                 Filter: id[0]=role_id[10]
@@ -83,7 +83,7 @@ PhysicHashAgg  (inccost=87467526, cost=3, rows=1, memory=6442450944) (actual row
                     Filter: role[1]='actress'
                 -> PhysicHashJoin  (inccost=83136502, cost=2963667, rows=1, memory=4294967368) (actual rows=0)
                     Output: name[0],name[1],id[2],person_id[3],movie_id[4],movie_id[5],movie_id[6],movie_id[7],movie_id[8],role_id[9]
-                    Filter: id[2]=person_id[11] and person_id[3]=person_id[11] and id[10]=info_type_id[12]
+                    Filter: ((id[2]=person_id[11] and person_id[3]=person_id[11]) and id[10]=info_type_id[12])
                     -> PhysicHashJoin  (inccost=77209171, cost=1483554, rows=1, memory=2147483712) (actual rows=0)
                         Output: name[0],name[9],id[10],person_id[1],movie_id[2],movie_id[3],movie_id[4],movie_id[5],movie_id[6],role_id[7],id[8]
                         Filter: id[10]=person_id[1]
@@ -97,16 +97,16 @@ PhysicHashAgg  (inccost=87467526, cost=3, rows=1, memory=6442450944) (actual row
                                     Filter: id[10]=info_type_id[9]
                                     -> PhysicHashJoin  (inccost=71423601, cost=4750, rows=1, memory=2147483704) (actual rows=0)
                                         Output: name[0],person_id[1],movie_id[8],movie_id[2],movie_id[3],movie_id[4],movie_id[5],role_id[6],keyword_id[7],info_type_id[9]
-                                        Filter: movie_id[8]=movie_id[4] and movie_id[8]=movie_id[3] and movie_id[8]=movie_id[5] and movie_id[2]=movie_id[8]
+                                        Filter: (((movie_id[8]=movie_id[4] and movie_id[8]=movie_id[3]) and movie_id[8]=movie_id[5]) and movie_id[2]=movie_id[8])
                                         -> PhysicHashJoin  (inccost=56583131, cost=4523933, rows=1, memory=2147483688) (actual rows=0)
                                             Output: name[0],person_id[1],movie_id[2],movie_id[3],movie_id[6],movie_id[4],role_id[5],keyword_id[7]
-                                            Filter: movie_id[3]=movie_id[6] and movie_id[6]=movie_id[4] and movie_id[2]=movie_id[6]
+                                            Filter: ((movie_id[3]=movie_id[6] and movie_id[6]=movie_id[4]) and movie_id[2]=movie_id[6])
                                             -> PhysicHashJoin  (inccost=47535268, cost=94462, rows=1, memory=2147483696) (actual rows=0)
                                                 Output: name[0],person_id[1],movie_id[2],movie_id[3],movie_id[4],role_id[5]
                                                 Filter: id[7]=company_id[6]
                                                 -> PhysicHashJoin  (inccost=47205809, cost=2609132, rows=1, memory=2147483680) (actual rows=0)
                                                     Output: name[0],person_id[1],movie_id[5],movie_id[2],movie_id[3],role_id[4],company_id[6]
-                                                    Filter: movie_id[5]=movie_id[2] and movie_id[5]=movie_id[3]
+                                                    Filter: (movie_id[5]=movie_id[2] and movie_id[5]=movie_id[3])
                                                     -> PhysicHashJoin  (inccost=41987548, cost=33774, rows=1, memory=2147483672) (actual rows=0)
                                                         Output: name[0],person_id[1],movie_id[2],movie_id[4],role_id[3]
                                                         Filter: movie_id[2]=movie_id[4]
@@ -142,7 +142,7 @@ PhysicHashAgg  (inccost=87467526, cost=3, rows=1, memory=6442450944) (actual row
                                                 Output: movie_id[1],keyword_id[2]
                                         -> PhysicScanTable movie_info as mi (inccost=14835720, cost=14835720, rows=4747) (actual rows=0)
                                             Output: movie_id[1],info_type_id[2]
-                                            Filter: info[3]like'USA:%200%'
+                                            Filter: info[3] like 'USA:%200%'
                                     -> PhysicScanTable info_type as it (inccost=113, cost=113, rows=1) (actual rows=0)
                                         Output: id[0]
                                         Filter: info[1]='release dates'
@@ -154,7 +154,7 @@ PhysicHashAgg  (inccost=87467526, cost=3, rows=1, memory=6442450944) (actual row
                                 Filter: keyword[1]='computer-animation'
                         -> PhysicScanTable name as n (inccost=4167491, cost=4167491, rows=1483551) (actual rows=0)
                             Output: name[1],id[0]
-                            Filter: gender[4]='f' and name[1]like'%An%'
+                            Filter: (gender[4]='f' and name[1] like '%An%')
                     -> PhysicScanTable person_info as pi (inccost=2963664, cost=2963664, rows=2963664) (actual rows=0)
                         Output: person_id[1],info_type_id[2]
         -> PhysicScanTable aka_name as an (inccost=901343, cost=901343, rows=901343) (actual rows=0)
