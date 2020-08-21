@@ -349,13 +349,26 @@ namespace qpmodel.physic
             children_.ForEach(x => x.Open(context));
         }
 
+        List<Row> getHeapRows(int distId)
+        {
+            var logic = logic_ as LogicScanTable;
+            string tablename = null;
+            if (logic.tabref_ is BaseTableRef br)
+                tablename = br.Table().name_;
+            if (tablename == SysMemoExpr.name_)
+                return SysMemoExpr.GetHeapRows();
+            else if (tablename == SysMemoProperty.name_)
+                return SysMemoProperty.GetHeapRows();
+            return (logic.tabref_).Table().distributions_[distId].heap_;
+        }
+
         public override void Exec(Action<Row> callback)
         {
             var context = context_;
             var logic = logic_ as LogicScanTable;
             var filter = logic.filter_;
             var distId = (logic.tabref_).IsDistributed() ? (context as DistributedContext).machineId_ : 0;
-            var heap = (logic.tabref_).Table().distributions_[distId].heap_;
+            var heap = getHeapRows(distId);
 
             if (context.option_.optimize_.use_codegen_)
             {
@@ -422,7 +435,7 @@ namespace qpmodel.physic
 
             var logic = logic_ as LogicScanTable;
             var tableref = logic.tabref_;
-            
+
             switch (required.distribution_.disttype)
             {
                 case DistributionType.Singleton:
@@ -737,13 +750,13 @@ namespace qpmodel.physic
                     {
                         var outerreq = new DistributionProperty();
                         outerreq.ordering_ = required.ordering_;
-                        listchildprops.Add( new List<PhysicProperty> { outerreq, DistributionProperty.singleton } );
+                        listchildprops.Add(new List<PhysicProperty> { outerreq, DistributionProperty.singleton });
                         return true;
                     }
                     listchildprops = null;
                     return false;
                 }
-                listchildprops.Add( new List<PhysicProperty> { DistributionProperty.singleton, DistributionProperty.singleton } );
+                listchildprops.Add(new List<PhysicProperty> { DistributionProperty.singleton, DistributionProperty.singleton });
                 return true;
             }
         }
@@ -2112,7 +2125,7 @@ namespace qpmodel.physic
         protected override double EstimateCost()
         {
             // penalize gather to discourage serialization at bottom
-            return child_().Card() *10.0;
+            return child_().Card() * 10.0;
         }
     }
 

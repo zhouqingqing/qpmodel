@@ -29,6 +29,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 using qpmodel.logic;
 using qpmodel.physic;
@@ -36,6 +37,7 @@ using qpmodel.expr;
 using qpmodel.utils;
 
 using LogicSignature = System.Int64;
+using Microsoft.VisualBasic.CompilerServices;
 
 // TODO:
 //  - branch and bound prouning
@@ -541,7 +543,7 @@ namespace qpmodel.optimizer
                 {
                     var s = $"property:{pair.Key}, member:{pair.Value.member}, cost:{pair.Value.cost.ToString("0.##")}";
                     foreach (var childpair in pair.Value.member.propertypairs_)
-                        s += $"\n\t\treq:{childpair.Key}, child:({string.Join(",",childpair.Value ?? new List<PhysicProperty>())})";
+                        s += $"\n\t\treq:{childpair.Key}, child:({string.Join(",", childpair.Value ?? new List<PhysicProperty>())})";
                     l.Add(s);
                 }
                 str += "\n\t";
@@ -646,7 +648,7 @@ namespace qpmodel.optimizer
                 if (member is null) continue;
 
                 var enforcement = required.PropertyEnforcement(member.physic_, prop);
-                enforcement.children_ = new List<PhysicNode> { new PhysicMemoRef(new LogicMemoRef(this)) }; 
+                enforcement.children_ = new List<PhysicNode> { new PhysicMemoRef(new LogicMemoRef(this)) };
 
                 var newmember = new CGroupMember(enforcement, this);
                 exprList_.Add(newmember);
@@ -691,7 +693,7 @@ namespace qpmodel.optimizer
                                 var child = member.physic_.children_[i];
                                 var childgroup = (child as PhysicMemoRef).Group();
                                 childgroup.CalculateMinInclusiveCostMember(childprops[i]);
-                                
+
                                 // it is possible that the child group cannot satisfy the property
                                 if (childgroup.minMember_.ContainsKey(childprops[i]))
                                     childcost += childgroup.minMember_[childprops[i]].cost;
@@ -715,7 +717,7 @@ namespace qpmodel.optimizer
                     }
                 }
             }
-            
+
             // when there exist at least one feasible member
             // add the optimal member and inclusive cost into the dictionary
             if (optmember != null)
@@ -982,7 +984,6 @@ namespace qpmodel.optimizer
             str += $"Summary: {tlogics},{tphysics}";
             return str;
         }
-
     }
 
     public class Optimizer
@@ -1125,6 +1126,106 @@ namespace qpmodel.optimizer
             string str = "";
             memoset_.ForEach(x => str += x.Print());
             return str;
+        }
+
+        public void RegisterMemos()
+        {
+            SysMemo.memos_.AddRange(memoset_);
+        }
+    }
+
+    public static class SysMemo
+    {
+        static public List<Memo> memos_ = new List<Memo>();
+    }
+    public static class SysMemoExpr
+    {
+
+        static public int nCols_;
+        static public string name_ = "sys_memo_expr";
+        public static List<ColumnDef> GetSchema()
+        {
+            int id = 0;
+            var cols = new List<ColumnDef> {
+                new ColumnDef("exprid", new VarCharType(64), id++),
+                new ColumnDef("nproperties", new IntType(), id++),
+                new ColumnDef("expr", new VarCharType(1024), id++) };
+            nCols_ = id;
+            return cols;
+        }
+
+        // <id int>,<>
+        public static List<Row> GetHeapRows()
+        {
+            List<Row> results = new List<Row>();
+            foreach (var memo in SysMemo.memos_)
+            {
+                int groupid = 0;
+                foreach (var (sig, g) in memo.cgroups_)
+                {
+                    groupid++;
+                    int exprid = 0;
+                    foreach (var e in g.exprList_)
+                    {
+                        Row r = new Row(nCols_);
+                        r[0] = $"{g.memoid_}.{groupid}.{exprid++}";
+                        r[1] = e.propertypairs_.Count;
+                        r[2] = e.ToString();
+
+                        results.Add(r);
+                    }
+                }
+            }
+            return results;
+        }
+    }
+
+    public static class SysMemoProperty
+    {
+        static public List<Memo> memos_ = new List<Memo>();
+
+        static public int nCols_;
+        static public string name_ = "sys_memo_property";
+        public static List<ColumnDef> GetSchema()
+        {
+            int id = 0;
+            var cols = new List<ColumnDef> {
+                new ColumnDef("exprid", new VarCharType(64), id++),
+                new ColumnDef("propertyid", new IntType(), id++),
+                new ColumnDef("pprovide", new VarCharType(1024), id++),
+                new ColumnDef("prequire", new VarCharType(1024), id++) };
+            nCols_ = id;
+            return cols;
+        }
+
+        // <id int>,<>
+        public static List<Row> GetHeapRows()
+        {
+            List<Row> results = new List<Row>();
+            foreach (var memo in SysMemo.memos_)
+            {
+                int groupid = 0;
+                foreach (var (sig, g) in memo.cgroups_)
+                {
+                    groupid++;
+                    int exprid = 0;
+                    foreach (var e in g.exprList_)
+                    {
+                        int propertyid = 0;
+                        foreach (var (provide, require) in e.propertypairs_)
+                        {
+                            Row r = new Row(nCols_);
+                            r[0] = $"{g.memoid_}.{groupid}.{exprid++}";
+                            r[1] = propertyid++;
+                            r[2] = provide.ToString();
+                            r[3] = require.ToString();
+
+                            results.Add(r);
+                        }
+                    }
+                }
+            }
+            return results;
         }
     }
 }

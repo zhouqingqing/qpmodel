@@ -28,15 +28,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Diagnostics;
 using Value = System.Object;
 
 using qpmodel.logic;
 using qpmodel.physic;
 using qpmodel.utils;
-using IronPython.Compiler.Ast;
 
 namespace qpmodel.expr
 {
