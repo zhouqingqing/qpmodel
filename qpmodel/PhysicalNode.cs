@@ -37,11 +37,14 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
+
 using BitVector = System.Int64;
 using Value = System.Object;
 
 namespace qpmodel.physic
 {
+    using ChildrenRequirement = System.Collections.Generic.List<PhysicProperty>;
+
     public abstract class PhysicNode : PlanNode<PhysicNode>
     {
         public LogicNode logic_;
@@ -198,30 +201,31 @@ namespace qpmodel.physic
 
         // interface for physical property
         //
-        // determine if a required property can be satisfied through physic node
-        // if it can be satisfied, then property requirement on children is returned
-        // since for each property and physic node, there are more that one set of child properties
-        // there for the output is a list (set) of list (children)
+        // determine if current node can provide a required property @required. Set property requirement list on
+        // children is returned @listChildReqs if so. Since for each property and physic node, there are more that
+        // one set of child properties there for the output is a list (set) of ChildrenRequirement.
+        //
         // example:
         // required: <null, distributed>, node: hashjoin
-        // viable child properties:
-        // 1) (<null, distributed>, <null, distributed>)
-        // 2) (<null, distributed>, <null, replicated>)
-        public virtual bool IsPropertySatisfied(PhysicProperty required, out List<List<PhysicProperty>> listchildprops)
+        // viable required child properties (read as (<probe child>, <build child>))
+        //   1) (<null, distributed>, <null, distributed>)
+        //   2) (<null, distributed>, <null, replicated>)
+        //
+        public virtual bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs)
         {
-            listchildprops = new List<List<PhysicProperty>>();
-            listchildprops.Add(new List<PhysicProperty>());
+            listChildReqs = new List<ChildrenRequirement>();
+            listChildReqs.Add(new ChildrenRequirement());
             // the default is singleton with no order requirement
             // assume all the physic nodes can process singleton
-            if (required.IsPropertySupplied(DistributionProperty.singleton))
+            if (required.IsSuppliedBy(DistrProperty.Singleton_))
             {
                 for (int i = 0; i < children_.Count; i++)
-                    listchildprops[0].Add(DistributionProperty.singleton);
+                    listChildReqs[0].Add(DistrProperty.Singleton_);
                 return true;
             }
             else
             {
-                listchildprops = null;
+                listChildReqs = null;
                 return false;
             }
         }
@@ -424,10 +428,10 @@ namespace qpmodel.physic
                         Catalog.sysstat_.EstCardinality(logic.tabref_.relname_));
             return tablerows * 1.0;
         }
-        public override bool IsPropertySatisfied(PhysicProperty required, out List<List<PhysicProperty>> listchildprops)
+        public override bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs)
         {
             // leaf node, no child
-            listchildprops = null;
+            listChildReqs = null;
 
             // does not supply order property by default
             if (required.ordering_.Count > 0)
@@ -438,24 +442,24 @@ namespace qpmodel.physic
 
             switch (required.distribution_.disttype)
             {
-                case DistributionType.Singleton:
+                case DistrType.Singleton:
                     if (!tableref.IsDistributed())
                         return true;
                     else
                         return false;
-                case DistributionType.Any:
+                case DistrType.AnyDistributed:
                     if (tableref.Table().distMethod_ != TableDef.DistributionMethod.Replicated)
                         return true;
                     else
                         return false;
-                case DistributionType.Replicated:
+                case DistrType.Replicated:
                     if (tableref.Table().distMethod_ == TableDef.DistributionMethod.Replicated)
                         return true;
                     else
                         return false;
             }
             // the rest case is specific distributed property
-            Debug.Assert(required.distribution_.disttype == DistributionType.Distributed);
+            Debug.Assert(required.distribution_.disttype == DistrType.Distributed);
             if (tableref.Table().distMethod_ != TableDef.DistributionMethod.Replicated &&
                 tableref.IsDistributionMatch(required.distribution_.exprs))
                 return true;
@@ -731,32 +735,32 @@ namespace qpmodel.physic
             return cost;
         }
 
-        public override bool IsPropertySatisfied(PhysicProperty required, out List<List<PhysicProperty>> listchildprops)
+        public override bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs)
         {
             // TODO: distribution determination, no distribution supplied
             // for NLJoin, consider only singleton situation
-            if (!required.IsDistributionSupplied(DistributionProperty.singleton))
+            if (!required.DistributionIsSuppliedBy(DistrProperty.Singleton_))
             {
-                listchildprops = null;
+                listChildReqs = null;
                 return false;
             }
             else
             {
-                listchildprops = new List<List<PhysicProperty>>();
+                listChildReqs = new List<ChildrenRequirement>();
                 if (required.ordering_.Count > 0)
                 {
                     var logic = logic_ as LogicJoin;
                     if (IsExprMatch(required, logic.leftKeys_))
                     {
-                        var outerreq = new DistributionProperty();
+                        var outerreq = new DistrProperty();
                         outerreq.ordering_ = required.ordering_;
-                        listchildprops.Add(new List<PhysicProperty> { outerreq, DistributionProperty.singleton });
+                        listChildReqs.Add(new ChildrenRequirement { outerreq, DistrProperty.Singleton_ });
                         return true;
                     }
-                    listchildprops = null;
+                    listChildReqs = null;
                     return false;
                 }
-                listchildprops.Add(new List<PhysicProperty> { DistributionProperty.singleton, DistributionProperty.singleton });
+                listChildReqs.Add(new ChildrenRequirement { DistrProperty.Singleton_, DistrProperty.Singleton_ });
                 return true;
             }
         }
@@ -1011,48 +1015,47 @@ namespace qpmodel.physic
             var outputcost = logic_.Card() * 1.0;
             return buildcost + probecost + outputcost;
         }
-        public override bool IsPropertySatisfied(PhysicProperty required, out List<List<PhysicProperty>> listchildprops)
+        public override bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs)
         {
             // cannot handle order property
             if (required.ordering_.Count > 0)
             {
-                listchildprops = null;
+                listChildReqs = null;
                 return false;
             }
 
             var logic = logic_ as LogicJoin;
             logic.CreateKeyList();
 
-            listchildprops = new List<List<PhysicProperty>>();
-
-            switch (required.distribution_.disttype)
+            listChildReqs = new List<ChildrenRequirement>();
+            var requiredType = required.distribution_.disttype;
+            switch (requiredType)
             {
-                case DistributionType.Singleton:
-                    listchildprops.Add(new List<PhysicProperty> { DistributionProperty.singleton, DistributionProperty.singleton });
+                case DistrType.Singleton:
+                    listChildReqs.Add(new ChildrenRequirement { DistrProperty.Singleton_, DistrProperty.Singleton_ });
                     return true;
-                case DistributionType.Replicated:
-                    listchildprops.Add(new List<PhysicProperty> { DistributionProperty.replicated, DistributionProperty.replicated });
+                case DistrType.Replicated:
+                    listChildReqs.Add(new ChildrenRequirement { DistrProperty.Replicated_, DistrProperty.Replicated_ });
                     return true;
             }
-            Debug.Assert(required.distribution_.disttype == DistributionType.Distributed
-                || required.distribution_.disttype == DistributionType.Any);
-            if (required.IsDistributionSupplied(new DistributionProperty(logic.leftKeys_))
-                || required.IsDistributionSupplied(new DistributionProperty(logic.rightKeys_)))
+            Debug.Assert(requiredType == DistrType.Distributed || requiredType == DistrType.AnyDistributed);
+            if (required.DistributionIsSuppliedBy(new DistrProperty(logic.leftKeys_))
+                || required.DistributionIsSuppliedBy(new DistrProperty(logic.rightKeys_)))
             {
-                listchildprops.Add(new List<PhysicProperty> { new DistributionProperty(logic.leftKeys_), new DistributionProperty(logic.rightKeys_) });
-                listchildprops.Add(new List<PhysicProperty> { DistributionProperty.singleton, new DistributionProperty(logic.rightKeys_) });
-                listchildprops.Add(new List<PhysicProperty> { new DistributionProperty(logic.leftKeys_), DistributionProperty.singleton });
-                if (required.distribution_.disttype == DistributionType.Any)
+                listChildReqs.Add(new ChildrenRequirement { new DistrProperty(logic.leftKeys_), new DistrProperty(logic.rightKeys_) });
+                listChildReqs.Add(new ChildrenRequirement { DistrProperty.Singleton_, new DistrProperty(logic.rightKeys_) });
+                listChildReqs.Add(new ChildrenRequirement { new DistrProperty(logic.leftKeys_), DistrProperty.Singleton_ });
+                if (requiredType == DistrType.AnyDistributed)
                 {
-                    listchildprops.Add(new List<PhysicProperty> { DistributionProperty.replicated, PhysicProperty.nullprop });
-                    listchildprops.Add(new List<PhysicProperty> { DistributionProperty.singleton, new DistributionProperty(logic.rightKeys_) });
-                    listchildprops.Add(new List<PhysicProperty> { new DistributionProperty(logic.leftKeys_), DistributionProperty.singleton });
+                    listChildReqs.Add(new ChildrenRequirement { DistrProperty.Replicated_, PhysicProperty.NullProperty_ });
+                    listChildReqs.Add(new ChildrenRequirement { DistrProperty.Singleton_, new DistrProperty(logic.rightKeys_) });
+                    listChildReqs.Add(new ChildrenRequirement { new DistrProperty(logic.leftKeys_), DistrProperty.Singleton_ });
                 }
                 return true;
             }
             else
             {
-                listchildprops = null;
+                listChildReqs = null;
                 return false;
             }
         }
@@ -1147,16 +1150,16 @@ namespace qpmodel.physic
             return (child_().Card() * 1.0) + (logic_.Card() * 2.0);
         }
 
-        public override bool IsPropertySatisfied(PhysicProperty required, out List<List<PhysicProperty>> listchildprops)
+        public override bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs)
         {
-            listchildprops = new List<List<PhysicProperty>>();
+            listChildReqs = new List<ChildrenRequirement>();
             // hash agg can only support singleton with no order requirement by default
-            if (required.Equals(DistributionProperty.singleton))
+            if (required.Equals(DistrProperty.Singleton_))
             {
-                listchildprops.Add(new List<PhysicProperty> { DistributionProperty.singleton });
+                listChildReqs.Add(new ChildrenRequirement { DistrProperty.Singleton_ });
                 return true;
             }
-            listchildprops = null;
+            listChildReqs = null;
             return false;
         }
 
@@ -1279,22 +1282,22 @@ namespace qpmodel.physic
     {
         public PhysicStreamAgg(LogicAgg logic, PhysicNode l) : base(logic, l) { }
         public override string ToString() => $"PStreamAgg({child_()}: {Cost()})";
-        public override bool IsPropertySatisfied(PhysicProperty required, out List<List<PhysicProperty>> listchildprops)
+        public override bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs)
         {
-            listchildprops = new List<List<PhysicProperty>>();
+            listChildReqs = new List<ChildrenRequirement>();
 
             var exprlist = (logic_ as LogicAgg).groupby_;
             var prop = new SortOrderProperty(exprlist);
 
             // stream agg can support certain order property
             // but distribution must be singleton
-            if (required.distribution_.disttype == DistributionType.Singleton
-                && required.IsPropertySupplied(prop))
+            if (required.distribution_.disttype == DistrType.Singleton
+                && required.IsSuppliedBy(prop))
             {
-                listchildprops.Add(new List<PhysicProperty> { prop });
+                listChildReqs.Add(new ChildrenRequirement { prop });
                 return true;
             }
-            listchildprops = null;
+            listChildReqs = null;
             return false;
         }
         protected override double EstimateCost()
