@@ -1404,13 +1404,12 @@ namespace qpmodel.unittest
             sql = "select 1+2*3, 1+2+a1 from a where a1+2+(1*5+1)>2*3 and 1+2=2+1;";
             TU.ExecuteSQL(sql, "7,3;7,4;7,5", out phyplan);
             Assert.AreEqual(0, TU.CountStr(phyplan, "True"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "7,(a.a1[0]+3)"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Output: 7,(a.a1[0]+3)"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "Filter: a.a1[0]>-2"));
             sql = "select 1+20*3, 1+2.1+a1 from a where a1+2+(1*5+1)>2*4.6 and 1+2<2+1.4;";
             TU.ExecuteSQL(sql, "61,5.1", out phyplan);
-            Assert.AreEqual(0, TU.CountStr(phyplan, "True"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "61"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "3.2"));
+            Assert.IsTrue(phyplan.Contains("Output: 61,(a.a1[0]+3.1)"));
+            Assert.IsTrue((phyplan.Contains("Filter: (a.a1[0]+8)>9.2")));
         }
     }
 
@@ -1614,19 +1613,17 @@ namespace qpmodel.unittest
             sql = "select b1+c1 from (select b1 from b) a, (select c1,c2 from c) c where c2-b1>1";
             stmt = RawParser.ParseSingleSqlStatement(sql);
             SQLStatement.ExecSQL(sql, out phyplan, out _);
-            answer = @"PhysicFilter  (actual rows=3)
-                           Output: {(a.b1+c.c1)}[0]
-                           Filter: c.c1[1]>1
-                           -> PhysicNLJoin  (actual rows=9)
-                               Output: (a.b1[0]+c.c1[1]),c.c1[1]
-                               -> PhysicFromQuery <a> (actual rows=3)
-                                   Output: a.b1[0]
-                                   -> PhysicScanTable b (actual rows=3)
-                                       Output: b.b1[0]
-                               -> PhysicFromQuery <c> (actual rows=3, loops=3)
-                                   Output: c.c1[0]
-                                   -> PhysicScanTable c (actual rows=3, loops=3)
-                                       Output: c.c1[0]";
+            answer = @"PhysicNLJoin  (actual rows=3)
+    Output: (a.b1[0]+c.c1[1])
+    Filter: (c.c2[2]-a.b1[0])>1
+    -> PhysicFromQuery <a> (actual rows=3)
+        Output: a.b1[0]
+        -> PhysicScanTable b (actual rows=3)
+            Output: b.b1[0]
+    -> PhysicFromQuery <c> (actual rows=3, loops=3)
+        Output: c.c1[0],c.c2[1]
+        -> PhysicScanTable c (actual rows=3, loops=3)
+            Output: c.c1[0],c.c2[1]";
             TU.PlanAssertEqual(answer, phyplan);
             TU.ExecuteSQL(sql, "1;2;3");
         }
@@ -1636,13 +1633,13 @@ namespace qpmodel.unittest
         {
             var sql = "select a.a1, b.b1 from a join b on a.a1=b.b1;";
             var result = ExecuteSQL(sql, out string phyplan);
-            var answer = @"PhysicHashJoin   (actual rows=3)
-                            Output: a.a1[0],b.b1[1]
-                            Filter: a.a1[0]=b.b1[1]
-                            -> PhysicScanTable a  (actual rows=3)
-                                Output: a.a1[0]
-                            -> PhysicScanTable b  (actual rows=3)
-                                Output: b.b1[0]";
+            var answer = @"PhysicHashJoin  (actual rows=3)
+    Output: a.a1[0],b.b1[1]
+    Filter: a.a1[0]=b.b1[1]
+    -> PhysicScanTable a (actual rows=3)
+        Output: a.a1[0]
+    -> PhysicScanTable b (actual rows=3)
+        Output: b.b1[0]";
             TU.PlanAssertEqual(answer, phyplan);
             TU.ExecuteSQL(sql, "0,0;1,1;2,2");
             sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2=c.c2;";
@@ -1711,7 +1708,7 @@ namespace qpmodel.unittest
             option.optimize_.use_memo_ = false;
             TU.ExecuteSQL(sql, "0,1,2,3,0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5,2,3,4,5", out phyplan, option);
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicHashJoin"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Filter: a.a1[0]=b.b1[4] and a.a1[0]=c.c1[8]"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Filter: (a.a1[0]=b.b1[4] and a.a1[0]=c.c1[8])"));
             option.optimize_.use_memo_ = true;
             TU.ExecuteSQL(sql, "0,1,2,3,0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5,2,3,4,5", out phyplan, option);
             Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicHashJoin"));
@@ -1914,18 +1911,18 @@ namespace qpmodel.unittest
             // FIXME: you can see c1+b1>2 is not pushed down
             sql = "select a1,b1,c1 from a,b,c where a1+b1+c1>5 and c1+b1>2";
             TU.ExecuteSQL(sql, "2,2,2", out phyplan);
-            answer = @"PhysicNLJoin(actual rows = 1)
-                        Output: a.a1[0],b.b1[1],c.c1[2]
-                        Filter: ((a.a1[0] + b.b1[1]) + c.c1[2]) > 5
-                        ->PhysicScanTable a(actual rows = 3)
-                           Output: a.a1[0]
-                        ->PhysicNLJoin(actual rows = 3, loops = 3)
-                           Output: b.b1[1],c.c1[0]
-                           Filter: (c.c1[0] + b.b1[1]) > 2
-                           ->PhysicScanTable c(actual rows = 3, loops = 3)
-                              Output: c.c1[0]
-                           ->PhysicScanTable b(actual rows = 3, loops = 9)
-                              Output: b.b1[0]";
+            answer = @"PhysicNLJoin  (actual rows=1)
+    Output: a.a1[0],b.b1[1],c.c1[2]
+    Filter: ((a.a1[0]+b.b1[1])+c.c1[2])>5
+    -> PhysicScanTable a (actual rows=3)
+        Output: a.a1[0]
+    -> PhysicNLJoin  (actual rows=3, loops=3)
+        Output: b.b1[1],c.c1[0]
+        Filter: (c.c1[0]+b.b1[1])>2
+        -> PhysicScanTable c (actual rows=3, loops=3)
+            Output: c.c1[0]
+        -> PhysicScanTable b (actual rows=3, loops=9)
+            Output: b.b1[0]";
 
             TU.PlanAssertEqual(answer, phyplan);
 

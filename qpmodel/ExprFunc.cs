@@ -1411,12 +1411,13 @@ public override Expr Normalize()
              * etc.
              *                                        (relop)
              *                                        /      \
-             *                                      arith    const
+             *                                      arith    const2
              *                                     /    \
-             *                                    x     const
+             *                                    x     const1
              */
-
-            if (!(rce is null) && l is BinExpr lbe && lbe.IsArithmeticOp() && lbe.rchild_() is ConstExpr lrc)
+            // Only if type of x is the same as that of const2, otherwise it is pretty involved
+            // rewrite the operation and preserving the original behavior of the comparision.
+            if (!(rce is null) && l is BinExpr lbe && lbe.IsArithmeticOp() && lbe.rchild_() is ConstExpr lrc && TypeBase.SameArithType(lbe.type_, rce.type_))
             {
                 string curOp = op_, nop;
                 if (lbe.op_ == "+" || lbe.op_ == "-")
@@ -1427,14 +1428,14 @@ public override Expr Normalize()
                         nop = "+";
 
                     BinExpr newe = new BinExpr(rce, lrc, nop);
+
                     newe.type_ = ColumnType.CoerseType(nop, lrc, rce);
                     newe.bounded_ = true;
 
                     Value val = newe.Exec(null, null);
                     ConstExpr newc = ConstExpr.MakeConst(val, newe.type_);
-
                     newc.bounded_ = true;
-                    children_[0] = l.lchild_();
+                    children_[0] = lbe.lchild_();
                     children_[1] = newc;
                 }
             }          
