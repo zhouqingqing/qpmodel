@@ -185,7 +185,6 @@ namespace qpmodel
             {
                 sql = "select * from a tablesample row (2);";
                 sql = "select a1,b1 from ad, br where a2=b2 order by a1;";
-                sql = "select * from sys_memo_expr e join sys_memo_property p on e.exprid = p.exprid;";
             }
 
             var datetime = new DateTime();
@@ -239,7 +238,6 @@ namespace qpmodel
                 a.optimizer_.ExploreRootPlan(a);
                 phyplan = a.optimizer_.CopyOutOptimalPlan();
                 Console.WriteLine(a.optimizer_.PrintMemo());
-                a.optimizer_.RegisterMemos();
                 Console.WriteLine("***************** Memo plan *************");
                 Console.WriteLine(phyplan.Explain(a.queryOpt_.explain_));
             }
