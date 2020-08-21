@@ -396,14 +396,14 @@ namespace qpmodel.unittest
 
             Tpch.CreateTables(true);
             Tpch.LoadTables(scale);
-            
+
             Tpch.AnalyzeTables();
 
             // run tests and compare plan
             string sql_dir_fn = "../../../../tpch";
             string write_dir_fn = $"../../../../test/regress/output/tpch{scale}_d";
             string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}_d";
-            
+
             ExplainOption.show_tablename_ = false;
             var badQueries = new string[] { "q07", "q08", "q09", "q13", "q15", "q22" };
 
@@ -814,6 +814,20 @@ namespace qpmodel.unittest
             Assert.AreEqual(7, TU.CountStr(mstr, "property"));
             Assert.IsTrue(TU.CheckPlanOrder(stmt.physicPlan_,
                 new List<string> { "PhysicStreamAgg", "PhysicNLJoin", "PhysicOrder" }));
+        }
+
+        [TestMethod]
+        public void TestSysteMemoViews()
+        {
+            // run the target query
+            var sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2 order by a2;";
+            var result = TU.ExecuteSQL(sql, out var stmt, out _);
+            stmt.optimizer_.RegisterMemos();
+
+            // query its memo
+            sql = "select * from sys_memo_expr e join sys_memo_property p on e.exprid = p.exprid;";
+            result = TU.ExecuteSQL(sql);
+            Assert.AreEqual(result.Count, 14);
         }
     }
 
