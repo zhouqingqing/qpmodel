@@ -153,6 +153,7 @@ namespace qpmodel.expr
     {
         [ThreadStatic]
         public static Dictionary<string, Expr> table_ = new Dictionary<string, Expr>();
+        public static void Reset() => table_.Clear();
 
         public static Expr Locate(string objectid) => table_[objectid];
     }
