@@ -59,7 +59,7 @@ PhysicLimit (100) (inccost=7610.58, cost=100, rows=100) (actual rows=0)
                     Filter: p_partkey[0]=ps_partkey[9]
                     -> PhysicScanTable part (inccost=200, cost=200, rows=1) (actual rows=0)
                         Output: p_partkey[0],p_mfgr[2]
-                        Filter: p_size[5]=15 and p_type[4]like'%BRASS'
+                        Filter: (p_size[5]=15 and p_type[4] like '%BRASS')
                     -> PhysicHashJoin  (inccost=3746, cost=1254, rows=444, memory=290) (actual rows=0)
                         Output: s_acctbal[2],s_name[3],n_name[0],s_address[4],s_phone[5],s_comment[6],ps_supplycost[7],ps_partkey[8]
                         Filter: s_nationkey[9]=n_nationkey[1]

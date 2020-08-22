@@ -21,7 +21,7 @@ PhysicHashAgg  (inccost=25004, cost=32, rows=1, memory=16) (actual rows=1)
     Aggregates: sum(l_extendedprice[0])
     -> PhysicFilter  (inccost=24972, cost=30, rows=30) (actual rows=0)
         Output: l_extendedprice[0]
-        Filter: l_quantity[1]<0.2*{avg(l_quantity)}[2]
+        Filter: l_quantity[1]<{avg(l_quantity)}[2]*0.2
         -> PhysicHashJoin Left (inccost=24942, cost=290, rows=30, memory=1200) (actual rows=0)
             Output: l_extendedprice[0],l_quantity[1],{avg(l_quantity)}[3]
             Filter: l_partkey[4]=p_partkey[2]
@@ -30,7 +30,7 @@ PhysicHashAgg  (inccost=25004, cost=32, rows=1, memory=16) (actual rows=1)
                 Filter: p_partkey[0]=l_partkey[3]
                 -> PhysicScanTable part (inccost=200, cost=200, rows=1) (actual rows=0)
                     Output: p_partkey[0]
-                    Filter: p_container[6]='MED BOX' and p_brand[3]='Brand#23'
+                    Filter: (p_container[6]='MED BOX' and p_brand[3]='Brand#23')
                 -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=6005) (actual rows=0)
                     Output: l_extendedprice[5],l_quantity[4],l_partkey[1]
             -> PhysicHashAgg  (inccost=12410, cost=6405, rows=200, memory=4800) (actual rows=0)

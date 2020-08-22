@@ -35,7 +35,7 @@ PhysicOrder  (inccost=284121.54, cost=8.54, rows=5, memory=95) (actual rows=5)
                 Filter: l_orderkey[2]=o_orderkey[1]
                 -> PhysicScanTable orders (inccost=1500, cost=1500, rows=46) (actual rows=48)
                     Output: o_orderpriority[5],o_orderkey[0]
-                    Filter: o_orderdate[4]>='1993-07-01' and o_orderdate[4]<'9/29/1993 12:00:00 AM'
+                    Filter: (o_orderdate[4]>='1993-07-01' and o_orderdate[4]<'9/29/1993 12:00:00 AM')
                 -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=6005) (actual rows=3752, loops=48)
                     Output: l_orderkey[0]
                     Filter: l_commitdate[11]<l_receiptdate[12]

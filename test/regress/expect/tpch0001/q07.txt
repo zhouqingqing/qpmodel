@@ -48,32 +48,32 @@ PhysicOrder  (inccost=181623.1, cost=0.1, rows=1, memory=66) (actual rows=0)
         -> PhysicFromQuery <shipping> (inccost=174130, cost=7491, rows=7491) (actual rows=0)
             Output: supp_nation[0],cust_nation[1],l_year[2],volume[3]
             -> PhysicHashJoin  (inccost=166639, cost=74936, rows=7491, memory=160) (actual rows=0)
-                Output: n_name (as supp_nation)[2],n_name (as cust_nation)[3],{year(l_shipdate)}[4],{l_extendedprice*1-l_discount(as volume)}[5]
-                Filter: s_suppkey[0]=l_suppkey[6] and s_nationkey[1]=n_nationkey[7]
+                Output: n_name (as supp_nation)[2],n_name (as cust_nation)[3],{year(l_shipdate)}[4],{l_extendedprice*(1-l_discount)(as volume)}[5]
+                Filter: (s_suppkey[0]=l_suppkey[6] and s_nationkey[1]=n_nationkey[7])
                 -> PhysicScanTable supplier (inccost=10, cost=10, rows=10) (actual rows=10)
                     Output: s_suppkey[0],s_nationkey[3]
                 -> PhysicHashJoin  (inccost=91693, cost=71372, rows=67425, memory=72500) (actual rows=61)
-                    Output: n_name (as supp_nation)[0],n_name (as cust_nation)[1],{year(l_shipdate)}[4],{l_extendedprice*1-l_discount(as volume)}[5],l_suppkey[6],n_nationkey[2]
+                    Output: n_name (as supp_nation)[0],n_name (as cust_nation)[1],{year(l_shipdate)}[4],{l_extendedprice*(1-l_discount)(as volume)}[5],l_suppkey[6],n_nationkey[2]
                     Filter: c_nationkey[7]=n_nationkey[3]
                     -> PhysicNLJoin  (inccost=1275, cost=1225, rows=625) (actual rows=2)
                         Output: n_name (as supp_nation)[2],n_name (as cust_nation)[0],n_nationkey[3],n_nationkey[1]
-                        Filter: n_name[2]='FRANCE' and n_name[0]='GERMANY' or n_name[2]='GERMANY' and n_name[0]='FRANCE'
+                        Filter: ((n_name[2]='FRANCE' and n_name[0]='GERMANY') or (n_name[2]='GERMANY' and n_name[0]='FRANCE'))
                         -> PhysicScanTable nation as n2 (inccost=25, cost=25, rows=25) (actual rows=25)
                             Output: n_name (as cust_nation)[1],n_nationkey[0]
                         -> PhysicScanTable nation as n1 (inccost=25, cost=25, rows=25) (actual rows=25, loops=25)
                             Output: n_name (as supp_nation)[1],n_nationkey[0]
                     -> PhysicHashJoin  (inccost=19046, cost=4795, rows=2697, memory=2400) (actual rows=1793)
-                        Output: {year(l_shipdate)}[2],{l_extendedprice*1-l_discount(as volume)}[3],l_suppkey[4],c_nationkey[0]
+                        Output: {year(l_shipdate)}[2],{l_extendedprice*(1-l_discount)(as volume)}[3],l_suppkey[4],c_nationkey[0]
                         Filter: c_custkey[1]=o_custkey[5]
                         -> PhysicScanTable customer (inccost=150, cost=150, rows=150) (actual rows=150)
                             Output: c_nationkey[3],c_custkey[0]
                         -> PhysicHashJoin  (inccost=14101, cost=6596, rows=1798, memory=24000) (actual rows=1793)
-                            Output: {year(l_shipdate)}[2],{l_extendedprice*1-l_discount(as volume)}[3],l_suppkey[4],o_custkey[0]
+                            Output: {year(l_shipdate)}[2],{l_extendedprice*(1-l_discount)(as volume)}[3],l_suppkey[4],o_custkey[0]
                             Filter: o_orderkey[1]=l_orderkey[5]
                             -> PhysicScanTable orders (inccost=1500, cost=1500, rows=1500) (actual rows=1500)
                                 Output: o_custkey[1],o_orderkey[0]
                             -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=1798) (actual rows=1793)
-                                Output: year(l_shipdate[10]),l_extendedprice[5]*1-l_discount[6](as volume),l_suppkey[2],l_orderkey[0]
-                                Filter: l_shipdate[10]>='1995-01-01' and l_shipdate[10]<='1996-12-31'
+                                Output: year(l_shipdate[10]),l_extendedprice[5]*(1-l_discount[6])(as volume),l_suppkey[2],l_orderkey[0]
+                                Filter: (l_shipdate[10]>='1995-01-01' and l_shipdate[10]<='1996-12-31')
 
 

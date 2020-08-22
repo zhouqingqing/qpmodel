@@ -15,7 +15,7 @@ PhysicHashAgg  (inccost=6887, cost=82, rows=1, memory=16) (actual rows=1)
         Output: l_extendedprice[5]*l_discount[6],l_extendedprice[5],l_discount[6]
         -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=80) (actual rows=0)
             Output: l_extendedprice[5]*l_discount[6],l_extendedprice[5],l_discount[6]
-            Filter: l_shipdate[10]>='1994-01-01' and l_shipdate[10]<'1/1/1995 12:00:00 AM' and l_discount[6]>=0.05 and l_discount[6]<=0.07 and l_quantity[4]<24
+            Filter: ((((l_shipdate[10]>='1994-01-01' and l_shipdate[10]<'1/1/1995 12:00:00 AM') and l_discount[6]>=0.05) and l_discount[6]<=0.07) and l_quantity[4]<24)
 
 Emulated 10 machines distributed run with 10 threads
 48090.8586

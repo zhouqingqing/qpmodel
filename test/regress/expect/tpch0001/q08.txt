@@ -46,29 +46,29 @@ PhysicOrder  (inccost=46098.1, cost=0.1, rows=1, memory=16) (actual rows=2)
         -> PhysicFromQuery <all_nations> (inccost=46089, cost=7, rows=7) (actual rows=5)
             Output: o_year[0],case with 1,nation[2]='BRAZIL',nation[2],'BRAZIL',volume[1],0
             -> PhysicHashJoin  (inccost=46082, cost=1516, rows=7, memory=8) (actual rows=5)
-                Output: {year(o_orderdate)}[1],{l_extendedprice*1-l_discount(as volume)}[2],n_name (as nation)[3]
+                Output: {year(o_orderdate)}[1],{l_extendedprice*(1-l_discount)(as volume)}[2],n_name (as nation)[3]
                 Filter: p_partkey[0]=l_partkey[4]
                 -> PhysicScanTable part (inccost=200, cost=200, rows=1) (actual rows=1)
                     Output: p_partkey[0]
                     Filter: p_type[4]='ECONOMY ANODIZED STEEL'
                 -> PhysicHashJoin  (inccost=44366, cost=9045, rows=1507, memory=8) (actual rows=385)
-                    Output: {year(o_orderdate)}[1],{l_extendedprice*1-l_discount(as volume)}[2],n_name (as nation)[3],l_partkey[4]
+                    Output: {year(o_orderdate)}[1],{l_extendedprice*(1-l_discount)(as volume)}[2],n_name (as nation)[3],l_partkey[4]
                     Filter: n_regionkey[5]=r_regionkey[0]
                     -> PhysicScanTable region (inccost=5, cost=5, rows=1) (actual rows=1)
                         Output: r_regionkey[0]
                         Filter: r_name[1]='AMERICA'
                     -> PhysicHashJoin  (inccost=35316, cost=10299, rows=7536, memory=1450) (actual rows=1810)
-                        Output: {year(o_orderdate)}[2],{l_extendedprice*1-l_discount(as volume)}[3],n_name (as nation)[0],l_partkey[4],n_regionkey[5]
+                        Output: {year(o_orderdate)}[2],{l_extendedprice*(1-l_discount)(as volume)}[3],n_name (as nation)[0],l_partkey[4],n_regionkey[5]
                         Filter: s_nationkey[6]=n_nationkey[1]
                         -> PhysicScanTable nation as n2 (inccost=25, cost=25, rows=25) (actual rows=25)
                             Output: n_name (as nation)[1],n_nationkey[0]
                         -> PhysicHashJoin  (inccost=24992, cost=5447, rows=2713, memory=160) (actual rows=1810)
-                            Output: {year(o_orderdate)}[2],{l_extendedprice*1-l_discount(as volume)}[3],l_partkey[4],n_regionkey[5],s_nationkey[0]
+                            Output: {year(o_orderdate)}[2],{l_extendedprice*(1-l_discount)(as volume)}[3],l_partkey[4],n_regionkey[5],s_nationkey[0]
                             Filter: s_suppkey[1]=l_suppkey[6]
                             -> PhysicScanTable supplier (inccost=10, cost=10, rows=10) (actual rows=10)
                                 Output: s_nationkey[3],s_suppkey[0]
                             -> PhysicHashJoin  (inccost=19535, cost=10075, rows=2714, memory=21696) (actual rows=1810)
-                                Output: {year(o_orderdate)}[0],{l_extendedprice*1-l_discount(as volume)}[3],l_partkey[4],n_regionkey[1],l_suppkey[5]
+                                Output: {year(o_orderdate)}[0],{l_extendedprice*(1-l_discount)(as volume)}[3],l_partkey[4],n_regionkey[1],l_suppkey[5]
                                 Filter: l_orderkey[6]=o_orderkey[2]
                                 -> PhysicHashJoin  (inccost=3455, cost=1430, rows=678, memory=2400) (actual rows=452)
                                     Output: {year(o_orderdate)}[2],n_regionkey[0],o_orderkey[3]
@@ -82,9 +82,9 @@ PhysicOrder  (inccost=46098.1, cost=0.1, rows=1, memory=16) (actual rows=2)
                                             Output: c_custkey[0],c_nationkey[3]
                                     -> PhysicScanTable orders (inccost=1500, cost=1500, rows=452) (actual rows=452)
                                         Output: year(o_orderdate[4]),o_orderkey[0],o_custkey[1]
-                                        Filter: o_orderdate[4]>='1995-01-01' and o_orderdate[4]<='1996-12-31'
+                                        Filter: (o_orderdate[4]>='1995-01-01' and o_orderdate[4]<='1996-12-31')
                                 -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=6005) (actual rows=6005)
-                                    Output: l_extendedprice[5]*1-l_discount[6](as volume),l_partkey[1],l_suppkey[2],l_orderkey[0]
+                                    Output: l_extendedprice[5]*(1-l_discount[6])(as volume),l_partkey[1],l_suppkey[2],l_orderkey[0]
 1995,0
 1996,0
 

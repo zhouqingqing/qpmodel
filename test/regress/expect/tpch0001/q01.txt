@@ -21,14 +21,14 @@ order by
 	l_linestatus
 Total cost: 11941.35, memory=1116
 PhysicOrder  (inccost=11941.35, cost=11.35, rows=6, memory=372) (actual rows=4)
-    Output: l_returnflag[0],l_linestatus[1],{sum(l_quantity)}[2],{sum(l_extendedprice)}[3],{sum(l_extendedprice*1-l_discount)}[4],{sum(l_extendedprice*1-l_discount*1+l_tax)}[5],{avg(l_quantity)}[6],{avg(l_extendedprice)}[7],{avg(l_discount)}[8],{count(*)(0)}[9]
+    Output: l_returnflag[0],l_linestatus[1],{sum(l_quantity)}[2],{sum(l_extendedprice)}[3],{sum(l_extendedprice*(1-l_discount))}[4],{sum(l_extendedprice*(1-l_discount)*(l_tax+1))}[5],{avg(l_quantity)}[6],{avg(l_extendedprice)}[7],{avg(l_discount)}[8],{count(*)(0)}[9]
     Order by: l_returnflag[0], l_linestatus[1]
     -> PhysicHashAgg  (inccost=11930, cost=5925, rows=6, memory=744) (actual rows=4)
-        Output: {l_returnflag}[0],{l_linestatus}[1],{sum(l_quantity)}[2],{sum(l_extendedprice)}[3],{sum(l_extendedprice*1-l_discount)}[4],{sum(l_extendedprice*1-l_discount*1+l_tax)}[5],{avg(l_quantity)}[6],{avg(l_extendedprice)}[7],{avg(l_discount)}[8],{count(*)(0)}[9]
-        Aggregates: sum(l_quantity[2]), sum(l_extendedprice[3]), sum(l_extendedprice[3]*1-l_discount[7]), sum(l_extendedprice[3]*1-l_discount[7]*1+l_tax[10]), avg(l_quantity[2]), avg(l_extendedprice[3]), avg(l_discount[7]), count(*)(0)
+        Output: {l_returnflag}[0],{l_linestatus}[1],{sum(l_quantity)}[2],{sum(l_extendedprice)}[3],{sum(l_extendedprice*(1-l_discount))}[4],{sum(l_extendedprice*(1-l_discount)*(l_tax+1))}[5],{avg(l_quantity)}[6],{avg(l_extendedprice)}[7],{avg(l_discount)}[8],{count(*)(0)}[9]
+        Aggregates: sum(l_quantity[2]), sum(l_extendedprice[3]), sum(l_extendedprice[3]*(1-l_discount[7])), sum(l_extendedprice[3]*(1-l_discount[7])*(l_tax[10]+1)), avg(l_quantity[2]), avg(l_extendedprice[3]), avg(l_discount[7]), count(*)(0)
         Group by: l_returnflag[0], l_linestatus[1]
         -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=5913) (actual rows=5914)
-            Output: l_returnflag[8],l_linestatus[9],l_quantity[4],l_extendedprice[5],l_extendedprice[5]*1-l_discount[6],1-l_discount[6],1,l_discount[6],l_extendedprice[5]*1-l_discount[6]*1+l_tax[7],1+l_tax[7],l_tax[7]
+            Output: l_returnflag[8],l_linestatus[9],l_quantity[4],l_extendedprice[5],l_extendedprice[5]*(1-l_discount[6]),(1-l_discount[6]),1,l_discount[6],l_extendedprice[5]*(1-l_discount[6])*(l_tax[7]+1),(l_tax[7]+1),l_tax[7]
             Filter: l_shipdate[10]<='9/2/1998 12:00:00 AM'
 A,F,37474,37569624.64,35676192.097,37101416.2224,25.3545,25419.2318,0.0509,1478
 N,F,1041,1041301.07,999060.898,1036450.8023,27.3947,27402.6597,0.0429,38
