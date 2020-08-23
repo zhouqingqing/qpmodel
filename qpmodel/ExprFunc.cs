@@ -1497,7 +1497,7 @@ public override Expr Normalize()
                 case ">=":
                 case "<":
                 case "<=":
-                /* LATER: case "||": */
+                case "||":
                 case "=":
                 case "<>":
                 case "!=":
@@ -1506,7 +1506,7 @@ public override Expr Normalize()
                     if (!IsRelOp() && (lce != null  && lce.val_ is null) || (rce != null && rce.val_ is null))
                     {
                         // NULL simplification: if operator is not relational, X op NULL is NULL
-                        return lce is null ? lce : rce;
+                        return lce is null ? rce : lce;
                     }
 
                     if (lce != null && rce != null)

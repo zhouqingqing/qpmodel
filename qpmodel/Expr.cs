@@ -753,7 +753,7 @@ namespace qpmodel.expr
                 x.Bind(context);
                 // this can't removed until normaliztion
                 // changes are all in place.
-                x = x.ConstFolding();
+                // x = x.ConstFolding();
                 children_[i] = x;
             }
             ResetAggregateTableRefs();
@@ -1156,6 +1156,11 @@ namespace qpmodel.expr
                         else
                             throw new SemanticAnalyzeException("wrong double precision format");
                         break;
+
+                    case NumericType nt:
+                        val_ = Convert.ToDecimal(str);
+                        break;
+
                     case DateTimeType dtt:
                         var datestr = str.RemoveStringQuotes();
                         if (DateTime.TryParse(datestr, out var valuedt))

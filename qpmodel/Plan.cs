@@ -672,7 +672,7 @@ namespace qpmodel.logic
                     x.Bind(context);
                     if (x.HasAggFunc())
                         hasAgg_ = true;
-                    x = x.ConstFolding();
+                    // x = x.ConstFolding();
                     if (queryOpt_.optimize_.remove_from_)
                         x = x.DeQueryRef();
                     newselection.Add(x);
