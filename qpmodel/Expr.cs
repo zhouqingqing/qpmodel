@@ -154,6 +154,7 @@ namespace qpmodel.expr
     {
         [ThreadStatic]
         public static Dictionary<string, Expr> table_ = new Dictionary<string, Expr>();
+        public static void Reset() => table_.Clear();
 
         public static Expr Locate(string objectid) => table_[objectid];
     }
@@ -228,7 +229,7 @@ namespace qpmodel.expr
                 r += "\n";
                 expr.VisitEachT<SubqueryExpr>(x =>
                 {
-                    string cached = x.IsCacheable() ? "cached " : "";
+                    string cached = x.isCacheable_ ? "cached " : "";
                     r += Utils.Spaces(depth + 2) + $"<{x.GetType().Name}> {cached}{x.subqueryid_}\n";
                     Debug.Assert(x.query_.bindContext_ != null);
                     if (x.query_.physicPlan_ != null)

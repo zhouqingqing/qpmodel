@@ -91,6 +91,7 @@ namespace qpmodel.logic
 
         public virtual List<Row> Exec()
         {
+            ExprSearch.Reset();
             Bind(null);
             CreatePlan();
             SubstitutionOptimize();

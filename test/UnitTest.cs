@@ -64,15 +64,15 @@ namespace qpmodel.unittest
             Console.WriteLine(physicplan);
             return results;
         }
-        static internal void ExecuteSQL(string sql, string resultstr)
+        static internal void ExecuteSQL(string sql, string expectedResults)
         {
             var result = ExecuteSQL(sql);
-            Assert.AreEqual(resultstr, string.Join(";", result));
+            Assert.AreEqual(expectedResults, string.Join(";", result));
         }
-        static internal void ExecuteSQL(string sql, string resultstr, out string physicplan, QueryOption option = null)
+        static internal void ExecuteSQL(string sql, string expectedResults, out string physicplan, QueryOption option = null)
         {
             var result = SQLStatement.ExecSQL(sql, out physicplan, out error_, option);
-            Assert.AreEqual(resultstr, string.Join(";", result));
+            Assert.AreEqual(expectedResults, string.Join(";", result));
         }
 
         static public void PlanAssertEqual(string l, string r)
@@ -111,11 +111,6 @@ namespace qpmodel.unittest
                 count++;
             }
             return count;
-        }
-        public static void CountOccurrences(string text, string pattern, int expected)
-        {
-            var count = CountStr(text, pattern);
-            Assert.AreEqual(expected, count);
         }
 
         public static bool CheckPlanOrder(PhysicNode physic, List<string> patternlist)
@@ -396,17 +391,16 @@ namespace qpmodel.unittest
 
             Tpch.CreateTables(true);
             Tpch.LoadTables(scale);
-            
+
             Tpch.AnalyzeTables();
 
             // run tests and compare plan
             string sql_dir_fn = "../../../../tpch";
             string write_dir_fn = $"../../../../test/regress/output/tpch{scale}_d";
             string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}_d";
-            
+
             ExplainOption.show_tablename_ = false;
-            var badQueries = new string[] { "q02", "q04", "q07", "q08", "q09", "q13", "q14", "q15", "q17",
-                                            "q18", "q20", "q21", "q22" };
+            var badQueries = new string[] { "q07", "q08", "q09", "q13", "q15", "q22" };
 
             try
             {
@@ -716,10 +710,10 @@ namespace qpmodel.unittest
             Assert.AreEqual("3", string.Join(";", result));
 
             sql = "select count(*) from a where a1 in (select b2 from b where b1 > 0) and a2 in (select b3 from b where b1 > 0);";
-            TU.ExecuteSQL(sql, "1", out phyplan, option); TU.CountOccurrences(phyplan, "PhysicFilter", 0);
+            TU.ExecuteSQL(sql, "1", out phyplan, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFilter"));
 
             sql = "select count(*) from (select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1 and a1>0) v;";
-            TU.ExecuteSQL(sql, "2", out phyplan, option); TU.CountOccurrences(phyplan, "PhysicFilter", 0);
+            TU.ExecuteSQL(sql, "2", out phyplan, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFilter"));
 
             sql = "select a2 from a where a.a3 > (select min(b1*2) from b where b.b2 >= (select c2-1 from c where c.c2=b2) and b.b3 > ((select c2 from c where c.c2=b2)));";
             TU.ExecuteSQL(sql, "1;2;3", out phyplan, option);
@@ -815,6 +809,20 @@ namespace qpmodel.unittest
             Assert.AreEqual(7, TU.CountStr(mstr, "property"));
             Assert.IsTrue(TU.CheckPlanOrder(stmt.physicPlan_,
                 new List<string> { "PhysicStreamAgg", "PhysicNLJoin", "PhysicOrder" }));
+        }
+
+        [TestMethod]
+        public void TestSysteMemoViews()
+        {
+            // run the target query
+            var sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2 order by a2;";
+            var result = TU.ExecuteSQL(sql, out var stmt, out _);
+            stmt.optimizer_.RegisterMemos();
+
+            // query its memo
+            sql = "select * from sys_memo_expr e join sys_memo_property p on e.exprid = p.exprid;";
+            result = TU.ExecuteSQL(sql);
+            Assert.AreEqual(result.Count, 14);
         }
     }
 
@@ -1435,19 +1443,8 @@ namespace qpmodel.unittest
             Assert.AreEqual(1 * 3, result.Count);
             sql = "select a.a2,a.a2,a3,a.a1+b2 from a,b where a.a1 > 1";
             TU.ExecuteSQL(sql, "3,3,4,3;3,3,4,4;3,3,4,5");
-            sql = @"select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2;";
-            result = ExecuteSQL(sql);
-            Assert.AreEqual(9, result.Count);
-            Assert.AreEqual(3, result[0].ColCount());
-            Assert.AreEqual("0,1,2", result[0].ToString());
-            Assert.AreEqual("1,1,2", result[1].ToString());
-            Assert.AreEqual("2,1,2", result[2].ToString());
-            Assert.AreEqual("0,2,3", result[3].ToString());
-            Assert.AreEqual("1,2,3", result[4].ToString());
-            Assert.AreEqual("2,2,3", result[5].ToString());
-            Assert.AreEqual("0,3,4", result[6].ToString());
-            Assert.AreEqual("1,3,4", result[7].ToString());
-            Assert.AreEqual("2,3,4", result[8].ToString());
+            sql = "select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2;";
+            TU.ExecuteSQL(sql, "0,1,2;1,1,2;2,1,2;0,2,3;1,2,3;2,2,3;0,3,4;1,3,4;2,3,4");
         }
 
         [TestMethod]
@@ -2556,8 +2553,8 @@ namespace qpmodel.unittest
                 Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
                 Assert.AreEqual(enable_bc ? 0 : 4, TU.CountStr(phyplan, "Redistribute"));
                 Assert.AreEqual(enable_bc ? 3 : 0, TU.CountStr(phyplan, "Broadcast"));
-                Assert.AreEqual(enable_bc ? 0 : 1, TU.CountStr(phyplan, "50 threads"));
-                Assert.AreEqual(enable_bc ? 1 : 0, TU.CountStr(phyplan, "40 threads"));
+                Assert.AreEqual(enable_bc ? 0 : 1, TU.CountStr(phyplan, "threads: 50"));
+                Assert.AreEqual(enable_bc ? 1 : 0, TU.CountStr(phyplan, "threads: 40"));
 
                 // ensure redistribution can shuffle by expression
                 sql = "select a2, b2 from ad, bd where a2*2+a1=b2 order by a2;";

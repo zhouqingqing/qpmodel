@@ -200,10 +200,14 @@ namespace qpmodel.logic
                     if (exp_showactual)
                     {
                         var profile = phynode.profile_;
-                        if (profile.nloops_ == 1 || profile.nloops_ == 0)
+                        var loops = profile.nloops_;
+                        if (loops == 1 || loops == 0)
+                        {
+                            Debug.Assert(loops != 0 || profile.nrows_ == 0);
                             r += $" (actual rows={profile.nrows_})";
+                        }
                         else
-                            r += $" (actual rows={profile.nrows_ / profile.nloops_}, loops={profile.nloops_})";
+                            r += $" (actual rows={profile.nrows_ / loops}, loops={loops})";
                     }
                 }
                 r += "\n";
@@ -235,19 +239,6 @@ namespace qpmodel.logic
                     children_.ForEach(x => r += x.Explain(option, depth));
             }
 
-            // details of distributed query emulation
-            if (this is PhysicGather)
-            {
-                int nthreads = QueryOption.num_machines_;
-                int nshuffle = 0;
-                VisitEach(x =>
-                {
-                    if (x is PhysicRedistribute || x is PhysicBroadcast)
-                        nshuffle++;
-                });
-                r += $"\nEmulated {QueryOption.num_machines_} machines distributed run " +
-                     $"with {nthreads * (1 + nshuffle)} threads\n";
-            }
             return r;
         }
 

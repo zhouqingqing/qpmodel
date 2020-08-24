@@ -28,14 +28,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Diagnostics;
 using Value = System.Object;
 
 using qpmodel.logic;
 using qpmodel.physic;
 using qpmodel.utils;
+using IronPython.Compiler.Ast;
 
 namespace qpmodel.expr
 {
@@ -45,7 +44,7 @@ namespace qpmodel.expr
         internal int subqueryid_;    // bounded
 
         // runtime optimization for non-correlated subquery
-        internal Value isCacheable_ = null;
+        internal bool isCacheable_ = false;
         internal bool cachedValSet_ = false;
         internal Value cachedVal_;
 
@@ -99,7 +98,7 @@ namespace qpmodel.expr
 
         public bool IsCorrelated()
         {
-            Debug.Assert(bounded_);
+            Debug.Assert(query_.bounded_);
             return query_.isCorrelated_;
         }
 
@@ -111,33 +110,57 @@ namespace qpmodel.expr
         // InSubquery ... b is not correlated but its child is correlated to outside 
         // table a, which makes it not cacheable.
         //
-        public bool IsCacheable()
+        bool SetIsCacheable()
         {
-            if (isCacheable_ is null)
+            if (IsCorrelated())
+                isCacheable_ = false;
+            else
             {
-                if (IsCorrelated())
-                    isCacheable_ = false;
-                else
+                // collect all subquries within this query, they are ok to correlate
+                var queriesOkToRef = query_.InclusiveAllSubquries();
+
+                // if the subquery reference anything beyond the ok-range, we can't cache
+                bool childCorrelated = false;
+                query_.subQueries_.ForEach(x =>
                 {
-                    // collect all subquries within this query, they are ok to correlate
-                    var queriesOkToRef = query_.InclusiveAllSubquries();
-
-                    // if the subquery reference anything beyond the ok-range, we can't cache
-                    bool childCorrelated = false;
-                    query_.subQueries_.ForEach(x =>
+                    if (x.query_.isCorrelated_)
                     {
-                        if (x.query_.isCorrelated_)
-                        {
-                            if (!queriesOkToRef.ContainsList(x.query_.correlatedWhich_))
-                                childCorrelated = true;
-                        }
-                    });
+                        if (!queriesOkToRef.ContainsList(x.query_.correlatedWhich_))
+                            childCorrelated = true;
+                    }
+                });
 
-                    isCacheable_ = !childCorrelated;
-                }
+                isCacheable_ = !childCorrelated;
             }
 
-            return (bool)isCacheable_;
+            return isCacheable_;
+        }
+
+        public override void Bind(BindContext context)
+        {
+            bindQuery(context);
+            SetIsCacheable();
+        }
+
+        public virtual Value ExecNonDistributed(ExecContext context, Row input) => null;
+
+        // for distributed execution, we don't copy logic plan which means this expression
+        // is also not copied thus multiple threads may racing updating cacheVal_. A simple
+        // way is to Lock the code section to prevent it.
+        //
+        Value ExecDistributed(ExecContext context, Row input)
+        {
+            lock (this)
+            {
+                return ExecNonDistributed(context, input);
+            }
+        }
+
+        public override Value Exec(ExecContext context, Row input)
+        {
+            if (context is DistributedContext)
+                return ExecDistributed(context, input);
+            return ExecNonDistributed(context, input);
         }
 
         public override int GetHashCode() => subqueryid_.GetHashCode();
@@ -157,15 +180,15 @@ namespace qpmodel.expr
 
         public override void Bind(BindContext context)
         {
-            bindQuery(context);
+            base.Bind(context);
             type_ = new BoolType();
             markBounded();
         }
 
-        public override Value Exec(ExecContext context, Row input)
+        public override Value ExecNonDistributed(ExecContext context, Row input)
         {
             Debug.Assert(type_ != null);
-            if (IsCacheable() && cachedValSet_)
+            if (isCacheable_ && cachedValSet_)
                 return cachedVal_;
 
             Row r = null;
@@ -188,17 +211,17 @@ namespace qpmodel.expr
 
         public override void Bind(BindContext context)
         {
-            bindQuery(context);
+            base.Bind(context);
             if (query_.selection_.Count != 1)
                 throw new SemanticAnalyzeException("subquery must return only one column");
             type_ = query_.selection_[0].type_;
             markBounded();
         }
 
-        public override Value Exec(ExecContext context, Row input)
+        public override Value ExecNonDistributed(ExecContext context, Row input)
         {
             Debug.Assert(type_ != null);
-            if (IsCacheable() && cachedValSet_)
+            if (isCacheable_ && cachedValSet_)
                 return cachedVal_;
 
             context.option_.PushCodeGenDisable();
@@ -228,19 +251,23 @@ namespace qpmodel.expr
 
         public override void Bind(BindContext context)
         {
+            base.Bind(context);
             expr_().Bind(context);
-            bindQuery(context);
             if (query_.selection_.Count != 1)
                 throw new SemanticAnalyzeException("subquery must return only one column");
             type_ = new BoolType();
             markBounded();
         }
 
-        public override Value Exec(ExecContext context, Row input)
+        public override Value ExecNonDistributed(ExecContext context, Row input)
         {
             Debug.Assert(type_ != null);
             Value expr = expr_().Exec(context, input);
-            if (IsCacheable() && cachedValSet_)
+
+            // for distributed execution, we don't copy logic plan which means this expression
+            // is also not copied thus multiple threads may racing updating cacheVal_. Lock the
+            // code section to prevent it. This also redu
+            if (isCacheable_ && cachedValSet_)
                 return (cachedVal_ as HashSet<Value>).Contains(expr);
 
             var set = new HashSet<Value>();

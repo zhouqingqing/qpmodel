@@ -43,6 +43,7 @@ using qpmodel.index;
 using qpmodel.test;
 
 using TableColumn = System.Tuple<string, string>;
+using qpmodel.optimizer;
 
 namespace qpmodel
 {
@@ -57,7 +58,6 @@ namespace qpmodel
             name_ = Utils.normalizeName(name);
             type_ = type; ordinal_ = ord;
         }
-        public ColumnDef(string name, int ord) : this(name, new IntType(), ord) { }
 
         public override string ToString() => $"{name_} {type_} [{ordinal_}]";
     }
@@ -166,7 +166,7 @@ namespace qpmodel
     {
         readonly Dictionary<string, TableDef> records_ = new Dictionary<string, TableDef>();
 
-        public void CreateTable(string tabName, List<ColumnDef> columns, string distributedBy)
+        public void CreateTable(string tabName, List<ColumnDef> columns, string distributedBy = null)
         {
             tabName = Utils.normalizeName(tabName);
             records_.Add(tabName,
@@ -232,9 +232,9 @@ namespace qpmodel
         public static SysTable systable_ = new SysTable();
         public static SysStats sysstat_ = new SysStats();
 
-        static void createOptimizerTables()
+        static void createOptimizerTestTables()
         {
-            List<ColumnDef> cols = new List<ColumnDef> { new ColumnDef("i", 0) };
+            List<ColumnDef> cols = new List<ColumnDef> { new ColumnDef("i", new IntType(), 0) };
             for (int i = 0; i < 30; i++)
             {
                 Catalog.systable_.CreateTable($"T{i}", cols, null);
@@ -296,15 +296,19 @@ namespace qpmodel
             }
         }
 
-        static Catalog()
+        static void createSystemTables()
         {
+            // memo table
+            Catalog.systable_.CreateTable(SysMemoExpr.name_, SysMemoExpr.GetSchema());
+            Catalog.systable_.CreateTable(SysMemoProperty.name_, SysMemoProperty.GetSchema());
         }
 
         static public void Init()
         {
             // Create some internal tables for easier testing
+            createSystemTables();
             createBuildInTestTables();
-            createOptimizerTables();
+            createOptimizerTestTables();
 
             // Change current culture: different locales have different ways to format the time. 
             // We are using text comparison in the tests so formatting can cause trouble.

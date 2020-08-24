@@ -1,0 +1,83 @@
+select
+	s_name,
+	s_address
+from
+	supplier,
+	nation
+where
+	s_suppkey in (
+		select
+			ps_suppkey
+		from
+			partsupp
+		where
+			ps_partkey in (
+				select
+					p_partkey
+				from
+					part
+				where
+					p_name like 'forest%'
+			)
+			and ps_availqty > (
+				select
+					0.5 * sum(l_quantity)
+				from
+					lineitem
+				where
+					l_partkey = ps_partkey
+					and l_suppkey = ps_suppkey
+					and l_shipdate >= date '1994-01-01'
+					and l_shipdate < date '1994-01-01' + interval '1' year
+			)
+	)
+	and s_nationkey = n_nationkey
+	and n_name = 'CANADA'
+order by
+	s_name
+Total cost: 58.1, memory=73
+PhysicOrder  (inccost=58.1, cost=0.1, rows=1, memory=65) (actual rows=0)
+    Output: s_name[0],s_address[1]
+    Order by: s_name[0]
+    -> PhysicGather Threads: 10 (inccost=58, cost=10, rows=1) (actual rows=0)
+        Output: s_name[1],s_address[2]
+        -> PhysicHashJoin  (inccost=48, cost=13, rows=1, memory=8) (actual rows=0)
+            Output: s_name[1],s_address[2]
+            Filter: s_nationkey[3]=n_nationkey[0]
+            -> PhysicScanTable nation (inccost=25, cost=25, rows=1) (actual rows=0)
+                Output: n_nationkey[0]
+                Filter: n_name[1]='CANADA'
+            -> PhysicScanTable supplier (inccost=10, cost=10, rows=10) (actual rows=0)
+                Output: s_name[1],s_address[2],s_nationkey[3]
+                Filter: s_suppkey[0] in @1
+                <InSubqueryExpr> cached 1
+                    -> PhysicFilter  (inccost=27301, cost=368, rows=368) (actual rows=47)
+                        Output: ps_suppkey[0]
+                        Filter: ps_availqty[1]>0.5*{sum(l_quantity)}[2]
+                        -> PhysicGather Threads: 20 (inccost=26933, cost=3680, rows=368) (actual rows=60)
+                            Output: ps_suppkey[0],ps_availqty[1],{sum(l_quantity)}[3]
+                            -> PhysicHashJoin Left (inccost=23253, cost=2888, rows=368, memory=19200) (actual rows=0)
+                                Output: ps_suppkey[0],ps_availqty[1],{sum(l_quantity)}[3]
+                                Filter: l_partkey[4]=ps_partkey[2] and l_suppkey[5]=ps_suppkey[0]
+                                -> PhysicRedistribute  (inccost=2400, cost=1600, rows=800) (actual rows=0)
+                                    Output: ps_suppkey[0],ps_availqty[1],ps_partkey[2]
+                                    -> PhysicScanTable partsupp (inccost=800, cost=800, rows=800) (actual rows=0)
+                                        Output: ps_suppkey[1],ps_availqty[2],ps_partkey[0]
+                                        Filter: ps_partkey[0] in @2
+                                        <InSubqueryExpr> cached 2
+                                            -> PhysicGather Threads: 10 (inccost=210, cost=10, rows=1) (actual rows=15)
+                                                Output: p_partkey[0]
+                                                -> PhysicScanTable part (inccost=200, cost=200, rows=1) (actual rows=0)
+                                                    Output: p_partkey[0]
+                                                    Filter: p_name[1]like'forest%'
+                                -> PhysicHashAgg  (inccost=17965, cost=2760, rows=920, memory=29440) (actual rows=0)
+                                    Output: {sum(l_quantity)}[2],{l_partkey}[0],{l_suppkey}[1]
+                                    Aggregates: sum(l_quantity[2])
+                                    Group by: l_partkey[0], l_suppkey[1]
+                                    -> PhysicGather Threads: 10 (inccost=15205, cost=9200, rows=920) (actual rows=0)
+                                        Output: l_partkey[1],l_suppkey[2],l_quantity[4]
+                                        -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=920) (actual rows=0)
+                                            Output: l_partkey[1],l_suppkey[2],l_quantity[4]
+                                            Filter: l_shipdate[10]>='1994-01-01' and l_shipdate[10]<'1/1/1995 12:00:00 AM'
+
+
