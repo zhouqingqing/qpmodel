@@ -44,7 +44,6 @@ PhysicOrder  (inccost=12547.32, cost=14.32, rows=7, memory=126) (actual rows=2)
                     Filter: ((((l_shipmode[14] in ('MAIL','SHIP') and l_commitdate[11]<l_receiptdate[12]) and l_shipdate[10]<l_commitdate[11]) and l_receiptdate[12]>='1994-01-01') and l_receiptdate[12]<'1/1/1995 12:00:00 AM')
                 -> PhysicScanTable orders (inccost=1500, cost=1500, rows=1500) (actual rows=0)
                     Output: case with 1,(o_orderpriority[5]='1-URGENT' or o_orderpriority[5]='2-HIGH'),o_orderpriority[5]='1-URGENT',o_orderpriority[5],o_orderpriority[5]='2-HIGH',case with 1,(o_orderpriority[5]<>'1-URGENT' and o_orderpriority[5]<>'2-HIGH'),o_orderpriority[5]<>'1-URGENT',o_orderpriority[5]<>'2-HIGH',o_orderkey[0]
-
 MAIL,5,5
 SHIP,5,10
 
