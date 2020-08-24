@@ -1316,11 +1316,6 @@ namespace qpmodel.expr
         public bool IsTrue() => (type_ is BoolType && val_ is true);
 
         public bool IsFalse() => (type_ is BoolType && val_ is false);
-
-        public override Expr Normalize()
-        {
-            return this;
-        }
     }
 
     // Runtime only used to reference an expr as a whole without recomputation

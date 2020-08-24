@@ -178,10 +178,8 @@ namespace qpmodel.expr
         {
             Expr x = base.Normalize();
 
-            if (!x.AllArgsConst())
-                return x;
-            if (ExternalFunctions.set_.ContainsKey(funcName_))
-                return x;
+            if (!x.AllArgsConst() || ExternalFunctions.set_.ContainsKey(funcName_))
+                return this;
 
             if (x.AnyArgNull())
             {
@@ -193,20 +191,27 @@ namespace qpmodel.expr
                 case "min":
                 case "max":
                 case "avg":
-                case "upper":
-                case "year":
-                case "date":
-                case "abs":
-                    // TryEvalConst doesn't work, these are single child
-                    // functions, just return the only child.
                     return child_();
-                    break;
+
+                case "sum":
+                case "count":
+                case "count(*)":
+                case "coalesce":
+                case "tumble":
+                case "tumble_start":
+                case "tumble_end":
+                case "hop":
+                case "session":
+                case "stddev_samp":
+                    return this;
 
                 default:
                     break;
             }
 
-            return x;
+            Value val = Exec(null, null);
+
+            return ConstExpr.MakeConst(val, type_, outputName_);
         }
     }
 
@@ -274,22 +279,6 @@ namespace qpmodel.expr
             // SQL allows substr() function go beyond length, guard it
             return str.Substring(start, Math.Min(end - start + 1, str.Length));
         }
-
-        public override Expr Normalize()
-        {
-            Expr x = base.Normalize();
-            if (!x.AllArgsConst())
-                return x;
-
-            if (x.AnyArgNull())
-            {
-                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
-            }
-
-            Value val = Exec(null, null);
-
-            return ConstExpr.MakeConst(val, type_, outputName_);
-        }
     }
 
     public class UpperFunc : FuncExpr
@@ -309,22 +298,6 @@ namespace qpmodel.expr
         {
             string str = (string)args_()[0].Exec(context, input);
             return str.ToUpper();
-        }
-
-        public override Expr Normalize()
-        {
-            Expr x = base.Normalize();
-            if (!x.AllArgsConst())
-                return x;
-
-            if (x.AnyArgNull())
-            {
-                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
-            }
-
-            Value val = Exec(null, null);
-
-            return ConstExpr.MakeConst(val, type_, outputName_); ;
         }
     }
 
@@ -348,22 +321,6 @@ namespace qpmodel.expr
             int times = (int)args_()[1].Exec(context, input);
 
             return string.Join("", Enumerable.Repeat(str, times));
-        }
-
-        public override Expr Normalize()
-        {
-            Expr x = base.Normalize();
-            if (!x.AllArgsConst())
-                return x;
-
-            if (x.AnyArgNull())
-            {
-                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
-            }
-
-            Value val = Exec(null, null);
-
-            return ConstExpr.MakeConst(val, type_, outputName_);
         }
     }
 
@@ -395,22 +352,6 @@ namespace qpmodel.expr
             else
                 return Math.Round((double)number, decimals);
         }
-
-        public override Expr Normalize()
-        {
-            Expr x = base.Normalize();
-            if (!x.AllArgsConst())
-                return x;
-
-            if (x.AnyArgNull())
-            {
-                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
-            }
-
-            Value val = Exec(null, null);
-
-            return ConstExpr.MakeConst(val, type_, outputName_);
-        }
     }
 
     public class AbsFunc : FuncExpr
@@ -436,22 +377,6 @@ namespace qpmodel.expr
                 return Math.Abs((decimal)number);
             else
                 return Math.Abs((double)number);
-        }
-
-        public override Expr Normalize()
-        {
-            Expr x = base.Normalize();
-            if (!x.AllArgsConst())
-                return x;
-
-            if (x.AnyArgNull())
-            {
-                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
-            }
-
-            Value val = Exec(null, null);
-
-            return ConstExpr.MakeConst(val, type_, outputName_);
         }
     }
 
@@ -504,22 +429,6 @@ namespace qpmodel.expr
             var date = (DateTime)arg_().Exec(context, input);
             return date.Year;
         }
-
-        public override Expr Normalize()
-        {
-            Expr x = base.Normalize();
-            if (!x.AllArgsConst())
-                return x;
-
-            if (x.AnyArgNull())
-            {
-                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
-            }
-
-            Value val = Exec(null, null);
-
-            return ConstExpr.MakeConst(val, type_, outputName_);
-        }
     }
 
     public class DateFunc : FuncExpr
@@ -533,22 +442,6 @@ namespace qpmodel.expr
         {
             var date = DateTime.Parse((string)arg_().Exec(context, input));
             return date;
-        }
-
-        public override Expr Normalize()
-        {
-            Expr x = base.Normalize();
-            if (!x.AllArgsConst())
-                return x;
-
-            if (x.AnyArgNull())
-            {
-                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
-            }
-
-            Value val = Exec(null, null);
-
-            return ConstExpr.MakeConst(val, type_, outputName_);
         }
     }
 
@@ -949,17 +842,6 @@ namespace qpmodel.expr
                 return else_().Exec(context, input);
             return null;
         }
-
-        public override Expr Normalize()
-        {
-            Expr x = base.Normalize();
-            if (!x.AllArgsConst())
-                return x;
-
-            Value val = Exec(null, null);
-
-            return ConstExpr.MakeConst(val, type_, outputName_);
-        }
     }
 
     public class UnaryExpr : Expr
@@ -1023,7 +905,7 @@ namespace qpmodel.expr
             }
         }
 
-public override Expr Normalize()
+        public override Expr Normalize()
         {
             Expr x = base.Normalize();
             if (x.AllArgsConst())
@@ -1050,7 +932,7 @@ public override Expr Normalize()
                  *         X      Y             X      Y
                  */
 
-                if (child_() is LogicAndOrExpr le)
+                    if (child_() is LogicAndOrExpr le)
                 {
 
                     // Make two Unary expressions for NOT X and NOT Y
@@ -1656,22 +1538,6 @@ public override Expr Normalize()
             }
             return andorlist;
         }
-
-        public override Expr Normalize()
-        {
-            Expr x = base.Normalize();
-            if (x is null || !x.AllArgsConst())
-                return x;
-
-            if (x.AnyArgNull())
-            {
-                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
-            }
-
-            Value val = Exec(null, null);
-
-            return ConstExpr.MakeConst(val, type_, outputName_);
-        }
     }
 
     public class LogicAndExpr : LogicAndOrExpr
@@ -1689,22 +1555,6 @@ public override Expr Normalize()
 
         // a AND (b OR c) AND d => [a, b OR c, d]
         //
-
-        public override Expr Normalize()
-        {
-            Expr x = base.Normalize();
-            if (x is null || !x.AllArgsConst())
-                return x;
-
-            if (x.AnyArgNull())
-            {
-                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
-            }
-
-            Value val = Exec(null, null);
-
-            return ConstExpr.MakeConst(val, type_, outputName_);
-        }
     }
 
     public class LogicOrExpr : LogicAndOrExpr
@@ -1719,22 +1569,6 @@ public override Expr Normalize()
             if (lv is null) lv = false;
             if (rv is null) rv = false;
             return lv || rv;
-        }
-
-        public override Expr Normalize()
-        {
-            Expr x = base.Normalize();
-            if (x is null || !x.AllArgsConst())
-                return x;
-
-            if (x.AnyArgNull())
-            {
-                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
-            }
-
-            Value val = Exec(null, null);
-
-            return ConstExpr.MakeConst(val, type_, outputName_);
         }
     }
 
@@ -1767,18 +1601,19 @@ public override Expr Normalize()
 
         public override Expr Normalize()
         {
-            Expr x = base.Normalize();
-            if (!x.AllArgsConst())
-                return x;
 
-            if (x.AnyArgNull())
+            Expr x = base.Normalize();
+
+            Expr arg = x.child_();
+
+            if (arg != null && arg is ConstExpr ce)
             {
-                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
+                Value val = Exec(null, null);
+
+                return ConstExpr.MakeConst(val, type_, outputName_);
             }
 
-            Value val = Exec(null, null);
-
-            return ConstExpr.MakeConst(val, type_, outputName_);
+            return this;
         }
     }
 }
