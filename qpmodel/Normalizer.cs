@@ -35,7 +35,6 @@ using qpmodel.logic;
 using qpmodel.physic;
 using qpmodel.utils;
 using qpmodel.index;
-using IronPython.Compiler.Ast;
 
 namespace qpmodel.expr
 {
@@ -70,9 +69,7 @@ namespace qpmodel.expr
             for (int i = 0; i < children_.Count; ++i)
             {
                 if (children_[i] is ConstExpr ce && ce.IsNull())
-                {
                     return true;
-                }
             }
 
             return false;
@@ -217,18 +214,24 @@ namespace qpmodel.expr
 
     public partial class BinExpr
     {
-        public bool isCommutativeConstOp() => (op_ == "+" || op_ == "*");
-        public bool isFoldableConstOp() => (op_ == "+" || op_ == "-" || op_ == "*" || op_ == "/");
-        public bool isPlainSwappableConstOp() => (op_ == "+" || op_ == "*" || op_ == "=" ||
-            op_ == "<>" || op_ == "!=" || op_ == "<=" || op_ == ">=");
-        public bool isChangeSwappableConstOp() => (op_ == "<" || op_ == ">");
+        public bool isCommutativeConstOp() =>
+            (op_ == "+" || op_ == "*");
+        public bool isFoldableConstOp() =>
+            (op_ == "+" || op_ == "-" || op_ == "*" || op_ == "/");
+        public bool isPlainSwappableConstOp() =>
+            (op_ == "+" || op_ == "*" || op_ == "=" || op_ == "<>" || op_ == "!=" || op_ == "<=" || op_ == ">=");
+        public bool isChangeSwappableConstOp() =>
+            (op_ == "<" || op_ == ">");
 
         // Looks the same as isFoldableConstOp but the context/purpose is
         // different. If it turns out that they are one and the same, one of
         // them will be removed.
-        internal bool IsLogicalOp() => (op_ == " and " || op_ == " or " || op_ == "not");
-        internal bool IsArithmeticOp() => (op_ == "+" || op_ == "-" || op_ == "*" || op_ == "/");
-        internal bool IsRelOp() => (op_ == "=" || op_ == "<=" || op_ == "<" || op_ == ">=" || op_ == ">" || op_ == "<>" || op_ == "!=");
+        internal bool IsLogicalOp() =>
+            (op_ == " and " || op_ == " or " || op_ == "not");
+        internal bool IsArithmeticOp() =>
+            (op_ == "+" || op_ == "-" || op_ == "*" || op_ == "/");
+        internal bool IsRelOp() =>
+            (op_ == "=" || op_ == "<=" || op_ == "<" || op_ == ">=" || op_ == ">" || op_ == "<>" || op_ == "!=");
 
         public override Expr Normalize()
         {
@@ -273,11 +276,8 @@ namespace qpmodel.expr
                         return ConstExpr.MakeConst(val, type_, outputName_);
                     }
 
-                    if (lce != null && rce == null)
-                    {
-                        if (isPlainSwappableConstOp())
-                            SwapSide();
-                    }
+                    if (lce != null && rce == null && isPlainSwappableConstOp())
+                        SwapSide();
 
                     if ((lce != null || rce != null) && (IsArithIdentity(lce, rce)))
                         return SimplifyArithmetic(lce, rce);
@@ -293,35 +293,33 @@ namespace qpmodel.expr
                         isCommutativeConstOp() && le.isCommutativeConstOp() && TypeBase.SameArithType(l.type_, r.type_))
                     {
                         /*
-                            * Here root is distributive operator (only * in this context) left is Commutative
-                            * operator, +, or * right is constant, furthermore, left's right is a constant
-                            * (becuase we swapped cosntant to be on the right).
-                            * if be == + and l == +: add left's right value to root's right value,
-                            * make  left's left as left of root
-                            *
-                            * if be == * and l == +: create a expr node as left (x + 10), create (5 * 10)
-                            * as right, change operator to +
-                            * In either case left and right's children must be nulled out
-                            * and since we are going bottom up, this doesn't create any problem.
-                            *
-                            * Here is a pictorial description:
-                            *                         *         root           +
-                            *              old left  / \ old right   new left / \  new right
-                            *                       /   \                    /   \
-                            *                      +     10        =>       *     50
-                            *  left of old left   / \                      / \
-                            *                    /   \ ROL         LNL    /   \ RNL (right of New Left)
-                            *                   x     5                  x     10
-                            */
+                         * Here root is distributive operator (only * in this context) left is Commutative
+                         * operator, +, or * right is constant, furthermore, left's right is a constant
+                         * (becuase we swapped cosntant to be on the right).
+                         * if be == + and l == +: add left's right value to root's right value,
+                         * make  left's left as left of root
+                         *
+                         * if be == * and l == +: create a expr node as left (x + 10), create (5 * 10)
+                         * as right, change operator to +
+                         * In either case left and right's children must be nulled out
+                         * and since we are going bottom up, this doesn't create any problem.
+                         *
+                         * Here is a pictorial description:
+                         *                         *         root           +
+                         *              old left  / \ old right   new left / \  new right
+                         *                       /   \                    /   \
+                         *                      +     10        =>       *     50
+                         *  left of old left   / \                      / \
+                         *                    /   \ ROL         LNL    /   \ RNL (right of New Left)
+                         *                   x     5                  x     10
+                         */
 
                         /*
                          * Simple case: when current and left are same operators, distributive
                          * opeartion and node creation is uncessary.
-                         * ??? What about ordinal positions ???
                          */
                         if ((op_ == "+" && le.op_ == "+") || (op_ == "*" && le.op_ == "*"))
                         {
-
                             /* create new right node as constant. */
                             Expr tmpexp = Clone();
                             tmpexp.children_[0] = le.children_[1];
@@ -367,7 +365,6 @@ namespace qpmodel.expr
                             /* swap the operators */
                             string op = op_;
                             op_ = le.op_;
-
                             BinExpr ble = (BinExpr)children_[1];
                             ble.op_ = op;
                         }
@@ -444,7 +441,6 @@ namespace qpmodel.expr
         {
             Expr l = lchild_();
             Expr r = rchild_();
-
             ConstExpr lce = l is ConstExpr ? (ConstExpr)l : null;
             ConstExpr rce = r is ConstExpr ? (ConstExpr)r : null;
 
@@ -479,16 +475,10 @@ namespace qpmodel.expr
             // rewrite the operation and preserving the original behavior of the comparision.
             if (!(rce is null) && l is BinExpr lbe && lbe.IsArithmeticOp() && lbe.rchild_() is ConstExpr lrc && TypeBase.SameArithType(lbe.type_, rce.type_))
             {
-                string curOp = op_, nop;
                 if (lbe.op_ == "+" || lbe.op_ == "-")
                 {
-                    if (lbe.op_ == "+")
-                        nop = "-";
-                    else
-                        nop = "+";
-
+                    string nop = (lbe.op_ == "+") ? "-" : "+";
                     BinExpr newe = new BinExpr(rce, lrc, nop);
-
                     newe.type_ = ColumnType.CoerseType(nop, lrc, rce);
                     newe.bounded_ = true;
 
@@ -532,7 +522,6 @@ namespace qpmodel.expr
         {
             Expr x = base.Normalize();
             Expr arg = x.child_();
-
             if (arg != null && arg is ConstExpr ce)
             {
                 Value val = Exec(null, null);

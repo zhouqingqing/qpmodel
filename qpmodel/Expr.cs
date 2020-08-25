@@ -35,7 +35,6 @@ using qpmodel.logic;
 using qpmodel.physic;
 using qpmodel.utils;
 using qpmodel.index;
-using IronPython.Compiler.Ast;
 
 namespace qpmodel.expr
 {
@@ -258,27 +257,6 @@ namespace qpmodel.expr
         {
             Debug.Assert(expr.type_ != null);
             return expr.type_ is BoolType;
-        }
-
-        public static Expr ConstFolding(this Expr expr)
-        {
-            Debug.Assert(expr.bounded_);
-            bool IsConstFn(Expr e) => !(e is ConstExpr) && e.IsConst();
-            Expr EvalConstFn(Expr e)
-            {
-                var isconst = e.TryEvalConst(out Value val);
-                Debug.Assert(isconst);
-                // Here the type of the new const value should be that of e.type_
-                // This may not have been a problem is that ConstFolding may not have
-                // been called right after bind with new normlaiztion code.
-                var newe = ConstExpr.MakeConst(val, e.type_, expr.outputName_);
-                return newe;
-            }
-
-            if (expr is ConstExpr)
-                return expr;
-            else
-                return expr.SearchAndReplace<Expr>(IsConstFn, EvalConstFn);
         }
     }
 
@@ -588,9 +566,8 @@ namespace qpmodel.expr
 
         // output type of the expression
         internal ColumnType type_;
-
-        internal bool normalized_ = false;
-        
+        // to help prevent too much recursion.
+        internal bool normalized_ = false;        
         protected string outputName() => outputName_ != null ? $"(as {outputName_})" : null;
 
         void validateAfterBound()
@@ -752,9 +729,6 @@ namespace qpmodel.expr
                 Expr x = children_[i];
 
                 x.Bind(context);
-                // this can't removed until normaliztion
-                // changes are all in place.
-                // x = x.ConstFolding();
                 children_[i] = x;
             }
             ResetAggregateTableRefs();
@@ -1238,43 +1212,29 @@ namespace qpmodel.expr
         }
         public static ConstExpr MakeConstBool(bool istrue) =>
             istrue ? MakeConst("true", new BoolType()) : MakeConst("false", new BoolType());
-
         public bool IsNull() => val_ is null;
 
         public bool IsZero()
         {
-
             if (!(TypeBase.IsNumberType(type_)))
                 return false;
 
-            if ((type_ is IntType && (int)val_ == 0) ||
-                (type_ is DoubleType && (double)val_ == 0.0) ||
-                (type_ is NumericType && (Decimal)val_ is 0))
-            {
-                return true;
-            }
-
+            if ((type_ is IntType && (int)val_ == 0) || (type_ is DoubleType && (double)val_ == 0.0) || (type_ is NumericType && (Decimal)val_ is 0))
+                return true;          
             return false;
         }
 
         public bool IsOne()
         {
-
             if (!(TypeBase.IsNumberType(type_)))
                 return false;
 
-            if ((type_ is IntType && (int)val_ == 1) ||
-                (type_ is DoubleType && (double)val_ == 1.0) ||
-                (type_ is NumericType && (Decimal)val_ is 1))
-            {
+            if ((type_ is IntType && (int)val_ == 1) || (type_ is DoubleType && (double)val_ == 1.0) || (type_ is NumericType && (Decimal)val_ is 1))
                 return true;
-            }
-
             return false;
         }
 
         public bool IsTrue() => (type_ is BoolType && val_ is true);
-
         public bool IsFalse() => (type_ is BoolType && val_ is false);
     }
 

@@ -663,7 +663,6 @@ namespace qpmodel.logic
                     x.Bind(context);
                     if (x.HasAggFunc())
                         hasAgg_ = true;
-                    // x = x.ConstFolding();
                     if (queryOpt_.optimize_.remove_from_)
                         x = x.DeQueryRef();
                     newselection.Add(x);
@@ -886,7 +885,7 @@ namespace qpmodel.logic
             Expr x = clause.Normalize();
             if (x is null || (x is ConstExpr ce && (ce.val_ is null || ce.IsFalse())))
             {
-                // Normalization elimintaed a clause which is always FALSE
+                // Normalization eliminated a clause which is always FALSE
                 return ConstExpr.MakeConstBool(false);
             }
             else

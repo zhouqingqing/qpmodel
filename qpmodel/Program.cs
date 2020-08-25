@@ -151,8 +151,6 @@ namespace qpmodel
                 {
                     Console.WriteLine(sql);
                     var result = SQLStatement.ExecSQL(sql, out string physicplan, out string error_, option);
-                    // Assert.IsNotNull(physicplan);
-
                     listoutput.Add(physicplan);
                 } catch (Exception e)
                 {
@@ -221,18 +219,11 @@ namespace qpmodel
             // statements without rebuilding the solution.
             string inputFile = "";
             if (sql.Length == 2 && sql == "-i")
-            {
                 batchMode = true;
-            }
             else if (sql.Length == 2 && sql.StartsWith("-f"))
-            {
                 inputFile = args[1];
-            }
             else if (sql.Length == 0)
-            {
                 sql = "select * from a tablesample row (2);";
-                // sql = "select a1,b1 from ad, br where a2=b2 order by a1;";
-            }
 
             do
             {

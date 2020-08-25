@@ -36,9 +36,6 @@ using qpmodel.utils;
 using qpmodel.stream;
 
 using Value = System.Object;
-using Microsoft.CodeAnalysis;
-using System.ComponentModel;
-using System.Collections.Specialized;
 
 namespace qpmodel.expr
 {
@@ -932,7 +929,6 @@ namespace qpmodel.expr
         {
             bool addParen = false;
             string space = null;
-
             switch(op_)
             {
                 case "like":
@@ -952,7 +948,6 @@ namespace qpmodel.expr
             }
 
             string str = "";
-
             if (addParen)
                 str += "(";
 
