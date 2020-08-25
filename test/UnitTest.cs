@@ -2236,8 +2236,6 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestCanonical()
         {
-
-
             /*
              * Rule1: Constant move. Bring all possible constants together so that later
              *        transformations can simplify or even remove some of the constants.
@@ -2425,7 +2423,6 @@ namespace qpmodel.unittest
             sql = "select * from a where not (a1 = 1 or a3 = 4);";
             result = ExecuteSQL(sql, out phyplan);
             Assert.IsTrue(phyplan.Contains("Filter: (!a.a1[0]=1 and !a.a3[2]=4)"));
-
 
             // TRUE and FALSE
             sql = "select * from a where a1 + a2 <> a4 AND 1 = 0";

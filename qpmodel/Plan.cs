@@ -690,7 +690,7 @@ namespace qpmodel.logic
             bindFrom(context);
 
             selection_ = bindSelectionList(context);
-            
+
             if (where_ != null)
             {
                 where_.Bind(context);
@@ -861,12 +861,10 @@ namespace qpmodel.logic
             if (having_ != null)
             {
                 having_ = NormalizeClause(having_);
-
             }
 
             if (orders_ != null)
             {
-
                 List<Expr> newo = new List<Expr>();
 
                 orders_.ForEach(x =>

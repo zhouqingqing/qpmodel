@@ -279,7 +279,7 @@ namespace qpmodel.expr
 
             cachedVal_ = set;
             cachedValSet_ = true;
-            return set.Contains(expr); ;
+            return set.Contains(expr);
         }
     }
 

@@ -39,7 +39,6 @@ using IronPython.Compiler.Ast;
 
 namespace qpmodel.expr
 {
-
     public partial class Expr
     {
         public virtual Expr Normalize()
@@ -119,7 +118,6 @@ namespace qpmodel.expr
         }
     }
 
-
     public partial class CoalesceFunc
     {
         public override Expr Normalize()
@@ -169,7 +167,6 @@ namespace qpmodel.expr
 
                 if (child_() is LogicAndOrExpr le)
                 {
-
                     // Make two Unary expressions for NOT X and NOT Y
                     // Cloning avoids messing with bounded_ flag
                     UnaryExpr nlu = (UnaryExpr)Clone();
@@ -181,10 +178,6 @@ namespace qpmodel.expr
                     // save X, Y
                     Expr ole = le.lchild_();
                     Expr ore = le.rchild_();
-
-                    string leftName = ole.outputName_;
-                    string rightName = ore.outputName_;
-                    string thisName = outputName_;
 
                     // New Unary nodes point to old left and right
                     // logical expressions.
@@ -201,6 +194,24 @@ namespace qpmodel.expr
 
     public partial class BinExpr
     {
+        public bool isCommutativeConstOp() => (op_ == "+" || op_ == "*");
+
+        public bool isFoldableConstOp() => (op_ == "+" || op_ == "-" || op_ == "*" || op_ == "/");
+
+        public bool isPlainSwappableConstOp() => (op_ == "+" || op_ == "*" || op_ == "=" ||
+            op_ == "<>" || op_ == "!=" || op_ == "<=" || op_ == ">=");
+
+        public bool isChangeSwappableConstOp() => (op_ == "<" || op_ == ">");
+
+        // Looks the same as isFoldableConstOp but the context/purpose is
+        // different. If it turns out that they are one and the same, one of
+        // them will be removed.
+        internal bool IsLogicalOp() => (op_ == " and " || op_ == " or " || op_ == "not");
+
+        internal bool IsArithmeticOp() => (op_ == "+" || op_ == "-" || op_ == "*" || op_ == "/");
+
+        internal bool IsRelOp() => (op_ == "=" || op_ == "<=" || op_ == "<" || op_ == ">=" || op_ == ">" || op_ == "<>" || op_ == "!=");
+
         public override Expr Normalize()
         {
             // all children get normalized first
@@ -231,7 +242,7 @@ namespace qpmodel.expr
                 case "!=":
                 case " and ":
                 case " or ":
-                    if (!IsRelOp() && (lce != null && lce.val_ is null) || (rce != null && rce.val_ is null))
+                    if (!IsRelOp() && ((lce != null && lce.val_ is null) || (rce != null && rce.val_ is null)))
                     {
                         // NULL simplification: if operator is not relational, X op NULL is NULL
                         return lce is null ? rce : lce;
@@ -346,6 +357,153 @@ namespace qpmodel.expr
                     }
 
                     return this;
+            }
+
+            return this;
+        }
+
+        internal ColumnType TypeFromOperator(string op, ColumnType inType)
+        {
+            switch (op)
+            {
+                case ">":
+                case ">=":
+                case "<":
+                case "<=":
+                case "=":
+                case "<>":
+                case "!=":
+                    return new BoolType();
+            }
+
+            return inType;
+        }
+
+        // Arthmentic Simplification:
+        /*
+        * +/- zero to a column, or multiply/divide a column by 1
+        */
+        internal bool IsArithIdentity(ConstExpr lce, ConstExpr rce)
+        {
+            ConstExpr ve = lce != null ? lce : rce;
+            ColExpr ce = (children_[0] is ColExpr) ? (ColExpr)children_[0] : (children_[1] is ColExpr ? (ColExpr)children_[1] : null);
+
+            if (ce == null)
+                return false;
+
+            if (!(TypeBase.IsNumberType(ve.type_) && TypeBase.IsNumberType(ce.type_)))
+                return false;
+
+            if ((op_ == "+" || op_ == "-") && ve.IsZero())
+                return true;
+
+            if ((op_ == "*" || op_ == "/") && ve.IsOne())
+                return true;
+
+            return false;
+        }
+
+        internal Expr SimplifyArithmetic(ConstExpr lve, ConstExpr rve)
+        {
+            // we know we have a BinExpr with numeric chhildren
+            ConstExpr ve = lve != null ? lve : rve;
+            ColExpr ce = (children_[0] is ColExpr) ? (ColExpr)children_[0] : (children_[1] is ColExpr ? (ColExpr)children_[1] : null);
+
+            if (ce is null || ve is null)
+                return this;
+
+            // Col + 0, or Col - 0 => return col
+            if ((op_ == "+" || op_ == "-") && ve.IsZero())
+                return ce;
+
+            if ((op_ == "*" || op_ == "/") && ve.IsOne())
+                return ce;
+
+            return this;
+        }
+
+        internal Expr SimplifyRelop()
+        {
+            Expr l = lchild_();
+            Expr r = rchild_();
+
+            ConstExpr lce = l is ConstExpr ? (ConstExpr)l : null;
+            ConstExpr rce = r is ConstExpr ? (ConstExpr)r : null;
+
+            if (lce == null && rce == null)
+                return this;
+
+            if (!(lce is null || rce is null))
+            {
+                if (lce.IsTrue() && rce.IsTrue())
+                    return lce;
+                else
+                    return lce.IsTrue() ? lce : rce;
+            }
+            else if ((!(lce is null) && (lce.IsNull() || lce.IsFalse())) || (!(rce is null) && (rce.IsNull() || rce.IsFalse())))
+                return ConstExpr.MakeConst("false", new BoolType(), outputName_);
+
+            /*
+             * X + C1 = C2      => X = C2 - C1
+             * X + C1 > C2      => X > C2 - C1
+             * X + C1 >= C2     => X >= C2 - C1
+             *
+             * X - C1 = C2      => X = C2 + C1
+             * X - C1 >= C2     => X >= C2 + C1
+             * etc.
+             *                                        (relop)
+             *                                        /      \
+             *                                      arith    const2
+             *                                     /    \
+             *                                    x     const1
+             */
+            // Only if type of x is the same as that of const2, otherwise it is pretty involved
+            // rewrite the operation and preserving the original behavior of the comparision.
+            if (!(rce is null) && l is BinExpr lbe && lbe.IsArithmeticOp() && lbe.rchild_() is ConstExpr lrc && TypeBase.SameArithType(lbe.type_, rce.type_))
+            {
+                string curOp = op_, nop;
+                if (lbe.op_ == "+" || lbe.op_ == "-")
+                {
+                    if (lbe.op_ == "+")
+                        nop = "-";
+                    else
+                        nop = "+";
+
+                    BinExpr newe = new BinExpr(rce, lrc, nop);
+
+                    newe.type_ = ColumnType.CoerseType(nop, lrc, rce);
+                    newe.bounded_ = true;
+
+                    Value val = newe.Exec(null, null);
+                    ConstExpr newc = ConstExpr.MakeConst(val, newe.type_);
+                    newc.bounded_ = true;
+                    children_[0] = lbe.lchild_();
+                    children_[1] = newc;
+                }
+            }
+
+            return this;
+        }
+
+        /*
+         * Apply all possible logical simplification rules.
+         * Assumptions:
+         *  1) children have been normalized
+         *  2) NULL simplification and const move rules have been applied.
+         */
+
+        internal Expr SimplifyLogic()
+        {
+            Expr l = lchild_();
+            Expr r = rchild_();
+
+            // simplify X relop CONST
+            if (l is ConstExpr lce && r is ConstExpr rce)
+            {
+                if ((lce.IsTrue() && rce.IsTrue()) || (lce.IsFalse() && rce.IsFalse()))
+                    return lce;
+
+                return lce.IsFalse() ? lce : rce;
             }
 
             return this;

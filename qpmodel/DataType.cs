@@ -71,7 +71,6 @@ namespace qpmodel.expr
             return false;
         }
 
-
         public static bool IsNumberType(ColumnType type)
             => type is NumericType || type is DoubleType || type is IntType;
 
