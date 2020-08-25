@@ -177,7 +177,7 @@ namespace qpmodel
             }
 
 #pragma warning disable CS0162 // Unreachable code detected
-            // Prasad Kommoju: The warnings are annoying, so using a pragma to suppress them.
+            // The warnings are annoying, so using a pragma to suppress them.
             if (false)
             {
                 JOBench.CreateTables();

@@ -218,21 +218,16 @@ namespace qpmodel.expr
     public partial class BinExpr
     {
         public bool isCommutativeConstOp() => (op_ == "+" || op_ == "*");
-
         public bool isFoldableConstOp() => (op_ == "+" || op_ == "-" || op_ == "*" || op_ == "/");
-
         public bool isPlainSwappableConstOp() => (op_ == "+" || op_ == "*" || op_ == "=" ||
             op_ == "<>" || op_ == "!=" || op_ == "<=" || op_ == ">=");
-
         public bool isChangeSwappableConstOp() => (op_ == "<" || op_ == ">");
 
         // Looks the same as isFoldableConstOp but the context/purpose is
         // different. If it turns out that they are one and the same, one of
         // them will be removed.
         internal bool IsLogicalOp() => (op_ == " and " || op_ == " or " || op_ == "not");
-
         internal bool IsArithmeticOp() => (op_ == "+" || op_ == "-" || op_ == "*" || op_ == "/");
-
         internal bool IsRelOp() => (op_ == "=" || op_ == "<=" || op_ == "<" || op_ == ">=" || op_ == ">" || op_ == "<>" || op_ == "!=");
 
         public override Expr Normalize()
@@ -428,7 +423,7 @@ namespace qpmodel.expr
 
         internal Expr SimplifyArithmetic(ConstExpr lve, ConstExpr rve)
         {
-            // we know we have a BinExpr with numeric chhildren
+            // we know we have a BinExpr with numeric children
             ConstExpr ve = lve != null ? lve : rve;
             ColExpr ce = (children_[0] is ColExpr) ? (ColExpr)children_[0] : (children_[1] is ColExpr ? (ColExpr)children_[1] : null);
 
@@ -513,7 +508,6 @@ namespace qpmodel.expr
          *  1) children have been normalized
          *  2) NULL simplification and const move rules have been applied.
          */
-
         internal Expr SimplifyLogic()
         {
             Expr l = lchild_();
@@ -531,7 +525,6 @@ namespace qpmodel.expr
             return this;
         }
     }
-
 
     public partial class CastExpr
     {
