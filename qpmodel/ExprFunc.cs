@@ -824,29 +824,6 @@ namespace qpmodel.expr
                     return arg;
             }
         }
-
-        // This is a general purpose helper, so do not use it to make
-        // "correct" logical operator node based on the operator, it used
-        // here in the context of children already are bound only the
-        // new node needs to marked bound. This is to be used only
-        // within the context of Normalize method.
-        internal Expr makeAnyLogicalExpr(Expr l, Expr r, string op)
-        {
-            if (op == " and ")
-            {
-                LogicAndExpr newe = new LogicAndExpr(l, r);
-                newe.bounded_ = true;
-
-                return newe;
-            }
-            else
-            {
-                LogicOrExpr newe = new LogicOrExpr(l, r);
-                newe.bounded_ = true;
-
-                return newe;
-            }
-        }
     }
 
     // we can actually put all binary ops in BinExpr class but we want to keep

@@ -77,6 +77,29 @@ namespace qpmodel.expr
 
             return false;
         }
+
+        // This is not a general purpose helper, so do not use it to make
+        // "correct" logical operator node based on the operator, it used
+        // here in the context of children already are bound only the
+        // new node needs to marked bound. This is to be used only
+        // within the context of Normalize method of BinExpr.
+        internal Expr makeAnyLogicalExpr(Expr l, Expr r, string op)
+        {
+            if (op == " and ")
+            {
+                LogicAndExpr newe = new LogicAndExpr(l, r);
+                newe.bounded_ = true;
+
+                return newe;
+            }
+            else
+            {
+                LogicOrExpr newe = new LogicOrExpr(l, r);
+                newe.bounded_ = true;
+
+                return newe;
+            }
+        }
     }
 
     public partial class FuncExpr
@@ -476,7 +499,6 @@ namespace qpmodel.expr
 
                     Value val = newe.Exec(null, null);
                     ConstExpr newc = ConstExpr.MakeConst(val, newe.type_);
-                    newc.bounded_ = true;
                     children_[0] = lbe.lchild_();
                     children_[1] = newc;
                 }
