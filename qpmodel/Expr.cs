@@ -556,7 +556,7 @@ namespace qpmodel.expr
     //     subclass shall only use children_ to contain Expr, otherwise
     //      Bind() etc won't work.
     //
-    public class Expr : TreeNode<Expr>
+    public partial class Expr : TreeNode<Expr>
     {
         // Expression in selection list can have an output name 
         // e.g, a.i+b.i [[as] total]
@@ -779,46 +779,6 @@ namespace qpmodel.expr
         public virtual string ExecCode(ExecContext context, string input)
         {
             return $@"ExprSearch.Locate(""{_}"").Exec(context, {input}) /*{ToString()}*/";
-        }
-
-        public virtual Expr Normalize()
-        {
-
-            for (int i = 0; i < children_.Count; i++)
-            {
-                Expr x = children_[i];
-
-                x = x.Normalize();
-                children_[i] = x;
-            }
-
-            return this;
-        }
-
-        public bool AllArgsConst()
-        {
-            int constCount = 0;
-            children_.ForEach(x =>
-            {
-                if (x is ConstExpr)
-                    ++constCount;
-            });
-
-            return children_.Count == constCount;
-        }
-
-        public bool AnyArgNull()
-        {
-
-            for (int i = 0; i < children_.Count; ++i)
-            {
-                if (children_[i] is ConstExpr ce && ce.IsNull())
-                {
-                    return true;
-                }
-            }
-
-            return false;
         }
     }
 
