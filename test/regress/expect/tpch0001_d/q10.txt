@@ -32,36 +32,37 @@ order by
 limit 20
 Total cost: 11634.98, memory=72302
 PhysicLimit (20) (inccost=11634.98, cost=20, rows=20) (actual rows=20)
+Total cost: 11713.83, memory=74656
+PhysicLimit (20) (inccost=11713.83, cost=20, rows=20) (actual rows=20)
     Output: c_custkey[0],c_name[1],{sum(l_extendedprice*(1-l_discount))}[2],c_acctbal[3],n_name[4],c_address[5],c_phone[6],c_comment[7]
-    -> PhysicOrder  (inccost=11614.98, cost=413.98, rows=90, memory=21780) (actual rows=20)
+    -> PhysicOrder  (inccost=11693.83, cost=430.83, rows=93, memory=22506) (actual rows=20)
         Output: c_custkey[0],c_name[1],{sum(l_extendedprice*(1-l_discount))}[2],c_acctbal[3],n_name[4],c_address[5],c_phone[6],c_comment[7]
         Order by: {sum(l_extendedprice*(1-l_discount))}[2]
-        -> PhysicHashAgg  (inccost=11201, cost=270, rows=90, memory=43560) (actual rows=43)
+        -> PhysicHashAgg  (inccost=11263, cost=279, rows=93, memory=45012) (actual rows=43)
             Output: {c_custkey}[0],{c_name}[1],{sum(l_extendedprice*(1-l_discount))}[7],{c_acctbal}[2],{n_name}[4],{c_address}[5],{c_phone}[3],{c_comment}[6]
             Aggregates: sum(l_extendedprice[8]*(1-l_discount[11]))
             Group by: c_custkey[0], c_name[1], c_acctbal[2], c_phone[5], n_name[3], c_address[4], c_comment[6]
-            -> PhysicGather Threads: 20 (inccost=10931, cost=900, rows=90) (actual rows=140)
+            -> PhysicGather Threads: 20 (inccost=10984, cost=930, rows=93) (actual rows=140)
                 Output: c_custkey[3],c_name[4],c_acctbal[5],n_name[0],c_address[6],c_phone[7],c_comment[8],{l_extendedprice*(1-l_discount)}[9],l_extendedprice[10],{(1-l_discount)}[11],{1}[1],l_discount[12]
-                -> PhysicHashJoin  (inccost=10031, cost=230, rows=90, memory=1650) (actual rows=0)
-                    Output: c_custkey[3],c_name[4],c_acctbal[5],n_name[0],c_address[6],c_phone[7],c_comment[8],{l_extendedprice*(1-l_discount)}[9],l_extendedprice[10],{(1-l_discount)}[11],{1}[1],l_discount[12]
+                -> PhysicHashJoin  (inccost=10054, cost=236, rows=93, memory=1650) (actual rows=14, loops=10)
                     Filter: c_nationkey[13]=n_nationkey[2]
-                    -> PhysicScanTable nation (inccost=25, cost=25, rows=25) (actual rows=0)
+                    -> PhysicScanTable nation (inccost=25, cost=25, rows=25) (actual rows=25, loops=10)
                         Output: n_name[1],1,n_nationkey[0]
-                    -> PhysicHashJoin  (inccost=9776, cost=360, rows=90, memory=4320) (actual rows=0)
+                    -> PhysicHashJoin  (inccost=9793, cost=367, rows=93, memory=4464) (actual rows=14, loops=10)
                         Output: c_custkey[5],c_name[6],c_acctbal[7],c_address[8],c_phone[9],c_comment[10],{l_extendedprice*(1-l_discount)}[0],l_extendedprice[1],{(1-l_discount)}[2],l_discount[3],c_nationkey[11]
                         Filter: c_custkey[5]=o_custkey[4]
-                        -> PhysicRedistribute  (inccost=9266, cost=120, rows=60) (actual rows=0)
+                        -> PhysicRedistribute  (inccost=9276, cost=124, rows=62) (actual rows=14, loops=10)
                             Output: {l_extendedprice*(1-l_discount)}[0],l_extendedprice[1],{(1-l_discount)}[2],l_discount[3],o_custkey[4]
-                            -> PhysicHashJoin  (inccost=9146, cost=1641, rows=60, memory=992) (actual rows=0)
+                            -> PhysicHashJoin  (inccost=9152, cost=1647, rows=62, memory=1024) (actual rows=14, loops=10)
                                 Output: {l_extendedprice*(1-l_discount)}[2],l_extendedprice[3],{(1-l_discount)}[4],l_discount[5],o_custkey[0]
                                 Filter: l_orderkey[6]=o_orderkey[1]
-                                -> PhysicScanTable orders (inccost=1500, cost=1500, rows=62) (actual rows=0)
+                                -> PhysicScanTable orders (inccost=1500, cost=1500, rows=64) (actual rows=6, loops=10)
                                     Output: o_custkey[1],o_orderkey[0]
                                     Filter: (o_orderdate[4]>='1993-10-01' and o_orderdate[4]<'12/30/1993 12:00:00 AM')
-                                -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=1457) (actual rows=0)
+                                -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=1457) (actual rows=145, loops=10)
                                     Output: l_extendedprice[5]*(1-l_discount[6]),l_extendedprice[5],(1-l_discount[6]),l_discount[6],l_orderkey[0]
                                     Filter: l_returnflag[8]='R'
-                        -> PhysicScanTable customer (inccost=150, cost=150, rows=150) (actual rows=0)
+                        -> PhysicScanTable customer (inccost=150, cost=150, rows=150) (actual rows=15, loops=9)
                             Output: c_custkey[0],c_name[1],c_acctbal[5],c_address[2],c_phone[4],c_comment[7],c_nationkey[3]
 121,Customer#000000121,282635.1719,6428.32,PERU,tv nCR2YKupGN73mQudO,27-411-990-2959,uriously stealthy ideas. carefully final courts use carefully
 124,Customer#000000124,222182.5188,1842.49,CHINA,aTbyVAW5tCd,v09O,28-183-750-7809,le fluffily even dependencies. quietly s

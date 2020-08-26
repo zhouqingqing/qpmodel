@@ -27,12 +27,12 @@ PhysicHashAgg  (inccost=85356, cost=32, rows=1, memory=16) (actual rows=1)
             Filter: l_partkey[4]=p_partkey[2]
             -> PhysicGather Threads: 20 (inccost=12544, cost=300, rows=30) (actual rows=0)
                 Output: l_extendedprice[1],l_quantity[2],p_partkey[0]
-                -> PhysicHashJoin  (inccost=12244, cost=6037, rows=30, memory=8) (actual rows=0)
+                -> PhysicHashJoin  (inccost=12244, cost=6037, rows=30, memory=8) (actual rows=0, loops=10)
                     Output: l_extendedprice[1],l_quantity[2],p_partkey[0]
                     Filter: p_partkey[0]=l_partkey[3]
-                    -> PhysicBroadcast  (inccost=202, cost=2, rows=1) (actual rows=0)
+                    -> PhysicBroadcast  (inccost=202, cost=2, rows=1) (actual rows=0, loops=10)
                         Output: p_partkey[0]
-                        -> PhysicScanTable part (inccost=200, cost=200, rows=1) (actual rows=0)
+                        -> PhysicScanTable part (inccost=200, cost=200, rows=1) (actual rows=0, loops=10)
                             Output: p_partkey[0]
                             Filter: (p_container[6]='MED BOX' and p_brand[3]='Brand#23')
                     -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=6005) (actual rows=0)
@@ -43,7 +43,7 @@ PhysicHashAgg  (inccost=85356, cost=32, rows=1, memory=16) (actual rows=1)
                 Group by: l_partkey[0]
                 -> PhysicGather Threads: 10 (inccost=66055, cost=60050, rows=6005) (actual rows=0)
                     Output: l_partkey[1],l_quantity[4]
-                    -> PhysicScanTable lineitem as lineitem__1 (inccost=6005, cost=6005, rows=6005) (actual rows=0)
+                    -> PhysicScanTable lineitem as lineitem__1 (inccost=6005, cost=6005, rows=6005) (actual rows=600, loops=10)
                         Output: l_partkey[1],l_quantity[4]
 
 

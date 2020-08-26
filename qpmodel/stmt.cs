@@ -128,9 +128,11 @@ namespace qpmodel.logic
                 Compiler.Run(Compiler.Compile(), this, context);
             }
             if (queryOpt_.explain_.mode_ >= ExplainMode.analyze)
-            {
                 Console.WriteLine(physicPlan_.Explain(queryOpt_.explain_));
-            }
+
+            if (context is DistributedContext dc)
+                dc.machines_.WaitForAllThreads();
+
             return finalplan.rows_;
         }
 
@@ -158,7 +160,7 @@ namespace qpmodel.logic
             }
             catch (Exception e)
             {
-                // supress two known possible expected exceptions
+                // supress three known possible expected exceptions
                 if (e is AntlrParserException ||
                     e is SemanticAnalyzeException ||
                     e is SemanticExecutionException)
