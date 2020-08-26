@@ -35,6 +35,7 @@ using qpmodel.logic;
 using qpmodel.physic;
 using qpmodel.utils;
 using qpmodel.index;
+using System.Runtime.CompilerServices;
 
 namespace qpmodel.expr
 {
@@ -231,7 +232,7 @@ namespace qpmodel.expr
         internal bool IsArithmeticOp() =>
             (op_ == "+" || op_ == "-" || op_ == "*" || op_ == "/");
         internal bool IsRelOp() =>
-            (op_ == "=" || op_ == "<=" || op_ == "<" || op_ == ">=" || op_ == ">" || op_ == "<>" || op_ == "!=");
+            (op_ == "=" || op_ == "<=" || op_ == "<" || op_ == ">=" || op_ == ">" || op_ == "<>" || op_ == "!=" || op_ == "is" || op_ == "is not");
 
         public override Expr Normalize()
         {
@@ -263,8 +264,17 @@ namespace qpmodel.expr
                 case "!=":
                 case " and ":
                 case " or ":
-                    if (!IsRelOp() && ((lce != null && lce.val_ is null) || (rce != null && rce.val_ is null)))
+                case "is":
+                case "is not":
+                    if ((lce != null && lce.val_ is null) || (rce != null && rce.val_ is null))
                     {
+                        if (IsRelOp())
+                        {
+                            // needs to be TRUE or FALSE
+                            if ((op_ == "is") || (op_ == "is not") || (lce != null && TypeBase.IsNumberType(l.type_)) || (rce != null && TypeBase.IsNumberType(r.type_)))
+                                return SimplifyRelop();
+                        }
+
                         // NULL simplification: if operator is not relational, X op NULL is NULL
                         return lce is null ? rce : lce;
                     }
@@ -388,6 +398,8 @@ namespace qpmodel.expr
                 case "=":
                 case "<>":
                 case "!=":
+                case "is":
+                case "is not":
                     return new BoolType();
             }
 
@@ -443,6 +455,38 @@ namespace qpmodel.expr
             Expr r = rchild_();
             ConstExpr lce = l is ConstExpr ? (ConstExpr)l : null;
             ConstExpr rce = r is ConstExpr ? (ConstExpr)r : null;
+
+            if (op_ == "is" || op_ == "is not")
+            {
+                if (((lce == null && rce == null)) || ((lce != null && lce.IsNull()) && (rce != null && rce.IsNull())))
+                {
+                    if (op_ == "is" || op_ == "is not")
+                    {
+                        string val = op_ == "is" ? "true" : "false";
+                        return ConstExpr.MakeConst(val, new BoolType(), outputName_);
+                    }
+                }
+
+                if (((lce is null && rce is null)) || ((lce != null && !lce.IsNull()) && (rce != null && !rce.IsNull())))
+                {
+                    if (op_ == "is" || op_ == "is not")
+                    {
+                        string val = op_ == "is" ? "false" : "true";
+                        return ConstExpr.MakeConst(val, new BoolType(), outputName_);
+                    }
+                }
+
+                return this;
+
+                if (((lce != null && lce.IsNull()) || (rce != null && rce.IsNull())))
+                {
+                    if (op_ == "is" || op_ == "is not")
+                    {
+                        string val = op_ == "is" ? "true" : "false";
+                        return ConstExpr.MakeConst(val, new BoolType(), outputName_);
+                    }
+                }
+            }
 
             if (lce == null && rce == null)
                 return this;

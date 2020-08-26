@@ -634,7 +634,7 @@ namespace qpmodel.logic
             byList.ForEach(x =>
             {
                 if (!x.bounded_)        // some items already bounded with seq2selection()
-                    x.Bind(context);
+                    x = x.BindAndNormalize(context);
             });
             if (queryOpt_.optimize_.remove_from_)
             {
@@ -660,7 +660,7 @@ namespace qpmodel.logic
                 }
                 else
                 {
-                    x.Bind(context);
+                    x = x.BindAndNormalize(context);
                     if (x.HasAggFunc())
                         hasAgg_ = true;
                     if (queryOpt_.optimize_.remove_from_)
@@ -692,7 +692,7 @@ namespace qpmodel.logic
 
             if (where_ != null)
             {
-                where_.Bind(context);
+                where_ = where_.BindAndNormalizeClause(context);
                 where_ = where_.FilterNormalize();
                 if (!where_.IsBoolean() || where_.HasAggFunc())
                     throw new SemanticAnalyzeException(
@@ -712,7 +712,7 @@ namespace qpmodel.logic
             if (having_ != null)
             {
                 hasAgg_ = true;
-                having_.Bind(context);
+                having_ = having_.BindAndNormalize(context);
                 having_ = having_.FilterNormalize();
                 if (!having_.IsBoolean())
                     throw new SemanticAnalyzeException("HAVING condition must be a blooean expression");
@@ -722,8 +722,6 @@ namespace qpmodel.logic
 
             if (orders_ != null)
                 orders_ = bindOrderByOrGroupBy(context, orders_);
-
-            Normalize();
         }
 
         void bindTableRef(BindContext context, TableRef table)
@@ -752,7 +750,7 @@ namespace qpmodel.logic
                     break;
                 case JoinQueryRef jref:
                     jref.tables_.ForEach(x => bindTableRef(context, x));
-                    jref.constraints_.ForEach(x => x.Bind(context));
+                    jref.constraints_.ForEach(x => x = x.BindAndNormalize(context));
                     break;
                 default:
                     throw new NotImplementedException();
@@ -824,80 +822,6 @@ namespace qpmodel.logic
 
             Debug.Assert(newlist.Count == list.Count);
             return newlist;
-        }
-
-        public void Normalize()
-        {
-            for (int i = 0; i < selection_.Count; ++i)
-            {
-                Expr x = selection_[i];
-                x = x.Normalize();
-                selection_[i] = x;
-            }
-
-            if (where_ != null)
-            {
-                where_ = NormalizeClause(where_);
-            }
-
-            if (groupby_ != null)
-            {
-                List<Expr> newg = new List<Expr>();
-
-                groupby_.ForEach(x =>
-                {
-                    Expr ng = NormalizeClause(x);
-                    if (!(ng is null))
-                        newg.Add(ng);
-                });
-
-                if (newg.Count > 0)
-                    groupby_ = newg;
-                else
-                    groupby_ = null;
-            }
-
-            if (having_ != null)
-            {
-                having_ = NormalizeClause(having_);
-            }
-
-            if (orders_ != null)
-            {
-                List<Expr> newo = new List<Expr>();
-
-                orders_.ForEach(x =>
-                {
-                    Expr no = NormalizeClause(x);
-                    if (!(no is null))
-                        newo.Add(no);
-                });
-
-                if (newo.Count > 0)
-                    orders_ = newo;
-                else
-                    orders_ = null;
-            }
-        }
-
-        internal Expr NormalizeClause(Expr clause)
-        {
-            Expr x = clause.Normalize();
-            if (x is null || (x is ConstExpr ce && (ce.val_ is null || ce.IsFalse())))
-            {
-                // Normalization eliminated a clause which is always FALSE
-                return ConstExpr.MakeConstBool(false);
-            }
-            else
-            if (!(x is null) && x is ConstExpr ce2 && !(ce2.val_ is null) && ce2.IsTrue())
-            {
-                // eliminate always true clause.
-                return null;
-            }
-            else
-            {
-                return x;
-            }
         }
     }
 }

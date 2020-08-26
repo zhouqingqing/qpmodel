@@ -736,6 +736,39 @@ namespace qpmodel.expr
             markBounded();
         }
 
+        public virtual Expr BindAndNormalize(BindContext context)
+        {
+            Bind(context);
+            return Normalize();
+        }
+
+        internal Expr NormalizeClause(Expr clause)
+        {
+            Expr x = clause.Normalize();
+            if (x is null || (x is ConstExpr ce && (ce.val_ is null || ce.IsFalse())))
+            {
+                // Normalization eliminated a clause which is always FALSE
+                return ConstExpr.MakeConstBool(false);
+            }
+            else
+            if (!(x is null) && x is ConstExpr ce2 && !(ce2.val_ is null) && ce2.IsTrue())
+            {
+                // eliminate always true clause.
+                return ConstExpr.MakeConstBool(true);
+            }
+            else
+            {
+                return x;
+            }
+        }
+
+        public virtual Expr BindAndNormalizeClause(BindContext context)
+        {
+            Bind(context);
+
+            return NormalizeClause(this);
+        }
+
         public Expr DeQueryRef()
         {
             bool hasAggFunc = this.HasAggFunc();
