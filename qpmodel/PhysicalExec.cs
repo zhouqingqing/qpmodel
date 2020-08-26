@@ -327,12 +327,12 @@ namespace qpmodel.physic
             }
         }
 
-        public void AddThread(Thread thread)
+        public void RegisterThread(Thread thread)
         {
             threads_.Enqueue(thread);
         }
 
-        public void WaitThreads()
+        public void WaitAllThreads()
         {
             Thread thread = null;
             bool succ = false;

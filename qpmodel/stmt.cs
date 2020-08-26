@@ -134,9 +134,7 @@ namespace qpmodel.logic
 
             var dcontext = context as DistributedContext;
             if (dcontext != null)
-            {
-                dcontext.machines_.WaitThreads();
-            }
+                dcontext.machines_.WaitAllThreads();
 
             return finalplan.rows_;
         }

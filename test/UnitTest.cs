@@ -404,11 +404,8 @@ namespace qpmodel.unittest
 
             try
             {
-                for (int i = 0; i < 3; i++)
-                {
-                    ExplainOption.show_tablename_ = false;
-                    RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries);
-                }
+                ExplainOption.show_tablename_ = false;
+                RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries);
             }
             finally
             {
