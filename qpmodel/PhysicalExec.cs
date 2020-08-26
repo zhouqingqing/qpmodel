@@ -303,6 +303,7 @@ namespace qpmodel.physic
         }
 
         internal ConcurrentDictionary<ChannelId, ExchangeChannel> channels_ = new ConcurrentDictionary<ChannelId, ExchangeChannel>();
+        internal ConcurrentQueue<Thread> threads_ = new ConcurrentQueue<Thread>();
         public MachinePool() { }
 
         public void RegisterChannel(string planId, int machineId, ExchangeChannel channel)
@@ -323,6 +324,26 @@ namespace qpmodel.physic
                 // wait for its ready - a manual event is better
                 Thread.Sleep(100);
                 goto restart;
+            }
+        }
+
+        public void RegisterThread(Thread thread)
+        {
+            threads_.Enqueue(thread);
+        }
+
+        public void WaitAllThreads()
+        {
+            Thread thread = null;
+            bool succ = false;
+
+            while (!threads_.IsEmpty)
+            {
+                succ = threads_.TryDequeue(out thread);
+                if (succ)
+                {
+                    thread.Join();
+                }
             }
         }
     }

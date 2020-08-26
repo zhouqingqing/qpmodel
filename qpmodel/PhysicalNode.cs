@@ -1684,6 +1684,7 @@ namespace qpmodel.physic
     {
         public Int64 nrows_ = 0;
         public Int64 nloops_ = 0;
+        public PhysicProfiling aggProfiling_ = null;
 
         public override string ToString() => $"${child_()}";
 
@@ -1694,17 +1695,40 @@ namespace qpmodel.physic
             Debug.Assert(profile_ is null);
         }
 
+        // Use atomic variable instead of mutex to ensure
+        // that modifications to @nrows_ and @nloops_ are atomic.
+        // This is the simplest lock-free idiom.
+        //
+        // The advantage is that there is no overhead
+        // for thread switching even in distributed query.
+        //
+        // The disadvantage is that non-distributed query
+        // also has atomic variable synchronization overhead.
+        // Since atomic variable does not cause thread switching,
+        // overhead is almost negligible.
+        //
+        // We can also distinguish the current query mode by @context_.
+        // If @context_ is @DistributedContext, increase @nrows_ and @nloops_.
+        // Otherwise increase @nrows_ and @nloops_ atomaticlly.
+        // In this situation, duplicate codes are generated.
+        //
+        // Let us use atomic variable for both case now.
         public override void Exec(Action<Row> callback)
         {
             ExecContext context = context_;
 
             if (context.option_.optimize_.use_codegen_)
             {
-                context.code_ += $"{_physic_}.nloops_ ++;";
+                context.code_ += $@"
+                System.Threading.Interlocked.Increment(ref {_physic_}.nloops_);
+                if ({_physic_}.aggProfiling_ != null)
+                    System.Threading.Interlocked.Increment(ref {_physic_}.aggProfiling_.nloops_);";
             }
             else
             {
-                nloops_++;
+                Interlocked.Increment(ref nloops_);
+                if (aggProfiling_ != null)
+                    Interlocked.Increment(ref aggProfiling_.nloops_);
             }
 
             child_().Exec(l =>
@@ -1712,16 +1736,37 @@ namespace qpmodel.physic
                 if (context.option_.optimize_.use_codegen_)
                 {
                     context.code_ += $@"
-                    {_physic_}.nrows_++;
+                    System.Threading.Interlocked.Increment(ref {_physic_}.nrows_);
+                    if ({_physic_}.aggProfiling_ != null)
+                        System.Threading.Interlocked.Increment(ref {_physic_}.aggProfiling_.nrows_);
                     var r{_} = r{child_()._};";
                     callback(null);
                 }
                 else
                 {
-                    nrows_++;
+                    Interlocked.Increment(ref nrows_);
+                    if (aggProfiling_ != null)
+                        Interlocked.Increment(ref aggProfiling_.nrows_);
                     callback(l);
                 }
             });
+        }
+
+        // assign aggregation profiling to cloned profiling.
+        public override PhysicNode Clone()
+        {
+            var n = (PhysicProfiling)(base.Clone());
+
+            if (aggProfiling_ == null)
+            {
+                n.aggProfiling_ = this;
+            }
+            else
+            {
+                n.aggProfiling_ = aggProfiling_;
+            }
+
+            return n;
         }
 
         protected override double EstimateCost() => 0;
@@ -1941,6 +1986,7 @@ namespace qpmodel.physic
                                     context.option_);
             var thread = new Thread(new ThreadStart(wo.EntryPoint));
             thread.Name = $"Redis_{planId}@{machineId}";
+            context.machines_.RegisterThread(thread);
             thread.Start();
 
             upChannels_ = null;
@@ -2078,6 +2124,7 @@ namespace qpmodel.physic
                 var thread = new Thread(new ThreadStart(wo.EntryPoint));
                 thread.Name = $"Gather_{planId}@{machineId}";
                 workers.Add(thread);
+                context.machines_.RegisterThread(thread);
             }
             workers.ForEach(x => x.Start());
 

@@ -346,7 +346,8 @@ namespace qpmodel.stat
                 foreach (var g in groups)
                     sortgroup.Add(g.Key, g.Count());
 
-                var sorted = from pair in sortgroup orderby pair.Value descending select pair;
+                // use top 100 values to calculate frequency, ensure that pairs are sorted in a fixed order.
+                var sorted = from pair in sortgroup orderby pair.Value descending, pair.Key descending select pair;
                 mcv_.nvalues_ = (int)Math.Min(n_distinct_, MCVList.NValues_);
 
                 int i = 0;
