@@ -128,13 +128,10 @@ namespace qpmodel.logic
                 Compiler.Run(Compiler.Compile(), this, context);
             }
             if (queryOpt_.explain_.mode_ >= ExplainMode.analyze)
-            {
                 Console.WriteLine(physicPlan_.Explain(queryOpt_.explain_));
-            }
 
-            var dcontext = context as DistributedContext;
-            if (dcontext != null)
-                dcontext.machines_.WaitAllThreads();
+            if (context is DistributedContext dc)
+                dc.machines_.WaitForAllThreads();
 
             return finalplan.rows_;
         }
@@ -148,9 +145,7 @@ namespace qpmodel.logic
             var result = stmt.Exec();
             physicplan = "";
             if (stmt.physicPlan_ != null)
-            {
                 physicplan = stmt.physicPlan_.Explain(option?.explain_ ?? stmt.queryOpt_.explain_);
-            }
             return result;
         }
 
@@ -165,7 +160,7 @@ namespace qpmodel.logic
             }
             catch (Exception e)
             {
-                // supress two known possible expected exceptions
+                // supress three known possible expected exceptions
                 if (e is AntlrParserException ||
                     e is SemanticAnalyzeException ||
                     e is SemanticExecutionException)
