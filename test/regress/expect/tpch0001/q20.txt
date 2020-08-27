@@ -51,7 +51,7 @@ PhysicOrder  (inccost=48.1, cost=0.1, rows=1, memory=65) (actual rows=0)
             <InSubqueryExpr> cached 1
                 -> PhysicFilter  (inccost=12815, cost=367, rows=367) (actual rows=47)
                     Output: ps_suppkey[0]
-                    Filter: ps_availqty[1]>0.5*{sum(l_quantity)}[2]
+                    Filter: ps_availqty[1]>{sum(l_quantity)}[2]*0.5
                     -> PhysicHashJoin Left (inccost=12448, cost=2886, rows=367, memory=19200) (actual rows=60)
                         Output: ps_suppkey[0],ps_availqty[1],{sum(l_quantity)}[3]
                         Filter: (l_partkey[4]=ps_partkey[2] and l_suppkey[5]=ps_suppkey[0])

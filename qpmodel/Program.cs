@@ -131,7 +131,7 @@ namespace qpmodel
         {
             // Not working as expected, need to investigate.
             var option = new QueryOption();
-            option.explain_.mode_ = ExplainMode.analyze;
+            option.explain_.mode_ = ExplainMode.full;
             option.optimize_.use_memo_ = true;
             option.explain_.show_estCost_ = false;
 
@@ -151,7 +151,18 @@ namespace qpmodel
                 {
                     Console.WriteLine(sql);
                     var result = SQLStatement.ExecSQL(sql, out string physicplan, out string error_, option);
-                    listoutput.Add(physicplan);
+                    if (physicplan != null)
+                    {
+                        Console.WriteLine(physicplan);
+                        listoutput.Add(physicplan);
+                    }
+
+                    if (result != null)
+                    {
+                        Console.WriteLine(result);
+                        listoutput.Add(result.ToString());
+                    }
+
                 } catch (Exception e)
                 {
                     Console.WriteLine("SQL: " + sql + "\nEXCEPTION: " + e + "\n");
@@ -211,7 +222,7 @@ namespace qpmodel
 #pragma warning restore CS0162 // Unreachable code detected
 
         doit:
-            bool batchMode = false;
+            bool convMode = false;
 
             // Application Arguments in Project properties seem to be
             // effective only after rebuilding.
@@ -219,7 +230,7 @@ namespace qpmodel
             // statements without rebuilding the solution.
             string inputFile = "";
             if (sql.Length == 2 && sql == "-i")
-                batchMode = true;
+                convMode = true;
             else if (sql.Length == 2 && sql.StartsWith("-f"))
                 inputFile = args[1];
             else if (sql.Length == 0)
@@ -227,7 +238,7 @@ namespace qpmodel
 
             do
             {
-                if (batchMode == true || (sql.Length == 1 && sql.Equals("-")))
+                if (convMode == true || (sql.Length == 1 && sql.Equals("-")))
                 {
                     System.Console.Write("QSQL> ");
                     sql = System.Console.ReadLine();
@@ -331,7 +342,7 @@ namespace qpmodel
             done:
                 stopWatch.Stop();
                 Console.WriteLine("RunTime: " + stopWatch.Elapsed);
-            } while (batchMode == true);
+            } while (convMode == true);
 
             Console.ReadKey();
         }
