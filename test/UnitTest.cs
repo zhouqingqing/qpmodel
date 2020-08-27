@@ -2498,6 +2498,37 @@ namespace qpmodel.unittest
             result = ExecuteSQL(sql, out phyplan);
             Assert.IsTrue(phyplan.Contains("Output: {4-a3/2}[0],{4-a3/2}[0]*2+1+{min(a1)}[1],{avg(a4)}[2]+{count(a1)}[3],{max(a1)}[4]+{sum(a1+a2)}[5]*2"));
             */
+
+            // Miscillaneous tests, corner case tests: more coming.
+            sql = "select * from a where 10 between 1 and 20;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+
+            sql = "select * from a where 10 between 20 and 1;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+
+            sql = "select * from a where 10 between 20 and 30;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+
+            sql = "select * from a where 10 between a2 and 20;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a.a2[1]<=10"));
+
+            sql = "select * from a where 'd' between 'a' and 'f';";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+
+            // BUG: both master and canonical branch produce no results
+            // but the query is equivalent to select * from a.
+            sql = "select * from a where a1 is not null or a2 is not null or a3 is null;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0] is not null or a.a2[1] is not null) or a.a3[2] is null)"));
+
+            sql = "select * from a join b on (a1 <> a1 or b1 <> b1 or 1 <> -10);";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0]<>a.a1[0] or b.b1[4]<>b.b1[4]) or True)"));
         }
     }
 
