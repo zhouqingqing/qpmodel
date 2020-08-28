@@ -139,9 +139,10 @@ namespace qpmodel
             string[] listquery = allquery.Split(';');
 
             List<string> listoutput = new List<string>();
-
+            int linenum = 0;
             for (int i = 0; i < listquery.Length; ++i)
             {
+                linenum = i + 1;
                 string sql = listquery[i].Trim();
                 if (sql.Length <= 0)
                     continue;
@@ -150,6 +151,10 @@ namespace qpmodel
                 try
                 {
                     Console.WriteLine(sql);
+
+                    string outline = linenum.ToString();
+                    outline += ": " + sql + "\n";
+                    listoutput.Add(outline);
                     var result = SQLStatement.ExecSQL(sql, out string physicplan, out string error_, option);
                     if (physicplan != null)
                     {

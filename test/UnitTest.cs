@@ -2246,9 +2246,6 @@ namespace qpmodel.unittest
             var result = ExecuteSQL(sql, out string phyplan);
             Assert.IsTrue(phyplan.Contains("Output: (((((a.a1[0]+3)+a.a2[1])+7)+a.a4[3])+11)"));
 
-            // Test cases for Normalization/Tranformation/Cananonicalization
-            // No feature implemented yet.
-
             sql = "select 10 + a1 + 2 + abs(-10) + round(101.78, 0) + a2 from a";
             result = ExecuteSQL(sql, out phyplan);
             Assert.IsTrue(phyplan.Contains("Output: (((a.a1[0]+22)+102)+a.a2[1])"));
