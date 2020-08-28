@@ -76,6 +76,16 @@ namespace qpmodel.expr
             return false;
         }
 
+        private void FixNewExprTableRefs(Expr e)
+        {
+            if (e.tableRefs_.Count > 0)
+            {
+                if (tableRefs_.Count == 0)
+                    tableRefs_ = new List<TableRef>();
+                e.tableRefs_.ForEach(x => tableRefs_.Add(x));
+            }
+        }
+
         // This is not a general purpose helper, so do not use it to make
         // "correct" logical operator node based on the operator, it used
         // here in the context of children already are bound only the
@@ -87,12 +97,17 @@ namespace qpmodel.expr
             {
                 LogicAndExpr newe = new LogicAndExpr(l, r);
                 newe.bounded_ = true;
-
+                newe.FixNewExprTableRefs(l);
+                if (r.tableRefs_.Count > 0 && !newe.TableRefsContainedBy(r.tableRefs_))
+                    newe.FixNewExprTableRefs(r);
                 return newe;
             }
             else
             {
                 LogicOrExpr newe = new LogicOrExpr(l, r);
+                newe.FixNewExprTableRefs(l);
+                if (r.tableRefs_.Count > 0 && !newe.TableRefsContainedBy(r.tableRefs_))
+                    newe.FixNewExprTableRefs(r);
                 newe.bounded_ = true;
 
                 return newe;
@@ -458,6 +473,9 @@ namespace qpmodel.expr
 
             if (op_ == "is" || op_ == "is not")
             {
+                if ((lce == null && rce != null) || (lce != null && rce == null))
+                    return this;
+
                 if (((lce == null && rce == null)) || ((lce != null && lce.IsNull()) && (rce != null && rce.IsNull())))
                 {
                     if (op_ == "is" || op_ == "is not")
@@ -476,7 +494,7 @@ namespace qpmodel.expr
                     }
                 }
 
-                return this;
+                // return this;
 
                 if (((lce != null && lce.IsNull()) || (rce != null && rce.IsNull())))
                 {
