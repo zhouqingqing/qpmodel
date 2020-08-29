@@ -2236,6 +2236,8 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestCanonical()
         {
+            var option = new QueryOption();
+            option.optimize_.TurnOnAllOptimizations();
             /*
              * Rule1: Constant move. Bring all possible constants together so that later
              *        transformations can simplify or even remove some of the constants.
@@ -2332,7 +2334,7 @@ namespace qpmodel.unittest
 
             // expr / 0 => ERROR
             // sql = "select * from a where a1 / 0 = a2 / 0";
-            // Assert.IsTrue(TU.error_.Contains("DivideByZeroException:D"));
+            // Assert.IsTrue(error_.Contains("DivideByZeroException:D"));
             // Currently plan contains: "Filter: a1[0]/0=a2[1]/0";
             // Exception is thrown at runtime.
 
@@ -2526,6 +2528,289 @@ namespace qpmodel.unittest
             sql = "select * from a join b on (a1 <> a1 or b1 <> b1 or 1 <> -10);";
             result = ExecuteSQL(sql, out phyplan);
             Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0]<>a.a1[0] or b.b1[4]<>b.b1[4]) or True)"));
+            // more tests, by code path and functionality.
+            sql = "select sum(1), avg(2), min(3), max(4), count(5), count(distinct 6), stddev_samp(7.38) from a";
+            TU.ExecuteSQL(sql, "3,2,3,4,3,3,0", out phyplan, option);
+
+            sql = "select min(1), max(6) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Aggregates:"));
+
+            sql = "select min(10) + max(20) + avg(30) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Aggregates:"));
+
+            sql = "select * from a where not (0 + a1 = 1)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]=1"));
+
+            sql = "select * from a where not (a1 - 0 <> 1)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]<>1"));
+
+            sql = "select * from a where not (1 * a1 > 1)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]>1"));
+
+            sql = "select * from a where not (a1 / 1 >= 1)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]>=1"));
+
+            sql = "select * from a where not (a1 < 1 - 0)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]<1"));
+
+            sql = "select * from a where not (a1 = 1 * 1)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]=1"));
+
+            sql = "select * from a where not (a1 <> 1 / 1)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]<>1"));
+
+            sql = "select * from a where not (a1 > 1 + 0)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]>1"));
+
+            sql = "select * from a where not ((10 - 20 + 5 + 5) > a1)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]<0"));
+
+            sql = "select * from a where not ((10 + 20 + 6 + 1) * a1 < 1)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]*37<1"));
+
+            sql = "select not (a1 = 1 or a2 = 2) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: (!a.a1[0]=1 and !a.a2[1]=2)"));
+
+            sql = "select * from a where 10 between 1 and 20";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+
+            sql = "select * from a where 10 between 20 and 1";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+
+            sql = "select * from a where 10 between a2 and 20";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a.a2[1]<=10"));
+
+            sql = "select * from a where 'd' between 'a' and 'f'";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+
+            // Ideally filter should be false.
+            sql = "select * from a where a1 = 1 and a1 = 2";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: (a.a1[0]=1 and a.a1[0]=2)"));
+
+            sql = "select * from a where a1 is not null or a2 is not null or a3 is null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0] is not null or a.a2[1] is not null) or a.a3[2] is null)"));
+
+            sql = "select * from a where a1 is not null and a2 is not null or a3 is null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0] is not null and a.a2[1] is not null) or a.a3[2] is null)"));
+
+            sql = "select 'Hello' || ', World' from a where 1 != -10";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+
+            sql = "select 'Hello' || ', World' from a where 1 != -10 and a4 is null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a.a4[3] is null"));
+
+            sql = "select substring('alcatrez', 1 + 1, 2 + 3)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: 'lcat'"));
+
+            sql = "select * from a join b on(1 = 1) where a.a1 > null and b.b2 < null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+
+            sql = "select * from a where 1 + a1 = 3";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]=2"));
+
+            sql = "select * from a, b where 1 = 2";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+
+            sql = "select * from a join b on (a1 <> a1 or b1 <> b1 or 1 <> -10)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0]<>a.a1[0] or b.b1[4]<>b.b1[4]) or True)"));
+
+            sql = "select * from a join b on (a1 <> a1 or b1 <> b1 or 10 + -10 <> -20 + 20)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0]<>a.a1[0] or b.b1[4]<>b.b1[4]) or False)"));
+
+            // sql = "select * from (select 1 + 1 x, 1 + 2 y, a1 z from a)";
+            // result = ExecuteSQL(sql, out phyplan);
+            // Assert.IsTrue(phyplan.Contains(
+            //    @"PhysicFromQuery 1064_1067 <anonymous> (inccost=6, cost=3, rows=3) (actual rows=3)
+            // Output: {2}[0],{3}[1],a.a1 (as z)[2]
+            // -> PhysicScanTable 1066_1069 a (inccost=3, cost=3, rows=3) (actual rows=3)
+            // Output: 2,3,a.a1 (as z)[0]"));
+
+            sql = "select * from a where 1 is null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+
+            sql = "select * from a where 1 is not null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+
+            sql = "select a1 + 0, a1 - 0, a1 * 1, a1 / 1 from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: a.a1[0],a.a1[0],a.a1[0],a.a1[0]"));
+
+            sql = "select 3 * (a1 + 10), 5 * (a2 - 7) , 0 / (a1 + 20) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: (a.a1[0]+10)*3,(a.a2[1]-7)*5,0/(a.a1[0]+20)"));
+
+            sql = "select avg(z) from (select sum((a1 + a2 + 6) * 2) z from a) q";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Aggregates: sum(((a.a1[3]+a.a2[4])*6+2))"));
+
+            sql = "select a1, (a1 * 10) * 5, a2, (a2 * 1) + 10, a3, (a3 + 10 - 20) * 20 from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: a.a1[0],a.a1[0]*50,a.a2[1],(a.a2[1]+10),a.a3[2],((a.a3[2]+10)-20)*20"));
+
+            sql = "select a1, (a1 + 10) * 5, a2, (a2 - 1) * 10, a3, (a3 + 10 - 20) * 20 from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: a.a1[0],(a.a1[0]*10+5),a.a2[1],(a.a2[1]-1)*10,a.a3[2],((a.a3[2]+10)-20)*20"));
+
+            sql = "select a1, (a1 - null) + 10 from a";
+            TU.ExecuteSQL(sql, "0,;1,;2,", out phyplan, option);
+
+            sql = "select a1, (a1 + null) * 10 from a";
+            TU.ExecuteSQL(sql, "0,;1,;2,", out phyplan, option);
+
+            sql = "select a1, (a1 - null) * 10 from a";
+            TU.ExecuteSQL(sql, "0,;1,;2,", out phyplan, option);
+
+            sql = "select a1, (a1 * null) + 10 from a";
+            TU.ExecuteSQL(sql, "0,;1,;2,", out phyplan, option);
+
+            sql = "select a1, (a1 * null) * 10 from a";
+            TU.ExecuteSQL(sql, "0,;1,;2,", out phyplan, option);
+
+            sql = "select a1, (a1 * null) + 10 from a";
+            TU.ExecuteSQL(sql, "0,;1,;2,", out phyplan, option);
+
+            // BUG: no output in master and canonical
+            sql = "select * from a where 'qwerty' like 'qwer%'";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+
+            // BUG: no output in master and canonical
+            sql = "select * from a where 'qwerty' like '%rty'";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+
+            sql = "select avg(2), min(3), max(4) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Aggregates:"));
+
+            // BUG: in master and canonical:
+            // Postgres: 3 | 2.0000000000000000 |   3 |   4 |     3 |     1 |           0
+            sql = "select sum(1), avg(2), min(3), max(4), count(5), count(distinct 6), stddev_samp(7.38) from a";
+            TU.ExecuteSQL(sql, "3,2,3,4,3,3,0", out phyplan, option);
+
+            sql = "select substring('The North Rim', 5, 9) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: 'North'"));
+
+            sql = "select substring('The North Rim', 5, 9) || ' Pole' from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: 'North Pole'"));
+
+            sql = "select substring('Pacific South', 9, 13) || ' Pack' || 'ard' from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: 'South Packard'"));
+
+            sql = "select upper('mat') || upper('he') || upper('mat') || upper('ics') from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: 'MATHEMATICS'"));
+
+            sql = "select repeat('three blind mice ', 3) from b";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: 'three blind mice three blind mice three blind mice '"));
+
+            // sql = "select abs(10 + 20.78 - 10 - 21.78) from a";
+            // result = ExecuteSQL(sql, out phyplan);
+            // Assert.IsTrue(phyplan.Contains(
+            //    @"PhysicScanTable a (actual rows=3)
+            // Output: 1"));
+
+            sql = "select round(3.14582, 2) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: 3.15"));
+
+            sql = "select null + null, null - null, null * null, null / null from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: null,null,null,null"));
+
+            sql = "select null + 10, 20 - null, 30 * null, 40 / null, null / 50 from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: null,null,null,null"));
+
+            sql = "select a1 - null, null + a2, a3 * null, null / a4 from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: null,null,null,null"));
+
+            sql = "select a1 > null, a2 >= null, a3 < null, a4 <= null, a1 + a2 = null, a2 - a4 <> null from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: null,null,null,null,null,null"));
+
+            sql = "select * from a where null is not null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+
+            sql = "select * from a where null is null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+
+            sql = "select sum(null), avg(null), min(null), max(null), count(null) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: null,null,null,null,null"));
+
+            sql = "select year(null) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: null"));
+
+            sql = "select date(null) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: null"));
+
+            sql = "select abs(null) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: null"));
+
+            sql = "select round(null, 2) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: null"));
+
+            sql = "select stddev_samp(null) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: null"));
+
+            sql = "select * from a where 1 + a1 = 2";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]=1"));
+
+            sql = "select * from a where 1 + a1 > 2";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]>1"));
+
+            sql = "select * from a where 0 <= a1 - 1";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]>=1"));
+
+            sql = "select * from a where 3 >= 1 + 2 + a1";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]<=0"));
         }
     }
 

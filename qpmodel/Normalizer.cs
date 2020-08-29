@@ -291,7 +291,11 @@ namespace qpmodel.expr
                         }
 
                         // NULL simplification: if operator is not relational, X op NULL is NULL
-                        return lce is null ? rce : lce;
+                        if (lce != null && lce.val_ is null)
+                            return lce;
+
+                        if (rce != null && rce.IsNull())
+                            return rce;
                     }
 
                     if (lce != null && rce != null)
@@ -363,35 +367,41 @@ namespace qpmodel.expr
                             children_[1] = newr;
                         }
                         else
-                        if (op_ == "*")
+                        if (op_ == "*" && le.rchild_() is ConstExpr lrc && (le.op_ == "+" || le.op_ == "-"))
                         {
                             /*
                              * case of (a + const1) * const2  => (a * const2) + (const1 * const2))
                              * make a newe left node to house (a * const2)
+                             *
+                             *                          *                    +
+                             *                         / \                  / \
+                             *                        /   \                /   \ 
+                             *                       +     c2     =>      *   c1 * c2
+                             *                      / \                  / \
+                             *                     /   \                /   \
+                             *                    X     c1             X     c2
+                             *
                              */
-                            Expr newl = le.Clone();
-                            newl.children_[0] = le;
-                            newl.children_[1] = r;
 
-                            /* make a const expr node to evaluate and house (const1 op const 2) */
+                            /* make a const expr node to evaluate const1 * const 2 */
                             Expr tmpexp = Clone();
-                            tmpexp.children_[0] = le.children_[1]; // right of left is const
-                            tmpexp.children_[1] = r;               // our right is const
+                            tmpexp.children_[0] = lrc;  // right of left is const
+                            tmpexp.children_[1] = r;    // our right is const
                             tmpexp.type_ = r.type_;
 
                             Value val;
                             tmpexp.TryEvalConst(out val);
-                            Expr newr = ConstExpr.MakeConst(val, tmpexp.type_, r.outputName_);
 
-                            /* now make a new root and attach newl and new r to it. */
-                            children_[0] = newl;
-                            children_[1] = newr;
+                            // set c2 as the value of right child of our left
+                            lrc.val_ = rce.val_;
+
+                            // val is c1 * c2, set it as the value of our right child
+                            rce.val_ = val;
 
                             /* swap the operators */
                             string op = op_;
                             op_ = le.op_;
-                            BinExpr ble = (BinExpr)children_[1];
-                            ble.op_ = op;
+                            le.op_ = op;
                         }
                         /* we can't do any thing about + at the top and * as left child. */
                     }
@@ -494,7 +504,14 @@ namespace qpmodel.expr
                     }
                 }
 
-                // return this;
+                if (lce != null && !lce.IsNull() && rce != null && rce.IsNull())
+                {
+                    if (op_ == "is" || op_ == "is not")
+                    {
+                        string val = op_ == "is" ? "false" : "true";
+                        return ConstExpr.MakeConst(val, new BoolType(), outputName_);
+                    }
+                }
 
                 if (((lce != null && lce.IsNull()) || (rce != null && rce.IsNull())))
                 {
