@@ -241,42 +241,27 @@ namespace qpmodel.sqlparser
         }
         public override object VisitCaseExpr([NotNull] SQLiteParser.CaseExprContext context)
         {
-            var exprs = new List<Expr>();
-            // TODO: koren
-            exprs.Add(Visit(context.logical_expr(0)) as Expr);
-            exprs.Add(Visit(context.arith_expr(0)) as Expr);
-            exprs.Add(Visit(context.arith_expr(1)) as Expr);
-            Expr elsee = null;
-            Expr eval = null;
-            int start = 0, end = exprs.Count - 1;
-            if (context.K_ELSE() != null)
-            {
-                elsee = exprs[end--];
-                if (exprs.Count % 2 == 0)
-                {
-                    eval = exprs[0];
-                    start = 1;
-                }
-            }
-            else
-            {
-                if (exprs.Count % 2 == 1)
-                {
-                    eval = exprs[0];
-                    start = 1;
-                }
-            }
+            var arithExprs = new List<Expr>();
+            var logicalExprs = new List<Expr>();
 
-            Debug.Assert(end > start && (end - start) % 2 == 1);
-            var when = new List<Expr>();
-            var then = new List<Expr>();
+            var arithExprCount = context.arith_expr().Length;
+            var logicalExprCount = context.logical_expr().Length;
 
-            for (int i = start; i <= end;)
-            {
-                when.Add(exprs[i++]);
-                then.Add(exprs[i++]);
-            }
-            return new CaseExpr(eval, when, then, elsee);
+            for (var i = 0; i < arithExprCount; i++)
+                arithExprs.Add(Visit(context.arith_expr(i)) as Expr);
+
+            for (var i = 0; i < logicalExprCount; i++)
+                logicalExprs.Add(Visit(context.logical_expr(i)) as Expr);
+
+            var elseBranchCount = context.K_ELSE() != null ? 1 : 0;
+            var simpleBranchCount = arithExprCount - logicalExprCount - elseBranchCount;
+
+            Expr simpleBranch = simpleBranchCount == 1 ? arithExprs[0] : null;
+            Expr elseBranch = elseBranchCount == 1 ? arithExprs[arithExprCount - 1] : null;
+            int firstThenBranch = simpleBranchCount == 1 ? 1 : 0;
+            int thenBranchCount = arithExprCount - simpleBranchCount - elseBranchCount;
+
+            return new CaseExpr(simpleBranch, logicalExprs, arithExprs.GetRange(firstThenBranch, thenBranchCount), elseBranch);
         }
         public override object VisitTable_or_subquery([NotNull] SQLiteParser.Table_or_subqueryContext context)
             => Visit(context);

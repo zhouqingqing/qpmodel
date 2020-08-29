@@ -37,14 +37,14 @@ order by
 	o_year
 Total cost: 46160.1, memory=26202
 PhysicOrder  (inccost=46160.1, cost=0.1, rows=1, memory=16) (actual rows=2)
-    Output: o_year[0],{sum(case with 1)/sum(volume)(as mkt_share)}[1]
+    Output: o_year[0],{sum(case with 0|1|1)/sum(volume)(as mkt_share)}[1]
     Order by: o_year[0]
     -> PhysicHashAgg  (inccost=46160, cost=9, rows=1, memory=32) (actual rows=2)
-        Output: {o_year}[0],{sum(case with 1)}[1]/{sum(volume)}[2](as mkt_share)
-        Aggregates: sum(case with 1), sum(volume[5])
+        Output: {o_year}[0],{sum(case with 0|1|1)}[1]/{sum(volume)}[2](as mkt_share)
+        Aggregates: sum(case with 0|1|1), sum(volume[5])
         Group by: o_year[0]
         -> PhysicFromQuery <all_nations> (inccost=46151, cost=7, rows=7) (actual rows=5)
-            Output: o_year[0],case with 1,nation[2]='BRAZIL',nation[2],'BRAZIL',volume[1],0
+            Output: o_year[0],case with 0|1|1,nation[2]='BRAZIL',nation[2],'BRAZIL',volume[1],0
             -> PhysicHashJoin  (inccost=46144, cost=1519, rows=7, memory=8) (actual rows=5)
                 Output: {year(o_orderdate)}[1],{l_extendedprice*(1-l_discount)(as volume)}[2],n_name (as nation)[3]
                 Filter: p_partkey[0]=l_partkey[4]
