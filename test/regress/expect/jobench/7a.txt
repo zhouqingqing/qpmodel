@@ -34,16 +34,16 @@ PhysicHashAgg  (inccost=93663006, cost=3, rows=1, memory=4294967296) (actual row
     Aggregates: min(name[0]), min(title[1])
     -> PhysicHashJoin  (inccost=93663003, cost=901346, rows=1, memory=4294967320) (actual rows=0)
         Output: name[0],title[1]
-        Filter: id[2]=person_id[5] and person_id[3]=person_id[5] and person_id[5]=person_id[4]
+        Filter: ((id[2]=person_id[5] and person_id[3]=person_id[5]) and person_id[5]=person_id[4])
         -> PhysicHashJoin  (inccost=91860314, cost=350247, rows=1, memory=2147483688) (actual rows=0)
             Output: name[0],title[6],id[1],person_id[2],person_id[3]
-            Filter: id[7]=movie_id[4] and linked_movie_id[5]=id[7]
+            Filter: (id[7]=movie_id[4] and linked_movie_id[5]=id[7])
             -> PhysicHashJoin  (inccost=88981755, cost=865014, rows=1, memory=24992) (actual rows=0)
                 Output: name[4],id[5],person_id[0],person_id[1],movie_id[2],linked_movie_id[3]
-                Filter: id[5]=person_id[0] and person_id[1]=id[5]
+                Filter: (id[5]=person_id[0] and person_id[1]=id[5])
                 -> PhysicHashJoin  (inccost=83949250, cost=4207856, rows=781, memory=36048) (actual rows=0)
                     Output: person_id[0],person_id[2],movie_id[3],linked_movie_id[4]
-                    Filter: id[5]=info_type_id[1] and person_id[0]=person_id[2]
+                    Filter: (id[5]=info_type_id[1] and person_id[0]=person_id[2])
                     -> PhysicScanTable person_info as pi (inccost=2963664, cost=2963664, rows=2253) (actual rows=0)
                         Output: person_id[1],info_type_id[2]
                         Filter: note[4]='Volker Boehm'
@@ -67,12 +67,12 @@ PhysicHashAgg  (inccost=93663006, cost=3, rows=1, memory=4294967296) (actual row
                             Output: person_id[1],movie_id[2]
                 -> PhysicScanTable name as n (inccost=4167491, cost=4167491, rows=863451) (actual rows=0)
                     Output: name[1],id[0]
-                    Filter: name_pcode_cf[5]>='A' and name_pcode_cf[5]<='F' and gender[4]='m' or gender[4]='f' and name[1]like'B%'
+                    Filter: ((name_pcode_cf[5]>='A' and name_pcode_cf[5]<='F') and (gender[4]='m' or (gender[4]='f' and name[1] like 'B%')))
             -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=350244) (actual rows=0)
                 Output: title[1],id[0]
-                Filter: production_year[4]>=1980 and production_year[4]<=1995
+                Filter: (production_year[4]>=1980 and production_year[4]<=1995)
         -> PhysicScanTable aka_name as an (inccost=901343, cost=901343, rows=901343) (actual rows=0)
             Output: person_id[1]
-            Filter: name[2]like'%a%'
+            Filter: name[2] like '%a%'
 ,
 

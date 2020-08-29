@@ -127,6 +127,58 @@ namespace qpmodel
             }
         }
 
+        static void RunSQLFromFile(string filename)
+        {
+            // Not working as expected, need to investigate.
+            var option = new QueryOption();
+            option.explain_.mode_ = ExplainMode.full;
+            option.optimize_.use_memo_ = true;
+            option.explain_.show_estCost_ = false;
+
+            string allquery = File.ReadAllText(filename);
+            string[] listquery = allquery.Split(';');
+
+            List<string> listoutput = new List<string>();
+            int linenum = 0;
+            for (int i = 0; i < listquery.Length; ++i)
+            {
+                linenum = i + 1;
+                string sql = listquery[i].Trim();
+                if (sql.Length <= 0)
+                    continue;
+                else if (sql.StartsWith("--"))
+                    continue;
+                try
+                {
+                    Console.WriteLine(sql);
+
+                    string outline = linenum.ToString();
+                    outline += ": " + sql + "\n";
+                    listoutput.Add(outline);
+                    var result = SQLStatement.ExecSQL(sql, out string physicplan, out string error_, option);
+                    if (physicplan != null)
+                    {
+                        Console.WriteLine(physicplan);
+                        listoutput.Add(physicplan);
+                    }
+
+                    if (result != null)
+                    {
+                        Console.WriteLine(result);
+                        listoutput.Add(result.ToString());
+                    }
+
+                } catch (Exception e)
+                {
+                    Console.WriteLine("SQL: " + sql + "\nEXCEPTION: " + e + "\n");
+                    continue;
+                }
+            }
+            string alloutput = string.Join('\n', listoutput);
+            string outfile = filename + ".out";
+            File.WriteAllText(outfile, alloutput);
+        }
+
         static void Main(string[] args)
         {
             Catalog.Init();
@@ -138,6 +190,8 @@ namespace qpmodel
                 sql = args[0];
             }
 
+#pragma warning disable CS0162 // Unreachable code detected
+            // The warnings are annoying, so using a pragma to suppress them.
             if (false)
             {
                 JOBench.CreateTables();
@@ -170,113 +224,131 @@ namespace qpmodel
                 // 10,11,13, 31, 38, 41, 48, 54, 66, 72, 74: too slow
                 goto doit;
             }
+#pragma warning restore CS0162 // Unreachable code detected
 
         doit:
+            bool convMode = false;
+
             // Application Arguments in Project properties seem to be
             // effective only after rebuilding.
             // This is a last ditch effort to be able to debug arbitrary
             // statements without rebuilding the solution.
-            if (sql.Length == 1 && sql.Equals("-"))
-            {
-                System.Console.Write("Enter SQL: ");
-                sql = System.Console.ReadLine();
-            }
-            if (sql.Length == 0)
-            {
+            string inputFile = "";
+            if (sql.Length == 2 && sql == "-i")
+                convMode = true;
+            else if (sql.Length == 2 && sql.StartsWith("-f"))
+                inputFile = args[1];
+            else if (sql.Length == 0)
                 sql = "select * from a tablesample row (2);";
-                sql = "select a1,b1 from ad, br where a2=b2 order by a1;";
-            }
 
-            var datetime = new DateTime();
-            datetime = DateTime.Now;
-
-            var stopWatch = new Stopwatch();
-            stopWatch.Start();
-
-            // query options might be conflicting or incomplete
-            Console.WriteLine(sql);
-            var a = RawParser.ParseSingleSqlStatement(sql);
-            ExplainOption.show_tablename_ = false;
-            a.queryOpt_.profile_.enabled_ = true;
-            a.queryOpt_.optimize_.enable_subquery_unnest_ = true;
-            a.queryOpt_.optimize_.remove_from_ = false;
-            a.queryOpt_.optimize_.use_memo_ = true;
-            a.queryOpt_.optimize_.enable_cte_plan_ = true;
-            a.queryOpt_.optimize_.use_codegen_ = false;
-            a.queryOpt_.optimize_.memo_disable_crossjoin_ = false;
-            a.queryOpt_.optimize_.memo_use_joinorder_solver_ = false;
-            a.queryOpt_.explain_.show_output_ = true;
-            a.queryOpt_.explain_.show_id_ = true;
-            a.queryOpt_.explain_.show_estCost_ = a.queryOpt_.optimize_.use_memo_;
-            a.queryOpt_.explain_.mode_ = ExplainMode.full;
-
-            // -- Semantic analysis:
-            //  - bind the query
-            a.queryOpt_.optimize_.ValidateOptions();
-
-            if (!(a is SelectStmt))
+            do
             {
-                SQLStatement.ExecSQLList(sql);
-                goto done;
-            }
+                if (convMode == true || (sql.Length == 1 && sql.Equals("-")))
+                {
+                    System.Console.Write("QSQL> ");
+                    sql = System.Console.ReadLine();
+                    System.Console.WriteLine(sql);
+                }
 
-            a.Bind(null);
+                var datetime = new DateTime();
+                datetime = DateTime.Now;
 
-            // -- generate an initial plan
-            var rawplan = a.CreatePlan();
-            Console.WriteLine("***************** raw plan *************");
-            Console.WriteLine(rawplan.Explain());
+                var stopWatch = new Stopwatch();
+                stopWatch.Start();
 
-            // -- optimize the plan
-            PhysicNode phyplan = null;
-            if (a.queryOpt_.optimize_.use_memo_)
-            {
-                Console.WriteLine("***************** optimized plan *************");
-                var optplan = a.SubstitutionOptimize();
-                Console.WriteLine(optplan.Explain(a.queryOpt_.explain_));
-                a.optimizer_ = new Optimizer(a);
-                a.optimizer_.ExploreRootPlan(a);
-                phyplan = a.optimizer_.CopyOutOptimalPlan();
-                Console.WriteLine(a.optimizer_.PrintMemo());
-                Console.WriteLine("***************** Memo plan *************");
-                Console.WriteLine(phyplan.Explain(a.queryOpt_.explain_));
-            }
-            else
-            {
+                if (inputFile.Length != 0)
+                {
+                    // read the file and execute all statements in it.
+                    RunSQLFromFile(inputFile);
+                    goto done;
+                }
+
+                // query options might be conflicting or incomplete
+                Console.WriteLine(sql);
+                var a = RawParser.ParseSingleSqlStatement(sql);
+                ExplainOption.show_tablename_ = false;
+                a.queryOpt_.profile_.enabled_ = true;
+                a.queryOpt_.optimize_.enable_subquery_unnest_ = true;
+                a.queryOpt_.optimize_.remove_from_ = false;
+                a.queryOpt_.optimize_.use_memo_ = true;
+                a.queryOpt_.optimize_.enable_cte_plan_ = true;
+                a.queryOpt_.optimize_.use_codegen_ = false;
+                a.queryOpt_.optimize_.memo_disable_crossjoin_ = false;
+                a.queryOpt_.optimize_.memo_use_joinorder_solver_ = false;
+                a.queryOpt_.explain_.show_output_ = true;
+                a.queryOpt_.explain_.show_id_ = true;
+                a.queryOpt_.explain_.show_estCost_ = a.queryOpt_.optimize_.use_memo_;
+                a.queryOpt_.explain_.mode_ = ExplainMode.full;
+
+                // -- Semantic analysis:
+                //  - bind the query
+                a.queryOpt_.optimize_.ValidateOptions();
+
+                if (!(a is SelectStmt))
+                {
+                    SQLStatement.ExecSQLList(sql);
+                    goto done;
+                }
+
+                a.Bind(null);
+
+                // -- generate an initial plan
+                var rawplan = a.CreatePlan();
+                Console.WriteLine("***************** raw plan *************");
+                Console.WriteLine(rawplan.Explain());
+
                 // -- optimize the plan
-                Console.WriteLine("-- optimized plan --");
-                var optplan = a.SubstitutionOptimize();
-                Console.WriteLine(optplan.Explain(a.queryOpt_.explain_));
+                PhysicNode phyplan = null;
+                if (a.queryOpt_.optimize_.use_memo_)
+                {
+                    Console.WriteLine("***************** optimized plan *************");
+                    var optplan = a.SubstitutionOptimize();
+                    Console.WriteLine(optplan.Explain(a.queryOpt_.explain_));
+                    a.optimizer_ = new Optimizer(a);
+                    a.optimizer_.ExploreRootPlan(a);
+                    phyplan = a.optimizer_.CopyOutOptimalPlan();
+                    Console.WriteLine(a.optimizer_.PrintMemo());
+                    Console.WriteLine("***************** Memo plan *************");
+                    Console.WriteLine(phyplan.Explain(a.queryOpt_.explain_));
+                }
+                else
+                {
+                    // -- optimize the plan
+                    Console.WriteLine("-- optimized plan --");
+                    var optplan = a.SubstitutionOptimize();
+                    Console.WriteLine(optplan.Explain(a.queryOpt_.explain_));
 
-                // -- physical plan
-                Console.WriteLine("-- physical plan --");
-                phyplan = a.physicPlan_;
+                    // -- physical plan
+                    Console.WriteLine("-- physical plan --");
+                    phyplan = a.physicPlan_;
+                    Console.WriteLine(phyplan.Explain(a.queryOpt_.explain_));
+                }
+
+                // -- output profile and query result
+                Console.WriteLine("-- profiling plan --");
+                var final = new PhysicCollect(phyplan);
+                a.physicPlan_ = final;
+                ExecContext context = a.CreateExecContext();
+
+                final.ValidateThis();
+                if (a is SelectStmt select)
+                    select.OpenSubQueries(context);
+
+                final.Open(context);
+                final.Exec(null);
+                final.Close();
+
+                if (a.queryOpt_.optimize_.use_codegen_)
+                {
+                    CodeWriter.WriteLine(context.code_);
+                    Compiler.Run(Compiler.Compile(), a, context);
+                }
                 Console.WriteLine(phyplan.Explain(a.queryOpt_.explain_));
-            }
+            done:
+                stopWatch.Stop();
+                Console.WriteLine("RunTime: " + stopWatch.Elapsed);
+            } while (convMode == true);
 
-            // -- output profile and query result
-            Console.WriteLine("-- profiling plan --");
-            var final = new PhysicCollect(phyplan);
-            a.physicPlan_ = final;
-            ExecContext context = a.CreateExecContext();
-
-            final.ValidateThis();
-            if (a is SelectStmt select)
-                select.OpenSubQueries(context);
-
-            final.Open(context);
-            final.Exec(null);
-            final.Close();
-
-            if (a.queryOpt_.optimize_.use_codegen_)
-            {
-                CodeWriter.WriteLine(context.code_);
-                Compiler.Run(Compiler.Compile(), a, context);
-            }
-            Console.WriteLine(phyplan.Explain(a.queryOpt_.explain_));
-done:
-            stopWatch.Stop();
-            Console.WriteLine("RunTime: " + stopWatch.Elapsed);
             Console.ReadKey();
         }
     }

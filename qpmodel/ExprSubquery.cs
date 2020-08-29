@@ -331,5 +331,4 @@ namespace qpmodel.expr
             }
         }
     }
-
 }

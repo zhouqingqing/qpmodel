@@ -69,19 +69,19 @@ PhysicHashAgg  (inccost=34462889, cost=3, rows=1, memory=6442450944) (actual row
     Aggregates: min(name[0]), min(info[1]), min(title[2])
     -> PhysicHashJoin  (inccost=34462886, cost=135089, rows=1, memory=6442451000) (actual rows=0)
         Output: name[0],info[1],title[2]
-        Filter: id[3]=movie_id[10] and movie_id[4]=movie_id[10] and movie_id[5]=movie_id[10] and movie_id[6]=movie_id[10] and movie_id[7]=movie_id[10] and id[8]=subject_id[11] and id[9]=status_id[12]
+        Filter: ((((((id[3]=movie_id[10] and movie_id[4]=movie_id[10]) and movie_id[5]=movie_id[10]) and movie_id[6]=movie_id[10]) and movie_id[7]=movie_id[10]) and id[8]=subject_id[11]) and id[9]=status_id[12])
         -> PhysicHashJoin  (inccost=34192711, cost=5, rows=1, memory=6442451008) (actual rows=0)
             Output: name[0],info[1],title[2],id[3],movie_id[4],movie_id[5],movie_id[6],movie_id[7],id[8],id[9]
             Filter: id[11]=kind_id[10]
             -> PhysicHashJoin  (inccost=34192699, cost=1042587, rows=1, memory=4294967344) (actual rows=0)
                 Output: name[0],info[1],title[8],id[9],movie_id[2],movie_id[3],movie_id[4],movie_id[5],id[6],id[7],kind_id[10]
-                Filter: id[9]=movie_id[4] and id[9]=movie_id[3] and id[9]=movie_id[5] and id[9]=movie_id[2]
+                Filter: (((id[9]=movie_id[4] and id[9]=movie_id[3]) and id[9]=movie_id[5]) and id[9]=movie_id[2])
                 -> PhysicHashJoin  (inccost=30621800, cost=4, rows=1, memory=4294967352) (actual rows=0)
                     Output: name[0],info[1],movie_id[2],movie_id[3],movie_id[4],movie_id[5],id[6],id[7]
                     Filter: id[9]=info_type_id[8]
                     -> PhysicHashJoin  (inccost=30621683, cost=1338340, rows=1, memory=2147483688) (actual rows=0)
                         Output: name[0],info[6],movie_id[1],movie_id[2],movie_id[3],movie_id[7],id[4],id[5],info_type_id[8]
-                        Filter: movie_id[1]=movie_id[7] and movie_id[3]=movie_id[7] and movie_id[2]=movie_id[7]
+                        Filter: ((movie_id[1]=movie_id[7] and movie_id[3]=movie_id[7]) and movie_id[2]=movie_id[7])
                         -> PhysicHashJoin  (inccost=27903308, cost=7, rows=1, memory=2147483696) (actual rows=0)
                             Output: name[0],movie_id[1],movie_id[2],movie_id[3],id[4],id[5]
                             Filter: id[7]=company_type_id[6]
@@ -95,7 +95,7 @@ PhysicHashAgg  (inccost=34462889, cost=3, rows=1, memory=6442450944) (actual row
                                         Filter: id[7]=company_id[5]
                                         -> PhysicHashJoin  (inccost=27432933, cost=701250, rows=1, memory=928) (actual rows=0)
                                             Output: movie_id[0],movie_id[4],movie_id[1],company_type_id[2],info_type_id[5],company_id[3]
-                                            Filter: movie_id[0]=movie_id[4] and movie_id[4]=movie_id[1]
+                                            Filter: (movie_id[0]=movie_id[4] and movie_id[4]=movie_id[1])
                                             -> PhysicHashJoin  (inccost=11895963, cost=104662, rows=29, memory=1072) (actual rows=0)
                                                 Output: movie_id[0],movie_id[1],company_type_id[2],company_id[3]
                                                 Filter: movie_id[0]=movie_id[1]
@@ -109,7 +109,7 @@ PhysicHashAgg  (inccost=34462889, cost=3, rows=1, memory=6442450944) (actual row
                                                         Output: movie_id[1],keyword_id[2]
                                                 -> PhysicScanTable movie_companies as mc (inccost=2609129, cost=2609129, rows=104365) (actual rows=0)
                                                     Output: movie_id[1],company_type_id[3],company_id[2]
-                                                    Filter: note[4]not like'%(USA)%' and note[4]like'%(200%)%'
+                                                    Filter: (note[4] not like '%(USA)%' and note[4] like '%(200%)%')
                                             -> PhysicScanTable movie_info as mi (inccost=14835720, cost=14835720, rows=701191) (actual rows=0)
                                                 Output: movie_id[1],info_type_id[2]
                                                 Filter: info[3] in ('Sweden','Norway','Germany', ... <Total: 10> )

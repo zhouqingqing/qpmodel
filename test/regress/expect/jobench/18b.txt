@@ -37,16 +37,16 @@ PhysicHashAgg  (inccost=64744165, cost=3, rows=1, memory=6442450944) (actual row
     Aggregates: min(info[0]), min(info[1]), min(title[2])
     -> PhysicHashJoin  (inccost=64744162, cost=807546, rows=1, memory=4294967320) (actual rows=0)
         Output: info[0],info[1],title[5]
-        Filter: id[6]=movie_id[2] and id[6]=movie_id[3] and id[6]=movie_id[4]
+        Filter: ((id[6]=movie_id[2] and id[6]=movie_id[3]) and id[6]=movie_id[4])
         -> PhysicHashJoin  (inccost=61408304, cost=1483554, rows=1, memory=4294967328) (actual rows=0)
             Output: info[0],info[1],movie_id[2],movie_id[3],movie_id[4]
             Filter: id[6]=person_id[5]
             -> PhysicHashJoin  (inccost=55757259, cost=3168806, rows=1, memory=98784248176) (actual rows=0)
                 Output: info[0],info[1],movie_id[4],movie_id[2],movie_id[3],person_id[5]
-                Filter: movie_id[4]=movie_id[2] and movie_id[4]=movie_id[3]
+                Filter: (movie_id[4]=movie_id[2] and movie_id[4]=movie_id[3])
                 -> PhysicHashJoin  (inccost=16344109, cost=53930, rows=23, memory=2207613206592) (actual rows=0)
                     Output: info[0],info[3],movie_id[1],movie_id[4]
-                    Filter: movie_id[1]=movie_id[4] and id[2]=info_type_id[5]
+                    Filter: (movie_id[1]=movie_id[4] and id[2]=info_type_id[5])
                     -> PhysicHashJoin  (inccost=14910144, cost=74077, rows=1028, memory=16) (actual rows=0)
                         Output: info[2],movie_id[3],id[0]
                         Filter: id[1]=info_type_id[4]
@@ -60,7 +60,7 @@ PhysicHashAgg  (inccost=64744165, cost=3, rows=1, memory=6442450944) (actual row
                                 Filter: info[1]='genres'
                         -> PhysicScanTable movie_info as mi (inccost=14835720, cost=14835720, rows=73047) (actual rows=0)
                             Output: info[3],movie_id[1],info_type_id[2]
-                            Filter: info[3] in ('Horror','Thriller') and note[4]isnull
+                            Filter: (info[3] in ('Horror','Thriller') and note[4] is null)
                     -> PhysicScanTable movie_info_idx as mi_idx (inccost=1380035, cost=1380035, rows=51851) (actual rows=0)
                         Output: info[3],movie_id[1],info_type_id[2]
                         Filter: info[3]>'8.0'
@@ -69,9 +69,9 @@ PhysicHashAgg  (inccost=64744165, cost=3, rows=1, memory=6442450944) (actual row
                     Filter: note[4] in ('(writer)','(head writer)','(written by)', ... <Total: 5> )
             -> PhysicScanTable name as n (inccost=4167491, cost=4167491, rows=1483551) (actual rows=0)
                 Output: id[0]
-                Filter: gender[4]is notnull and gender[4]='f'
+                Filter: (gender[4] is not null and gender[4]='f')
         -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=807543) (actual rows=0)
             Output: title[1],id[0]
-            Filter: production_year[4]>=2008 and production_year[4]<=2014
+            Filter: (production_year[4]>=2008 and production_year[4]<=2014)
 ,,
 

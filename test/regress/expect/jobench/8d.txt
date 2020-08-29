@@ -23,10 +23,10 @@ PhysicHashAgg  (inccost=251548720, cost=3, rows=1, memory=4294967296) (actual ro
     Aggregates: min(name[0]), min(title[1])
     -> PhysicHashJoin  (inccost=251548717, cost=901350, rows=1, memory=6442450992) (actual rows=0)
         Output: name[3],title[0]
-        Filter: person_id[4]=id[1] and person_id[4]=person_id[2]
+        Filter: (person_id[4]=id[1] and person_id[4]=person_id[2])
         -> PhysicHashJoin  (inccost=249746024, cost=8325709, rows=3, memory=5429508697268672) (actual rows=0)
             Output: title[0],id[2],person_id[3]
-            Filter: movie_id[4]=id[1] and id[1]=movie_id[5]
+            Filter: (movie_id[4]=id[1] and id[1]=movie_id[5])
             -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=2528312) (actual rows=0)
                 Output: title[1],id[0]
             -> PhysicHashJoin  (inccost=238892003, cost=39228993, rows=3269082, memory=8) (actual rows=0)

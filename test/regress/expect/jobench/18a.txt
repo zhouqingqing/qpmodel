@@ -29,16 +29,16 @@ PhysicHashAgg  (inccost=85497232, cost=3, rows=1, memory=6442450944) (actual row
     Aggregates: min(info[0]), min(info[1]), min(title[2])
     -> PhysicHashJoin  (inccost=85497229, cost=2528315, rows=1, memory=4294967320) (actual rows=0)
         Output: info[0],info[1],title[5]
-        Filter: id[6]=movie_id[2] and id[6]=movie_id[3] and id[6]=movie_id[4]
+        Filter: ((id[6]=movie_id[2] and id[6]=movie_id[3]) and id[6]=movie_id[4])
         -> PhysicHashJoin  (inccost=80440602, cost=536790, rows=1, memory=4294967328) (actual rows=0)
             Output: info[0],info[1],movie_id[2],movie_id[3],movie_id[4]
             Filter: id[6]=person_id[5]
             -> PhysicHashJoin  (inccost=75736321, cost=6307864, rows=1, memory=538567426088240) (actual rows=0)
                 Output: info[0],info[1],movie_id[4],movie_id[2],movie_id[3],person_id[5]
-                Filter: movie_id[4]=movie_id[2] and movie_id[4]=movie_id[3]
+                Filter: (movie_id[4]=movie_id[2] and movie_id[4]=movie_id[3])
                 -> PhysicHashJoin  (inccost=33184113, cost=1923336, rows=125395, memory=448723154043792) (actual rows=0)
                     Output: info[0],info[3],movie_id[1],movie_id[4]
-                    Filter: movie_id[1]=movie_id[4] and id[2]=info_type_id[5]
+                    Filter: (movie_id[1]=movie_id[4] and id[2]=info_type_id[5])
                     -> PhysicHashJoin  (inccost=29880742, cost=15044675, rows=208953, memory=16) (actual rows=0)
                         Output: info[2],movie_id[3],id[0]
                         Filter: id[1]=info_type_id[4]
@@ -59,7 +59,7 @@ PhysicHashAgg  (inccost=85497232, cost=3, rows=1, memory=6442450944) (actual row
                     Filter: note[4] in ('(producer)','(executive producer)')
             -> PhysicScanTable name as n (inccost=4167491, cost=4167491, rows=536787) (actual rows=0)
                 Output: id[0]
-                Filter: gender[4]='m' and name[1]like'%Tim%'
+                Filter: (gender[4]='m' and name[1] like '%Tim%')
         -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=2528312) (actual rows=0)
             Output: title[1],id[0]
 ,,

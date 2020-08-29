@@ -45,10 +45,10 @@ PhysicHashAgg  (inccost=98618038, cost=3, rows=1, memory=4294967296) (actual row
     Aggregates: min(name[0]), min(title[1])
     -> PhysicHashJoin  (inccost=98618035, cost=135089, rows=1, memory=4294967336) (actual rows=0)
         Output: name[0],title[1]
-        Filter: id[2]=movie_id[7] and movie_id[3]=movie_id[7] and movie_id[4]=movie_id[7] and id[5]=subject_id[8] and id[6]=status_id[9]
+        Filter: ((((id[2]=movie_id[7] and movie_id[3]=movie_id[7]) and movie_id[4]=movie_id[7]) and id[5]=subject_id[8]) and id[6]=status_id[9])
         -> PhysicHashJoin  (inccost=98347860, cost=1439042, rows=1, memory=18341658179208) (actual rows=0)
             Output: name[0],title[6],id[7],movie_id[1],movie_id[2],id[3],id[4]
-            Filter: id[5]=kind_id[8] and id[7]=movie_id[1] and id[7]=movie_id[2]
+            Filter: ((id[5]=kind_id[8] and id[7]=movie_id[1]) and id[7]=movie_id[2])
             -> PhysicHashJoin  (inccost=94380506, cost=4192640, rows=8541, memory=398592) (actual rows=0)
                 Output: name[6],movie_id[0],movie_id[1],id[2],id[3],id[4]
                 Filter: id[7]=person_id[5]
@@ -72,7 +72,7 @@ PhysicHashAgg  (inccost=98618038, cost=3, rows=1, memory=4294967296) (actual row
                                         Output: id[1],id[0]
                                         -> PhysicScanTable comp_cast_type as cct2 (inccost=4, cost=4, rows=1) (actual rows=0)
                                             Output: id[0]
-                                            Filter: kind[1]like'%complete%'
+                                            Filter: kind[1] like '%complete%'
                                         -> PhysicScanTable comp_cast_type as cct1 (inccost=4, cost=4, rows=1) (actual rows=0)
                                             Output: id[0]
                                             Filter: kind[1]='cast'
@@ -85,7 +85,7 @@ PhysicHashAgg  (inccost=98618038, cost=3, rows=1, memory=4294967296) (actual row
                             Output: movie_id[2],person_id[1],person_role_id[3]
                     -> PhysicScanTable char_name as chn (inccost=3140339, cost=3140339, rows=1130522) (actual rows=0)
                         Output: id[0]
-                        Filter: name[1]is notnull and name[1]like'%man%' or name[1]like'%Man%'
+                        Filter: (name[1] is not null and (name[1] like '%man%' or name[1] like '%Man%'))
                 -> PhysicScanTable name as n (inccost=4167491, cost=4167491, rows=4167491) (actual rows=0)
                     Output: name[1],id[0]
             -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=1421959) (actual rows=0)

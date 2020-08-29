@@ -53,13 +53,13 @@ PhysicLimit (100) (inccost=38044950.02, cost=100, rows=100) (actual rows=0)
                 Filter: {#marker}[0]
                 -> PhysicMarkJoin Left (inccost=38032796, cost=36060025, rows=6005) (actual rows=0)
                     Output: #marker,s_name[0]
-                    Filter: l_orderkey[3]=l_orderkey[1] and l_suppkey[4]<>l_suppkey[2]
+                    Filter: (l_orderkey[3]=l_orderkey[1] and l_suppkey[4]<>l_suppkey[2])
                     -> PhysicFilter  (inccost=1966766, cost=6005, rows=6005) (actual rows=0)
                         Output: s_name[1],l_orderkey[2],l_suppkey[3]
                         Filter: {#marker}[0]
                         -> PhysicMarkJoin Left (inccost=1960761, cost=1933610, rows=6005) (actual rows=0)
                             Output: #marker,s_name[0],l_orderkey[1],l_suppkey[2]
-                            Filter: l_orderkey[3]=l_orderkey[1] and l_suppkey[4]<>l_suppkey[2]
+                            Filter: (l_orderkey[3]=l_orderkey[1] and l_suppkey[4]<>l_suppkey[2])
                             -> PhysicHashJoin  (inccost=21146, cost=3230, rows=322, memory=58) (actual rows=0)
                                 Output: s_name[0],l_orderkey[2],l_suppkey[3]
                                 Filter: s_suppkey[1]=l_suppkey[3]

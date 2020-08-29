@@ -37,7 +37,7 @@ PhysicHashAgg  (inccost=21967618, cost=3, rows=1, memory=4294967360) (actual row
                     Filter: movie_id[5]=id[2]
                     -> PhysicHashJoin  (inccost=16632846, cost=9580604, rows=50, memory=5429508697268672) (actual rows=0)
                         Output: title[0],keyword_id[2],id[1]
-                        Filter: id[1]=movie_id[3] and movie_id[3]=id[1]
+                        Filter: (id[1]=movie_id[3] and movie_id[3]=id[1])
                         -> PhysicScanTable title as t1 (inccost=2528312, cost=2528312, rows=2528312) (actual rows=0)
                             Output: title[1],id[0]
                         -> PhysicScanTable movie_keyword as mk (inccost=4523930, cost=4523930, rows=4523930) (actual rows=0)

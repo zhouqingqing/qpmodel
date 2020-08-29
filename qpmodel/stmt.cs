@@ -624,10 +624,14 @@ namespace qpmodel.logic
                     List<Expr> andlist = new List<Expr>();
                     var filterexpr = filter.filter_;
 
-                    // if it is a constant true filer, remove it. If a false filter, we leave 
-                    // it there - shall we try hard to stop query early? Nope, it is no deserved
-                    // to poke around for this corner case.
-                    //
+                    // if it is a constant true filer, remove it.
+                    // Reason for pushing a false filter.
+                    // One of the expression normalization rules replaces terms like
+                    // COL > NULL, COL < NULL COL <> NULL with a FALSE term
+                    // and this way it is possible to have the whole of the WHERE
+                    // reduced to WHERE FALSE.
+                    // Pushing down this false filter may help optimizer completely
+                    // eliminate an intermediate query node.
                     var isConst = filterexpr.FilterIsConst(out bool trueOrFalse);
                     if (isConst)
                     {
@@ -643,9 +647,8 @@ namespace qpmodel.logic
                         andlist.RemoveAll(e =>
                         {
                             var isConst = e.FilterIsConst(out bool trueOrFalse);
-                            if (isConst)
+                            if (isConst && trueOrFalse)
                             {
-                                Debug.Assert(trueOrFalse);
                                 return true;
                             }
                             return pushdownFilter(plan, e, pushJoinFilter);
@@ -681,7 +684,7 @@ namespace qpmodel.logic
         {
             var ret = new List<NamedQuery>();
             Debug.Assert(subQueries_.Count >=
-                    fromQueries_.Count + decorrelatedSubs_.Count);
+                fromQueries_.Count + decorrelatedSubs_.Count);
             if (excludeFromAndDecorrelated)
             {
                 foreach (var x in subQueries_)

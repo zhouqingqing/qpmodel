@@ -39,4 +39,4 @@ PhysicOrder  (inccost=8550182.1, cost=0.1, rows=1, memory=8)
                         Output: c_custkey[0]
                     -> PhysicScanTable orders (inccost=1500000, cost=1500000, rows=1500000)
                         Output: o_orderkey[0],o_custkey[1]
-                        Filter: o_comment[8]not like'%special%requests%'
+                        Filter: o_comment[8] not like '%special%requests%'

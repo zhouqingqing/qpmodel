@@ -36,16 +36,16 @@ PhysicHashAgg  (inccost=19817990, cost=3, rows=1, memory=6442450944) (actual row
         Filter: company_id[2]=id[4]
         -> PhysicHashJoin  (inccost=19347990, cost=2354613, rows=1, memory=2147483680) (actual rows=0)
             Output: note[0],title[5],company_id[1]
-            Filter: movie_id[2]=id[6] and id[6]=movie_id[3] and id[6]=movie_id[4]
+            Filter: ((movie_id[2]=id[6] and id[6]=movie_id[3]) and id[6]=movie_id[4])
             -> PhysicHashJoin  (inccost=14465065, cost=21, rows=1, memory=2147483688) (actual rows=0)
                 Output: note[0],company_id[1],movie_id[2],movie_id[3],movie_id[4]
                 Filter: id[6]=link_type_id[5]
                 -> PhysicHashJoin  (inccost=14465026, cost=32212, rows=1, memory=2377264424904) (actual rows=0)
                     Output: note[0],company_id[1],movie_id[4],movie_id[2],movie_id[3],link_type_id[5]
-                    Filter: movie_id[4]=movie_id[3] and movie_id[4]=movie_id[2]
+                    Filter: (movie_id[4]=movie_id[3] and movie_id[4]=movie_id[2])
                     -> PhysicHashJoin  (inccost=14402817, cost=2611044, rows=1107, memory=6464) (actual rows=0)
                         Output: note[2],company_id[3],movie_id[0],movie_id[4]
-                        Filter: movie_id[0]=movie_id[4] and company_type_id[5]=id[1]
+                        Filter: (movie_id[0]=movie_id[4] and company_type_id[5]=id[1])
                         -> PhysicHashJoin  (inccost=9182644, cost=4524358, rows=404, memory=192) (actual rows=0)
                             Output: movie_id[2],id[0]
                             Filter: keyword_id[3]=id[1]
@@ -56,12 +56,12 @@ PhysicHashAgg  (inccost=19817990, cost=3, rows=1, memory=6442450944) (actual row
                                     Filter: keyword[1] in ('sequel','revenge','based-on-novel')
                                 -> PhysicScanTable company_type as ct (inccost=4, cost=4, rows=4) (actual rows=0)
                                     Output: id[0]
-                                    Filter: kind[1]!='production companies' and kind[1]is notnull
+                                    Filter: (kind[1]!='production companies' and kind[1] is not null)
                             -> PhysicScanTable movie_keyword as mk (inccost=4523930, cost=4523930, rows=4523930) (actual rows=0)
                                 Output: movie_id[1],keyword_id[2]
                         -> PhysicScanTable movie_companies as mc (inccost=2609129, cost=2609129, rows=2609129) (actual rows=0)
                             Output: note[4],company_id[2],movie_id[1],company_type_id[3]
-                            Filter: note[4]is notnull
+                            Filter: note[4] is not null
                     -> PhysicScanTable movie_link as ml (inccost=29997, cost=29997, rows=29997) (actual rows=0)
                         Output: movie_id[1],link_type_id[3]
                 -> PhysicScanTable link_type as lt (inccost=18, cost=18, rows=18) (actual rows=0)

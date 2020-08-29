@@ -51,23 +51,23 @@ PhysicOrder  (inccost=48.1, cost=0.1, rows=1, memory=65) (actual rows=0)
             <InSubqueryExpr> cached 1
                 -> PhysicFilter  (inccost=12815, cost=367, rows=367) (actual rows=47)
                     Output: ps_suppkey[0]
-                    Filter: ps_availqty[1]>0.5*{sum(l_quantity)}[2]
+                    Filter: ps_availqty[1]>{sum(l_quantity)}[2]*0.5
                     -> PhysicHashJoin Left (inccost=12448, cost=2886, rows=367, memory=19200) (actual rows=60)
                         Output: ps_suppkey[0],ps_availqty[1],{sum(l_quantity)}[3]
-                        Filter: l_partkey[4]=ps_partkey[2] and l_suppkey[5]=ps_suppkey[0]
+                        Filter: (l_partkey[4]=ps_partkey[2] and l_suppkey[5]=ps_suppkey[0])
                         -> PhysicScanTable partsupp (inccost=800, cost=800, rows=800) (actual rows=60)
                             Output: ps_suppkey[1],ps_availqty[2],ps_partkey[0]
                             Filter: ps_partkey[0] in @2
                             <InSubqueryExpr> cached 2
                                 -> PhysicScanTable part (inccost=200, cost=200, rows=1) (actual rows=15)
                                     Output: p_partkey[0]
-                                    Filter: p_name[1]like'forest%'
+                                    Filter: p_name[1] like 'forest%'
                         -> PhysicHashAgg  (inccost=8762, cost=2757, rows=919, memory=29408) (actual rows=499)
                             Output: {sum(l_quantity)}[2],{l_partkey}[0],{l_suppkey}[1]
                             Aggregates: sum(l_quantity[2])
                             Group by: l_partkey[0], l_suppkey[1]
                             -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=919) (actual rows=922)
                                 Output: l_partkey[1],l_suppkey[2],l_quantity[4]
-                                Filter: l_shipdate[10]>='1994-01-01' and l_shipdate[10]<'1/1/1995 12:00:00 AM'
+                                Filter: (l_shipdate[10]>='1994-01-01' and l_shipdate[10]<'1/1/1995 12:00:00 AM')
 
 

@@ -45,10 +45,10 @@ PhysicHashAgg  (inccost=71920531, cost=3, rows=1, memory=4294967296) (actual row
     Aggregates: min(name[0]), min(title[1])
     -> PhysicHashJoin  (inccost=71920528, cost=901346, rows=1, memory=4294967312) (actual rows=0)
         Output: name[0],title[1]
-        Filter: id[2]=person_id[4] and person_id[3]=person_id[4]
+        Filter: (id[2]=person_id[4] and person_id[3]=person_id[4])
         -> PhysicHashJoin  (inccost=70117839, cost=591442, rows=1, memory=2147483688) (actual rows=0)
             Output: name[0],title[6],id[1],person_id[2]
-            Filter: id[7]=movie_id[3] and id[7]=movie_id[4] and id[7]=movie_id[5]
+            Filter: ((id[7]=movie_id[3] and id[7]=movie_id[4]) and id[7]=movie_id[5])
             -> PhysicHashJoin  (inccost=66998085, cost=4, rows=1, memory=8) (actual rows=0)
                 Output: name[1],id[2],person_id[3],movie_id[4],movie_id[5],movie_id[6]
                 Filter: id[0]=role_id[7]
@@ -63,7 +63,7 @@ PhysicHashAgg  (inccost=71920531, cost=3, rows=1, memory=4294967296) (actual row
                         Filter: id[6]=person_role_id[5]
                         -> PhysicHashJoin  (inccost=56253184, cost=2208398, rows=1, memory=16) (actual rows=0)
                             Output: person_id[2],movie_id[0],movie_id[1],movie_id[3],role_id[4],person_role_id[5]
-                            Filter: movie_id[1]=movie_id[3] and movie_id[0]=movie_id[3]
+                            Filter: (movie_id[1]=movie_id[3] and movie_id[0]=movie_id[3])
                             -> PhysicHashJoin  (inccost=17800442, cost=94462, rows=1, memory=24) (actual rows=0)
                                 Output: movie_id[0],movie_id[1]
                                 Filter: id[3]=company_id[2]
@@ -78,10 +78,10 @@ PhysicHashAgg  (inccost=71920531, cost=3, rows=1, memory=4294967296) (actual row
                                             Filter: info[1]='release dates'
                                         -> PhysicScanTable movie_info as mi (inccost=14835720, cost=14835720, rows=4937) (actual rows=0)
                                             Output: movie_id[1],info_type_id[2]
-                                            Filter: info[3]is notnull and info[3]like'Japan:%200%' or info[3]like'USA:%200%'
+                                            Filter: (info[3] is not null and (info[3] like 'Japan:%200%' or info[3] like 'USA:%200%'))
                                     -> PhysicScanTable movie_companies as mc (inccost=2609129, cost=2609129, rows=20874) (actual rows=0)
                                         Output: movie_id[1],company_id[2]
-                                        Filter: note[4]is notnull and note[4]like'%(USA)%' or note[4]like'%(worldwide)%'
+                                        Filter: (note[4] is not null and (note[4] like '%(USA)%' or note[4] like '%(worldwide)%'))
                                 -> PhysicScanTable company_name as cn (inccost=234997, cost=234997, rows=94459) (actual rows=0)
                                     Output: id[0]
                                     Filter: country_code[2]='[us]'
@@ -92,10 +92,10 @@ PhysicHashAgg  (inccost=71920531, cost=3, rows=1, memory=4294967296) (actual row
                             Output: id[0]
                     -> PhysicScanTable name as n (inccost=4167491, cost=4167491, rows=296710) (actual rows=0)
                         Output: name[1],id[0]
-                        Filter: gender[4]='f' and name[1]like'%Ang%'
+                        Filter: (gender[4]='f' and name[1] like '%Ang%')
             -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=591439) (actual rows=0)
                 Output: title[1],id[0]
-                Filter: production_year[4]>=2005 and production_year[4]<=2009
+                Filter: (production_year[4]>=2005 and production_year[4]<=2009)
         -> PhysicScanTable aka_name as an (inccost=901343, cost=901343, rows=901343) (actual rows=0)
             Output: person_id[1]
 ,

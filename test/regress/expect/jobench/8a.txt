@@ -28,10 +28,10 @@ PhysicHashAgg  (inccost=54529072, cost=3, rows=1, memory=4294967296) (actual row
     Aggregates: min(name[0]), min(title[1])
     -> PhysicHashJoin  (inccost=54529069, cost=901346, rows=1, memory=2147483664) (actual rows=0)
         Output: name[3],title[0]
-        Filter: person_id[4]=id[1] and person_id[4]=person_id[2]
+        Filter: (person_id[4]=id[1] and person_id[4]=person_id[2])
         -> PhysicHashJoin  (inccost=52726380, cost=2528315, rows=1, memory=32) (actual rows=0)
             Output: title[4],id[0],person_id[1]
-            Filter: movie_id[2]=id[5] and id[5]=movie_id[3]
+            Filter: (movie_id[2]=id[5] and id[5]=movie_id[3])
             -> PhysicHashJoin  (inccost=47669753, cost=8, rows=1, memory=8) (actual rows=0)
                 Output: id[1],person_id[2],movie_id[3],movie_id[4]
                 Filter: role_id[5]=id[0]
@@ -49,7 +49,7 @@ PhysicHashAgg  (inccost=54529072, cost=3, rows=1, memory=4294967296) (actual row
                             Filter: company_id[1]=id[2]
                             -> PhysicScanTable movie_companies as mc (inccost=2609129, cost=2609129, rows=834) (actual rows=0)
                                 Output: movie_id[1],company_id[2]
-                                Filter: note[4]like'%(Japan)%' and note[4]not like'%(USA)%'
+                                Filter: (note[4] like '%(Japan)%' and note[4] not like '%(USA)%')
                             -> PhysicScanTable company_name as cn (inccost=234997, cost=234997, rows=7517) (actual rows=0)
                                 Output: id[0]
                                 Filter: country_code[2]='[jp]'
@@ -58,7 +58,7 @@ PhysicHashAgg  (inccost=54529072, cost=3, rows=1, memory=4294967296) (actual row
                             Filter: note[4]='(voice: English version)'
                     -> PhysicScanTable name as n1 (inccost=4167491, cost=4167491, rows=4167491) (actual rows=0)
                         Output: id[0]
-                        Filter: name[1]like'%Yo%' and name[1]not like'%Yu%'
+                        Filter: (name[1] like '%Yo%' and name[1] not like '%Yu%')
             -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=2528312) (actual rows=0)
                 Output: title[1],id[0]
         -> PhysicScanTable aka_name as an1 (inccost=901343, cost=901343, rows=901343) (actual rows=0)

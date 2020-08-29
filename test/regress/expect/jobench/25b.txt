@@ -50,7 +50,7 @@ PhysicHashAgg  (inccost=75601772, cost=3, rows=1, memory=8589934592) (actual row
         Filter: id[5]=person_id[3]
         -> PhysicHashJoin  (inccost=68750336, cost=3168762, rows=1, memory=6442450976) (actual rows=0)
             Output: info[0],info[1],title[2],person_id[7]
-            Filter: movie_id[8]=movie_id[3] and movie_id[8]=movie_id[4] and movie_id[8]=movie_id[5] and id[6]=movie_id[8]
+            Filter: (((movie_id[8]=movie_id[3] and movie_id[8]=movie_id[4]) and movie_id[8]=movie_id[5]) and id[6]=movie_id[8])
             -> PhysicHashJoin  (inccost=29337230, cost=4, rows=1, memory=6442450984) (actual rows=0)
                 Output: info[0],info[1],title[2],movie_id[3],movie_id[4],movie_id[5],id[6]
                 Filter: id[8]=info_type_id[7]
@@ -62,16 +62,16 @@ PhysicHashAgg  (inccost=75601772, cost=3, rows=1, memory=8589934592) (actual row
                         Filter: id[10]=keyword_id[9]
                         -> PhysicHashJoin  (inccost=29202819, cost=1380038, rows=1, memory=4294967336) (actual rows=0)
                             Output: info[0],info[7],title[1],movie_id[2],movie_id[8],movie_id[3],id[4],info_type_id[5],info_type_id[9],keyword_id[6]
-                            Filter: movie_id[8]=movie_id[3] and id[4]=movie_id[8] and movie_id[2]=movie_id[8]
+                            Filter: ((movie_id[8]=movie_id[3] and id[4]=movie_id[8]) and movie_id[2]=movie_id[8])
                             -> PhysicHashJoin  (inccost=26442746, cost=4523933, rows=1, memory=4294967320) (actual rows=0)
                                 Output: info[0],title[1],movie_id[2],movie_id[5],id[3],info_type_id[4],keyword_id[6]
-                                Filter: id[3]=movie_id[5] and movie_id[2]=movie_id[5]
+                                Filter: (id[3]=movie_id[5] and movie_id[2]=movie_id[5])
                                 -> PhysicHashJoin  (inccost=17394883, cost=30851, rows=1, memory=53687091400) (actual rows=0)
                                     Output: info[2],title[0],movie_id[3],id[1],info_type_id[4]
                                     Filter: id[1]=movie_id[3]
                                     -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=25) (actual rows=0)
                                         Output: title[1],id[0]
-                                        Filter: production_year[4]>2010 and title[1]like'Vampire%'
+                                        Filter: (production_year[4]>2010 and title[1] like 'Vampire%')
                                     -> PhysicScanTable movie_info as mi (inccost=14835720, cost=14835720, rows=30800) (actual rows=0)
                                         Output: info[3],movie_id[1],info_type_id[2]
                                         Filter: info[3]='Horror'

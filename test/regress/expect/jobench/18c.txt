@@ -37,16 +37,16 @@ PhysicHashAgg  (inccost=69119048, cost=3, rows=1, memory=6442450944) (actual row
     Aggregates: min(info[0]), min(info[1]), min(title[2])
     -> PhysicHashJoin  (inccost=69119045, cost=2528315, rows=1, memory=4294967320) (actual rows=0)
         Output: info[0],info[1],title[5]
-        Filter: id[6]=movie_id[2] and id[6]=movie_id[3] and id[6]=movie_id[4]
+        Filter: ((id[6]=movie_id[2] and id[6]=movie_id[3]) and id[6]=movie_id[4])
         -> PhysicHashJoin  (inccost=64062418, cost=2683942, rows=1, memory=4294967328) (actual rows=0)
             Output: info[0],info[1],movie_id[2],movie_id[3],movie_id[4]
             Filter: id[6]=person_id[5]
             -> PhysicHashJoin  (inccost=57210985, cost=3171952, rows=1, memory=6854767829952) (actual rows=0)
                 Output: info[0],info[1],movie_id[4],movie_id[2],movie_id[3],person_id[5]
-                Filter: movie_id[4]=movie_id[2] and movie_id[4]=movie_id[3]
+                Filter: (movie_id[4]=movie_id[2] and movie_id[4]=movie_id[3])
                 -> PhysicHashJoin  (inccost=17794689, cost=1386953, rows=1596, memory=5714454029904) (actual rows=0)
                     Output: info[0],info[3],movie_id[1],movie_id[4]
-                    Filter: movie_id[1]=movie_id[4] and id[2]=info_type_id[5]
+                    Filter: (movie_id[1]=movie_id[4] and id[2]=info_type_id[5])
                     -> PhysicHashJoin  (inccost=15027701, cost=191634, rows=2661, memory=16) (actual rows=0)
                         Output: info[2],movie_id[3],id[0]
                         Filter: id[1]=info_type_id[4]

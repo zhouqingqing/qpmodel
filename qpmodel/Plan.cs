@@ -634,7 +634,7 @@ namespace qpmodel.logic
             byList.ForEach(x =>
             {
                 if (!x.bounded_)        // some items already bounded with seq2selection()
-                    x.Bind(context);
+                    x = x.BindAndNormalize(context);
             });
             if (queryOpt_.optimize_.remove_from_)
             {
@@ -660,10 +660,9 @@ namespace qpmodel.logic
                 }
                 else
                 {
-                    x.Bind(context);
+                    x = x.BindAndNormalize(context);
                     if (x.HasAggFunc())
                         hasAgg_ = true;
-                    x = x.ConstFolding();
                     if (queryOpt_.optimize_.remove_from_)
                         x = x.DeQueryRef();
                     newselection.Add(x);
@@ -690,9 +689,10 @@ namespace qpmodel.logic
             bindFrom(context);
 
             selection_ = bindSelectionList(context);
+
             if (where_ != null)
             {
-                where_.Bind(context);
+                where_ = where_.BindAndNormalizeClause(context);
                 where_ = where_.FilterNormalize();
                 if (!where_.IsBoolean() || where_.HasAggFunc())
                     throw new SemanticAnalyzeException(
@@ -712,7 +712,7 @@ namespace qpmodel.logic
             if (having_ != null)
             {
                 hasAgg_ = true;
-                having_.Bind(context);
+                having_ = having_.BindAndNormalize(context);
                 having_ = having_.FilterNormalize();
                 if (!having_.IsBoolean())
                     throw new SemanticAnalyzeException("HAVING condition must be a blooean expression");
@@ -750,7 +750,7 @@ namespace qpmodel.logic
                     break;
                 case JoinQueryRef jref:
                     jref.tables_.ForEach(x => bindTableRef(context, x));
-                    jref.constraints_.ForEach(x => x.Bind(context));
+                    jref.constraints_.ForEach(x => x = x.BindAndNormalize(context));
                     break;
                 default:
                     throw new NotImplementedException();

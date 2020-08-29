@@ -26,7 +26,7 @@ PhysicHashAgg  (inccost=13521297, cost=3, rows=1, memory=4294967296) (actual row
             Filter: info[1]='rating'
         -> PhysicHashJoin  (inccost=13521177, cost=403268, rows=1, memory=210453399856) (actual rows=0)
             Output: info[0],title[4],info_type_id[1]
-            Filter: id[5]=movie_id[2] and id[5]=movie_id[3]
+            Filter: (id[5]=movie_id[2] and id[5]=movie_id[3])
             -> PhysicHashJoin  (inccost=10589597, cost=19889, rows=98, memory=13503377279232) (actual rows=0)
                 Output: info[0],info_type_id[1],movie_id[2],movie_id[3]
                 Filter: movie_id[3]=movie_id[2]
@@ -38,7 +38,7 @@ PhysicHashAgg  (inccost=13521297, cost=3, rows=1, memory=4294967296) (actual row
                     Filter: id[0]=keyword_id[2]
                     -> PhysicScanTable keyword as k (inccost=134170, cost=134170, rows=214) (actual rows=0)
                         Output: id[0]
-                        Filter: keyword[1]like'%sequel%'
+                        Filter: keyword[1] like '%sequel%'
                     -> PhysicScanTable movie_keyword as mk (inccost=4523930, cost=4523930, rows=4523930) (actual rows=0)
                         Output: movie_id[1],keyword_id[2]
             -> PhysicScanTable title as t (inccost=2528312, cost=2528312, rows=403071) (actual rows=0)

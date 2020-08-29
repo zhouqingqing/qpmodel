@@ -726,7 +726,7 @@ namespace qpmodel.unittest
                                     Aggregates: min(b.b1[1]*2)
                                     -> PhysicFilter  (actual rows=3)
                                         Output: {b.b1*2}[0],b.b1[1],2
-                                        Filter: b.b2[3]>=c.c2[4]-1
+                                        Filter: b.b2[3]>=(c.c2[4]-1)
                                         -> PhysicSingleJoin Left (actual rows=3)
                                             Output: {b.b1*2}[0],b.b1[1],{2}[2],b.b2[3],c.c2[4]
                                             Filter: c.c2[4]=b.b2[3]
@@ -751,7 +751,7 @@ namespace qpmodel.unittest
             // FIXME: a.a1+b.a1=5-c.a1, a.a1+b.a1+c.a1=5
             sql = "select a.a1,b.a1,c.a1, a.a1+b.a1+c.a1 from a, a b, a c where a.a1=5-b.a1-c.a1;";
             TU.ExecuteSQL(sql, "2,2,1,5;2,1,2,5;1,2,2,5", out phyplan, option);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "a.a1[0]=5-b.a1[1]-c.a1[2]"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "a.a1[0]=((5-b.a1[1])-c.a1[2])"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "HashJoin"));
 
             sql = "select a.* from a join b on a1=b1 or a3=b3 join c on a2=c2;";
@@ -762,7 +762,7 @@ namespace qpmodel.unittest
             sql = "select a.* from a join b on a1=b1 or a3=b3 join c on a2=c2 join d on a4=2*d3;";
             TU.ExecuteSQL(sql, "1,2,3,4", out phyplan, option);
             Assert.AreEqual(1, TU.CountStr(phyplan, "NLJoin"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Filter: a.a1[0]=b.b1[4] or a.a3[2]=b.b3[5]"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Filter: (a.a1[0]=b.b1[4] or a.a3[2]=b.b3[5])"));
             Assert.AreEqual(2, TU.CountStr(phyplan, "HashJoin"));
 
             Assert.IsTrue(option.optimize_.use_memo_);
@@ -1331,12 +1331,12 @@ namespace qpmodel.unittest
             sql = "select 7, (4-a3)/2*2+1+sum(a1), sum(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";
             TU.ExecuteSQL(sql, "7,3,2;7,4,19", out string phyplan);
             var answer = @"PhysicHashAgg  (actual rows=2)
-                            Output: 7,{4-a.a3/2}[0]*2+1+{sum(a.a1)}[1],{sum(a.a1)}[1]+{sum(a.a1+a.a2)}[2]*2
-                            Aggregates: sum(a.a1[0]), sum(a.a1[0]+a.a2[2])
-                            Group by: 4-a.a3[3]/2
-                            -> PhysicScanTable a (actual rows=3)
-                                Output: a.a1[0],a.a1[0]+a.a2[1],a.a2[1],a.a3[2]
-                        ";
+                               Output: 7,(({(4-a.a3)/2}[0]*2+1)+{sum(a.a1)}[1]),({sum(a.a1)}[1]+{sum((a.a1+a.a2))}[2]*2)
+                               Aggregates: sum(a.a1[0]), sum((a.a1[0]+a.a2[2]))
+                               Group by: (4-a.a3[3])/2
+                               -> PhysicScanTable a (actual rows=3)
+                                   Output: a.a1[0],(a.a1[0]+a.a2[1]),a.a2[1],a.a3[2]
+                         ";
             TU.PlanAssertEqual(answer, phyplan);
             sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1";
             TU.ExecuteSQL(sql, "1,3,4,2;0,2,6,18");
@@ -1412,13 +1412,12 @@ namespace qpmodel.unittest
             sql = "select 1+2*3, 1+2+a1 from a where a1+2+(1*5+1)>2*3 and 1+2=2+1;";
             TU.ExecuteSQL(sql, "7,3;7,4;7,5", out phyplan);
             Assert.AreEqual(0, TU.CountStr(phyplan, "True"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "7,3+a.a1[0]"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "a.a1[0]+2+6>6")); // FIXME
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Output: 7,(a.a1[0]+3)"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Filter: a.a1[0]>-2"));
             sql = "select 1+20*3, 1+2.1+a1 from a where a1+2+(1*5+1)>2*4.6 and 1+2<2+1.4;";
             TU.ExecuteSQL(sql, "61,5.1", out phyplan);
-            Assert.AreEqual(0, TU.CountStr(phyplan, "True"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "61"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "9.2"));
+            Assert.IsTrue(phyplan.Contains("Output: 61,(a.a1[0]+3.1)"));
+            Assert.IsTrue((phyplan.Contains("Filter: (a.a1[0]+8)>9.2")));
         }
     }
 
@@ -1582,7 +1581,7 @@ namespace qpmodel.unittest
             var stmt = RawParser.ParseSingleSqlStatement(sql);
             SQLStatement.ExecSQL(sql, out string phyplan, out _);
             var answer = @"PhysicFromQuery <a>  (actual rows=3)
-                            Output: a.b1[0]+a.b1[0]
+                            Output: (a.b1[0]+a.b1[0])
                             -> PhysicScanTable b  (actual rows=3)
                                 Output: b.b1[0]";
             TU.PlanAssertEqual(answer, phyplan);
@@ -1590,10 +1589,10 @@ namespace qpmodel.unittest
             stmt = RawParser.ParseSingleSqlStatement(sql);
             SQLStatement.ExecSQL(sql, out phyplan, out _); // FIXME: filter is still there
             answer = @"PhysicFilter  (actual rows=3)
-                        Output: {a.b1+c.c1}[0]
+                        Output: {(a.b1+c.c1)}[0]
                         Filter: c.c1[1]>1
                         -> PhysicNLJoin  (actual rows=9)
-                            Output: a.b1[0]+c.c1[1],c.c1[1]
+                            Output: (a.b1[0]+c.c1[1]),c.c1[1]
                             -> PhysicFromQuery <a> (actual rows=3)
                                 Output: a.b1[0]
                                 -> PhysicScanTable b (actual rows=3)
@@ -1612,16 +1611,16 @@ namespace qpmodel.unittest
             stmt = RawParser.ParseSingleSqlStatement(sql);
             SQLStatement.ExecSQL(sql, out phyplan, out _);
             answer = @"PhysicNLJoin  (actual rows=3)
-                        Output: a.b1[0]+c.c1[1]
-                        Filter: c.c2[2]-a.b1[0]>1
-                        -> PhysicFromQuery <a> (actual rows=3)
-                            Output: a.b1[0]
-                            -> PhysicScanTable b (actual rows=3)
-                                Output: b.b1[0]
-                        -> PhysicFromQuery <c> (actual rows=3, loops=3)
-                            Output: c.c1[0],c.c2[1]
-                            -> PhysicScanTable c (actual rows=3, loops=3)
-                                Output: c.c1[0],c.c2[1]";
+    Output: (a.b1[0]+c.c1[1])
+    Filter: (c.c2[2]-a.b1[0])>1
+    -> PhysicFromQuery <a> (actual rows=3)
+        Output: a.b1[0]
+        -> PhysicScanTable b (actual rows=3)
+            Output: b.b1[0]
+    -> PhysicFromQuery <c> (actual rows=3, loops=3)
+        Output: c.c1[0],c.c2[1]
+        -> PhysicScanTable c (actual rows=3, loops=3)
+            Output: c.c1[0],c.c2[1]";
             TU.PlanAssertEqual(answer, phyplan);
             TU.ExecuteSQL(sql, "1;2;3");
         }
@@ -1631,13 +1630,13 @@ namespace qpmodel.unittest
         {
             var sql = "select a.a1, b.b1 from a join b on a.a1=b.b1;";
             var result = ExecuteSQL(sql, out string phyplan);
-            var answer = @"PhysicHashJoin   (actual rows=3)
-                            Output: a.a1[0],b.b1[1]
-                            Filter: a.a1[0]=b.b1[1]
-                            -> PhysicScanTable a  (actual rows=3)
-                                Output: a.a1[0]
-                            -> PhysicScanTable b  (actual rows=3)
-                                Output: b.b1[0]";
+            var answer = @"PhysicHashJoin  (actual rows=3)
+    Output: a.a1[0],b.b1[1]
+    Filter: a.a1[0]=b.b1[1]
+    -> PhysicScanTable a (actual rows=3)
+        Output: a.a1[0]
+    -> PhysicScanTable b (actual rows=3)
+        Output: b.b1[0]";
             TU.PlanAssertEqual(answer, phyplan);
             TU.ExecuteSQL(sql, "0,0;1,1;2,2");
             sql = "select a.a1, b1, a2, c2 from a join b on a.a1=b.b1 join c on a.a2=c.c2;";
@@ -1687,7 +1686,7 @@ namespace qpmodel.unittest
             sql = "select count(*) from a join b on a1 = b1 and a2 = b2;";
             TU.ExecuteSQL(sql, "3", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "HashJoin"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Filter: a.a1[1]=b.b1[3] and a.a2[2]=b.b2[4]"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Filter: (a.a1[1]=b.b1[3] and a.a2[2]=b.b2[4])"));
             sql = "select * from (select * from a join b on a1=b1) ab , (select * from c join d on c1=d1) cd where ab.a1=cd.c1";
             result = ExecuteSQL(sql, out phyplan);
             Assert.AreEqual(3, TU.CountStr(phyplan, "PhysicHashJoin"));
@@ -1706,7 +1705,7 @@ namespace qpmodel.unittest
             option.optimize_.use_memo_ = false;
             TU.ExecuteSQL(sql, "0,1,2,3,0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5,2,3,4,5", out phyplan, option);
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicHashJoin"));
-            Assert.AreEqual(1, TU.CountStr(phyplan, "Filter: a.a1[0]=b.b1[4] and a.a1[0]=c.c1[8]"));
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Filter: (a.a1[0]=b.b1[4] and a.a1[0]=c.c1[8])"));
             option.optimize_.use_memo_ = true;
             TU.ExecuteSQL(sql, "0,1,2,3,0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5,2,3,4,5", out phyplan, option);
             Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicHashJoin"));
@@ -1769,16 +1768,16 @@ namespace qpmodel.unittest
             Assert.IsTrue(TU.error_.Contains("appear"));
 
             sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1 order by 1";
-            result = ExecuteSQL(sql, out string phyplan);
-            var answer = @"PhysicOrder   (actual rows=2)
-                            Output: {4-a.a3/2}[0],{4-a.a3/2*2+1+min(a.a1)}[1],{avg(a.a4)+count(a.a1)}[2],{max(a.a1)+sum(a.a1+a.a2)*2}[3]
-                            Order by: {4-a.a3/2}[0]
-                            -> PhysicHashAgg   (actual rows=2)
-                                Output: {4-a.a3/2}[0],{4-a.a3/2}[0]*2+1+{min(a.a1)}[1],{avg(a.a4)}[2]+{count(a.a1)}[3],{max(a.a1)}[4]+{sum(a.a1+a.a2)}[5]*2
-                                Aggregates: min(a.a1[1]), avg(a.a4[2]), count(a.a1[1]), max(a.a1[1]), sum(a.a1[1]+a.a2[4])
-                                Group by: {4-a.a3/2}[0]
-                                -> PhysicScanTable a  (actual rows=3)
-                                    Output: 4-a.a3[2]/2,a.a1[0],a.a4[3],a.a1[0]+a.a2[1],a.a2[1],a.a3[2]";
+            result = ExecuteSQL(sql, out string phyplan);           
+            var answer = @"PhysicOrder  (actual rows=2)
+                            Output: {(4-a.a3)/2}[0],{(((4-a.a3)/2*2+1)+min(a.a1))}[1],{(avg(a.a4)+count(a.a1))}[2],{(max(a.a1)+sum((a.a1+a.a2))*2)}[3]
+                            Order by: {(4-a.a3)/2}[0]
+                            -> PhysicHashAgg  (actual rows=2)
+                                Output: {(4-a.a3)/2}[0],(({(4-a.a3)/2}[0]*2+1)+{min(a.a1)}[1]),({avg(a.a4)}[2]+{count(a.a1)}[3]),({max(a.a1)}[4]+{sum((a.a1+a.a2))}[5]*2)
+                                Aggregates: min(a.a1[1]), avg(a.a4[2]), count(a.a1[1]), max(a.a1[1]), sum((a.a1[1]+a.a2[4]))
+                                Group by: {(4-a.a3)/2}[0]
+                                -> PhysicScanTable a (actual rows=3)
+                                    Output: (4-a.a3[2])/2,a.a1[0],a.a4[3],(a.a1[0]+a.a2[1]),a.a2[1],a.a3[2]";
             TU.PlanAssertEqual(answer, phyplan);
             TU.ExecuteSQL(sql, "0,2,6,18;1,3,4,2");
             sql = "select * from a where a1>0 order by a1;";
@@ -1897,8 +1896,8 @@ namespace qpmodel.unittest
             var sql = "select a.a2,a3,a.a1+b2 from a,b where a.a1 > 1 and a1+b3>2";
             var result = ExecuteSQL(sql, out string phyplan);
             var answer = @"PhysicNLJoin   (actual rows=3)
-                        Output: a.a2[0],a.a3[1],a.a1[2]+b.b2[3]
-                        Filter: a.a1[2]+b.b3[4]>2
+                        Output: a.a2[0],a.a3[1],(a.a1[2]+b.b2[3])
+                        Filter: (a.a1[2]+b.b3[4])>2
                         -> PhysicScanTable a  (actual rows=1)
                             Output: a.a2[1],a.a3[2],a.a1[0]
                             Filter: a.a1[0]>1
@@ -1910,37 +1909,38 @@ namespace qpmodel.unittest
             sql = "select a1,b1,c1 from a,b,c where a1+b1+c1>5 and c1+b1>2";
             TU.ExecuteSQL(sql, "2,2,2", out phyplan);
             answer = @"PhysicNLJoin  (actual rows=1)
-                        Output: a.a1[0],b.b1[1],c.c1[2]
-                        Filter: a.a1[0]+b.b1[1]+c.c1[2]>5
-                        -> PhysicScanTable a (actual rows=3)
-                            Output: a.a1[0]
-                        -> PhysicNLJoin  (actual rows=3, loops=3)
-                            Output: b.b1[1],c.c1[0]
-                            Filter: c.c1[0]+b.b1[1]>2
-                            -> PhysicScanTable c (actual rows=3, loops=3)
-                                Output: c.c1[0]
-                            -> PhysicScanTable b (actual rows=3, loops=9)
-                                Output: b.b1[0]";
+    Output: a.a1[0],b.b1[1],c.c1[2]
+    Filter: ((a.a1[0]+b.b1[1])+c.c1[2])>5
+    -> PhysicScanTable a (actual rows=3)
+        Output: a.a1[0]
+    -> PhysicNLJoin  (actual rows=3, loops=3)
+        Output: b.b1[1],c.c1[0]
+        Filter: (c.c1[0]+b.b1[1])>2
+        -> PhysicScanTable c (actual rows=3, loops=3)
+            Output: c.c1[0]
+        -> PhysicScanTable b (actual rows=3, loops=9)
+            Output: b.b1[0]";
+
             TU.PlanAssertEqual(answer, phyplan);
 
             sql = "select 1 from a where a.a1 > (select b1 from b where b.b2 > (select c2 from c where c.c2=b2) and b.b1 > ((select c2 from c where c.c2=b2)))";
             option.optimize_.enable_subquery_unnest_ = false;
             result = TU.ExecuteSQL(sql, out phyplan, option);
             answer = @"PhysicScanTable a (actual rows=0)
-                        Output: 1
-                        Filter: a.a1[0]>@1
-                        <ScalarSubqueryExpr> cached 1
-                            -> PhysicScanTable b (actual rows=0)
-                                Output: b.b1[0],#b.b2[1]
-                                Filter: b.b2[1]>@2 and b.b1[0]>@3
-                                <ScalarSubqueryExpr> 2
-                                    -> PhysicScanTable c (actual rows=1, loops=3)
-                                        Output: c.c2[1]
-                                        Filter: c.c2[1]=?b.b2[1]
-                                <ScalarSubqueryExpr> 3
-                                    -> PhysicScanTable c (actual rows=1, loops=3)
-                                        Output: c.c2[1]
-                                        Filter: c.c2[1]=?b.b2[1]";
+    Output: 1
+    Filter: a.a1[0]>@1
+    <ScalarSubqueryExpr> cached 1
+    -> PhysicScanTable b (actual rows=0)
+         Output: b.b1[0],#b.b2[1]
+         Filter: (b.b2[1]>@2 and b.b1[0]>@3)
+         <ScalarSubqueryExpr> 2
+    -> PhysicScanTable c (actual rows=1, loops=3)
+         Output: c.c2[1]
+         Filter: c.c2[1]=?b.b2[1]
+         <ScalarSubqueryExpr> 3
+    -> PhysicScanTable c (actual rows=1, loops=3)
+         Output: c.c2[1]
+         Filter: c.c2[1]=?b.b2[1]";
             TU.PlanAssertEqual(answer, phyplan);
             result = ExecuteSQL(sql, out phyplan);
             answer = @"PhysicScanTable a (actual rows=0)
@@ -1973,31 +1973,31 @@ namespace qpmodel.unittest
             sql = "select b3+c2 from a,b,c where a1>= (select b1 from b where b1=a1) and a2 >= (select c2 from c where c1=a1);";
             result = ExecuteSQL(sql, out phyplan);
             answer = @"PhysicFilter  (actual rows=27)
-                        Output: {b.b3+c.c2}[0]
-                        Filter: a.a1[1]>=b__1.b1[2]
-                        -> PhysicSingleJoin Left (actual rows=27)
-                            Output: {b.b3+c.c2}[0],a.a1[1],b__1.b1[2]
-                            Filter: b__1.b1[2]=a.a1[1]
-                            -> PhysicFilter  (actual rows=27)
-                                Output: {b.b3+c.c2}[0],a.a1[1]
-                                Filter: a.a2[2]>=c__2.c2[3]
-                                -> PhysicSingleJoin Left (actual rows=27)
-                                    Output: {b.b3+c.c2}[0],a.a1[1],a.a2[2],c__2.c2[3]
-                                    Filter: c__2.c1[4]=a.a1[1]
-                                    -> PhysicNLJoin  (actual rows=27)
-                                        Output: {b.b3+c.c2}[2],a.a1[0],a.a2[1]
-                                        -> PhysicScanTable a (actual rows=3)
-                                            Output: a.a1[0],a.a2[1]
-                                        -> PhysicNLJoin  (actual rows=9, loops=3)
-                                            Output: b.b3[1]+c.c2[0]
-                                            -> PhysicScanTable c (actual rows=3, loops=3)
-                                                Output: c.c2[1]
-                                            -> PhysicScanTable b (actual rows=3, loops=9)
-                                                Output: b.b3[2]
-                                    -> PhysicScanTable c as c__2 (actual rows=3, loops=27)
-                                        Output: c__2.c2[1],c__2.c1[0]
-                            -> PhysicScanTable b as b__1 (actual rows=3, loops=27)
-                                Output: b__1.b1[0]";
+    Output: {(b.b3+c.c2)}[0]
+    Filter: a.a1[1]>=b__1.b1[2]
+    -> PhysicSingleJoin Left (actual rows=27)
+        Output: {(b.b3+c.c2)}[0],a.a1[1],b__1.b1[2]
+        Filter: b__1.b1[2]=a.a1[1]
+        -> PhysicFilter  (actual rows=27)
+            Output: {(b.b3+c.c2)}[0],a.a1[1]
+            Filter: a.a2[2]>=c__2.c2[3]
+            -> PhysicSingleJoin Left (actual rows=27)
+                Output: {(b.b3+c.c2)}[0],a.a1[1],a.a2[2],c__2.c2[3]
+                Filter: c__2.c1[4]=a.a1[1]
+                -> PhysicNLJoin  (actual rows=27)
+                    Output: {(b.b3+c.c2)}[2],a.a1[0],a.a2[1]
+                    -> PhysicScanTable a (actual rows=3)
+                        Output: a.a1[0],a.a2[1]
+                    -> PhysicNLJoin  (actual rows=9, loops=3)
+                        Output: (b.b3[1]+c.c2[0])
+                        -> PhysicScanTable c (actual rows=3, loops=3)
+                            Output: c.c2[1]
+                        -> PhysicScanTable b (actual rows=3, loops=9)
+                            Output: b.b3[2]
+                -> PhysicScanTable c as c__2 (actual rows=3, loops=27)
+                    Output: c__2.c2[1],c__2.c1[0]
+        -> PhysicScanTable b as b__1 (actual rows=3, loops=27)
+            Output: b__1.b1[0]";
             TU.PlanAssertEqual(answer, phyplan);
 
             // key here is bo.b3=a3 show up in 3rd subquery
@@ -2006,37 +2006,39 @@ namespace qpmodel.unittest
             option.optimize_.enable_subquery_unnest_ = false;
             TU.ExecuteSQL(sql, "0;1", out phyplan, option);
             answer = @"PhysicScanTable a (actual rows=2)
-                        Output: a.a1[0],#a.a2[1],#a.a3[2]
-                        Filter: a.a1[0]=@1
-                        <ScalarSubqueryExpr> 1
-                            -> PhysicScanTable b as bo (actual rows=0, loops=3)
-                                Output: bo.b1[0],#bo.b3[2]
-                                Filter: bo.b2[1]=?a.a2[1] and bo.b1[0]=@2 and bo.b2[1]<3
-                                <ScalarSubqueryExpr> 2
-                                    -> PhysicScanTable b (actual rows=0, loops=9)
-                                        Output: b.b1[0]
-                                        Filter: b.b3[2]=?a.a3[2] and ?bo.b3[2]=?a.a3[2] and b.b3[2]>1";
+    Output: a.a1[0],#a.a2[1],#a.a3[2]
+    Filter: a.a1[0]=@1
+    <ScalarSubqueryExpr> 1
+        -> PhysicScanTable b as bo (actual rows=0, loops=3)
+            Output: bo.b1[0],#bo.b3[2]
+            Filter: ((bo.b2[1]=?a.a2[1] and bo.b1[0]=@2) and bo.b2[1]<3)
+            <ScalarSubqueryExpr> 2
+                -> PhysicScanTable b (actual rows=0, loops=9)
+                    Output: b.b1[0]
+                    Filter: ((b.b3[2]=?a.a3[2] and ?bo.b3[2]=?a.a3[2]) and b.b3[2]>1)
+";
             TU.PlanAssertEqual(answer, phyplan);
             TU.ExecuteSQL(sql, "0;1", out phyplan);
             answer = @"PhysicFilter  (actual rows=2)
-                        Output: a.a1[0]
-                        Filter: a.a1[0]=bo.b1[1]
-                        -> PhysicSingleJoin Left (actual rows=3)
-                            Output: a.a1[0],bo.b1[3]
-                            Filter: b.b3[4]=a.a3[1] and bo.b3[5]=a.a3[1] and bo.b2[6]=a.a2[2]
-                            -> PhysicScanTable a (actual rows=3)
-                                Output: a.a1[0],a.a3[2],a.a2[1]
-                            -> PhysicFilter  (actual rows=2, loops=3)
-                                Output: bo.b1[0],b.b3[1],bo.b3[2],bo.b2[3]
-                                Filter: bo.b1[0]=b.b1[4]
-                                -> PhysicSingleJoin Left (actual rows=6, loops=3)
-                                    Output: bo.b1[0],b.b3[3],bo.b3[1],bo.b2[2],b.b1[4]
-                                    -> PhysicScanTable b as bo (actual rows=2, loops=3)
-                                        Output: bo.b1[0],bo.b3[2],bo.b2[1]
-                                        Filter: bo.b2[1]<3
-                                    -> PhysicScanTable b (actual rows=3, loops=6)
-                                        Output: b.b3[2],b.b1[0]
-                                        Filter: b.b3[2]>1";
+    Output: a.a1[0]
+    Filter: a.a1[0]=bo.b1[1]
+    -> PhysicSingleJoin Left (actual rows=3)
+        Output: a.a1[0],bo.b1[3]
+        Filter: ((b.b3[4]=a.a3[1] and bo.b3[5]=a.a3[1]) and bo.b2[6]=a.a2[2])
+        -> PhysicScanTable a (actual rows=3)
+            Output: a.a1[0],a.a3[2],a.a2[1]
+        -> PhysicFilter  (actual rows=2, loops=3)
+            Output: bo.b1[0],b.b3[1],bo.b3[2],bo.b2[3]
+            Filter: bo.b1[0]=b.b1[4]
+            -> PhysicSingleJoin Left (actual rows=6, loops=3)
+                Output: bo.b1[0],b.b3[3],bo.b3[1],bo.b2[2],b.b1[4]
+                -> PhysicScanTable b as bo (actual rows=2, loops=3)
+                    Output: bo.b1[0],bo.b3[2],bo.b2[1]
+                    Filter: bo.b2[1]<3
+                -> PhysicScanTable b (actual rows=3, loops=6)
+                    Output: b.b3[2],b.b1[0]
+                    Filter: b.b3[2]>1
+";
             TU.PlanAssertEqual(answer, phyplan);
 
             sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
@@ -2045,100 +2047,100 @@ namespace qpmodel.unittest
             option.optimize_.enable_subquery_unnest_ = false;
             TU.ExecuteSQL(sql, "0;1;2", out phyplan, option);
             answer = @"PhysicNLJoin  (actual rows=3)
-                        Output: a.a1[2]
-                        Filter: b.b2[3]=c.c2[0]
-                        -> PhysicScanTable c (actual rows=3)
-                            Output: c.c2[1],#c.c3[2]
-                        -> PhysicHashJoin  (actual rows=1, loops=3)
-                            Output: a.a1[2],b.b2[0]
-                            Filter: a.a1[2]=b.b1[1]
-                            -> PhysicScanTable b (actual rows=3, loops=3)
-                                Output: b.b2[1],b.b1[0]
-                            -> PhysicScanTable a (actual rows=1, loops=3)
-                                Output: a.a1[0],#a.a2[1],#a.a3[2]
-                                Filter: a.a1[0]=@1 and a.a2[1]=@3
-                                <ScalarSubqueryExpr> 1
-                                    -> PhysicFilter  (actual rows=0, loops=9)
-                                        Output: bo.b1[0]
-                                        Filter: bo.b2[1]=?a.a2[1] and bo.b2[1]<5 and bo.b1[0]=@2
-                                        <ScalarSubqueryExpr> 2
-                                            -> PhysicScanTable b as b__2 (actual rows=0, loops=81)
-                                                Output: b__2.b1[0]
-                                                Filter: b__2.b3[2]=?a.a3[2] and ?bo.b3[2]=?c.c3[2] and b__2.b3[2]>1
-                                        -> PhysicFromQuery <bo> (actual rows=9, loops=9)
-                                            Output: bo.b1[0],bo.b2[1],#bo.b3[2]
-                                            -> PhysicNLJoin  (actual rows=9, loops=9)
-                                                Output: b_2.b1[2],b_1.b2[0],b_1.b3[1]
-                                                -> PhysicScanTable b as b_1 (actual rows=3, loops=9)
-                                                    Output: b_1.b2[1],b_1.b3[2]
-                                                -> PhysicScanTable b as b_2 (actual rows=3, loops=27)
-                                                    Output: b_2.b1[0]
-                                <ScalarSubqueryExpr> 3
-                                    -> PhysicScanTable b as bo (actual rows=1, loops=9)
-                                        Output: bo.b2[1],#bo.b3[2]
-                                        Filter: bo.b1[0]=?a.a1[0] and bo.b2[1]=@4 and ?c.c3[2]<5
-                                        <ScalarSubqueryExpr> 4
-                                            -> PhysicScanTable b as b__4 (actual rows=0, loops=27)
-                                                Output: b__4.b2[1]
-                                                Filter: b__4.b4[3]=?a.a3[2]+1 and ?bo.b3[2]=?a.a3[2] and b__4.b3[2]>0";
+    Output: a.a1[2]
+    Filter: b.b2[3]=c.c2[0]
+    -> PhysicScanTable c (actual rows=3)
+        Output: c.c2[1],#c.c3[2]
+    -> PhysicHashJoin  (actual rows=1, loops=3)
+        Output: a.a1[2],b.b2[0]
+        Filter: a.a1[2]=b.b1[1]
+        -> PhysicScanTable b (actual rows=3, loops=3)
+            Output: b.b2[1],b.b1[0]
+        -> PhysicScanTable a (actual rows=1, loops=3)
+            Output: a.a1[0],#a.a2[1],#a.a3[2]
+            Filter: (a.a1[0]=@1 and a.a2[1]=@3)
+            <ScalarSubqueryExpr> 1
+                -> PhysicFilter  (actual rows=0, loops=9)
+                    Output: bo.b1[0]
+                    Filter: ((bo.b2[1]=?a.a2[1] and bo.b2[1]<5) and bo.b1[0]=@2)
+                    <ScalarSubqueryExpr> 2
+                        -> PhysicScanTable b as b__2 (actual rows=0, loops=81)
+                            Output: b__2.b1[0]
+                            Filter: ((b__2.b3[2]=?a.a3[2] and ?bo.b3[2]=?c.c3[2]) and b__2.b3[2]>1)
+                    -> PhysicFromQuery <bo> (actual rows=9, loops=9)
+                        Output: bo.b1[0],bo.b2[1],#bo.b3[2]
+                        -> PhysicNLJoin  (actual rows=9, loops=9)
+                            Output: b_2.b1[2],b_1.b2[0],b_1.b3[1]
+                            -> PhysicScanTable b as b_1 (actual rows=3, loops=9)
+                                Output: b_1.b2[1],b_1.b3[2]
+                            -> PhysicScanTable b as b_2 (actual rows=3, loops=27)
+                                Output: b_2.b1[0]
+            <ScalarSubqueryExpr> 3
+                -> PhysicScanTable b as bo (actual rows=1, loops=9)
+                    Output: bo.b2[1],#bo.b3[2]
+                    Filter: ((bo.b1[0]=?a.a1[0] and bo.b2[1]=@4) and ?c.c3[2]<5)
+                    <ScalarSubqueryExpr> 4
+                        -> PhysicScanTable b as b__4 (actual rows=0, loops=27)
+                            Output: b__4.b2[1]
+                            Filter: ((b__4.b4[3]=(?a.a3[2]+1) and ?bo.b3[2]=?a.a3[2]) and b__4.b3[2]>0)";
             TU.PlanAssertEqual(answer, phyplan);
             // run again with subquery expansion enabled
             // FIXME: b2<5 is not push down due to FromQuery barrier
             TU.ExecuteSQL(sql, "0;1;2", out phyplan);
             answer = @"PhysicFilter  (actual rows=3)
-                        Output: a.a1[0]
-                        Filter: bo.b2[1]<5
-                        -> PhysicFilter  (actual rows=3)
-                            Output: a.a1[0],bo.b2[1]
-                            Filter: a.a1[0]=bo.b1[2]
-                            -> PhysicSingleJoin Left (actual rows=3)
-                                Output: a.a1[0],bo.b2[4],bo.b1[5]
-                                Filter: b__2.b3[6]=a.a3[1] and bo.b3[7]=c.c3[2] and bo.b2[4]=a.a2[3]
-                                -> PhysicFilter  (actual rows=3)
-                                    Output: a.a1[0],a.a3[1],c.c3[2],a.a2[3]
-                                    Filter: a.a2[3]=bo.b2[4]
-                                    -> PhysicSingleJoin Left (actual rows=3)
-                                        Output: a.a1[0],a.a3[1],c.c3[2],a.a2[3],bo.b2[4]
-                                        Filter: b__4.b4[5]=a.a3[1]+1 and bo.b3[6]=a.a3[1] and bo.b1[7]=a.a1[0]
-                                        -> PhysicHashJoin  (actual rows=3)
-                                            Output: a.a1[2],a.a3[3],c.c3[0],a.a2[4]
-                                            Filter: b.b2[5]=c.c2[1]
-                                            -> PhysicScanTable c (actual rows=3)
-                                                Output: c.c3[2],c.c2[1]
-                                                Filter: c.c3[2]<5
-                                            -> PhysicHashJoin  (actual rows=3)
-                                                Output: a.a1[2],a.a3[3],a.a2[4],b.b2[0]
-                                                Filter: a.a1[2]=b.b1[1]
-                                                -> PhysicScanTable b (actual rows=3)
-                                                    Output: b.b2[1],b.b1[0]
-                                                -> PhysicScanTable a (actual rows=3)
-                                                    Output: a.a1[0],a.a3[2],a.a2[1]
-                                        -> PhysicFilter  (actual rows=3, loops=3)
-                                            Output: bo.b2[0],b__4.b4[1],bo.b3[2],bo.b1[3]
-                                            Filter: bo.b2[0]=b__4.b2[4]
-                                            -> PhysicSingleJoin Left (actual rows=9, loops=3)
-                                                Output: bo.b2[0],b__4.b4[3],bo.b3[1],bo.b1[2],b__4.b2[4]
-                                                -> PhysicScanTable b as bo (actual rows=3, loops=3)
-                                                    Output: bo.b2[1],bo.b3[2],bo.b1[0]
-                                                -> PhysicScanTable b as b__4 (actual rows=3, loops=9)
-                                                    Output: b__4.b4[3],b__4.b2[1]
-                                                    Filter: b__4.b3[2]>0
-                                -> PhysicFilter  (actual rows=9, loops=3)
-                                    Output: bo.b2[0],bo.b1[1],b__2.b3[2],bo.b3[3]
-                                    Filter: bo.b1[1]=b__2.b1[4]
-                                    -> PhysicSingleJoin Left (actual rows=27, loops=3)
-                                        Output: bo.b2[0],bo.b1[1],b__2.b3[3],bo.b3[2],b__2.b1[4]
-                                        -> PhysicFromQuery <bo> (actual rows=9, loops=3)
-                                            Output: bo.b2[1],bo.b1[0],bo.b3[2]
-                                            -> PhysicNLJoin  (actual rows=9, loops=3)
-                                                Output: b_2.b1[2],b_1.b2[0],b_1.b3[1]
-                                                -> PhysicScanTable b as b_1 (actual rows=3, loops=3)
-                                                    Output: b_1.b2[1],b_1.b3[2]
-                                                -> PhysicScanTable b as b_2 (actual rows=3, loops=9)
-                                                    Output: b_2.b1[0]
-                                        -> PhysicScanTable b as b__2 (actual rows=3, loops=27)
-                                            Output: b__2.b3[2],b__2.b1[0]
-                                            Filter: b__2.b3[2]>1";
+    Output: a.a1[0]
+    Filter: bo.b2[1]<5
+    -> PhysicFilter  (actual rows=3)
+        Output: a.a1[0],bo.b2[1]
+        Filter: a.a1[0]=bo.b1[2]
+        -> PhysicSingleJoin Left (actual rows=3)
+            Output: a.a1[0],bo.b2[4],bo.b1[5]
+            Filter: ((b__2.b3[6]=a.a3[1] and bo.b3[7]=c.c3[2]) and bo.b2[4]=a.a2[3])
+            -> PhysicFilter  (actual rows=3)
+                Output: a.a1[0],a.a3[1],c.c3[2],a.a2[3]
+                Filter: a.a2[3]=bo.b2[4]
+                -> PhysicSingleJoin Left (actual rows=3)
+                    Output: a.a1[0],a.a3[1],c.c3[2],a.a2[3],bo.b2[4]
+                    Filter: ((b__4.b4[5]=(a.a3[1]+1) and bo.b3[6]=a.a3[1]) and bo.b1[7]=a.a1[0])
+                    -> PhysicHashJoin  (actual rows=3)
+                        Output: a.a1[2],a.a3[3],c.c3[0],a.a2[4]
+                        Filter: b.b2[5]=c.c2[1]
+                        -> PhysicScanTable c (actual rows=3)
+                            Output: c.c3[2],c.c2[1]
+                            Filter: c.c3[2]<5
+                        -> PhysicHashJoin  (actual rows=3)
+                            Output: a.a1[2],a.a3[3],a.a2[4],b.b2[0]
+                            Filter: a.a1[2]=b.b1[1]
+                            -> PhysicScanTable b (actual rows=3)
+                                Output: b.b2[1],b.b1[0]
+                            -> PhysicScanTable a (actual rows=3)
+                                Output: a.a1[0],a.a3[2],a.a2[1]
+                    -> PhysicFilter  (actual rows=3, loops=3)
+                        Output: bo.b2[0],b__4.b4[1],bo.b3[2],bo.b1[3]
+                        Filter: bo.b2[0]=b__4.b2[4]
+                        -> PhysicSingleJoin Left (actual rows=9, loops=3)
+                            Output: bo.b2[0],b__4.b4[3],bo.b3[1],bo.b1[2],b__4.b2[4]
+                            -> PhysicScanTable b as bo (actual rows=3, loops=3)
+                                Output: bo.b2[1],bo.b3[2],bo.b1[0]
+                            -> PhysicScanTable b as b__4 (actual rows=3, loops=9)
+                                Output: b__4.b4[3],b__4.b2[1]
+                                Filter: b__4.b3[2]>0
+            -> PhysicFilter  (actual rows=9, loops=3)
+                Output: bo.b2[0],bo.b1[1],b__2.b3[2],bo.b3[3]
+                Filter: bo.b1[1]=b__2.b1[4]
+                -> PhysicSingleJoin Left (actual rows=27, loops=3)
+                    Output: bo.b2[0],bo.b1[1],b__2.b3[3],bo.b3[2],b__2.b1[4]
+                    -> PhysicFromQuery <bo> (actual rows=9, loops=3)
+                        Output: bo.b2[1],bo.b1[0],bo.b3[2]
+                        -> PhysicNLJoin  (actual rows=9, loops=3)
+                            Output: b_2.b1[2],b_1.b2[0],b_1.b3[1]
+                            -> PhysicScanTable b as b_1 (actual rows=3, loops=3)
+                                Output: b_1.b2[1],b_1.b3[2]
+                            -> PhysicScanTable b as b_2 (actual rows=3, loops=9)
+                                Output: b_2.b1[0]
+                    -> PhysicScanTable b as b__2 (actual rows=3, loops=27)
+                        Output: b__2.b3[2],b__2.b1[0]
+                        Filter: b__2.b3[2]>1";
             TU.PlanAssertEqual(answer, phyplan);
         }
 
@@ -2229,6 +2231,586 @@ namespace qpmodel.unittest
             stmtResult = TU.ExecuteSQL(select);
             Assert.IsNull(stmtResult);
             Assert.IsTrue(TU.error_.Contains("column not exists \"T1\".col3"));
+        }
+
+        [TestMethod]
+        public void TestCanonical()
+        {
+            var option = new QueryOption();
+            option.optimize_.TurnOnAllOptimizations();
+            /*
+             * Rule1: Constant move. Bring all possible constants together so that later
+             *        transformations can simplify or even remove some of the constants.
+             *        Some of them will change when other rules are implmented.
+             */
+            string sql = "select 1 + a1 + 2 + a2 + 3 + 4 + a4 + 5 + 6 from a";
+
+            var result = ExecuteSQL(sql, out string phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: (((((a.a1[0]+3)+a.a2[1])+7)+a.a4[3])+11)"));
+
+            sql = "select 10 + a1 + 2 + abs(-10) + round(101.78, 0) + a2 from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: (((a.a1[0]+22)+102)+a.a2[1])"));
+
+            // Select expr (4 - a3) / 2 * 2 should not be transformed since (4 - a3) / 2 is
+            // a grouping expression.
+            sql = "select 7, (4-a3)/2*2+1+sum(a1), sum(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: 7,(({(4-a.a3)/2}[0]*2+1)+{sum(a.a1)}[1]),({sum(a.a1)}[1]+{sum((a.a1+a.a2))}[2]*2)"));
+
+            // CAST arg: This may be suspicious: DOUBLE should be printed as a double (101.0)
+            // sql = "select 1 + a1, 2 + 3 + a2, cast(101.0 + a3 as double) dcol from a;";
+            // result = ExecuteSQL(sql, out phyplan);
+            // Assert.IsTrue(phyplan.Contains("Output: a1[0]+1,a2[1]+5,cast(a3[2]+101 to double)"));
+
+            // FUNC arg, two levels deep.
+            sql = "select sum(abs(100 + a1)), count(a2) from a;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: {sum(abs((a.a1+100)))}[0],{count(a.a2)}[1]"));
+
+            // FUNC arg, two.
+            sql = "select sum(abs(-10.3 * a1)), sum(round(10.7 * a2, 2)) from a;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: {sum(abs(a.a1*-10.3))}[0],{sum(round(a.a2*10.7,2))}[1]"));
+
+            // Inside subquery. Seems like incorrect result, though. c1 should be 30.9 and c2 should be 64.2
+            // The subquery does prodcue the correct result on its own.
+            sql = "select c1, c1 from (select sum(abs(-10.3 * a1)) c1, sum(round(10.7 * a2, 2)) c2 from a) x;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: {sum(abs(a.a1*-10.3))}[0],{sum(round(a.a2*10.7,2))}[1]"));
+
+            // In WHERE clause.
+            sql = "select c1, c1 from (select sum(abs(a1 * -10.3)) c1, sum(round(10.7 * a2, 2)) c2 from a) x where 10 + c1 < c2";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: (x.c1[0]+10)<x.c2[1]"));
+
+            // In Comparision. This is happening without any of the new ruls.
+            sql = "select a1, a2 from a where 100 > a1 + a2;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: (a.a1[0]+a.a2[1])<100"));
+
+            // Move constant to right side modify the RHS
+            sql = "select a1 from a where a1 + 1 < 3";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]<2"));
+
+            sql = "select a1 from a where a1 - 1 < 3";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]<4"));
+
+            // Rule 2: Constant folding. Replace expressions involving constants with the value of that part of the expression.
+            //         Some of this is laready in place.
+            //         Rule 1 runs first and converts 3+a1[0] to a1[0]+3.
+            sql = "select 1 + 2 + a1, a2 + 4 + 5 from a;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: (a.a1[0]+3),(a.a2[1]+9)"));
+
+            // Scattered constants
+            sql = "select 1 + a1 + 2, 100 + a2 + 15 from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: (a.a1[0]+3),(a.a2[1]+115)"));   // Rule 1 + Rule 2
+
+            // FUNC(const). Some of it is already done.
+            sql = "select round(10.245 + a1 + 10, 2), a2 from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: round(((a.a1[0]+10.245)+10),2),a.a2[1]"));
+
+            // FUNC(const).
+            sql = "select avg(10), a2 from a group by a2";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("10,{a.a2}[0]"));
+
+            // Rule 3: The Arithmetic Simplification. Eliminate unneeded computations.
+            // expr + 0, expr - 0, expr * 0
+            // BUG: a.a1 * 0 should be reduced to zero.
+            sql = "select a1 * 0, a2 + 0, a3 - 0 from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: a.a1[0]*0,a.a2[1],a.a3[2]"));
+
+            // expr * 1, expr / 1
+            sql = "select a1 * (14 + 17 - 30), a2 / (14 + 17 - 30) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("a.a1[0],a.a2[1]"));
+
+            // expr / 0 => ERROR
+            // sql = "select * from a where a1 / 0 = a2 / 0";
+            // Assert.IsTrue(error_.Contains("DivideByZeroException:D"));
+            // Currently plan contains: "Filter: a1[0]/0=a2[1]/0";
+            // Exception is thrown at runtime.
+
+            // Rule 4: Comparison Simplification. Eliminate unneeded comparisons.
+            // CONST relop CONST
+            // a1 + 1 < a1 4 => 1 < 4 => TRUE => eliminate filter.
+            // BUG: Not happenning.
+            sql = "select a1 from a where a1 + 1 < a1 + 4";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: (a.a1[0]+1)<(a.a1[0]+4)"));
+
+            // NULL comparisons yeild NULL regardless. NULL testing
+            // should be done only as X IS NULL and X IS NOT NULL.
+            // Return NULL
+            sql = "select * from a where a1 = null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+
+            sql = "select * from a where a1 <> null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+
+            sql = "select * from a where a1 < null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+
+            sql = "select * from a where a1 > null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+
+            // Rule 5: CASE simplification.
+            sql = "select CASE WHEN a2 + 110 = 100 + 10 + a2 THEN a1 + 201 ELSE a1 + 501 END as C1 from a";
+            result = ExecuteSQL(sql, out phyplan);
+            // At the moment there is no way to check from outside if this transformation has happened
+            // or not. The plan output simply contains " Output: case with 1" regardless.
+            // May need to instrument with extra output for CASE expressionsa and add
+            // something like "NORMTRAN: Constant case folded"
+            // Assert.IsTrue(phyplan.Contains("NORMTRAN: Constant case folded"));
+            Assert.IsTrue(phyplan.Contains("Output: case with 1"));
+
+            sql = "select CASE WHEN 1 = 1 THEN a1 + 1 ELSE a2 + 2 END from a";
+            result = ExecuteSQL(sql, out phyplan);
+            // Assert.IsTrue(phyplan.Contains("NORMTRAN: Constant case folded"));
+            Assert.IsTrue(phyplan.Contains("Output: case with 1"));
+
+            sql = "select CASE WHEN 1 = 0 THEN a1 + 1 ELSE a2 + 2 END from a";
+            result = ExecuteSQL(sql, out phyplan);
+            // Assert.IsTrue(phyplan.Contains("NORMTRAN: Constant case folded"));
+            Assert.IsTrue(phyplan.Contains("Output: case with 1"));
+
+            sql = "select CASE WHEN NULL > 1 THEN a1 + 1 ELSE a2 + 2 END from a";
+            result = ExecuteSQL(sql, out phyplan);
+            // Assert.IsTrue(phyplan.Contains("NORMTRAN: Constant case folded"));
+            Assert.IsTrue(phyplan.Contains("Output: case with 1"));
+
+            // Rule 6: Logical Simplification.
+            sql = "select * from a, b where ((a1 = b1) AND (a2 = b2)) OR ((a1 = 2) AND (a3 = b3))";
+            result = ExecuteSQL(sql, out phyplan);
+            // This is already happenning but the printing is misleading, it should be changed to
+            // Filter: a1[0]=b1[4] and (a2[1]=b2[5] or a3[2]=b3[6])
+            // INCOMPLETE
+            Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0]=b.b1[4] and a.a2[1]=b.b2[5]) or (a.a1[0]=2 and a.a3[2]=b.b3[6]))"));
+
+            sql = "select * from a where (a1 = 1 and a2 = 2) or (a1 = 1 and a3 = 1)";
+            result = ExecuteSQL(sql, out phyplan);
+            // This is already happenning but the printing is misleading, it should be changed to
+            // Filter: a1[0]=b1[4] and (a2[1]=b2[5] or a3[2]=b3[6])
+            // INCOMPLETE
+            Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0]=1 and a.a2[1]=2) or (a.a1[0]=1 and a.a3[2]=1))"));
+
+            // NOTE: TRUE and FALSE are not supported in the current code base.
+            // Simulating TRUE and FALSE
+            // X AND TRUE. Drop TRUE.
+            // INCOMPLETE
+            sql = "select * from a where (a1 = a2) AND (a3 = a3)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: (a.a1[0]=a.a2[1] and a.a3[2]=a.a3[2])"));
+
+            // X AND FALSE. Eliminate the predicate
+            // INCOMPLETE
+            sql = "select * from a where (a1 = a2) AND (a3 <> a3)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: (a.a1[0]=a.a2[1] and a.a3[2]<>a.a3[2])"));
+
+            sql = "select * from a where not (a1 = 1 or a3 = 4);";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: (!a.a1[0]=1 and !a.a3[2]=4)"));
+
+            // TRUE and FALSE
+            sql = "select * from a where a1 + a2 <> a4 AND 1 = 0";
+            result = ExecuteSQL(sql, out phyplan);
+            // BUG: WHERE should be FALSE but we don't accept WHERE FALSE
+            // which is an and FALSE is added.
+            Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0]+a.a2[1])<>a.a4[3] and False)"));
+
+            /*
+            // Rule 7: IN clause simplification. This may not be needed as it is already happenning.
+            // It doesn't seem to be applied in many cases but here is one that should happen.
+            sql = "select a1 from a where a2 in (0, 1, 3)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a2[1]=0 OR a2[1]=1 OR a2[1]=3)"));
+
+            // Rule 8: ORDER BY negetive oridinal or column reference.
+            // Replace, as in this test case, -a1 by a1 DESCENDING.
+            // This will address a very specific bug in the current code base.
+            // TODO: The plan is not showing the direction of sort, it should be added.
+            sql = "select * from a order by -a1";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Order by: a1[0] DESC"));
+            */
+
+            // Rule 9: DISTINCT elimination from aggregate functions not sensitive to duplicates.
+            // MIN and MAX are not sensitive to duplicates, so eliminating DISTINCT is present may
+            // give the optimizer a chance eliminate sort operatior, depending on other
+            // conditions, of course.
+            sql = "select min(distinct a1), max(distinct a2) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            // Currently the plan looks the same with and without distinct, both do
+            // Hash Aggregation. When distinct is removed, I think hashing can be elimated and the table
+            // scan may it self be able to handle min, max but I am not sure. Need to figure out.
+            // But if the plan looks like the following, we know hashing/sorting was NOT done.
+            // The exact wording in the plan is not clear at this time.
+            // Assert.IsFalse(phyplan.Contains("PhysicHashAgg"));
+            Assert.IsTrue(phyplan.Contains("Output: {min(a.a1)}[0],{max(a.a2)}[1]"));
+            Assert.IsTrue(phyplan.Contains("Aggregates: min(a.a1[0]), max(a.a2[1])"));
+
+            /*
+            // Rule 10: Multi-valued predicate simplification.
+            // This may be already happeinning but the filter is not present in the plan,
+            // need to inverstigate what exactly is hapenning.
+            sql = "select * from a where (a1 + 10, a2 + 20, a3 * 30) = (11, 22, 90);";
+            result = ExecuteSQL(sql, out phyplan);
+            // If filter disappeared as part of some optimization it is good and that can be
+            // asserted, otherwise the presence of a disjunctive. At the moment, absense of
+            // the filter is what I can look for.
+            // Actually this may be a bug (Issue 179), the disapperance of the filter is not
+            // optimzation and results are incorrect.
+            Assert.IsTrue(phyplan.Contains("Filter: Filter: (((a1[0] + 10) = 11) AND ((a2[1] + 20) = 22) AND ((a3[2] * 30) = 90))"));
+
+            // Rule 11: 11) CAST elimination. When possible, eliminate redundant and unneeded
+            // CAST.
+            sql = "select cast(a1 * 17.678 as double) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Output: cast(a1[0]*17.678 to double"));
+
+            sql = "select (select cast(a1 * 17.678 as double) from a where a1 = (select min(a1) from a)) C1, (select cast(a2 * 27.678 as double) from a where a2 = (select max(a2) from a)) C2 from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Output: cast(a"));
+            // In addition, Rule 9 may also have been applied and elimiated so that the following may also
+            // be asserted
+            Assert.IsFalse(phyplan.Contains("PhysicHashAgg"));
+
+            // Rule 12: Common sub expression elimination.
+            // This is somewhat unexpcted, usually the result of AVG is not integral even if the argument is
+            // of intergal type but the standard does allow implementation defined type. Postgres promotes
+            // to NUEMERIC or DECIMAL or DOUBLE, essentially the result is not truncated and not rounded.
+            // In the plan the one of the twice occuring {4-a3/2} may be elimiated but it may already be
+            // happenning.
+            sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: {4-a3/2}[0],{4-a3/2}[0]*2+1+{min(a1)}[1],{avg(a4)}[2]+{count(a1)}[3],{max(a1)}[4]+{sum(a1+a2)}[5]*2"));
+            */
+
+            // Miscillaneous tests, corner case tests: more coming.
+            sql = "select * from a where 10 between 1 and 20;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+
+            sql = "select * from a where 10 between 20 and 1;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+
+            sql = "select * from a where 10 between 20 and 30;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+
+            sql = "select * from a where 10 between a2 and 20;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a.a2[1]<=10"));
+
+            sql = "select * from a where 'd' between 'a' and 'f';";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+
+            // BUG: both master and canonical branch produce no results
+            // but the query is equivalent to select * from a.
+            sql = "select * from a where a1 is not null or a2 is not null or a3 is null;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0] is not null or a.a2[1] is not null) or a.a3[2] is null)"));
+
+            sql = "select * from a join b on (a1 <> a1 or b1 <> b1 or 1 <> -10);";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0]<>a.a1[0] or b.b1[4]<>b.b1[4]) or True)"));
+            // more tests, by code path and functionality.
+            sql = "select sum(1), avg(2), min(3), max(4), count(5), count(distinct 6), stddev_samp(7.38) from a";
+            TU.ExecuteSQL(sql, "3,2,3,4,3,3,0", out phyplan, option);
+
+            sql = "select min(1), max(6) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Aggregates:"));
+
+            sql = "select min(10) + max(20) + avg(30) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Aggregates:"));
+
+            sql = "select * from a where not (0 + a1 = 1)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]=1"));
+
+            sql = "select * from a where not (a1 - 0 <> 1)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]<>1"));
+
+            sql = "select * from a where not (1 * a1 > 1)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]>1"));
+
+            sql = "select * from a where not (a1 / 1 >= 1)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]>=1"));
+
+            sql = "select * from a where not (a1 < 1 - 0)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]<1"));
+
+            sql = "select * from a where not (a1 = 1 * 1)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]=1"));
+
+            sql = "select * from a where not (a1 <> 1 / 1)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]<>1"));
+
+            sql = "select * from a where not (a1 > 1 + 0)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]>1"));
+
+            sql = "select * from a where not ((10 - 20 + 5 + 5) > a1)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]<0"));
+
+            sql = "select * from a where not ((10 + 20 + 6 + 1) * a1 < 1)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]*37<1"));
+
+            sql = "select not (a1 = 1 or a2 = 2) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: (!a.a1[0]=1 and !a.a2[1]=2)"));
+
+            sql = "select * from a where 10 between 1 and 20";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+
+            sql = "select * from a where 10 between 20 and 1";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+
+            sql = "select * from a where 10 between a2 and 20";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a.a2[1]<=10"));
+
+            sql = "select * from a where 'd' between 'a' and 'f'";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+
+            // Ideally filter should be false.
+            sql = "select * from a where a1 = 1 and a1 = 2";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: (a.a1[0]=1 and a.a1[0]=2)"));
+
+            sql = "select * from a where a1 is not null or a2 is not null or a3 is null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0] is not null or a.a2[1] is not null) or a.a3[2] is null)"));
+
+            sql = "select * from a where a1 is not null and a2 is not null or a3 is null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0] is not null and a.a2[1] is not null) or a.a3[2] is null)"));
+
+            sql = "select 'Hello' || ', World' from a where 1 != -10";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+
+            sql = "select 'Hello' || ', World' from a where 1 != -10 and a4 is null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a.a4[3] is null"));
+
+            sql = "select substring('alcatrez', 1 + 1, 2 + 3)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: 'lcat'"));
+
+            sql = "select * from a join b on(1 = 1) where a.a1 > null and b.b2 < null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+
+            sql = "select * from a where 1 + a1 = 3";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]=2"));
+
+            sql = "select * from a, b where 1 = 2";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+
+            sql = "select * from a join b on (a1 <> a1 or b1 <> b1 or 1 <> -10)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0]<>a.a1[0] or b.b1[4]<>b.b1[4]) or True)"));
+
+            sql = "select * from a join b on (a1 <> a1 or b1 <> b1 or 10 + -10 <> -20 + 20)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0]<>a.a1[0] or b.b1[4]<>b.b1[4]) or False)"));
+
+            // sql = "select * from (select 1 + 1 x, 1 + 2 y, a1 z from a)";
+            // result = ExecuteSQL(sql, out phyplan);
+            // Assert.IsTrue(phyplan.Contains(
+            //    @"PhysicFromQuery 1064_1067 <anonymous> (inccost=6, cost=3, rows=3) (actual rows=3)
+            // Output: {2}[0],{3}[1],a.a1 (as z)[2]
+            // -> PhysicScanTable 1066_1069 a (inccost=3, cost=3, rows=3) (actual rows=3)
+            // Output: 2,3,a.a1 (as z)[0]"));
+
+            sql = "select * from a where 1 is null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+
+            sql = "select * from a where 1 is not null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+
+            sql = "select a1 + 0, a1 - 0, a1 * 1, a1 / 1 from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: a.a1[0],a.a1[0],a.a1[0],a.a1[0]"));
+
+            sql = "select 3 * (a1 + 10), 5 * (a2 - 7) , 0 / (a1 + 20) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: (a.a1[0]+10)*3,(a.a2[1]-7)*5,0/(a.a1[0]+20)"));
+
+            sql = "select avg(z) from (select sum((a1 + a2 + 6) * 2) z from a) q";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Aggregates: sum(((a.a1[3]+a.a2[4])*6+2))"));
+
+            sql = "select a1, (a1 * 10) * 5, a2, (a2 * 1) + 10, a3, (a3 + 10 - 20) * 20 from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: a.a1[0],a.a1[0]*50,a.a2[1],(a.a2[1]+10),a.a3[2],((a.a3[2]+10)-20)*20"));
+
+            sql = "select a1, (a1 + 10) * 5, a2, (a2 - 1) * 10, a3, (a3 + 10 - 20) * 20 from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: a.a1[0],(a.a1[0]*10+5),a.a2[1],(a.a2[1]-1)*10,a.a3[2],((a.a3[2]+10)-20)*20"));
+
+            sql = "select a1, (a1 - null) + 10 from a";
+            TU.ExecuteSQL(sql, "0,;1,;2,", out phyplan, option);
+
+            sql = "select a1, (a1 + null) * 10 from a";
+            TU.ExecuteSQL(sql, "0,;1,;2,", out phyplan, option);
+
+            sql = "select a1, (a1 - null) * 10 from a";
+            TU.ExecuteSQL(sql, "0,;1,;2,", out phyplan, option);
+
+            sql = "select a1, (a1 * null) + 10 from a";
+            TU.ExecuteSQL(sql, "0,;1,;2,", out phyplan, option);
+
+            sql = "select a1, (a1 * null) * 10 from a";
+            TU.ExecuteSQL(sql, "0,;1,;2,", out phyplan, option);
+
+            sql = "select a1, (a1 * null) + 10 from a";
+            TU.ExecuteSQL(sql, "0,;1,;2,", out phyplan, option);
+
+            // BUG: no output in master and canonical
+            sql = "select * from a where 'qwerty' like 'qwer%'";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+
+            // BUG: no output in master and canonical
+            sql = "select * from a where 'qwerty' like '%rty'";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+
+            sql = "select avg(2), min(3), max(4) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Aggregates:"));
+
+            // BUG: in master and canonical:
+            // Postgres: 3 | 2.0000000000000000 |   3 |   4 |     3 |     1 |           0
+            sql = "select sum(1), avg(2), min(3), max(4), count(5), count(distinct 6), stddev_samp(7.38) from a";
+            TU.ExecuteSQL(sql, "3,2,3,4,3,3,0", out phyplan, option);
+
+            sql = "select substring('The North Rim', 5, 9) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: 'North'"));
+
+            sql = "select substring('The North Rim', 5, 9) || ' Pole' from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: 'North Pole'"));
+
+            sql = "select substring('Pacific South', 9, 13) || ' Pack' || 'ard' from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: 'South Packard'"));
+
+            sql = "select upper('mat') || upper('he') || upper('mat') || upper('ics') from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: 'MATHEMATICS'"));
+
+            sql = "select repeat('three blind mice ', 3) from b";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: 'three blind mice three blind mice three blind mice '"));
+
+            // sql = "select abs(10 + 20.78 - 10 - 21.78) from a";
+            // result = ExecuteSQL(sql, out phyplan);
+            // Assert.IsTrue(phyplan.Contains(
+            //    @"PhysicScanTable a (actual rows=3)
+            // Output: 1"));
+
+            sql = "select round(3.14582, 2) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: 3.15"));
+
+            sql = "select null + null, null - null, null * null, null / null from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: null,null,null,null"));
+
+            sql = "select null + 10, 20 - null, 30 * null, 40 / null, null / 50 from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: null,null,null,null"));
+
+            sql = "select a1 - null, null + a2, a3 * null, null / a4 from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: null,null,null,null"));
+
+            sql = "select a1 > null, a2 >= null, a3 < null, a4 <= null, a1 + a2 = null, a2 - a4 <> null from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: null,null,null,null,null,null"));
+
+            sql = "select * from a where null is not null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+
+            sql = "select * from a where null is null";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+
+            sql = "select sum(null), avg(null), min(null), max(null), count(null) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: null,null,null,null,null"));
+
+            sql = "select year(null) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: null"));
+
+            sql = "select date(null) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: null"));
+
+            sql = "select abs(null) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: null"));
+
+            sql = "select round(null, 2) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: null"));
+
+            sql = "select stddev_samp(null) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: null"));
+
+            sql = "select * from a where 1 + a1 = 2";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]=1"));
+
+            sql = "select * from a where 1 + a1 > 2";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]>1"));
+
+            sql = "select * from a where 0 <= a1 - 1";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]>=1"));
+
+            sql = "select * from a where 3 >= 1 + 2 + a1";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]<=0"));
         }
     }
 

@@ -41,13 +41,13 @@ PhysicOrder  (inccost=3220.38, cost=754.38, rows=148, memory=6364) (actual rows=
             Filter: p_partkey[3]=ps_partkey[5]
             -> PhysicScanTable part (inccost=200, cost=200, rows=37) (actual rows=34)
                 Output: p_brand[3],p_type[4],p_size[5],p_partkey[0]
-                Filter: p_brand[3]<>'Brand#45' and p_type[4]not like'MEDIUM POLISHED%' and p_size[5] in (49,14,23, ... <Total: 8> )
+                Filter: ((p_brand[3]<>'Brand#45' and p_type[4] not like 'MEDIUM POLISHED%') and p_size[5] in (49,14,23, ... <Total: 8> ))
             -> PhysicScanTable partsupp (inccost=800, cost=800, rows=800) (actual rows=0)
                 Output: ps_suppkey[1],ps_partkey[0]
                 Filter: ps_suppkey[1] in @1
                 <InSubqueryExpr> cached 1
                     -> PhysicScanTable supplier (inccost=10, cost=10, rows=1) (actual rows=0)
                         Output: s_suppkey[0]
-                        Filter: s_comment[6]like'%Customer%Complaints%'
+                        Filter: s_comment[6] like '%Customer%Complaints%'
 
 

@@ -258,24 +258,6 @@ namespace qpmodel.expr
             Debug.Assert(expr.type_ != null);
             return expr.type_ is BoolType;
         }
-
-        public static Expr ConstFolding(this Expr expr)
-        {
-            Debug.Assert(expr.bounded_);
-            bool IsConstFn(Expr e) => !(e is ConstExpr) && e.IsConst();
-            Expr EvalConstFn(Expr e)
-            {
-                var isconst = e.TryEvalConst(out Value val);
-                Debug.Assert(isconst);
-                var newe = ConstExpr.MakeConst(val, expr.type_, expr.outputName_);
-                return newe;
-            }
-
-            if (expr is ConstExpr)
-                return expr;
-            else
-                return expr.SearchAndReplace<Expr>(IsConstFn, EvalConstFn);
-        }
     }
 
     public static class FilterHelper
@@ -552,7 +534,7 @@ namespace qpmodel.expr
     //     subclass shall only use children_ to contain Expr, otherwise
     //      Bind() etc won't work.
     //
-    public class Expr : TreeNode<Expr>
+    public partial class Expr : TreeNode<Expr>
     {
         // Expression in selection list can have an output name 
         // e.g, a.i+b.i [[as] total]
@@ -584,7 +566,8 @@ namespace qpmodel.expr
 
         // output type of the expression
         internal ColumnType type_;
-
+        // to help prevent too much recursion.
+        internal bool normalized_ = false;        
         protected string outputName() => outputName_ != null ? $"(as {outputName_})" : null;
 
         void validateAfterBound()
@@ -746,12 +729,44 @@ namespace qpmodel.expr
                 Expr x = children_[i];
 
                 x.Bind(context);
-                x = x.ConstFolding();
                 children_[i] = x;
             }
             ResetAggregateTableRefs();
 
             markBounded();
+        }
+
+        public virtual Expr BindAndNormalize(BindContext context)
+        {
+            Bind(context);
+            return Normalize();
+        }
+
+        internal Expr NormalizeClause(Expr clause)
+        {
+            Expr x = clause.Normalize();
+            if (x is null || (x is ConstExpr ce && (ce.val_ is null || ce.IsFalse())))
+            {
+                // Normalization eliminated a clause which is always FALSE
+                return ConstExpr.MakeConstBool(false);
+            }
+            else
+            if (!(x is null) && x is ConstExpr ce2 && !(ce2.val_ is null) && ce2.IsTrue())
+            {
+                // eliminate always true clause.
+                return ConstExpr.MakeConstBool(true);
+            }
+            else
+            {
+                return x;
+            }
+        }
+
+        public virtual Expr BindAndNormalizeClause(BindContext context)
+        {
+            Bind(context);
+
+            return NormalizeClause(this);
         }
 
         public Expr DeQueryRef()
@@ -1109,6 +1124,11 @@ namespace qpmodel.expr
                         else
                             throw new SemanticAnalyzeException("wrong double precision format");
                         break;
+
+                    case NumericType nt:
+                        val_ = Convert.ToDecimal(str);
+                        break;
+
                     case DateTimeType dtt:
                         var datestr = str.RemoveStringQuotes();
                         if (DateTime.TryParse(datestr, out var valuedt))
@@ -1225,6 +1245,30 @@ namespace qpmodel.expr
         }
         public static ConstExpr MakeConstBool(bool istrue) =>
             istrue ? MakeConst("true", new BoolType()) : MakeConst("false", new BoolType());
+        public bool IsNull() => val_ is null;
+
+        public bool IsZero()
+        {
+            if (!(TypeBase.IsNumberType(type_)))
+                return false;
+
+            if ((type_ is IntType && (int)val_ == 0) || (type_ is DoubleType && (double)val_ == 0.0) || (type_ is NumericType && (Decimal)val_ is 0))
+                return true;          
+            return false;
+        }
+
+        public bool IsOne()
+        {
+            if (!(TypeBase.IsNumberType(type_)))
+                return false;
+
+            if ((type_ is IntType && (int)val_ == 1) || (type_ is DoubleType && (double)val_ == 1.0) || (type_ is NumericType && (Decimal)val_ is 1))
+                return true;
+            return false;
+        }
+
+        public bool IsTrue() => (type_ is BoolType && val_ is true);
+        public bool IsFalse() => (type_ is BoolType && val_ is false);
     }
 
     // Runtime only used to reference an expr as a whole without recomputation

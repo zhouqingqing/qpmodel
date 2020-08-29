@@ -13,4 +13,4 @@ PhysicHashAgg  (inccost=6077309, cost=76094, rows=1, memory=16)
     Aggregates: sum(l_extendedprice[1]*l_discount[2])
     -> PhysicScanTable lineitem (inccost=6001215, cost=6001215, rows=76092)
         Output: l_extendedprice[5]*l_discount[6],l_extendedprice[5],l_discount[6]
-        Filter: l_shipdate[10]>='1994-01-01' and l_shipdate[10]<'1/1/1995 12:00:00 AM' and l_discount[6]>=0.05 and l_discount[6]<=0.07 and l_quantity[4]<24
+        Filter: ((((l_shipdate[10]>='1994-01-01' and l_shipdate[10]<'1/1/1995 12:00:00 AM') and l_discount[6]>=0.05) and l_discount[6]<=0.07) and l_quantity[4]<24)

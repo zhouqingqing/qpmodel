@@ -76,7 +76,7 @@ namespace qpmodel.expr
         }
     }
 
-    public class FuncExpr : Expr
+    public partial class FuncExpr : Expr
     {
         internal string funcName_;
         internal int argcnt_;
@@ -224,6 +224,7 @@ namespace qpmodel.expr
             type_ = args_()[0].type_;
             Debug.Assert(type_ is CharType || type_ is VarCharType);
         }
+
         public override Value Exec(ExecContext context, Row input)
         {
             string str = (string)args_()[0].Exec(context, input);
@@ -279,6 +280,7 @@ namespace qpmodel.expr
             return string.Join("", Enumerable.Repeat(str, times));
         }
     }
+
     public class RoundFunc : FuncExpr
     {
         public RoundFunc(List<Expr> args) : base("round", args)
@@ -335,7 +337,7 @@ namespace qpmodel.expr
         }
     }
 
-    public class CoalesceFunc : FuncExpr
+    public partial class CoalesceFunc : FuncExpr
     {
         public CoalesceFunc(List<Expr> args) : base("coalesce", args)
         {
@@ -784,7 +786,7 @@ namespace qpmodel.expr
         }
     }
 
-    public class UnaryExpr : Expr
+    public partial class UnaryExpr : Expr
     {
         internal string op_;
 
@@ -821,10 +823,10 @@ namespace qpmodel.expr
         }
     }
 
-    // we can actually put all binary ops in BinExpr class but we want to keep 
+    // we can actually put all binary ops in BinExpr class but we want to keep
     // some special ones (say AND/OR) so we can coding easier
     //
-    public class BinExpr : Expr
+    public partial class BinExpr : Expr
     {
         internal string op_;
 
@@ -923,7 +925,39 @@ namespace qpmodel.expr
             op_ = SwapSideOp(op_);
         }
 
-        public override string ToString() => $"{lchild_()}{op_}{rchild_()}{outputName()}";
+        public override string ToString()
+        {
+            bool addParen = false;
+            string space = null;
+            switch(op_)
+            {
+                case "like":
+                case "not like":
+                case "in":
+                case "is":
+                case "is not":
+                    space = " ";
+                    break;
+
+                case "+":
+                case "-":
+                case " or ":
+                case " and ":
+                    addParen = true;
+                    break;
+            }
+
+            string str = "";
+            if (addParen)
+                str += "(";
+
+            str += $"{lchild_()}{space}{op_}{space}{rchild_()}{outputName()}";
+
+            if (addParen)
+                str += ")";
+
+            return str;
+        }
 
         public override Value Exec(ExecContext context, Row input)
         {
@@ -936,15 +970,15 @@ namespace qpmodel.expr
 
             switch (op_)
             {
-                // we can do a compile type type coerse for addition/multiply etc to align 
-                // data types, say double+decimal will require both side become decimal. 
+                // we can do a compile type type coerse for addition/multiply etc to align
+                // data types, say double+decimal will require both side become decimal.
                 // However, for comparison, we cam't do that, because that depends the actual
                 // value: decimal has better precision and double has better range, if double
                 // if out of decimal's range, we shall convert both to double; otherwise they
                 // shall be converted to decimals.
                 //
                 // We do a simplification here by forcing type coerse for any op at Bind().
-                // 
+                //
                 case "+": return lv + rv;
                 case "-": return lv - rv;
                 case "*": return lv * rv;
@@ -1058,7 +1092,7 @@ namespace qpmodel.expr
         }
     }
 
-    public class CastExpr : Expr
+    public partial class CastExpr : Expr
     {
         public override string ToString() => $"cast({child_()} to {type_})";
         public CastExpr(Expr child, ColumnType coltype) : base() { children_.Add(child); type_ = coltype; }
