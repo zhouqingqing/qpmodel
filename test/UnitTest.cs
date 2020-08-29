@@ -2813,61 +2813,27 @@ namespace qpmodel.unittest
             Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]<=0"));
         }
 
+        [TestMethod]
         public void TestSimpleAndSearchedCase()
         {
-            // test simple case
-            {
-                string sql = "select case a1 when 0 then 'a' when 1 then 'b' when 2 then 'c' else 'd' end from a;";
-                var result = ExecuteSQL(sql);
-                Assert.AreEqual(3, result.Count);
-                Assert.AreEqual(1, result[0].ColCount());
-                String[] expectRows = {"a", "b", "c"};
-                for (int i = 0; i < result.Count; i++)
-                    Assert.AreEqual(expectRows[i], result[i][0]);
-            }
+            string sql = null;
 
-            {
-                string sql = "select case a1 when a1+a2 then a3 else a4 end from a;";
-                var result = ExecuteSQL(sql);
-                Assert.AreEqual(3, result.Count);
-                Assert.AreEqual(1, result[0].ColCount());
-                int[] expectRows = {3, 4, 5};
-                for (int i = 0; i < result.Count; i++)
-                    Assert.AreEqual(expectRows[i], result[i][0]);
-            }
+            // test simple case
+            sql = "select case a1 when 0 then 'a' when 1 then 'b' when 2 then 'c' else 'd' end from a;";
+            TU.ExecuteSQL(sql, "a;b;c");
+            sql = "select case a1 when a1+a2 then a3 else a4 end from a;";
+            TU.ExecuteSQL(sql, "3;4;5");
 
             // test searched case
-            {
-                string sql = "select case when a1=a2 then a3 else a4 end from a;";
-                var result = ExecuteSQL(sql);
-                Assert.AreEqual(3, result.Count);
-                Assert.AreEqual(1, result[0].ColCount());
-                int[] expectRows = {3, 4, 5};
-                for (int i = 0; i < result.Count; i++)
-                    Assert.AreEqual(expectRows[i], result[i][0]);
-            }
-
-            {
-                string sql = "select case when a1 is not null then a1 else a4 end from a;";
-                var result = ExecuteSQL(sql);
-                Assert.AreEqual(3, result.Count);
-                Assert.AreEqual(1, result[0].ColCount());
-                int[] expectRows = {0, 1, 2};
-                for (int i = 0; i < result.Count; i++)
-                    Assert.AreEqual(expectRows[i], result[i][0]);
-            }
+            sql = "select case when a1=a2 then a3 else a4 end from a;";
+            TU.ExecuteSQL(sql, "3;4;5");
+            sql = "select case when a1 is not null then a1 else a4 end from a;";
+            TU.ExecuteSQL(sql, "0;1;2");
 
             // test coalesce function.
             // equivalent to "select case when a1 is not null then a1 else a4 end from a;"
-            {
-                string sql = "select coalesce(a1, a4) from a;";
-                var result = ExecuteSQL(sql);
-                Assert.AreEqual(3, result.Count);
-                Assert.AreEqual(1, result[0].ColCount());
-                int[] expectRows = {0, 1, 2};
-                for (int i = 0; i < result.Count; i++)
-                    Assert.AreEqual(expectRows[i], result[i][0]);
-            }
+            sql = "select coalesce(a1, a4) from a;";
+            TU.ExecuteSQL(sql, "0;1;2");
         }
     }
 
