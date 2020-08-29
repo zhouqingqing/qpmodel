@@ -2373,22 +2373,22 @@ namespace qpmodel.unittest
             // May need to instrument with extra output for CASE expressionsa and add
             // something like "NORMTRAN: Constant case folded"
             // Assert.IsTrue(phyplan.Contains("NORMTRAN: Constant case folded"));
-            Assert.IsTrue(phyplan.Contains("Output: case with 1"));
+            Assert.IsTrue(phyplan.Contains("Output: case with 0|1|1"));
 
             sql = "select CASE WHEN 1 = 1 THEN a1 + 1 ELSE a2 + 2 END from a";
             result = ExecuteSQL(sql, out phyplan);
             // Assert.IsTrue(phyplan.Contains("NORMTRAN: Constant case folded"));
-            Assert.IsTrue(phyplan.Contains("Output: case with 1"));
+            Assert.IsTrue(phyplan.Contains("Output: case with 0|1|1"));
 
             sql = "select CASE WHEN 1 = 0 THEN a1 + 1 ELSE a2 + 2 END from a";
             result = ExecuteSQL(sql, out phyplan);
             // Assert.IsTrue(phyplan.Contains("NORMTRAN: Constant case folded"));
-            Assert.IsTrue(phyplan.Contains("Output: case with 1"));
+            Assert.IsTrue(phyplan.Contains("Output: case with 0|1|1"));
 
             sql = "select CASE WHEN NULL > 1 THEN a1 + 1 ELSE a2 + 2 END from a";
             result = ExecuteSQL(sql, out phyplan);
             // Assert.IsTrue(phyplan.Contains("NORMTRAN: Constant case folded"));
-            Assert.IsTrue(phyplan.Contains("Output: case with 1"));
+            Assert.IsTrue(phyplan.Contains("Output: case with 0|1|1"));
 
             // Rule 6: Logical Simplification.
             sql = "select * from a, b where ((a1 = b1) AND (a2 = b2)) OR ((a1 = 2) AND (a3 = b3))";
@@ -2811,6 +2811,29 @@ namespace qpmodel.unittest
             sql = "select * from a where 3 >= 1 + 2 + a1";
             result = ExecuteSQL(sql, out phyplan);
             Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]<=0"));
+        }
+
+        [TestMethod]
+        public void TestSimpleAndSearchedCase()
+        {
+            string sql = null;
+
+            // test simple case
+            sql = "select case a1 when 0 then 'a' when 1 then 'b' when 2 then 'c' else 'd' end from a;";
+            TU.ExecuteSQL(sql, "a;b;c");
+            sql = "select case a1 when a1+a2 then a3 else a4 end from a;";
+            TU.ExecuteSQL(sql, "3;4;5");
+
+            // test searched case
+            sql = "select case when a1=a2 then a3 else a4 end from a;";
+            TU.ExecuteSQL(sql, "3;4;5");
+            sql = "select case when a1 is not null then a1 else a4 end from a;";
+            TU.ExecuteSQL(sql, "0;1;2");
+
+            // test coalesce function.
+            // equivalent to "select case when a1 is not null then a1 else a4 end from a;"
+            sql = "select coalesce(a1, a4) from a;";
+            TU.ExecuteSQL(sql, "0;1;2");
         }
     }
 

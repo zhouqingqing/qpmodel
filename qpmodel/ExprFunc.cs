@@ -712,7 +712,7 @@ namespace qpmodel.expr
         internal int nWhen_;
         internal int nElse_ = 0;
 
-        public override string ToString() => $"case with {when_().Count}";
+        public override string ToString() => $"case with {nEval_}|{when_().Count}|{nElse_}";
 
         internal Expr eval_() => nEval_ != 0 ? children_[0] : null;
         internal List<Expr> when_() => children_.GetRange(nEval_, nWhen_);
@@ -765,6 +765,7 @@ namespace qpmodel.expr
         {
             if (eval_() != null)
             {
+                // execute simple case
                 var eval = eval_().Exec(context, input);
                 for (int i = 0; i < when_().Count; i++)
                 {
@@ -774,6 +775,7 @@ namespace qpmodel.expr
             }
             else
             {
+                // execute searched case
                 for (int i = 0; i < when_().Count; i++)
                 {
                     if (when_()[i].Exec(context, input) is true)
@@ -961,7 +963,7 @@ namespace qpmodel.expr
 
         public override Value Exec(ExecContext context, Row input)
         {
-            string[] nullops = { "is", "||" };
+            string[] nullops = { "is", "||", "is not"};
             dynamic lv = lchild_().Exec(context, input);
             dynamic rv = rchild_().Exec(context, input);
 
