@@ -3004,4 +3004,38 @@ namespace qpmodel.unittest
             Assert.IsNull(hist);
         }
     }
+
+    [TestClass]
+    public class SyntaxError
+    {
+        [TestMethod]
+        [ExpectedException(typeof(AntlrParserException))]
+        public void TestParseError()
+        {
+            string sql = null;
+
+            sql = "this is not a SQL statements.";
+            RawParser.ParseSqlStatements(sql);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(AntlrParserException))]
+        public void TestOuterError()
+        {
+            string sql = null;
+
+            sql = "select * from a outer join b on(a1 <> b1) where 100 > null;";
+            RawParser.ParseSqlStatements(sql);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(AntlrParserException))]
+        public void TestInnerError()
+        {
+            string sql = null;
+
+            sql = "select * from a left inner join b on(a1 <> b1) where 100 > null;";
+            RawParser.ParseSqlStatements(sql);
+        }
+    }
 }

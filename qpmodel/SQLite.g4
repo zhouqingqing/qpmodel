@@ -282,7 +282,7 @@ join_clause
  ;
 
 join_operator
-: K_NATURAL? ( K_LEFT K_OUTER? | K_RIGHT K_OUTER? | K_FULL K_OUTER? | K_INNER | K_CROSS )? K_JOIN
+ : K_NATURAL? ( K_LEFT K_OUTER? | K_RIGHT K_OUTER? | K_FULL K_OUTER? | K_INNER | K_CROSS )? K_JOIN
  ;
 
 join_constraint

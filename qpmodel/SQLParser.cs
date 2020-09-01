@@ -42,7 +42,18 @@ namespace qpmodel.sqlparser
     // antlr requires user defined exception
     public class AntlrParserException : Exception
     {
-        public AntlrParserException(string msg) => Console.WriteLine($"ERROR[Antlr]: {msg }");
+        public AntlrParserException(string msg) : base(msg) {}
+    }
+
+    public class SyntaxErrorListener : BaseErrorListener
+    {
+        public override void SyntaxError(IRecognizer recognizer, IToken offendingSymbol, int line, int charPositionInLine, string msg,
+            RecognitionException e)
+        {
+            var stack = ((Parser)recognizer).GetRuleInvocationStack();
+            string errormsg  = $@"{string.Join("->", stack)} : {line}|{charPositionInLine}|{offendingSymbol}|{msg}";
+            throw new AntlrParserException(errormsg);
+        }
     }
 
     public class RawParser
@@ -57,6 +68,9 @@ namespace qpmodel.sqlparser
             CommonTokenStream commonTokenStream = new CommonTokenStream(sqlLexer);
             sqlParser_ = new SQLiteParser(commonTokenStream);
             visitor_ = new SQLiteVisitor();
+
+            // obtain syntax errors by adding error listener
+            sqlParser_.AddErrorListener(new SyntaxErrorListener());
         }
 
         // sqlbatch can also be a single sql statement - however, it won't allow you to 
@@ -66,8 +80,12 @@ namespace qpmodel.sqlparser
         {
             RawParser parser = new RawParser();
             parser.Init(sqlbatch);
-            SQLiteParser.Sql_stmt_listContext stmtCxt = parser.sqlParser_.sql_stmt_list();
-            return parser.visitor_.VisitSql_stmt_list(stmtCxt) as StatementList;
+
+            // parse sql statements from parse rule.
+            // any syntax can be catched by @SyntaxErrorListener.
+            // otherwise parser silently truncate unrecognized part.
+            SQLiteParser.ParseContext stmtCxt = parser.sqlParser_.parse();
+            return parser.visitor_.VisitParse(stmtCxt) as StatementList;
         }
 
         public static SQLStatement ParseSingleSqlStatement(string sql) => ParseSqlStatements(sql).list_[0];
@@ -650,6 +668,11 @@ namespace qpmodel.sqlparser
             }
 
             return new StatementList(list, GetRawText(context));
+        }
+
+        public override object VisitParse([NotNull] SQLiteParser.ParseContext context)
+        {
+            return Visit(context.sql_stmt_list(0)) as StatementList;
         }
     }
 }
