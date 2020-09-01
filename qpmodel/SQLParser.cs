@@ -672,6 +672,8 @@ namespace qpmodel.sqlparser
 
         public override object VisitParse([NotNull] SQLiteParser.ParseContext context)
         {
+            if (context.sql_stmt_list().Length == 0)
+                throw new AntlrParserException("empty SQL statements.");
             return Visit(context.sql_stmt_list(0)) as StatementList;
         }
     }
