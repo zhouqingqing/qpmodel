@@ -3039,5 +3039,13 @@ namespace qpmodel.unittest
             string sql = "";
             RawParser.ParseSqlStatements(sql);
         }
+
+        [TestMethod]
+        [ExpectedException(typeof(AntlrParserException))]
+        public void TestParenthesisError()
+        {
+            string sql = "select * from a inner join b on(a1 <> b1 where 100 > null;";
+            RawParser.ParseSqlStatements(sql);
+        }
     }
 }
