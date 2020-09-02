@@ -201,13 +201,13 @@ namespace qpmodel
                 goto doit;
             }
 
-            if (false)
+            if (true)
             {
-                Tpch.CreateTables();
+                Tpch.CreateTables(true);
                 Tpch.LoadTables("0001");
                 //Tpch.CreateIndexes();
                 Tpch.AnalyzeTables();
-                sql = File.ReadAllText("../../../../tpch/q20.sql");
+                sql = File.ReadAllText("../../../../tpch/q10.sql");
                 goto doit;
             }
 

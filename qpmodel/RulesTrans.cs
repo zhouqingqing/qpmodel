@@ -43,6 +43,7 @@ namespace qpmodel.optimizer
         public static List<Rule> ruleset_ = new List<Rule>() {
             new JoinAssociativeRule(),
             new JoinCommutativeRule(),
+            new AggSplitRule(),
             new Join2NLJoin(),
             new Join2HashJoin(),
             new Join2MarkJoin(),
@@ -80,6 +81,8 @@ namespace qpmodel.optimizer
                 ruleset.RemoveAll(x => x is Agg2StreamAgg);
             if (!option.optimize_.enable_nljoin_)
                 ruleset.RemoveAll(x => x is Join2NLJoin);
+            if (!option.optimize_.memo_use_remoteexchange_)
+                ruleset.RemoveAll(x => x is AggSplitRule);
         }
 
         public abstract bool Appliable(CGroupMember expr);
@@ -195,6 +198,120 @@ namespace qpmodel.optimizer
             }
 
             return new CGroupMember(ab_c, expr.group_);
+        }
+    }
+
+    public class AggSplitRule : ExplorationRule
+    {
+        public override bool Appliable(CGroupMember expr)
+        {
+            LogicAgg agg = expr.logic_ as LogicAgg;
+            if (agg is null || agg.is_local_ || agg.isDerived_)
+                return false;
+
+            return true;
+        }
+
+        public override CGroupMember Apply(CGroupMember expr)
+        {
+            // for manually binding the expression
+            void manualbindexpr(Expr e)
+            {
+                e.bounded_ = true;
+                e.type_ = new BoolType();
+            }
+
+            BinExpr processhaving(Expr e, Dictionary<Expr, Expr> dict)
+            {
+                var be = e as BinExpr;
+                Debug.Assert(be != null);
+                bool isreplace = false;
+                List<Expr> children = new List<Expr>();
+                foreach (var child in be.children_)
+                {
+                    if (dict.ContainsKey(child))
+                    {
+                        children.Add(dict[child]);
+                        isreplace = true;
+                    }
+                    else
+                        children.Add(child);
+                }
+                Debug.Assert(isreplace);
+                return new BinExpr(children[0], children[1], be.op_);
+            }
+
+            LogicAgg origAggNode = expr.logic_ as LogicAgg;
+            var childNode = (origAggNode.child_() as LogicMemoRef).Deref<LogicNode>();
+
+            var groupby = origAggNode.groupby_?.CloneList();
+            var having = origAggNode.having_?.Clone();
+
+            // process the aggregation functions
+            origAggNode.GenerateAggrFns(false);
+
+            List<AggFunc> aggfns = new List<AggFunc>();
+            origAggNode.aggrFns_.ForEach(x => aggfns.Add(x.Clone() as AggFunc));
+            var globalfns = new List<Expr>();
+            var localfns = new List<Expr>();
+
+            // record the processed aggregate functions
+            var derivedAggFuncDict = new Dictionary<Expr, Expr>();
+
+            foreach (var func in aggfns)
+            {
+                Expr processed = null;
+                if (func is AggAvg)
+                {
+                    // child of tsum/tcount will be replace to bypass aggfunc child during aggfunc intialization
+                    var tsum = new AggSum(new List<Expr> { func.child_() }); manualbindexpr(tsum);
+                    var sumchild = new AggSum(new List<Expr> { func.child_() }); manualbindexpr(sumchild);
+                    var sumchildref = new AggrRef(sumchild, -1); manualbindexpr(sumchildref);
+                    tsum.children_[0] = sumchildref;
+
+                    var tcount = new AggSum(new List<Expr> { func.child_() }); manualbindexpr(tcount);
+                    var countchild = new AggCount(new List<Expr> { func.child_() }); manualbindexpr(countchild);
+                    var countchildref = new AggrRef(countchild, -1); manualbindexpr(countchildref);
+                    tcount.children_[0] = countchildref;
+
+                    processed = new BinExpr(tsum, tcount, "/");
+                }
+                else
+                {
+                    localfns.Add(func);
+                    if (func is AggCount || func is AggSum || func is AggCountStar)
+                        processed = new AggSum(new List<Expr> { func.child_() });
+                    else if (func is AggMin)
+                        processed = new AggMin(new List<Expr> { func.child_() });
+                    else if (func is AggMax)
+                        processed = new AggMax(new List<Expr> { func.child_() });
+
+                    processed.children_[0] = new AggrRef(func, -1);
+                }
+                manualbindexpr(processed);
+                processed._ = func._;
+
+                globalfns.Add(processed);
+                derivedAggFuncDict.Add(func, processed);
+            }
+
+            var local = new LogicAgg(childNode, groupby, localfns, null);
+            local.is_local_ = true;
+            local.isDerived_ = true;
+
+            var newhaving = having;
+            if (having != null)
+            {
+                newhaving = processhaving(having, derivedAggFuncDict);
+                manualbindexpr(newhaving);
+            }
+
+            var global = new LogicAgg(local, groupby, globalfns, newhaving);
+            global.isDerived_ = true;
+            global.Overridesign(origAggNode);
+            global.deriveddict_ = derivedAggFuncDict;
+
+            return new CGroupMember(global, expr.group_);
         }
     }
 }

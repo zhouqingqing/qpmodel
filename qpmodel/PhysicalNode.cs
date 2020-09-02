@@ -1119,6 +1119,8 @@ namespace qpmodel.physic
 
         protected override double EstimateCost()
         {
+            //if (logic_.isDerived_)
+            //    return 0.1;
             return (child_().Card() * 1.0) + (logic_.Card() * 2.0);
         }
 
@@ -1130,6 +1132,15 @@ namespace qpmodel.physic
             {
                 listChildReqs.Add(new ChildrenRequirement { DistrProperty.Singleton_ });
                 return true;
+            }
+            // is the aggregation is local, it can be for any distribution
+            if (DistrProperty.AnyDistributed_.IsSuppliedBy(required))
+            {
+                if ((logic_ as LogicAgg).is_local_)
+                {
+                    listChildReqs.Add(new ChildrenRequirement { required });
+                    return true;
+                }
             }
             listChildReqs = null;
             return false;
@@ -1149,7 +1160,8 @@ namespace qpmodel.physic
         {
             ExecContext context = context_;
             var logic = logic_ as LogicAgg;
-            var aggrcore = logic.aggrFns_;
+            List<AggFunc> aggrcore = new List<AggFunc>();
+            logic.aggrFns_.ForEach(x => aggrcore.Add(x.Clone() as AggFunc));
             var hm = new Dictionary<KeyList, Row>();
 
             // aggregation is working on aggCore targets

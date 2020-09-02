@@ -694,6 +694,12 @@ namespace qpmodel.expr
             return object.Equals(_, n._) && tableRefs_.SequenceEqual(n.tableRefs_) &&
                 children_.SequenceEqual(n.children_);
         }
+        public bool IDEquals(object obj)
+        {
+            if (!(obj is Expr))
+                return false;
+            return object.Equals(_, (obj as Expr)._);
+        }
 
         public List<TableRef> ResetAggregateTableRefs()
         {
