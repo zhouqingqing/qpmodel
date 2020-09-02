@@ -85,7 +85,8 @@ namespace qpmodel.optimizer
             switch (distribution_.disttype)
             {
                 case DistrType.AnyDistributed:
-                    return testeeType == DistrType.Distributed;
+                    return testeeType == DistrType.Distributed
+                        || testeeType == DistrType.AnyDistributed;
                 case DistrType.Singleton:
                     return testeeType == DistrType.Singleton;
                 // distribution expr list must match to be considered supplied

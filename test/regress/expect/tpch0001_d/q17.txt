@@ -15,14 +15,14 @@ where
 		where
 			l_partkey = p_partkey
 	)
-Total cost: 85356, memory=6024
-PhysicHashAgg  (inccost=85356, cost=32, rows=1, memory=16) (actual rows=1)
+Total cost: 27906, memory=5624
+PhysicHashAgg  (inccost=27906, cost=32, rows=1, memory=16) (actual rows=1)
     Output: {sum(l_extendedprice)}[0]/7(as avg_yearly)
     Aggregates: sum(l_extendedprice[0])
-    -> PhysicFilter  (inccost=85324, cost=30, rows=30) (actual rows=0)
+    -> PhysicFilter  (inccost=27874, cost=30, rows=30) (actual rows=0)
         Output: l_extendedprice[0]
         Filter: l_quantity[1]<{avg(l_quantity)}[2]*0.2
-        -> PhysicHashJoin Left (inccost=85294, cost=290, rows=30, memory=1200) (actual rows=0)
+        -> PhysicHashJoin Left (inccost=27844, cost=290, rows=30, memory=1200) (actual rows=0)
             Output: l_extendedprice[0],l_quantity[1],{avg(l_quantity)}[3]
             Filter: l_partkey[4]=p_partkey[2]
             -> PhysicGather Threads: 20 (inccost=12544, cost=300, rows=30) (actual rows=0)
@@ -37,13 +37,17 @@ PhysicHashAgg  (inccost=85356, cost=32, rows=1, memory=16) (actual rows=1)
                             Filter: (p_container[6]='MED BOX' and p_brand[3]='Brand#23')
                     -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=6005) (actual rows=0)
                         Output: l_extendedprice[5],l_quantity[4],l_partkey[1]
-            -> PhysicHashAgg  (inccost=72460, cost=6405, rows=200, memory=4800) (actual rows=0)
-                Output: {avg(l_quantity)}[1],{l_partkey}[0]
-                Aggregates: avg(l_quantity[1])
+            -> PhysicHashAgg  (inccost=15010, cost=600, rows=200, memory=2000) (actual rows=0)
+                Output: {sum({sum(l_quantity)})}[1]/{sum({count(l_quantity)})}[2],{l_partkey}[0]
+                Aggregates: sum({sum(l_quantity)}[1]), sum({count(l_quantity)}[2])
                 Group by: l_partkey[0]
-                -> PhysicGather Threads: 10 (inccost=66055, cost=60050, rows=6005) (actual rows=0)
-                    Output: l_partkey[1],l_quantity[4]
-                    -> PhysicScanTable lineitem as lineitem__1 (inccost=6005, cost=6005, rows=6005) (actual rows=600, loops=10)
-                        Output: l_partkey[1],l_quantity[4]
+                -> PhysicGather Threads: 10 (inccost=14410, cost=2000, rows=200) (actual rows=0)
+                    Output: {l_partkey}[0],{sum(l_quantity)}[1],{count(l_quantity)}[2]
+                    -> PhysicHashAgg  (inccost=12410, cost=6405, rows=200, memory=2400) (actual rows=189, loops=10)
+                        Output: {l_partkey}[0],{sum(l_quantity)}[1],{count(l_quantity)}[2]
+                        Aggregates: sum(l_quantity[1]), count(l_quantity[1])
+                        Group by: l_partkey[0]
+                        -> PhysicScanTable lineitem as lineitem__1 (inccost=6005, cost=6005, rows=6005) (actual rows=600, loops=10)
+                            Output: l_partkey[1],l_quantity[4]
 
 

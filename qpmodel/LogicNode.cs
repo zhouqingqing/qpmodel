@@ -62,6 +62,9 @@ namespace qpmodel.logic
         // tables it contained (children recursively inclusive)
         internal BitVector tableContained_ { get; set; }
 
+        // if the node is derived, the output may not match the request from parent
+        internal bool isDerived_ = false;
+
         // it is possible to really have this value but ok to recompute
         protected LogicSignature logicSign_ = -1;
 
@@ -259,7 +262,7 @@ namespace qpmodel.logic
             return tableRefs_;
         }
 
-        internal Expr CloneFixColumnOrdinal(Expr toclone, List<Expr> source)
+        internal Expr CloneFixColumnOrdinal(Expr toclone, List<Expr> source, bool idonly = false)
         {
             Debug.Assert(toclone.bounded_);
             Debug.Assert(toclone._ != null);
@@ -271,6 +274,10 @@ namespace qpmodel.logic
             if (!(clone is ColExpr))
             {
                 int ordinal = source.FindIndex(clone.Equals);
+                // for derived child node, compare only the expression id
+                if (idonly && ordinal == -1)
+                    ordinal = source.FindIndex(clone.IDEquals);
+
                 if (ordinal != -1)
                     return new ExprRef(clone, ordinal);
             }
@@ -346,7 +353,15 @@ namespace qpmodel.logic
         internal List<Expr> CloneFixColumnOrdinal(List<Expr> toclone, List<Expr> source, bool removeRedundant)
         {
             var clone = new List<Expr>();
-            toclone.ForEach(x => clone.Add(CloneFixColumnOrdinal(x, source)));
+
+            bool idonly = false;
+            children_.ForEach(x =>
+            {
+                if (x.isDerived_)
+                    idonly = true;
+            });
+
+            toclone.ForEach(x => clone.Add(CloneFixColumnOrdinal(x, source, idonly)));
             Debug.Assert(clone.Count == toclone.Count);
 
             if (removeRedundant)
@@ -730,6 +745,8 @@ namespace qpmodel.logic
     {
         public List<Expr> raw_aggrs_; // original aggregations
 
+        public bool is_local_ = false; // default is global agg
+
         public List<Expr> groupby_;
         public Expr having_;
 
@@ -741,10 +758,16 @@ namespace qpmodel.logic
         public List<AggFunc> aggrFns_ = new List<AggFunc>();
         public override string ToString() => $"Agg({child_()})";
 
+        // record the derived node expression map
+        public Dictionary<Expr, Expr> deriveddict_;
+
+        // derived node must have the same logicSign_ to be in the same group
+        public void Overridesign(LogicAgg node)
+            => logicSign_ = node.logicSign_;
         public override LogicSignature MemoLogicSign()
         {
             if (logicSign_ == -1)
-                logicSign_ = child_().MemoLogicSign() ^ having_.FilterHashCode()
+                logicSign_ = child_().MemoLogicSign() ^ is_local_.GetHashCode() ^ having_.FilterHashCode()
                     ^ Utils.ListHashCode(raw_aggrs_) ^ Utils.ListHashCode(groupby_);
             return logicSign_;
         }
@@ -910,38 +933,25 @@ namespace qpmodel.logic
             return newlist;
         }
 
-        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
+        // map the original requested expressions to derived expressions
+        List<Expr> replaceDerivedExpr(List<Expr> sourceList)
         {
-            List<int> ordinals = new List<int>();
+            bool IsAggFuncInDict(Expr e) => deriveddict_.ContainsKey(e);
+            Expr ReplaceWithLong(AggFunc agg) => deriveddict_[agg];
 
-            // reqOutput may contain ExprRef which is generated during FromQuery removal process, remove them
-            var reqList = reqOutput.CloneList(new List<Type> { typeof(ConstExpr) });
+            List<Expr> newlist = new List<Expr>();
+            sourceList.ForEach(x =>
+            {
+                x = x.SearchAndReplace<AggFunc>(IsAggFuncInDict, ReplaceWithLong);
+                newlist.Add(x);
+            });
+            return newlist;
+        }
 
-            // request from child including reqOutput and filter. Don't use whole expression
-            // matching push down like k+k => (k+k)[0] instead, we need k[0]+k[0] because 
-            // aggregation only projection values from hash table(key, value).
-            //
-            List<Expr> reqFromChild = new List<Expr>();
-            reqFromChild.AddRange(removeAggFuncAndKeyExprsFromOutput(reqList, groupby_));
-
-            // It is ideal to add keys_ directly to reqFromChild but matching can be harder.
-            // Consider the following case:
-            //   keys/having: a1+a2, a3+a4
-            //   reqOutput: a1+a3+a2+a4
-            // Let's fix this later
-            //
-            if (groupby_ != null)
-                reqFromChild.AddRange(groupby_.RetrieveAllColExpr());
-            if (having_ != null)
-                reqFromChild.AddRange(having_.RetrieveAllColExpr());
-            child_().ResolveColumnOrdinal(reqFromChild);
-            var childout = child_().output_;
-
-            if (groupby_ != null)
-                groupby_ = CloneFixColumnOrdinal(groupby_, childout, true);
-            if (having_ != null)
-                having_ = CloneFixColumnOrdinal(having_, childout);
-            output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
+        internal List<Expr> GenerateAggrFns(bool isResolveColumnOrdinal = true)
+        {
+            if (!isResolveColumnOrdinal)
+                output_ = raw_aggrs_;
 
             // Bound aggrs to output, so when we computed aggrs, we automatically get output
             // Here is an example:
@@ -972,7 +982,6 @@ namespace qpmodel.logic
                         aggrFns_.Add(y);
                     x = x.SearchAndReplace(y, new ExprRef(y, nkeys + aggrFns_.IndexOf(y)));
                 });
-
                 newoutput.Add(x);
             });
             if (having_ != null && groupby_ != null)
@@ -985,6 +994,57 @@ namespace qpmodel.logic
                 having_ = having_.SearchAndReplace(y, new ExprRef(y, nkeys + aggrFns_.IndexOf(y)));
             });
             Debug.Assert(aggrFns_.Count == aggrFns_.Distinct().Count());
+            return newoutput;
+        }
+
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
+        {
+            List<int> ordinals = new List<int>();
+
+            var derivedGlobal = isDerived_ && !is_local_;
+            var processedOutput = derivedGlobal ? replaceDerivedExpr(reqOutput) : reqOutput;
+
+            // reqOutput may contain ExprRef which is generated during FromQuery removal process, remove them
+            var reqList = processedOutput.CloneList(new List<Type> { typeof(ConstExpr) });
+
+            // request from child including reqOutput and filter. Don't use whole expression
+            // matching push down like k+k => (k+k)[0] instead, we need k[0]+k[0] because 
+            // aggregation only projection values from hash table(key, value).
+            //
+            List<Expr> reqFromChild = new List<Expr>();
+            reqFromChild.AddRange(removeAggFuncAndKeyExprsFromOutput(reqList, groupby_));
+
+            // It is ideal to add keys_ directly to reqFromChild but matching can be harder.
+            // Consider the following case:
+            //   keys/having: a1+a2, a3+a4
+            //   reqOutput: a1+a3+a2+a4
+            // Let's fix this later
+            //
+            if (groupby_ != null)
+            {
+                if (derivedGlobal) reqFromChild.AddRange(groupby_);
+                else reqFromChild.AddRange(groupby_.RetrieveAllColExpr());
+            }
+            if (having_ != null)
+            {
+                if (derivedGlobal)
+                {
+                    reqFromChild.AddRange(removeAggFuncAndKeyExprsFromOutput(new List<Expr> { having_.lchild_() }, groupby_));
+                    reqFromChild.AddRange(having_.rchild_().RetrieveAllColExpr());
+                }
+                else reqFromChild.AddRange(having_.RetrieveAllColExpr());
+            }
+            child_().ResolveColumnOrdinal(reqFromChild);
+            var childout = child_().output_;
+
+            if (groupby_ != null)
+                groupby_ = CloneFixColumnOrdinal(groupby_, childout, true);
+            if (having_ != null)
+                having_ = CloneFixColumnOrdinal(having_, childout);
+            
+            output_ = CloneFixColumnOrdinal(processedOutput, childout, removeRedundant);
+
+            var newoutput = GenerateAggrFns();
 
             // Say invvalid expression means contains colexpr (replaced with ref), then the output shall
             // contains no expression consists invalid expression

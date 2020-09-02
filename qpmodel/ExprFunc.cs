@@ -424,6 +424,16 @@ namespace qpmodel.expr
         public abstract Value Accum(ExecContext context, Value old, Row input);
         public virtual Value Finalize(ExecContext context, Value old) => old;
 
+        public virtual Expr SplitAgg()
+        {
+            // this is for sum, count, and countstar
+            var child = child_();
+            var processed = new AggSum(new List<Expr> { child.Clone() });
+            processed.children_[0] = new AggrRef(this.Clone(), -1);
+            processed.dummyBind();
+            return processed;
+        }
+
         public override object Exec(ExecContext context, Row input)
             => throw new InvalidProgramException("aggfn [some] are stateful, they use different set of APIs");
     }
@@ -544,6 +554,14 @@ namespace qpmodel.expr
 
             return min_;
         }
+        public override Expr SplitAgg()
+        {
+            var child = child_();
+            var processed = new AggMin(new List<Expr> { child.Clone() });
+            processed.children_[0] = new AggrRef(this.Clone(), -1);
+            processed.dummyBind();
+            return processed;
+        }
     }
 
     public class AggMax : AggFunc
@@ -574,6 +592,14 @@ namespace qpmodel.expr
             }
 
             return max_;
+        }
+        public override Expr SplitAgg()
+        {
+            var child = child_();
+            var processed = new AggMax(new List<Expr> { child.Clone() });
+            processed.children_[0] = new AggrRef(this.Clone(), -1);
+            processed.dummyBind();
+            return processed;
         }
     }
 
@@ -639,6 +665,25 @@ namespace qpmodel.expr
 
             return pair_;
         }
+        public override Expr SplitAgg()
+        {
+            var child = child_();
+            
+            // child of tsum/tcount will be replace to bypass aggfunc child during aggfunc intialization
+            var tsum = new AggSum(new List<Expr> { child }); tsum.dummyBind();
+            var sumchild = new AggSum(new List<Expr> { child.Clone() }); sumchild.dummyBind();
+            var sumchildref = new AggrRef(sumchild, -1);
+            tsum.children_[0] = sumchildref;
+
+            var tcount = new AggSum(new List<Expr> { child }); tcount.dummyBind();
+            var countchild = new AggCount(new List<Expr> { child.Clone() }); countchild.dummyBind();
+            var countchildref = new AggrRef(countchild, -1);
+            tcount.children_[0] = countchildref;
+
+            var processed = new BinExpr(tsum, tcount, "/");
+            processed.dummyBind();
+            return processed;
+        }
 
         public override Value Finalize(ExecContext context, Value old) => (old as AvgPair).Finalize();
     }
@@ -698,6 +743,7 @@ namespace qpmodel.expr
             values_ = oldlist;
             return values_;
         }
+        public override Expr SplitAgg() => null;
         public override Value Finalize(ExecContext context, Value old) => (old as AggStddevValues).Finalize();
     }
 

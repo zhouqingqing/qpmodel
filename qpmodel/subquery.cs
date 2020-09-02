@@ -60,8 +60,7 @@ namespace qpmodel.logic
         public MarkerExpr()
         {
             Debug.Assert(Equals(Clone()));
-            type_ = new BoolType();
-            markBounded();
+            dummyBind();
         }
 
         public override Value Exec(ExecContext context, Row input)

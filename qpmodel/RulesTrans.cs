@@ -43,6 +43,7 @@ namespace qpmodel.optimizer
         public static List<Rule> ruleset_ = new List<Rule>() {
             new JoinAssociativeRule(),
             new JoinCommutativeRule(),
+            new AggSplitRule(),
             new Join2NLJoin(),
             new Join2HashJoin(),
             new Join2MarkJoin(),
@@ -80,6 +81,8 @@ namespace qpmodel.optimizer
                 ruleset.RemoveAll(x => x is Agg2StreamAgg);
             if (!option.optimize_.enable_nljoin_)
                 ruleset.RemoveAll(x => x is Join2NLJoin);
+            if (!option.optimize_.memo_use_remoteexchange_)
+                ruleset.RemoveAll(x => x is AggSplitRule);
         }
 
         public abstract bool Appliable(CGroupMember expr);
@@ -195,6 +198,103 @@ namespace qpmodel.optimizer
             }
 
             return new CGroupMember(ab_c, expr.group_);
+        }
+    }
+
+    public class AggSplitRule : ExplorationRule
+    {
+        public override bool Appliable(CGroupMember expr)
+        {
+            LogicAgg agg = expr.logic_ as LogicAgg;
+            if (agg is null || agg.is_local_ || agg.isDerived_)
+                return false;
+
+            return true;
+        }
+
+        public override CGroupMember Apply(CGroupMember expr)
+        {
+            // for manually binding the expression
+            void manualbindexpr(Expr e)
+            {
+                e.bounded_ = true;
+                e.type_ = new BoolType();
+            }
+
+            // for transformaing original having according to the new agg func
+            BinExpr processhaving(Expr e, Dictionary<Expr, Expr> dict)
+            {
+                var be = e as BinExpr;
+                Debug.Assert(be != null);
+                bool isreplace = false;
+                List<Expr> children = new List<Expr>();
+                foreach (var child in be.children_)
+                {
+                    if (dict.ContainsKey(child))
+                    {
+                        children.Add(dict[child]);
+                        isreplace = true;
+                    }
+                    else
+                        children.Add(child);
+                }
+                Debug.Assert(isreplace);
+                return new BinExpr(children[0], children[1], be.op_);
+            }
+
+            LogicAgg origAggNode = (expr.logic_ as LogicAgg);
+            var childNode = (origAggNode.child_() as LogicMemoRef).Deref<LogicNode>();
+
+            var groupby = origAggNode.groupby_?.CloneList();
+            var having = origAggNode.having_?.Clone();
+
+            // process the aggregation functions
+            origAggNode.GenerateAggrFns(false);
+
+            List<AggFunc> aggfns = new List<AggFunc>();
+            origAggNode.aggrFns_.ForEach(x => aggfns.Add(x.Clone() as AggFunc));
+            // need to make aggrFns_ back to null list
+            origAggNode.aggrFns_ = new List<AggFunc>();
+
+            var globalfns = new List<Expr>();
+            var localfns = new List<Expr>();
+
+            // record the processed aggregate functions
+            var derivedAggFuncDict = new Dictionary<Expr, Expr>();
+
+            foreach (var func in aggfns)
+            {
+                Expr processed = func.SplitAgg();
+                // if splitagg is returning null, end the transformation process
+                if (processed is null)
+                    return expr;
+
+                // force the id to be equal.
+                processed._ = func._;
+
+                globalfns.Add(processed);
+                derivedAggFuncDict.Add(func, processed);
+            }
+
+            var local = new LogicAgg(childNode, groupby, localfns, null);
+            local.is_local_ = true;
+
+            // having is placed on the global agg and the agg func need to be processed
+            var newhaving = having;
+            if (having != null)
+            {
+                newhaving = processhaving(having, derivedAggFuncDict);
+                manualbindexpr(newhaving);
+            }
+
+            // assuming having is an expression involving agg func,
+            // it is only placed on the global agg
+            var global = new LogicAgg(local, groupby, globalfns, newhaving);
+            global.isDerived_ = true;
+            global.Overridesign(origAggNode);
+            global.deriveddict_ = derivedAggFuncDict;
+
+            return new CGroupMember(global, expr.group_);
         }
     }
 }
