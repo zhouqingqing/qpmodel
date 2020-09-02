@@ -57,15 +57,19 @@ PhysicLimit (100) (inccost=209564.25, cost=100, rows=100) (actual rows=0)
                             Output: o_orderkey[0],o_orderdate[4],o_totalprice[3],o_custkey[1]
                             Filter: o_orderkey[0] in @1
                             <InSubqueryExpr> cached 1
-                                -> PhysicHashAgg  (inccost=75060, cost=9005, rows=1500, memory=12000) (actual rows=0)
+                                -> PhysicHashAgg  (inccost=34510, cost=4500, rows=1500, memory=12000) (actual rows=0)
                                     Output: {l_orderkey}[0]
-                                    Aggregates: sum(l_quantity[1])
+                                    Aggregates: sum({sum(l_quantity)}[1])
                                     Group by: l_orderkey[0]
-                                    Filter: {sum(l_quantity)}[1]>300
-                                    -> PhysicGather Threads: 10 (inccost=66055, cost=60050, rows=6005) (actual rows=6005)
-                                        Output: l_orderkey[0],l_quantity[4]
-                                        -> PhysicScanTable lineitem as lineitem__1 (inccost=6005, cost=6005, rows=6005) (actual rows=600, loops=10)
-                                            Output: l_orderkey[0],l_quantity[4]
+                                    Filter: {sum({sum(l_quantity)})}[1]>300
+                                    -> PhysicGather Threads: 10 (inccost=30010, cost=15000, rows=1500) (actual rows=1500)
+                                        Output: {l_orderkey}[0],{sum(l_quantity)}[1]
+                                        -> PhysicHashAgg  (inccost=15010, cost=9005, rows=1500, memory=36000) (actual rows=150, loops=10)
+                                            Output: {l_orderkey}[0],{sum(l_quantity)}[1]
+                                            Aggregates: sum(l_quantity[1])
+                                            Group by: l_orderkey[0]
+                                            -> PhysicScanTable lineitem as lineitem__1 (inccost=6005, cost=6005, rows=6005) (actual rows=600, loops=10)
+                                                Output: l_orderkey[0],l_quantity[4]
                         -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=6005) (actual rows=0)
                             Output: l_quantity[4],l_orderkey[0]
 

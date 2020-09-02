@@ -221,6 +221,7 @@ namespace qpmodel.optimizer
                 e.type_ = new BoolType();
             }
 
+            // for transformaing original having according to the new agg func
             BinExpr processhaving(Expr e, Dictionary<Expr, Expr> dict)
             {
                 var be = e as BinExpr;
@@ -241,7 +242,7 @@ namespace qpmodel.optimizer
                 return new BinExpr(children[0], children[1], be.op_);
             }
 
-            LogicAgg origAggNode = expr.logic_ as LogicAgg;
+            LogicAgg origAggNode = (expr.logic_ as LogicAgg);
             var childNode = (origAggNode.child_() as LogicMemoRef).Deref<LogicNode>();
 
             var groupby = origAggNode.groupby_?.CloneList();
@@ -252,6 +253,9 @@ namespace qpmodel.optimizer
 
             List<AggFunc> aggfns = new List<AggFunc>();
             origAggNode.aggrFns_.ForEach(x => aggfns.Add(x.Clone() as AggFunc));
+            // need to make aggrFns_ back to null list
+            origAggNode.aggrFns_ = new List<AggFunc>();
+
             var globalfns = new List<Expr>();
             var localfns = new List<Expr>();
 
@@ -261,16 +265,17 @@ namespace qpmodel.optimizer
             foreach (var func in aggfns)
             {
                 Expr processed = null;
+                // average is transformed into sum(sum()) / sum(count())
                 if (func is AggAvg)
                 {
                     // child of tsum/tcount will be replace to bypass aggfunc child during aggfunc intialization
                     var tsum = new AggSum(new List<Expr> { func.child_() }); manualbindexpr(tsum);
-                    var sumchild = new AggSum(new List<Expr> { func.child_() }); manualbindexpr(sumchild);
+                    var sumchild = new AggSum(new List<Expr> { func.child_().Clone() }); manualbindexpr(sumchild);
                     var sumchildref = new AggrRef(sumchild, -1); manualbindexpr(sumchildref);
                     tsum.children_[0] = sumchildref;
 
                     var tcount = new AggSum(new List<Expr> { func.child_() }); manualbindexpr(tcount);
-                    var countchild = new AggCount(new List<Expr> { func.child_() }); manualbindexpr(countchild);
+                    var countchild = new AggCount(new List<Expr> { func.child_().Clone() }); manualbindexpr(countchild);
                     var countchildref = new AggrRef(countchild, -1); manualbindexpr(countchildref);
                     tcount.children_[0] = countchildref;
 
@@ -280,11 +285,11 @@ namespace qpmodel.optimizer
                 {
                     localfns.Add(func);
                     if (func is AggCount || func is AggSum || func is AggCountStar)
-                        processed = new AggSum(new List<Expr> { func.child_() });
+                        processed = new AggSum(new List<Expr> { func.child_().Clone() });
                     else if (func is AggMin)
-                        processed = new AggMin(new List<Expr> { func.child_() });
+                        processed = new AggMin(new List<Expr> { func.child_().Clone() });
                     else if (func is AggMax)
-                        processed = new AggMax(new List<Expr> { func.child_() });
+                        processed = new AggMax(new List<Expr> { func.child_().Clone() });
 
                     processed.children_[0] = new AggrRef(func, -1);
                 }
@@ -297,8 +302,8 @@ namespace qpmodel.optimizer
 
             var local = new LogicAgg(childNode, groupby, localfns, null);
             local.is_local_ = true;
-            local.isDerived_ = true;
 
+            // having is placed on the global agg and the agg func need to be processed
             var newhaving = having;
             if (having != null)
             {
@@ -306,6 +311,8 @@ namespace qpmodel.optimizer
                 manualbindexpr(newhaving);
             }
 
+            // assuming having is an expression involving agg func,
+            // it is only placed on the global agg
             var global = new LogicAgg(local, groupby, globalfns, newhaving);
             global.isDerived_ = true;
             global.Overridesign(origAggNode);

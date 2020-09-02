@@ -1119,8 +1119,6 @@ namespace qpmodel.physic
 
         protected override double EstimateCost()
         {
-            //if (logic_.isDerived_)
-            //    return 0.1;
             return (child_().Card() * 1.0) + (logic_.Card() * 2.0);
         }
 
