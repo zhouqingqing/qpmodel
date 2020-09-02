@@ -264,36 +264,12 @@ namespace qpmodel.optimizer
 
             foreach (var func in aggfns)
             {
-                Expr processed = null;
-                // average is transformed into sum(sum()) / sum(count())
-                if (func is AggAvg)
-                {
-                    // child of tsum/tcount will be replace to bypass aggfunc child during aggfunc intialization
-                    var tsum = new AggSum(new List<Expr> { func.child_() }); manualbindexpr(tsum);
-                    var sumchild = new AggSum(new List<Expr> { func.child_().Clone() }); manualbindexpr(sumchild);
-                    var sumchildref = new AggrRef(sumchild, -1); manualbindexpr(sumchildref);
-                    tsum.children_[0] = sumchildref;
+                Expr processed = func.SplitAgg();
+                // if splitagg is returning null, end the transformation process
+                if (processed is null)
+                    return expr;
 
-                    var tcount = new AggSum(new List<Expr> { func.child_() }); manualbindexpr(tcount);
-                    var countchild = new AggCount(new List<Expr> { func.child_().Clone() }); manualbindexpr(countchild);
-                    var countchildref = new AggrRef(countchild, -1); manualbindexpr(countchildref);
-                    tcount.children_[0] = countchildref;
-
-                    processed = new BinExpr(tsum, tcount, "/");
-                }
-                else
-                {
-                    localfns.Add(func);
-                    if (func is AggCount || func is AggSum || func is AggCountStar)
-                        processed = new AggSum(new List<Expr> { func.child_().Clone() });
-                    else if (func is AggMin)
-                        processed = new AggMin(new List<Expr> { func.child_().Clone() });
-                    else if (func is AggMax)
-                        processed = new AggMax(new List<Expr> { func.child_().Clone() });
-
-                    processed.children_[0] = new AggrRef(func, -1);
-                }
-                manualbindexpr(processed);
+                // force the id to be equal.
                 processed._ = func._;
 
                 globalfns.Add(processed);

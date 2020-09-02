@@ -727,6 +727,11 @@ namespace qpmodel.expr
             // register the expression in the search table
             ExprSearch.table_.Add(_, this);
         }
+        internal void dummyBind()
+        {
+            markBounded();
+            type_ = new BoolType();
+        }
 
         public virtual void Bind(BindContext context)
         {
