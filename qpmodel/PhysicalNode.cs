@@ -149,7 +149,7 @@ namespace qpmodel.physic
         }
 
         #region optimizer
-        public ulong Card() => (ulong)Math.Ceiling( (double)logic_.Card() / logic_.machinecount_);
+        public ulong Card() => (ulong)Math.Ceiling( (double)logic_.Card() / logic_.distrcount_);
         public double Cost()
         {
             if (double.IsNaN(cost_))

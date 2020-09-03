@@ -56,7 +56,7 @@ namespace qpmodel.logic
         public Expr filter_ = null;
         public List<Expr> output_ = new List<Expr>();
         public ulong card_ = CARD_INVALID;
-        public ulong machinecount_ = 1;
+        public ulong distrcount_ = 1;
 
         // these fields are used to avoid recompute - be careful with stale caching
         protected List<TableRef> tableRefs_ = null;
@@ -491,6 +491,13 @@ namespace qpmodel.logic
         }
         public override string ToString() => group_.ToString();
 
+        public override ulong EstimateCard()
+        {
+            var nrows = base.EstimateCard();
+            distrcount_ = child_().distrcount_;
+            return nrows;
+        }
+
         public override LogicSignature MemoLogicSign() => Deref().MemoLogicSign();
         public override int GetHashCode() => (int)MemoLogicSign();
         public override bool Equals(object obj)
@@ -531,7 +538,7 @@ namespace qpmodel.logic
         public override ulong EstimateCard()
         {
             children_.ForEach(x => {
-                machinecount_ = Math.Max(machinecount_, x.machinecount_);
+                distrcount_ = Math.Max(distrcount_, x.distrcount_);
             });
             return base.EstimateCard();
         }
@@ -769,6 +776,13 @@ namespace qpmodel.logic
 
         // record the derived node expression map
         public Dictionary<Expr, Expr> deriveddict_;
+        
+        public override ulong EstimateCard()
+        {
+            var nrows = base.EstimateCard();
+            if (is_local_) distrcount_ = child_().distrcount_;
+            return nrows;
+        }
 
         // derived node must have the same logicSign_ to be in the same group
         public void Overridesign(LogicAgg node)
@@ -1259,7 +1273,7 @@ namespace qpmodel.logic
                 if (table.distMethod_ == TableDef.DistributionMethod.Distributed
                     || table.distMethod_ == TableDef.DistributionMethod.Roundrobin)
                 {
-                    machinecount_ = (ulong)table.distributions_.Count;
+                    distrcount_ = (ulong)table.distributions_.Count;
                 }
             }
             return nrows;
@@ -1361,8 +1375,8 @@ namespace qpmodel.logic
         }
         public override ulong EstimateCard()
         {
-            var nrows = base.EstimateCard(); 
-            machinecount_ = 1;
+            var nrows = base.EstimateCard();
+            distrcount_ = 1;
             return nrows;
         }
         public override string ToString() => $"Gather({child_()})";
@@ -1394,7 +1408,7 @@ namespace qpmodel.logic
         public override ulong EstimateCard()
         {
             var nrows = base.EstimateCard();
-            machinecount_ = 1;
+            distrcount_ = 1;
             return nrows;
         }
         public override string ToString() => $"Broadcast({child_()})";
@@ -1414,7 +1428,7 @@ namespace qpmodel.logic
         public override ulong EstimateCard()
         {
             var nrows = base.EstimateCard();
-            machinecount_ = 10;
+            distrcount_ = 10;
             return nrows;
         }
         public override string ToString() => $"Redistribute({child_()})";

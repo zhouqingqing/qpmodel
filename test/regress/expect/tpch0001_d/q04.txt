@@ -19,28 +19,28 @@ group by
 	o_orderpriority
 order by
 	o_orderpriority
-Total cost: 314268.54, memory=285
-PhysicOrder  (inccost=314268.54, cost=8.54, rows=5, memory=95) (actual rows=5)
+Total cost: 17404.54, memory=285
+PhysicOrder  (inccost=17404.54, cost=8.54, rows=5, memory=95) (actual rows=5)
     Output: o_orderpriority[0],{count(*)(0)}[1]
     Order by: o_orderpriority[0]
-    -> PhysicHashAgg  (inccost=314260, cost=206, rows=5, memory=190) (actual rows=5)
+    -> PhysicHashAgg  (inccost=17396, cost=206, rows=5, memory=190) (actual rows=5)
         Output: {o_orderpriority}[0],{count(*)(0)}[1]
         Aggregates: count(*)(0)
         Group by: o_orderpriority[0]
-        -> PhysicFilter  (inccost=314054, cost=196, rows=196) (actual rows=44)
+        -> PhysicFilter  (inccost=17190, cost=20, rows=196) (actual rows=44)
             Output: o_orderpriority[1]
             Filter: {#marker}[0]
-            -> PhysicMarkJoin Left (inccost=313858, cost=294245, rows=196) (actual rows=48)
+            -> PhysicMarkJoin Left (inccost=17170, cost=3005, rows=20) (actual rows=48)
                 Output: #marker,o_orderpriority[0]
                 Filter: l_orderkey[2]=o_orderkey[1]
-                -> PhysicGather Threads: 10 (inccost=1598, cost=98, rows=49) (actual rows=48)
+                -> PhysicGather Threads: 10 (inccost=1554, cost=54, rows=49) (actual rows=48)
                     Output: o_orderpriority[5],o_orderkey[0]
-                    -> PhysicScanTable orders (inccost=1500, cost=1500, rows=49) (actual rows=4, loops=10)
+                    -> PhysicScanTable orders (inccost=1500, cost=1500, rows=5) (actual rows=4, loops=10)
                         Output: o_orderpriority[5],o_orderkey[0]
                         Filter: (o_orderdate[4]>='1993-07-01' and o_orderdate[4]<'9/29/1993 12:00:00 AM')
-                -> PhysicGather Threads: 10 (inccost=18015, cost=12010, rows=6005) (actual rows=3752, loops=48)
+                -> PhysicGather Threads: 10 (inccost=12611, cost=6606, rows=6005) (actual rows=3752, loops=48)
                     Output: l_orderkey[0]
-                    -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=6005) (actual rows=375, loops=10)
+                    -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=601) (actual rows=375, loops=10)
                         Output: l_orderkey[0]
                         Filter: l_commitdate[11]<l_receiptdate[12]
 1-URGENT,9

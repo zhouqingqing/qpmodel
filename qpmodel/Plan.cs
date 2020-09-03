@@ -195,7 +195,7 @@ namespace qpmodel.logic
                         var memory = phynode.Memory();
                         if (memory != 0)
                             memorycost = $", memory={memory}";
-                        r += $" (inccost={incCost}, cost={cost}, rows={phynode.logic_.Card()}{memorycost})";
+                        r += $" (inccost={incCost}, cost={cost}, rows={phynode.Card()}{memorycost})";
                     }
                     if (exp_showactual)
                     {
