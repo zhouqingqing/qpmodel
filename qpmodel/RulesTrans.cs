@@ -254,7 +254,9 @@ namespace qpmodel.optimizer
             List<AggFunc> aggfns = new List<AggFunc>();
             origAggNode.aggrFns_.ForEach(x => aggfns.Add(x.Clone() as AggFunc));
             // need to make aggrFns_ back to null list
+            // and having_ back to original
             origAggNode.aggrFns_ = new List<AggFunc>();
+            origAggNode.having_ = having?.Clone();
 
             var globalfns = new List<Expr>();
             var localfns = new List<Expr>();

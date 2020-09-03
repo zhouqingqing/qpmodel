@@ -2822,6 +2822,7 @@ namespace qpmodel.unittest
         public void Redistribute()
         {
             var option = new QueryOption();
+            option.optimize_.memo_disable_crossjoin_ = false;
 
             for (int i = 0; i < 3; i++)
             {
@@ -2842,34 +2843,34 @@ namespace qpmodel.unittest
                 sql = "select a2,b2,c2 from ad, bd, cd where a2=b2 and c2 = b2 order by c2";
                 TU.ExecuteSQL(sql, "1,1,1;2,2,2;3,3,3", out phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-                Assert.AreEqual(enable_bc ? 0 : 3, TU.CountStr(phyplan, "Redistribute"));
-                Assert.AreEqual(enable_bc ? 2 : 0, TU.CountStr(phyplan, "Broadcast"));
+                Assert.AreEqual(3, TU.CountStr(phyplan, "Redistribute"));
+                Assert.AreEqual(0, TU.CountStr(phyplan, "Broadcast"));
                 sql = "select a2,b2,c2,d2 from ad, bd, cd, dd where a2=b2 and c2 = b2 and c2=d2 order by b2";
                 TU.ExecuteSQL(sql, "1,1,1,1;2,2,2,2;2,2,2,2;3,3,3,3", out phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-                Assert.AreEqual(enable_bc ? 0 : 4, TU.CountStr(phyplan, "Redistribute"));
-                Assert.AreEqual(enable_bc ? 3 : 0, TU.CountStr(phyplan, "Broadcast"));
-                Assert.AreEqual(enable_bc ? 0 : 1, TU.CountStr(phyplan, "threads: 50"));
-                Assert.AreEqual(enable_bc ? 1 : 0, TU.CountStr(phyplan, "threads: 40"));
+                Assert.AreEqual(4, TU.CountStr(phyplan, "Redistribute"));
+                Assert.AreEqual(0, TU.CountStr(phyplan, "Broadcast"));
+                Assert.AreEqual(1, TU.CountStr(phyplan, "threads: 50"));
+                Assert.AreEqual(0, TU.CountStr(phyplan, "threads: 40"));
 
                 // ensure redistribution can shuffle by expression
                 sql = "select a2, b2 from ad, bd where a2*2+a1=b2 order by a2;";
                 TU.ExecuteSQL(sql, "1,2", out phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-                Assert.AreEqual(enable_bc ? 0 : 2, TU.CountStr(phyplan, "Redistribute"));
-                Assert.AreEqual(enable_bc ? 1 : 0, TU.CountStr(phyplan, "Broadcast"));
+                Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
+                Assert.AreEqual(0, TU.CountStr(phyplan, "Broadcast"));
 
                 // no output if by previous r[0] method for redistribution
                 sql = "select d2, a1 from ad, dd where d3=a1 order by d2;";
                 TU.ExecuteSQL(sql, "1,2", out phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-                Assert.AreEqual(enable_bc ? 0 : 1, TU.CountStr(phyplan, "Redistribute"));
-                Assert.AreEqual(enable_bc ? 1 : 0, TU.CountStr(phyplan, "Broadcast"));
+                Assert.AreEqual(1, TU.CountStr(phyplan, "Redistribute"));
+                Assert.AreEqual(0, TU.CountStr(phyplan, "Broadcast"));
                 sql = "select d2, a2 from ad, dd where d4=a2 order by d2;";
                 TU.ExecuteSQL(sql, "1,3", out phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-                Assert.AreEqual(enable_bc ? 0 : 2, TU.CountStr(phyplan, "Redistribute"));
-                Assert.AreEqual(enable_bc ? 1 : 0, TU.CountStr(phyplan, "Broadcast"));
+                Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
+                Assert.AreEqual(0, TU.CountStr(phyplan, "Broadcast"));
 
                 // mixed with replicated table
                 sql = "select a1,b1 from ad, br where a1=b1 order by a1;";
@@ -2893,13 +2894,13 @@ namespace qpmodel.unittest
                 sql = "select a1,b1 from ad, brb where a2=b2 order by a1;";
                 TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-                Assert.AreEqual(enable_bc ? 0 : 2, TU.CountStr(phyplan, "Redistribute"));
-                Assert.AreEqual(enable_bc ? 1 : 0, TU.CountStr(phyplan, "Broadcast"));
+                Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
+                Assert.AreEqual(0, TU.CountStr(phyplan, "Broadcast"));
                 sql = "select a1,b1 from arb, brb where a2=b2 order by a1;";
                 TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
-                Assert.AreEqual(enable_bc ? 0 : 2, TU.CountStr(phyplan, "Redistribute"));
-                Assert.AreEqual(enable_bc ? 1 : 0, TU.CountStr(phyplan, "Broadcast"));
+                Assert.AreEqual(2, TU.CountStr(phyplan, "Redistribute"));
+                Assert.AreEqual(0, TU.CountStr(phyplan, "Broadcast"));
                 sql = "select a1,b1 from ar, brb where a2=b2 order by a1;";
                 TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));

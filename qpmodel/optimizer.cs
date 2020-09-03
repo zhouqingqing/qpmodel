@@ -478,8 +478,10 @@ namespace qpmodel.optimizer
                     return minMember_[PhysicProperty.NullProperty_].cost;
                 else if (minMember_.ContainsKey(PhysicProperty.NullProperty_))
                     return minMember_[DistrProperty.Singleton_].cost;
-                else
+                else if (minMember_.Count > 0)
                     return minMember_[minMember_.Keys.ToList()[0]].cost;
+                else
+                    return double.NaN;
             }
         }
 
@@ -751,7 +753,7 @@ namespace qpmodel.optimizer
             return optmember;
         }
         public CGroupMember CalculateMinInclusiveCostMember()
-            => CalculateMinInclusiveCostMember(PhysicProperty.NullProperty_);
+            => CalculateMinInclusiveCostMember(DistrProperty.Singleton_);
 
         public PhysicNode CopyOutMinLogicPhysicPlan(PhysicProperty property, PhysicNode knownMinPhysic = null)
         {
@@ -786,7 +788,7 @@ namespace qpmodel.optimizer
                         PhysicProperty subprop;
                         if (minmember != null && minmember.propertyPairs_.ContainsKey(property))
                             subprop = minmember.propertyPairs_[property][i];
-                        else subprop = PhysicProperty.NullProperty_;
+                        else subprop = DistrProperty.Singleton_;
                         phychild = g.CopyOutMinLogicPhysicPlan(subprop);
                     }
                     else

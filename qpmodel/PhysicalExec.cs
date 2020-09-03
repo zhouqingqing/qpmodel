@@ -805,7 +805,7 @@ namespace qpmodel.physic
         protected override double EstimateCost()
         {
             // penalize gather to discourage serialization at bottom
-            return child_().Card() * 10.0;
+            return child_().Card() * 1.0 + Card() * 1.0;
         }
     }
 
@@ -826,7 +826,7 @@ namespace qpmodel.physic
 
         protected override double EstimateCost()
         {
-            return child_().Card() * 2.0;
+            return Card() * 1.0;
         }
     }
 
@@ -864,7 +864,7 @@ namespace qpmodel.physic
 
         protected override double EstimateCost()
         {
-            return child_().Card() * 2.0;
+            return Card() * 1.0;
         }
     }
 }

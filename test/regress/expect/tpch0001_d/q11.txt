@@ -25,28 +25,28 @@ group by
 		)
 order by
 	value desc
-Total cost: 3130.56, memory=2896
-PhysicOrder  (inccost=3130.56, cost=358.56, rows=80, memory=960) (actual rows=0)
+Total cost: 2489.56, memory=2896
+PhysicOrder  (inccost=2489.56, cost=358.56, rows=80, memory=960) (actual rows=0)
     Output: ps_partkey[0],{sum(ps_supplycost*ps_availqty)}[1]
     Order by: {sum(ps_supplycost*ps_availqty)}[1]
-    -> PhysicHashAgg  (inccost=2772, cost=240, rows=80, memory=1920) (actual rows=0)
+    -> PhysicHashAgg  (inccost=2131, cost=240, rows=80, memory=1920) (actual rows=0)
         Output: {ps_partkey}[0],{sum(ps_supplycost*ps_availqty)}[1]
         Aggregates: sum(ps_supplycost[2]*ps_availqty[3])
         Group by: ps_partkey[0]
         Filter: {sum(ps_supplycost*ps_availqty)}[1]>@1
         <ScalarSubqueryExpr> cached 1
-            -> PhysicHashAgg  (inccost=1827, cost=3, rows=1, memory=16) (actual rows=0)
+            -> PhysicHashAgg  (inccost=1818, cost=3, rows=1, memory=16) (actual rows=0)
                 Output: {sum({sum(ps_supplycost*ps_availqty)})}[0]*0.0001
                 Aggregates: sum({sum(ps_supplycost*ps_availqty)}[0])
-                -> PhysicGather Threads: 20 (inccost=1824, cost=10, rows=1) (actual rows=0)
+                -> PhysicGather Threads: 20 (inccost=1815, cost=2, rows=1) (actual rows=0)
                     Output: {sum(ps_supplycost*ps_availqty)}[0]
-                    -> PhysicHashAgg  (inccost=1814, cost=82, rows=1, memory=16) (actual rows=1, loops=10)
+                    -> PhysicHashAgg  (inccost=1813, cost=82, rows=1, memory=16) (actual rows=1, loops=10)
                         Output: {sum(ps_supplycost*ps_availqty)}[0]
                         Aggregates: sum(ps_supplycost[1]*ps_availqty[2])
-                        -> PhysicHashJoin  (inccost=1732, cost=882, rows=80, memory=8) (actual rows=0, loops=10)
+                        -> PhysicHashJoin  (inccost=1731, cost=882, rows=80, memory=8) (actual rows=0, loops=10)
                             Output: {ps_supplycost*ps_availqty}[1],ps_supplycost[2],ps_availqty[3]
                             Filter: ps_suppkey[4]=s_suppkey[0]
-                            -> PhysicRedistribute  (inccost=50, cost=2, rows=1) (actual rows=0, loops=10)
+                            -> PhysicRedistribute  (inccost=49, cost=1, rows=1) (actual rows=0, loops=10)
                                 Output: s_suppkey[0]
                                 -> PhysicHashJoin  (inccost=48, cost=13, rows=1, memory=8) (actual rows=0, loops=10)
                                     Output: s_suppkey[1]
@@ -58,12 +58,12 @@ PhysicOrder  (inccost=3130.56, cost=358.56, rows=80, memory=960) (actual rows=0)
                                         Output: s_suppkey[0],s_nationkey[3]
                             -> PhysicScanTable partsupp as partsupp__1 (inccost=800, cost=800, rows=800) (actual rows=0)
                                 Output: ps_supplycost[3]*ps_availqty[2],ps_supplycost[3],ps_availqty[2],ps_suppkey[1]
-        -> PhysicGather Threads: 20 (inccost=2532, cost=800, rows=80) (actual rows=0)
+        -> PhysicGather Threads: 20 (inccost=1891, cost=160, rows=80) (actual rows=0)
             Output: ps_partkey[1],{ps_supplycost*ps_availqty}[2],ps_supplycost[3],ps_availqty[4]
-            -> PhysicHashJoin  (inccost=1732, cost=882, rows=80, memory=8) (actual rows=0, loops=10)
+            -> PhysicHashJoin  (inccost=1731, cost=882, rows=80, memory=8) (actual rows=0, loops=10)
                 Output: ps_partkey[1],{ps_supplycost*ps_availqty}[2],ps_supplycost[3],ps_availqty[4]
                 Filter: ps_suppkey[5]=s_suppkey[0]
-                -> PhysicRedistribute  (inccost=50, cost=2, rows=1) (actual rows=0, loops=10)
+                -> PhysicRedistribute  (inccost=49, cost=1, rows=1) (actual rows=0, loops=10)
                     Output: s_suppkey[0]
                     -> PhysicHashJoin  (inccost=48, cost=13, rows=1, memory=8) (actual rows=0, loops=10)
                         Output: s_suppkey[1]

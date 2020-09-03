@@ -149,7 +149,7 @@ namespace qpmodel.physic
         }
 
         #region optimizer
-        public ulong Card() => logic_.Card();
+        public ulong Card() => (ulong)Math.Ceiling( (double)logic_.Card() / logic_.machinecount_);
         public double Cost()
         {
             if (double.IsNaN(cost_))
@@ -420,7 +420,8 @@ namespace qpmodel.physic
                     else
                         return false;
                 case DistrType.AnyDistributed:
-                    if (tableref.Table().distMethod_ != TableDef.DistributionMethod.Replicated)
+                    if (tableref.Table().distMethod_ == TableDef.DistributionMethod.Distributed ||
+                        tableref.Table().distMethod_ == TableDef.DistributionMethod.Roundrobin)
                         return true;
                     else
                         return false;
@@ -1499,7 +1500,7 @@ namespace qpmodel.physic
 
         protected override double EstimateCost()
         {
-            var rowstosort = child_().Card() * 1.0;
+            var rowstosort = Card() * 1.0;
             double cost = rowstosort * (0.1 + Math.Log(rowstosort));
             return cost;
         }

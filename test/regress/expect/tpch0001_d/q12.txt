@@ -26,21 +26,21 @@ group by
 	l_shipmode
 order by
 	l_shipmode
-Total cost: 10136.32, memory=20786
-PhysicOrder  (inccost=10136.32, cost=14.32, rows=7, memory=126) (actual rows=2)
+Total cost: 10080.32, memory=2626
+PhysicOrder  (inccost=10080.32, cost=14.32, rows=7, memory=126) (actual rows=2)
     Output: l_shipmode[0],{sum(case with 0|1|1)}[1],{sum(case with 0|1|1)}[2]
     Order by: l_shipmode[0]
-    -> PhysicHashAgg  (inccost=10122, cost=21, rows=7, memory=168) (actual rows=2)
+    -> PhysicHashAgg  (inccost=10066, cost=21, rows=7, memory=168) (actual rows=2)
         Output: {l_shipmode}[0],{sum({sum(case with 0|1|1)})}[1],{sum({sum(case with 0|1|1)})}[2]
         Aggregates: sum({sum(case with 0|1|1)}[1]), sum({sum(case with 0|1|1)}[2])
         Group by: l_shipmode[0]
-        -> PhysicGather Threads: 10 (inccost=10101, cost=70, rows=7) (actual rows=16)
+        -> PhysicGather Threads: 10 (inccost=10045, cost=14, rows=7) (actual rows=16)
             Output: {l_shipmode}[0],{sum(case with 0|1|1)}[1],{sum(case with 0|1|1)}[2]
             -> PhysicHashAgg  (inccost=10031, cost=267, rows=7, memory=252) (actual rows=1, loops=10)
                 Output: {l_shipmode}[0],{sum(case with 0|1|1)}[1],{sum(case with 0|1|1)}[2]
                 Aggregates: sum(case with 0|1|1), sum(case with 0|1|1)
                 Group by: l_shipmode[0]
-                -> PhysicHashJoin  (inccost=9764, cost=2259, rows=253, memory=20240) (actual rows=2, loops=10)
+                -> PhysicHashJoin  (inccost=9764, cost=2259, rows=253, memory=2080) (actual rows=2, loops=10)
                     Output: l_shipmode[0],{case with 0|1|1}[6],{(o_orderpriority='1-URGENT' or o_orderpriority='2-HIGH')}[7],{o_orderpriority='1-URGENT'}[8],o_orderpriority[9],{'1-URGENT'}[1],{o_orderpriority='2-HIGH'}[10],{'2-HIGH'}[2],{1}[3],{0}[4],{case with 0|1|1}[11],{(o_orderpriority<>'1-URGENT' and o_orderpriority<>'2-HIGH')}[12],{o_orderpriority<>'1-URGENT'}[13],{o_orderpriority<>'2-HIGH'}[14]
                     Filter: o_orderkey[15]=l_orderkey[5]
                     -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=253) (actual rows=2, loops=10)

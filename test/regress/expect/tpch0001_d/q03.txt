@@ -21,27 +21,27 @@ order by
 	revenue desc,
 	o_orderdate
 limit 10
-Total cost: 24918.9, memory=62520
-PhysicLimit (10) (inccost=24918.9, cost=10, rows=10) (actual rows=8)
+Total cost: 21225.9, memory=36360
+PhysicLimit (10) (inccost=21225.9, cost=10, rows=10) (actual rows=8)
     Output: l_orderkey[0],{sum(l_extendedprice*(1-l_discount))}[1],o_orderdate[2],o_shippriority[3]
-    -> PhysicOrder  (inccost=24908.9, cost=2851.9, rows=458, memory=10992) (actual rows=8)
+    -> PhysicOrder  (inccost=21215.9, cost=2851.9, rows=458, memory=10992) (actual rows=8)
         Output: l_orderkey[0],{sum(l_extendedprice*(1-l_discount))}[1],o_orderdate[2],o_shippriority[3]
         Order by: {sum(l_extendedprice*(1-l_discount))}[1], o_orderdate[2]
-        -> PhysicHashAgg  (inccost=22057, cost=1374, rows=458, memory=21984) (actual rows=8)
+        -> PhysicHashAgg  (inccost=18364, cost=1374, rows=458, memory=21984) (actual rows=8)
             Output: {l_orderkey}[0],{sum(l_extendedprice*(1-l_discount))}[3],{o_orderdate}[1],{o_shippriority}[2]
             Aggregates: sum(l_extendedprice[4]*(1-l_discount[7]))
             Group by: l_orderkey[0], o_orderdate[1], o_shippriority[2]
-            -> PhysicGather Threads: 20 (inccost=20683, cost=4580, rows=458) (actual rows=14)
+            -> PhysicGather Threads: 20 (inccost=16990, cost=916, rows=458) (actual rows=14)
                 Output: l_orderkey[2],o_orderdate[3],o_shippriority[4],{l_extendedprice*(1-l_discount)}[5],l_extendedprice[6],{(1-l_discount)}[7],{1}[0],l_discount[8]
-                -> PhysicHashJoin  (inccost=16103, cost=2096, rows=458, memory=464) (actual rows=1, loops=10)
+                -> PhysicHashJoin  (inccost=16074, cost=2096, rows=458, memory=464) (actual rows=1, loops=10)
                     Output: l_orderkey[2],o_orderdate[3],o_shippriority[4],{l_extendedprice*(1-l_discount)}[5],l_extendedprice[6],{(1-l_discount)}[7],{1}[0],l_discount[8]
                     Filter: c_custkey[1]=o_custkey[9]
-                    -> PhysicBroadcast  (inccost=208, cost=58, rows=29) (actual rows=29, loops=10)
+                    -> PhysicBroadcast  (inccost=179, cost=29, rows=29) (actual rows=29, loops=10)
                         Output: 1,c_custkey[0]
                         -> PhysicScanTable customer (inccost=150, cost=150, rows=29) (actual rows=2, loops=10)
                             Output: 1,c_custkey[0]
                             Filter: c_mktsegment[6]='BUILDING'
-                    -> PhysicHashJoin  (inccost=13799, cost=6294, rows=1580, memory=29080) (actual rows=13, loops=10)
+                    -> PhysicHashJoin  (inccost=13799, cost=6294, rows=1580, memory=2920) (actual rows=13, loops=10)
                         Output: l_orderkey[4],o_orderdate[0],o_shippriority[1],{l_extendedprice*(1-l_discount)}[5],l_extendedprice[6],{(1-l_discount)}[7],l_discount[8],o_custkey[2]
                         Filter: l_orderkey[4]=o_orderkey[3]
                         -> PhysicScanTable orders (inccost=1500, cost=1500, rows=727) (actual rows=72, loops=10)

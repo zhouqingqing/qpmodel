@@ -56,6 +56,7 @@ namespace qpmodel.logic
         public Expr filter_ = null;
         public List<Expr> output_ = new List<Expr>();
         public ulong card_ = CARD_INVALID;
+        public ulong machinecount_ = 1;
 
         // these fields are used to avoid recompute - be careful with stale caching
         protected List<TableRef> tableRefs_ = null;
@@ -402,7 +403,7 @@ namespace qpmodel.logic
             return card_;
         }
 
-        public ulong EstimateCard()
+        public virtual ulong EstimateCard()
         {
             return CardEstimator.DoEstimation(this);
         }
@@ -526,6 +527,14 @@ namespace qpmodel.logic
         public List<Expr> leftKeys_ = new List<Expr>();
         public List<Expr> rightKeys_ = new List<Expr>();
         internal List<string> ops_ = new List<string>();
+
+        public override ulong EstimateCard()
+        {
+            children_.ForEach(x => {
+                machinecount_ = Math.Max(machinecount_, x.machinecount_);
+            });
+            return base.EstimateCard();
+        }
 
         public override string ToString() => $"({lchild_()} {type_} {rchild_()})";
         public override string ExplainInlineDetails() { return type_ == JoinType.Inner ? "" : type_.ToString(); }
@@ -1240,6 +1249,21 @@ namespace qpmodel.logic
     public partial class LogicScanTable : LogicGet<BaseTableRef>
     {
         public LogicScanTable(BaseTableRef tab) : base(tab) { }
+        public override ulong EstimateCard()
+        {
+            var nrows = base.EstimateCard();
+
+            if (tabref_.IsDistributed())
+            {
+                var table = tabref_.Table();
+                if (table.distMethod_ == TableDef.DistributionMethod.Distributed
+                    || table.distMethod_ == TableDef.DistributionMethod.Roundrobin)
+                {
+                    machinecount_ = (ulong)table.distributions_.Count;
+                }
+            }
+            return nrows;
+        }
     }
 
     public class LogicScanFile : LogicGet<ExternalTableRef>
@@ -1335,6 +1359,12 @@ namespace qpmodel.logic
             if (producerIds_ is null)
                 producerIds_ = new List<int>(Enumerable.Range(0, QueryOption.num_machines_));
         }
+        public override ulong EstimateCard()
+        {
+            var nrows = base.EstimateCard(); 
+            machinecount_ = 1;
+            return nrows;
+        }
         public override string ToString() => $"Gather({child_()})";
 
         int countAllParallelFragments()
@@ -1361,7 +1391,12 @@ namespace qpmodel.logic
             if (consumerIds_ is null)
                 consumerIds_ = new List<int>(Enumerable.Range(0, QueryOption.num_machines_));
         }
-
+        public override ulong EstimateCard()
+        {
+            var nrows = base.EstimateCard();
+            machinecount_ = 1;
+            return nrows;
+        }
         public override string ToString() => $"Broadcast({child_()})";
     }
 
@@ -1375,6 +1410,12 @@ namespace qpmodel.logic
             consumerIds_ = consumerIds;
             if (consumerIds_ is null)
                 consumerIds_ = new List<int>(Enumerable.Range(0, QueryOption.num_machines_));
+        }
+        public override ulong EstimateCard()
+        {
+            var nrows = base.EstimateCard();
+            machinecount_ = 10;
+            return nrows;
         }
         public override string ToString() => $"Redistribute({child_()})";
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)

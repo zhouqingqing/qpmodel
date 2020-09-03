@@ -11,19 +11,19 @@ where
 	l_partkey = p_partkey
 	and l_shipdate >= date '1995-09-01'
 	and l_shipdate < date '1995-09-01' + interval '1' month
-Total cost: 6888, memory=8160
-PhysicHashAgg  (inccost=6888, cost=3, rows=1, memory=16) (actual rows=1)
+Total cost: 6732, memory=880
+PhysicHashAgg  (inccost=6732, cost=3, rows=1, memory=16) (actual rows=1)
     Output: {sum({sum(case with 0|1|1)})}[0]*100/{sum({sum(l_extendedprice*(1-l_discount))})}[1](as promo_revenue)
     Aggregates: sum({sum(case with 0|1|1)}[0]), sum({sum(l_extendedprice*(1-l_discount))}[1])
-    -> PhysicGather Threads: 20 (inccost=6885, cost=10, rows=1) (actual rows=10)
+    -> PhysicGather Threads: 20 (inccost=6729, cost=2, rows=1) (actual rows=10)
         Output: {sum(case with 0|1|1)}[0],{sum(l_extendedprice*(1-l_discount))}[1]
-        -> PhysicHashAgg  (inccost=6875, cost=80, rows=1, memory=32) (actual rows=1, loops=10)
+        -> PhysicHashAgg  (inccost=6727, cost=80, rows=1, memory=32) (actual rows=1, loops=10)
             Output: {sum(case with 0|1|1)}[0],{sum(l_extendedprice*(1-l_discount))}[1]
             Aggregates: sum(case with 0|1|1), sum(l_extendedprice[5]*(1-l_discount[8]))
-            -> PhysicHashJoin  (inccost=6795, cost=434, rows=78, memory=8112) (actual rows=8, loops=10)
+            -> PhysicHashJoin  (inccost=6647, cost=434, rows=78, memory=832) (actual rows=8, loops=10)
                 Output: case with 0|1|1,{p_type like 'PROMO%'}[9],p_type[8],'PROMO%',{l_extendedprice*(1-l_discount)}[3],l_extendedprice[0],{(1-l_discount)}[4],1,l_discount[1],0
                 Filter: l_partkey[7]=p_partkey[10]
-                -> PhysicRedistribute  (inccost=6161, cost=156, rows=78) (actual rows=8, loops=10)
+                -> PhysicRedistribute  (inccost=6013, cost=8, rows=78) (actual rows=8, loops=10)
                     Output: l_extendedprice[0],l_discount[1],{'PROMO%'}[2],{l_extendedprice*(1-l_discount)}[3],{(1-l_discount)}[4],{1}[5],{0}[6],l_partkey[7]
                     -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=78) (actual rows=8, loops=10)
                         Output: l_extendedprice[5],l_discount[6],'PROMO%',l_extendedprice[5]*(1-l_discount[6]),(1-l_discount[6]),1,0,l_partkey[1]
