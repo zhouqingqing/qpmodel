@@ -222,6 +222,7 @@ namespace qpmodel.expr
         {
             base.Bind(context);
             type_ = args_()[0].type_;
+            Debug.Assert(type_ is CharType || type_ is VarCharType || this.AnyArgNull());
         }
 
         public override Value Exec(ExecContext context, Row input)
@@ -248,6 +249,7 @@ namespace qpmodel.expr
         {
             base.Bind(context);
             type_ = args_()[0].type_;
+            Debug.Assert(type_ is CharType || type_ is VarCharType || this.AnyArgNull());
         }
         public override Value Exec(ExecContext context, Row input)
         {
@@ -267,6 +269,7 @@ namespace qpmodel.expr
         {
             base.Bind(context);
             type_ = args_()[0].type_;
+            Debug.Assert(type_ is CharType || type_ is VarCharType || this.AnyArgNull());
         }
 
         public override Value Exec(ExecContext context, Row input)
