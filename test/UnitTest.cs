@@ -2014,6 +2014,26 @@ namespace qpmodel.unittest
             sql = "select hash(1), hash('abc'), hash(26.33)";
             TU.ExecuteSQL(sql);
         }
+
+        [TestMethod]
+        public void TestFuncExprWithNull()
+        {
+            string scale = "0001";
+            Tpch.CreateTables();
+            Tpch.LoadTables(scale);
+            Tpch.AnalyzeTables();
+
+            string sql = null;
+
+            sql = "select substring(null, 1, 4) from lineitem where l_orderkey=1;";
+            TU.ExecuteSQL(sql, ";;;;;");
+
+            sql = "select repeat(null, 3) from lineitem where l_orderkey=1;";
+            TU.ExecuteSQL(sql, ";;;;;");
+
+            sql = "select upper(null) from lineitem where l_orderkey=1;";
+            TU.ExecuteSQL(sql, ";;;;;");
+        }
     }
 
     [TestClass]
