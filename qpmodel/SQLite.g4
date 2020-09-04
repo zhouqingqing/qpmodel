@@ -193,33 +193,27 @@ pred_expr
  * predicate, for example: WHERE case when ... then true ... end
  */
 arith_expr
- : literal_value											#xxLiteralExpr
- | unary_operator arith_expr								#unaryexpr
- | BIND_PARAMETER											#bindexpr
- | ( ( database_name '.' )? table_name '.' )? column_name	#ColExpr
- | signed_number                                            #NumericLiteral
-
-
- | arith_expr op=( '*' | '/' | '%' ) arith_expr				#arithtimesexpr
- | arith_expr op=( PLUS | MINUS ) arith_expr				#arithplusexpr
- | arith_expr op=( '<<' | '>>' | '&' | '|' ) arith_expr		#arithbitexpr
-
- | '(' select_stmt ')'                                      #ScalarSubqueryExpr
- | function_name '(' ( K_DISTINCT? arith_expr ( ',' arith_expr )* | '*' )? ')'	#FuncExpr
-
- | K_CAST '(' arith_expr K_AS type_name ')'					#CastExpr
+ : literal_value											                                                          #xxLiteralExpr
+ | unary_operator arith_expr								                                                    #unaryexpr
+ | BIND_PARAMETER											                                                          #bindexpr
+ | ( ( database_name '.' )? table_name '.' )? column_name	                                      #ColExpr
+ | signed_number                                                                                #NumericLiteral
+ | arith_expr op=( '*' | '/' | '%' ) arith_expr				                                          #arithtimesexpr
+ | arith_expr op=( PLUS | MINUS ) arith_expr				                                            #arithplusexpr
+ | arith_expr op=( '<<' | '>>' | '&' | '|' ) arith_expr		                                      #arithbitexpr
+ | '(' select_stmt ')'                                                                          #ScalarSubqueryExpr
+ | function_name '(' ( K_DISTINCT? arith_expr ( ',' arith_expr )* | '*' )? ')'	                #FuncExpr
+ | K_CAST '(' arith_expr K_AS type_name ')'					                                            #CastExpr
  | K_CASE arith_expr? ( K_WHEN logical_expr K_THEN arith_expr )+ ( K_ELSE arith_expr )? K_END		#CaseExpr
- | '(' arith_expr ')'										#arithbrackexpr
-;
+ | arith_expr '||' arith_expr											                                              #strconexpr
+ | '(' arith_expr ')'										                                                        #arithbrackexpr
+ ;
 
 expr
  :
- logical_expr #logicalexpr
- | arith_expr #arithexpr
-
- | expr '||' expr											#strconexpr
- | '(' expr ')'												#otherbrackexpr
-
+ logical_expr               #logicalexpr
+ | arith_expr               #arithexpr
+ | '(' expr ')'							#otherbrackexpr
  ;
 
 foreign_key_clause

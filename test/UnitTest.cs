@@ -2014,6 +2014,18 @@ namespace qpmodel.unittest
             sql = "select hash(1), hash('abc'), hash(26.33)";
             TU.ExecuteSQL(sql);
         }
+
+        [TestMethod]
+        public void TestNestStrConWithFuncExpr()
+        {
+            string sql = null;
+
+            sql = "select repeat((substring('Pacific South', 9, 13) || ' Pack' || 'ard'), 3) from a;";
+            TU.ExecuteSQL(sql, "South PackardSouth PackardSouth Packard;South PackardSouth PackardSouth Packard;South PackardSouth PackardSouth Packard");
+
+            sql = "select substring(upper('mat') || upper('he') || upper('mat') || upper('ics'), 3, 8) from a;";
+            TU.ExecuteSQL(sql, "THEMAT;THEMAT;THEMAT");
+        }
     }
 
     [TestClass]

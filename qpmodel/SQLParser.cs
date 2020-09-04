@@ -157,7 +157,7 @@ namespace qpmodel.sqlparser
         public override object VisitArithplusexpr([NotNull] SQLiteParser.ArithplusexprContext context)
             => new BinExpr((Expr)Visit(context.arith_expr(0)), (Expr)Visit(context.arith_expr(1)), context.op.Text);
         public override object VisitStrconexpr([NotNull] SQLiteParser.StrconexprContext context)
-            => new BinExpr((Expr)Visit(context.expr(0)), (Expr)Visit(context.expr(1)), "||");
+            => new BinExpr((Expr)Visit(context.arith_expr(0)), (Expr)Visit(context.arith_expr(1)), "||");
 
         public override object VisitBetweenExpr([NotNull] SQLiteParser.BetweenExprContext context)
         {
