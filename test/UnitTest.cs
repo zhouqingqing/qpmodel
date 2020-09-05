@@ -2306,6 +2306,13 @@ namespace qpmodel.unittest
             // FAILED
             sql = "select * from (select * from a join b on a1=b1) ab join (select * from c join d on c1=d1) cd on a1+b1=c1+d1"; // FIXME
             sql = "select * from (select * from a join b on a1=b1) ab join (select * from c join d on c1=d1) cd on a1+b1=c1 and a2+b2=d2;";
+
+            // COUNT(*)
+            sql = "select * from (select count(*) from a, b where a1 <> b1 and a2 <> b2) s1, (select count(*) from a, b where a1 <> b3 and a2 <> b4) s2, (select count(*) from a, b where a1 < b1 and a2 < b2) s3, (select count(*) from a, b where a1 <> b1 and a2 <> b2) s4";
+            // There is no easy way to verify the plan itself but the
+            // results should 6,8,3,6
+            result = ExecuteSQL(sql);
+            Assert.AreEqual("6,8,3,6", result[0].ToString());
         }
 
         [TestMethod]

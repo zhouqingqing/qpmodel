@@ -288,5 +288,11 @@ namespace qpmodel.utils
         }
         public static string normalizeName(string name) => name.StartsWith('"') ? name : name.ToLower();
         public static int mod(int a, int b) => (a % b + b) % b; // ensure positive
+
+        /* Do both the lists contain same elements regardless of odrer? */
+        public static bool AreEquivalentLists<T>(List<T> left, List<T> right)
+        {
+            return left.ContainsList(right) && right.ContainsList(left);
+        }
     }
 }
