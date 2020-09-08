@@ -1934,6 +1934,35 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "0,1,2,3");
             sql = "select a1 from a where not not not a1 in (1)";
             TU.ExecuteSQL(sql, "0;2");
+
+            // From issue #35, some of the failing ones are passing now
+            // BUG: Incorrect results but no longer insists that a1 show up in group by list
+            sql = "select abs(-a1*2), count() from a group by round(a1, 10);";
+            // There are two more bugs: count() should raise error, results should be the following
+            // TU.ExecuteSQL(sql, "0,1;4,1,2,1", out phyplan); // correct output
+            TU.ExecuteSQL(sql, "0,1;1,1;2,1", out phyplan);     // incorrect output even after changing to count(*), or count(some column)
+            Assert.IsTrue(phyplan.Contains("Output: {abs(-a.a1*2)}[0],{count(*)(0)}[1]"));
+
+            // issue #16
+            // outputName shall not be allowed in WHERE/HAVING but in GROUP BY/ORDER BY
+            sql = "select a.a1 aa1, b.b2 bb2 from a join b on(a.a3 = b.b4) where aa1 = bb2 group by aa1, bb2 order by aa1 desc";
+            var result = TU.ExecuteSQL(sql);
+            Assert.IsNull(result);
+            Assert.IsTrue(TU.error_.Contains("bind column"));
+
+            sql = "select a1 aa1, sum(a2) aa2 from a group by aa1 having aa2 > 2";
+            result = TU.ExecuteSQL(sql);
+            Assert.IsNull(result);
+            Assert.IsTrue(TU.error_.Contains("bind column"));
+
+            // This should work.
+            sql = "select a1 aa1, sum(a2) from a group by aa1";
+            TU.ExecuteSQL(sql, "0,1;1,2;2,3", out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: {a.a1 (as aa1)}[0],{sum(a.a2)}[1]"));
+
+            sql = "select a1 aa1, sum(a2) aa2 from a group by aa1 order by aa1";
+            TU.ExecuteSQL(sql, "0,1;1,2;2,3", out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: a.a1 (as aa1)[0],{sum(a.a2)}[1]"));
         }
 
         [TestMethod]
@@ -2318,6 +2347,38 @@ namespace qpmodel.unittest
             // FAILED
             sql = "select * from (select * from a join b on a1=b1) ab join (select * from c join d on c1=d1) cd on a1+b1=c1+d1"; // FIXME
             sql = "select * from (select * from a join b on a1=b1) ab join (select * from c join d on c1=d1) cd on a1+b1=c1 and a2+b2=d2;";
+
+            // COUNT(*)
+            sql = "select * from (select count(*) from a, b where a1 <> b1 and a2 <> b2) s1, (select count(*) from a, b where a1 <> b3 and a2 <> b4) s2, (select count(*) from a, b where a1 < b1 and a2 < b2) s3, (select count(*) from a, b where a1 <> b1 and a2 <> b2) s4";
+            // results should 6,8,3,6, in master it is 6,6,6,6
+            TU.ExecuteSQL(sql, "6,8,3,6", out phyplan, option);
+            Assert.IsTrue(phyplan.Contains("Output: {count(*)(0)}[0],{count(*)(0)}[1],{count(*)(0)}[2],{count(*)(0)}[3]"));
+
+            // Assert fails in master, fixed code doesn't assert but there is no output
+            sql = "select (select a1 from a order by -a1 limit 1), count(a1) from a group by (select a1 from a order by -a1 limit 1)";
+            TU.ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: {@1}[0],{count(a.a1)}[1]"));
+
+            // in both master and the fix branch (count_star), from command line
+            // the out is incorrect {2,1,1}, {0,,}, {1,,} but from this framework
+            // it is correct. It is wierder , non deterministic.
+            // When "2,1,1;0,,;1,," is used as expected result, actual result is "0,0,0;1,0,0;2,1,1"
+            // and when "0,0,0;1,0,0;2,1,1" is used as expected result, actual result is "2,1,1;0,,;1,,"
+            // disabling this for now.
+            // sql = "select a1, (select count(b2) from b where b1=a1 and b2>2), (select count(b3) from b where b1=a1 and b3>3) from a";
+            // TU.ExecuteSQL(sql, "2,1,1;0,,;1,,", out phyplan, option);    // incorrect results
+            // TU.ExecuteSQL(sql, "0,0,0;1,0,0;2,1,1"); // correct results
+            // Assert.IsTrue(phyplan.Contains(" Output: a.a1[0],{count(b.b2)}[1],{count(b.b3)}[2]"));
+
+            // Asserts in master
+            sql = "select a1, (select count(*) from b where b1=a1) from a";
+            TU.ExecuteSQL(sql, "0,1;1,1;2,1", out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: a.a1[0],{count(*)(0)}[1]"));
+
+            // Asserts in master
+            sql = "select a1, (select count(b1) from b where b1=a1) from a;";
+            TU.ExecuteSQL(sql, "0,1;1,1;2,1", out phyplan);
+            Assert.IsTrue(phyplan.Contains("Output: a.a1[0],{count(b.b1)}[1]"));
         }
 
         [TestMethod]

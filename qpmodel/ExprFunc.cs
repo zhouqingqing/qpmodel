@@ -511,6 +511,12 @@ namespace qpmodel.expr
         {
             base.Bind(context);
             type_ = new IntType();
+
+            /*
+             * Try adding all tableRefs to fix count(*) being orphaned and
+             * getting pushed to random side when join transformations happen.
+             */
+            tableRefs_ = context.AllTableRefs();
         }
 
         public override Value Init(ExecContext context, Row input)
@@ -522,6 +528,30 @@ namespace qpmodel.expr
         {
             count_ = (long)old + 1;
             return count_;
+        }
+
+        /*
+         * Two COUNT(*) are same/equal only if they reference same set of tables.
+         */
+        public override bool Equals(object obj)
+        {
+            if ((obj is AggCountStar acs1) || (obj is ExprRef er1 && (er1.expr_() is AggCountStar acs2)))
+            {
+                AggCountStar acs;
+                if (obj is AggCountStar)
+                {
+                    acs = (AggCountStar)obj;
+                }
+                else
+                {
+                    ExprRef er2 = (ExprRef)obj;
+                    acs = (AggCountStar)er2.expr_();
+                }
+
+                return Utils.AreEquivalentLists(tableRefs_, acs.tableRefs_);
+            }
+
+            return false;
         }
     }
 

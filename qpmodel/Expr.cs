@@ -211,11 +211,18 @@ namespace qpmodel.expr
         public static List<TableRef> CollectAllTableRef(this Expr expr, bool includingParameters = true)
         {
             var list = new HashSet<TableRef>();
-            expr.VisitEachT<ColExpr>(x =>
+            if (expr is AggCountStar acs)
             {
-                if (!x.isParameter_ || includingParameters)
-                    list.Add(x.tabRef_);
-            });
+                acs.tableRefs_.ForEach(x => list.Add(x));
+            }
+            else
+            {
+                expr.VisitEachT<ColExpr>(x =>
+                {
+                    if (!x.isParameter_ || includingParameters)
+                        list.Add(x.tabRef_);
+                });
+             }
             return list.ToList();
         }
 
@@ -567,7 +574,7 @@ namespace qpmodel.expr
         // output type of the expression
         internal ColumnType type_;
         // to help prevent too much recursion.
-        internal bool normalized_ = false;        
+        internal bool normalized_ = false;
         protected string outputName() => outputName_ != null ? $"(as {outputName_})" : null;
 
         void validateAfterBound()
@@ -703,13 +710,16 @@ namespace qpmodel.expr
 
         public List<TableRef> ResetAggregateTableRefs()
         {
-            if (children_.Count > 0)
+            if (children_.Count > 0 && !(this is AggCountStar))
             {
                 tableRefs_.Clear();
                 children_.ForEach(x =>
                 {
-                    Debug.Assert(x.bounded_);
-                    tableRefs_.AddRange(x.ResetAggregateTableRefs());
+                    if (!(x is AggCountStar))
+                    {
+                        Debug.Assert(x.bounded_);
+                        tableRefs_.AddRange(x.ResetAggregateTableRefs());
+                    }
                 });
                 if (tableRefs_.Count > 1)
                     tableRefs_ = tableRefs_.Distinct().ToList();
@@ -870,7 +880,7 @@ namespace qpmodel.expr
 
         // -- execution section --
 
-        public ColExpr(string dbName, string tabName, string colName, ColumnType type) : base()
+        public ColExpr(string dbName, string tabName, string colName, ColumnType type, int ordinal = -1) : base()
         {
             if (dbName != null)
             {
@@ -885,6 +895,7 @@ namespace qpmodel.expr
             colName_ = Utils.normalizeName(colName);
             outputName_ = colName_;
             type_ = type;
+            ordinal_ = ordinal;
             Debug.Assert(Clone().Equals(this));
         }
 
@@ -921,6 +932,21 @@ namespace qpmodel.expr
 
         public override void Bind(BindContext context)
         {
+            /*
+             * There are a few cases when bind is called twice
+             * on the same node, the known case is
+             * select a1 from a order by -a1
+             * first a1 in the select gets bound, then order by
+             * pre-processing replaces -a1 with a reference to bounded
+             * a1 with unary minus. When trying to bind order by the bound node
+             * triggers the assertion tabRef is null.
+             * To avoid this, return if already bound. If it turns out that
+             * too many times bind is called on the same node, find the real
+             * root cause, fix it, and remove this guard.
+             */
+            if (bounded_)
+                return;
+
             Debug.Assert(IsLeaf());
             Debug.Assert(tabRef_ is null);
             Debug.Assert(tabName_ == tableName_());
@@ -983,6 +1009,8 @@ namespace qpmodel.expr
         {
             if (obj is ColExpr co)
             {
+                if (co._ == this._)
+                    return true;
                 if (co.tableName_() is null)
                     return tableName_() is null && co.colName_.Equals(colName_);
                 else
@@ -1022,6 +1050,14 @@ namespace qpmodel.expr
                 return base.ExecCode(context, input);
             else
                 return $"{input}[{ordinal_}]";
+        }
+
+        public override Expr Clone()
+        {
+            ColExpr nce = base.Clone() as ColExpr;
+            nce.ordinal_ = this.ordinal_;
+
+            return nce;
         }
     }
 
@@ -1305,6 +1341,12 @@ namespace qpmodel.expr
 
             // reuse underlying expression's id
             _ = expr._;
+
+            // AggCountStar has tableRefs_, set our tableRefs_ to that.
+            if (expr is AggCountStar acs)
+            {
+                tableRefs_ = acs.tableRefs_;
+            }
         }
 
         public override int GetHashCode() => expr_().GetHashCode();

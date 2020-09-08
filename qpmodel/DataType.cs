@@ -343,7 +343,7 @@ namespace qpmodel.expr
             {
                 var columns = Catalog.systable_.TableCols(relname_);
                 allColumnsRefs_ = columns.Select(x
-                    => new ColExpr(null, alias_, x.Value.name_, x.Value.type_) as Expr).ToList();
+                    => new ColExpr(null, alias_, x.Value.name_, x.Value.type_, x.Value.ordinal_) as Expr).ToList();
             }
 
             return allColumnsRefs_;
