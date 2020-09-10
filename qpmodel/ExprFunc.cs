@@ -419,6 +419,8 @@ namespace qpmodel.expr
             base.Bind(context);
             if (argcnt_ == 1)
                 type_ = arg_().type_;
+            if (!(this is AggCount) && TypeBase.IsStringType(type_))
+                throw new SemanticAnalyzeException("character type aggregates are not supported");
         }
         public abstract Value Init(ExecContext context, Row input);
         public abstract Value Accum(ExecContext context, Value old, Row input);
@@ -957,6 +959,10 @@ namespace qpmodel.expr
                 case "<=":
                     if (TypeBase.IsNumberType(lchild_().type_))
                         ColumnType.CoerseType(op_, lchild_(), rchild_());
+                    else if ((TypeBase.IsStringType(lchild_().type_) && !TypeBase.IsStringType(rchild_().type_)) || (!TypeBase.IsStringType(lchild_().type_) && TypeBase.IsStringType(rchild_().type_)))
+                    {
+                        throw new SemanticAnalyzeException("no implicit conversion of character type values");
+                    }
                     type_ = new BoolType();
                     break;
                 case "=":
@@ -964,6 +970,10 @@ namespace qpmodel.expr
                 case "!=":
                     if (TypeBase.IsNumberType(lchild_().type_))
                         ColumnType.CoerseType(op_, lchild_(), rchild_());
+                    else if ((TypeBase.IsStringType(lchild_().type_) && !TypeBase.IsStringType(rchild_().type_)) || (!TypeBase.IsStringType(lchild_().type_) && TypeBase.IsStringType(rchild_().type_)))
+                    {
+                        throw new SemanticAnalyzeException("no implicit conversion of character type values");
+                    }
                     type_ = new BoolType();
                     break;
                 case " and ":
