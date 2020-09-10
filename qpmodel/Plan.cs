@@ -696,7 +696,7 @@ namespace qpmodel.logic
                 where_ = where_.FilterNormalize();
                 if (!where_.IsBoolean() || where_.HasAggFunc())
                     throw new SemanticAnalyzeException(
-                        "WHERE condition must be a blooean expression and no aggregation is allowed");
+                        "WHERE condition must be a boolean expression and no aggregation is allowed");
                 if (queryOpt_.optimize_.remove_from_)
                     where_ = where_.DeQueryRef();
             }
