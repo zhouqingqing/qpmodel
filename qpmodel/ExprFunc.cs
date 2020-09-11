@@ -957,6 +957,10 @@ namespace qpmodel.expr
                 case "<=":
                     if (TypeBase.IsNumberType(lchild_().type_))
                         ColumnType.CoerseType(op_, lchild_(), rchild_());
+                    else if ((TypeBase.IsStringType(lchild_().type_) && !TypeBase.IsStringType(rchild_().type_)) || (!TypeBase.IsStringType(lchild_().type_) && TypeBase.IsStringType(rchild_().type_)))
+                    {
+                        throw new SemanticAnalyzeException("no implicit conversion of character type values");
+                    }
                     type_ = new BoolType();
                     break;
                 case "=":
@@ -964,6 +968,10 @@ namespace qpmodel.expr
                 case "!=":
                     if (TypeBase.IsNumberType(lchild_().type_))
                         ColumnType.CoerseType(op_, lchild_(), rchild_());
+                    else if ((TypeBase.IsStringType(lchild_().type_) && !TypeBase.IsStringType(rchild_().type_)) || (!TypeBase.IsStringType(lchild_().type_) && TypeBase.IsStringType(rchild_().type_)))
+                    {
+                        throw new SemanticAnalyzeException("no implicit conversion of character type values");
+                    }
                     type_ = new BoolType();
                     break;
                 case " and ":

@@ -1367,7 +1367,7 @@ namespace qpmodel.unittest
             Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]<4"));
 
             // Rule 2: Constant folding. Replace expressions involving constants with the value of that part of the expression.
-            //         Some of this is laready in place.
+            //         Some of this is already in place.
             //         Rule 1 runs first and converts 3+a1[0] to a1[0]+3.
             sql = "select 1 + 2 + a1, a2 + 4 + 5 from a;";
             result = ExecuteSQL(sql, out phyplan);
