@@ -419,8 +419,6 @@ namespace qpmodel.expr
             base.Bind(context);
             if (argcnt_ == 1)
                 type_ = arg_().type_;
-            if (!(this is AggCount || this is AggSum || this is AggMin) && TypeBase.IsStringType(type_))
-                throw new SemanticAnalyzeException("character type aggregates are not supported");
         }
         public abstract Value Init(ExecContext context, Row input);
         public abstract Value Accum(ExecContext context, Value old, Row input);
