@@ -320,7 +320,7 @@ namespace qpmodel.logic
 
         // from clause -
         //  pair each from item with cross join, their join conditions will be handled
-        //  with where clauss processing.
+        //  with where clause processing.
         //
         LogicNode transformFromClause()
         {
@@ -530,7 +530,7 @@ namespace qpmodel.logic
                     root = new LogicFilter(root, where_);
                 else
                     lr.filter_ = lr.filter_.AddAndFilter(where_);
-                if (where_ != null && where_.HasAggFunc())
+                if (where_.HasAggFunc())
                 {
                     where_ = moveFilterToInsideAggNode(root, where_);
                     root = new LogicFilter(root.child_(), where_);

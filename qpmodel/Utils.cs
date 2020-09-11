@@ -122,7 +122,7 @@ namespace qpmodel.utils
             return exists;
         }
 
-        public void VisitEachIgnore<T1, T2>(Action<T2> callback) where T2: TreeNode<T>
+        public void VisitEachIgnore<T1, T2>(Action<T2> callback) where T2 : TreeNode<T>
         {
             if (!(this is T1))
             {
@@ -227,6 +227,11 @@ namespace qpmodel.utils
             return hash;
         }
 
+
+        // Do both the lists contain same elements regardless of odrer?
+        public static bool OrderlessEqual<T>(List<T> left, List<T> right)
+            => left.ContainsList(right) && right.ContainsList(left);
+
         public static string RemoveStringQuotes(this string str)
         {
             Debug.Assert(str[0] == '\'' && str[str.Length - 1] == '\'');
@@ -288,11 +293,5 @@ namespace qpmodel.utils
         }
         public static string normalizeName(string name) => name.StartsWith('"') ? name : name.ToLower();
         public static int mod(int a, int b) => (a % b + b) % b; // ensure positive
-
-        /* Do both the lists contain same elements regardless of odrer? */
-        public static bool AreEquivalentLists<T>(List<T> left, List<T> right)
-        {
-            return left.ContainsList(right) && right.ContainsList(left);
-        }
     }
 }

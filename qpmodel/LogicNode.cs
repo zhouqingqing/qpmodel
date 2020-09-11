@@ -743,16 +743,15 @@ namespace qpmodel.logic
 
     public partial class LogicAgg : LogicNode
     {
-        public List<Expr> raw_aggrs_; // original aggregations
-
-        public bool is_local_ = false; // default is global agg
-
+        public List<Expr> rawAggrs_; // original parser time aggregations
         public List<Expr> groupby_;
         public Expr having_;
 
-        // runtime info: derived from output request, a subset of raw_aggrs_[]
+        public bool isLocal_ = false; // default is global agg
+
+        // runtime info: derived from output request, a subset of rawAggrs_[]
         //  Example:
-        //      raw_aggrs_ may include max(i), max(i), max(i)+sum(j)
+        //      rawAggrs_ may include max(i), max(i), max(i)+sum(j)
         //      aggrFns_ => max(i), sum(j)
         //
         public List<AggFunc> aggrFns_ = new List<AggFunc>();
@@ -767,8 +766,8 @@ namespace qpmodel.logic
         public override LogicSignature MemoLogicSign()
         {
             if (logicSign_ == -1)
-                logicSign_ = child_().MemoLogicSign() ^ is_local_.GetHashCode() ^ having_.FilterHashCode()
-                    ^ Utils.ListHashCode(raw_aggrs_) ^ Utils.ListHashCode(groupby_);
+                logicSign_ = child_().MemoLogicSign() ^ isLocal_.GetHashCode() ^ 
+                    having_.FilterHashCode() ^ rawAggrs_.ListHashCode() ^ groupby_.ListHashCode();
             return logicSign_;
         }
         public override string ExplainMoreDetails(int depth, ExplainOption option)
@@ -786,7 +785,7 @@ namespace qpmodel.logic
 
         public LogicAgg(LogicNode child, List<Expr> groupby, List<Expr> aggrs, Expr having)
         {
-            children_.Add(child); groupby_ = groupby; raw_aggrs_ = aggrs; having_ = having;
+            children_.Add(child); groupby_ = groupby; rawAggrs_ = aggrs; having_ = having;
         }
 
         // key: b1+b2
@@ -951,7 +950,7 @@ namespace qpmodel.logic
         internal List<Expr> GenerateAggrFns(bool isResolveColumnOrdinal = true)
         {
             if (!isResolveColumnOrdinal)
-                output_ = raw_aggrs_;
+                output_ = rawAggrs_;
 
             // Bound aggrs to output, so when we computed aggrs, we automatically get output
             // Here is an example:
@@ -1001,7 +1000,7 @@ namespace qpmodel.logic
         {
             List<int> ordinals = new List<int>();
 
-            var derivedGlobal = isDerived_ && !is_local_;
+            var derivedGlobal = isDerived_ && !isLocal_;
             var processedOutput = derivedGlobal ? replaceDerivedExpr(reqOutput) : reqOutput;
 
             // reqOutput may contain ExprRef which is generated during FromQuery removal process, remove them
@@ -1041,7 +1040,7 @@ namespace qpmodel.logic
                 groupby_ = CloneFixColumnOrdinal(groupby_, childout, true);
             if (having_ != null)
                 having_ = CloneFixColumnOrdinal(having_, childout);
-            
+
             output_ = CloneFixColumnOrdinal(processedOutput, childout, removeRedundant);
 
             var newoutput = GenerateAggrFns();

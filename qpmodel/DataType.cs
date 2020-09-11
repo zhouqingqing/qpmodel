@@ -73,6 +73,9 @@ namespace qpmodel.expr
         public static bool IsStringType(ColumnType type)
             => type is CharType || type is VarCharType;
 
+        public static bool OnlyOneIsStringType(ColumnType l, ColumnType r)
+            => (IsStringType(l) && !IsStringType(r)) || (!IsStringType(l) && IsStringType(r));
+
         public static int GetPrecedence(ColumnType type)
             => precedence_.FindIndex(x => x == type.GetType());
 
