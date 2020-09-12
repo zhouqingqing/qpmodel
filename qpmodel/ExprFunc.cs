@@ -512,10 +512,9 @@ namespace qpmodel.expr
             base.Bind(context);
             type_ = new IntType();
 
-            /*
-             * Try adding all tableRefs to fix count(*) being orphaned and
-             * getting pushed to random side when join transformations happen.
-             */
+            // Try adding all tableRefs to fix count(*) being orphaned and
+            // getting pushed to random side when join transformations happen.
+            //
             tableRefs_ = context.AllTableRefs();
         }
 
@@ -530,27 +529,16 @@ namespace qpmodel.expr
             return count_;
         }
 
-        /*
-         * Two COUNT(*) are same/equal only if they reference same set of tables.
-         */
+        public override int GetHashCode() => tableRefs_.ListHashCode();
+
+        // Two COUNT(*) are same/equal only if they reference same set of tables.
+        //
         public override bool Equals(object obj)
         {
-            if ((obj is AggCountStar acs1) || (obj is ExprRef er1 && (er1.expr_() is AggCountStar acs2)))
-            {
-                AggCountStar acs;
-                if (obj is AggCountStar)
-                {
-                    acs = (AggCountStar)obj;
-                }
-                else
-                {
-                    ExprRef er2 = (ExprRef)obj;
-                    acs = (AggCountStar)er2.expr_();
-                }
-
-                return Utils.AreEquivalentLists(tableRefs_, acs.tableRefs_);
-            }
-
+            if (obj is ExprRef oe)
+                return this.Equals(oe.expr_());
+            if (obj is AggCountStar ac)
+                return Utils.OrderlessEqual(tableRefs_, ac.tableRefs_);
             return false;
         }
     }
@@ -698,7 +686,7 @@ namespace qpmodel.expr
         public override Expr SplitAgg()
         {
             var child = child_();
-            
+
             // child of tsum/tcount will be replace to bypass aggfunc child during aggfunc intialization
             var tsum = new AggSum(new List<Expr> { child }); tsum.dummyBind();
             var sumchild = new AggSum(new List<Expr> { child.Clone() }); sumchild.dummyBind();
@@ -957,10 +945,8 @@ namespace qpmodel.expr
                 case "<=":
                     if (TypeBase.IsNumberType(lchild_().type_))
                         ColumnType.CoerseType(op_, lchild_(), rchild_());
-                    else if ((TypeBase.IsStringType(lchild_().type_) && !TypeBase.IsStringType(rchild_().type_)) || (!TypeBase.IsStringType(lchild_().type_) && TypeBase.IsStringType(rchild_().type_)))
-                    {
+                    else if (TypeBase.OnlyOneIsStringType(lchild_().type_, rchild_().type_))
                         throw new SemanticAnalyzeException("no implicit conversion of character type values");
-                    }
                     type_ = new BoolType();
                     break;
                 case "=":
@@ -968,10 +954,8 @@ namespace qpmodel.expr
                 case "!=":
                     if (TypeBase.IsNumberType(lchild_().type_))
                         ColumnType.CoerseType(op_, lchild_(), rchild_());
-                    else if ((TypeBase.IsStringType(lchild_().type_) && !TypeBase.IsStringType(rchild_().type_)) || (!TypeBase.IsStringType(lchild_().type_) && TypeBase.IsStringType(rchild_().type_)))
-                    {
+                    else if (TypeBase.OnlyOneIsStringType(lchild_().type_, rchild_().type_))
                         throw new SemanticAnalyzeException("no implicit conversion of character type values");
-                    }
                     type_ = new BoolType();
                     break;
                 case " and ":
@@ -1015,7 +999,7 @@ namespace qpmodel.expr
         {
             bool addParen = false;
             string space = null;
-            switch(op_)
+            switch (op_)
             {
                 case "like":
                 case "not like":
@@ -1047,7 +1031,7 @@ namespace qpmodel.expr
 
         public override Value Exec(ExecContext context, Row input)
         {
-            string[] nullops = { "is", "||", "is not"};
+            string[] nullops = { "is", "||", "is not" };
             dynamic lv = lchild_().Exec(context, input);
             dynamic rv = rchild_().Exec(context, input);
 

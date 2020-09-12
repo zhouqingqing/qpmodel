@@ -1134,7 +1134,7 @@ namespace qpmodel.physic
             // is the aggregation is local, it can be for any distribution
             if (DistrProperty.AnyDistributed_.IsSuppliedBy(required))
             {
-                if ((logic_ as LogicAgg).is_local_)
+                if ((logic_ as LogicAgg).isLocal_)
                 {
                     listChildReqs.Add(new ChildrenRequirement { required });
                     return true;

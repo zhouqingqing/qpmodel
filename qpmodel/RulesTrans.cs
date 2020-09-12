@@ -206,7 +206,7 @@ namespace qpmodel.optimizer
         public override bool Appliable(CGroupMember expr)
         {
             LogicAgg agg = expr.logic_ as LogicAgg;
-            if (agg is null || agg.is_local_ || agg.isDerived_)
+            if (agg is null || agg.isLocal_ || agg.isDerived_)
                 return false;
 
             return true;
@@ -277,7 +277,7 @@ namespace qpmodel.optimizer
             }
 
             var local = new LogicAgg(childNode, groupby, localfns, null);
-            local.is_local_ = true;
+            local.isLocal_ = true;
 
             // having is placed on the global agg and the agg func need to be processed
             var newhaving = having;
