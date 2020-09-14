@@ -371,7 +371,7 @@ namespace qpmodel.logic
 
         public virtual LogicSignature MemoLogicSign()
         {
-            if (logicSign_ is -1)
+            if (logicSign_ == -1)
                 logicSign_ = GetHashCode();
             return logicSign_;
         }
@@ -766,8 +766,8 @@ namespace qpmodel.logic
         public override LogicSignature MemoLogicSign()
         {
             if (logicSign_ == -1)
-                logicSign_ = child_().MemoLogicSign() ^ isLocal_.GetHashCode() ^ 
-                    having_.FilterHashCode() ^ rawAggrs_.ListHashCode() ^ groupby_.ListHashCode();
+                logicSign_ = (child_().MemoLogicSign() << 32) + ((isLocal_.GetHashCode() ^ 
+                    having_.FilterHashCode() ^ rawAggrs_.ListHashCode() ^ groupby_.ListHashCode()) >> 32);
             return logicSign_;
         }
         public override string ExplainMoreDetails(int depth, ExplainOption option)
