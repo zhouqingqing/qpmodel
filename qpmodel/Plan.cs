@@ -631,18 +631,20 @@ namespace qpmodel.logic
         {
             byList = replaceOutputNameToExpr(byList);
             byList = seq2selection(byList, selection_);
+            List<Expr> newByList = new List<Expr>();
             byList.ForEach(x =>
             {
                 if (!x.bounded_)        // some items already bounded with seq2selection()
                     x = x.BindAndNormalize(context);
+                newByList.Add(x);
             });
             if (queryOpt_.optimize_.remove_from_)
             {
-                for (int i = 0; i < byList.Count; i++)
-                    byList[i] = byList[i].DeQueryRef();
+                for (int i = 0; i < newByList.Count; i++)
+                    newByList[i] = newByList[i].DeQueryRef();
             }
 
-            return byList;
+            return newByList;
         }
 
         List<Expr> bindSelectionList(BindContext context)
