@@ -384,6 +384,69 @@ namespace qpmodel.unittest
             }
         }
 
+        [TestMethod]
+        public void TestForIssue72_bySQL()
+        {
+            var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
+            string scale = "0001";
+
+            Tpch.CreateTables(true);
+            Tpch.LoadTables(scale);
+
+            Tpch.AnalyzeTables();
+
+            bool explainOnly = false;
+
+            QueryOption option = new QueryOption();
+            option.optimize_.TurnOnAllOptimizations();
+            option.optimize_.remove_from_ = false;
+
+            option.explain_.show_output_ = true;
+            option.explain_.show_estCost_ = option.optimize_.use_memo_;
+            option.explain_.mode_ = explainOnly ? ExplainMode.explain : ExplainMode.full;
+
+            // execute query
+            var sql = "select s_name, s_address from supplier, nation where s_suppkey in ( select ps_suppkey from partsupp where ps_partkey = 1) and n_name = 'CANADA'";
+            //"order by s_name";
+            var test_result = SQLStatement.ExecSQLList(sql, option);
+
+            System.Console.WriteLine(test_result);
+
+        }
+
+        [TestMethod]
+        public void TestForIssue72()
+        {
+            var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
+            string scale = "0001";
+
+            Tpch.CreateTables(true);
+            Tpch.LoadTables(scale);
+
+            Tpch.AnalyzeTables();
+
+            // run tests and compare plan
+            string sql_dir_fn = "../../../../tpch";
+            string write_dir_fn = $"../../../../test/regress/output/tpch{scale}_d";
+            string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}_d";
+
+            ExplainOption.show_tablename_ = false;
+            // var badQueries = new string[] { "q07", "q08", "q09", "q13", "q15", "q22" };
+            var badQueries = new string[] { "q01", "q02", "q03", "q04", "q05", 
+                "q06", "q07", "q08", "q09", "q10", 
+                "q11", "q12", "q13", "q14", "q15",
+                "q16", "q17", "q18","q16", "q17", "q18","q19", "q21", "q22" };
+            try
+            {
+                ExplainOption.show_tablename_ = false;
+                RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries);
+            }
+            finally
+            {
+                ExplainOption.show_tablename_ = true;
+            }
+
+        }
         void TestTpcdsWithData()
         {
             // table already created

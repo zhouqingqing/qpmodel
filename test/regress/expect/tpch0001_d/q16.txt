@@ -28,17 +28,17 @@ order by
 	p_brand,
 	p_type,
 	p_size
-Total cost: 4774.38, memory=22274
-PhysicOrder  (inccost=4774.38, cost=754.38, rows=148, memory=6364) (actual rows=0)
+Total cost: 4814.38, memory=22274
+PhysicOrder  (inccost=4814.38, cost=754.38, rows=148, memory=6364) (actual rows=0)
     Output: p_brand[0],p_type[1],p_size[2],{count(ps_suppkey)}[3]
     Order by: {count(ps_suppkey)}[3], p_brand[0], p_type[1], p_size[2]
-    -> PhysicHashAgg  (inccost=4020, cost=444, rows=148, memory=12728) (actual rows=0)
+    -> PhysicHashAgg  (inccost=4060, cost=444, rows=148, memory=12728) (actual rows=0)
         Output: {p_brand}[0],{p_type}[1],{p_size}[2],{count(ps_suppkey)}[3]
         Aggregates: count(ps_suppkey[3])
         Group by: p_brand[0], p_type[1], p_size[2]
-        -> PhysicGather Threads: 20 (inccost=3576, cost=1480, rows=148) (actual rows=0)
+        -> PhysicGather Threads: 20 (inccost=3616, cost=1480, rows=148) (actual rows=0)
             Output: p_brand[0],p_type[1],p_size[2],ps_suppkey[4]
-            -> PhysicHashJoin  (inccost=2096, cost=1022, rows=148, memory=3182) (actual rows=0, loops=10)
+            -> PhysicHashJoin  (inccost=2136, cost=1022, rows=148, memory=3182) (actual rows=0, loops=10)
                 Output: p_brand[0],p_type[1],p_size[2],ps_suppkey[4]
                 Filter: p_partkey[3]=ps_partkey[5]
                 -> PhysicBroadcast  (inccost=274, cost=74, rows=37) (actual rows=34, loops=10)
@@ -46,7 +46,7 @@ PhysicOrder  (inccost=4774.38, cost=754.38, rows=148, memory=6364) (actual rows=
                     -> PhysicScanTable part (inccost=200, cost=200, rows=37) (actual rows=3, loops=10)
                         Output: p_brand[3],p_type[4],p_size[5],p_partkey[0]
                         Filter: ((p_brand[3]<>'Brand#45' and p_type[4] not like 'MEDIUM POLISHED%') and p_size[5] in (49,14,23, ... <Total: 8> ))
-                -> PhysicScanTable partsupp (inccost=800, cost=800, rows=800) (actual rows=0, loops=10)
+                -> PhysicScanTable partsupp (inccost=820, cost=800, rows=800) (actual rows=0, loops=10)
                     Output: ps_suppkey[1],ps_partkey[0]
                     Filter: ps_suppkey[1] in @1
                     <InSubqueryExpr> cached 1

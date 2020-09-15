@@ -35,23 +35,23 @@ group by
 	cntrycode
 order by
 	cntrycode
-Total cost: 225008400272.1, memory=81
-PhysicOrder  (inccost=225008400272.1, cost=0.1, rows=1, memory=27)
+Total cost: 225008975874.1, memory=81
+PhysicOrder  (inccost=225008975874.1, cost=0.1, rows=1, memory=27)
     Output: cntrycode[0],{count(*)(0)}[1],{sum(c_acctbal)}[2]
     Order by: cntrycode[0]
-    -> PhysicHashAgg  (inccost=225008400272, cost=2250092, rows=1, memory=54)
+    -> PhysicHashAgg  (inccost=225008975874, cost=2250092, rows=1, memory=54)
         Output: {cntrycode}[0],{count(*)(0)}[1],{sum(c_acctbal)}[2]
         Aggregates: count(*)(0), sum(c_acctbal[1])
         Group by: cntrycode[0]
-        -> PhysicFromQuery <custsale> (inccost=225006150180, cost=2250090, rows=2250090)
+        -> PhysicFromQuery <custsale> (inccost=225006725782, cost=2250090, rows=2250090)
             Output: cntrycode[0],c_acctbal[1]
-            -> PhysicFilter  (inccost=225003900090, cost=2250090, rows=2250090)
+            -> PhysicFilter  (inccost=225004475692, cost=2250090, rows=2250090)
                 Output: {substring(c_phone,1,2)}[1],c_acctbal[2]
                 Filter: {#marker}[0]
-                -> PhysicMarkJoin Left (inccost=225001650000, cost=225000000000, rows=2250090)
+                -> PhysicMarkJoin Left (inccost=225002225602, cost=225000000000, rows=2250090)
                     Output: #marker,{substring(c_phone,1,2)}[0],c_acctbal[1]
                     Filter: o_custkey[3]=c_custkey[2]
-                    -> PhysicScanTable customer (inccost=150000, cost=150000, rows=150000)
+                    -> PhysicScanTable customer (inccost=437801, cost=150000, rows=150000)
                         Output: substring(c_phone[4],1,2),c_acctbal[5],c_custkey[0]
                         Filter: (substring(c_phone[4],1,2) in ('13','31','23', ... <Total: 7> ) and c_acctbal[5]>@1)
                         <ScalarSubqueryExpr> cached 1
