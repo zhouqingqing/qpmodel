@@ -411,7 +411,6 @@ namespace qpmodel.unittest
             var test_result = SQLStatement.ExecSQLList(sql, option);
 
             System.Console.WriteLine(test_result);
-
         }
 
         [TestMethod]
@@ -445,7 +444,6 @@ namespace qpmodel.unittest
             {
                 ExplainOption.show_tablename_ = true;
             }
-
         }
         void TestTpcdsWithData()
         {
