@@ -42,7 +42,7 @@ using qpmodel.physic;
 // Code Generation Targets:
 //  1. specialization with all possible without breaking code structure.
 //  2. can be integrated gradually - we can do one iterator by another.
-//    2.1 expr is not included+
+//    2.1 expr is not included
 //    2.2 some iterators not included
 //  3. profiling and debugging intergrated
 //
