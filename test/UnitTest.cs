@@ -383,7 +383,6 @@ namespace qpmodel.unittest
                 ExplainOption.show_tablename_ = true;
             }
         }
-
         void TestTpcdsWithData()
         {
             // table already created
@@ -486,7 +485,7 @@ namespace qpmodel.unittest
         }
 
         // true on success and false on failure
-        void RunFolderAndVerify(string sql_dir_fn, string write_dir_fn, string expect_dir_fn, string[] badQueries, bool explainOnly = false)
+        public static void RunFolderAndVerify(string sql_dir_fn, string write_dir_fn, string expect_dir_fn, string[] badQueries, bool explainOnly = false)
         {
             QueryVerify qv = new QueryVerify();
             var result = qv.SQLQueryVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries, explainOnly);
@@ -1139,7 +1138,7 @@ namespace qpmodel.unittest
                 sql = "select a1 from a where a2 > (select b1 from b where b3>=a3);";
                 var result = TU.ExecuteSQL(sql, out phyplan, option); Assert.IsTrue(TU.error_.Contains("one row"));
             }
-        }
+        } 
     }
 
     [TestClass]
