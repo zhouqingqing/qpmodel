@@ -173,21 +173,19 @@ namespace qpmodel.physic
                 else
                     incCost += x.InclusiveCost();
             });
-            //FIXED  @issue72 here should add the cost of subquery
+
+            // add subquery cost
             if (this.logic_.filter_ != null)
             {
                 Expr expr = this.logic_.filter_;
                 expr.VisitEachT<SubqueryExpr>(x =>
                 {
-                    if (x.query_.physicPlan_ != null)
-                    {
-                        var phynode = x.query_.physicPlan_ as PhysicNode;
-                        incCost += phynode.InclusiveCost();
-                    }
-                }
-                );
+                    Debug.Assert(x.query_.physicPlan_ != null);
+                    var phynode = x.query_.physicPlan_ as PhysicNode;
+                    incCost += phynode.InclusiveCost();
+                });
             }
-            
+
             Debug.Assert(incCost > Cost() || children_.Count == 0);
             return incCost;
         }
