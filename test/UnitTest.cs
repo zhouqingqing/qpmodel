@@ -605,7 +605,7 @@ namespace qpmodel.unittest
             QueryOption option = new QueryOption();
             option.optimize_.use_memo_ = true;
             option.optimize_.enable_subquery_unnest_ = true;
-        
+
             var sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
             var result = TU.ExecuteSQL(sql, out SQLStatement stmt, out _, option);
             var memo = stmt.optimizer_.memoset_[0];
