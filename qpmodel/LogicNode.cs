@@ -282,27 +282,19 @@ namespace qpmodel.logic
                     return new ExprRef(clone, ordinal);
             }
 
-            // let's first fix Aggregation as a whole epxression - there could be some combinations
-            // of AggrRef with aggregation keys (ColExpr), so we have to go thorough after it
-            //
-            clone.VisitEachT<AggrRef>(target =>
-            {
-                Predicate<Expr> roughNameTest;
-                roughNameTest = z => target.Equals(z);
-                target.ordinal_ = source.FindIndex(roughNameTest);
-                if (target.ordinal_ != -1)
-                {
-                    Debug.Assert(source.FindAll(roughNameTest).Count == 1);
-                }
-            });
-            clone.VisitEachT<AggFunc>(target =>
-            {
-                Predicate<Expr> roughNameTest;
-                roughNameTest = z => target.Equals(z);
-                int ordinal = source.FindIndex(roughNameTest);
-                if (ordinal != -1)
-                    clone = clone.SearchAndReplace(target, new ExprRef(target, ordinal));
-            });
+            /*
+             * We need to resolve the aggregates here or the next loop will descend into aggregates
+             * and try to resolve the column arguments and they may not be found in all cases.
+             * The example that breaks:
+             * select a1, a2  from a where a.a1 = (select sum(b1) from b where b2 = a2 and b3<4);
+             * filter: a.a1 = sum(b1), source a1, a2, sum(b1)
+             * going into sum, and trying to resolve b1 will fail and the assert
+             * source.FindAll(roughNameTest).Count >= 1 will be false. if this assert is ignored, and
+             * aggregates are resolved at the end or elsewhere, nothing bad happens but
+             * ignoring the assertion means legtimate problems will also go uncaught here and
+             * may cause servere problem elsewhere.
+             */
+            clone = FixAggregateOrdinals(clone, source);
 
             // we have to use each ColExpr and fix its ordinal
             clone.VisitEachIgnoreRef<ColExpr>(target =>
@@ -338,6 +330,33 @@ namespace qpmodel.logic
                     }
                 }
                 Debug.Assert(target.ordinal_ != -1);
+            });
+
+            return clone;
+        }
+
+        internal Expr FixAggregateOrdinals(Expr clone, List<Expr> source)
+        {
+            // let's first fix Aggregation as a whole epxression - there could be some combinations
+            // of AggrRef with aggregation keys (ColExpr), so we have to go thorough after it
+            //
+            clone.VisitEachT<AggrRef>(target =>
+            {
+                Predicate<Expr> roughNameTest;
+                roughNameTest = z => target.Equals(z);
+                target.ordinal_ = source.FindIndex(roughNameTest);
+                if (target.ordinal_ != -1)
+                {
+                    Debug.Assert(source.FindAll(roughNameTest).Count == 1);
+                }
+            });
+            clone.VisitEachT<AggFunc>(target =>
+            {
+                Predicate<Expr> roughNameTest;
+                roughNameTest = z => target.Equals(z);
+                int ordinal = source.FindIndex(roughNameTest);
+                if (ordinal != -1)
+                    clone = clone.SearchAndReplace(target, new ExprRef(target, ordinal));
             });
 
             return clone;
