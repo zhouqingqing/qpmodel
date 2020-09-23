@@ -421,6 +421,21 @@ namespace qpmodel.logic
             return newplan;
         }
 
+        LogicNode scalarSubqueryToJoin(LogicNode planWithSubExpr, SubqueryExpr subexpr)
+        {
+            LogicNode oldplan = planWithSubExpr;
+            LogicNode newplan = null;
+
+            Debug.Assert(subexpr is ScalarSubqueryExpr);
+            if(subexpr is ScalarSubqueryExpr ss)
+            {
+                newplan = scalarToSingleJoin(planWithSubExpr, ss);
+            }
+            if (oldplan != newplan)
+                decorrelatedSubs_.Add(new NamedQuery(subexpr.query_, null));
+            return newplan;
+        }
+
         // if there is a CteExpr referenced more than once, we can use a sequence plan
         LogicNode tryCteToSequencePlan(LogicNode root)
         {
