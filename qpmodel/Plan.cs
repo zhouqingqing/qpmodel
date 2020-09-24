@@ -311,12 +311,10 @@ namespace qpmodel.logic
                     Debug.Assert(expr.HasSubQuery());
                     x.query_.CreatePlan();
                     subplans.Add(new NamedQuery(x.query_, null));
-                    /*
-                    In selection clause, the return of subquery must be a scalarSubquery
-                    it should be unnested by singleJoin anyway
-                    use the plan 'root' containing the subexpr 'x'
-                    */
-                    Debug.Assert(expr is ScalarSubqueryExpr || expr is BinExpr); // 1+@1
+                    // In selection clause, the return of subquery must be a scalarSubquery
+                    // it should be unnested by singleJoin anyway
+                    // use the plan 'root' containing the subexpr 'x'
+                    Debug.Assert(expr is ScalarSubqueryExpr || expr is BinExpr); // 5+@1
                     var replacement = scalarSubqueryToJoin(root, x);
                     newroot = (LogicNode)newroot.SearchAndReplace(root,
                                                                 replacement);

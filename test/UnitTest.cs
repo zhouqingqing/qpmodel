@@ -1141,47 +1141,31 @@ namespace qpmodel.unittest
         } 
 
         [TestMethod]
-        public void TestSubqueryInFromClause()
+        public void TestSubqueryInSelectionClause()
         {
             var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
             string scale = "0001";
             Tpch.CreateTables(true);
             Tpch.LoadTables(scale);
             Tpch.AnalyzeTables();
-            string sql = "select c_name,(select count(O.o_orderkey) from orders O where O.o_custkey = 37) as OrderCount from customer C";
-            QueryOption option = new QueryOption();
-            option.optimize_.TurnOnAllOptimizations();
-            option.optimize_.remove_from_ = false;
-            option.explain_.show_output_ = true;
-            option.explain_.show_estCost_ = option.optimize_.use_memo_;
-            option.explain_.mode_ = ExplainMode.explain;
-            var test_result = SQLStatement.ExecSQLList(sql, option);
-            var expect_plan = @"select c_name,(select count(O.o_orderkey) from orders O where O.o_custkey = 37) as OrderCount from customer C
-                                Total cost: 4951, memory=10
-                                PhysicNLJoin Left (inccost=4951, cost=1760, rows=150)
-                                    Output: c.c_name[0],{count(o.o_orderkey)}[1]
-                                    -> PhysicGather Threads: 10 (inccost=1650, cost=1500, rows=150)
-                                        Output: c.c_name[1]
-                                        -> PhysicScanTable customer as c (inccost=150, cost=150, rows=150)
-                                            Output: c.c_name[1]
-                                    -> PhysicHashAgg  (inccost=1541, cost=3, rows=1, memory=2)
-                                        Output: {sum({count(o.o_orderkey)})}[0]
-                                        Aggregates: sum({count(o.o_orderkey)}[0])
-                                        Group by: 
-                                        -> PhysicGather Threads: 10 (inccost=1538, cost=10, rows=1)
-                                            Output: {count(o.o_orderkey)}[0]
-                                            -> PhysicHashAgg  (inccost=1528, cost=28, rows=1, memory=8)
-                                                Output: {count(o.o_orderkey)}[0]
-                                                Aggregates: count(o.o_orderkey[0])
-                                                Group by: 
-                                                -> PhysicScanTable orders as o (inccost=1500, cost=1500, rows=26)
-                                                    Output: o.o_orderkey[0]
-                                                    Filter: o.o_custkey[1]=37";
-            TU.PlanAssertEqual(test_result, expect_plan);
-            var r = TU.ExecuteSQL(sql, out _);
-            Debug.Assert(r.Count == 150);
-            Debug.Assert(r[0][1].ToString() == "26");
-            Console.WriteLine(r);
+
+            // run tests and compare plan
+            string sql_dir_fn = "../../../../tpch/select/";
+            string write_dir_fn = $"../../../../test/regress/output/tpch{scale}_select";
+            string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}_select";
+
+            var badQueries = new string[] { };
+            ExplainOption.show_tablename_ = false;
+
+            try
+            {
+                ExplainOption.show_tablename_ = false;
+                UBenchmarks.RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries);
+            }
+            finally
+            {
+                ExplainOption.show_tablename_ = true;
+            }
         }
     }
 
