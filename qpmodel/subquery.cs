@@ -57,18 +57,34 @@ namespace qpmodel.logic
 {
     public class MarkerExpr : Expr
     {
+        //private string markerId_ = "";// to confirm which @_ 
+        //public static int markerCount = 0;
+        //public MarkerExpr(bool isAddMarker=false, string boundedUnderline="")
+        //{
+        //    if (isAddMarker)
+        //    {
+        //        markerCount++;
+        //        markerId_ = new string(this._);
+        //    }
+        //    else
+        //    {
+        //        markerId_ = boundedUnderline;
+        //    }
+        //    Debug.Assert(Equals(Clone()));
+        //    dummyBind();
+        //}
         public MarkerExpr()
         {
             Debug.Assert(Equals(Clone()));
             dummyBind();
         }
-
         public override Value Exec(ExecContext context, Row input)
         {
             // its values is fed by mark join so non input related
             return null;
         }
 
+        //public override string ToString() => $"#markerId:{markerId_}";
         public override string ToString() => $"#marker";
     }
 
@@ -103,7 +119,8 @@ namespace qpmodel.logic
 
             // nullify nodeA's filter: the rest is push to top filter. However,
             // if nodeA is a Filter|MarkJoin, keep its mark filter.
-            var markerFilter = new ExprRef(new MarkerExpr(), 0);
+            // var markerFilter = new ExprRef(new MarkerExpr(true,""), MarkerExpr.markerCount-1);
+            var markerFilter = new ExprRef(new MarkerExpr(),0);
             var nodeAFilter = nodeA.filter_;
             if (nodeAIsOnMarkJoin)
                 nodeA.filter_ = markerFilter;
@@ -466,6 +483,7 @@ namespace qpmodel.logic
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             var list = base.ResolveColumnOrdinal(reqOutput, removeRedundant);
+            //output_.Insert(0, new MarkerExpr(false,this._));
             output_.Insert(0, new MarkerExpr());
             return list;
         }

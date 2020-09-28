@@ -1154,9 +1154,8 @@ namespace qpmodel.unittest
             string write_dir_fn = $"../../../../test/regress/output/tpch{scale}_select";
             string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}_select";
 
-            var badQueries = new string[] { };
+            var badQueries = new string[] {"sql03"};
             ExplainOption.show_tablename_ = false;
-
             try
             {
                 ExplainOption.show_tablename_ = false;

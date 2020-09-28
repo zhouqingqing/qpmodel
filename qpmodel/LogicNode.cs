@@ -689,10 +689,39 @@ namespace qpmodel.logic
 
             // assuming left output first followed with right output
             var childrenout = lout.ToList(); childrenout.AddRange(rout.ToList());
+            List<Expr> markerOutput = new List<Expr>();
+            childrenout.ForEach(
+                    x =>
+                    {
+                       if(x is MarkerExpr)
+                        {
+                            markerOutput.Add(x);
+                        }
+                       if(x is ExprRef)
+                        {
+                            if (x.child_() is MarkerExpr)
+                            {
+                                markerOutput.Add(x);
+                            }
+                        }
+                    }
+                );
+            foreach(Expr expr in markerOutput)
+            {
+                if(expr is MarkerExpr em)
+                {
+                    reqOutput.Add(em);
+                }
+                else if(expr is ExprRef ee)
+                {
+                    reqOutput.Add(ee);
+                }
+            }
+
             if (filter_ != null)
                 filter_ = CloneFixColumnOrdinal(filter_, childrenout);
             output_ = CloneFixColumnOrdinal(reqOutput, childrenout, removeRedundant);
-
+            
             RefreshOutputRegisteration();
             CreateKeyList();
             return ordinals;
@@ -752,7 +781,29 @@ namespace qpmodel.logic
 
             child_().ResolveColumnOrdinal(reqFromChild);
             var childout = child_().output_;
-
+            List<Expr> markerOutput = new List<Expr>();
+            if (filter_ is ConstExpr) {
+                if (!(filter_ is ExprRef))
+                {
+                    childout.ForEach(
+                            x =>
+                            {
+                                if(x is ExprRef)
+                                {
+                                    Debug.Assert(x.child_() != null) ;
+                                    if (x.child_() is MarkerExpr)
+                                    {
+                                        markerOutput.Add(x);
+                                    }
+                                }
+                            }
+                        );
+                }
+            }
+            foreach( ExprRef e in markerOutput){
+                reqOutput.Insert(0, e);
+            }
+            reqOutput.AddRange(markerOutput);
             filter_ = CloneFixColumnOrdinal(filter_, childout);
             output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
             RefreshOutputRegisteration();
