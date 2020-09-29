@@ -64,7 +64,7 @@ Unittest comes up with multiple tests covering major functionalities:
 
 Regular Community Meeting:
 Meeting Time:Tuesday, July 14, 2020 8:00 PM-9:30 PM (UTC-08:00) Pacific Time (US & Canada).
-Zoom: https://futurewei.zoom.us/j/97155138938
+Zoom: https://futurewei.zoom.us/j/97155138938, https://futurewei.zoom.us/j/8320379082
 
 Link for Video:
 https://www.youtube.com/playlist?list=PL_7gYB_Le9d2OFbt67OgQPSynRIWvTtU6
