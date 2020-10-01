@@ -50,7 +50,7 @@ namespace qpmodel.logic
         {
             // rewrite controls
             public bool enable_subquery_unnest_ { get; set; } = true;
-            public bool remove_from_ { get; set; } = false;        // make it true by default
+            public bool remove_from_ { get; set; } = true;
             public bool enable_cte_plan_ { get; set; } = false; // make it true by default
 
             // optimizer controls
@@ -603,7 +603,7 @@ namespace qpmodel.logic
             else
             {
                 // FIXME: we can't enable all optimizations with this mode
-                queryOpt_.optimize_.remove_from_ = false;
+                queryOpt_.optimize_.remove_from_ = true;
                 queryOpt_.optimize_.use_memo_ = false;
 
                 setops_.Bind(parent);

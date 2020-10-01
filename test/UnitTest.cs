@@ -2348,7 +2348,7 @@ namespace qpmodel.unittest
             sql = "select * from (select * from a join b on a1=b1) ab join (select * from c join d on c1=d1) cd on a1+b1=c1 and a2+b2=d2;";
 
             // COUNT(*)
-            sql = "select * from (select count(*) from a, b where a1 <> b1 and a2 <> b2) s1, (select count(*) from a, b where a1 <> b3 and a2 <> b4) s2, (select count(*) from a, b where a1 < b1 and a2 < b2) s3, (select count(*) from a, b where a1 <> b1 and a2 <> b2) s4";
+            sql = "select * from (select count(*) from a, b where a1 <> b1 and a2 <> b2) s1(s1c), (select count(*) from a, b where a1 <> b3 and a2 <> b4) s2(s2c), (select count(*) from a, b where a1 < b1 and a2 < b2) s3(s3c), (select count(*) from a, b where a1 <> b1 and a2 <> b2) s4(s4c)";
             TU.ExecuteSQL(sql, "6,8,3,6", out phyplan, option);
             Assert.IsTrue(phyplan.Contains("Output: {count(*)(0)}[0],{count(*)(0)}[1],{count(*)(0)}[2],{count(*)(0)}[3]"));
 

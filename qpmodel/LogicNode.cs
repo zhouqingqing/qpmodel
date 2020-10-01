@@ -1032,6 +1032,10 @@ namespace qpmodel.logic
             List<Expr> reqFromChild = new List<Expr>();
             reqFromChild.AddRange(removeAggFuncAndKeyExprsFromOutput(reqList, groupby_));
 
+            // Remeber the last position of output required by the parent, it is not an error
+            // if the offending occures after this position. This happens if remove_from is enabled.
+            int grpbyColumnAddPosition = reqFromChild.Count;
+
             // It is ideal to add keys_ directly to reqFromChild but matching can be harder.
             // Consider the following case:
             //   keys/having: a1+a2, a3+a4
@@ -1067,14 +1071,21 @@ namespace qpmodel.logic
             // Say invvalid expression means contains colexpr (replaced with ref), then the output shall
             // contains no expression consists invalid expression
             //
+            int offendingFirstPos = -1, offendingPosLast = -1, offendingPos = 0;
             Expr offending = null;
             newoutput.ForEach(x =>
             {
                 if (x.VisitEachExists(y => y is ColExpr, new List<Type> { typeof(ExprRef) }))
+                {
                     offending = x;
+                    if (offendingFirstPos == -1)
+                        offendingFirstPos = offendingPos;
+                    offendingPosLast = offendingPos;
+                }
+                ++offendingPos;
             });
-            if (offending != null)
-                throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
+            if (offending != null && offendingFirstPos < grpbyColumnAddPosition)
+                    throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
             output_ = newoutput;
             if (having_?.VisitEachExists(y => y is ColExpr, new List<Type> { typeof(ExprRef) }) ?? false)
                 throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
