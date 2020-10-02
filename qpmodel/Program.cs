@@ -266,7 +266,7 @@ namespace qpmodel
                 // query options might be conflicting or incomplete
                 Console.WriteLine(sql);
                 var a = RawParser.ParseSingleSqlStatement(sql);
-                ExplainOption.show_tablename_ = false;
+                ExplainOption.show_tablename_ = true;
                 a.queryOpt_.profile_.enabled_ = true;
                 a.queryOpt_.optimize_.enable_subquery_unnest_ = true;
                 a.queryOpt_.optimize_.remove_from_ = true;
