@@ -222,7 +222,10 @@ namespace qpmodel.expr
                     if (!x.isParameter_ || includingParameters)
                         list.Add(x.tabRef_);
                 });
-             }
+#if false
+                expr.VisitEachT<AggCountStar>(y => y.tableRefs_.ForEach(z => list.Add(z)));
+#endif
+            }
             return list.ToList();
         }
 
