@@ -68,5 +68,6 @@ Zoom: https://futurewei.zoom.us/j/97155138938
 2) Tuesday, Sept 29, 2020 7:00 PM-8:30 PM (UTC-08:00) Pacific Time (US & Canada).
 Zoom: https://futurewei.zoom.us/j/8320379082
 
-Link for Video:
-1) https://www.youtube.com/playlist?list=PL_7gYB_Le9d2OFbt67OgQPSynRIWvTtU6
+Link for Videos:
+https://www.youtube.com/playlist?list=PL_7gYB_Le9d2OFbt67OgQPSynRIWvTtU6
+
