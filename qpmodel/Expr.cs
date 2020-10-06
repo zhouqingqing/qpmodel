@@ -208,6 +208,16 @@ namespace qpmodel.expr
         // TODO: what about expr.tableRefs_?
         //  They shall be equal but our implmentation sometimes get them inconsistent
         //  for example, xc.tabRef_ can contain outerrefs but tableRefs_ does not.
+        // When remove_from is in effect (removed) the following query fails because
+        // the count(*) gets pushed to scan node.
+        // select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1
+        // count(*) + c1 becomes required output for table c and when table scan resolve is called
+        // it throws the exception that aggregate functions can't part of it's output.
+        // The fix is to include tables referenced by count(*) here so that the caller can see
+        // that count(*) needs to be pushed to correct child.
+        // In addition, in LogicJoin Resolve, we consider these table refs to decide which child
+        // requires to output count(*) to make the plan valid.
+
         public static List<TableRef> CollectAllTableRef(this Expr expr, bool includingParameters = true)
         {
             var list = new HashSet<TableRef>();
@@ -222,9 +232,8 @@ namespace qpmodel.expr
                     if (!x.isParameter_ || includingParameters)
                         list.Add(x.tabRef_);
                 });
-#if false
+
                 expr.VisitEachT<AggCountStar>(y => y.tableRefs_.ForEach(z => list.Add(z)));
-#endif
             }
             return list.ToList();
         }

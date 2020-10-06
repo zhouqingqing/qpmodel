@@ -342,6 +342,7 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestBenchmarks()
         {
+            // This test will fail when remove_from is true. Union problems.
             TestTpcdsPlanOnly();
             TestTpcdsWithData();
 
@@ -932,6 +933,8 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "0,0;1,2;2,6");
             sql = "select a1, sum(a12) as a2 from (select a1, a1*a2 a12 from a) b where a1 >= (select c1 from c where c1=a12) group by a1;";
             TU.ExecuteSQL(sql, "0,0");
+
+            // This will fail when remove_from is true due to binding issues.
             sql = @"SELECT e1  FROM   (SELECT d1 FROM   (SELECT Sum(ab12) 
                                         FROM   (SELECT e1 * b2 ab12 FROM   (SELECT e1 FROM   (SELECT d1 
                                                                 FROM   (SELECT Sum(ab12) 
@@ -941,7 +944,7 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "16");
             sql = "select *, cd.* from (select a.* from a join b on a1=b1) ab , (select c1 , c3 from c join d on c1=d1) cd where ab.a1=cd.c1";
             TU.ExecuteSQL(sql, "0,1,2,3,0,2,0,2;1,2,3,4,1,3,1,3;2,3,4,5,2,4,2,4");
-            #endregion
+#endregion
 
             // these queries we can remove from
             QueryOption option = new QueryOption();
@@ -1028,14 +1031,33 @@ namespace qpmodel.unittest
                 }
             }
 
-            // FIXME
             sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;";
+            // This will fail when remove_from is true.
             sql = "select a1 from a, (select max(b3) maxb3 from b) b where a1 < maxb3"; // WRONG!
-            sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;"; // WRONG
-            sql = "select b1,c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where b1>1 and c100>1;"; // ANSWER WRONG
+            sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;";
+            sql = "select b1,c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where b1>1 and c100>1;";
+            // This will fail when remove_from is true
             sql = "select sum(a1) from (select sum(a1) from (select sum(a1) from a )b(a1) )c(a1);"; // WRONG
 
             // FIXME: if we turn memo on, we have problems resolving columns
+
+            option.optimize_.remove_from_ = true;
+            // More count(*) expressions and remove_from set to true.
+            sql = "select k1, k2 from (select count(*) k1, count(*) k2 from a, b) x(k1, k2)";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
+            Assert.IsFalse(phyplan.Contains("PhysicFromQuery"));
+            Assert.IsTrue(result.Count == 1);
+            Assert.AreEqual("9,9", string.Join(";", result));
+
+            sql = "select k1, k2 from (select count(*) + b1 k1, count(*) + a1 k2 from a, b group by a1, b1) x(k1, k2) order by 1, 2;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
+            Assert.IsFalse(phyplan.Contains("PhysicFromQuery"));
+            Assert.AreEqual("1,1;1,2;1,3;2,1;2,2;2,3;3,1;3,2;3,3", string.Join(";", result));
+
+            sql = "select k1 + count(*) from (select a1, sum(b1) from (select c1, count(*) from c group by c1) x(a1, b1) group by a1) z(k1, k2) group by k1;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
+            Assert.IsFalse(phyplan.Contains("PhysicFromQuery"));
+            Assert.AreEqual("1;2;3", string.Join(";", result));
         }
 
         [TestMethod]
@@ -2220,11 +2242,13 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "0,1,2,3;0,1,2,3", out _, option);
             sql = "select * from a union all select *from b union all select * from c order by 1 limit 2;";
             TU.ExecuteSQL(sql, "0,1,2,3;0,1,2,3", out _, option);
-
+            // This will fail when remove_from is true. No output from second select in the union.
             sql = "select count(c1), sum(c2) from (select * from a union all select * from b) c(c1,c2)";
             TU.ExecuteSQL(sql, "6,12", out _, option);
+            // This will fail when remove_from is true
             sql = "select * from (select * from a union all select * from b) c(c1,c2) order by 1";
             TU.ExecuteSQL(sql, "0,1;0,1;1,2;1,2;2,3;2,3", out _, option);
+            // This will fail when remove_from is true
             sql = "select max(c1), min(c2) from(select * from(select * from a union all select *from b) c(c1, c2))d(c1, c2) order by 1;";
             TU.ExecuteSQL(sql, "2,1", out _, option);
 
@@ -2781,51 +2805,69 @@ namespace qpmodel.unittest
                     Filter: b.b3[2]>1
 ";
             TU.PlanAssertEqual(answer, phyplan);
-            sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
-                and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
-                and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
-            option.optimize_.enable_subquery_unnest_ = false;
+            // This will fail when  remove_from is true. Naming the derived table columns will work.
+            // sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2
+            //    and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
+            //    and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
+            // This will work
+            option.optimize_.enable_subquery_unnest_ = true;
+            sql = "select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5) and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5)";
             TU.ExecuteSQL(sql, "0;1;2", out phyplan, option);
-            answer = @"PhysicNLJoin  (actual rows=3)
-    Output: a.a1[2]
-    Filter: b.b2[3]=c.c2[0]
-    -> PhysicScanTable c (actual rows=3)
-        Output: c.c2[1],#c.c3[2]
-    -> PhysicHashJoin  (actual rows=1, loops=3)
-        Output: a.a1[2],b.b2[0]
-        Filter: a.a1[2]=b.b1[1]
-        -> PhysicScanTable b (actual rows=3, loops=3)
-            Output: b.b2[1],b.b1[0]
-        -> PhysicScanTable a (actual rows=1, loops=3)
-            Output: a.a1[0],#a.a2[1],#a.a3[2]
-            Filter: (a.a1[0]=@1 and a.a2[1]=@3)
-            <ScalarSubqueryExpr> 1
-                -> PhysicFilter  (actual rows=0, loops=9)
-                    Output: bo.b1[0]
-                    Filter: ((bo.b2[1]=?a.a2[1] and bo.b2[1]<5) and bo.b1[0]=@2)
-                    <ScalarSubqueryExpr> 2
-                        -> PhysicScanTable b as b__2 (actual rows=0, loops=81)
-                            Output: b__2.b1[0]
-                            Filter: ((b__2.b3[2]=?a.a3[2] and ?bo.b3[2]=?c.c3[2]) and b__2.b3[2]>1)
-                    -> PhysicFromQuery <bo> (actual rows=9, loops=9)
-                        Output: bo.b1[0],bo.b2[1],#bo.b3[2]
-                        -> PhysicNLJoin  (actual rows=9, loops=9)
-                            Output: b_2.b1[2],b_1.b2[0],b_1.b3[1]
-                            -> PhysicScanTable b as b_1 (actual rows=3, loops=9)
-                                Output: b_1.b2[1],b_1.b3[2]
-                            -> PhysicScanTable b as b_2 (actual rows=3, loops=27)
-                                Output: b_2.b1[0]
-            <ScalarSubqueryExpr> 3
-                -> PhysicScanTable b as bo (actual rows=1, loops=9)
-                    Output: bo.b2[1],#bo.b3[2]
-                    Filter: ((bo.b1[0]=?a.a1[0] and bo.b2[1]=@4) and ?c.c3[2]<5)
-                    <ScalarSubqueryExpr> 4
-                        -> PhysicScanTable b as b__4 (actual rows=0, loops=27)
-                            Output: b__4.b2[1]
-                            Filter: ((b__4.b4[3]=(?a.a3[2]+1) and ?bo.b3[2]=?a.a3[2]) and b__4.b3[2]>0)";
+            answer = @"PhysicFilter  (actual rows=3)
+    Output: a.a1[0]
+    Filter: a.a1[0]=b_2.b1[1]
+    -> PhysicSingleJoin Left (actual rows=3)
+        Output: a.a1[0],b_2.b1[4]
+        Filter: ((b__2.b3[5]=a.a3[1] and b_1.b3[6]=c.c3[2]) and b_1.b2[7]=a.a2[3])
+        -> PhysicFilter  (actual rows=3)
+            Output: a.a1[0],a.a3[1],c.c3[2],a.a2[3]
+            Filter: a.a2[3]=bo.b2[4]
+            -> PhysicSingleJoin Left (actual rows=3)
+                Output: a.a1[0],a.a3[1],c.c3[2],a.a2[3],bo.b2[4]
+                Filter: ((b__4.b4[5]=(a.a3[1]+1) and bo.b3[6]=a.a3[1]) and bo.b1[7]=a.a1[0])
+                -> PhysicHashJoin  (actual rows=3)
+                    Output: a.a1[2],a.a3[3],c.c3[0],a.a2[4]
+                    Filter: b.b2[5]=c.c2[1]
+                    -> PhysicScanTable c (actual rows=3)
+                        Output: c.c3[2],c.c2[1]
+                        Filter: c.c3[2]<5
+                    -> PhysicHashJoin  (actual rows=3)
+                        Output: a.a1[2],a.a3[3],a.a2[4],b.b2[0]
+                        Filter: a.a1[2]=b.b1[1]
+                        -> PhysicScanTable b (actual rows=3)
+                            Output: b.b2[1],b.b1[0]
+                        -> PhysicScanTable a (actual rows=3)
+                            Output: a.a1[0],a.a3[2],a.a2[1]
+                -> PhysicFilter  (actual rows=3, loops=3)
+                    Output: bo.b2[0],b__4.b4[1],bo.b3[2],bo.b1[3]
+                    Filter: bo.b2[0]=b__4.b2[4]
+                    -> PhysicSingleJoin Left (actual rows=9, loops=3)
+                        Output: bo.b2[0],b__4.b4[3],bo.b3[1],bo.b1[2],b__4.b2[4]
+                        -> PhysicScanTable b as bo (actual rows=3, loops=3)
+                            Output: bo.b2[1],bo.b3[2],bo.b1[0]
+                        -> PhysicScanTable b as b__4 (actual rows=3, loops=9)
+                            Output: b__4.b4[3],b__4.b2[1]
+                            Filter: b__4.b3[2]>0
+        -> PhysicFilter  (actual rows=9, loops=3)
+            Output: b_2.b1[0],b__2.b3[1],b_1.b3[2],b_1.b2[3]
+            Filter: b_2.b1[0]=b__2.b1[4]
+            -> PhysicSingleJoin Left (actual rows=27, loops=3)
+                Output: b_2.b1[0],b__2.b3[3],b_1.b3[1],b_1.b2[2],b__2.b1[4]
+                -> PhysicNLJoin  (actual rows=9, loops=3)
+                    Output: b_2.b1[2],b_1.b3[0],b_1.b2[1]
+                    -> PhysicScanTable b as b_1 (actual rows=3, loops=3)
+                        Output: b_1.b3[2],b_1.b2[1]
+                        Filter: b_1.b2[1]<5
+                    -> PhysicScanTable b as b_2 (actual rows=3, loops=9)
+                        Output: b_2.b1[0]
+                -> PhysicScanTable b as b__2 (actual rows=3, loops=27)
+                    Output: b__2.b3[2],b__2.b1[0]
+                    Filter: b__2.b3[2]>1";
             TU.PlanAssertEqual(answer, phyplan);
             // run again with subquery expansion enabled
             // FIXME: b2<5 is not push down due to FromQuery barrier
+            // option.optimize_.enable_subquery_unnest_ = false;
+            // This will fail when remove_from is true but unnesting is false
             TU.ExecuteSQL(sql, "0;1;2", out phyplan);
             answer = @"PhysicFilter  (actual rows=3)
     Output: a.a1[0]

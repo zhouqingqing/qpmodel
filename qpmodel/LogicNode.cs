@@ -677,13 +677,9 @@ namespace qpmodel.logic
                         else
                             throw new InvalidProgramException($"requests contains invalid tableref {x.tableRefs_[0]}");
                     });
-#if false
+
                     // Let the count(*) be counted!
-                    // When remove_from is removed a query like
-                    // select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1
-                    // count(*) does down to b as required output which is not valid.
-                    // The fix is to require (0) from the child referenced by the count(*) here
-                    // and include count(*) tablRefs in CollectAllTableRef().
+                    // see the comment in CollectAllTableRef in Expr.cs.
                     var agcs = v.RetrieveAllType<AggCountStar>();
                     agcs.ForEach(y =>
                     {
@@ -695,7 +691,6 @@ namespace qpmodel.logic
                                 rreq.Add(y);
                         });
                     });
-#endif
                 }
             }
 
