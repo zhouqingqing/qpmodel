@@ -1333,12 +1333,59 @@ namespace qpmodel.logic
 
     public class LogicAppend : LogicNode
     {
+        public List<Expr> leftExprs_;     // left plan's selection
+        public List<Expr> rightExprs_;    // right plan's selection
         public override string ToString() => $"Append({lchild_()},{rchild_()})";
 
-        public LogicAppend(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
+        public LogicAppend(LogicNode l, LogicNode r, SetOpTree setops = null) 
+        {
+            children_.Add(l);
+            children_.Add(r);
 
-        // LogicAppend only needs to resolve column ordinals of its first child because others
-        // already solved in ResolveOrdinals().
+            // Using the setop tree, find the left and right plan's
+            // selections and save them to be used in ordinal resolution of
+            // all selects when this is not a top level UNION and remove_from
+            // is true.
+            if (setops != null)
+            {
+                setops.VisitEachStatement(x =>
+                {
+                    if (x.logicPlan_ == lchild_())
+                        leftExprs_ = x.selection_;
+                    else if (x.logicPlan_ == rchild_())
+                        rightExprs_ = x.selection_;
+                });
+            }
+        }
+
+        // Resolve one child's ordinals
+        internal void ResolveChild(in LogicNode child, in List<Expr> childExprs, in List<Expr> reqOutput, bool removeRedundant)
+        {
+           int minReq = Math.Min(reqOutput.Count, childExprs.Count);
+           List<Expr> childReq = new List<Expr>();
+           for (int i = 0; i < minReq; ++i)
+              childReq.Add(rightExprs_[i]);
+           child.ResolveColumnOrdinal(childReq, removeRedundant);
+         }
+
+         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
+         {
+             List<int> ordinals = children_[0].ResolveColumnOrdinal(reqOutput, removeRedundant);
+
+             if (rightExprs_ != null && children_[1].output_.Count == 0)
+                ResolveChild(children_[1], rightExprs_, reqOutput, removeRedundant);
+
+             if (leftExprs_ != null && children_[0].output_.Count == 0)
+                ResolveChild(children_[0], leftExprs_, reqOutput, removeRedundant);
+
+             if (output_.Count == 0)
+             {
+                 List<Expr> childout = children_[0].output_;
+                 output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
+             }
+
+            return ordinals;
+         }
     }
 
     public class LogicLimit : LogicNode

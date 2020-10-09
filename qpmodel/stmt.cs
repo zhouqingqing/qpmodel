@@ -240,6 +240,7 @@ namespace qpmodel.logic
         internal string op_;
         internal SetOpTree left_;
         internal SetOpTree right_;
+
         // or as leaf
         internal SelectStmt stmt_;
 
@@ -351,11 +352,11 @@ namespace qpmodel.logic
                 {
                     case "unionall":
                         // union all keeps all rows, including duplicates
-                        plan = new LogicAppend(lplan, rplan);
+                        plan = new LogicAppend(lplan, rplan, this);
                         break;
                     case "union":
                         // union collect rows from both sides, and remove duplicates
-                        plan = new LogicAppend(lplan, rplan);
+                        plan = new LogicAppend(lplan, rplan, this);
                         var groupby = new List<Expr>(first_.selection_.CloneList());
                         plan = new LogicAgg(plan, groupby, null, null);
                         break;
@@ -402,6 +403,7 @@ namespace qpmodel.logic
 
             return list;
         }
+
     }
 
     public partial class SelectStmt : SQLStatement

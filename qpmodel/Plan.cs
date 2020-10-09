@@ -339,7 +339,7 @@ namespace qpmodel.logic
                         break;
                     case QueryRef qref:
                         var plan = qref.query_.CreatePlan();
-                        if (qref is FromQueryRef && queryOpt_.optimize_.remove_from_)
+                        if (qref is FromQueryRef fqr && queryOpt_.optimize_.remove_from_)
                             from = plan;
                         else
                         {
@@ -530,12 +530,24 @@ namespace qpmodel.logic
                     root = new LogicFilter(root, where_);
                 else
                     lr.filter_ = lr.filter_.AddAndFilter(where_);
-                if (where_.HasAggFunc())
-                {
-                    where_ = moveFilterToInsideAggNode(root, where_);
-                    root = new LogicFilter(root.child_(), where_);
-                }
 
+                // Let FilterPushdown decide if the filter can be moved into aggregate
+                // node or a join above it.
+                // The query
+                // select a1 from a, (select max(b3) maxb3 from b) b where a1 < maxb3
+                // generates bad plan
+                // LogicJoin 1063
+                //      -> LogicScanTable 1064 a
+                //      -> LogicAgg 1066
+                //
+                //         Filter: a.a1[0]<max(b.b3[2])
+                //      -> LogicScanTable 1065 b
+                // This is wrong because table b can't output columns of a.
+                // if (where_.HasAggFunc())
+                // {
+                //     where_ = moveFilterToInsideAggNode(root, where_);
+                //     root = new LogicFilter(root.child_(), where_);
+                // }
                 root = setReturningExprCreatePlan(root, where_);
             }
 

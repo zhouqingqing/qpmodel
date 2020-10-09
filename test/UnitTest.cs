@@ -935,6 +935,7 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "0,0");
 
             // This will fail when remove_from is true due to binding issues.
+            // in e1 = 8 * b1, none have a tableref with them.
             sql = @"SELECT e1  FROM   (SELECT d1 FROM   (SELECT Sum(ab12) 
                                         FROM   (SELECT e1 * b2 ab12 FROM   (SELECT e1 FROM   (SELECT d1 
                                                                 FROM   (SELECT Sum(ab12) 
@@ -1371,6 +1372,8 @@ namespace qpmodel.unittest
             TU.PlanAssertEqual(answer, phyplan);
 
             // In WHERE clause.
+            // This is failing when remove_from is true. SUM expressions end up in the filter with FROM gone
+            // and it goes down to table scan.
             sql = "select c1, c1 from (select sum(abs(a1 * -10.3)) c1, sum(round(10.7 * a2, 2)) c2 from a) x where 10 + c1 < c2";
             result = ExecuteSQL(sql, out phyplan);
             answer = @"PhysicHashAgg  (actual rows=1)
@@ -2866,63 +2869,59 @@ namespace qpmodel.unittest
             TU.PlanAssertEqual(answer, phyplan);
             // run again with subquery expansion enabled
             // FIXME: b2<5 is not push down due to FromQuery barrier
-            // option.optimize_.enable_subquery_unnest_ = false;
+            option.optimize_.enable_subquery_unnest_ = false;
             // This will fail when remove_from is true but unnesting is false
             TU.ExecuteSQL(sql, "0;1;2", out phyplan);
             answer = @"PhysicFilter  (actual rows=3)
     Output: a.a1[0]
-    Filter: bo.b2[1]<5
-    -> PhysicFilter  (actual rows=3)
-        Output: a.a1[0],bo.b2[1]
-        Filter: a.a1[0]=bo.b1[2]
-        -> PhysicSingleJoin Left (actual rows=3)
-            Output: a.a1[0],bo.b2[4],bo.b1[5]
-            Filter: ((b__2.b3[6]=a.a3[1] and bo.b3[7]=c.c3[2]) and bo.b2[4]=a.a2[3])
-            -> PhysicFilter  (actual rows=3)
-                Output: a.a1[0],a.a3[1],c.c3[2],a.a2[3]
-                Filter: a.a2[3]=bo.b2[4]
-                -> PhysicSingleJoin Left (actual rows=3)
-                    Output: a.a1[0],a.a3[1],c.c3[2],a.a2[3],bo.b2[4]
-                    Filter: ((b__4.b4[5]=(a.a3[1]+1) and bo.b3[6]=a.a3[1]) and bo.b1[7]=a.a1[0])
+    Filter: a.a1[0]=b_2.b1[1]
+    -> PhysicSingleJoin Left (actual rows=3)
+        Output: a.a1[0],b_2.b1[4]
+        Filter: ((b__2.b3[5]=a.a3[1] and b_1.b3[6]=c.c3[2]) and b_1.b2[7]=a.a2[3])
+        -> PhysicFilter  (actual rows=3)
+            Output: a.a1[0],a.a3[1],c.c3[2],a.a2[3]
+            Filter: a.a2[3]=bo.b2[4]
+            -> PhysicSingleJoin Left (actual rows=3)
+                Output: a.a1[0],a.a3[1],c.c3[2],a.a2[3],bo.b2[4]
+                Filter: ((b__4.b4[5]=(a.a3[1]+1) and bo.b3[6]=a.a3[1]) and bo.b1[7]=a.a1[0])
+                -> PhysicHashJoin  (actual rows=3)
+                    Output: a.a1[2],a.a3[3],c.c3[0],a.a2[4]
+                    Filter: b.b2[5]=c.c2[1]
+                    -> PhysicScanTable c (actual rows=3)
+                        Output: c.c3[2],c.c2[1]
+                        Filter: c.c3[2]<5
                     -> PhysicHashJoin  (actual rows=3)
-                        Output: a.a1[2],a.a3[3],c.c3[0],a.a2[4]
-                        Filter: b.b2[5]=c.c2[1]
-                        -> PhysicScanTable c (actual rows=3)
-                            Output: c.c3[2],c.c2[1]
-                            Filter: c.c3[2]<5
-                        -> PhysicHashJoin  (actual rows=3)
-                            Output: a.a1[2],a.a3[3],a.a2[4],b.b2[0]
-                            Filter: a.a1[2]=b.b1[1]
-                            -> PhysicScanTable b (actual rows=3)
-                                Output: b.b2[1],b.b1[0]
-                            -> PhysicScanTable a (actual rows=3)
-                                Output: a.a1[0],a.a3[2],a.a2[1]
-                    -> PhysicFilter  (actual rows=3, loops=3)
-                        Output: bo.b2[0],b__4.b4[1],bo.b3[2],bo.b1[3]
-                        Filter: bo.b2[0]=b__4.b2[4]
-                        -> PhysicSingleJoin Left (actual rows=9, loops=3)
-                            Output: bo.b2[0],b__4.b4[3],bo.b3[1],bo.b1[2],b__4.b2[4]
-                            -> PhysicScanTable b as bo (actual rows=3, loops=3)
-                                Output: bo.b2[1],bo.b3[2],bo.b1[0]
-                            -> PhysicScanTable b as b__4 (actual rows=3, loops=9)
-                                Output: b__4.b4[3],b__4.b2[1]
-                                Filter: b__4.b3[2]>0
-            -> PhysicFilter  (actual rows=9, loops=3)
-                Output: bo.b2[0],bo.b1[1],b__2.b3[2],bo.b3[3]
-                Filter: bo.b1[1]=b__2.b1[4]
-                -> PhysicSingleJoin Left (actual rows=27, loops=3)
-                    Output: bo.b2[0],bo.b1[1],b__2.b3[3],bo.b3[2],b__2.b1[4]
-                    -> PhysicFromQuery <bo> (actual rows=9, loops=3)
-                        Output: bo.b2[1],bo.b1[0],bo.b3[2]
-                        -> PhysicNLJoin  (actual rows=9, loops=3)
-                            Output: b_2.b1[2],b_1.b2[0],b_1.b3[1]
-                            -> PhysicScanTable b as b_1 (actual rows=3, loops=3)
-                                Output: b_1.b2[1],b_1.b3[2]
-                            -> PhysicScanTable b as b_2 (actual rows=3, loops=9)
-                                Output: b_2.b1[0]
-                    -> PhysicScanTable b as b__2 (actual rows=3, loops=27)
-                        Output: b__2.b3[2],b__2.b1[0]
-                        Filter: b__2.b3[2]>1";
+                        Output: a.a1[2],a.a3[3],a.a2[4],b.b2[0]
+                        Filter: a.a1[2]=b.b1[1]
+                        -> PhysicScanTable b (actual rows=3)
+                            Output: b.b2[1],b.b1[0]
+                        -> PhysicScanTable a (actual rows=3)
+                            Output: a.a1[0],a.a3[2],a.a2[1]
+                -> PhysicFilter  (actual rows=3, loops=3)
+                    Output: bo.b2[0],b__4.b4[1],bo.b3[2],bo.b1[3]
+                    Filter: bo.b2[0]=b__4.b2[4]
+                    -> PhysicSingleJoin Left (actual rows=9, loops=3)
+                        Output: bo.b2[0],b__4.b4[3],bo.b3[1],bo.b1[2],b__4.b2[4]
+                        -> PhysicScanTable b as bo (actual rows=3, loops=3)
+                            Output: bo.b2[1],bo.b3[2],bo.b1[0]
+                        -> PhysicScanTable b as b__4 (actual rows=3, loops=9)
+                            Output: b__4.b4[3],b__4.b2[1]
+                            Filter: b__4.b3[2]>0
+        -> PhysicFilter  (actual rows=9, loops=3)
+            Output: b_2.b1[0],b__2.b3[1],b_1.b3[2],b_1.b2[3]
+            Filter: b_2.b1[0]=b__2.b1[4]
+            -> PhysicSingleJoin Left (actual rows=27, loops=3)
+                Output: b_2.b1[0],b__2.b3[3],b_1.b3[1],b_1.b2[2],b__2.b1[4]
+                -> PhysicNLJoin  (actual rows=9, loops=3)
+                    Output: b_2.b1[2],b_1.b3[0],b_1.b2[1]
+                    -> PhysicScanTable b as b_1 (actual rows=3, loops=3)
+                        Output: b_1.b3[2],b_1.b2[1]
+                        Filter: b_1.b2[1]<5
+                    -> PhysicScanTable b as b_2 (actual rows=3, loops=9)
+                        Output: b_2.b1[0]
+                -> PhysicScanTable b as b__2 (actual rows=3, loops=27)
+                    Output: b__2.b3[2],b__2.b1[0]
+                    Filter: b__2.b3[2]>1";
             TU.PlanAssertEqual(answer, phyplan);
         }
     }
