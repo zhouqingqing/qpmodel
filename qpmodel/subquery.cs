@@ -57,8 +57,9 @@ namespace qpmodel.logic
 {
     public class MarkerExpr : Expr
     {
-        public MarkerExpr()
+        public MarkerExpr(List<TableRef> tr)
         {
+            tableRefs_ = tr;
             Debug.Assert(Equals(Clone()));
             dummyBind();
         }
@@ -103,7 +104,7 @@ namespace qpmodel.logic
 
             // nullify nodeA's filter: the rest is push to top filter. However,
             // if nodeA is a Filter|MarkJoin, keep its mark filter.
-            var markerFilter = new ExprRef(new MarkerExpr(), 0);
+            var markerFilter = new ExprRef(new MarkerExpr(nodeBFilter.tableRefs_), 0);
             var nodeAFilter = nodeA.filter_;
             if (nodeAIsOnMarkJoin)
                 nodeA.filter_ = markerFilter;
@@ -421,6 +422,21 @@ namespace qpmodel.logic
             return newplan;
         }
 
+        LogicNode scalarSubqueryToJoin(LogicNode planWithSubExpr, SubqueryExpr subexpr)
+        {
+            LogicNode oldplan = planWithSubExpr;
+            LogicNode newplan = null;
+
+            Debug.Assert(subexpr is ScalarSubqueryExpr);
+            if(subexpr is ScalarSubqueryExpr ss)
+            {
+                newplan = scalarToSingleJoin(planWithSubExpr, ss);
+            }
+            if (oldplan != newplan)
+                decorrelatedSubs_.Add(new NamedQuery(subexpr.query_, null));
+            return newplan;
+        }
+
         // if there is a CteExpr referenced more than once, we can use a sequence plan
         LogicNode tryCteToSequencePlan(LogicNode root)
         {
@@ -451,7 +467,6 @@ namespace qpmodel.logic
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             var list = base.ResolveColumnOrdinal(reqOutput, removeRedundant);
-            output_.Insert(0, new MarkerExpr());
             return list;
         }
     }
@@ -476,8 +491,8 @@ namespace qpmodel.logic
         }
         public override string ToString() => $"PMarkJOIN({lchild_()},{rchild_()}: {Cost()})";
 
-        // always the first column
-        void fixMarkerValue(Row r, Value value) => r[0] = value;
+        // always the last column, as it is added at the last time 
+        void fixMarkerValue(Row r, Value value) => r[r.ColCount()-1] = value;
 
         public override void Exec(Action<Row> callback)
         {

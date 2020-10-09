@@ -300,6 +300,34 @@ namespace qpmodel.logic
             subQueries_.AddRange(subplans);
             return newroot;
         }
+        LogicNode setReturningExprCreatePlanForSelection(LogicNode root, Expr expr)
+        {
+            var newroot = root;
+            var subplans = new List<NamedQuery>();
+            expr.VisitEachT<Expr>(e =>
+            {
+                if (e is SubqueryExpr x)
+                {
+                    Debug.Assert(expr.HasSubQuery());
+                    x.query_.CreatePlan();
+                    subplans.Add(new NamedQuery(x.query_, null));
+                    // In selection clause, the return of subquery must be a scalarSubquery
+                    // it should be unnested by singleJoin anyway
+                    // use the plan 'root' containing the subexpr 'x'
+                    Debug.Assert(expr is ScalarSubqueryExpr || expr is BinExpr); // 5+@1
+                    var replacement = scalarSubqueryToJoin(root, x);
+                    newroot = (LogicNode)newroot.SearchAndReplace(root,
+                                                                replacement);
+                }
+                else if (e is FuncExpr f && f.isSRF_)
+                {
+                    var newchild = new LogicProjectSet(root.child_());
+                    root.children_[0] = newchild;
+                }
+            });
+            subQueries_.AddRange(subplans);
+            return newroot;
+        }
 
         // select i, min(i/2), 2+min(i)+max(i) from A group by i
         // => min(i/2), 2+min(i)+max(i)
@@ -553,10 +581,16 @@ namespace qpmodel.logic
             }
 
             // selection list
+            /*
+            > The Complete Story of Joins(in Hyper) 3.4 
+            > 5. Translate the select clause
+            > translate the select clause just like in the where clause
+            > the result us added to the top of current tree using (PI)projection
+            */
             selection_.ForEach(x =>
             {
                 var oldroot = root;
-                root = setReturningExprCreatePlan(root, x);
+                root = setReturningExprCreatePlanForSelection(root, x);
                 shallExpandSelection_ |= root != oldroot;
             });
 

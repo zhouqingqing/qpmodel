@@ -5,3 +5,4 @@ output/*
 !output/tpch0001_d/.gitkeep
 !output/ce/.gitkeep
 !output/.gitkeep
+!output/tpch0001_select/.gitkeep

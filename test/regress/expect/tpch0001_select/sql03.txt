@@ -1,0 +1,234 @@
+select c_name,
+	(select count(O.o_orderkey) 
+	 	from orders O 
+	 	where O.o_custkey = 37) as OrderCount, 
+	(select count(O2.o_custkey) 
+		from orders O2
+		where O2.o_custkey = 26) as CustPhone
+from customer C
+where exists
+	(
+		select *
+		from nation N
+		where N.n_name like '%A%'
+		and exists(
+			select * 
+			from region R
+			where N.n_regionkey = R.r_regionkey
+			and R.r_regionkey<2
+		)
+	)
+order by c_name
+Total cost: 10022.59, memory=4970
+PhysicOrder  (inccost=10022.59, cost=766.59, rows=150, memory=4950) (actual rows=150)
+    Output: c_name[0],{count(o_orderkey)}[1],{count(o_custkey)}[2]
+    Order by: c_name[0]
+    -> PhysicFilter  (inccost=9256, cost=150, rows=150) (actual rows=150)
+        Output: c_name[0],{count(o_orderkey)}[1],{count(o_custkey)}[2]
+        Filter: true
+        -> PhysicNLJoin Left (inccost=9106, cost=1760, rows=150) (actual rows=150)
+            Output: c_name[0],{count(o_orderkey)}[1],{count(o_custkey)}[2]
+            -> PhysicFilter  (inccost=5821, cost=150, rows=150) (actual rows=150)
+                Output: c_name[0],{count(o_orderkey)}[1]
+                Filter: true
+                -> PhysicNLJoin Left (inccost=5671, cost=1760, rows=150) (actual rows=150)
+                    Output: c_name[0],{count(o_orderkey)}[1]
+                    -> PhysicGather Threads: 10 (inccost=2370, cost=1500, rows=150) (actual rows=150)
+                        Output: c_name[1]
+                        -> PhysicScanTable customer as c (inccost=510, cost=150, rows=150) (actual rows=15, loops=10)
+                            Output: c_name[1]
+                            Filter: @3
+                            <ExistSubqueryExpr> cached 3
+                                -> PhysicFilter  (inccost=360, cost=10, rows=10) (actual rows=8)
+                                    Output: n_nationkey[0],n_name[1],n_regionkey[2],n_comment[3]
+                                    Filter: {#marker}[4]
+                                    -> PhysicMarkJoin Left (inccost=350, cost=50, rows=10) (actual rows=21)
+                                        Output: n_nationkey[0],n_name[1],n_regionkey[2],n_comment[3],#marker
+                                        Filter: n_regionkey[2]=r_regionkey[4]
+                                        -> PhysicGather Threads: 10 (inccost=275, cost=250, rows=25) (actual rows=21)
+                                            Output: n_nationkey[0],n_name[1],n_regionkey[2],n_comment[3]
+                                            -> PhysicScanTable nation as n (inccost=25, cost=25, rows=25) (actual rows=21)
+                                                Output: n_nationkey[0],n_name[1],n_regionkey[2],n_comment[3]
+                                                Filter: n_name[1] like '%A%'
+                                        -> PhysicGather Threads: 10 (inccost=25, cost=20, rows=2) (actual rows=2, loops=21)
+                                            Output: r_regionkey[0]
+                                            -> PhysicScanTable region as r (inccost=5, cost=5, rows=2) (actual rows=2)
+                                                Output: r_regionkey[0]
+                                                Filter: r_regionkey[0]<2
+                    -> PhysicHashAgg  (inccost=1541, cost=3, rows=1, memory=2) (actual rows=1, loops=150)
+                        Output: {sum({count(o_orderkey)})}[0]
+                        Aggregates: sum({count(o_orderkey)}[0])
+                        Group by: 
+                        -> PhysicGather Threads: 10 (inccost=1538, cost=10, rows=1) (actual rows=9, loops=150)
+                            Output: {count(o_orderkey)}[0]
+                            -> PhysicHashAgg  (inccost=1528, cost=28, rows=1, memory=8) (actual rows=0, loops=10)
+                                Output: {count(o_orderkey)}[0]
+                                Aggregates: count(o_orderkey[0])
+                                Group by: 
+                                -> PhysicScanTable orders as o (inccost=1500, cost=1500, rows=26) (actual rows=2, loops=10)
+                                    Output: o_orderkey[0]
+                                    Filter: o_custkey[1]=37
+            -> PhysicHashAgg  (inccost=1525, cost=3, rows=1, memory=2) (actual rows=1, loops=150)
+                Output: {sum({count(o_custkey)})}[0]
+                Aggregates: sum({count(o_custkey)}[0])
+                Group by: 
+                -> PhysicGather Threads: 10 (inccost=1522, cost=10, rows=1) (actual rows=7, loops=150)
+                    Output: {count(o_custkey)}[0]
+                    -> PhysicHashAgg  (inccost=1512, cost=12, rows=1, memory=8) (actual rows=0, loops=10)
+                        Output: {count(o_custkey)}[0]
+                        Aggregates: count(o_custkey[0])
+                        Group by: 
+                        -> PhysicScanTable orders as o2 (inccost=1500, cost=1500, rows=10) (actual rows=1, loops=10)
+                            Output: o_custkey[1]
+                            Filter: o_custkey[1]=26
+Customer#000000001,26,10
+Customer#000000002,26,10
+Customer#000000003,26,10
+Customer#000000004,26,10
+Customer#000000005,26,10
+Customer#000000006,26,10
+Customer#000000007,26,10
+Customer#000000008,26,10
+Customer#000000009,26,10
+Customer#000000010,26,10
+Customer#000000011,26,10
+Customer#000000012,26,10
+Customer#000000013,26,10
+Customer#000000014,26,10
+Customer#000000015,26,10
+Customer#000000016,26,10
+Customer#000000017,26,10
+Customer#000000018,26,10
+Customer#000000019,26,10
+Customer#000000020,26,10
+Customer#000000021,26,10
+Customer#000000022,26,10
+Customer#000000023,26,10
+Customer#000000024,26,10
+Customer#000000025,26,10
+Customer#000000026,26,10
+Customer#000000027,26,10
+Customer#000000028,26,10
+Customer#000000029,26,10
+Customer#000000030,26,10
+Customer#000000031,26,10
+Customer#000000032,26,10
+Customer#000000033,26,10
+Customer#000000034,26,10
+Customer#000000035,26,10
+Customer#000000036,26,10
+Customer#000000037,26,10
+Customer#000000038,26,10
+Customer#000000039,26,10
+Customer#000000040,26,10
+Customer#000000041,26,10
+Customer#000000042,26,10
+Customer#000000043,26,10
+Customer#000000044,26,10
+Customer#000000045,26,10
+Customer#000000046,26,10
+Customer#000000047,26,10
+Customer#000000048,26,10
+Customer#000000049,26,10
+Customer#000000050,26,10
+Customer#000000051,26,10
+Customer#000000052,26,10
+Customer#000000053,26,10
+Customer#000000054,26,10
+Customer#000000055,26,10
+Customer#000000056,26,10
+Customer#000000057,26,10
+Customer#000000058,26,10
+Customer#000000059,26,10
+Customer#000000060,26,10
+Customer#000000061,26,10
+Customer#000000062,26,10
+Customer#000000063,26,10
+Customer#000000064,26,10
+Customer#000000065,26,10
+Customer#000000066,26,10
+Customer#000000067,26,10
+Customer#000000068,26,10
+Customer#000000069,26,10
+Customer#000000070,26,10
+Customer#000000071,26,10
+Customer#000000072,26,10
+Customer#000000073,26,10
+Customer#000000074,26,10
+Customer#000000075,26,10
+Customer#000000076,26,10
+Customer#000000077,26,10
+Customer#000000078,26,10
+Customer#000000079,26,10
+Customer#000000080,26,10
+Customer#000000081,26,10
+Customer#000000082,26,10
+Customer#000000083,26,10
+Customer#000000084,26,10
+Customer#000000085,26,10
+Customer#000000086,26,10
+Customer#000000087,26,10
+Customer#000000088,26,10
+Customer#000000089,26,10
+Customer#000000090,26,10
+Customer#000000091,26,10
+Customer#000000092,26,10
+Customer#000000093,26,10
+Customer#000000094,26,10
+Customer#000000095,26,10
+Customer#000000096,26,10
+Customer#000000097,26,10
+Customer#000000098,26,10
+Customer#000000099,26,10
+Customer#000000100,26,10
+Customer#000000101,26,10
+Customer#000000102,26,10
+Customer#000000103,26,10
+Customer#000000104,26,10
+Customer#000000105,26,10
+Customer#000000106,26,10
+Customer#000000107,26,10
+Customer#000000108,26,10
+Customer#000000109,26,10
+Customer#000000110,26,10
+Customer#000000111,26,10
+Customer#000000112,26,10
+Customer#000000113,26,10
+Customer#000000114,26,10
+Customer#000000115,26,10
+Customer#000000116,26,10
+Customer#000000117,26,10
+Customer#000000118,26,10
+Customer#000000119,26,10
+Customer#000000120,26,10
+Customer#000000121,26,10
+Customer#000000122,26,10
+Customer#000000123,26,10
+Customer#000000124,26,10
+Customer#000000125,26,10
+Customer#000000126,26,10
+Customer#000000127,26,10
+Customer#000000128,26,10
+Customer#000000129,26,10
+Customer#000000130,26,10
+Customer#000000131,26,10
+Customer#000000132,26,10
+Customer#000000133,26,10
+Customer#000000134,26,10
+Customer#000000135,26,10
+Customer#000000136,26,10
+Customer#000000137,26,10
+Customer#000000138,26,10
+Customer#000000139,26,10
+Customer#000000140,26,10
+Customer#000000141,26,10
+Customer#000000142,26,10
+Customer#000000143,26,10
+Customer#000000144,26,10
+Customer#000000145,26,10
+Customer#000000146,26,10
+Customer#000000147,26,10
+Customer#000000148,26,10
+Customer#000000149,26,10
+Customer#000000150,26,10
+
