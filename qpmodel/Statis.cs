@@ -589,8 +589,10 @@ namespace qpmodel.stat
         {
             var table = Catalog.systable_.Table(tabName);
             var columns = table.columns_;
-            foreach(var colName in columns)
+            string colName;
+            foreach(var col in columns)
             {
+                colName = col.Value.name_;
                 records_.Remove(tabName + colName);
             }
         }
