@@ -2436,6 +2436,7 @@ namespace qpmodel.unittest
 
             var sql = "select * from d where 1*3-1=d1;";
             var result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
+            Console.WriteLine(phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicIndexSeek"));
             Assert.AreEqual("2,2,,5", string.Join(";", result));
             sql = "select * from d where 2<d1;";
