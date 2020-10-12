@@ -339,7 +339,7 @@ namespace qpmodel.logic
                         break;
                     case QueryRef qref:
                         var plan = qref.query_.CreatePlan();
-                        if (qref is FromQueryRef fqr && queryOpt_.optimize_.remove_from_)
+                        if (qref is FromQueryRef && queryOpt_.optimize_.remove_from_)
                             from = plan;
                         else
                         {
@@ -531,7 +531,8 @@ namespace qpmodel.logic
                 else
                     lr.filter_ = lr.filter_.AddAndFilter(where_);
 
-                // Let FilterPushdown decide if the filter can be moved into aggregate
+                // Do this only if the filter refernces single table, otherwise
+                // let FilterPushdown decide if the filter can be moved into aggregate
                 // node or a join above it.
                 // The query
                 // select a1 from a, (select max(b3) maxb3 from b) b where a1 < maxb3
@@ -542,12 +543,11 @@ namespace qpmodel.logic
                 //
                 //         Filter: a.a1[0]<max(b.b3[2])
                 //      -> LogicScanTable 1065 b
-                // This is wrong because table b can't output columns of a.
-                // if (where_.HasAggFunc())
-                // {
-                //     where_ = moveFilterToInsideAggNode(root, where_);
-                //     root = new LogicFilter(root.child_(), where_);
-                // }
+                if (where_.HasAggFunc() && where_.CollectAllTableRef().Count < 2)
+                {
+                    where_ = moveFilterToInsideAggNode(root, where_);
+                    root = new LogicFilter(root.child_(), where_);
+                }
                 root = setReturningExprCreatePlan(root, where_);
             }
 
@@ -764,7 +764,16 @@ namespace qpmodel.logic
                     break;
                 case JoinQueryRef jref:
                     jref.tables_.ForEach(x => bindTableRef(context, x));
-                    jref.constraints_.ForEach(x => x = x.BindAndNormalize(context));
+                    jref.constraints_.ForEach(x =>
+                        {
+                            x = x.BindAndNormalize(context);
+                            // join constraints may contain FROM(x) when
+                            // remove_from is true. If FROM(x) is not DeQueryRef'd
+                            // the join  condition may not get pushed down to the proper
+                            // node and also possibly can't be resolved.
+                            if (queryOpt_.optimize_.remove_from_)
+                                x = x.DeQueryRef();
+                        });
                     break;
                 default:
                     throw new NotImplementedException();

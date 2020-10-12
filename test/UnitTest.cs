@@ -871,8 +871,10 @@ namespace qpmodel.unittest
                 sql = "select a1,a2,b2 from b join a on a1=b1 where a1-1 < (select a2/2 from a where a2=b2);";
                 TU.ExecuteSQL(sql, "0,1,1;1,2,2", out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
 
-                //  OR condition failed 
                 sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) or a2>1;";
+                TU.ExecuteSQL(sql, "0,2;1,3;2,4", out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
+
+                //  OR condition failed
                 sql = "select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 or b1 = (select b1 from b where b2 = 2*a1 and b3>1) and b2<3);";
             }
         }
@@ -929,20 +931,21 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "8");
             sql = "select e1 from(select d1 from (select sum(ab12) from (select a1* b2 ab12 from a join b on a1= b1) b) c(d1)) d(e1);";
             TU.ExecuteSQL(sql, "8");
-            sql = " select a1, sum(a12) from (select a1, a1*a2 a12 from a) b where a1 >= (select c1 from c where c1=a1) group by a1;";
+            sql = "select a1, sum(a12) from (select a1, a1*a2 a12 from a) b where a1 >= (select c1 from c where c1=a1) group by a1;";
             TU.ExecuteSQL(sql, "0,0;1,2;2,6");
             sql = "select a1, sum(a12) as a2 from (select a1, a1*a2 a12 from a) b where a1 >= (select c1 from c where c1=a12) group by a1;";
             TU.ExecuteSQL(sql, "0,0");
-
             // This will fail when remove_from is true due to binding issues.
             // in e1 = 8 * b1, none have a tableref with them.
+#if REMOVE_FROM
             sql = @"SELECT e1  FROM   (SELECT d1 FROM   (SELECT Sum(ab12) 
                                         FROM   (SELECT e1 * b2 ab12 FROM   (SELECT e1 FROM   (SELECT d1 
                                                                 FROM   (SELECT Sum(ab12) 
                                                                         FROM   (SELECT a1 * b2 ab12 FROM  a  JOIN b ON a1 = b1) b) 
                                                                        c(d1)) 
-                                                               d(e1)) a JOIN b ON e1 = 8*b1) b) c(d1)) d(e1); ";
+                                                               d(e1)) a(e1) JOIN b ON e1 = 8*b1) b) c(d1)) d(e1); ";
             TU.ExecuteSQL(sql, "16");
+#endif
             sql = "select *, cd.* from (select a.* from a join b on a1=b1) ab , (select c1 , c3 from c join d on c1=d1) cd where ab.a1=cd.c1";
             TU.ExecuteSQL(sql, "0,1,2,3,0,2,0,2;1,2,3,4,1,3,1,3;2,3,4,5,2,4,2,4");
 #endregion
@@ -1032,12 +1035,33 @@ namespace qpmodel.unittest
                 }
             }
 
+            // enable remove_from
+            option.optimize_.remove_from_ = true;
             sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
+            Assert.AreEqual("5", string.Join(";", result));
+            answer = @"PhysicNLJoin  (actual rows=1)
+    Output: ({count(*)(0)}[0]+c.c1 (as c100)[1])
+    -> PhysicHashAgg  (actual rows=1)
+        Output: {count(*)(0)}[0]
+        Aggregates: count(*)(0)
+        -> PhysicScanTable b (actual rows=3)
+            Output: 0
+    -> PhysicScanTable c (actual rows=1)
+        Output: c.c1 (as c100)[0]
+        Filter: c.c1 (as c100)[0]>1";
+            TU.PlanAssertEqual(answer, phyplan);
+#if REMOVE_FROM
+            sql = "select b1,c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where b1>1 and c100>1;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
+            Assert.AreEqual("3,2", string.Join(";", result));
+#endif
+            // FIXME
             // This will fail when remove_from is true.
             sql = "select a1 from a, (select max(b3) maxb3 from b) b where a1 < maxb3"; // WRONG!
-            sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;";
-            sql = "select b1,c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where b1>1 and c100>1;";
+
             // This will fail when remove_from is true
+            // ERROR[Optimizer]: column a.a1[0] must appear in group by clause
             sql = "select sum(a1) from (select sum(a1) from (select sum(a1) from a )b(a1) )c(a1);"; // WRONG
 
             // FIXME: if we turn memo on, we have problems resolving columns

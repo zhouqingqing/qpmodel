@@ -853,7 +853,16 @@ namespace qpmodel.logic
                 Debug.Assert(!(v is AggrRef));
                 v.VisitEachT<AggrRef>(x =>
                 {
-                    list.Add(x.aggr_() as AggFunc);
+                    if (x.aggr_() is AggFunc af)
+                    {
+                        list.Add(af);
+                    }
+                    else
+                    {
+                        // just for debug break point, it will go away
+                        // after the aggregate problems are fixed.
+                        bool notit = true;
+                    }
                 });
             }
 
