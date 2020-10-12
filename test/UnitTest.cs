@@ -1152,7 +1152,7 @@ namespace qpmodel.unittest
                     stats.AddRange(Catalog.sysstat_.GetOrCreateTableStats(tabName));
                     if (stats.Count != 0)
                     {
-                        Catalog.sysstat_.ClearRecords();
+                        Catalog.sysstat_.removeTable(tabName);
                     }
                 }
                 catch (Exception e){}
