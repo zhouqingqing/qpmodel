@@ -1143,6 +1143,24 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestSubqueryInSelectionClause()
         {
+            List<String> tabNameList = new List<String> { "region", "orders", "part", "partsupp", "lineitem", "supplier", "nation" };
+            foreach (String tabName in tabNameList)
+            {
+                try
+                {
+                    List<ColumnStat> stats = new List<ColumnStat>();
+                    stats.AddRange(Catalog.sysstat_.GetOrCreateTableStats(tabName));
+                    if (stats.Count != 0)
+                    {
+                        Catalog.sysstat_.ClearRecords();
+                    }
+                }
+                catch (Exception e)
+                {
+
+                }
+            }
+
             var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
             string scale = "0001";
             Tpch.CreateTables(true);

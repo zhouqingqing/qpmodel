@@ -585,6 +585,12 @@ namespace qpmodel.stat
     {
         readonly Dictionary<string, ColumnStat> records_ = new Dictionary<string, ColumnStat>();
 
+
+        public void ClearRecords()
+        {
+            records_.Clear();
+        }
+
         public void AddOrUpdate(string tabName, string colName, ColumnStat stat)
         {
             string tabcol = tabName + colName;
