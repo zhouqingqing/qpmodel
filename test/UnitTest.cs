@@ -1155,10 +1155,7 @@ namespace qpmodel.unittest
                         Catalog.sysstat_.ClearRecords();
                     }
                 }
-                catch (Exception e)
-                {
-
-                }
+                catch (Exception e){}
             }
 
             var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
