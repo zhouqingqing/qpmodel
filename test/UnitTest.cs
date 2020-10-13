@@ -835,6 +835,12 @@ namespace qpmodel.unittest
                      and a2>1 and not exists (select * from a b where b.a2+7=a.a1+b.a1) and a2>1 and a2<4;";
                 TU.ExecuteSQL(sql, "2", out phyplan, option);
                 Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicMarkJoin"));
+                sql = "select a1 from a where exists (select b.b1 from b where b.b2=a.a1 and exists (select c.c2 from c where c.c1=b.b1))";
+                TU.ExecuteSQL(sql, "1;2", out phyplan, option);
+                Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicMarkJoin"));
+                sql = "select a1 from a where exists (select b.b1 from b where b.b2=a.a1 and exists (select c.c2 from c where c.c1=b.b1 and exists (select d.d1 from d where d.d1=c.c1)))";
+                TU.ExecuteSQL(sql, "1;2", out phyplan, option);
+                Assert.AreEqual(3, TU.CountStr(phyplan, "PhysicMarkJoin"));
             }
         }
 

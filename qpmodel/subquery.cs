@@ -145,9 +145,54 @@ namespace qpmodel.logic
                 topfilter = nodeAFilter.SearchAndReplace(existExpr, ConstExpr.MakeConstBool(true));
             else
                 topfilter = nodeAFilter.SearchAndReplace(existExpr, markerFilter);
+
             nodeBFilter.DeParameter(nodeA.InclusiveTableRefs());
+
+            // find all expr contains Parameter col and move it to the toper
+            var TableRefs = nodeA.InclusiveTableRefs();
+            List<Expr> notDeparameterExpr = new List<Expr>();
+            nodeA.VisitEach(x =>
+            {
+                if (x is LogicFilter)
+                {
+                    var andList = x.filter_.FilterToAndList();
+                    foreach(var e in andList)
+                    {
+                        e.VisitEach(c =>
+                        {
+                            if ((c is ColExpr ce)&& ce.isParameter_)
+                            {
+                                notDeparameterExpr.Add(e);
+                            }
+                        });
+                    }
+                    var removeList = notDeparameterExpr.Where(x => andList.Contains(x));
+                    foreach(var r in removeList)
+                    {
+                        andList.Remove(r);
+                    }
+                    if (andList.Count == 0)
+                    {
+                        x.NullifyFilter();
+                    }
+                    else
+                    {
+                        x.filter_ = andList.AndListToExpr();
+                    }
+                    Console.WriteLine("");
+                }
+            });
+            if(notDeparameterExpr.Count > 1)
+            {
+                notDeparameterExpr.Distinct();
+            }
             topfilter = topfilter.AddAndFilter(nodeBFilter);
             LogicFilter Filter = new LogicFilter(markjoin, topfilter);
+            if (notDeparameterExpr.Count > 0)
+            {
+                topfilter = notDeparameterExpr.AndListToExpr();
+                Filter = new LogicFilter(Filter, topfilter);
+            }
             return Filter;
         }
 
