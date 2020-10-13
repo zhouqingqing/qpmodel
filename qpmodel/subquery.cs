@@ -150,24 +150,39 @@ namespace qpmodel.logic
 
             // find all expr contains Parameter col and move it to the toper
             var TableRefs = nodeA.InclusiveTableRefs();
+
+
+            topfilter = topfilter.AddAndFilter(nodeBFilter);
+            LogicFilter Filter = new LogicFilter(markjoin, topfilter);
+            var notDeparameterExpr = findAndfetchDeparameterExpr(ref nodeA);
+            if (notDeparameterExpr.Count > 0)
+            {
+                topfilter = notDeparameterExpr.AndListToExpr();
+                Filter = new LogicFilter(Filter, topfilter);
+            }
+            return Filter;
+        }
+
+        List<Expr> findAndfetchDeparameterExpr(ref LogicNode nodeA)
+        {
             List<Expr> notDeparameterExpr = new List<Expr>();
             nodeA.VisitEach(x =>
             {
                 if (x is LogicFilter)
                 {
                     var andList = x.filter_.FilterToAndList();
-                    foreach(var e in andList)
+                    foreach (var e in andList)
                     {
                         e.VisitEach(c =>
                         {
-                            if ((c is ColExpr ce)&& ce.isParameter_)
+                            if ((c is ColExpr ce) && ce.isParameter_)
                             {
                                 notDeparameterExpr.Add(e);
                             }
                         });
                     }
                     var removeList = notDeparameterExpr.Where(x => andList.Contains(x));
-                    foreach(var r in removeList)
+                    foreach (var r in removeList)
                     {
                         andList.Remove(r);
                     }
@@ -182,18 +197,13 @@ namespace qpmodel.logic
                     Console.WriteLine("");
                 }
             });
-            if(notDeparameterExpr.Count > 1)
+
+            if (notDeparameterExpr.Count > 1)
             {
                 notDeparameterExpr.Distinct();
             }
-            topfilter = topfilter.AddAndFilter(nodeBFilter);
-            LogicFilter Filter = new LogicFilter(markjoin, topfilter);
-            if (notDeparameterExpr.Count > 0)
-            {
-                topfilter = notDeparameterExpr.AndListToExpr();
-                Filter = new LogicFilter(Filter, topfilter);
-            }
-            return Filter;
+
+            return notDeparameterExpr;
         }
 
         // expands scalar subquery filter to mark join
