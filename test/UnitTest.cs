@@ -560,7 +560,7 @@ namespace qpmodel.unittest
                 if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
                 TU.ExecuteSQL(File.ReadAllText(files[11]), "MAIL,5,5;SHIP,5,10", out _, option);
                 // FIXME: agg on agg from
-                option.optimize_.remove_from_ = false;
+                option.optimize_.remove_from_ = true; // false;
                 result = TU.ExecuteSQL(File.ReadAllText(files[12]), out _, option); // FIXME: remove_from
                 Assert.AreEqual(27, result.Count);
                 option.optimize_.remove_from_ = true;
@@ -948,6 +948,13 @@ namespace qpmodel.unittest
 #endif
             sql = "select *, cd.* from (select a.* from a join b on a1=b1) ab , (select c1 , c3 from c join d on c1=d1) cd where ab.a1=cd.c1";
             TU.ExecuteSQL(sql, "0,1,2,3,0,2,0,2;1,2,3,4,1,3,1,3;2,3,4,5,2,4,2,4");
+
+            // TODO: enable the following tests after fixing aggregate issues in remove_from branch.
+            // fails with out of bounds index at exection becuase the aggregate node doesn't produce any
+            // output. This is because of problem in aggregate ordinal resolution when remove_from is true.
+            sql = "select sum(c1), avg(c2) from (select count(*) + count(b3), avg(a2) + 7 from a join b on a1 <> b4) x(c1, c2);";
+            sql = "select sum(c1), avg(c2) from (select count(*) + count(b3), avg(a2) + 7 from a join b on a1 <> b4) x(c1, c2) group by c1, c2;";
+            sql = "";
 #endregion
 
             // these queries we can remove from
@@ -1396,8 +1403,6 @@ namespace qpmodel.unittest
             TU.PlanAssertEqual(answer, phyplan);
 
             // In WHERE clause.
-            // This is failing when remove_from is true. SUM expressions end up in the filter with FROM gone
-            // and it goes down to table scan.
             sql = "select c1, c1 from (select sum(abs(a1 * -10.3)) c1, sum(round(10.7 * a2, 2)) c2 from a) x where 10 + c1 < c2";
             result = ExecuteSQL(sql, out phyplan);
             answer = @"PhysicHashAgg  (actual rows=1)
@@ -2269,13 +2274,10 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "0,1,2,3;0,1,2,3", out _, option);
             sql = "select * from a union all select *from b union all select * from c order by 1 limit 2;";
             TU.ExecuteSQL(sql, "0,1,2,3;0,1,2,3", out _, option);
-            // This will fail when remove_from is true. No output from second select in the union.
             sql = "select count(c1), sum(c2) from (select * from a union all select * from b) c(c1,c2)";
             TU.ExecuteSQL(sql, "6,12", out _, option);
-            // This will fail when remove_from is true
             sql = "select * from (select * from a union all select * from b) c(c1,c2) order by 1";
             TU.ExecuteSQL(sql, "0,1;0,1;1,2;1,2;2,3;2,3", out _, option);
-            // This will fail when remove_from is true
             sql = "select max(c1), min(c2) from(select * from(select * from a union all select *from b) c(c1, c2))d(c1, c2) order by 1;";
             TU.ExecuteSQL(sql, "2,1", out _, option);
 
@@ -2832,11 +2834,16 @@ namespace qpmodel.unittest
                     Filter: b.b3[2]>1
 ";
             TU.PlanAssertEqual(answer, phyplan);
+#if true
             // This will fail when  remove_from is true. Naming the derived table columns will work.
             // sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2
             //    and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
             //    and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             // This will work
+            sql = "select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5) and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
+            TU.ExecuteSQL(sql, "0;1;2", out phyplan, option);
+#endif
+            // So will this.
             option.optimize_.enable_subquery_unnest_ = true;
             sql = "select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5) and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5)";
             TU.ExecuteSQL(sql, "0;1;2", out phyplan, option);

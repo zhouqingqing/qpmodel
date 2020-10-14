@@ -295,7 +295,7 @@ namespace qpmodel
                 // -- generate an initial plan
                 var rawplan = a.CreatePlan();
                 Console.WriteLine("***************** raw plan *************");
-                // REMOVE_FROM: Console.WriteLine(rawplan.Explain());
+                Console.WriteLine(rawplan.Explain());
 
                 // -- optimize the plan
                 PhysicNode phyplan = null;

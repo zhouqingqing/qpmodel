@@ -277,7 +277,8 @@ namespace qpmodel.logic
         {
             List<string> allowed = new List<string>
                 {"union", "unionall", "except", "exceptall", "intersect", "intersectall"};
-            Debug.Assert(allowed.Contains(op) || op is null);
+            string localOp = op.ToLower();
+            Debug.Assert(allowed.Contains(localOp) || localOp is null);
             Debug.Assert(newstmt != null);
 
             if (IsLeaf())
@@ -285,13 +286,13 @@ namespace qpmodel.logic
                 left_ = new SetOpTree(stmt_);
                 stmt_ = null;
                 right_ = new SetOpTree(newstmt);
-                op_ = op;
+                op_ = localOp;
             }
             else
             {
                 left_ = (SetOpTree)this.MemberwiseClone();
                 right_ = new SetOpTree(newstmt);
-                op_ = op;
+                op_ = localOp;
             }
             Debug.Assert(!IsLeaf());
         }
@@ -590,6 +591,17 @@ namespace qpmodel.logic
                 case 1:
                     return plan.VisitEachExists(n =>
                     {
+                        // when remove_from is true (or removed entirely) it is possible to have an
+                        // aggregate in the filter, which should not be pushed to table scan.
+                        // By defintion, if the node n is an aggregate node, and the filter has an
+                        // the aggregate which refers exactly to the same ans sinlge tableref which is
+                        // the child of the aggregate in the filter, then the filter belongs to the
+                        // node n.
+                        if (n is LogicAgg lag && filter.HasAggFunc() && filter.EqualTableRef(lag.InclusiveTableRefs()[0]))
+                        {
+                            lag.having_.AddAndFilter(filter);
+                            return true;
+                        }
                         if (n is LogicScanTable nodeGet &&
                             filter.EqualTableRef(nodeGet.tabref_))
                             return nodeGet.AddFilter(filter);
