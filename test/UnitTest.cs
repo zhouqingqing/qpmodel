@@ -178,6 +178,22 @@ namespace qpmodel.unittest
             Assert.AreEqual("2,2,3,4", r[1]);
             Assert.AreEqual("5,6,7,8", r[2]);
         }
+
+        [TestMethod]
+        public void TestStringLike()
+        {
+            Debug.Assert(Utils.StringLike("ABCDEF","a%")==false);
+            Debug.Assert(Utils.StringLike("ABCDEF", "A%")==true);
+            Debug.Assert(Utils.StringLike("ABCDEF","%A%")==true);
+            Debug.Assert(Utils.StringLike("ABCDEF","A")==false);
+            Debug.Assert(Utils.StringLike("ABCDEF", "%EF") == true);
+            Debug.Assert(Utils.StringLike("ABCDEF", "%DE") == false);
+            Debug.Assert(Utils.StringLike("ABCDEF", "A_C%") == true);
+            Debug.Assert(Utils.StringLike("ABCDEF", "A_C") == false);
+            Debug.Assert(Utils.StringLike("ABCDEF", "A__D%") == true);
+            Debug.Assert(Utils.StringLike("ABCDEF", "_%") == true);
+            Debug.Assert(Utils.StringLike("ABCDEF", "A%B%") == true);
+        }
     }
 
     [TestClass]

@@ -239,9 +239,24 @@ namespace qpmodel.utils
             return dequote;
         }
 
+        // postgreSQL dont support [A-Z]
         public static bool StringLike(this string s, string pattern)
         {
-            var regpattern = pattern.Replace("%", ".*");
+            string regpattern="";
+            regpattern = pattern;
+            if (!pattern.Contains("%"))
+            {
+                regpattern = "^" + pattern + "$";
+            }
+            if (Regex.IsMatch(pattern, "[^%]+%"))
+            {
+                regpattern = "^" + regpattern;
+            }else if (Regex.IsMatch(pattern, "%[^%]+"))
+            {
+                regpattern = regpattern + "$";
+            }
+            regpattern =regpattern.Replace("%", ".*");
+            regpattern = regpattern.Replace("_", ".{1}");
             return Regex.IsMatch(s, regpattern);
         }
 
