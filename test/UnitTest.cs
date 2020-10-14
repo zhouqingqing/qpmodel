@@ -178,7 +178,6 @@ namespace qpmodel.unittest
             Assert.AreEqual("2,2,3,4", r[1]);
             Assert.AreEqual("5,6,7,8", r[2]);
         }
-
     }
 
     [TestClass]
