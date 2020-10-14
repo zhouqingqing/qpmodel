@@ -140,6 +140,22 @@ namespace qpmodel.unittest
             }
             return true;
         }
+
+        // for unit test consistancy
+        // it should be call if the unitest reuse some table 
+        // especially you expect get the same "rows" in physicplans 
+        public static void ClearTableStatsInCatalog(List<String> tabNameList)
+        {
+            foreach (String tabName in tabNameList)
+            {
+                List<ColumnStat> stats = new List<ColumnStat>();
+                stats.AddRange(Catalog.sysstat_.GetOrCreateTableStats(tabName, true));
+                if (stats.Count != 0)//exist logs
+                {
+                    Catalog.sysstat_.RemoveRecords(tabName);
+                }
+            }
+        }
     }
 
     [TestClass]
@@ -161,6 +177,22 @@ namespace qpmodel.unittest
             Assert.AreEqual("1,2,3,4", r[0]);
             Assert.AreEqual("2,2,3,4", r[1]);
             Assert.AreEqual("5,6,7,8", r[2]);
+        }
+
+        [TestMethod]
+        public void TestStringLike()
+        {
+            Debug.Assert(Utils.StringLike("ABCDEF","a%")==false);
+            Debug.Assert(Utils.StringLike("ABCDEF", "A%")==true);
+            Debug.Assert(Utils.StringLike("ABCDEF","%A%")==true);
+            Debug.Assert(Utils.StringLike("ABCDEF","A")==false);
+            Debug.Assert(Utils.StringLike("ABCDEF", "%EF") == true);
+            Debug.Assert(Utils.StringLike("ABCDEF", "%DE") == false);
+            Debug.Assert(Utils.StringLike("ABCDEF", "A_C%") == true);
+            Debug.Assert(Utils.StringLike("ABCDEF", "A_C") == false);
+            Debug.Assert(Utils.StringLike("ABCDEF", "A__D%") == true);
+            Debug.Assert(Utils.StringLike("ABCDEF", "_%") == true);
+            Debug.Assert(Utils.StringLike("ABCDEF", "A%B%") == true);
         }
     }
 
@@ -383,6 +415,8 @@ namespace qpmodel.unittest
             {
                 ExplainOption.show_tablename_ = true;
             }
+            List<String> tabNameList = new List<String> { "region", "orders", "part", "partsupp", "lineitem", "supplier", "nation" };
+            TU.ClearTableStatsInCatalog(tabNameList);
         }
         void TestTpcdsWithData()
         {
@@ -1189,7 +1223,7 @@ namespace qpmodel.unittest
                 sql = "select a1 from a where a2 > (select b1 from b where b3>=a3);";
                 var result = TU.ExecuteSQL(sql, out phyplan, option); Assert.IsTrue(TU.error_.Contains("one row"));
             }
-        } 
+        }
     }
 
     [TestClass]
