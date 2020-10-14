@@ -636,7 +636,6 @@ namespace qpmodel.stat
 
             Debug.Assert(stats.Count == columns.Count);
             return stats;
-
         }
         public void ComputeStats(List<Row> samples, List<ColumnStat> stats)
         {

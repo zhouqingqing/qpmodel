@@ -141,20 +141,19 @@ namespace qpmodel.unittest
             return true;
         }
 
+        // for unit test consistancy
+        // it should be call if the unitest reuse some table 
+        // especially you expect get the same "rows" in physicplans 
         public static void ClearTableStatsInCatalog(List<String> tabNameList)
         {
             foreach (String tabName in tabNameList)
             {
-                try
-                {
                     List<ColumnStat> stats = new List<ColumnStat>();
                     stats.AddRange(Catalog.sysstat_.GetOrCreateTableStats(tabName));
                     if (stats.Count != 0)
                     {
                         Catalog.sysstat_.ClearRecords();
                     }
-                }
-                catch { }
             }
         }
     }
@@ -180,38 +179,6 @@ namespace qpmodel.unittest
             Assert.AreEqual("5,6,7,8", r[2]);
         }
 
-        [TestMethod]
-        // it should exec after UBenchMarks
-        // the "row" in physicplan is stasticed based on the Hist or MCV, whitch is maintained in Catlog 
-        public void TestUnitTestConsistancy()
-        {
-            var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
-            string scale = "0001";
-            Tpch.CreateTables(true);
-            Tpch.LoadTables(scale);
-            Tpch.AnalyzeTables();
-
-            // run tests and compare plan
-            string sql_dir_fn = "../../../../tpch/select/";
-            string write_dir_fn = $"../../../../test/regress/output/tpch{scale}_select";
-            string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}_select";
-
-            var badQueries = new string[] { };
-            List<String> tabNameList = new List<String> { "region" };
-
-            // no matter if there is any log, clear the stats will get an expect output
-            TU.ClearTableStatsInCatalog(tabNameList);
-            ExplainOption.show_tablename_ = false;
-            try
-            {
-                ExplainOption.show_tablename_ = false;
-                UBenchmarks.RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries);
-            }
-            finally
-            {
-                ExplainOption.show_tablename_ = true;
-            }
-        }
     }
 
     [TestClass]
@@ -3189,5 +3156,4 @@ namespace qpmodel.unittest
             RawParser.ParseSqlStatements(sql);
         }
     }
-
 }
