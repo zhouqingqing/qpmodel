@@ -148,12 +148,12 @@ namespace qpmodel.unittest
         {
             foreach (String tabName in tabNameList)
             {
-                    List<ColumnStat> stats = new List<ColumnStat>();
-                    stats.AddRange(Catalog.sysstat_.GetOrCreateTableStats(tabName));
-                    if (stats.Count != 0)
-                    {
-                        Catalog.sysstat_.ClearRecords();
-                    }
+                List<ColumnStat> stats = new List<ColumnStat>();
+                stats.AddRange(Catalog.sysstat_.GetOrCreateTableStats(tabName, true));
+                if (stats.Count != 0)//exist logs
+                {
+                    Catalog.sysstat_.RemoveRecords(tabName);
+                }
             }
         }
     }
@@ -373,9 +373,6 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestTpchDistributed()
         {
-            List<String> tabNameList = new List<String> { "region", "orders", "part", "partsupp", "lineitem", "supplier", "nation" };
-            TU.ClearTableStatsInCatalog(tabNameList);
-
             var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
             string scale = "0001";
 
@@ -401,6 +398,8 @@ namespace qpmodel.unittest
             {
                 ExplainOption.show_tablename_ = true;
             }
+            List<String> tabNameList = new List<String> { "region", "orders", "part", "partsupp", "lineitem", "supplier", "nation" };
+            TU.ClearTableStatsInCatalog(tabNameList);
         }
         void TestTpcdsWithData()
         {
@@ -1157,7 +1156,7 @@ namespace qpmodel.unittest
                 sql = "select a1 from a where a2 > (select b1 from b where b3>=a3);";
                 var result = TU.ExecuteSQL(sql, out phyplan, option); Assert.IsTrue(TU.error_.Contains("one row"));
             }
-        } 
+        }
     }
 
     [TestClass]

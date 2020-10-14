@@ -585,9 +585,17 @@ namespace qpmodel.stat
     {
         readonly Dictionary<string, ColumnStat> records_ = new Dictionary<string, ColumnStat>();
 
-        public void ClearRecords()
+        public void RemoveRecords(string tabName)
         {
-            records_.Clear();
+            var table = Catalog.systable_.Table(tabName);
+            var columns = table.columns_;
+
+            List<ColumnStat> stats = new List<ColumnStat>();
+            foreach (var v in columns)
+            {
+                var colName = v.Value.name_;
+                records_.Remove(tabName + colName);
+            }
         }
         public void AddOrUpdate(string tabName, string colName, ColumnStat stat)
         {
@@ -615,7 +623,7 @@ namespace qpmodel.stat
             return null;
         }
 
-        public List<ColumnStat> GetOrCreateTableStats(string tabName)
+        public List<ColumnStat> GetOrCreateTableStats(string tabName, bool getOnly = false)
         {
             var table = Catalog.systable_.Table(tabName);
             var columns = table.columns_;
@@ -625,16 +633,20 @@ namespace qpmodel.stat
             {
                 var colName = v.Value.name_;
                 var stat = GetColumnStat(tabName, colName);
-                if (stat is null)
+                if (!getOnly && stat is null)
                 {
                     stat = new ColumnStat();
                     AddOrUpdate(tabName, colName, stat);
                 }
-
-                stats.Add(stat);
+                if (!(stat is null))
+                {
+                    stats.Add(stat);
+                }
             }
-
-            Debug.Assert(stats.Count == columns.Count);
+            if (!getOnly)
+            {
+                Debug.Assert(stats.Count == columns.Count);
+            }
             return stats;
         }
         public void ComputeStats(List<Row> samples, List<ColumnStat> stats)
