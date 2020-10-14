@@ -373,6 +373,9 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestTpchDistributed()
         {
+            List<String> tabNameList = new List<String> { "region", "orders", "part", "partsupp", "lineitem", "supplier", "nation" };
+            TU.ClearTableStatsInCatalog(tabNameList);
+
             var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
             string scale = "0001";
 
