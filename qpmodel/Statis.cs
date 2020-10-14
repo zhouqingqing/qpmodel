@@ -585,6 +585,10 @@ namespace qpmodel.stat
     {
         readonly Dictionary<string, ColumnStat> records_ = new Dictionary<string, ColumnStat>();
 
+        public void ClearRecords()
+        {
+            records_.Clear();
+        }
         public void AddOrUpdate(string tabName, string colName, ColumnStat stat)
         {
             string tabcol = tabName + colName;
@@ -632,8 +636,8 @@ namespace qpmodel.stat
 
             Debug.Assert(stats.Count == columns.Count);
             return stats;
-        }
 
+        }
         public void ComputeStats(List<Row> samples, List<ColumnStat> stats)
         {
             // A full row is presented here, since we generate per column 
