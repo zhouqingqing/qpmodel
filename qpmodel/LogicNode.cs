@@ -68,6 +68,11 @@ namespace qpmodel.logic
         // it is possible to really have this value but ok to recompute
         protected LogicSignature logicSign_ = -1;
 
+        public List<TableRef> GetTableRef()
+        {
+            return tableRefs_;
+        }
+
         public override string ExplainMoreDetails(int depth, ExplainOption option) => ExplainFilter(filter_, depth, option);
 
         public override string ExplainOutput(int depth, ExplainOption option)
@@ -271,7 +276,7 @@ namespace qpmodel.logic
             // first try to match the whole expression - don't do this for ColExpr
             // because it has no practial benefits.
             // 
-            if (!(clone is ColExpr))
+            if (!(clone is ColExpr)&&!(clone is MarkerExpr))
             {
                 int ordinal = source.FindIndex(clone.Equals);
                 // for derived child node, compare only the expression id
@@ -282,6 +287,32 @@ namespace qpmodel.logic
                     return new ExprRef(clone, ordinal);
             }
 
+            // the LogicOrExpr with Marker should be consider
+            if (clone is LogicOrExpr)
+            {
+                Expr temp;
+                if (clone.lchild_() is ExprRef)
+                    temp = clone.lchild_().child_();
+                else
+                    temp = clone.lchild_();
+                int ordinal = source.FindIndex(temp.Equals);
+                if (ordinal != -1)
+                {
+                    var exprRef = new ExprRef(temp, ordinal);
+                    clone.children_[0] = exprRef;//left
+                }
+
+                if (clone.rchild_() is ExprRef)
+                    temp = clone.rchild_().child_();
+                else
+                    temp = clone.rchild_();
+                ordinal = source.FindIndex(temp.Equals);
+                if (ordinal != -1)
+                {
+                    var exprRef = new ExprRef(temp, ordinal);
+                    clone.children_[1] = exprRef;//right
+                }
+            }
             /*
              * We need to resolve the aggregates here or the next loop will descend into aggregates
              * and try to resolve the column arguments and they may not be found in all cases.
@@ -655,31 +686,87 @@ namespace qpmodel.logic
             var rtables = rchild_().InclusiveTableRefs();
             var lreq = new HashSet<Expr>();
             var rreq = new HashSet<Expr>();
+            // allocate the output to related child respectively
+            Debug.Assert((this.lchild_() != null) && (this.rchild_()!=null));
+            if(this is LogicMarkJoin)
+            {
+                var lchild = this.lchild_();
+                var rchild = this.rchild_();
+                List<Expr> reqFromChildRemove = new List<Expr>();
+                lchild.VisitEach(x =>
+                {
+                    if (x is LogicMarkJoin)
+                    {
+                        foreach (var v in reqFromChild)
+                        {
+                            if (v is MarkerExpr)
+                            {
+                                var xTableRef = x.GetTableRef();
+                                if (v.tableRefs_.All(xTableRef.Contains) && (v.tableRefs_.Count == xTableRef.Count))
+                                {
+                                    rreq.Add(v);
+                                    reqFromChildRemove.Add(v);
+                                }
+                            }
+                        }
+                    }
+                }
+                );
+                rchild.VisitEach(x =>
+                {
+                    if (x is LogicMarkJoin)
+                    {
+                        foreach (var v in reqFromChild)
+                        {
+                            if (v is MarkerExpr)
+                            {
+                                var xTableRef = x.GetTableRef();
+                                if (v.tableRefs_.All(xTableRef.Contains) &&(v.tableRefs_.Count==xTableRef.Count))
+                                {
+                                    rreq.Add(v);
+                                    reqFromChildRemove.Add(v);
+                                }
+                            }
+                        }
+                    }
+                }
+                );
+                reqFromChildRemove.ForEach(x=>
+                {
+                    reqFromChild.Remove(x);
+                });
+            }
+            Expr thisReq = null;
             foreach (var v in reqFromChild)
             {
-                var tables = v.CollectAllTableRef();
-
-                if (ltables.ContainsList(tables))
-                    lreq.Add(v);
-                else if (rtables.ContainsList(tables))
-                    rreq.Add(v);
+                if(!(v is  MarkerExpr)||!(this is LogicMarkJoin))
+                {
+                    var tables = v.CollectAllTableRef();
+                    if (ltables.ContainsList(tables))
+                        lreq.Add(v);
+                    else if (rtables.ContainsList(tables))
+                        rreq.Add(v);
+                    else
+                    {
+                        // the whole list can't push to the children (Eg. a.a1 + b.b1)
+                        // decompose to singleton and push down
+                        var colref = v.RetrieveAllColExpr();
+                        colref.ForEach(x =>
+                        {
+                            if (ltables.Contains(x.tableRefs_[0]))
+                                lreq.Add(x);
+                            else if (rtables.Contains(x.tableRefs_[0]))
+                                rreq.Add(x);
+                            else
+                                throw new InvalidProgramException($"requests contains invalid tableref {x.tableRefs_[0]}");
+                        });
+                    }
+                }
                 else
                 {
-                    // the whole list can't push to the children (Eg. a.a1 + b.b1)
-                    // decompose to singleton and push down
-                    var colref = v.RetrieveAllColExpr();
-                    colref.ForEach(x =>
-                    {
-                        if (ltables.Contains(x.tableRefs_[0]))
-                            lreq.Add(x);
-                        else if (rtables.Contains(x.tableRefs_[0]))
-                            rreq.Add(x);
-                        else
-                            throw new InvalidProgramException($"requests contains invalid tableref {x.tableRefs_[0]}");
-                    });
+                    thisReq = v;// the lefted markjoin is requested by this
                 }
             }
-
             // get left and right child to resolve columns
             lchild_().ResolveColumnOrdinal(lreq.ToList());
             var lout = lchild_().output_;
@@ -691,8 +778,13 @@ namespace qpmodel.logic
             var childrenout = lout.ToList(); childrenout.AddRange(rout.ToList());
             if (filter_ != null)
                 filter_ = CloneFixColumnOrdinal(filter_, childrenout);
+            if (this is LogicMarkJoin)
+            {
+                Debug.Assert(thisReq != null);// there must be a markExpr produce by this LogicMarkJoin
+                childrenout.Add(thisReq);
+            }
             output_ = CloneFixColumnOrdinal(reqOutput, childrenout, removeRedundant);
-
+           
             RefreshOutputRegisteration();
             CreateKeyList();
             return ordinals;
@@ -727,7 +819,7 @@ namespace qpmodel.logic
             {
                 if (!(expr is AggFunc))
                 {
-                    if (expr is ColExpr ec && !ec.isParameter_)
+                    if ((expr is ColExpr ec && !ec.isParameter_)||expr is MarkerExpr)
                         list.Add(expr);
                     foreach (var v in expr.children_)
                         addColumnAndAggFuncs(v, list);
@@ -1220,6 +1312,7 @@ namespace qpmodel.logic
                     {
                         case ConstExpr ly:    // select 2+3, ...
                         case SubqueryExpr sy:   // select ..., sx = (select b1 from b limit 1) from a;
+                        case MarkerExpr my: // markjoin
                             break;
                         default:
                             // aggfunc shall never pushed to me
