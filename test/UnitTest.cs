@@ -417,6 +417,39 @@ namespace qpmodel.unittest
             List<String> tabNameList = new List<String> { "region", "orders", "part", "partsupp", "lineitem", "supplier", "nation" };
             TU.ClearTableStatsInCatalog(tabNameList);
         }
+
+        [TestMethod]
+        public void TestUsingTpchData()
+        {
+            var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
+            string scale = "0001";
+
+            Tpch.CreateTables(true);
+            Tpch.LoadTables(scale);
+
+            Tpch.AnalyzeTables();
+
+            // run tests and compare plan
+            string sql_dir_fn = "../../../../tpch/select";
+            string write_dir_fn = $"../../../../test/regress/output/tpch{scale}_select";
+            string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}_select";
+
+            ExplainOption.show_tablename_ = false;
+            var badQueries = new string[] {  };
+
+            try
+            {
+                ExplainOption.show_tablename_ = false;
+                RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries);
+            }
+            finally
+            {
+                ExplainOption.show_tablename_ = true;
+            }
+            List<String> tabNameList = new List<String> { "region", "orders", "part", "partsupp", "lineitem", "supplier", "nation" };
+            TU.ClearTableStatsInCatalog(tabNameList);
+        }
+
         void TestTpcdsWithData()
         {
             // table already created

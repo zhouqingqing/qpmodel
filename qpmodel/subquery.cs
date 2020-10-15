@@ -197,7 +197,7 @@ namespace qpmodel.logic
                 }
             });
 
-            if (notDeparameterExpr.Count > 1)
+            if (notDeparameterExpr.Count > 0)
             {
                 notDeparameterExpr.Distinct();
             }
@@ -476,21 +476,6 @@ namespace qpmodel.logic
             return newplan;
         }
 
-        LogicNode scalarSubqueryToJoin(LogicNode planWithSubExpr, SubqueryExpr subexpr)
-        {
-            LogicNode oldplan = planWithSubExpr;
-            LogicNode newplan = null;
-
-            Debug.Assert(subexpr is ScalarSubqueryExpr);
-            if(subexpr is ScalarSubqueryExpr ss)
-            {
-                newplan = scalarToSingleJoin(planWithSubExpr, ss);
-            }
-            if (oldplan != newplan)
-                decorrelatedSubs_.Add(new NamedQuery(subexpr.query_, null));
-            return newplan;
-        }
-
         // if there is a CteExpr referenced more than once, we can use a sequence plan
         LogicNode tryCteToSequencePlan(LogicNode root)
         {
@@ -546,7 +531,7 @@ namespace qpmodel.logic
         public override string ToString() => $"PMarkJOIN({lchild_()},{rchild_()}: {Cost()})";
 
         // always the last column, as it is added at the last time 
-        void fixMarkerValue(Row r, Value value) => r[r.ColCount()-1] = value;
+        void fixMarkerValue(Row r, Value value) => r[r.ColCount() - 1] = value;
 
         public override void Exec(Action<Row> callback)
         {

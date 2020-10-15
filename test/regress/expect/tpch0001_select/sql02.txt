@@ -1,0 +1,111 @@
+select c_name,
+	(select count(O.o_orderkey) 
+	 	from orders O 
+	 	where O.o_custkey = 37) as OrderCount
+
+from customer C
+where exists
+	(
+		select *
+		from nation N
+		where C.c_nationkey=N.n_nationkey
+		and N.n_regionkey=0
+	)
+Total cost: 2505
+PhysicFilter  (inccost=2505, cost=30, rows=30) (actual rows=29)
+    Output: c_name[0],@1
+    <ScalarSubqueryExpr> cached 1
+        -> PhysicHashAgg  (inccost=1541, cost=3, rows=1, memory=2) (actual rows=1, loops=2)
+            Output: {sum({count(o_orderkey)})}[0]
+            Aggregates: sum({count(o_orderkey)}[0])
+            -> PhysicGather Threads: 10 (inccost=1538, cost=10, rows=1) (actual rows=10, loops=2)
+                Output: {count(o_orderkey)}[0]
+                -> PhysicHashAgg  (inccost=1528, cost=28, rows=1, memory=8) (actual rows=1, loops=10)
+                    Output: {count(o_orderkey)}[0]
+                    Aggregates: count(o_orderkey[0])
+                    -> PhysicScanTable orders as o (inccost=1500, cost=1500, rows=26) (actual rows=2, loops=10)
+                        Output: o_orderkey[0]
+                        Filter: o_custkey[1]=37
+
+    Filter: {#marker}[2]
+    -> PhysicMarkJoin Left (inccost=2475, cost=750, rows=30) (actual rows=150)
+        Output: c_name[0],{@1}[1],#marker
+        <ScalarSubqueryExpr> cached 1
+            -> PhysicHashAgg  (inccost=1541, cost=3, rows=1, memory=2) (actual rows=1, loops=2)
+                Output: {sum({count(o_orderkey)})}[0]
+                Aggregates: sum({count(o_orderkey)}[0])
+                -> PhysicGather Threads: 10 (inccost=1538, cost=10, rows=1) (actual rows=10, loops=2)
+                    Output: {count(o_orderkey)}[0]
+                    -> PhysicHashAgg  (inccost=1528, cost=28, rows=1, memory=8) (actual rows=1, loops=10)
+                        Output: {count(o_orderkey)}[0]
+                        Aggregates: count(o_orderkey[0])
+                        -> PhysicScanTable orders as o (inccost=1500, cost=1500, rows=26) (actual rows=2, loops=10)
+                            Output: o_orderkey[0]
+                            Filter: o_custkey[1]=37
+
+        Filter: c_nationkey[2]=n_nationkey[3]
+        -> PhysicGather Threads: 10 (inccost=1650, cost=1500, rows=150) (actual rows=150)
+            Output: c_name[1],@1,c_nationkey[3]
+            <ScalarSubqueryExpr> cached 1
+                -> PhysicHashAgg  (inccost=1541, cost=3, rows=1, memory=2) (actual rows=1, loops=2)
+                    Output: {sum({count(o_orderkey)})}[0]
+                    Aggregates: sum({count(o_orderkey)}[0])
+                    -> PhysicGather Threads: 10 (inccost=1538, cost=10, rows=1) (actual rows=10, loops=2)
+                        Output: {count(o_orderkey)}[0]
+                        -> PhysicHashAgg  (inccost=1528, cost=28, rows=1, memory=8) (actual rows=1, loops=10)
+                            Output: {count(o_orderkey)}[0]
+                            Aggregates: count(o_orderkey[0])
+                            -> PhysicScanTable orders as o (inccost=1500, cost=1500, rows=26) (actual rows=2, loops=10)
+                                Output: o_orderkey[0]
+                                Filter: o_custkey[1]=37
+
+            -> PhysicScanTable customer as c (inccost=150, cost=150, rows=150) (actual rows=15, loops=10)
+                Output: c_name[1],@1,c_nationkey[3]
+                <ScalarSubqueryExpr> cached 1
+                    -> PhysicHashAgg  (inccost=1541, cost=3, rows=1, memory=2) (actual rows=1, loops=2)
+                        Output: {sum({count(o_orderkey)})}[0]
+                        Aggregates: sum({count(o_orderkey)}[0])
+                        -> PhysicGather Threads: 10 (inccost=1538, cost=10, rows=1) (actual rows=10, loops=2)
+                            Output: {count(o_orderkey)}[0]
+                            -> PhysicHashAgg  (inccost=1528, cost=28, rows=1, memory=8) (actual rows=1, loops=10)
+                                Output: {count(o_orderkey)}[0]
+                                Aggregates: count(o_orderkey[0])
+                                -> PhysicScanTable orders as o (inccost=1500, cost=1500, rows=26) (actual rows=2, loops=10)
+                                    Output: o_orderkey[0]
+                                    Filter: o_custkey[1]=37
+
+        -> PhysicGather Threads: 10 (inccost=75, cost=50, rows=5) (actual rows=5, loops=150)
+            Output: n_nationkey[0]
+            -> PhysicScanTable nation as n (inccost=25, cost=25, rows=5) (actual rows=5)
+                Output: n_nationkey[0]
+                Filter: n_regionkey[2]=0
+Customer#000000010,26
+Customer#000000001,26
+Customer#000000034,26
+Customer#000000044,26
+Customer#000000076,26
+Customer#000000080,26
+Customer#000000086,26
+Customer#000000090,26
+Customer#000000085,26
+Customer#000000048,26
+Customer#000000095,26
+Customer#000000116,26
+Customer#000000114,26
+Customer#000000088,26
+Customer#000000107,26
+Customer#000000029,26
+Customer#000000108,26
+Customer#000000053,26
+Customer#000000073,26
+Customer#000000137,26
+Customer#000000032,26
+Customer#000000138,26
+Customer#000000042,26
+Customer#000000079,26
+Customer#000000123,26
+Customer#000000089,26
+Customer#000000099,26
+Customer#000000143,26
+Customer#000000109,26
+
