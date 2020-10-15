@@ -182,10 +182,10 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestStringLike()
         {
-            Debug.Assert(Utils.StringLike("ABCDEF","a%")==false);
-            Debug.Assert(Utils.StringLike("ABCDEF", "A%")==true);
-            Debug.Assert(Utils.StringLike("ABCDEF","%A%")==true);
-            Debug.Assert(Utils.StringLike("ABCDEF","A")==false);
+            Debug.Assert(Utils.StringLike("ABCDEF", "a%") == false);
+            Debug.Assert(Utils.StringLike("ABCDEF", "A%") == true);
+            Debug.Assert(Utils.StringLike("ABCDEF", "%A%") == true);
+            Debug.Assert(Utils.StringLike("ABCDEF", "A") == false);
             Debug.Assert(Utils.StringLike("ABCDEF", "%EF") == true);
             Debug.Assert(Utils.StringLike("ABCDEF", "%DE") == false);
             Debug.Assert(Utils.StringLike("ABCDEF", "A_C%") == true);
@@ -1171,6 +1171,33 @@ namespace qpmodel.unittest
                 // runtime error: more than one row inside
                 sql = "select a1 from a where a2 > (select b1 from b where b3>=a3);";
                 var result = TU.ExecuteSQL(sql, out phyplan, option); Assert.IsTrue(TU.error_.Contains("one row"));
+            }
+        }
+
+        [TestMethod]
+        public void TestSubqueryInSelectionClause()
+        {
+            var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
+            string scale = "0001";
+            Tpch.CreateTables(true);
+            Tpch.LoadTables(scale);
+            Tpch.AnalyzeTables();
+
+            // run tests and compare plan
+            string sql_dir_fn = "../../../../tpch/select/";
+            string write_dir_fn = $"../../../../test/regress/output/tpch{scale}_select";
+            string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}_select";
+
+            var badQueries = new string[] { };
+            ExplainOption.show_tablename_ = false;
+            try
+            {
+                ExplainOption.show_tablename_ = false;
+                UBenchmarks.RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries);
+            }
+            finally
+            {
+                ExplainOption.show_tablename_ = true;
             }
         }
     }

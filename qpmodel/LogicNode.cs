@@ -68,6 +68,11 @@ namespace qpmodel.logic
         // it is possible to really have this value but ok to recompute
         protected LogicSignature logicSign_ = -1;
 
+        public List<TableRef> GetTableRef()
+        {
+            return tableRefs_;
+        }
+
         public override string ExplainMoreDetails(int depth, ExplainOption option) => ExplainFilter(filter_, depth, option);
 
         public override string ExplainOutput(int depth, ExplainOption option)
@@ -657,6 +662,7 @@ namespace qpmodel.logic
             var rreq = new HashSet<Expr>();
             foreach (var v in reqFromChild)
             {
+
                 var tables = v.CollectAllTableRef();
 
                 if (ltables.ContainsList(tables))
@@ -785,7 +791,7 @@ namespace qpmodel.logic
         public override LogicSignature MemoLogicSign()
         {
             if (logicSign_ == -1)
-                logicSign_ = (child_().MemoLogicSign() << 32) + ((isLocal_.GetHashCode() ^ 
+                logicSign_ = (child_().MemoLogicSign() << 32) + ((isLocal_.GetHashCode() ^
                     having_.FilterHashCode() ^ rawAggrs_.ListHashCode() ^ groupby_.ListHashCode()) >> 32);
             return logicSign_;
         }
