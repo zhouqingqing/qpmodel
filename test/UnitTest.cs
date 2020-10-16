@@ -418,8 +418,10 @@ namespace qpmodel.unittest
             TU.ClearTableStatsInCatalog(tabNameList);
         }
 
+        // this test can construct own sql using the date of tpch0001
+        // TODO the select subquery inccost is not accounted to total
         [TestMethod]
-        public void TestUsingTpchData()
+        public void TestUsingTpch0001Data()
         {
             var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
             string scale = "0001";
@@ -430,7 +432,7 @@ namespace qpmodel.unittest
             Tpch.AnalyzeTables();
 
             // run tests and compare plan
-            string sql_dir_fn = "../../../../tpch";
+            string sql_dir_fn = "../../../../tpch/select";
             string write_dir_fn = $"../../../../test/regress/output/tpch{scale}_select";
             string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}_select";
 
