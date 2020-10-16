@@ -686,56 +686,7 @@ namespace qpmodel.logic
             var rtables = rchild_().InclusiveTableRefs();
             var lreq = new HashSet<Expr>();
             var rreq = new HashSet<Expr>();
-            // allocate the output to related child respectively
-            Debug.Assert((this.lchild_() != null) && (this.rchild_()!=null));
-            if(this is LogicMarkJoin)
-            {
-                var lchild = this.lchild_();
-                var rchild = this.rchild_();
-                List<Expr> reqFromChildRemove = new List<Expr>();
-                lchild.VisitEach(x =>
-                {
-                    if (x is LogicMarkJoin)
-                    {
-                        foreach (var v in reqFromChild)
-                        {
-                            if (v is MarkerExpr)
-                            {
-                                var xTableRef = x.GetTableRef();
-                                if (v.tableRefs_.All(xTableRef.Contains) && (v.tableRefs_.Count == xTableRef.Count))
-                                {
-                                    rreq.Add(v);
-                                    reqFromChildRemove.Add(v);
-                                }
-                            }
-                        }
-                    }
-                }
-                );
-                rchild.VisitEach(x =>
-                {
-                    if (x is LogicMarkJoin)
-                    {
-                        foreach (var v in reqFromChild)
-                        {
-                            if (v is MarkerExpr)
-                            {
-                                var xTableRef = x.GetTableRef();
-                                if (v.tableRefs_.All(xTableRef.Contains) &&(v.tableRefs_.Count==xTableRef.Count))
-                                {
-                                    rreq.Add(v);
-                                    reqFromChildRemove.Add(v);
-                                }
-                            }
-                        }
-                    }
-                }
-                );
-                reqFromChildRemove.ForEach(x=>
-                {
-                    reqFromChild.Remove(x);
-                });
-            }
+
             Expr thisReq = null;
             foreach (var v in reqFromChild)
             {

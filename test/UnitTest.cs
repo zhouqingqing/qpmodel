@@ -430,7 +430,7 @@ namespace qpmodel.unittest
             Tpch.AnalyzeTables();
 
             // run tests and compare plan
-            string sql_dir_fn = "../../../../tpch/select";
+            string sql_dir_fn = "../../../../tpch";
             string write_dir_fn = $"../../../../test/regress/output/tpch{scale}_select";
             string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}_select";
 
@@ -906,6 +906,9 @@ namespace qpmodel.unittest
                 TU.ExecuteSQL(sql, "1;2", out phyplan, option);
                 Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicMarkJoin"));
                 sql = "select a1 from a where a1<=3 and exists (select b.b1 from b where b.b2=a.a1 and exists (select c.c2 from c where c.c1=b.b1 and exists (select d.d1 from d where d.d1=c.c1)))";
+                TU.ExecuteSQL(sql, "1;2", out phyplan, option);
+                Assert.AreEqual(3, TU.CountStr(phyplan, "PhysicMarkJoin"));
+                sql = "select a1 from a where exists (select b.b1 from b where b.b2=a.a1 and exists (select c.c2 from c where c.c1=b.b1 and exists (select d.d1 from d where d.d1=c.c1)))";
                 TU.ExecuteSQL(sql, "1;2", out phyplan, option);
                 Assert.AreEqual(3, TU.CountStr(phyplan, "PhysicMarkJoin"));
             }
