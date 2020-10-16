@@ -288,10 +288,12 @@ namespace qpmodel.expr
     //
     public class InListExpr : Expr
     {
+        internal bool hasNot_;
         internal Expr expr_() => children_[0];
         internal List<Expr> inlist_() => children_.GetRange(1, children_.Count - 1);
-        public InListExpr(Expr expr, List<Expr> inlist)
+        public InListExpr(Expr expr, List<Expr> inlist, bool hasNot)
         {
+            hasNot_ = hasNot;
             children_.Add(expr); children_.AddRange(inlist);
             type_ = new BoolType();
             Debug.Assert(Clone().Equals(this));
@@ -317,17 +319,19 @@ namespace qpmodel.expr
                 return null;
             List<Value> inlist = new List<Value>();
             inlist_().ForEach(x => { inlist.Add(x.Exec(context, input)); });
-            return inlist.Exists(v.Equals);
+            var exist_flag = inlist.Exists(v.Equals);
+            return hasNot_ ? !exist_flag : exist_flag;
         }
 
         public override string ToString()
         {
             var inlist = inlist_();
+            string ifnot = hasNot_ ? "not" : "";
             if (inlist_().Count < 5)
-                return $"{expr_()} in ({string.Join(",", inlist)})";
+                return $"{expr_()}{ifnot} in ({string.Join(",", inlist)})";
             else
             {
-                return $"{expr_()} in ({string.Join(",", inlist.GetRange(0, 3))}, ... <Total: {inlist.Count}> )";
+                return $"{expr_()}{ifnot} in ({string.Join(",", inlist.GetRange(0, 3))}, ... <Total: {inlist.Count}> )";
             }
         }
     }

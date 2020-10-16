@@ -182,10 +182,10 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestStringLike()
         {
-            Debug.Assert(Utils.StringLike("ABCDEF","a%")==false);
-            Debug.Assert(Utils.StringLike("ABCDEF", "A%")==true);
-            Debug.Assert(Utils.StringLike("ABCDEF","%A%")==true);
-            Debug.Assert(Utils.StringLike("ABCDEF","A")==false);
+            Debug.Assert(Utils.StringLike("ABCDEF", "a%") == false);
+            Debug.Assert(Utils.StringLike("ABCDEF", "A%") == true);
+            Debug.Assert(Utils.StringLike("ABCDEF", "%A%") == true);
+            Debug.Assert(Utils.StringLike("ABCDEF", "A") == false);
             Debug.Assert(Utils.StringLike("ABCDEF", "%EF") == true);
             Debug.Assert(Utils.StringLike("ABCDEF", "%DE") == false);
             Debug.Assert(Utils.StringLike("ABCDEF", "A_C%") == true);
@@ -869,6 +869,29 @@ namespace qpmodel.unittest
                      and a2>1 and not exists (select * from a b where b.a2+7=a.a1+b.a1) and a2>1 and a2<4;";
                 TU.ExecuteSQL(sql, "2", out phyplan, option);
                 Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicMarkJoin"));
+            }
+        }
+
+        [TestMethod]
+        public void TestInSubquery()
+        {
+            QueryOption option = new QueryOption();
+
+            for (int i = 0; i < 2; i++)
+            {
+                option.optimize_.use_memo_ = i == 0;
+                var phyplan = "";
+
+                // many NOT test
+                // sql = "select a1 from a where a2 not not in (1,2)";
+                // NullReferenceException, see test output. it will rightly get sytax error. 
+
+                var sql = "select a1 from a where a2 not in (1,2)";
+                TU.ExecuteSQL(sql, "2", out phyplan, option);
+                Assert.AreEqual(1, TU.CountStr(phyplan, "not in"));
+                sql = "select a1 from a where a2 in (1,2)";
+                TU.ExecuteSQL(sql, "0;1", out phyplan, option);
+                Assert.AreEqual(0, TU.CountStr(phyplan, "not in"));
             }
         }
 

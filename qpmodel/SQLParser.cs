@@ -42,7 +42,7 @@ namespace qpmodel.sqlparser
     // antlr requires user defined exception
     public class AntlrParserException : Exception
     {
-        public AntlrParserException(string msg) : base(msg) {}
+        public AntlrParserException(string msg) : base(msg) { }
     }
 
     public class SyntaxErrorListener : BaseErrorListener
@@ -51,7 +51,7 @@ namespace qpmodel.sqlparser
             RecognitionException e)
         {
             var stack = ((Parser)recognizer).GetRuleInvocationStack();
-            string errormsg  = $@"{string.Join("->", stack)} : {line}|{charPositionInLine}|{offendingSymbol}|{msg}";
+            string errormsg = $@"{string.Join("->", stack)} : {line}|{charPositionInLine}|{offendingSymbol}|{msg}";
             throw new AntlrParserException(errormsg);
         }
     }
@@ -198,7 +198,8 @@ namespace qpmodel.sqlparser
         public override object VisitLogicNotExpr([NotNull] SQLiteParser.LogicNotExprContext context)
         {
             var expr = (Expr)Visit(context.logical_expr());
-            if (expr is ExistSubqueryExpr ee) {
+            if (expr is ExistSubqueryExpr ee)
+            {
                 // to simplify EXISTS subquery handling, we don't want an extra unary on top
                 ee.hasNot_ = !ee.hasNot_;
                 return ee;
@@ -235,6 +236,7 @@ namespace qpmodel.sqlparser
             return new UnaryExpr(op, Visit(context.arith_expr()) as Expr);
         }
 
+        // TODO add in subquery
         public override object VisitInSubqueryExpr([NotNull] SQLiteParser.InSubqueryExprContext context)
         {
             Debug.Assert(context.K_IN() != null);
@@ -254,7 +256,16 @@ namespace qpmodel.sqlparser
                     inlist.Add(Visit(v) as Expr);
                 Expr expr = inlist[0];
                 inlist.RemoveAt(0);
-                return new InListExpr(expr, inlist);
+                bool hasNot;
+                if (context.K_NOT() != null)
+                {
+                    hasNot = true;
+                }
+                else
+                {
+                    hasNot = false;
+                }
+                return new InListExpr(expr, inlist, hasNot);
             }
         }
         public override object VisitCaseExpr([NotNull] SQLiteParser.CaseExprContext context)
