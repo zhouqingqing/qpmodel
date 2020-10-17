@@ -159,6 +159,31 @@ namespace qpmodel.unittest
     }
 
     [TestClass]
+    public class TestSubstringGroup
+    {
+        [TestMethod]
+        public void TestSubstrGroup()
+        {
+            var sql = "create table city_zip(area int, zip char(5));";
+            var res = TU.ExecuteSQL(sql);
+
+            sql = "insert into city_zip values(100, '94087');";
+            res = TU.ExecuteSQL(sql);
+            sql = "insert into city_zip values(100, '95119');";
+            res = TU.ExecuteSQL(sql);
+            sql = "insert into city_zip values(200, '94129');";
+            res = TU.ExecuteSQL(sql);
+            sql = "insert into city_zip values(300, '95051');";
+            res = TU.ExecuteSQL(sql);
+            sql = "insert into city_zip values(240, '95050');";
+            res = TU.ExecuteSQL(sql);
+            sql = "select substring(zip, 2, 4), sum(area) from city_zip group by substring(zip, 2, 4);";
+            res = TU.ExecuteSQL(sql);
+            sql = "select * from(select substring(zip, 2, 4), sum(area) from city_zip group by substring(zip, 2, 4)) x(z, n);";
+            res = TU.ExecuteSQL(sql);
+        }
+    }
+    [TestClass]
     public class UtilsTest
     {
         [AssemblyInitialize]
@@ -988,7 +1013,6 @@ namespace qpmodel.unittest
             // output. This is because of problem in aggregate ordinal resolution when remove_from is true.
             sql = "select sum(c1), avg(c2) from (select count(*) + count(b3), avg(a2) + 7 from a join b on a1 <> b4) x(c1, c2);";
             sql = "select sum(c1), avg(c2) from (select count(*) + count(b3), avg(a2) + 7 from a join b on a1 <> b4) x(c1, c2) group by c1, c2;";
-            sql = "";
 #endregion
 
             // these queries we can remove from
@@ -1092,14 +1116,14 @@ namespace qpmodel.unittest
         Output: c.c1 (as c100)[0]
         Filter: c.c1 (as c100)[0]>1";
             TU.PlanAssertEqual(answer, phyplan);
-#if REMOVE_FROM
+
             sql = "select b1,c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where b1>1 and c100>1;";
             result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
             Assert.AreEqual("3,2", string.Join(";", result));
-#endif
-            // FIXME
-            // This will fail when remove_from is true.
-            sql = "select a1 from a, (select max(b3) maxb3 from b) b where a1 < maxb3"; // WRONG!
+
+            sql = "select a1 from a, (select max(b3) maxb3 from b) b where a1 < maxb3";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
+            Assert.AreEqual("0;1;2", string.Join(";", result));
 
             // This will fail when remove_from is true
             // ERROR[Optimizer]: column a.a1[0] must appear in group by clause
@@ -2868,12 +2892,11 @@ namespace qpmodel.unittest
                     Filter: b.b3[2]>1
 ";
             TU.PlanAssertEqual(answer, phyplan);
-#if true
-            // This will fail when  remove_from is true. Naming the derived table columns will work.
+#if REMOVE_FROM
+            // This will fail when  remove_from is true but unnest is false. Naming the derived table columns will work.
             // sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2
             //    and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
             //    and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
-            // This will work
             sql = "select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5) and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             TU.ExecuteSQL(sql, "0;1;2", out phyplan, option);
 #endif

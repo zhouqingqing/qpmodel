@@ -925,7 +925,6 @@ namespace qpmodel.logic
             {
                 // remove the element from reqList
                 reqList.Remove(x);
-
                 // add back the dependent exprs back
                 x.VisitEachIgnoreRef<AggFunc>(y =>
                 {

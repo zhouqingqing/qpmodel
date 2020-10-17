@@ -131,9 +131,19 @@ namespace qpmodel
         {
             // Not working as expected, need to investigate.
             var option = new QueryOption();
-            option.explain_.mode_ = ExplainMode.full;
-            option.optimize_.use_memo_ = true;
+            ExplainOption.show_tablename_ = true;
+            option.profile_.enabled_ = true;
+            option.optimize_.enable_subquery_unnest_ = true;
+            option.optimize_.remove_from_ = true;
+            option.optimize_.use_memo_ = false;
+            option.optimize_.enable_cte_plan_ = true;
+            option.optimize_.use_codegen_ = false;
+            option.optimize_.memo_disable_crossjoin_ = false;
+            option.optimize_.memo_use_joinorder_solver_ = false;
+            option.explain_.show_output_ = true;
+            option.explain_.show_id_ = true;
             option.explain_.show_estCost_ = false;
+            option.explain_.mode_ = ExplainMode.full;
 
             string allquery = File.ReadAllText(filename);
             string[] listquery = allquery.Split(';');
@@ -270,7 +280,7 @@ namespace qpmodel
                 a.queryOpt_.profile_.enabled_ = true;
                 a.queryOpt_.optimize_.enable_subquery_unnest_ = true;
                 a.queryOpt_.optimize_.remove_from_ = true;
-                a.queryOpt_.optimize_.use_memo_ = true;
+                a.queryOpt_.optimize_.use_memo_ = false;
                 a.queryOpt_.optimize_.enable_cte_plan_ = true;
                 a.queryOpt_.optimize_.use_codegen_ = false;
                 a.queryOpt_.optimize_.memo_disable_crossjoin_ = false;
