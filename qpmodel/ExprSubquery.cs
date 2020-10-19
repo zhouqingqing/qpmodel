@@ -326,7 +326,7 @@ namespace qpmodel.expr
         public override string ToString()
         {
             var inlist = inlist_();
-            string ifnot = hasNot_ ? "not" : "";
+            string ifnot = hasNot_ ? " not" : "";
             if (inlist_().Count < 5)
                 return $"{expr_()}{ifnot} in ({string.Join(",", inlist)})";
             else

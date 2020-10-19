@@ -256,15 +256,7 @@ namespace qpmodel.sqlparser
                     inlist.Add(Visit(v) as Expr);
                 Expr expr = inlist[0];
                 inlist.RemoveAt(0);
-                bool hasNot;
-                if (context.K_NOT() != null)
-                {
-                    hasNot = true;
-                }
-                else
-                {
-                    hasNot = false;
-                }
+                bool hasNot = (context.K_NOT() != null) ? true : false;
                 return new InListExpr(expr, inlist, hasNot);
             }
         }
