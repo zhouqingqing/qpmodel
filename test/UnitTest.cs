@@ -908,9 +908,8 @@ namespace qpmodel.unittest
                 TU.ExecuteSQL(sql, "", out phyplan, option);
                 Assert.AreEqual(0, TU.CountStr(phyplan, "not in"));
 
-                sql = "select a1 from a where a2 not in (select b2 from b where b2 = a1)";
-                TU.ExecuteSQL(sql, "0;1;2", out phyplan, option);
-                Assert.AreEqual(0, TU.CountStr(phyplan, "not in"));
+                sql = "select a1 from a where a2 in (select b2 from b where b1 = a1 and b3 > 2 ) and a1 > 0";
+                TU.ExecuteSQL(sql, "1;2", out phyplan, option);
             }
         }
 
