@@ -601,7 +601,8 @@ namespace qpmodel.unittest
                 Assert.AreEqual(1, result.Count);
                 Assert.AreEqual(true, result[0].ToString().Contains("15.23"));
                 // q15 cte
-                TU.ExecuteSQL(File.ReadAllText(files[15]), "", out _, option);
+                result = TU.ExecuteSQL(File.ReadAllText(files[15]), out _, option);
+                Assert.AreEqual(34, result.Count);
                 TU.ExecuteSQL(File.ReadAllText(files[16]), "", out _, option);
                 TU.ExecuteSQL(File.ReadAllText(files[17]), "", out _, option);
                 TU.ExecuteSQL(File.ReadAllText(files[18]), out _, option); // FIXME: .. or ... or ...
@@ -894,7 +895,7 @@ namespace qpmodel.unittest
                 Assert.AreEqual(0, TU.CountStr(phyplan, "not in"));
 
                 // incorelated InSubquery
-                sql = "select a1 from a where a2 not in (select b1 from b where b2>1)";// not in (1,2)
+                sql = "select a1 from a where a2 not in (select b1 from b where b2>1)"; // not in (1,2)
                 TU.ExecuteSQL(sql, "2", out phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "not in"));
 
@@ -910,7 +911,6 @@ namespace qpmodel.unittest
                 sql = "select a1 from a where a2 not in (select b2 from b where b2 = a1)";
                 TU.ExecuteSQL(sql, "0;1;2", out phyplan, option);
                 Assert.AreEqual(0, TU.CountStr(phyplan, "not in"));
-
             }
         }
 
