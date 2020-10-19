@@ -9,7 +9,9 @@
 - distributedany: data is distributed, but the list of expressions is not restricted
 
 ### Objects:
+![objects](media/property_enforcement/figure1.png)
 Optimizer, memo, memo group, member, logic/physic
+
 
 ### The general framework:
 As mentioned in the main document, the query optimizer is a top-down structure following the cascade framework. The raw logic tree is provided to the optimizer and then processed to a tree of memo groups, each group represents a set of logically equivalent nodes. During this step, logic nodes are also transformed into property requirements if possible, for example, the logic order node is to be converted into an order property instead of a memo group. Cached subqueries shall have their separate trees. 
