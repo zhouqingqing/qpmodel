@@ -1,6 +1,6 @@
 ## Document for property enforcement
 
-### Objects
+### Layout of Objects
 ![objects](media/property_enforcement/figure1.png)
 
 This figure demonstrates the layout of all the relavent objects within the query optimizer. All the objects mentioned below are defined in [optimizer.cs](../qpmodel/optimizer.cs)
