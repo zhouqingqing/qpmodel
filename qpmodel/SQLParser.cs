@@ -243,11 +243,12 @@ namespace qpmodel.sqlparser
 
             SelectStmt select = null;
             List<Expr> inlist = null;
+            bool hasNot = (context.K_NOT() != null) ? true : false;
             if (context.select_stmt() != null)
             {
                 Debug.Assert(context.arith_expr().Count() == 1);
                 select = Visit(context.select_stmt()) as SelectStmt;
-                return new InSubqueryExpr(Visit(context.arith_expr(0)) as Expr, select);
+                return new InSubqueryExpr(Visit(context.arith_expr(0)) as Expr, select, hasNot);
             }
             else
             {
@@ -256,7 +257,6 @@ namespace qpmodel.sqlparser
                     inlist.Add(Visit(v) as Expr);
                 Expr expr = inlist[0];
                 inlist.RemoveAt(0);
-                bool hasNot = (context.K_NOT() != null) ? true : false;
                 return new InListExpr(expr, inlist, hasNot);
             }
         }

@@ -243,11 +243,17 @@ namespace qpmodel.expr
 
     public class InSubqueryExpr : SubqueryExpr
     {
+        internal bool hasNot_;
+
         // children_[0] is the expr of in-query
         internal Expr expr_() => children_[0];
 
-        public override string ToString() => $"{expr_()} in @{subqueryid_}";
-        public InSubqueryExpr(Expr expr, SelectStmt query) : base(query) { children_.Add(expr); }
+        public override string ToString()
+        {
+            string ifnot = hasNot_ ? " not" : "";
+            return $"{expr_()}{ifnot} in @{subqueryid_}";
+        }
+        public InSubqueryExpr(Expr expr, SelectStmt query, bool hasNot) : base(query) { hasNot_ = hasNot; children_.Add(expr); }
 
         public override void Bind(BindContext context)
         {
@@ -268,7 +274,10 @@ namespace qpmodel.expr
             // is also not copied thus multiple threads may racing updating cacheVal_. Lock the
             // code section to prevent it. This also redu
             if (isCacheable_ && cachedValSet_)
-                return (cachedVal_ as HashSet<Value>).Contains(expr);
+            {
+                var in_cache_flag = (cachedVal_ as HashSet<Value>).Contains(expr);
+                return hasNot_ ? !in_cache_flag : in_cache_flag;
+            }
 
             var set = new HashSet<Value>();
             query_.physicPlan_.Exec(l =>
@@ -279,7 +288,8 @@ namespace qpmodel.expr
 
             cachedVal_ = set;
             cachedValSet_ = true;
-            return set.Contains(expr);
+            var in_flag = set.Contains(expr);
+            return hasNot_ ? !in_flag : in_flag;
         }
     }
 
@@ -319,8 +329,8 @@ namespace qpmodel.expr
                 return null;
             List<Value> inlist = new List<Value>();
             inlist_().ForEach(x => { inlist.Add(x.Exec(context, input)); });
-            var exist_flag = inlist.Exists(v.Equals);
-            return hasNot_ ? !exist_flag : exist_flag;
+            var in_flag = inlist.Exists(v.Equals);
+            return hasNot_ ? !in_flag : in_flag;
         }
 
         public override string ToString()

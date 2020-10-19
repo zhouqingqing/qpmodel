@@ -882,9 +882,9 @@ namespace qpmodel.unittest
                 option.optimize_.use_memo_ = i == 0;
                 var phyplan = "";
 
-                // many NOT test
-                // sql = "select a1 from a where a2 not not in (1,2)";
-                // NullReferenceException, see test output. it will rightly get sytax error. 
+                //many NOT test
+                //sql = "select a1 from a where a2 not not in (1,2)";
+                //NullReferenceException, see test output.it will rightly get syntax error. 
 
                 var sql = "select a1 from a where a2 not in (1,2)";
                 TU.ExecuteSQL(sql, "2", out phyplan, option);
@@ -892,6 +892,25 @@ namespace qpmodel.unittest
                 sql = "select a1 from a where a2 in (1,2)";
                 TU.ExecuteSQL(sql, "0;1", out phyplan, option);
                 Assert.AreEqual(0, TU.CountStr(phyplan, "not in"));
+
+                // incorelated InSubquery
+                sql = "select a1 from a where a2 not in (select b1 from b where b2>1)";// not in (1,2)
+                TU.ExecuteSQL(sql, "2", out phyplan, option);
+                Assert.AreEqual(1, TU.CountStr(phyplan, "not in"));
+
+                sql = "select a1 from a where a2 in (select b1 from b where b2>1)"; // in (1,2)
+                TU.ExecuteSQL(sql, "0;1", out phyplan, option);
+                Assert.AreEqual(0, TU.CountStr(phyplan, "not in"));
+
+                // corelated InSubquery
+                sql = "select a1 from a where a2 in (select b2 from b where b2 = a1)";
+                TU.ExecuteSQL(sql, "", out phyplan, option);
+                Assert.AreEqual(0, TU.CountStr(phyplan, "not in"));
+
+                sql = "select a1 from a where a2 not in (select b2 from b where b2 = a1)";
+                TU.ExecuteSQL(sql, "0;1;2", out phyplan, option);
+                Assert.AreEqual(0, TU.CountStr(phyplan, "not in"));
+
             }
         }
 
