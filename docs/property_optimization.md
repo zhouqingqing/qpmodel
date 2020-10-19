@@ -43,15 +43,16 @@ When the recursive calls are complete, the min-cost member will be extracted to 
 Interaction of properties refers to the transformation of a property requirement to less restricted property requirement.
 
 1) **Order**: 
-- Order to no order: 
-`<singleton, order(a1,b1,b2)> -> <singleton, no order>`
-
+- Order to no order:  
+`<singleton, order(a1,b1,b2)> -> <singleton, no order>`  
 Order must be singleton; this is asserted throughout the process. Apparently, order can be enforced through *sort*. However, we are not assuming the sorting algorithm to be stable, so there are no partially fulfilled order, meaning an order property is fulfilled or not fulfilled at all. If a requirement is `<singleton, order(a1,b1,b2)>`, the received data stream of `<singleton, order(b1,b2)>` would still require a `PhysicOrder` node sorting the whole thing again.
 
 2) **Distribution**
-- Singleton to anydistribution or replicated distribution: `<singleton, no order> -> <anydistributed, no order>, <replicated, no order>`
-- `<distributed(a1), no order> -> <anydistributed, no order>`
+- Singleton to anydistribution or replicated distribution:  
+`<singleton, no order> -> <anydistributed, no order>, <replicated, no order>`  
 Singleton can be achieved by anydistributed or replicated through *gathering*, the first is a gathering over all the running machines, the second is getting the data from only one machine.
+- Distributed to any distribution:  
+`<distributed(a1), no order> -> <anydistributed, no order>`    
 Distribution on a certain list of expressions can be achieve through *redistribution*, and the previous distribution does not matter as long as it is also distributed.
 
 ### Property and physic node
@@ -59,4 +60,40 @@ Property is always required upon the physic node instead of physic node providin
 There is a method for physic node object to determine if the it can provide the required property. For the NLJoin case, now the property requirement can be propagated to build end child group.
 
 ### Example
+Given table *a* as listed below, and table *b* having the same data.
 
+a1 |a2 |a3 | a4
+---|---|---|---
+0 | 1 | 2 | 3
+1 | 2 | 3 | 4
+2 | 3 | 4 | 5
+
+Take this query as an example:
+`SELECT a1, b1 FROM a, b WHERE a2>b1 AND a1>=1 ORDER BY a2`
+
+The logic tree of this query is:
+```
+LogicOrder 1091
+    Order by: a2[1]
+    -> LogicJoin 1087
+        Filter: a2[1]>b1[0]
+        -> LogicScanTable 1088 a
+            Filter: a1[0]>=1
+        -> LogicScanTable 1089 b
+```
+
+Without property enforcement, this query will just be transformed into physic tree of very similar layout, with PhysicOrder on top. The transformation will be limited to the Join(a,b) or Join(b,a). However, it is not the optimal plan because there are more rows after the join, and there will be more cost associated with PhysicOrder.  
+The physic plan generate with property enforcement is shown below. PhysicOrder is pushed below because it is interpreted as the base property requirement imposed on the Memo, and NLJoin is able to propagate the order requirement downward. This is also the case for distributed plan. Previously, the distributed tables are directly redistributed before the hashjoin to match the join keys, and that method may output suboptimal physic plan for queries involving a mix of distributed and replicated tables. Now the property requirement may be pushed down to do in advance or delayed to the top depending on the cardinality.
+```
+PhysicNLJoin 1105_1132  (inccost=163.58, cost=156, rows=3) (actual rows=5)
+    Output: a1[0],b1[2]
+    Filter: a2[1]>b1[2]
+    -> PhysicOrder 1129_1135  (inccost=4.58, cost=1.58, rows=2, memory=16) (actual rows=2)
+        Output: a1[0],a2[1]
+        Order by: a2[1]
+        -> PhysicScanTable 1123_1137 a (inccost=3, cost=3, rows=2) (actual rows=2)
+            Output: a1[0],a2[1]
+            Filter: a1[0]>=1
+    -> PhysicScanTable 1122_1140 b (inccost=3, cost=3, rows=3) (actual rows=3, loops=2)
+        Output: b1[0]
+```
