@@ -1,14 +1,5 @@
 ## Document for property enforcement
 
-### Properties
-1) **Order**:
-- order: the data is ordered on a list of expressions
-2) **Distribution**:
-- singleton: not distributed, only working on a single machine
-- distributed: distributed on a specific list of expressions
-- replicated: data is replicated among all the machines.
-- distributedany: data is distributed, but the list of expressions is not restricted
-
 ### Objects
 ![objects](media/property_enforcement/figure1.png)
 
@@ -19,25 +10,30 @@ This figure demonstrates the layout of all the relavent objects within the query
 - Member: Corresponds to each logically equivalent LogicNode or PhysicNode within the same group.
 - Property: The property requirement object.
 
+### Properties
+1) **Order**:
+- order: the data is ordered on a list of expressions
+2) **Distribution**:
+- singleton: not distributed, only working on a single machine
+- distributed: distributed on a specific list of expressions
+- replicated: data is replicated among all the machines.
+- distributedany: data is distributed, but the list of expressions is not restricted
 
 ### General framework
 As mentioned in the main document, the query optimizer is a top-down structure following the cascade framework. The raw logic tree is provided to the optimizer and then processed to a tree of memo groups, each group represents a set of logically equivalent nodes. During this step, logic nodes are also transformed into property requirements if possible, for example, the logic order node is to be converted into an order property instead of a memo group. Cached subqueries shall have their separate trees. 
 
+**Explore Phase:**  
 After the groups are produced, there will be an exploration step to transform the original logic node to new equivalent logic nodes or corresponding physic nodes. It is also possible that transformation leads to new memo groups, for example, a join tree involving three or more tables may be rotated to generate new groups. Join solver can also be used in lieu of transformation for multiple join. When exploration is complete, the groups now contain lists of members that are either logic or physic node, the child of which refers to child groups (`PhysicMemoRef/LogicMemoRef`).
 
-Properties are required on top of the memo groups, and requirements may be propagated to child groups or new requirements may be imposed by certain physical nodes. By default, the required property of the final output is `<singleton, no order>`. If some logic nodes are transformed into requirement, the base requirement would be different.
-
-Finding the optimal plan is a top-down recursive calling process. The function call uses the memo group called upon and the property requirement on that group, and returns the member with the minimum cost, starting from the root group and base requirement. For each function call, first the required property is transformed to a list of sub-properties that can turn into the current requirement through a single enforcement node. For example, `<singleton, order(a1)>` have sub-property of `<singleton, no order>` since it can be turned into `<singleton, order(a1)>` using a single `PhysicOrder(a1)` node. Each sub-property corresponds to a new enforcement member being added to the member list. All enforcement nodes are single physic node with only one child—the PhysicMemoRef back to the same group but with a different property requirement.
-
+**Required Property and Drive Subproperty:**  
+Properties are required on top of the memo groups, and requirements may be propagated to child groups or new requirements may be imposed by certain physical nodes. By default, the required property of the final output is `<singleton, no order>`. If some logic nodes are transformed into requirement, the base requirement would be different.  
+Finding the optimal plan is a top-down recursive calling process. The function call uses the memo group called upon and the property requirement on that group, and returns the member with the minimum cost, starting from the root group and base requirement. For each function call, first the required property is transformed to a list of sub-properties that can turn into the current requirement through a single enforcement node. For example, `<singleton, order(a1)>` have sub-property of `<singleton, no order>` since it can be turned into `<singleton, order(a1)>` using a single `PhysicOrder(a1)` node. Each sub-property corresponds to a new enforcement member being added to the member list. All enforcement nodes are single physic node with only one child—the PhysicMemoRef back to the same group but with a different property requirement.  
 Each sub-property will be called upon to find the optimal member for that specific property. All the property requirements, including the derived sub-properties, and their corresponding optimal member is kept in a dictionary within the memo group object. If the find min-cost member function is called upon with the property requirement that has been called before, the recorded optimal member will be directly returned.
 
-After derivation of less restrictive sub-properties, we look for the member with minimum cost. This consists of two parts: go through member list to find directly supplied members, and go through sub-property list to find enforced member. 
-
-For each member, if it is a physic node, it will be checked if the required property can be fulfilled. If so, the total cost of that member will be calculated by summing the cost of that node and the minimum costs of child group members that can supply the property requirements imposed on the child groups. The specifics of this step will be further discussed in the physic node and property section.
-
-Similarly, for each sub-property, since the finding minimum function is already called upon, the total cost would be sum of enforcement node cost and the total cost of the member fulfilling the sub-property.
-
-When the recursive calls are complete, the min-cost member will be extracted to form a tree of physic nodes without PhysicMemoRef, and this three will be further used for execution.
+**Find Min Cost Member:**  
+After derivation of less restrictive sub-properties, we look for the member with minimum cost. This consists of two parts: go through member list to find directly supplied members, and go through sub-property list to find enforced member.  
+For each member, if it is a physic node, it will be checked if the required property can be fulfilled. If so, the total cost of that member will be calculated by summing the cost of that node and the minimum costs of child group members that can supply the property requirements imposed on the child groups. The specifics of this step will be further discussed in the physic node and property section.  
+Similarly, for each sub-property, since the finding minimum function is already called upon, the total cost would be sum of enforcement node cost and the total cost of the member fulfilling the sub-property. When the recursive calls are complete, the min-cost member will be extracted to form a tree of physic nodes without PhysicMemoRef, and this three will be further used for execution.
 
 ### Interaction of properties
 Interaction of properties refers to the transformation of a property requirement to less restricted property requirement.
@@ -57,9 +53,22 @@ Distribution on a certain list of expressions can be achieve through *redistribu
 
 ### Property and physic node
 Property is always required upon the physic node instead of physic node providing a list of possible properties. It is designed this way because a node may be able to preserve certain property from the child group. For example, NLJoin can preserve the order of the building side, and the specific order actually depend on the child group, which cannot be known in advance. 
-There is a method for physic node object to determine if the it can provide the required property. For the NLJoin case, now the property requirement can be propagated to build end child group.
+There is a method for physic node object to determine if the it can provide the required property. For the NLJoin case, now the property requirement can be propagated to build end child group. If the physic node can provide that property, the property requirement on its children is also returned. This way we can consider the propagate or not propagate without explicitly writing the switch.
 
-### Example
+![property_physicnode](media/property_enforcement/figure2.png)
+
+The figure above demonstrates how the property interacts with physic node. Below is a non-exhaustive list of notable physic nodes:
+- PhysicScanTable  
+The distribution of table can be one of *Distributed*, *Nondistributed*, *Replicated*, and *Roundrobin*. Singleton and replicated property is directly matched with *Nondistributed* and *Replicated*. If the list of expression for distribution is an exact match with the distribution column, then it is considered supplied. If the requirement is anydistributed, then either of *Distributed* and *Roundrobin* is acceptable. ScanTbale does not have child node.
+- PhysicHashJoin  
+Hashjoin is one of the most complicated due to its versatility with distribution requirement. It can provide singleton and replicated, and the requirement on children is also singleton and replicated respectively.  
+For distributed, if the join key contains the expression list, then it can be supplied. The requirement on children could be any of the following:  
+(distributed on left keys, distributed on right keys), (singleton, distributed on right keys), (distributed on left keys, singleton)  
+For anydistributed, the constrain of join key match is lifted.
+- PhysicStreamAgg  
+Can provide the order on the aggregated expressions, and the requirement on the child is also aggregated expressions must be sorted.
+
+### Query Example
 Given table *a* as listed below, and table *b* having the same data.
 
 a1 |a2 |a3 | a4
