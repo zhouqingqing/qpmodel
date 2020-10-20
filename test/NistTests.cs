@@ -326,8 +326,6 @@ namespace qpmodel.unittest
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "Alice");
 
-            /* BUG/Unsupported ? */
-            /* should return 1 row with 12 but returns 11 rows */
             sql = @"
      SELECT WORKS.HOURS
           FROM WORKS
@@ -337,8 +335,8 @@ namespace qpmodel.unittest
                         WHERE PROJ.BUDGET BETWEEN 5000 AND 40000);";
             stmtResult = TU.ExecuteSQL(sql);
             Assert.AreEqual("", TU.error_);
-            // Assert.AreEqual(1, stmtResult.Count);
-            // Assert.AreEqual(stmtResult[0][0].ToString(), "12");
+            Assert.AreEqual(1, stmtResult.Count);
+            Assert.AreEqual(stmtResult[0][0].ToString(), "12");
 
             sql = @"
      SELECT WORKS.HOURS
@@ -352,10 +350,6 @@ namespace qpmodel.unittest
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "12");
 
-            /*
-             * BUG/Unsupported?
-             * Should return one row with 80 but returns 11 rows.
-             */
             sql = @"
      SELECT HOURS
           FROM WORKS
@@ -365,8 +359,8 @@ namespace qpmodel.unittest
                        WHERE PNUM IN ('P1','P2','P4','P5','P6'));";
             stmtResult = TU.ExecuteSQL(sql);
             Assert.AreEqual("", TU.error_);
-            // Assert.AreEqual(1, stmtResult.Count);
-            // Assert.AreEqual(stmtResult[0][0].ToString(), "80");
+            Assert.AreEqual(1, stmtResult.Count);
+            Assert.AreEqual(stmtResult[0][0].ToString(), "80");
 
             sql = @"
      SELECT HOURS

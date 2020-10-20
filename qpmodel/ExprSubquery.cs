@@ -243,11 +243,17 @@ namespace qpmodel.expr
 
     public class InSubqueryExpr : SubqueryExpr
     {
+        internal bool hasNot_;
+
         // children_[0] is the expr of in-query
         internal Expr expr_() => children_[0];
 
-        public override string ToString() => $"{expr_()} in @{subqueryid_}";
-        public InSubqueryExpr(Expr expr, SelectStmt query) : base(query) { children_.Add(expr); }
+        public override string ToString()
+        {
+            string ifnot = hasNot_ ? " not" : "";
+            return $"{expr_()}{ifnot} in @{subqueryid_}";
+        }
+        public InSubqueryExpr(Expr expr, SelectStmt query, bool hasNot) : base(query) { hasNot_ = hasNot; children_.Add(expr); }
 
         public override void Bind(BindContext context)
         {
@@ -268,7 +274,10 @@ namespace qpmodel.expr
             // is also not copied thus multiple threads may racing updating cacheVal_. Lock the
             // code section to prevent it. This also redu
             if (isCacheable_ && cachedValSet_)
-                return (cachedVal_ as HashSet<Value>).Contains(expr);
+            {
+                var in_cache_flag = (cachedVal_ as HashSet<Value>).Contains(expr);
+                return hasNot_ ? !in_cache_flag : in_cache_flag;
+            }
 
             var set = new HashSet<Value>();
             query_.physicPlan_.Exec(l =>
@@ -279,7 +288,8 @@ namespace qpmodel.expr
 
             cachedVal_ = set;
             cachedValSet_ = true;
-            return set.Contains(expr);
+            var in_flag = set.Contains(expr);
+            return hasNot_ ? !in_flag : in_flag;
         }
     }
 
@@ -288,10 +298,12 @@ namespace qpmodel.expr
     //
     public class InListExpr : Expr
     {
+        internal bool hasNot_;
         internal Expr expr_() => children_[0];
         internal List<Expr> inlist_() => children_.GetRange(1, children_.Count - 1);
-        public InListExpr(Expr expr, List<Expr> inlist)
+        public InListExpr(Expr expr, List<Expr> inlist, bool hasNot)
         {
+            hasNot_ = hasNot;
             children_.Add(expr); children_.AddRange(inlist);
             type_ = new BoolType();
             Debug.Assert(Clone().Equals(this));
@@ -317,17 +329,19 @@ namespace qpmodel.expr
                 return null;
             List<Value> inlist = new List<Value>();
             inlist_().ForEach(x => { inlist.Add(x.Exec(context, input)); });
-            return inlist.Exists(v.Equals);
+            var in_flag = inlist.Exists(v.Equals);
+            return hasNot_ ? !in_flag : in_flag;
         }
 
         public override string ToString()
         {
             var inlist = inlist_();
+            string ifnot = hasNot_ ? " not" : "";
             if (inlist_().Count < 5)
-                return $"{expr_()} in ({string.Join(",", inlist)})";
+                return $"{expr_()}{ifnot} in ({string.Join(",", inlist)})";
             else
             {
-                return $"{expr_()} in ({string.Join(",", inlist.GetRange(0, 3))}, ... <Total: {inlist.Count}> )";
+                return $"{expr_()}{ifnot} in ({string.Join(",", inlist.GetRange(0, 3))}, ... <Total: {inlist.Count}> )";
             }
         }
     }

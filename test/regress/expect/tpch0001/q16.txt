@@ -29,25 +29,58 @@ order by
 	p_type,
 	p_size
 Total cost: 3240.38, memory=22274
-PhysicOrder  (inccost=3240.38, cost=754.38, rows=148, memory=6364) (actual rows=0)
+PhysicOrder  (inccost=3240.38, cost=754.38, rows=148, memory=6364) (actual rows=34)
     Output: p_brand[0],p_type[1],p_size[2],{count(ps_suppkey)}[3]
     Order by: {count(ps_suppkey)}[3], p_brand[0], p_type[1], p_size[2]
-    -> PhysicHashAgg  (inccost=2486, cost=444, rows=148, memory=12728) (actual rows=0)
+    -> PhysicHashAgg  (inccost=2486, cost=444, rows=148, memory=12728) (actual rows=34)
         Output: {p_brand}[0],{p_type}[1],{p_size}[2],{count(ps_suppkey)}[3]
         Aggregates: count(ps_suppkey[3])
         Group by: p_brand[0], p_type[1], p_size[2]
-        -> PhysicHashJoin  (inccost=2042, cost=1022, rows=148, memory=3182) (actual rows=0)
+        -> PhysicHashJoin  (inccost=2042, cost=1022, rows=148, memory=3182) (actual rows=136)
             Output: p_brand[0],p_type[1],p_size[2],ps_suppkey[4]
             Filter: p_partkey[3]=ps_partkey[5]
             -> PhysicScanTable part (inccost=200, cost=200, rows=37) (actual rows=34)
                 Output: p_brand[3],p_type[4],p_size[5],p_partkey[0]
                 Filter: ((p_brand[3]<>'Brand#45' and p_type[4] not like 'MEDIUM POLISHED%') and p_size[5] in (49,14,23, ... <Total: 8> ))
-            -> PhysicScanTable partsupp (inccost=810, cost=800, rows=800) (actual rows=0)
+            -> PhysicScanTable partsupp (inccost=810, cost=800, rows=800) (actual rows=800)
                 Output: ps_suppkey[1],ps_partkey[0]
-                Filter: ps_suppkey[1] in @1
+                Filter: ps_suppkey[1] not in @1
                 <InSubqueryExpr> cached 1
                     -> PhysicScanTable supplier (inccost=10, cost=10, rows=1) (actual rows=0)
                         Output: s_suppkey[0]
                         Filter: s_comment[6] like '%Customer%Complaints%'
-
+Brand#11,PROMO ANODIZED TIN,45,4
+Brand#11,SMALL PLATED COPPER,45,4
+Brand#11,STANDARD POLISHED TIN,45,4
+Brand#13,MEDIUM ANODIZED STEEL,36,4
+Brand#13,SMALL BRUSHED NICKEL,19,4
+Brand#14,SMALL ANODIZED NICKEL,45,4
+Brand#15,LARGE ANODIZED BRASS,45,4
+Brand#21,LARGE BURNISHED COPPER,19,4
+Brand#23,ECONOMY BRUSHED COPPER,9,4
+Brand#24,MEDIUM PLATED STEEL,19,4
+Brand#25,MEDIUM PLATED BRASS,45,4
+Brand#25,SMALL BURNISHED COPPER,3,4
+Brand#31,ECONOMY PLATED STEEL,23,4
+Brand#31,PROMO POLISHED TIN,23,4
+Brand#32,MEDIUM BURNISHED BRASS,49,4
+Brand#33,LARGE BRUSHED TIN,36,4
+Brand#33,SMALL BURNISHED NICKEL,3,4
+Brand#34,LARGE PLATED BRASS,45,4
+Brand#34,MEDIUM BRUSHED COPPER,9,4
+Brand#34,SMALL PLATED BRASS,14,4
+Brand#35,STANDARD ANODIZED STEEL,23,4
+Brand#43,MEDIUM ANODIZED BRASS,14,4
+Brand#43,PROMO POLISHED BRASS,19,4
+Brand#43,SMALL BRUSHED NICKEL,9,4
+Brand#44,SMALL PLATED COPPER,19,4
+Brand#51,ECONOMY POLISHED STEEL,49,4
+Brand#52,MEDIUM BURNISHED TIN,45,4
+Brand#52,SMALL BURNISHED NICKEL,14,4
+Brand#53,LARGE BURNISHED NICKEL,23,4
+Brand#53,MEDIUM BRUSHED COPPER,3,4
+Brand#53,STANDARD PLATED STEEL,45,4
+Brand#54,ECONOMY ANODIZED BRASS,9,4
+Brand#55,STANDARD ANODIZED BRASS,36,4
+Brand#55,STANDARD BRUSHED COPPER,3,4
 

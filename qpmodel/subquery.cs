@@ -215,6 +215,78 @@ namespace qpmodel.logic
             return newplan;
         }
 
+        LogicNode inToMarkJoin(LogicNode planWithSubExpr,InSubqueryExpr inExpr)
+        {
+            LogicNode nodeA = planWithSubExpr;
+            var nodeAIsOnMarkJoin =
+              nodeA is LogicFilter && (nodeA.child_() is LogicMarkJoin || nodeA.child_() is LogicSingleJoin);
+
+            // nodeB contains the join filter
+            var nodeB = inExpr.query_.logicPlan_;
+            var nodeBFilter = nodeB.filter_;
+            nodeB.NullifyFilter();
+
+            // nullify nodeA's filter: the rest is push to top filter. However,
+            // if nodeA is a Filter|MarkJoin, keep its mark filter.
+            var markerFilter = new ExprRef(new MarkerExpr(), 0);
+            var nodeAFilter = nodeA.filter_;
+
+            // consider SQL ...a1 in select b1 from... 
+            // a1 is outerExpr and b1 is selectExpr
+            Expr outerExpr = inExpr.child_();
+            Debug.Assert(inExpr.query_.selection_.Count == 1);
+            Expr selectExpr = inExpr.query_.selection_[0];
+            BinExpr inToEqual = BinExpr.MakeBooleanExpr(outerExpr, selectExpr, "=");
+
+            if (nodeAIsOnMarkJoin)
+                nodeA.filter_ = markerFilter;
+            else
+            {
+                if (nodeAFilter != null)
+                {
+                    // a1 > @1 and a2 > @2 and a3 > 2, scalarExpr = @1
+                    //   keeplist: a1 > @1 and a3 > 2
+                    //   andlist after removal: a2 > @2
+                    //   nodeAFilter = a1 > @1 and a3 > 2
+                    //
+                    var andlist = nodeAFilter.FilterToAndList();
+                    var keeplist = andlist.Where(x => x.VisitEachExists(e => e.Equals(inExpr))).ToList();
+                    andlist.RemoveAll(x => x.VisitEachExists(e => e.Equals(inExpr)));
+                    if (andlist.Count == 0)
+                        nodeA.NullifyFilter();
+                    else
+                    {
+                        nodeA.filter_ = andlist.AndListToExpr();
+                        if (keeplist.Count > 0)
+                            nodeAFilter = keeplist.AndListToExpr();
+                        else
+                            nodeAFilter = markerFilter;
+                    }
+                }
+            }
+            // make a mark join
+            LogicMarkJoin markjoin;
+            if (inExpr.hasNot_)
+                markjoin = new LogicMarkAntiSemiJoin(nodeA, nodeB);
+            else
+                markjoin = new LogicMarkSemiJoin(nodeA, nodeB);
+
+            // make a filter on top of the mark join collecting all filters
+            Expr topfilter;
+            if (nodeAIsOnMarkJoin)
+                topfilter = nodeAFilter.SearchAndReplace(inExpr, ConstExpr.MakeConstBool(true));
+            else
+                topfilter = nodeAFilter.SearchAndReplace(inExpr, markerFilter);
+            nodeBFilter.DeParameter(nodeA.InclusiveTableRefs());
+            topfilter = topfilter.AddAndFilter(nodeBFilter);
+            // TODO mutiple nested insubquery subquery 
+            // seperate the overlapping code with existsToSubquery to a new method
+            // when the PR in #support nestted exist subquery pass
+            LogicFilter Filter = new LogicFilter(markjoin, topfilter);
+            Filter = new LogicFilter(Filter, inToEqual);
+            return Filter;
+        }
+
         // A Xs B => A LOJ B if max1row is assured
         LogicJoin singleJoin2OuterJoin(LogicSingleJoin singJoinNode)
         {
@@ -396,7 +468,7 @@ namespace qpmodel.logic
 
         // exists|quantified subquery => mark join
         // scalar subquery => single join or LOJ if max1row output is assured
-        //
+        // 
         LogicNode oneSubqueryToJoin(LogicNode planWithSubExpr, SubqueryExpr subexpr)
         {
             LogicNode oldplan = planWithSubExpr;
@@ -412,6 +484,9 @@ namespace qpmodel.logic
                     break;
                 case ScalarSubqueryExpr ss:
                     newplan = scalarToSingleJoin(planWithSubExpr, ss);
+                    break;
+                case InSubqueryExpr si:
+                    newplan = inToMarkJoin(planWithSubExpr, si);
                     break;
                 default:
                     break;
