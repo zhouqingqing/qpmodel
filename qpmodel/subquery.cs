@@ -270,7 +270,7 @@ namespace qpmodel.logic
             return newplan;
         }
 
-        LogicNode inToMarkJoin(LogicNode planWithSubExpr,InSubqueryExpr inExpr)
+        LogicNode inToMarkJoin(LogicNode planWithSubExpr, InSubqueryExpr inExpr)
         {
             LogicNode nodeA = planWithSubExpr;
             var nodeAIsOnMarkJoin =
@@ -283,7 +283,7 @@ namespace qpmodel.logic
 
             // nullify nodeA's filter: the rest is push to top filter. However,
             // if nodeA is a Filter|MarkJoin, keep its mark filter.
-            var markerFilter = new ExprRef(new MarkerExpr(), 0);
+            var markerFilter = new ExprRef(new MarkerExpr(nodeBFilter.tableRefs_), 0);
             var nodeAFilter = nodeA.filter_;
 
             // consider SQL ...a1 in select b1 from... 
