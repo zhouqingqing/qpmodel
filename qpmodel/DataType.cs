@@ -66,7 +66,6 @@ namespace qpmodel.expr
         public static bool SameArithType(ColumnType l, ColumnType r)
             => (l is IntType && r is IntType) || (l is DoubleType && r is DoubleType) || (l is NumericType && r is NumericType);
 
-
         public static bool IsNumberType(ColumnType type)
             => (type is NumericType) || (type is DoubleType) || (type is IntType);
 

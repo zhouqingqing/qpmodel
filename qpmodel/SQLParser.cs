@@ -42,7 +42,7 @@ namespace qpmodel.sqlparser
     // antlr requires user defined exception
     public class AntlrParserException : Exception
     {
-        public AntlrParserException(string msg) : base(msg) {}
+        public AntlrParserException(string msg) : base(msg) { }
     }
 
     public class SyntaxErrorListener : BaseErrorListener
@@ -51,7 +51,7 @@ namespace qpmodel.sqlparser
             RecognitionException e)
         {
             var stack = ((Parser)recognizer).GetRuleInvocationStack();
-            string errormsg  = $@"{string.Join("->", stack)} : {line}|{charPositionInLine}|{offendingSymbol}|{msg}";
+            string errormsg = $@"{string.Join("->", stack)} : {line}|{charPositionInLine}|{offendingSymbol}|{msg}";
             throw new AntlrParserException(errormsg);
         }
     }
@@ -172,6 +172,7 @@ namespace qpmodel.sqlparser
                 args.Add(Visit(v) as Expr);
             return FuncExpr.BuildFuncExpr(context.function_name().GetText(), args);
         }
+
         public override object VisitColExpr([NotNull] SQLiteParser.ColExprContext context)
         {
             var dbname = context.database_name()?.GetText();
@@ -183,10 +184,8 @@ namespace qpmodel.sqlparser
                 return new ColExpr(dbname, tabname, colname, null);
         }
 
-
         public override object VisitArithcompexpr([NotNull] SQLiteParser.ArithcompexprContext context)
             => new BinExpr((Expr)Visit(context.arith_expr(0)), (Expr)Visit(context.arith_expr(1)), context.op.Text);
-
 
         public override object VisitBoolEqualexpr([NotNull] SQLiteParser.BoolEqualexprContext context)
             => new BinExpr((Expr)Visit(context.arith_expr(0)), (Expr)Visit(context.arith_expr(1)), context.op.Text);
@@ -198,7 +197,8 @@ namespace qpmodel.sqlparser
         public override object VisitLogicNotExpr([NotNull] SQLiteParser.LogicNotExprContext context)
         {
             var expr = (Expr)Visit(context.logical_expr());
-            if (expr is ExistSubqueryExpr ee) {
+            if (expr is ExistSubqueryExpr ee)
+            {
                 // to simplify EXISTS subquery handling, we don't want an extra unary on top
                 ee.hasNot_ = !ee.hasNot_;
                 return ee;
@@ -235,17 +235,19 @@ namespace qpmodel.sqlparser
             return new UnaryExpr(op, Visit(context.arith_expr()) as Expr);
         }
 
+        // TODO add in subquery
         public override object VisitInSubqueryExpr([NotNull] SQLiteParser.InSubqueryExprContext context)
         {
             Debug.Assert(context.K_IN() != null);
 
             SelectStmt select = null;
             List<Expr> inlist = null;
+            bool hasNot = (context.K_NOT() != null) ? true : false;
             if (context.select_stmt() != null)
             {
                 Debug.Assert(context.arith_expr().Count() == 1);
                 select = Visit(context.select_stmt()) as SelectStmt;
-                return new InSubqueryExpr(Visit(context.arith_expr(0)) as Expr, select);
+                return new InSubqueryExpr(Visit(context.arith_expr(0)) as Expr, select, hasNot);
             }
             else
             {
@@ -254,7 +256,7 @@ namespace qpmodel.sqlparser
                     inlist.Add(Visit(v) as Expr);
                 Expr expr = inlist[0];
                 inlist.RemoveAt(0);
-                return new InListExpr(expr, inlist);
+                return new InListExpr(expr, inlist, hasNot);
             }
         }
         public override object VisitCaseExpr([NotNull] SQLiteParser.CaseExprContext context)

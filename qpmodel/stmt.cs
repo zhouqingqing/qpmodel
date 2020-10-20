@@ -36,12 +36,9 @@ using qpmodel.physic;
 using qpmodel.codegen;
 using qpmodel.optimizer;
 
-
-//
 // Parser is the only place shall deal with antlr 
-// do NOT using any antlr structure here
+// do NOT use any antlr structure here
 //
-
 namespace qpmodel.logic
 {
     public abstract class SQLStatement
