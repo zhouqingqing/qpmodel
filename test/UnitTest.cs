@@ -994,6 +994,8 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "0,0;1,2;2,6");
             sql = "select a1, sum(a12) as a2 from (select a1, a1*a2 a12 from a) b where a1 >= (select c1 from c where c1=a12) group by a1;";
             TU.ExecuteSQL(sql, "0,0");
+            sql = "select c1, c2 from (select max(a1 + b1), sum(a2 + b3) from a,  b) x(c1, c2) where c1 > 1 and c2 > 1;";
+            TU.ExecuteSQL(sql, "4,45", out phyplan);
             // This will fail when remove_from is true due to binding issues.
             // in e1 = 8 * b1, none have a tableref with them.
 #if REMOVE_FROM
@@ -1012,8 +1014,142 @@ namespace qpmodel.unittest
             // fails with out of bounds index at exection becuase the aggregate node doesn't produce any
             // output. This is because of problem in aggregate ordinal resolution when remove_from is true.
             sql = "select sum(c1), avg(c2) from (select count(*) + count(b3), avg(a2) + 7 from a join b on a1 <> b4) x(c1, c2);";
+            // After removing Agg(Agg(...(x))), and handling aggregates in group bym the modified query
+            // should work.
+            sql = "select c1, c2 from (select count(*) + count(b3), avg(a2) + 7 from a join b on a1 <> b4) x(c1, c2) group by c1, c2;";
+            TU.ExecuteSQL(sql, "18,9", out phyplan);
+            answer = @"PhysicHashAgg  (actual rows=1)
+    Output: {(count(*)(0)+count(b.b3))}[0],{(avg(a.a2)+7)}[1]
+    Group by: {(count(*)(0)+count(b.b3))}[0], {(avg(a.a2)+7)}[1]
+    -> PhysicHashAgg  (actual rows=1)
+        Output: ({count(*)(0)}[0]+{count(b.b3)}[1]),({avg(a.a2)}[2]+7)
+        Aggregates: count(*)(0), count(b.b3[1]), avg(a.a2[2])
+        -> PhysicNLJoin  (actual rows=9)
+            Output: {0}[0],b.b3[3],a.a2[1]
+            Filter: a.a1[2]<>b.b4[4]
+            -> PhysicScanTable a (actual rows=3)
+                Output: 0,a.a2[1],a.a1[0]
+            -> PhysicScanTable b (actual rows=3, loops=3)
+                Output: b.b3[2],b.b4[3]";
+            TU.PlanAssertEqual(answer, phyplan);
+
+            // This will work. Agg(Agg(...x))) will also work if the same expressions are used in group by.
             sql = "select sum(c1), avg(c2) from (select count(*) + count(b3), avg(a2) + 7 from a join b on a1 <> b4) x(c1, c2) group by c1, c2;";
-#endregion
+            TU.ExecuteSQL(sql, "18,9", out phyplan);
+            answer = @"PhysicHashAgg  (actual rows=1)
+    Output: {sum({(count(*)(0)+count(b.b3))})}[2],{avg({(avg(a.a2)+7)})}[3]
+    Aggregates: sum({(count(*)(0)+count(b.b3))}[0]), avg({(avg(a.a2)+7)}[1])
+    Group by: {(count(*)(0)+count(b.b3))}[0], {(avg(a.a2)+7)}[1]
+    -> PhysicHashAgg  (actual rows=1)
+        Output: ({count(*)(0)}[0]+{count(b.b3)}[1]),({avg(a.a2)}[2]+7)
+        Aggregates: count(*)(0), count(b.b3[1]), avg(a.a2[2])
+        -> PhysicNLJoin  (actual rows=9)
+            Output: {0}[0],b.b3[3],a.a2[1]
+            Filter: a.a1[2]<>b.b4[4]
+            -> PhysicScanTable a (actual rows=3)
+                Output: 0,a.a2[1],a.a1[0]
+            -> PhysicScanTable b (actual rows=3, loops=3)
+                Output: b.b3[2],b.b4[3]";
+            TU.PlanAssertEqual(answer, phyplan);
+
+            // group by in inner
+            sql = "select sum(a1) from(select sum(a1) from(select sum(a1), a2 from a group by a2)b(a1))c(a1) group by a1;";
+            TU.ExecuteSQL(sql, "3", out phyplan);
+            answer = @"PhysicHashAgg  (actual rows=1)
+    Output: {sum({sum({sum(a.a1)})})}[1]
+    Aggregates: sum({sum({sum(a.a1)})}[0])
+    Group by: {sum({sum(a.a1)})}[0]
+    -> PhysicHashAgg  (actual rows=1)
+        Output: {sum({sum(a.a1)})}[0]
+        Aggregates: sum({sum(a.a1)}[0])
+        -> PhysicHashAgg  (actual rows=3)
+            Output: {sum(a.a1)}[1]
+            Aggregates: sum(a.a1[0])
+            Group by: a.a2[1]
+            -> PhysicScanTable a (actual rows=3)
+                Output: a.a1[0],a.a2[1]";
+            TU.PlanAssertEqual(answer, phyplan);
+
+            // group by in second level
+            sql = "select sum(a1) from (select sum(a1), a2 from (select sum(a1), a2 from a group by a2)b(a1, a2) group by a2)c(a1, a2) group by a1;";
+            TU.ExecuteSQL(sql, "0;1;2", out phyplan);
+            answer = @"PhysicHashAgg  (actual rows=3)
+    Output: {sum({sum({sum(a.a1)})})}[1]
+    Aggregates: sum({sum({sum(a.a1)})}[0])
+    Group by: {sum({sum(a.a1)})}[0]
+    -> PhysicHashAgg  (actual rows=3)
+        Output: {sum({sum(a.a1)})}[1]
+        Aggregates: sum({sum(a.a1)}[0])
+        Group by: a.a2[1]
+        -> PhysicHashAgg  (actual rows=3)
+            Output: {sum(a.a1)}[1],{a.a2}[0]
+            Aggregates: sum(a.a1[1])
+            Group by: a.a2[0]
+            -> PhysicScanTable a (actual rows=3)
+                Output: a.a2[1],a.a1[0]";
+            TU.PlanAssertEqual(answer, phyplan);
+
+            // select two columns at second level
+            sql = "select sum(a1) from(select sum(a1), a2 from(select sum(a1), a2 from a group by a2)b(a1, a2) group by a2)c(a1, a2) group by a1;";
+            TU.ExecuteSQL(sql, "0;1;2", out phyplan);
+            answer = @"PhysicHashAgg  (actual rows=3)
+    Output: {sum({sum({sum(a.a1)})})}[1]
+    Aggregates: sum({sum({sum(a.a1)})}[0])
+    Group by: {sum({sum(a.a1)})}[0]
+    -> PhysicHashAgg  (actual rows=3)
+        Output: {sum({sum(a.a1)})}[1]
+        Aggregates: sum({sum(a.a1)}[0])
+        Group by: a.a2[1]
+        -> PhysicHashAgg  (actual rows=3)
+            Output: {sum(a.a1)}[1],{a.a2}[0]
+            Aggregates: sum(a.a1[1])
+            Group by: a.a2[0]
+            -> PhysicScanTable a (actual rows=3)
+                Output: a.a2[1],a.a1[0]";
+            TU.PlanAssertEqual(answer, phyplan);
+
+            // group by at top level on un-aggregated (not aggregate function argument) column reference
+            sql = "select sum(a1), a2 from(select sum(a1), a2 from (select sum(a1), a2 from a group by a2)b(a1, a2) group by a2)c(a1, a2) group by a1, a2;";
+            TU.ExecuteSQL(sql, "0,1;1,2;2,3", out phyplan);
+
+            // same as above but at top level an column expression selection and gouping only on column
+            sql = "select sum(a1), a2 + 5 from(select sum(a1), a2 from (select sum(a1), a2 from a group by a2)b(a1, a2) group by a2)c(a1, a2) group by a1, a2";
+            TU.ExecuteSQL(sql, "0,6;1,7;2,8", out phyplan);
+            answer = @"PhysicHashAgg  (actual rows=3)
+    Output: {sum({sum({sum(a.a1)})})}[2],({a.a2}[1]+5)
+    Aggregates: sum({sum({sum(a.a1)})}[0])
+    Group by: {sum({sum(a.a1)})}[0], a.a2[1]
+    -> PhysicHashAgg  (actual rows=3)
+        Output: {sum({sum(a.a1)})}[1],{a.a2}[0]
+        Aggregates: sum({sum(a.a1)}[1])
+        Group by: a.a2[0]
+        -> PhysicHashAgg  (actual rows=3)
+            Output: {a.a2}[0],{sum(a.a1)}[1]
+            Aggregates: sum(a.a1[1])
+            Group by: a.a2[0]
+            -> PhysicScanTable a (actual rows=3)
+                Output: a.a2[1],a.a1[0]";
+            TU.PlanAssertEqual(answer, phyplan);
+
+            sql = "select sum(a1), max(a2 + 5) from(select sum(a1), a2 from (select sum(a1), a2 from a group by a2)b(a1, a2) group by a2)c(a1, a2) group by a1, a2";
+            TU.ExecuteSQL(sql, "0,6;1,7;2,8", out phyplan);
+            answer = @"PhysicHashAgg  (actual rows=3)
+    Output: {sum({sum({sum(a.a1)})})}[2],{max((a.a2+5))}[3]
+    Aggregates: sum({sum({sum(a.a1)})}[0]), max((a.a2[1]+5))
+    Group by: {sum({sum(a.a1)})}[0], a.a2[1]
+    -> PhysicHashAgg  (actual rows=3)
+        Output: {sum({sum(a.a1)})}[1],{a.a2}[0]
+        Aggregates: sum({sum(a.a1)}[1])
+        Group by: a.a2[0]
+        -> PhysicHashAgg  (actual rows=3)
+            Output: {a.a2}[0],{sum(a.a1)}[1]
+            Aggregates: sum(a.a1[1])
+            Group by: a.a2[0]
+            -> PhysicScanTable a (actual rows=3)
+                Output: a.a2[1],a.a1[0]";
+            TU.PlanAssertEqual(answer, phyplan);
+
+            #endregion
 
             // these queries we can remove from
             QueryOption option = new QueryOption();
@@ -1129,6 +1265,25 @@ namespace qpmodel.unittest
             // ERROR[Optimizer]: column a.a1[0] must appear in group by clause
             sql = "select sum(a1) from (select sum(a1) from (select sum(a1) from a )b(a1) )c(a1);"; // WRONG
 
+            // But adding group by a1 will make it run and produce correct output,
+            // which is the same as without the group by.
+            sql = "select sum(a1) from (select sum(a1) from (select sum(a1) from a )b(a1) )c(a1) group by a1";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
+            Assert.AreEqual("3", string.Join(";", result));
+            answer = @"PhysicHashAgg  (actual rows=1)
+    Output: {sum({sum({sum(a.a1)})})}[1]
+    Aggregates: sum({sum({sum(a.a1)})}[0])
+    Group by: {sum({sum(a.a1)})}[0]
+    -> PhysicHashAgg  (actual rows=1)
+        Output: {sum({sum(a.a1)})}[0]
+        Aggregates: sum({sum(a.a1)}[0])
+        -> PhysicHashAgg  (actual rows=1)
+            Output: {sum(a.a1)}[0]
+            Aggregates: sum(a.a1[0])
+            -> PhysicScanTable a (actual rows=3)
+                Output: a.a1[0]";
+            TU.PlanAssertEqual(answer, phyplan);
+
             // FIXME: if we turn memo on, we have problems resolving columns
 
             option.optimize_.remove_from_ = true;
@@ -1208,12 +1363,11 @@ namespace qpmodel.unittest
 
             // in-list and in-subquery
             sql = "select a2 from a where a1 in (1,2,3);"; TU.ExecuteSQL(sql, "2;3");
-
             // disable it for now due to introduce table alias (a__1) confusing matching
             // sql = "select a2 from a where a1 in (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1));"; TU.ExecuteSQL(sql, "2;3");
-            // sql = "select a2 from a where a1 in (select a2 from a a1 where exists (select * from a b where b.a3>=a1.a1+b.a1+1));"; //2,3
+            sql = "select a2 from a where a1 in (select a2 from a a1 where exists (select * from a b where b.a3>=a1.a1+b.a1+1));"; TU.ExecuteSQL(sql, "2;3");
             // sql = "select a2 from a where a1 in (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1));"; //2,3
-            // sql = "select a2 from a where a1 in (select a2 from a where exists (select * from a b where b.a3>a1+b.a1+1));"; //2,3, ok
+            sql = "select a2 from a where a1 in (select a2 from a where exists (select * from a b where b.a3>a1+b.a1+1));"; TU.ExecuteSQL(sql, "2;3");
             // sql = "select a2 from a where a1 in (select a2 from a a1 where exists (select * from a b where b.a3>=a.a1+b.a1+1));"; // 2
             // sql = "select a2 from a where a1 in (select a2 from a where exists(select * from a b where b.a3 >= a.a1 + b.a1 + 1));";
 
@@ -1831,13 +1985,12 @@ namespace qpmodel.unittest
             result = ExecuteSQL(sql, out phyplan);
             Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0]<>a.a1[0] or b.b1[4]<>b.b1[4]) or False)"));
 
-            // sql = "select * from (select 1 + 1 x, 1 + 2 y, a1 z from a)";
-            // result = ExecuteSQL(sql, out phyplan);
-            // Assert.IsTrue(phyplan.Contains(
-            //    @"PhysicFromQuery 1064_1067 <anonymous> (inccost=6, cost=3, rows=3) (actual rows=3)
-            // Output: {2}[0],{3}[1],a.a1 (as z)[2]
-            // -> PhysicScanTable 1066_1069 a (inccost=3, cost=3, rows=3) (actual rows=3)
-            // Output: 2,3,a.a1 (as z)[0]"));
+            sql = "select * from (select 1 + 1 x, 1 + 2 y, a1 z from a)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual("2,3,0;2,3,1;2,3,2", string.Join(";", result));
+            answer = @"PhysicScanTable a (actual rows=3)
+    Output: 2,3,a.a1 (as z)[0]";
+            TU.PlanAssertEqual(answer, phyplan);
 
             sql = "select * from a where 1 is null";
             result = ExecuteSQL(sql, out phyplan);
@@ -1924,11 +2077,12 @@ namespace qpmodel.unittest
             result = ExecuteSQL(sql, out phyplan);
             Assert.IsTrue(phyplan.Contains("Output: 'three blind mice three blind mice three blind mice '"));
 
-            // sql = "select abs(10 + 20.78 - 10 - 21.78) from a";
-            // result = ExecuteSQL(sql, out phyplan);
-            // Assert.IsTrue(phyplan.Contains(
-            //    @"PhysicScanTable a (actual rows=3)
-            // Output: 1"));
+            sql = "select abs(10 + 20.78 - 10 - 21.78) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual("1;1;1", string.Join(";", result));
+            answer = @"PhysicScanTable a (actual rows=3)
+    Output: 1";
+            TU.PlanAssertEqual(answer, phyplan);
 
             sql = "select round(3.14582, 2) from a";
             result = ExecuteSQL(sql, out phyplan);
@@ -2461,9 +2615,12 @@ namespace qpmodel.unittest
             sql = "select a1,b3 from a left join b on a.a1<b.b1;";
             TU.ExecuteSQL(sql, "0,3;0,4;1,4;2,");
 
-            // FAILED
-            sql = "select * from (select * from a join b on a1=b1) ab join (select * from c join d on c1=d1) cd on a1+b1=c1+d1"; // FIXME
+
+            sql = "select * from (select * from a join b on a1=b1) ab join (select * from c join d on c1=d1) cd on a1+b1=c1+d1";
+            TU.ExecuteSQL(sql, "0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4,1,2,3,4,1,2,,4;2,3,4,5,2,3,4,5,2,3,4,5,2,2,,5");
+            // should not produce any ouput
             sql = "select * from (select * from a join b on a1=b1) ab join (select * from c join d on c1=d1) cd on a1+b1=c1 and a2+b2=d2;";
+            TU.ExecuteSQL(sql, "");
 
             // COUNT(*)
             sql = "select * from (select count(*) from a, b where a1 <> b1 and a2 <> b2) s1(s1c), (select count(*) from a, b where a1 <> b3 and a2 <> b4) s2(s2c), (select count(*) from a, b where a1 < b1 and a2 < b2) s3(s3c), (select count(*) from a, b where a1 <> b1 and a2 <> b2) s4(s4c)";

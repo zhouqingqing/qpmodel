@@ -511,6 +511,15 @@ namespace qpmodel.expr
             }
         }
 
+        // Check if the input expr is one of the "inside" expressions.
+        public bool FindInsideExpr(Expr e)
+        {
+            bool foundit = false;
+            for (int i = 0; !foundit && i < outputNameMap_.Count; ++i)
+                foundit = outputNameMap_.Values.Contains(e);
+            return foundit;
+        }
+
         public Expr MapOutputName(string name) => outputNameMap_[name];
 
         public List<Expr> GetInnerTableExprs() => outputNameMap_.Values.ToList();

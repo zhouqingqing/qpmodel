@@ -687,6 +687,24 @@ namespace qpmodel.logic
             return newselection;
         }
 
+        internal bool IsAggregateInFrom()
+        {
+            int foundCount = 0;
+            from_.ForEach(x =>
+            {
+                if (x is FromQueryRef fqr && foundCount == 0)
+                {
+                    groupby_.ForEach(y =>
+                    {
+                        if (foundCount == 0 && fqr.FindInsideExpr(y))
+                            ++foundCount;
+                    });
+                }
+            });
+
+            return foundCount != 0;
+        }
+
         internal void BindWithContext(BindContext context)
         {
             // we don't consider setops in this level
@@ -720,7 +738,12 @@ namespace qpmodel.logic
                 hasAgg_ = true;
                 groupby_ = bindOrderByOrGroupBy(context, groupby_);
                 if (groupby_.Any(x => x.HasAggFunc()))
-                    throw new SemanticAnalyzeException("aggregation functions are not allowed in group by clause");
+                {
+                    // FROM(x) can produce aggregates in group by,
+                    // detect it and suppress this throw.
+                    if (!IsAggregateInFrom())
+                       throw new SemanticAnalyzeException("aggregation functions are not allowed in group by clause");
+                }
             }
 
             if (having_ != null)
