@@ -895,10 +895,7 @@ namespace qpmodel.logic
                 Debug.Assert(!(v is AggrRef));
                 v.VisitEachT<AggrRef>(x =>
                 {
-                    if (x.aggr_() is AggFunc af)
-                    {
-                        list.Add(af);
-                    }
+                    list.Add(x.aggr_() as AggFunc);
                 });
             }
 
