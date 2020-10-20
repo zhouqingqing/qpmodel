@@ -417,6 +417,41 @@ namespace qpmodel.unittest
             List<String> tabNameList = new List<String> { "region", "orders", "part", "partsupp", "lineitem", "supplier", "nation" };
             TU.ClearTableStatsInCatalog(tabNameList);
         }
+
+        // this test can construct own sql using the date of tpch0001
+        // TODO the select subquery inccost is not accounted to total
+        [TestMethod]
+        public void TestUsingTpch0001Data()
+        {
+            var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
+            string scale = "0001";
+
+            Tpch.CreateTables(true);
+            Tpch.LoadTables(scale);
+
+            Tpch.AnalyzeTables();
+
+            // run tests and compare plan
+            string sql_dir_fn = "../../../../tpch/select";
+            string write_dir_fn = $"../../../../test/regress/output/tpch{scale}_select";
+            string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}_select";
+
+            ExplainOption.show_tablename_ = false;
+            var badQueries = new string[] {  };
+
+            try
+            {
+                ExplainOption.show_tablename_ = false;
+                RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries);
+            }
+            finally
+            {
+                ExplainOption.show_tablename_ = true;
+            }
+            List<String> tabNameList = new List<String> { "region", "orders", "part", "partsupp", "lineitem", "supplier", "nation" };
+            TU.ClearTableStatsInCatalog(tabNameList);
+        }
+
         void TestTpcdsWithData()
         {
             // table already created
@@ -870,6 +905,15 @@ namespace qpmodel.unittest
                      and a2>1 and not exists (select * from a b where b.a2+7=a.a1+b.a1) and a2>1 and a2<4;";
                 TU.ExecuteSQL(sql, "2", out phyplan, option);
                 Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicMarkJoin"));
+                sql = "select a1 from a where exists (select b.b1 from b where b.b2=a.a1 and exists (select c.c2 from c where c.c1=b.b1))";
+                TU.ExecuteSQL(sql, "1;2", out phyplan, option);
+                Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicMarkJoin"));
+                sql = "select a1 from a where a1<=3 and exists (select b.b1 from b where b.b2=a.a1 and exists (select c.c2 from c where c.c1=b.b1 and exists (select d.d1 from d where d.d1=c.c1)))";
+                TU.ExecuteSQL(sql, "1;2", out phyplan, option);
+                Assert.AreEqual(3, TU.CountStr(phyplan, "PhysicMarkJoin"));
+                sql = "select a1 from a where exists (select b.b1 from b where b.b2=a.a1 and exists (select c.c2 from c where c.c1=b.b1 and exists (select d.d1 from d where d.d1=c.c1)))";
+                TU.ExecuteSQL(sql, "1;2", out phyplan, option);
+                Assert.AreEqual(3, TU.CountStr(phyplan, "PhysicMarkJoin"));
             }
         }
 

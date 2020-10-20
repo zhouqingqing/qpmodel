@@ -57,8 +57,9 @@ namespace qpmodel.logic
 {
     public class MarkerExpr : Expr
     {
-        public MarkerExpr()
+        public MarkerExpr(List<TableRef> tr)
         {
+            tableRefs_ = tr;
             Debug.Assert(Equals(Clone()));
             dummyBind();
         }
@@ -103,7 +104,7 @@ namespace qpmodel.logic
 
             // nullify nodeA's filter: the rest is push to top filter. However,
             // if nodeA is a Filter|MarkJoin, keep its mark filter.
-            var markerFilter = new ExprRef(new MarkerExpr(), 0);
+            var markerFilter = new ExprRef(new MarkerExpr(nodeBFilter.tableRefs_), 0);
             var nodeAFilter = nodeA.filter_;
             if (nodeAIsOnMarkJoin)
                 nodeA.filter_ = markerFilter;
@@ -144,10 +145,64 @@ namespace qpmodel.logic
                 topfilter = nodeAFilter.SearchAndReplace(existExpr, ConstExpr.MakeConstBool(true));
             else
                 topfilter = nodeAFilter.SearchAndReplace(existExpr, markerFilter);
+
             nodeBFilter.DeParameter(nodeA.InclusiveTableRefs());
+
+            // find all expr contains Parameter col and move it to the toper
+            var TableRefs = nodeA.InclusiveTableRefs();
+
             topfilter = topfilter.AddAndFilter(nodeBFilter);
             LogicFilter Filter = new LogicFilter(markjoin, topfilter);
+            var notDeparameterExpr = findAndfetchParameterExpr(ref nodeA);
+            if (notDeparameterExpr.Count > 0)
+            {
+                topfilter = notDeparameterExpr.AndListToExpr();
+                Filter = new LogicFilter(Filter, topfilter);
+            }
             return Filter;
+        }
+
+        List<Expr> findAndfetchParameterExpr(ref LogicNode nodeA)
+        {
+            List<Expr> notDeparameterExpr = new List<Expr>();
+            nodeA.VisitEach(x =>
+            {
+                if (x is LogicFilter)
+                {
+                    var andList = x.filter_.FilterToAndList();
+                    foreach (var e in andList)
+                    {
+                        e.VisitEach(c =>
+                        {
+                            if ((c is ColExpr ce) && ce.isParameter_)
+                            {
+                                notDeparameterExpr.Add(e);
+                            }
+                        });
+                    }
+                    var removeList = notDeparameterExpr.Where(x => andList.Contains(x));
+                    foreach (var r in removeList)
+                    {
+                        andList.Remove(r);
+                    }
+                    if (andList.Count == 0)
+                    {
+                        x.NullifyFilter();
+                    }
+                    else
+                    {
+                        x.filter_ = andList.AndListToExpr();
+                    }
+                    Console.WriteLine("");
+                }
+            });
+
+            if (notDeparameterExpr.Count > 0)
+            {
+                notDeparameterExpr.Distinct();
+            }
+
+            return notDeparameterExpr;
         }
 
         // expands scalar subquery filter to mark join
@@ -526,7 +581,6 @@ namespace qpmodel.logic
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             var list = base.ResolveColumnOrdinal(reqOutput, removeRedundant);
-            output_.Insert(0, new MarkerExpr());
             return list;
         }
     }
@@ -551,8 +605,8 @@ namespace qpmodel.logic
         }
         public override string ToString() => $"PMarkJOIN({lchild_()},{rchild_()}: {Cost()})";
 
-        // always the first column
-        void fixMarkerValue(Row r, Value value) => r[0] = value;
+        // always the last column, as it is added at the last time 
+        void fixMarkerValue(Row r, Value value) => r[r.ColCount() - 1] = value;
 
         public override void Exec(Action<Row> callback)
         {

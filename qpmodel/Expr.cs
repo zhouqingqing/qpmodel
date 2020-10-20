@@ -955,7 +955,7 @@ namespace qpmodel.expr
             isParameter_ = false;
             tabRef_ = context.GetTableRef(tabName_, colName_);
 
-            // we can't find the column in current context, so it could an outer reference
+            // we can't find the column in current context, so it could be an outer reference
             if (tabRef_ is null)
             {
                 // can't find in my current context, try my ancestors levels up: order is important
