@@ -399,7 +399,10 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestBenchmarks()
         {
-            // This test will fail when remove_from is true. Union problems.
+            // This test will fail when remove_from is true. bare column reference
+            // appears in gropy by instead of an AggrRef/ExprRef and it throws
+            // column must appear in the group by list, therefore remove_from is
+            // disabled inside TestTpcdsPlanOnly.
             TestTpcdsPlanOnly();
             TestTpcdsWithData();
 
@@ -408,7 +411,8 @@ namespace qpmodel.unittest
             TestTpchAndComparePlan("0001", new string[] { "" });
             TestTpchWithData();
 
-            // some primitives neeed tpch data
+            // some primitives neeed tpch data. This also needs remove_from disabled,
+            // and the test does it inside.
             Executors.TestPullPushAgg();
         }
 
@@ -997,25 +1001,22 @@ namespace qpmodel.unittest
             sql = "select c1, c2 from (select max(a1 + b1), sum(a2 + b3) from a,  b) x(c1, c2) where c1 > 1 and c2 > 1;";
             TU.ExecuteSQL(sql, "4,45", out phyplan);
             // This will fail when remove_from is true due to binding issues.
-            // in e1 = 8 * b1, none have a tableref with them.
-#if REMOVE_FROM
+            // in e1 = 8 * b1, none have a tableref with them, disable remove_from.
+            QueryOption option = new QueryOption();
+            option.optimize_.remove_from_ = false;
             sql = @"SELECT e1  FROM   (SELECT d1 FROM   (SELECT Sum(ab12) 
                                         FROM   (SELECT e1 * b2 ab12 FROM   (SELECT e1 FROM   (SELECT d1 
                                                                 FROM   (SELECT Sum(ab12) 
                                                                         FROM   (SELECT a1 * b2 ab12 FROM  a  JOIN b ON a1 = b1) b) 
                                                                        c(d1)) 
                                                                d(e1)) a(e1) JOIN b ON e1 = 8*b1) b) c(d1)) d(e1); ";
-            TU.ExecuteSQL(sql, "16");
-#endif
+            TU.ExecuteSQL(sql, "16", out phyplan, option);
+
             sql = "select *, cd.* from (select a.* from a join b on a1=b1) ab , (select c1 , c3 from c join d on c1=d1) cd where ab.a1=cd.c1";
             TU.ExecuteSQL(sql, "0,1,2,3,0,2,0,2;1,2,3,4,1,3,1,3;2,3,4,5,2,4,2,4");
 
-            // TODO: enable the following tests after fixing aggregate issues in remove_from branch.
-            // fails with out of bounds index at exection becuase the aggregate node doesn't produce any
-            // output. This is because of problem in aggregate ordinal resolution when remove_from is true.
-            sql = "select sum(c1), avg(c2) from (select count(*) + count(b3), avg(a2) + 7 from a join b on a1 <> b4) x(c1, c2);";
-            // After removing Agg(Agg(...(x))), and handling aggregates in group bym the modified query
-            // should work.
+            // This can't run with remove_from but will run if c1 and c2 are added as grouping expressions.
+            // sql = "select sum(c1), avg(c2) from (select count(*) + count(b3), avg(a2) + 7 from a join b on a1 <> b4) x(c1, c2);";
             sql = "select c1, c2 from (select count(*) + count(b3), avg(a2) + 7 from a join b on a1 <> b4) x(c1, c2) group by c1, c2;";
             TU.ExecuteSQL(sql, "18,9", out phyplan);
             answer = @"PhysicHashAgg  (actual rows=1)
@@ -1148,11 +1149,9 @@ namespace qpmodel.unittest
             -> PhysicScanTable a (actual rows=3)
                 Output: a.a2[1],a.a1[0]";
             TU.PlanAssertEqual(answer, phyplan);
-
-            #endregion
+#endregion
 
             // these queries we can remove from
-            QueryOption option = new QueryOption();
             for (int j = 0; j < 2; j++)
             {
                 option.optimize_.remove_from_ = j == 0;
@@ -2772,12 +2771,18 @@ namespace qpmodel.unittest
 
         public static void TestPullPushAgg()
         {
+            // make sure all queries can generate phase one opt plan
+            QueryOption option = new QueryOption();
+            option.optimize_.enable_subquery_unnest_ = true;
+            option.optimize_.remove_from_ = false;
+            option.optimize_.use_memo_ = false;
+
             var sql = "select count(*) from lineitem, partsupp where l_partkey=ps_suppkey group by ps_availqty>100";
-            TU.ExecuteSQL(sql, "23294;226", out string phyplan);
+            TU.ExecuteSQL(sql, "23294;226", out string phyplan, option);
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicHashAgg"));
             sql = "select sum(c) from lineitem, (select ps_suppkey, ps_availqty>100, count(*) from partsupp group by ps_suppkey, ps_availqty>100) ps(ps_suppkey, ps_availqty100, c)"
                 + " where ps_suppkey=l_partkey group by ps_availqty100;";
-            TU.ExecuteSQL(sql, "23294;226", out phyplan);
+            TU.ExecuteSQL(sql, "23294;226", out phyplan, option);
             Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicHashAgg"));
         }
     }
@@ -3049,15 +3054,7 @@ namespace qpmodel.unittest
                     Filter: b.b3[2]>1
 ";
             TU.PlanAssertEqual(answer, phyplan);
-#if REMOVE_FROM
-            // This will fail when  remove_from is true but unnest is false. Naming the derived table columns will work.
-            // sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2
-            //    and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
-            //    and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
-            sql = "select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5) and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
-            TU.ExecuteSQL(sql, "0;1;2", out phyplan, option);
-#endif
-            // So will this.
+
             option.optimize_.enable_subquery_unnest_ = true;
             sql = "select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5) and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5)";
             TU.ExecuteSQL(sql, "0;1;2", out phyplan, option);
@@ -3115,7 +3112,6 @@ namespace qpmodel.unittest
             // run again with subquery expansion enabled
             // FIXME: b2<5 is not push down due to FromQuery barrier
             option.optimize_.enable_subquery_unnest_ = false;
-            // This will fail when remove_from is true but unnesting is false
             TU.ExecuteSQL(sql, "0;1;2", out phyplan);
             answer = @"PhysicFilter  (actual rows=3)
     Output: a.a1[0]

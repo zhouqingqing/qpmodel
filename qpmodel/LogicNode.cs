@@ -857,12 +857,6 @@ namespace qpmodel.logic
                     {
                         list.Add(af);
                     }
-                    else
-                    {
-                        // just for debug break point, it will go away
-                        // after the aggregate problems are fixed.
-                        bool notit = true;
-                    }
                 });
             }
 
@@ -1106,7 +1100,7 @@ namespace qpmodel.logic
             // after new aggregates are generated, our output is b1/2 {expref}, sum(b1) {expref}, b1 {colref} added by us
             // will not be changed into ExprRef because it is not grouping expression. This sets the offending and
             // raises the error column x must appear in group by clause.
-            // 
+            //
             int grpbyColumnAddPosition = reqFromChild.Count;
 
             // It is ideal to add keys_ directly to reqFromChild but matching can be harder.
@@ -1385,7 +1379,7 @@ namespace qpmodel.logic
         public List<Expr> rightExprs_;    // right plan's selection
         public override string ToString() => $"Append({lchild_()},{rchild_()})";
 
-        public LogicAppend(LogicNode l, LogicNode r, SetOpTree setops = null) 
+        public LogicAppend(LogicNode l, LogicNode r, SetOpTree setops = null)
         {
             children_.Add(l);
             children_.Add(r);

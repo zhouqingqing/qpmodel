@@ -615,7 +615,7 @@ namespace qpmodel.logic
             else
             {
                 // FIXME: we can't enable all optimizations with this mode
-                queryOpt_.optimize_.remove_from_ = true;
+                // queryOpt_.optimize_.remove_from_ = true; // Let the default, or user specified option take precedence.
                 queryOpt_.optimize_.use_memo_ = false;
 
                 setops_.Bind(parent);
