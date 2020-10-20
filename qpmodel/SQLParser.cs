@@ -172,6 +172,7 @@ namespace qpmodel.sqlparser
                 args.Add(Visit(v) as Expr);
             return FuncExpr.BuildFuncExpr(context.function_name().GetText(), args);
         }
+
         public override object VisitColExpr([NotNull] SQLiteParser.ColExprContext context)
         {
             var dbname = context.database_name()?.GetText();
@@ -183,10 +184,8 @@ namespace qpmodel.sqlparser
                 return new ColExpr(dbname, tabname, colname, null);
         }
 
-
         public override object VisitArithcompexpr([NotNull] SQLiteParser.ArithcompexprContext context)
             => new BinExpr((Expr)Visit(context.arith_expr(0)), (Expr)Visit(context.arith_expr(1)), context.op.Text);
-
 
         public override object VisitBoolEqualexpr([NotNull] SQLiteParser.BoolEqualexprContext context)
             => new BinExpr((Expr)Visit(context.arith_expr(0)), (Expr)Visit(context.arith_expr(1)), context.op.Text);
