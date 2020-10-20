@@ -883,18 +883,24 @@ namespace qpmodel.unittest
                 option.optimize_.use_memo_ = i == 0;
                 var phyplan = "";
 
-                //many NOT test
-                //sql = "select a1 from a where a2 not not in (1,2)";
-                //NullReferenceException, see test output.it will rightly get syntax error. 
+                // many NOT test, there are only IN and NOT IN supported in SQL. 
+                var sql = "select a1 from a where a2 not not in (1,2)";
+                var result = ExecuteSQL(sql); Assert.IsNull(result);
+                Assert.IsTrue(TU.error_.Contains(@"no viable alternative at input 'a2 not not'"));
 
-                var sql = "select a1 from a where a2 not in (1,2)";
+                sql = "select a1 from a where a2 not not not in (1,2)";
+                result = ExecuteSQL(sql); Assert.IsNull(result);
+                Assert.IsTrue(TU.error_.Contains(@"no viable alternative at input 'a2 not not'"));
+
+                // List InSubquery
+                sql = "select a1 from a where a2 not in (1,2)";
                 TU.ExecuteSQL(sql, "2", out phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "not in"));
                 sql = "select a1 from a where a2 in (1,2)";
                 TU.ExecuteSQL(sql, "0;1", out phyplan, option);
                 Assert.AreEqual(0, TU.CountStr(phyplan, "not in"));
 
-                // incorelated InSubquery
+                // non-corelated InSubquery
                 sql = "select a1 from a where a2 not in (select b1 from b where b2>1)"; // not in (1,2)
                 TU.ExecuteSQL(sql, "2", out phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "not in"));
@@ -906,7 +912,11 @@ namespace qpmodel.unittest
                 // corelated InSubquery
                 sql = "select a1 from a where a2 in (select b2 from b where b2 = a1)";
                 TU.ExecuteSQL(sql, "", out phyplan, option);
-                Assert.AreEqual(0, TU.CountStr(phyplan, "not in"));
+                Assert.AreEqual(2, TU.CountStr(phyplan, "#marker"));
+
+                sql = "select a1 from a where a2 not in (select b2 from b where b2 = a1)";
+                TU.ExecuteSQL(sql, "0;1;2", out phyplan, option);
+                Assert.AreEqual(2, TU.CountStr(phyplan, "#marker"));
 
                 sql = "select a1 from a where a2 in (select b2 from b where b1 = a1 and b3 > 2 ) and a1 > 0";
                 TU.ExecuteSQL(sql, "1;2", out phyplan, option);
