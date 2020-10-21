@@ -603,6 +603,11 @@ namespace qpmodel.logic
             else
             {
                 // FIXME: we can't enable all optimizations with this mode
+                // Actually, we can't set remove_from to true unconditionally.
+                // It is true by default, but certain queries it must be turned off,
+                // therefore we should take it from the user specified options, if it is
+                // supplied (queryOpt_ != null), but we will get to this in a later PR
+                // related to remove_from.
                 queryOpt_.optimize_.remove_from_ = true;
                 queryOpt_.optimize_.use_memo_ = false;
 
