@@ -1434,14 +1434,14 @@ namespace qpmodel.unittest
             var result = TU.ExecuteSQL(sql); Assert.IsNull(result); Assert.IsTrue(TU.error_.Contains("b1"));
             sql = "select b1 from(select b1 as a1 from b) c(b1);"; TU.ExecuteSQL(sql, "0;1;2");
             // REMOVE_FROM: disable in this PR, it will be fixed in a later one.
-            // sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1"; TU.ExecuteSQL(sql, "5");
+            sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1"; TU.ExecuteSQL(sql, "5");
             sql = "select 5 as a6 from a where a6 > 2;";    // a6 is an output name
             result = TU.ExecuteSQL(sql); Assert.IsNull(result);
             Assert.IsTrue(TU.error_.Contains("a6"));
             sql = "select* from(select 5 as a6 from a where a1 > 1)b where a6 > 1;"; TU.ExecuteSQL(sql, "5");
 
             // REMOVE_FROM: disable in this PR, it will be fixed in a later one.
-            // sql = "select a.b1+c.b1 from (select count(*) as b1 from b) a, (select c1 b1 from c) c where c.b1>1;"; TU.ExecuteSQL(sql, "5");
+            sql = "select a.b1+c.b1 from (select count(*) as b1 from b) a, (select c1 b1 from c) c where c.b1>1;"; TU.ExecuteSQL(sql, "5");
             sql = "select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) and b.b1 > (select c2 / 2 from c where c.c2 = b2);"; TU.ExecuteSQL(sql, "2");
             sql = "select b1 from b where  b.b2 > (select c2 / 2 from c where c.c3 = b3) and b.b1 > (select c2 / 2 from c where c.c3 = b3);"; TU.ExecuteSQL(sql, "2");
             sql = "select a1*a2 a12, a1 a6 from a;"; TU.ExecuteSQL(sql, "0,0;2,1;6,2");
@@ -2390,12 +2390,12 @@ namespace qpmodel.unittest
 
             sql = "select count(c1), sum(c2) from (select * from a union all select * from b) c(c1,c2)";
             // REMOVE_FROM: disable it for this checkin/PR. It will be fixed by a later one.
-            // TU.ExecuteSQL(sql, "6,12", out _, option);
+            TU.ExecuteSQL(sql, "6,12", out _, option);
             sql = "select * from (select * from a union all select * from b) c(c1,c2) order by 1";
             // REMOVE_FROM: disable this and the next one in this PR, they will be fixed in a later one.
-            // TU.ExecuteSQL(sql, "0,1;0,1;1,2;1,2;2,3;2,3", out _, option);
+            TU.ExecuteSQL(sql, "0,1;0,1;1,2;1,2;2,3;2,3", out _, option);
             sql = "select max(c1), min(c2) from(select * from(select * from a union all select *from b) c(c1, c2))d(c1, c2) order by 1;";
-            // TU.ExecuteSQL(sql, "2,1", out _, option);
+            TU.ExecuteSQL(sql, "2,1", out _, option);
 
             // union [all]
             sql = "select a1.* from a, a a1 union select *from b where b1 > 1;";
@@ -2731,6 +2731,7 @@ namespace qpmodel.unittest
         {
            
             QueryOption option = new QueryOption();
+            // disable remove_from
             option.optimize_.remove_from_ = false;
             var sql = "select b1+b1 from (select b1 from b) a";
             var stmt = RawParser.ParseSingleSqlStatement(sql);
@@ -2741,7 +2742,6 @@ namespace qpmodel.unittest
                                 Output: b.b1[0]";
             TU.PlanAssertEqual(answer, phyplan);
 
-            sql = "select b1+b1 from (select b1 from b) a";
             stmt = RawParser.ParseSingleSqlStatement(sql);
             Debug.Assert(stmt.queryOpt_.optimize_.remove_from_ == true);
             SQLStatement.ExecSQL(sql, out phyplan, out _);
@@ -2749,7 +2749,7 @@ namespace qpmodel.unittest
                                Output: (b.b1[0]+b.b1[0])";
             TU.PlanAssertEqual(answer, phyplan);
             sql = "select b1+c1 from (select b1 from b) a, (select c1 from c) c where c1>1";
-            // without remove_from
+            // enable remove_from
             SQLStatement.ExecSQL(sql, out phyplan, out _, option); // FIXME: filter is still there
             answer = @"PhysicFilter  (actual rows=3)
                         Output: {(a.b1+c.c1)}[0]
@@ -2764,7 +2764,7 @@ namespace qpmodel.unittest
                                 Output: c.c1[0]
                                 -> PhysicScanTable c (actual rows=3, loops=3)
                                     Output: c.c1[0]";
-            // with remove_from
+            // enable remove_from, default.
             stmt = RawParser.ParseSingleSqlStatement(sql);
             SQLStatement.ExecSQL(sql, out phyplan, out _); // FIXME: filter is still there
             answer = @"PhysicNLJoin  (actual rows=3)
@@ -2782,7 +2782,7 @@ namespace qpmodel.unittest
             Assert.AreEqual("4", result[2].ToString());
             sql = "select b1+c1 from (select b1 from b) a, (select c1,c2 from c) c where c2-b1>1";
             stmt = RawParser.ParseSingleSqlStatement(sql);
-            // without remove_from
+            // disable remove_from
             SQLStatement.ExecSQL(sql, out phyplan, out _, option);
             answer = @"PhysicNLJoin  (actual rows=3)
                         Output: (a.b1[0]+c.c1[1])
@@ -2795,7 +2795,7 @@ namespace qpmodel.unittest
                             Output: c.c1[0],c.c2[1]
                             -> PhysicScanTable c (actual rows=3, loops=3)
                                 Output: c.c1[0],c.c2[1]";
-            // with remove_from
+            // enable remove_from, default.
             stmt = RawParser.ParseSingleSqlStatement(sql);
             SQLStatement.ExecSQL(sql, out phyplan, out _);
             answer = @"PhysicNLJoin  (actual rows=3)

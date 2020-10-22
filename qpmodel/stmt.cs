@@ -273,7 +273,8 @@ namespace qpmodel.logic
         {
             List<string> allowed = new List<string>
                 {"union", "unionall", "except", "exceptall", "intersect", "intersectall"};
-            Debug.Assert(allowed.Contains(op) || op is null);
+            string localOp = op.ToLower();
+            Debug.Assert(localOp is null || allowed.Contains(localOp));
             Debug.Assert(newstmt != null);
 
             if (IsLeaf())
@@ -281,13 +282,13 @@ namespace qpmodel.logic
                 left_ = new SetOpTree(stmt_);
                 stmt_ = null;
                 right_ = new SetOpTree(newstmt);
-                op_ = op;
+                op_ = localOp;
             }
             else
             {
                 left_ = (SetOpTree)this.MemberwiseClone();
                 right_ = new SetOpTree(newstmt);
-                op_ = op;
+                op_ = localOp;
             }
             Debug.Assert(!IsLeaf());
         }
@@ -348,11 +349,11 @@ namespace qpmodel.logic
                 {
                     case "unionall":
                         // union all keeps all rows, including duplicates
-                        plan = new LogicAppend(lplan, rplan);
+                        plan = new LogicAppend(lplan, rplan, this);
                         break;
                     case "union":
                         // union collect rows from both sides, and remove duplicates
-                        plan = new LogicAppend(lplan, rplan);
+                        plan = new LogicAppend(lplan, rplan, this);
                         var groupby = new List<Expr>(first_.selection_.CloneList());
                         plan = new LogicAgg(plan, groupby, null, null);
                         break;

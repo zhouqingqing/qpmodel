@@ -440,10 +440,10 @@ namespace qpmodel.expr
         public FromQueryRef(SelectStmt query, string alias, List<string> colOutputNames) : base(query, alias)
         {
             Debug.Assert(alias != null);
-            colOutputNames_ = colOutputNames;
-            colOutputNames_.ForEach(x =>
+            colOutputNames_ = new List<string>();
+            colOutputNames.ForEach(x =>
             {
-                x = qpmodel.utils.Utils.normalizeName(x);
+                colOutputNames_.Add(qpmodel.utils.Utils.normalizeName(x));
             });
         }
 

@@ -1388,14 +1388,81 @@ namespace qpmodel.logic
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true) => null;
     }
 
+    // LogicAppend needs extra information to allow remove_from optimization to work
+    // correctly on UNION queries inside a FromQuery.
+    // Resolve all selects in UNION. When remove_from is true, we don't
+    // generate a setop plan and therefore all except the first select remain
+    // without ordinals resolved. This leads to their output being null at
+    // execution time and the result is null pointer exception.
+    // The way to handle the situation is to let each LogicAppend node to know
+    // the SetOp tree it is part of. This is done by passing the SetOp tree
+    // whose left and right selects correspond to the left and right nodes of this
+    // logicAppend node in the constructor.
+    // Visit each branch of the SetOp tree and locate the select which corrresponds to
+    // left and right node and record those select lists as leftExprs_ and rightExprs_.
+    //
+    // Override ResolveColumnOrdinal in LogicAppend and using the saved
+    // selections, resolve the minimum of selections or reqOutput from each child.
+    //
+    // Set the top level LogicAppend's outputs to those of the first child.
+    //
     public class LogicAppend : LogicNode
     {
+        public List<Expr> leftExprs_;     // left plan's selection
+        public List<Expr> rightExprs_;    // right plan's selection
         public override string ToString() => $"Append({lchild_()},{rchild_()})";
 
-        public LogicAppend(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
+        public LogicAppend(LogicNode l, LogicNode r, SetOpTree setops = null)
+        {
+            children_.Add(l);
+            children_.Add(r);
 
-        // LogicAppend only needs to resolve column ordinals of its first child because others
-        // already solved in ResolveOrdinals().
+            // Using the setop tree, find the left and right plan's
+            // selections and save them to be used in ordinal resolution of
+            // all selects when this is not a top level UNION and remove_from
+            // is true.
+            if (setops != null)
+            {
+                setops.VisitEachStatement(x =>
+                {
+                    if (x.logicPlan_ == lchild_())
+                        leftExprs_ = x.selection_;
+                    else if (x.logicPlan_ == rchild_())
+                        rightExprs_ = x.selection_;
+                });
+            }
+        }
+
+        // Resolve one child's ordinals
+        internal void ResolveChild(in LogicNode child, in List<Expr> childExprs, in List<Expr> reqOutput, bool removeRedundant)
+        {
+            int minReq = Math.Min(reqOutput.Count, childExprs.Count);
+            List<Expr> childReq = new List<Expr>();
+            for (int i = 0; i < minReq; ++i)
+                childReq.Add(rightExprs_[i]);
+            child.ResolveColumnOrdinal(childReq, removeRedundant);
+        }
+
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
+        {
+            List<int> ordinals = children_[0].ResolveColumnOrdinal(reqOutput, removeRedundant);
+
+            if (rightExprs_ != null && children_[1].output_.Count == 0)
+                ResolveChild(children_[1], rightExprs_, reqOutput, removeRedundant);
+
+            if (leftExprs_ != null && children_[0].output_.Count == 0)
+                ResolveChild(children_[0], leftExprs_, reqOutput, removeRedundant);
+
+            // Only the top level LogicAppend will have the output_ still unset,
+            // set it after all children has their output set.
+            if (output_.Count == 0)
+            {
+                List<Expr> childout = children_[0].output_;
+                output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
+            }
+
+            return ordinals;
+        }
     }
 
     public class LogicLimit : LogicNode
