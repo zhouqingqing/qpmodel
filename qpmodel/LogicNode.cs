@@ -1075,6 +1075,23 @@ namespace qpmodel.logic
             List<Expr> reqFromChild = new List<Expr>();
             reqFromChild.AddRange(removeAggFuncAndKeyExprsFromOutput(reqList, groupby_));
 
+            // Issue exposed by removing remove_from.
+            // Remeber the last position of output required by the parent, it is not an error
+            // if the offending occures after this position.
+            // The query that fails is
+            // select d1, sum(d2) from (select c1/2, sum(c1) from (select b1, count(*) as a1 from b group by b1)c(c1, c2)
+            // group by c1/2) d(d1, d2) group by d1;
+            // LogicPlan will be Agg(Agg(Agg(b)))
+            // While resolving second level Agg, group by is b1 / 2, reqOutput is b1/2, sum(b1), b1
+            // after removeAggFuncAndKeyExprsFromOutput, the list is b1/2, b1
+            // after adding group by expressions/columns it is b1 / 2, b1, b1
+            // child output is b1/2, b1
+            // after new aggregates are generated, our output is b1/2 {expref}, sum(b1) {expref}, b1 {colref} added by us
+            // will not be changed into ExprRef because it is not grouping expression. This sets the offending and
+            // raises the error column x must appear in group by clause.
+            // 
+            int grpbyColumnAddPosition = reqFromChild.Count;
+
             // It is ideal to add keys_ directly to reqFromChild but matching can be harder.
             // Consider the following case:
             //   keys/having: a1+a2, a3+a4
@@ -1110,14 +1127,20 @@ namespace qpmodel.logic
             // Say invvalid expression means contains colexpr (replaced with ref), then the output shall
             // contains no expression consists invalid expression
             //
+            int offendingFirstPos = -1, offendingPos = 0;
             Expr offending = null;
             newoutput.ForEach(x =>
             {
                 if (x.VisitEachExists(y => y is ColExpr, new List<Type> { typeof(ExprRef) }))
+                {
                     offending = x;
+                    if (offendingFirstPos == -1)
+                        offendingFirstPos = offendingPos;
+                }
+                ++offendingPos;
             });
-            if (offending != null)
-                throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
+            if (offending != null && offendingFirstPos < grpbyColumnAddPosition)
+                    throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
             output_ = newoutput;
             if (having_?.VisitEachExists(y => y is ColExpr, new List<Type> { typeof(ExprRef) }) ?? false)
                 throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
