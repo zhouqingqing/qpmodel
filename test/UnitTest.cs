@@ -1184,6 +1184,24 @@ namespace qpmodel.unittest
             sql = "select sum(a1) from (select sum(a1) from (select sum(a1) from a )b(a1) )c(a1);"; // WRONG
 
             // FIXME: if we turn memo on, we have problems resolving columns
+
+            option.optimize_.remove_from_ = true;
+            // More count(*) expressions and remove_from set to true.
+            sql = "select k1, k2 from (select count(*) k1, count(*) k2 from a, b) x(k1, k2)";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
+            Assert.IsFalse(phyplan.Contains("PhysicFromQuery"));
+            Assert.IsTrue(result.Count == 1);
+            Assert.AreEqual("9,9", string.Join(";", result));
+
+            sql = "select k1, k2 from (select count(*) + b1 k1, count(*) + a1 k2 from a, b group by a1, b1) x(k1, k2) order by 1, 2;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
+            Assert.IsFalse(phyplan.Contains("PhysicFromQuery"));
+            Assert.AreEqual("1,1;1,2;1,3;2,1;2,2;2,3;3,1;3,2;3,3", string.Join(";", result));
+
+            sql = "select k1 + count(*) from (select a1, sum(b1) from (select c1, count(*) from c group by c1) x(a1, b1) group by a1) z(k1, k2) group by k1;";
+            result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
+            Assert.IsFalse(phyplan.Contains("PhysicFromQuery"));
+            Assert.AreEqual("1;2;3", string.Join(";", result));
         }
 
         [TestMethod]

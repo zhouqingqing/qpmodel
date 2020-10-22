@@ -209,7 +209,6 @@ namespace qpmodel.unittest
                      WHERE PNUM='P2'
                      ORDER BY EMPNUM DESC;";
             var stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(4, stmtResult.Count);
             Assert.AreEqual(stmtResult[3][0].ToString(), "E1");
 
@@ -219,7 +218,6 @@ namespace qpmodel.unittest
                      WHERE PNUM='P2'
                      ORDER BY 2 ASC;";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(4, stmtResult.Count);
             Assert.AreEqual(stmtResult[3][1].ToString(), "80");
 
@@ -229,7 +227,6 @@ namespace qpmodel.unittest
                      WHERE PNUM = 'P2'
                      ORDER BY 2 DESC,EMPNUM DESC;";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(4, stmtResult.Count);
             Assert.AreEqual(stmtResult[3][0].ToString(), "E1");
         }
@@ -241,7 +238,6 @@ namespace qpmodel.unittest
           FROM WORKS
           WHERE PNUM = 'P2';";
             var stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0].ToString(), "140");
 
@@ -250,7 +246,6 @@ namespace qpmodel.unittest
           FROM WORKS
           WHERE PNUM = 'P2';";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "150");
 
@@ -260,7 +255,6 @@ namespace qpmodel.unittest
           WHERE GRADE = (SELECT MAX(GRADE) FROM STAFF)
           ORDER BY EMPNUM;";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(2, stmtResult.Count);
             Assert.AreEqual("E3,E5", string.Join(",", stmtResult));
         }
@@ -272,7 +266,6 @@ namespace qpmodel.unittest
           FROM PROJ
           WHERE BUDGET BETWEEN 40000 AND 60000;";
             var stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "P6");
 
@@ -281,7 +274,6 @@ namespace qpmodel.unittest
           FROM PROJ
           WHERE BUDGET >= 40000 AND BUDGET <= 60000;";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "P6");
 
@@ -295,7 +287,6 @@ namespace qpmodel.unittest
           FROM STAFF
           WHERE GRADE NOT BETWEEN 12 AND 13;";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             // Assert.AreEqual(1, stmtResult.Count);
             // Assert.AreEqual(stmtResult[0][0].ToString(), "Vienna");
 
@@ -306,7 +297,6 @@ namespace qpmodel.unittest
            FROM STAFF
            WHERE NOT(GRADE BETWEEN 12 AND 13);";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "Vienna");
 #endif
@@ -322,7 +312,6 @@ namespace qpmodel.unittest
                                     FROM PROJ
                                     WHERE PROJ.CITY='Tampa'));";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "Alice");
 
@@ -334,7 +323,6 @@ namespace qpmodel.unittest
                         FROM PROJ
                         WHERE PROJ.BUDGET BETWEEN 5000 AND 40000);";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "12");
 
@@ -346,7 +334,6 @@ namespace qpmodel.unittest
                        FROM PROJ
                        WHERE PROJ.BUDGET BETWEEN 5000 AND 40000));";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "12");
 
@@ -358,7 +345,6 @@ namespace qpmodel.unittest
                        FROM WORKS
                        WHERE PNUM IN ('P1','P2','P4','P5','P6'));";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "80");
 
@@ -370,7 +356,6 @@ namespace qpmodel.unittest
                        FROM WORKS
                        WHERE PNUM IN ('P1','P2','P4','P5','P6')));";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "80");
 
@@ -403,7 +388,6 @@ namespace qpmodel.unittest
           GROUP BY PNUM
           HAVING COUNT(*) > 1;";
             TU.ExecuteSQL(sql, "P2;P4;P5");
-            Assert.AreEqual("", TU.error_);
 
             sql = @"
      SELECT PNUM
@@ -411,7 +395,6 @@ namespace qpmodel.unittest
           GROUP BY PNUM
           HAVING COUNT(*) > 2;";
             var stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "P2");
 
@@ -421,7 +404,6 @@ namespace qpmodel.unittest
           GROUP BY PNUM, EMPNUM, HOURS
           HAVING MIN(HOURS) > 12 AND MAX(HOURS) < 80;";
             TU.ExecuteSQL(sql, "E1,P1,40;E1,P2,20;E1,P4,20;E2,P1,40;E3,P2,20;E4,P2,20;E4,P4,40");
-            Assert.AreEqual("", TU.error_);
 
             sql = @"
      SELECT WORKS.PNUM
@@ -432,10 +414,9 @@ namespace qpmodel.unittest
                     GROUP BY PROJ.PNUM
                     HAVING SUM(PROJ.BUDGET) > 25000);";
             TU.ExecuteSQL(sql, "P2;P3;P6");
-            Assert.AreEqual("", TU.error_);
 
             /*
-            * implemnt string compare operators.
+            * implement string compare operators.
             */
 #if false
             /*
@@ -457,7 +438,6 @@ namespace qpmodel.unittest
           GROUP BY PNUM
           HAVING COUNT(*) > 1;";
             TU.ExecuteSQL(sql, "P2;P4;P5");
-            Assert.AreEqual("", TU.error_);
         }
 
         public void dml022()
@@ -469,7 +449,6 @@ namespace qpmodel.unittest
              (SELECT MAX(GRADE)
               FROM STAFF);";
             TU.ExecuteSQL(sql, "E1;E2;E4");
-            Assert.AreEqual("", TU.error_);
 
             sql = @"
      SELECT *
@@ -478,7 +457,6 @@ namespace qpmodel.unittest
              (SELECT AVG(GRADE)-1
               FROM STAFF);";
             var stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "E2");
             Assert.AreEqual(stmtResult[0][1].ToString(), "Betty");
@@ -492,7 +470,6 @@ namespace qpmodel.unittest
               WHERE PNUM = 'P2')
      ORDER BY EMPNAME;";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(4, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "Alice");
 
@@ -507,7 +484,6 @@ namespace qpmodel.unittest
                   FROM PROJ
                   WHERE PTYPE = 'Design'));";
             TU.ExecuteSQL(sql, "Alice;Betty;Don");
-            Assert.AreEqual("", TU.error_);
 
             sql = @"
      SELECT EMPNUM, EMPNAME
@@ -533,7 +509,6 @@ namespace qpmodel.unittest
                                   WHERE PTYPE = 'Design'))))))
      ORDER BY EMPNUM;";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(4, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "E1");
 
@@ -554,7 +529,6 @@ namespace qpmodel.unittest
                    WHERE WORKSZ.EMPNUM = WORKSX.EMPNUM
                    AND WORKSZ.PNUM = WORKSY.PNUM));";
             TU.ExecuteSQL(sql, "E1;E2");
-            Assert.AreEqual("", TU.error_);
 #endif
         }
 
@@ -568,7 +542,6 @@ namespace qpmodel.unittest
               FROM STAFF
               WHERE EMPNUM = 'E1');";
             TU.ExecuteSQL(sql, "P1;P4;P6");
-            Assert.AreEqual("", TU.error_);
         }
 
         public void dml059()
@@ -587,7 +560,6 @@ namespace qpmodel.unittest
           GROUP BY COL1
           ORDER BY COL1;";
             TU.ExecuteSQL(sql, "0,3,1;10,50,1;100,1223,100;1000,1000,5000");
-            Assert.AreEqual("", TU.error_);
 
             sql = "DROP TABLE VTABLE;";
             TU.ExecuteSQL(sql);
@@ -636,7 +608,6 @@ namespace qpmodel.unittest
                                AND MAX(COL2) BETWEEN 10 AND 90
           ORDER BY COL1;";
             var stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "10");
             Assert.AreEqual(stmtResult[0][1].ToString(), "20");
@@ -653,7 +624,6 @@ namespace qpmodel.unittest
           WHERE 10 + COL1 > COL2
           HAVING MAX(COL1) > 100;";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "1000");
 
@@ -663,7 +633,6 @@ namespace qpmodel.unittest
           WHERE 1000 + COL1 >= COL2
           HAVING MAX(COL1) > 100;";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "1110");
         }
@@ -676,7 +645,6 @@ namespace qpmodel.unittest
            WHERE STAFF.EMPNUM = 'E2'
                  AND STAFF.EMPNUM = WORKS.EMPNUM;";
             var stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "60");
             Assert.AreEqual(stmtResult[0][1].ToString(), "40");
@@ -690,7 +658,6 @@ namespace qpmodel.unittest
                  HAVING COUNT(*) > 1
                  ORDER BY STAFF.EMPNUM;";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(2, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "E1");
             decimal DecNum = Convert.ToDecimal(stmtResult[0][1].ToString());
@@ -709,7 +676,6 @@ namespace qpmodel.unittest
            SUM(T2.COL4), COUNT(T1.COL4)
            FROM VTABLE T1, VTABLE T2;";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(1, stmtResult.Count);
             DecNum = Convert.ToDecimal(stmtResult[0][0].ToString());
             Assert.IsTrue(DecNum >= 147 && DecNum <= 148);
@@ -729,7 +695,6 @@ namespace qpmodel.unittest
                          WHERE PROJ.PNUM = WORKS.PNUM AND
                                SUM(WORKS.HOURS) > PROJ.BUDGET / 200);";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(2, stmtResult.Count);
             String Pnum1 = stmtResult[0][0].ToString();
             String Pnum2 = stmtResult[1][0].ToString();
@@ -755,7 +720,6 @@ namespace qpmodel.unittest
                AND BUDGET - GRADE * HOURS * 100 IN
                    (-4400, -1000, 4000);";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "CALM");
 #endif
@@ -768,7 +732,6 @@ namespace qpmodel.unittest
                 IN (2, 20000, 10000)
          ORDER BY CITY DESC;";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(2, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "Vienna");
             Assert.AreEqual(stmtResult[0][1].ToString(), "2");
@@ -780,7 +743,6 @@ namespace qpmodel.unittest
          FROM PROJ
          WHERE 24 * 1000 BETWEEN BUDGET - 5000 AND 50000 / 1.7;";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(stmtResult[0][0].ToString(), "3");
 
 #if false
@@ -795,7 +757,6 @@ namespace qpmodel.unittest
          WHERE 'Tampa' NOT BETWEEN CITY AND 'Vienna'
                            AND PNUM > 'P2';";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "IRM");
 #endif
@@ -806,7 +767,6 @@ SELECT CITY, COUNT(*)
       GROUP BY CITY
       HAVING 50000 + 2 BETWEEN 33000 AND SUM(BUDGET) - 20;";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "Deale");
             Assert.AreEqual(stmtResult[0][1].ToString(), "3");
@@ -824,7 +784,6 @@ SELECT CITY, COUNT(*)
        AND GRADE > 10)
        ORDER BY EMPNUM;";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(2, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "E1");
             Assert.AreEqual(stmtResult[0][1].ToString(), "184");
@@ -841,7 +800,6 @@ SELECT CITY, COUNT(*)
        AND CITY = 'Deale')
        ORDER BY EMPNUM;";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             Assert.AreEqual(2, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "E1");
             Assert.AreEqual(stmtResult[0][1].ToString(), "184");
