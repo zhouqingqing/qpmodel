@@ -712,6 +712,26 @@ namespace qpmodel.logic
                                 throw new InvalidProgramException($"requests contains invalid tableref {x.tableRefs_[0]}");
                         });
                     }
+
+                    // Let the count(*) be counted!
+                    // When remove_from is removed a query like
+                    // select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1
+                    // count(*) does down to b as required output which is not valid.
+                    // The fix is to require (0) from the child referenced by the count(*) here
+                    // and include count(*) tablRefs in CollectAllTableRef().
+                    var agcs = v.RetrieveAllType<AggCountStar>();
+                    agcs.ForEach(y =>
+                    {
+                        y.tableRefs_.ForEach(z =>
+                        {
+                            if (ltables.Contains(z))
+                                lreq.Add(y);
+                            else if (rtables.Contains(z))
+                                rreq.Add(y);
+                            else
+                                throw new InvalidProgramException($"requests contains invalid tableref {z.alias_}");
+                        });
+                    });
                 }
                 else
                 {
@@ -1089,7 +1109,7 @@ namespace qpmodel.logic
             // after new aggregates are generated, our output is b1/2 {expref}, sum(b1) {expref}, b1 {colref} added by us
             // will not be changed into ExprRef because it is not grouping expression. This sets the offending and
             // raises the error column x must appear in group by clause.
-            // 
+            //
             int grpbyColumnAddPosition = reqFromChild.Count;
 
             // It is ideal to add keys_ directly to reqFromChild but matching can be harder.
@@ -1126,6 +1146,13 @@ namespace qpmodel.logic
 
             // Say invvalid expression means contains colexpr (replaced with ref), then the output shall
             // contains no expression consists invalid expression
+            // TODO: This check on offending, and offendingFirstPos are not as good as they
+            // should be and therefore some queries will fail to compile or run if remove_from
+            // is enabled. This needs to be refined to cover all invalid cases but none that are
+            // valid, i.e, don't throw when remove_from is enabled and it looks like there are
+            // column references in the group by that are not in group by, aggregates in select list.
+            // The reference query:
+            // select d1, sum(d2) from (select c1/2, sum(c1) from (select b1, count(*) as a1 from b group by b1)c(c1, c2) group by c1/2) d(d1, d2) group by d1;
             //
             int offendingFirstPos = -1, offendingPos = 0;
             Expr offending = null;
