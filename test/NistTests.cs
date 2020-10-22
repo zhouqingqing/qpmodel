@@ -374,7 +374,6 @@ namespace qpmodel.unittest
                                    WHERE STAFF.EMPNUM = WORKS.EMPNUM
                                    AND WORKS.PNUM=PROJ.PNUM));";
             stmtResult = TU.ExecuteSQL(sql);
-            Assert.AreEqual("", TU.error_);
             // Assert.AreEqual(1, stmtResult.Count);
             // Assert.AreEqual(stmtResult[0][0].ToString(), "Alice");
         }
@@ -806,6 +805,107 @@ SELECT CITY, COUNT(*)
             Assert.AreEqual(stmtResult[1][0].ToString(), "E4");
             Assert.AreEqual(stmtResult[0][1].ToString(), "140");
 #endif
+            //   Try them in FROM
+            //   -- TEST:0004 SELECT with UNION, ORDER BY integer DESC!
+            //   -- PASS:0004 If 5 rows selected and last EMPNUM = 'E1'?
+            sql = @"
+                SELECT WEMPNUM
+                    FROM (
+                        SELECT WORKS.EMPNUM
+                            FROM WORKS
+                            WHERE WORKS.PNUM = 'P2'
+                        UNION
+                        SELECT STAFF.EMPNUM
+                            FROM STAFF
+                            WHERE STAFF.GRADE=13) WEMP(WEMPNUM)
+                     ORDER BY 1 DESC
+               ";
+            stmtResult = TU.ExecuteSQL(sql);
+            Assert.AreEqual(5, stmtResult.Count);
+            Assert.AreEqual(stmtResult[4][0].ToString(), "E1");
+
+            // -- TEST:0005 SELECT with UNION ALL!
+            // -- PASS:0005 If 6 rows selected?
+            sql = @"
+                SELECT WEMPNUM
+                    FROM (
+                        SELECT WORKS.EMPNUM
+                             FROM WORKS
+                             WHERE WORKS.PNUM = 'P2'
+                    UNION ALL
+                        SELECT STAFF.EMPNUM
+                             FROM STAFF
+                             WHERE STAFF.GRADE = 13
+                    ) WEMP(WEMPNUM);
+            ";
+            stmtResult = TU.ExecuteSQL(sql);
+            Assert.AreEqual(6, stmtResult.Count);
+
+#if false
+            // -- TEST:0158 SELECT with UNION and NOT EXISTS subquery!
+            // -- PASS:0158 If 21 rows selected?
+            /*
+             * EXCEPTION:
+             * PhysicMarkJoin.Exec(Action`1 callback) line 490
+             * PhysicProfiling.Exec(Action`1 callback) line 349
+             * PhysicFilter.Exec(Action`1 callback) line 1596
+             * PhysicProfiling.Exec(Action`1 callback) line 349
+             */
+            sql = @"
+                SELECT EMPNAME,PNUM,HOURS
+                     FROM STAFF,WORKS
+                     WHERE STAFF.EMPNUM = WORKS.EMPNUM
+            UNION
+                SELECT EMPNAME,PNUM,HOURS
+                     FROM STAFF,WORKS
+                     WHERE NOT EXISTS
+                       (SELECT HOURS
+                             FROM WORKS
+                             WHERE STAFF.EMPNUM = WORKS.EMPNUM);
+               ";
+            stmtResult = TU.ExecuteSQL(sql);
+            Assert.AreEqual(21, stmtResult.Count);
+
+            // Assert.AreEqual failed. Expected:<>. Actual:<select_core->select_stmt->sql_stmt->sql_stmt_list->parse : 6|12|[@102,141:141='(',<6>,6:12]|extraneous input '(' expecting {K_SELECT, K_VALUES}>.
+            // -- TEST:0160 SELECT with parenthesized UNION, UNION ALL!
+            // -- PASS:0160 If 14 rows selected?
+            sql = @"
+             SELECT PNUM,EMPNUM,HOURS
+                  FROM WORKS
+                  WHERE HOURS=12
+             UNION ALL
+            (SELECT PNUM,EMPNUM,HOURS
+                  FROM WORKS
+             UNION
+             SELECT PNUM,EMPNUM,HOURS
+                  FROM WORKS
+                  WHERE HOURS=80)
+                  ORDER BY 2,1;
+               ";
+            stmtResult = TU.ExecuteSQL(sql);
+            Assert.AreEqual(14, stmtResult.Count);
+            // AGGREGATES on strings not supported.
+            sql = @"SELECT COLUMN_1, COLUMN_2, COLUMN_3 FROM (
+      SELECT PNUM, BUDGET, CITY
+        FROM PROJ OUTER_REF
+        WHERE BUDGET >= (SELECT AVG(BUDGET) FROM PROJ INNER_REF
+                          WHERE OUTER_REF.CITY = INNER_REF.CITY)
+     UNION
+      SELECT 'MAX', MAX(BUDGET), MIN(CITY)
+        FROM PROJ
+        WHERE CITY > 'Deale') ABOVE_AVERAGE (COLUMN_1, COLUMN_2, COLUMN_3) ORDER BY COLUMN_1";
+            stmtResult = TU.ExecuteSQL(sql);
+            // -- PASS:0599 If 4 rows selected with ordered rows and column values: ?
+            // -- PASS:0599    MAX  30000  Tampa  ?
+            // -- PASS:0599    P2   30000  Vienna ?
+            // -- PASS:0599    P3   30000  Tampa  ?
+            // -- PASS:0599    P6   50000  Deale  ?
+#endif
+            sql = "select empnum, sum(hours) from (select empnum, hours from works group by hours, empnum) workweek(empnum, hours) where hours > 20 group by empnum having empnum = 'E1';";
+            stmtResult = TU.ExecuteSQL(sql);
+            Assert.AreEqual(1, stmtResult.Count);
+            Assert.AreEqual(stmtResult[0][0].ToString(), "E1");
+            Assert.AreEqual(stmtResult[0][1].ToString(), "120");
         }
     }
 }
