@@ -632,10 +632,9 @@ namespace qpmodel.unittest
                 if (option.optimize_.use_memo_) Assert.AreEqual(0, TU.CountStr(phyplan, "NLJoin"));
                 TU.ExecuteSQL(File.ReadAllText(files[11]), "MAIL,5,5;SHIP,5,10", out _, option);
                 // FIXME: agg on agg from
-                option.optimize_.remove_from_ = false;
-                result = TU.ExecuteSQL(File.ReadAllText(files[12]), out _, option); // FIXME: remove_from
-                Assert.AreEqual(27, result.Count);
                 option.optimize_.remove_from_ = true;
+                result = TU.ExecuteSQL(File.ReadAllText(files[12]), out _, option);
+                Assert.AreEqual(27, result.Count);
                 result = TU.ExecuteSQL(File.ReadAllText(files[13]), out _, option);
                 Assert.AreEqual(1, result.Count);
                 Assert.AreEqual(true, result[0].ToString().Contains("15.23"));
@@ -1012,6 +1011,8 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestExecSubFrom()
         {
+            // Is this comment still valid, with remove_from
+            // set to true by default?
             #region regular w/o FromQuery removal
             var sql = "select * from a, (select * from b) c";
             var result = ExecuteSQL(sql);
@@ -1176,14 +1177,20 @@ namespace qpmodel.unittest
                 }
             }
 
+            sql = "select b1,c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where b1>1 and c100>1;";
+            result = TU.ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual("3,2", string.Join(";", result));
+            Assert.IsFalse(phyplan.Contains("PhysicFromQuery"));
+
             // FIXME
-            sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;";
-            sql = "select a1 from a, (select max(b3) maxb3 from b) b where a1 < maxb3"; // WRONG!
-            sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1;"; // WRONG
-            sql = "select b1,c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where b1>1 and c100>1;"; // ANSWER WRONG
+            // REMOVE_FROM: fails with offending column.
             sql = "select sum(a1) from (select sum(a1) from (select sum(a1) from a )b(a1) )c(a1);"; // WRONG
 
             // FIXME: if we turn memo on, we have problems resolving columns
+            sql = "select a1 from a, (select max(b3) maxb3 from b) b where a1 < maxb3";
+            // result = TU.ExecuteSQL(sql, out phyplan, option);
+            // Assert.AreEqual("0;1;2", string.Join(";", result));
+            // Assert.IsFalse(phyplan.Contains("PhysicFromQuery"));
 
             option.optimize_.remove_from_ = true;
             // More count(*) expressions and remove_from set to true.
@@ -1433,7 +1440,6 @@ namespace qpmodel.unittest
             sql = "select b1 from(select b1 as a1 from b) c;";
             var result = TU.ExecuteSQL(sql); Assert.IsNull(result); Assert.IsTrue(TU.error_.Contains("b1"));
             sql = "select b1 from(select b1 as a1 from b) c(b1);"; TU.ExecuteSQL(sql, "0;1;2");
-            // REMOVE_FROM: disable in this PR, it will be fixed in a later one.
             sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1"; TU.ExecuteSQL(sql, "5");
             sql = "select 5 as a6 from a where a6 > 2;";    // a6 is an output name
             result = TU.ExecuteSQL(sql); Assert.IsNull(result);
@@ -1516,8 +1522,8 @@ namespace qpmodel.unittest
             TU.PlanAssertEqual(answer, phyplan);
 
             // In WHERE clause.
-            sql = "select c1, c1 from (select sum(abs(a1 * -10.3)) c1, sum(round(10.7 * a2, 2)) c2 from a) x where 10 + c1 < c2";
-            result = ExecuteSQL(sql, out phyplan);
+            sql = "select c1, c2 from (select sum(abs(a1 * -10.3)) c1, sum(round(10.7 * a2, 2)) c2 from a) x where 10 + c1 < c2";
+            TU.ExecuteSQL(sql, "30.9,64.2", out phyplan);
             answer = @"PhysicHashAgg  (actual rows=1)
                            Output: {sum(abs(a.a1*-10.3))}[0],{sum(abs(a.a1*-10.3))}[0]
                            Aggregates: sum(abs(a.a1[1]*-10.3)), sum(round(a.a2[3]*10.7,2))
@@ -2389,10 +2395,8 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "0,1,2,3;0,1,2,3", out _, option);
 
             sql = "select count(c1), sum(c2) from (select * from a union all select * from b) c(c1,c2)";
-            // REMOVE_FROM: disable it for this checkin/PR. It will be fixed by a later one.
             TU.ExecuteSQL(sql, "6,12", out _, option);
             sql = "select * from (select * from a union all select * from b) c(c1,c2) order by 1";
-            // REMOVE_FROM: disable this and the next one in this PR, they will be fixed in a later one.
             TU.ExecuteSQL(sql, "0,1;0,1;1,2;1,2;2,3;2,3", out _, option);
             sql = "select max(c1), min(c2) from(select * from(select * from a union all select *from b) c(c1, c2))d(c1, c2) order by 1;";
             TU.ExecuteSQL(sql, "2,1", out _, option);
