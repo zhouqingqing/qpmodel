@@ -733,6 +733,13 @@ namespace qpmodel.expr
                         Debug.Assert(x.bounded_);
                         tableRefs_.AddRange(x.ResetAggregateTableRefs());
                     }
+                    else
+                    {
+                        // propagate tableref from count(*) to whatever it is part of
+                        // so that the expression containing count(*) will have correct
+                        // tableref and correct number of them.
+                        tableRefs_.AddRange(x.tableRefs_);
+                    }
                 });
                 if (tableRefs_.Count > 1)
                     tableRefs_ = tableRefs_.Distinct().ToList();
