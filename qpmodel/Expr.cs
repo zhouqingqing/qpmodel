@@ -218,7 +218,6 @@ namespace qpmodel.expr
         // that count(*) needs to be pushed to correct child.
         // In addition, in LogicJoin Resolve, we consider these table refs to decide which child
         // requires to output count(*) to make the plan valid.
-
         public static List<TableRef> CollectAllTableRef(this Expr expr, bool includingParameters = true)
         {
             var list = new HashSet<TableRef>();

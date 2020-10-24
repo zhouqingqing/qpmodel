@@ -755,7 +755,7 @@ namespace qpmodel.logic
                 childrenout.Add(thisReq);
             }
             output_ = CloneFixColumnOrdinal(reqOutput, childrenout, removeRedundant);
-           
+
             RefreshOutputRegisteration();
             CreateKeyList();
             return ordinals;
@@ -1087,13 +1087,54 @@ namespace qpmodel.logic
 
             // reqOutput may contain ExprRef which is generated during FromQuery removal process, remove them
             var reqList = processedOutput.CloneList(new List<Type> { typeof(ConstExpr) });
+            // Aggregates in group by handling. If there are aggregates in
+            // group by, collect their arguments (directly contained aggregate
+            // functions and those inside AggrRef and other expressions and
+            // make this list as required from child. Save the original
+            // group by and null it out.
+            // After getting the output from the child, restore the original
+            // group by and resolve everthing as usual.
+            List<Expr> newGrpBy = null;
+            List<Expr> savedGrpBy = null;
+
+            if (groupby_ != null)
+            {
+                bool hasAgg = false;
+                groupby_.ForEach(x =>
+                {
+                    if (x.HasAggFunc())
+                        hasAgg = true;
+                });
+
+                if (hasAgg)
+                {
+                    newGrpBy = new List<Expr>();
+                    savedGrpBy = groupby_.CloneList();
+                    for (int i = 0; i < groupby_.Count; ++i)
+                    {
+                        Expr x = groupby_[i];
+                        if (x is AggFunc agf)
+                            newGrpBy.Add(x);
+                        else if (x is AggrRef agr)
+                            newGrpBy.Add(agr.child_());
+                        else
+                            newGrpBy.Add(x);
+                    }
+                }
+            }
+
+            if (newGrpBy != null)
+                groupby_ = null;
 
             // request from child including reqOutput and filter. Don't use whole expression
             // matching push down like k+k => (k+k)[0] instead, we need k[0]+k[0] because 
             // aggregation only projection values from hash table(key, value).
             //
             List<Expr> reqFromChild = new List<Expr>();
-            reqFromChild.AddRange(removeAggFuncAndKeyExprsFromOutput(reqList, groupby_));
+            if (newGrpBy != null)
+                reqFromChild.AddRange(newGrpBy);
+            else
+               reqFromChild.AddRange(removeAggFuncAndKeyExprsFromOutput(reqList, groupby_));
 
             // Issue exposed by removing remove_from.
             // Remeber the last position of output required by the parent, it is not an error
@@ -1135,6 +1176,8 @@ namespace qpmodel.logic
             child_().ResolveColumnOrdinal(reqFromChild);
             var childout = child_().output_;
 
+            if (savedGrpBy != null)
+                groupby_ = savedGrpBy;
             if (groupby_ != null)
                 groupby_ = CloneFixColumnOrdinal(groupby_, childout, true);
             if (having_ != null)
