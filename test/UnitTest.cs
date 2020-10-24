@@ -374,10 +374,6 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestBenchmarks()
         {
-            // REMOVE_FROM
-            // disable this test in this PR. It will be enabled in a later PR.
-            return;
-
             TestTpcdsPlanOnly();
             TestTpcdsWithData();
 
@@ -1004,6 +1000,9 @@ namespace qpmodel.unittest
 
                 //  OR condition failed 
                 sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) or a2>1;";
+                TU.ExecuteSQL(sql, "0,2;1,3;2,4", out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
+
+                //  OR condition failed
                 sql = "select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 or b1 = (select b1 from b where b2 = 2*a1 and b3>1) and b2<3);";
             }
         }
@@ -1033,7 +1032,7 @@ namespace qpmodel.unittest
             sql = "select b1+c1 from (select b1 from b) a, (select c1 from c) c where c1>1";
             TU.ExecuteSQL(sql, "2;3;4");
             sql = "select count(*) from (select * from a where a1 > 1) b;";
-            // run without remove_from
+            // Disable remove_from
             QueryOption option = new QueryOption();
             option.optimize_.remove_from_ = false;
             result = SQLStatement.ExecSQL(sql, out string phyplan, out _, option);
@@ -1047,7 +1046,7 @@ namespace qpmodel.unittest
                                     Filter: a.a1[0]>1
                         ";  // observing no double push down
             TU.PlanAssertEqual(answer, phyplan);
-            // run with remove_from=true, which is the default.
+            // run with remove_from enabled, which is the default.
             result = ExecuteSQL(sql, out phyplan);
             answer = @"PhysicHashAgg  (actual rows=1)
                                Output: {count(*)(0)}[0]
@@ -1081,16 +1080,39 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "0,0;1,2;2,6");
             sql = "select a1, sum(a12) as a2 from (select a1, a1*a2 a12 from a) b where a1 >= (select c1 from c where c1=a12) group by a1;";
             TU.ExecuteSQL(sql, "0,0");
+            sql = "select c1, c2 from (select max(a1 + b1), sum(a2 + b3) from a,  b) x(c1, c2) where c1 > 1 and c2 > 1;";
+            TU.ExecuteSQL(sql, "4,45", out phyplan);
+
+            // This query can't run with remove_from optimization
+            // due to binding issues, so turn it off.
+            option.optimize_.remove_from_ = false;
             sql = @"SELECT e1  FROM   (SELECT d1 FROM   (SELECT Sum(ab12) 
                                         FROM   (SELECT e1 * b2 ab12 FROM   (SELECT e1 FROM   (SELECT d1 
                                                                 FROM   (SELECT Sum(ab12) 
                                                                         FROM   (SELECT a1 * b2 ab12 FROM  a  JOIN b ON a1 = b1) b) 
                                                                        c(d1)) 
                                                                d(e1)) a JOIN b ON e1 = 8*b1) b) c(d1)) d(e1); ";
-            // REMOVE_FROM: disable it for this PR, it will be fixed in a later one.
-            // TU.ExecuteSQL(sql, "16");
+            TU.ExecuteSQL(sql, "16", out _, option);
             sql = "select *, cd.* from (select a.* from a join b on a1=b1) ab , (select c1 , c3 from c join d on c1=d1) cd where ab.a1=cd.c1";
             TU.ExecuteSQL(sql, "0,1,2,3,0,2,0,2;1,2,3,4,1,3,1,3;2,3,4,5,2,4,2,4");
+            // This will fail when remove_from is true, even after handling
+            // aggregates inside aggregates, run it with remove_from disabled.
+            sql = "select sum(c1), avg(c2) from (select count(*) + count(b3), avg(a2) + 7 from a join b on a1 <> b4) x(c1, c2)";
+            TU.ExecuteSQL(sql, "18,9", out _, option);
+
+            // Adding the arguments of top level aggregates as group by list
+            // forces resolution of all ordinals and the query runs and
+            // produces correct result set with remove_from optimization.
+            sql = "select sum(c1), avg(c2) from (select count(*) + count(b3), avg(a2) + 7 from a join b on a1 <> b4) x(c1, c2) group by c1, c2;";
+            TU.ExecuteSQL(sql, "18,9");
+
+            // taking out top level aggregation will also work
+            sql = "select c1, c2 from (select count(*) + count(b3), avg(a2) + 7 from a join b on a1 <> b4) x(c1, c2) group by c1, c2;";
+            TU.ExecuteSQL(sql, "18,9");
+
+            // now the group by can also be removed, the result set is the same in all three cases.
+            sql = "select c1, c2 from (select count(*) + count(b3), avg(a2) + 7 from a join b on a1 <> b4) x(c1, c2)";
+            TU.ExecuteSQL(sql, "18,9");
             #endregion
 
             // these queries we can remove from
@@ -1185,6 +1207,24 @@ namespace qpmodel.unittest
             // FIXME
             // REMOVE_FROM: fails with offending column.
             sql = "select sum(a1) from (select sum(a1) from (select sum(a1) from a )b(a1) )c(a1);"; // WRONG
+            // But adding group by a1 will make it run and produce correct output,
+            // which is the same as without the group by.
+            sql = "select sum(a1) from (select sum(a1) from (select sum(a1) from a )b(a1) )c(a1) group by a1";
+            result = TU.ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual("3", string.Join(";", result));
+            answer = @"PhysicHashAgg  (actual rows=1)
+    Output: {sum({sum({sum(a.a1)})})}[1]
+    Aggregates: sum({sum({sum(a.a1)})}[0])
+    Group by: {sum({sum(a.a1)})}[0]
+    -> PhysicHashAgg  (actual rows=1)
+        Output: {sum({sum(a.a1)})}[0]
+        Aggregates: sum({sum(a.a1)}[0])
+        -> PhysicHashAgg  (actual rows=1)
+            Output: {sum(a.a1)}[0]
+            Aggregates: sum(a.a1[0])
+            -> PhysicScanTable a (actual rows=3)
+                Output: a.a1[0]";
+            TU.PlanAssertEqual(answer, phyplan);
 
             // FIXME: if we turn memo on, we have problems resolving columns
             sql = "select a1 from a, (select max(b3) maxb3 from b) b where a1 < maxb3";
@@ -1269,12 +1309,11 @@ namespace qpmodel.unittest
 
             // in-list and in-subquery
             sql = "select a2 from a where a1 in (1,2,3);"; TU.ExecuteSQL(sql, "2;3");
-
+            sql = "select a2 from a where a1 in (select a2 from a a1 where exists (select * from a b where b.a3>=a1.a1+b.a1+1));"; TU.ExecuteSQL(sql, "2;3");
+            sql = "select a2 from a where a1 in (select a2 from a where exists (select * from a b where b.a3>a1+b.a1+1));"; TU.ExecuteSQL(sql, "2;3");
             // disable it for now due to introduce table alias (a__1) confusing matching
             // sql = "select a2 from a where a1 in (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1));"; TU.ExecuteSQL(sql, "2;3");
-            // sql = "select a2 from a where a1 in (select a2 from a a1 where exists (select * from a b where b.a3>=a1.a1+b.a1+1));"; //2,3
             // sql = "select a2 from a where a1 in (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1));"; //2,3
-            // sql = "select a2 from a where a1 in (select a2 from a where exists (select * from a b where b.a3>a1+b.a1+1));"; //2,3, ok
             // sql = "select a2 from a where a1 in (select a2 from a a1 where exists (select * from a b where b.a3>=a.a1+b.a1+1));"; // 2
             // sql = "select a2 from a where a1 in (select a2 from a where exists(select * from a b where b.a3 >= a.a1 + b.a1 + 1));";
 
@@ -1446,7 +1485,6 @@ namespace qpmodel.unittest
             Assert.IsTrue(TU.error_.Contains("a6"));
             sql = "select* from(select 5 as a6 from a where a1 > 1)b where a6 > 1;"; TU.ExecuteSQL(sql, "5");
 
-            // REMOVE_FROM: disable in this PR, it will be fixed in a later one.
             sql = "select a.b1+c.b1 from (select count(*) as b1 from b) a, (select c1 b1 from c) c where c.b1>1;"; TU.ExecuteSQL(sql, "5");
             sql = "select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) and b.b1 > (select c2 / 2 from c where c.c2 = b2);"; TU.ExecuteSQL(sql, "2");
             sql = "select b1 from b where  b.b2 > (select c2 / 2 from c where c.c3 = b3) and b.b1 > (select c2 / 2 from c where c.c3 = b3);"; TU.ExecuteSQL(sql, "2");
@@ -1892,13 +1930,12 @@ namespace qpmodel.unittest
             result = ExecuteSQL(sql, out phyplan);
             Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0]<>a.a1[0] or b.b1[4]<>b.b1[4]) or False)"));
 
-            // sql = "select * from (select 1 + 1 x, 1 + 2 y, a1 z from a)";
-            // result = ExecuteSQL(sql, out phyplan);
-            // Assert.IsTrue(phyplan.Contains(
-            //    @"PhysicFromQuery 1064_1067 <anonymous> (inccost=6, cost=3, rows=3) (actual rows=3)
-            // Output: {2}[0],{3}[1],a.a1 (as z)[2]
-            // -> PhysicScanTable 1066_1069 a (inccost=3, cost=3, rows=3) (actual rows=3)
-            // Output: 2,3,a.a1 (as z)[0]"));
+            sql = "select * from (select 1 + 1 x, 1 + 2 y, a1 z from a)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual("2,3,0;2,3,1;2,3,2", string.Join(";", result));
+            answer = @"PhysicScanTable a (actual rows=3)
+    Output: 2,3,a.a1 (as z)[0]";
+            TU.PlanAssertEqual(answer, phyplan);
 
             sql = "select * from a where 1 is null";
             result = ExecuteSQL(sql, out phyplan);
@@ -1985,11 +2022,12 @@ namespace qpmodel.unittest
             result = ExecuteSQL(sql, out phyplan);
             Assert.IsTrue(phyplan.Contains("Output: 'three blind mice three blind mice three blind mice '"));
 
-            // sql = "select abs(10 + 20.78 - 10 - 21.78) from a";
-            // result = ExecuteSQL(sql, out phyplan);
-            // Assert.IsTrue(phyplan.Contains(
-            //    @"PhysicScanTable a (actual rows=3)
-            // Output: 1"));
+            sql = "select abs(10 + 20.78 - 10 - 21.78) from a";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.AreEqual("1;1;1", string.Join(";", result));
+            answer = @"PhysicScanTable a (actual rows=3)
+                      Output: 1";
+            TU.PlanAssertEqual(answer, phyplan);
 
             sql = "select round(3.14582, 2) from a";
             result = ExecuteSQL(sql, out phyplan);
@@ -2523,10 +2561,10 @@ namespace qpmodel.unittest
             sql = "select a1,b3 from a left join b on a.a1<b.b1;";
             TU.ExecuteSQL(sql, "0,3;0,4;1,4;2,");
 
-            // FAILED
-            sql = "select * from (select * from a join b on a1=b1) ab join (select * from c join d on c1=d1) cd on a1+b1=c1+d1"; // FIXME
+            sql = "select * from (select * from a join b on a1=b1) ab join (select * from c join d on c1=d1) cd on a1+b1=c1+d1";
+            TU.ExecuteSQL(sql, "0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4,1,2,3,4,1,2,,4;2,3,4,5,2,3,4,5,2,3,4,5,2,2,,5");
             sql = "select * from (select * from a join b on a1=b1) ab join (select * from c join d on c1=d1) cd on a1+b1=c1 and a2+b2=d2;";
-
+            TU.ExecuteSQL(sql, "");
             // COUNT(*): remove_from requires naming the derived table columns in most cases, and this is one of them.
             sql = "select * from (select count(*) from a, b where a1 <> b1 and a2 <> b2) s1(s1c), (select count(*) from a, b where a1 <> b3 and a2 <> b4) s2(s2c), (select count(*) from a, b where a1 < b1 and a2 < b2) s3(s3c), (select count(*) from a, b where a1 <> b1 and a2 <> b2) s4(s4c)";
             TU.ExecuteSQL(sql, "6,8,3,6", out phyplan, option);
@@ -2670,19 +2708,29 @@ namespace qpmodel.unittest
             // stream aggregation
             sql = "";
 
-            // failed:
             // sql = "select a1, sum(a1) from a group by a1 having sum(a2) > a3;";
+            // a3 should be in group by
+            sql = "select a1, sum(a1) from a group by a1, a3 having sum(a2) > a3;";
+            TU.ExecuteSQL(sql, "");
             // sql = "select * from a having sum(a2) > 1;";
+            // a1, a3, and a4 should be in group by, we insist on a2 to
+            // part of group by. Disabling it for now.
+            sql = "select * from a group by a1, a3, a4 having sum(a2) > 1;";
         }
 
         public static void TestPullPushAgg()
         {
+            // These two quries can't run with remove_from optimization, so
+            // turn it off.
+            QueryOption option = new QueryOption();
+            option.optimize_.remove_from_ = false;
+
             var sql = "select count(*) from lineitem, partsupp where l_partkey=ps_suppkey group by ps_availqty>100";
-            TU.ExecuteSQL(sql, "23294;226", out string phyplan);
+            TU.ExecuteSQL(sql, "23294;226", out string phyplan, option);
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicHashAgg"));
             sql = "select sum(c) from lineitem, (select ps_suppkey, ps_availqty>100, count(*) from partsupp group by ps_suppkey, ps_availqty>100) ps(ps_suppkey, ps_availqty100, c)"
                 + " where ps_suppkey=l_partkey group by ps_availqty100;";
-            TU.ExecuteSQL(sql, "23294;226", out phyplan);
+            TU.ExecuteSQL(sql, "23294;226", out phyplan, option);
             Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicHashAgg"));
         }
     }
@@ -2733,7 +2781,7 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestFromQueryRemoval()
         {
-           
+
             QueryOption option = new QueryOption();
             // disable remove_from
             option.optimize_.remove_from_ = false;
@@ -2811,6 +2859,21 @@ namespace qpmodel.unittest
                                Output: c.c1[0],c.c2[1]";
             TU.PlanAssertEqual(answer, phyplan);
             TU.ExecuteSQL(sql, "1;2;3");
+            // group by in second level with Agg(Agg(..))
+            sql = "select sum(a1) from (select sum(a1), a2 from (select sum(a1), a2 from a group by a2)b(a1, a2) group by a2)c(a1, a2) group by a1;";
+            TU.ExecuteSQL(sql, "0;1;2");
+
+            // select two columns at second level
+            sql = "select sum(a1) from(select sum(a1), a2 from(select sum(a1), a2 from a group by a2)b(a1, a2) group by a2)c(a1, a2) group by a1;";
+            TU.ExecuteSQL(sql, "0;1;2");
+
+            // group by at top level on un-aggregated (not aggregate function argument) column reference
+            sql = "select sum(a1), a2 from(select sum(a1), a2 from (select sum(a1), a2 from a group by a2)b(a1, a2) group by a2)c(a1, a2) group by a1, a2;";
+            TU.ExecuteSQL(sql, "0,1;1,2;2,3");
+
+            // same as above but at top level an column expression selection and gouping only on column
+            sql = "select sum(a1), a2 + 5 from(select sum(a1), a2 from (select sum(a1), a2 from a group by a2)b(a1, a2) group by a2)c(a1, a2) group by a1, a2";
+            TU.ExecuteSQL(sql, "0,6;1,7;2,8");
         }
 
         [TestMethod]
@@ -3002,8 +3065,7 @@ namespace qpmodel.unittest
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
                 and a.a2 = (select b2 from b bo where b1 = a1 and b2 = (select b2 from b where b4 = a3 + 1 and bo.b3 = a3 and b3> 0) and c3<5);";
             option.optimize_.enable_subquery_unnest_ = false;
-            // REMOVE_FROM: disable these two in this PR, they will be fixed in a later PR.
-#if REMOVE_FROM
+            option.optimize_.remove_from_ = false;
             TU.ExecuteSQL(sql, "0;1;2", out phyplan, option);
             answer = @"PhysicNLJoin  (actual rows=3)
     Output: a.a1[2]
@@ -3049,60 +3111,81 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "0;1;2", out phyplan);
             answer = @"PhysicFilter  (actual rows=3)
     Output: a.a1[0]
-    Filter: bo.b2[1]<5
-    -> PhysicFilter  (actual rows=3)
-        Output: a.a1[0],bo.b2[1]
-        Filter: a.a1[0]=bo.b1[2]
-        -> PhysicSingleJoin Left (actual rows=3)
-            Output: a.a1[0],bo.b2[4],bo.b1[5]
-            Filter: ((b__2.b3[6]=a.a3[1] and bo.b3[7]=c.c3[2]) and bo.b2[4]=a.a2[3])
-            -> PhysicFilter  (actual rows=3)
-                Output: a.a1[0],a.a3[1],c.c3[2],a.a2[3]
-                Filter: a.a2[3]=bo.b2[4]
-                -> PhysicSingleJoin Left (actual rows=3)
-                    Output: a.a1[0],a.a3[1],c.c3[2],a.a2[3],bo.b2[4]
-                    Filter: ((b__4.b4[5]=(a.a3[1]+1) and bo.b3[6]=a.a3[1]) and bo.b1[7]=a.a1[0])
+    Filter: a.a1[0]=b_2.b1[1]
+    -> PhysicSingleJoin Left (actual rows=3)
+        Output: a.a1[0],b_2.b1[4]
+        Filter: ((b__2.b3[5]=a.a3[1] and b_1.b3[6]=c.c3[2]) and b_1.b2[7]=a.a2[3])
+        -> PhysicFilter  (actual rows=3)
+            Output: a.a1[0],a.a3[1],c.c3[2],a.a2[3]
+            Filter: a.a2[3]=bo.b2[4]
+            -> PhysicSingleJoin Left (actual rows=3)
+                Output: a.a1[0],a.a3[1],c.c3[2],a.a2[3],bo.b2[4]
+                Filter: ((b__4.b4[5]=(a.a3[1]+1) and bo.b3[6]=a.a3[1]) and bo.b1[7]=a.a1[0])
+                -> PhysicHashJoin  (actual rows=3)
+                    Output: a.a1[2],a.a3[3],c.c3[0],a.a2[4]
+                    Filter: b.b2[5]=c.c2[1]
+                    -> PhysicScanTable c (actual rows=3)
+                        Output: c.c3[2],c.c2[1]
+                        Filter: c.c3[2]<5
                     -> PhysicHashJoin  (actual rows=3)
-                        Output: a.a1[2],a.a3[3],c.c3[0],a.a2[4]
-                        Filter: b.b2[5]=c.c2[1]
-                        -> PhysicScanTable c (actual rows=3)
-                            Output: c.c3[2],c.c2[1]
-                            Filter: c.c3[2]<5
-                        -> PhysicHashJoin  (actual rows=3)
-                            Output: a.a1[2],a.a3[3],a.a2[4],b.b2[0]
-                            Filter: a.a1[2]=b.b1[1]
-                            -> PhysicScanTable b (actual rows=3)
-                                Output: b.b2[1],b.b1[0]
-                            -> PhysicScanTable a (actual rows=3)
-                                Output: a.a1[0],a.a3[2],a.a2[1]
-                    -> PhysicFilter  (actual rows=3, loops=3)
-                        Output: bo.b2[0],b__4.b4[1],bo.b3[2],bo.b1[3]
-                        Filter: bo.b2[0]=b__4.b2[4]
-                        -> PhysicSingleJoin Left (actual rows=9, loops=3)
-                            Output: bo.b2[0],b__4.b4[3],bo.b3[1],bo.b1[2],b__4.b2[4]
-                            -> PhysicScanTable b as bo (actual rows=3, loops=3)
-                                Output: bo.b2[1],bo.b3[2],bo.b1[0]
-                            -> PhysicScanTable b as b__4 (actual rows=3, loops=9)
-                                Output: b__4.b4[3],b__4.b2[1]
-                                Filter: b__4.b3[2]>0
-            -> PhysicFilter  (actual rows=9, loops=3)
-                Output: bo.b2[0],bo.b1[1],b__2.b3[2],bo.b3[3]
-                Filter: bo.b1[1]=b__2.b1[4]
-                -> PhysicSingleJoin Left (actual rows=27, loops=3)
-                    Output: bo.b2[0],bo.b1[1],b__2.b3[3],bo.b3[2],b__2.b1[4]
-                    -> PhysicFromQuery <bo> (actual rows=9, loops=3)
-                        Output: bo.b2[1],bo.b1[0],bo.b3[2]
-                        -> PhysicNLJoin  (actual rows=9, loops=3)
-                            Output: b_2.b1[2],b_1.b2[0],b_1.b3[1]
-                            -> PhysicScanTable b as b_1 (actual rows=3, loops=3)
-                                Output: b_1.b2[1],b_1.b3[2]
-                            -> PhysicScanTable b as b_2 (actual rows=3, loops=9)
-                                Output: b_2.b1[0]
-                    -> PhysicScanTable b as b__2 (actual rows=3, loops=27)
-                        Output: b__2.b3[2],b__2.b1[0]
-                        Filter: b__2.b3[2]>1";
+                        Output: a.a1[2],a.a3[3],a.a2[4],b.b2[0]
+                        Filter: a.a1[2]=b.b1[1]
+                        -> PhysicScanTable b (actual rows=3)
+                            Output: b.b2[1],b.b1[0]
+                        -> PhysicScanTable a (actual rows=3)
+                            Output: a.a1[0],a.a3[2],a.a2[1]
+                -> PhysicFilter  (actual rows=3, loops=3)
+                    Output: bo.b2[0],b__4.b4[1],bo.b3[2],bo.b1[3]
+                    Filter: bo.b2[0]=b__4.b2[4]
+                    -> PhysicSingleJoin Left (actual rows=9, loops=3)
+                        Output: bo.b2[0],b__4.b4[3],bo.b3[1],bo.b1[2],b__4.b2[4]
+                        -> PhysicScanTable b as bo (actual rows=3, loops=3)
+                            Output: bo.b2[1],bo.b3[2],bo.b1[0]
+                        -> PhysicScanTable b as b__4 (actual rows=3, loops=9)
+                            Output: b__4.b4[3],b__4.b2[1]
+                            Filter: b__4.b3[2]>0
+        -> PhysicFilter  (actual rows=9, loops=3)
+            Output: b_2.b1[0],b__2.b3[1],b_1.b3[2],b_1.b2[3]
+            Filter: b_2.b1[0]=b__2.b1[4]
+            -> PhysicSingleJoin Left (actual rows=27, loops=3)
+                Output: b_2.b1[0],b__2.b3[3],b_1.b3[1],b_1.b2[2],b__2.b1[4]
+                -> PhysicNLJoin  (actual rows=9, loops=3)
+                    Output: b_2.b1[2],b_1.b3[0],b_1.b2[1]
+                    -> PhysicScanTable b as b_1 (actual rows=3, loops=3)
+                        Output: b_1.b3[2],b_1.b2[1]
+                        Filter: b_1.b2[1]<5
+                    -> PhysicScanTable b as b_2 (actual rows=3, loops=9)
+                        Output: b_2.b1[0]
+                -> PhysicScanTable b as b__2 (actual rows=3, loops=27)
+                    Output: b__2.b3[2],b__2.b1[0]
+                    Filter: b__2.b3[2]>1";
             TU.PlanAssertEqual(answer, phyplan);
-#endif
+        }
+
+        [TestMethod]
+        public void TestSubstrGroupBy()
+        {
+            var sql = "create table city_zip(area int, zip char(5));";
+            var res = TU.ExecuteSQL(sql);
+
+            sql = "insert into city_zip values(100, '94087');";
+            res = TU.ExecuteSQL(sql);
+            sql = "insert into city_zip values(100, '95119');";
+            res = TU.ExecuteSQL(sql);
+            sql = "insert into city_zip values(200, '94129');";
+            res = TU.ExecuteSQL(sql);
+            sql = "insert into city_zip values(300, '95051');";
+            res = TU.ExecuteSQL(sql);
+            sql = "insert into city_zip values(240, '95050');";
+            res = TU.ExecuteSQL(sql);
+            sql = "select substring(zip, 2, 4), sum(area) from city_zip group by substring(zip, 2, 4);";
+            res = TU.ExecuteSQL(sql);
+            sql = "select * from(select substring(zip, 2, 4), sum(area) from city_zip group by substring(zip, 2, 4)) x(z, n);";
+            TU.ExecuteSQL(sql, "408,100;511,100;412,200;505,540", out _);
+
+            // TODO: Add more tests using more levels of FROM queries until
+            // a minimal repro for tpcds/q8.sql is found. It is related to
+            // column must appear in group by error but slightly different.
         }
     }
 
