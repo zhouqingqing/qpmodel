@@ -778,6 +778,26 @@ namespace qpmodel.logic
                                 throw new InvalidProgramException($"requests contains invalid tableref {x.tableRefs_[0]}");
                         });
                     }
+
+                    // Let the count(*) be counted!
+                    // When remove_from is removed a query like
+                    // select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1
+                    // count(*) does down to b as required output which is not valid.
+                    // The fix is to require (0) from the child referenced by the count(*) here
+                    // and include count(*) tablRefs in CollectAllTableRef().
+                    var agcs = v.RetrieveAllType<AggCountStar>();
+                    agcs.ForEach(y =>
+                    {
+                        y.tableRefs_.ForEach(z =>
+                        {
+                            if (ltables.Contains(z))
+                                lreq.Add(y);
+                            else if (rtables.Contains(z))
+                                rreq.Add(y);
+                            else
+                                throw new InvalidProgramException($"requests contains invalid tableref {z.alias_}");
+                        });
+                    });
                 }
                 else
                 {
@@ -1134,13 +1154,71 @@ namespace qpmodel.logic
 
             // reqOutput may contain ExprRef which is generated during FromQuery removal process, remove them
             var reqList = processedOutput.CloneList(new List<Type> { typeof(ConstExpr) });
+            // Aggregates in group by handling. If there are aggregates in
+            // group by, collect their arguments (directly contained aggregate
+            // functions and those inside AggrRef and other expressions and
+            // make this list as required from child. Save the original
+            // group by and null it out.
+            // After getting the output from the child, restore the original
+            // group by and resolve everthing as usual.
+            List<Expr> newGrpBy = null;
+            List<Expr> savedGrpBy = null;
+
+            if (groupby_ != null)
+            {
+                bool hasAgg = false;
+                groupby_.ForEach(x =>
+                {
+                    if (x.HasAggFunc())
+                        hasAgg = true;
+                });
+
+                if (hasAgg)
+                {
+                    newGrpBy = new List<Expr>();
+                    savedGrpBy = groupby_.CloneList();
+                    for (int i = 0; i < groupby_.Count; ++i)
+                    {
+                        Expr x = groupby_[i];
+                        if (x is AggFunc agf)
+                            newGrpBy.Add(x);
+                        else if (x is AggrRef agr)
+                            newGrpBy.Add(agr.child_());
+                        else
+                            newGrpBy.Add(x);
+                    }
+                }
+            }
+
+            if (newGrpBy != null)
+                groupby_ = null;
 
             // request from child including reqOutput and filter. Don't use whole expression
             // matching push down like k+k => (k+k)[0] instead, we need k[0]+k[0] because 
             // aggregation only projection values from hash table(key, value).
             //
             List<Expr> reqFromChild = new List<Expr>();
-            reqFromChild.AddRange(removeAggFuncAndKeyExprsFromOutput(reqList, groupby_));
+            if (newGrpBy != null)
+                reqFromChild.AddRange(newGrpBy);
+            else
+               reqFromChild.AddRange(removeAggFuncAndKeyExprsFromOutput(reqList, groupby_));
+
+            // Issue exposed by removing remove_from.
+            // Remeber the last position of output required by the parent, it is not an error
+            // if the offending occures after this position.
+            // The query that fails is
+            // select d1, sum(d2) from (select c1/2, sum(c1) from (select b1, count(*) as a1 from b group by b1)c(c1, c2)
+            // group by c1/2) d(d1, d2) group by d1;
+            // LogicPlan will be Agg(Agg(Agg(b)))
+            // While resolving second level Agg, group by is b1 / 2, reqOutput is b1/2, sum(b1), b1
+            // after removeAggFuncAndKeyExprsFromOutput, the list is b1/2, b1
+            // after adding group by expressions/columns it is b1 / 2, b1, b1
+            // child output is b1/2, b1
+            // after new aggregates are generated, our output is b1/2 {expref}, sum(b1) {expref}, b1 {colref} added by us
+            // will not be changed into ExprRef because it is not grouping expression. This sets the offending and
+            // raises the error column x must appear in group by clause.
+            //
+            int grpbyColumnAddPosition = reqFromChild.Count;
 
             // It is ideal to add keys_ directly to reqFromChild but matching can be harder.
             // Consider the following case:
@@ -1165,6 +1243,8 @@ namespace qpmodel.logic
             child_().ResolveColumnOrdinal(reqFromChild);
             var childout = child_().output_;
 
+            if (savedGrpBy != null)
+                groupby_ = savedGrpBy;
             if (groupby_ != null)
                 groupby_ = CloneFixColumnOrdinal(groupby_, childout, true);
             if (having_ != null)
@@ -1176,15 +1256,28 @@ namespace qpmodel.logic
 
             // Say invvalid expression means contains colexpr (replaced with ref), then the output shall
             // contains no expression consists invalid expression
+            // TODO: This check on offending, and offendingFirstPos are not as good as they
+            // should be and therefore some queries will fail to compile or run if remove_from
+            // is enabled. This needs to be refined to cover all invalid cases but none that are
+            // valid, i.e, don't throw when remove_from is enabled and it looks like there are
+            // column references in the group by that are not in group by, aggregates in select list.
+            // The reference query:
+            // select d1, sum(d2) from (select c1/2, sum(c1) from (select b1, count(*) as a1 from b group by b1)c(c1, c2) group by c1/2) d(d1, d2) group by d1;
             //
+            int offendingFirstPos = -1, offendingPos = 0;
             Expr offending = null;
             newoutput.ForEach(x =>
             {
                 if (x.VisitEachExists(y => y is ColExpr, new List<Type> { typeof(ExprRef) }))
+                {
                     offending = x;
+                    if (offendingFirstPos == -1)
+                        offendingFirstPos = offendingPos;
+                }
+                ++offendingPos;
             });
-            if (offending != null)
-                throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
+            if (offending != null && offendingFirstPos < grpbyColumnAddPosition)
+                    throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
             output_ = newoutput;
             if (having_?.VisitEachExists(y => y is ColExpr, new List<Type> { typeof(ExprRef) }) ?? false)
                 throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
@@ -1405,14 +1498,81 @@ namespace qpmodel.logic
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true) => null;
     }
 
+    // LogicAppend needs extra information to allow remove_from optimization to work
+    // correctly on UNION queries inside a FromQuery.
+    // Resolve all selects in UNION. When remove_from is true, we don't
+    // generate a setop plan and therefore all except the first select remain
+    // without ordinals resolved. This leads to their output being null at
+    // execution time and the result is null pointer exception.
+    // The way to handle the situation is to let each LogicAppend node to know
+    // the SetOp tree it is part of. This is done by passing the SetOp tree
+    // whose left and right selects correspond to the left and right nodes of this
+    // logicAppend node in the constructor.
+    // Visit each branch of the SetOp tree and locate the select which corrresponds to
+    // left and right node and record those select lists as leftExprs_ and rightExprs_.
+    //
+    // Override ResolveColumnOrdinal in LogicAppend and using the saved
+    // selections, resolve the minimum of selections or reqOutput from each child.
+    //
+    // Set the top level LogicAppend's outputs to those of the first child.
+    //
     public class LogicAppend : LogicNode
     {
+        public List<Expr> leftExprs_;     // left plan's selection
+        public List<Expr> rightExprs_;    // right plan's selection
         public override string ToString() => $"Append({lchild_()},{rchild_()})";
 
-        public LogicAppend(LogicNode l, LogicNode r) { children_.Add(l); children_.Add(r); }
+        public LogicAppend(LogicNode l, LogicNode r, SetOpTree setops = null)
+        {
+            children_.Add(l);
+            children_.Add(r);
 
-        // LogicAppend only needs to resolve column ordinals of its first child because others
-        // already solved in ResolveOrdinals().
+            // Using the setop tree, find the left and right plan's
+            // selections and save them to be used in ordinal resolution of
+            // all selects when this is not a top level UNION and remove_from
+            // is true.
+            if (setops != null)
+            {
+                setops.VisitEachStatement(x =>
+                {
+                    if (x.logicPlan_ == lchild_())
+                        leftExprs_ = x.selection_;
+                    else if (x.logicPlan_ == rchild_())
+                        rightExprs_ = x.selection_;
+                });
+            }
+        }
+
+        // Resolve one child's ordinals
+        internal void ResolveChild(in LogicNode child, in List<Expr> childExprs, in List<Expr> reqOutput, bool removeRedundant)
+        {
+            int minReq = Math.Min(reqOutput.Count, childExprs.Count);
+            List<Expr> childReq = new List<Expr>();
+            for (int i = 0; i < minReq; ++i)
+                childReq.Add(rightExprs_[i]);
+            child.ResolveColumnOrdinal(childReq, removeRedundant);
+        }
+
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
+        {
+            List<int> ordinals = children_[0].ResolveColumnOrdinal(reqOutput, removeRedundant);
+
+            if (rightExprs_ != null && children_[1].output_.Count == 0)
+                ResolveChild(children_[1], rightExprs_, reqOutput, removeRedundant);
+
+            if (leftExprs_ != null && children_[0].output_.Count == 0)
+                ResolveChild(children_[0], leftExprs_, reqOutput, removeRedundant);
+
+            // Only the top level LogicAppend will have the output_ still unset,
+            // set it after all children has their output set.
+            if (output_.Count == 0)
+            {
+                List<Expr> childout = children_[0].output_;
+                output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
+            }
+
+            return ordinals;
+        }
     }
 
     public class LogicLimit : LogicNode
