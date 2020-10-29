@@ -10,9 +10,9 @@ and exists(
 Total cost: 360
 PhysicFilter  (inccost=360, cost=10, rows=10) (actual rows=8)
     Output: n_nationkey[0],n_name[1],n_regionkey[2],n_comment[3]
-    Filter: {#marker}[4]
+    Filter: {#marker@1}[4]
     -> PhysicMarkJoin Left (inccost=350, cost=50, rows=10) (actual rows=21)
-        Output: n_nationkey[0],n_name[1],n_regionkey[2],n_comment[3],#marker
+        Output: n_nationkey[0],n_name[1],n_regionkey[2],n_comment[3],{#marker@1}[4]
         Filter: n_regionkey[2]=r_regionkey[4]
         -> PhysicGather Threads: 10 (inccost=275, cost=250, rows=25) (actual rows=21)
             Output: n_nationkey[0],n_name[1],n_regionkey[2],n_comment[3]

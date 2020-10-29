@@ -384,6 +384,9 @@ namespace qpmodel.unittest
 
             // some primitives neeed tpch data
             Executors.TestPullPushAgg();
+
+            List<String> tabNameList = new List<String> { "region", "orders", "part", "partsupp", "lineitem", "supplier", "nation" };
+            TU.ClearTableStatsInCatalog(tabNameList);
         }
 
         [TestMethod]
@@ -437,7 +440,7 @@ namespace qpmodel.unittest
             string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}_select";
 
             ExplainOption.show_tablename_ = false;
-            var badQueries = new string[] {  };
+            var badQueries = new string[] { };
 
             try
             {
@@ -952,6 +955,10 @@ namespace qpmodel.unittest
                 sql = "select a1 from a where a2 in (select b1 from b where b2>1)"; // in (1,2)
                 TU.ExecuteSQL(sql, "0;1", out phyplan, option);
                 Assert.AreEqual(0, TU.CountStr(phyplan, "not in"));
+
+                sql = "select a1 from a where a1 in (3,4) or a1 in (0,1)";
+                TU.ExecuteSQL(sql, "0;1", out phyplan, option);
+                Assert.AreEqual(0, TU.CountStr(phyplan, "#marker"));
 
                 // corelated InSubquery
                 sql = "select a1 from a where a2 in (select b2 from b where b2 = a1)";
@@ -2091,6 +2098,64 @@ namespace qpmodel.unittest
             sql = "select a1 aa1, sum(a2) aa2 from a group by aa1 order by aa1";
             TU.ExecuteSQL(sql, "0,1;1,2;2,3", out phyplan);
             Assert.IsTrue(phyplan.Contains("Output: a.a1 (as aa1)[0],{sum(a.a2)}[1]"));
+        }
+
+        [TestMethod]
+        public void TestAndOrExpr()
+        {
+
+            // Postgre SQL saw null != null. And
+            // null is any value
+            // so 2 not in (1,null) = false
+            TU.ExecuteSQL("INSERT INTO a VALUES(3,4,5,6)");
+            TU.ExecuteSQL("SELECT a1,a2 FROM a", "0,1;1,2;2,3;3,4");
+            TU.ExecuteSQL("INSERT INTO a VALUES(4,5,6,7)");
+            TU.ExecuteSQL("INSERT INTO a VALUES(5,6,7,8)");
+
+            // lowcase reprensent binaryExpr such as a1<2
+            // @1 reprensent nested subquery
+
+            // a or (b and c)
+            TU.ExecuteSQL("select a1 from a where a1 = 1 or a1 = 2 and a1 =3;", "1");
+
+            // a or b or c
+            TU.ExecuteSQL("select a1 from a where a1 = 0 or a1 = 1 or a1 = 2;", "0;1;2");
+
+            // @1 and @2
+            TU.ExecuteSQL("select a.a1 from a where exists (select * from b where a.a2 = b.b2) and exists (select * from c where a.a2 = c.c2) order by 1", "0;1;2"); // no 3,4,5
+
+            // @1 or @2
+            TU.ExecuteSQL("select a.a1 from a where exists (select * from b where a.a2 = b.b2) or exists (select * from c where a.a2 = c.c2) order by 1", "0;1;2");
+
+            // @1(a and b) or @2
+            TU.ExecuteSQL("select a.a1 from a where exists (select * from b where a.a2 = b.b2 and a.a3 = b.b3) or exists (select * from c where a.a2 = c.c2) order by 1");
+
+            // @1(a and b) or @2(b and c)
+            TU.ExecuteSQL("select a.a1 from a where exists (select * from b where a.a2 = b.b2 and a.a3 = b.b3) or exists (select * from c where a.a2 = c.c2 and a.a3 = c.c3 ) order by 1");
+
+            //@1 or (@2 and @3)
+            TU.ExecuteSQL("select a.a1 from a where exists (select * from b where a.a2 = b.b2) or exists (select * from c where a.a2 = c.c2) " +
+                          "and exists (select * from d where a.a2 = d.d2) order by 1", "0;1;2");
+
+            // @1 or @2 or @3
+            TU.ExecuteSQL("select a.a1 from a where exists (select * from b where a.a2 = b.b2) or exists (select * from c where a.a2 = c.c2) " +
+              "or exists (select * from d where a.a2 = d.d2) order by 1", "0;1;2");
+
+            // a and @1(@2(@3(@4)))
+            TU.ExecuteSQL(@"select a1 from a where a1<=2 and exists 
+                        (select b.b1 from b where b.b2=a.a1 and exists (select c.c2 from c where c.c1=b.b1 and exists (select d.d1 from d where d.d1=c.c1)))", "1;2");
+
+            TU.ExecuteSQL("select a.a1 from a where exists (select * from b where a.a2 = b.b2) " +
+                "and exists (select * from c where a.a2 = c.c2) " +
+                "and exists (select * from d where a.a2 = d.d2) " +
+                "order by 1", "0;1;2");
+
+            TU.ExecuteSQL("drop table a");
+            SQLStatement.ExecSQLList(@"create table a (a1 int, a2 int, a3 int, a4 int);
+                            insert into a values(0,1,2,3);
+                            insert into a values(1,2,3,4);
+                            insert into a values(2,3,4,5);");
+            TU.ExecuteSQL("select a1 from a", "0;1;2");
         }
 
         [TestMethod]

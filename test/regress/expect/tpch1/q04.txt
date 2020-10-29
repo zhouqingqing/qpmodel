@@ -29,9 +29,9 @@ PhysicOrder  (inccost=335127796089.54, cost=8.54, rows=5, memory=95)
         Group by: o_orderpriority[0]
         -> PhysicFilter  (inccost=335127572658, cost=223413, rows=223413)
             Output: o_orderpriority[0]
-            Filter: {#marker}[1]
+            Filter: {#marker@1}[1]
             -> PhysicMarkJoin Left (inccost=335127349245, cost=335119848030, rows=223413)
-                Output: o_orderpriority[0],#marker
+                Output: o_orderpriority[0],{#marker@1}[1]
                 Filter: l_orderkey[2]=o_orderkey[1]
                 -> PhysicScanTable orders (inccost=1500000, cost=1500000, rows=55842)
                     Output: o_orderpriority[5],o_orderkey[0]

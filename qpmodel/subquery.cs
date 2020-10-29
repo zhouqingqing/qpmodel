@@ -57,8 +57,10 @@ namespace qpmodel.logic
 {
     public class MarkerExpr : Expr
     {
-        public MarkerExpr(List<TableRef> tr)
+        public int subqueryid_;
+        public MarkerExpr(List<TableRef> tr, int subqueryid)
         {
+            subqueryid_ = subqueryid;
             tableRefs_ = tr;
             Debug.Assert(Equals(Clone()));
             dummyBind();
@@ -70,7 +72,7 @@ namespace qpmodel.logic
             return null;
         }
 
-        public override string ToString() => $"#marker";
+        public override string ToString() => $"#marker@{subqueryid_}";
     }
 
     public partial class SelectStmt : SQLStatement
@@ -92,7 +94,23 @@ namespace qpmodel.logic
         //
         // further convert DJoin to semi-join here is by decorrelate process
         //
-        LogicNode existsToMarkJoin(LogicNode nodeA, ExistSubqueryExpr existExpr)
+
+        // check (@1 or (@2 or @3))) if @3 unnested here.
+        // (@1 @2)
+        bool hasAnyExtreSubqueryExprInOR(Expr x, Expr exsitsExpr)
+        {
+            if (x is LogicOrExpr xOR)
+            {
+                return hasAnyExtreSubqueryExprInOR(xOR.rchild_(), exsitsExpr) || hasAnyExtreSubqueryExprInOR(xOR.lchild_(), exsitsExpr);
+            }
+            else
+            {
+                return x.VisitEachExists(y => (y is SubqueryExpr && (!y.Equals(exsitsExpr))));
+            }
+        }
+
+        // 如果有or， 就不能变成filter，否则无法替换
+        LogicNode existsToMarkJoin(LogicNode nodeA, ExistSubqueryExpr existExpr, ref bool canReplace)
         {
             var nodeAIsOnMarkJoin =
                 nodeA is LogicFilter && (nodeA.child_() is LogicMarkJoin || nodeA.child_() is LogicSingleJoin);
@@ -104,24 +122,31 @@ namespace qpmodel.logic
 
             // nullify nodeA's filter: the rest is push to top filter. However,
             // if nodeA is a Filter|MarkJoin, keep its mark filter.
-            var markerFilter = new ExprRef(new MarkerExpr(nodeBFilter.tableRefs_), 0);
+            var markerFilter = new ExprRef(new MarkerExpr(nodeBFilter.tableRefs_, existExpr.subqueryid_), 0);
             var nodeAFilter = nodeA.filter_;
-            if (nodeAIsOnMarkJoin)
-                nodeA.filter_ = markerFilter;
-            else
+
+            if (nodeAFilter != null)
             {
-                if (nodeAFilter != null)
+                // a1 > @1 and a2 > @2 and a3 > 2, scalarExpr = @1
+                //   keeplist: a1 > @1 and a3 > 2
+                //   andlist after removal: a2 > @2
+                //   nodeAFilter = a1 > @1 and a3 > 2
+                //   consider a1>0 and (@1 or @2)
+                //   a1>0 and (@1 or (@2 and @3)) 
+                var andlist = nodeAFilter.FilterToAndList();
+
+                var keeplist = andlist.Where(x => x.VisitEachExists(e => e.Equals(existExpr))).ToList();
+
+                andlist.RemoveAll(x => (!(x is LogicOrExpr) && x.Equals(existExpr)) || (x is LogicOrExpr) && !hasAnyExtreSubqueryExprInOR(x, existExpr));
+
+                // if there is any (#marker or @2), the root should be replace
+                canReplace = andlist.Find(x => (x is LogicOrExpr) && hasAnyExtreSubqueryExprInOR(x, existExpr)) == null ? false : true;
+
+                if (andlist.Count == 0)
+                    nodeA.NullifyFilter();
+                else
                 {
-                    // a1 > @1 and a2 > @2 and a3 > 2, scalarExpr = @1
-                    //   keeplist: a1 > @1 and a3 > 2
-                    //   andlist after removal: a2 > @2
-                    //   nodeAFilter = a1 > @1 and a3 > 2
-                    //
-                    var andlist = nodeAFilter.FilterToAndList();
-                    var keeplist = andlist.Where(x => x.VisitEachExists(e => e.Equals(existExpr))).ToList();
-                    andlist.RemoveAll(x => x.VisitEachExists(e => e.Equals(existExpr)));
-                    if (andlist.Count == 0)
-                        nodeA.NullifyFilter();
+                    if (canReplace) nodeA.NullifyFilter(); // nodeA is root, a ref parameter. (why it is a ref parameter)
                     else
                     {
                         nodeA.filter_ = andlist.AndListToExpr();
@@ -132,19 +157,18 @@ namespace qpmodel.logic
                     }
                 }
             }
+
             // make a mark join
             LogicMarkJoin markjoin;
             if (existExpr.hasNot_)
-                markjoin = new LogicMarkAntiSemiJoin(nodeA, nodeB);
+                markjoin = new LogicMarkAntiSemiJoin(nodeA, nodeB, existExpr.subqueryid_);
             else
-                markjoin = new LogicMarkSemiJoin(nodeA, nodeB);
+                markjoin = new LogicMarkSemiJoin(nodeA, nodeB, existExpr.subqueryid_);
 
             // make a filter on top of the mark join collecting all filters
             Expr topfilter;
-            if (nodeAIsOnMarkJoin)
-                topfilter = nodeAFilter.SearchAndReplace(existExpr, ConstExpr.MakeConstBool(true));
-            else
-                topfilter = nodeAFilter.SearchAndReplace(existExpr, markerFilter);
+
+            topfilter = nodeAFilter.SearchAndReplace(existExpr, markerFilter);
 
             nodeBFilter.DeParameter(nodeA.InclusiveTableRefs());
 
@@ -283,7 +307,7 @@ namespace qpmodel.logic
 
             // nullify nodeA's filter: the rest is push to top filter. However,
             // if nodeA is a Filter|MarkJoin, keep its mark filter.
-            var markerFilter = new ExprRef(new MarkerExpr(nodeBFilter.tableRefs_), 0);
+            var markerFilter = new ExprRef(new MarkerExpr(nodeBFilter.tableRefs_, inExpr.subqueryid_), 0);
             var nodeAFilter = nodeA.filter_;
 
             // consider SQL ...a1 in select b1 from... 
@@ -322,9 +346,9 @@ namespace qpmodel.logic
             // make a mark join
             LogicMarkJoin markjoin;
             if (inExpr.hasNot_)
-                markjoin = new LogicMarkAntiSemiJoin(nodeA, nodeB);
+                markjoin = new LogicMarkAntiSemiJoin(nodeA, nodeB, inExpr.subqueryid_);
             else
-                markjoin = new LogicMarkSemiJoin(nodeA, nodeB);
+                markjoin = new LogicMarkSemiJoin(nodeA, nodeB, inExpr.subqueryid_);
 
             // make a filter on top of the mark join collecting all filters
             Expr topfilter;
@@ -524,7 +548,7 @@ namespace qpmodel.logic
         // exists|quantified subquery => mark join
         // scalar subquery => single join or LOJ if max1row output is assured
         // 
-        LogicNode oneSubqueryToJoin(LogicNode planWithSubExpr, SubqueryExpr subexpr)
+        LogicNode oneSubqueryToJoin(LogicNode planWithSubExpr, SubqueryExpr subexpr, ref bool canRepalce)
         {
             LogicNode oldplan = planWithSubExpr;
             LogicNode newplan = null;
@@ -535,7 +559,7 @@ namespace qpmodel.logic
             switch (subexpr)
             {
                 case ExistSubqueryExpr se:
-                    newplan = existsToMarkJoin(planWithSubExpr, se);
+                    newplan = existsToMarkJoin(planWithSubExpr, se, ref canRepalce);
                     break;
                 case ScalarSubqueryExpr ss:
                     newplan = scalarToSingleJoin(planWithSubExpr, ss);
@@ -574,8 +598,9 @@ namespace qpmodel.logic
     //
     public class LogicMarkJoin : LogicJoin
     {
+        public int subquery_id_;
         public override string ToString() => $"{lchild_()} markX {rchild_()}";
-        public LogicMarkJoin(LogicNode l, LogicNode r) : base(l, r) { type_ = JoinType.Left; }
+        public LogicMarkJoin(LogicNode l, LogicNode r, int subquery_id) : base(l, r) { type_ = JoinType.Left; subquery_id_ = subquery_id; }
         public LogicMarkJoin(LogicNode l, LogicNode r, Expr f) : base(l, r, f) { type_ = JoinType.Left; }
 
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
@@ -587,13 +612,13 @@ namespace qpmodel.logic
     public class LogicMarkSemiJoin : LogicMarkJoin
     {
         public override string ToString() => $"{lchild_()} markSemiX {rchild_()}";
-        public LogicMarkSemiJoin(LogicNode l, LogicNode r) : base(l, r) { }
+        public LogicMarkSemiJoin(LogicNode l, LogicNode r, int subquery_id = 0) : base(l, r, subquery_id) { subquery_id_ = subquery_id; }
         public LogicMarkSemiJoin(LogicNode l, LogicNode r, Expr f) : base(l, r, f) { }
     }
     public class LogicMarkAntiSemiJoin : LogicMarkJoin
     {
         public override string ToString() => $"{lchild_()} markAntisemiX {rchild_()}";
-        public LogicMarkAntiSemiJoin(LogicNode l, LogicNode r) : base(l, r) { }
+        public LogicMarkAntiSemiJoin(LogicNode l, LogicNode r, int subquery_id = 0) : base(l, r, subquery_id) { }
         public LogicMarkAntiSemiJoin(LogicNode l, LogicNode r, Expr f) : base(l, r, f) { }
     }
 
@@ -606,7 +631,13 @@ namespace qpmodel.logic
         public override string ToString() => $"PMarkJOIN({lchild_()},{rchild_()}: {Cost()})";
 
         // always the last column, as it is added at the last time 
-        void fixMarkerValue(Row r, Value value) => r[r.ColCount() - 1] = value;
+        // the first column may be a good idea?
+        void fixMarkerValue(Row r, Value value)
+        {
+            var output = this.logic_.output_;
+            int ordinal = output.FindIndex(x => x is ExprRef xE && xE.child_() is MarkerExpr xEM && logic_ is LogicMarkJoin lm && xEM.subqueryid_ == lm.subquery_id_);
+            r[ordinal] = value;
+        }
 
         public override void Exec(Action<Row> callback)
         {
@@ -641,7 +672,9 @@ namespace qpmodel.logic
                 // if there is no match, mark false
                 if (!foundOneMatch)
                 {
-                    Row n = ExecProject(l);
+                    Row r = new Row(rchild_().logic_.output_.Count);
+                    Row n = new Row(l, r);
+                    n = ExecProject(n);
                     fixMarkerValue(n, semi ? false : true);
                     callback(n);
                 }
