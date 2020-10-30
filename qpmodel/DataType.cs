@@ -66,7 +66,6 @@ namespace qpmodel.expr
         public static bool SameArithType(ColumnType l, ColumnType r)
             => (l is IntType && r is IntType) || (l is DoubleType && r is DoubleType) || (l is NumericType && r is NumericType);
 
-
         public static bool IsNumberType(ColumnType type)
             => (type is NumericType) || (type is DoubleType) || (type is IntType);
 
@@ -441,10 +440,10 @@ namespace qpmodel.expr
         public FromQueryRef(SelectStmt query, string alias, List<string> colOutputNames) : base(query, alias)
         {
             Debug.Assert(alias != null);
-            colOutputNames_ = colOutputNames;
-            colOutputNames_.ForEach(x =>
+            colOutputNames_ = new List<string>();
+            colOutputNames.ForEach(x =>
             {
-                x = qpmodel.utils.Utils.normalizeName(x);
+                colOutputNames_.Add(qpmodel.utils.Utils.normalizeName(x));
             });
         }
 
@@ -509,6 +508,15 @@ namespace qpmodel.expr
                     outputNameMap_[outside[i].outputName_] = inside[i];
                 }
             }
+        }
+
+        // Check if the input expr is one of the "inside" expressions.
+        public bool FindInsideExpr(Expr e)
+        {
+            bool foundit = false;
+            for (int i = 0; !foundit && i < outputNameMap_.Count; ++i)
+                foundit = outputNameMap_.Values.Contains(e);
+            return foundit;
         }
 
         public Expr MapOutputName(string name) => outputNameMap_[name];

@@ -208,6 +208,16 @@ namespace qpmodel.expr
         // TODO: what about expr.tableRefs_?
         //  They shall be equal but our implmentation sometimes get them inconsistent
         //  for example, xc.tabRef_ can contain outerrefs but tableRefs_ does not.
+        //
+        // When remove_from is in effect (removed) the following query fails because
+        // the count(*) gets pushed to scan node.
+        // select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1
+        // count(*) + c1 becomes required output for table c and when table scan resolve is called
+        // it throws the exception that aggregate functions can't part of it's output.
+        // The fix is to include tables referenced by count(*) here so that the caller can see
+        // that count(*) needs to be pushed to correct child.
+        // In addition, in LogicJoin Resolve, we consider these table refs to decide which child
+        // requires to output count(*) to make the plan valid.
         public static List<TableRef> CollectAllTableRef(this Expr expr, bool includingParameters = true)
         {
             var list = new HashSet<TableRef>();
@@ -222,7 +232,9 @@ namespace qpmodel.expr
                     if (!x.isParameter_ || includingParameters)
                         list.Add(x.tabRef_);
                 });
-             }
+
+                expr.VisitEachT<AggCountStar>(y => y.tableRefs_.ForEach(z => list.Add(z)));
+            }
             return list.ToList();
         }
 
@@ -720,6 +732,13 @@ namespace qpmodel.expr
                         Debug.Assert(x.bounded_);
                         tableRefs_.AddRange(x.ResetAggregateTableRefs());
                     }
+                    else
+                    {
+                        // propagate tableref from count(*) to whatever it is part of
+                        // so that the expression containing count(*) will have correct
+                        // tableref and correct number of them.
+                        tableRefs_.AddRange(x.tableRefs_);
+                    }
                 });
                 if (tableRefs_.Count > 1)
                     tableRefs_ = tableRefs_.Distinct().ToList();
@@ -955,7 +974,7 @@ namespace qpmodel.expr
             isParameter_ = false;
             tabRef_ = context.GetTableRef(tabName_, colName_);
 
-            // we can't find the column in current context, so it could an outer reference
+            // we can't find the column in current context, so it could be an outer reference
             if (tabRef_ is null)
             {
                 // can't find in my current context, try my ancestors levels up: order is important

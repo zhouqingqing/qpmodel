@@ -63,8 +63,16 @@ Unittest comes up with multiple tests covering major functionalities:
 ### Meeting 
 
 Regular Community Meeting:
-Meeting Time:Tuesday, July 14, 2020 8:00 PM-9:30 PM (UTC-08:00) Pacific Time (US & Canada).
+1) Tuesday, July 14, 2020 8:00 PM-9:30 PM (UTC-08:00) Pacific Time (US & Canada).
 Zoom: https://futurewei.zoom.us/j/97155138938
+2) Tuesday, Sept 29, 2020 7:00 PM-8:30 PM (UTC-08:00) Pacific Time (US & Canada).
+Zoom: https://futurewei.zoom.us/j/8320379082
+3) Wednesday, Oct 28, 2020 07:00 PM-8:30 PM (UTC-08:00) Pacific Time (US and Canada)
+Zoom: https://futurewei.zoom.us/j/8320379082
 
-Link for Video:
+Meeting minutes: 
+https://github.com/zhouqingqing/qpmodel/tree/master/docs/qpmodel_m*.pptx
+
+Link for Videos:
 https://www.youtube.com/playlist?list=PL_7gYB_Le9d2OFbt67OgQPSynRIWvTtU6
+

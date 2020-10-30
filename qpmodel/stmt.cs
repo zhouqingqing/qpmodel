@@ -36,12 +36,9 @@ using qpmodel.physic;
 using qpmodel.codegen;
 using qpmodel.optimizer;
 
-
-//
 // Parser is the only place shall deal with antlr 
-// do NOT using any antlr structure here
+// do NOT use any antlr structure here
 //
-
 namespace qpmodel.logic
 {
     public abstract class SQLStatement
@@ -276,7 +273,8 @@ namespace qpmodel.logic
         {
             List<string> allowed = new List<string>
                 {"union", "unionall", "except", "exceptall", "intersect", "intersectall"};
-            Debug.Assert(allowed.Contains(op) || op is null);
+            string localOp = op.ToLower();
+            Debug.Assert(localOp is null || allowed.Contains(localOp));
             Debug.Assert(newstmt != null);
 
             if (IsLeaf())
@@ -284,13 +282,13 @@ namespace qpmodel.logic
                 left_ = new SetOpTree(stmt_);
                 stmt_ = null;
                 right_ = new SetOpTree(newstmt);
-                op_ = op;
+                op_ = localOp;
             }
             else
             {
                 left_ = (SetOpTree)this.MemberwiseClone();
                 right_ = new SetOpTree(newstmt);
-                op_ = op;
+                op_ = localOp;
             }
             Debug.Assert(!IsLeaf());
         }
@@ -351,11 +349,11 @@ namespace qpmodel.logic
                 {
                     case "unionall":
                         // union all keeps all rows, including duplicates
-                        plan = new LogicAppend(lplan, rplan);
+                        plan = new LogicAppend(lplan, rplan, this);
                         break;
                     case "union":
                         // union collect rows from both sides, and remove duplicates
-                        plan = new LogicAppend(lplan, rplan);
+                        plan = new LogicAppend(lplan, rplan, this);
                         var groupby = new List<Expr>(first_.selection_.CloneList());
                         plan = new LogicAgg(plan, groupby, null, null);
                         break;
@@ -569,6 +567,29 @@ namespace qpmodel.logic
 
             return allsubs;
         }
+
+        // Try to push all or part of a filter with aggregates to a LogicAgg node
+        // which can provide the required inputs.
+        public bool TryPushingToLogicAgg(LogicAgg lag, Expr filter)
+        {
+            List<AggFunc> aggFns = filter.RetrieveAllType<AggFunc>();
+            int matchCount = 0;
+            for (int i = 0; i < aggFns.Count; ++i)
+            {
+                for (int j = 0; j < lag.rawAggrs_.Count; ++j)
+                {
+                    if (lag.rawAggrs_[j] == aggFns[i])
+                        ++matchCount;
+                }
+            }
+            if (matchCount >= aggFns.Count)
+            {
+                lag.having_.AddAndFilter(filter);
+                return true;
+            }
+            return false; // what now! We will say we can't do this.
+        }
+
         bool pushdownFilter(LogicNode plan, Expr filter, bool pushJoinFilter)
         {
             // don't push down special expressions
@@ -588,12 +609,37 @@ namespace qpmodel.logic
                 case 1:
                     return plan.VisitEachExists(n =>
                     {
+                        // when remove_from is true (or removed entirely) it is possible to have an
+                        // aggregate in the filter, which should not be pushed to table scan.
+                        // By defintion, if the node n is an aggregate node, and the filter has an
+                        // the aggregate which refers exactly to the same and sinlge tableref which is
+                        // the child of the aggregate in the filter, then the filter belongs to the
+                        // node n.
+                        if (filter.HasAggFunc() && n is LogicAgg lag)
+                            return TryPushingToLogicAgg(lag, filter);
                         if (n is LogicScanTable nodeGet &&
                             filter.EqualTableRef(nodeGet.tabref_))
                             return nodeGet.AddFilter(filter);
                         return false;
                     });
                 default:
+                    // even when there are more tables in the filter,
+                    // first try to find a LogicAgg which can provide
+                    // the required inputs and push the filter to that
+                    // node. This happens only when FromQuery is removed.
+                    bool pushed = false;
+                    if (filter.HasAggFunc())
+                    {
+                        pushed = plan.VisitEachExists(n =>
+                        {
+                            if (n is LogicAgg lag)
+                                return TryPushingToLogicAgg(lag, filter);
+                            else
+                                return false;
+                        });
+                    }
+                    if (pushed)
+                        return pushed;
                     if (pushJoinFilter)
                         return plan.PushJoinFilter(filter);
                     return false;

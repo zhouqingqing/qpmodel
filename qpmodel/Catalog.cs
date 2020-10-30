@@ -159,7 +159,7 @@ namespace qpmodel
 
     public class SystemTable
     {
-    };
+    }
 
     // format: tableName:key, list of <ColName: Key, Column definition>
     public class SysTable : SystemTable

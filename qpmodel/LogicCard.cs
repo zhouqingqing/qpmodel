@@ -204,5 +204,5 @@ namespace qpmodel.logic
                 card = DefaultEstimate(node);
             return card;
         }
-    };
+    }
 }

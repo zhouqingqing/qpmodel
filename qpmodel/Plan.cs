@@ -50,7 +50,7 @@ namespace qpmodel.logic
         {
             // rewrite controls
             public bool enable_subquery_unnest_ { get; set; } = true;
-            public bool remove_from_ { get; set; } = false;        // make it true by default
+            public bool remove_from_ { get; set; } = true;
             public bool enable_cte_plan_ { get; set; } = false; // make it true by default
 
             // optimizer controls
@@ -530,7 +530,20 @@ namespace qpmodel.logic
                     root = new LogicFilter(root, where_);
                 else
                     lr.filter_ = lr.filter_.AddAndFilter(where_);
-                if (where_.HasAggFunc())
+
+                // Do this only if the filter refernces single table, otherwise
+                // let FilterPushdown decide if the filter can be moved into aggregate
+                // node or a join above it.
+                // The query
+                // select a1 from a, (select max(b3) maxb3 from b) b where a1 < maxb3
+                // generates bad plan
+                // LogicJoin 1063
+                //      -> LogicScanTable 1064 a
+                //      -> LogicAgg 1066
+                //
+                //         Filter: a.a1[0]<max(b.b3[2])
+                //      -> LogicScanTable 1065 b
+                if (where_.HasAggFunc() && where_.CollectAllTableRef().Count < 2)
                 {
                     where_ = moveFilterToInsideAggNode(root, where_);
                     root = new LogicFilter(root.child_(), where_);
@@ -603,7 +616,12 @@ namespace qpmodel.logic
             else
             {
                 // FIXME: we can't enable all optimizations with this mode
-                queryOpt_.optimize_.remove_from_ = false;
+                // Actually, we can't set remove_from to true unconditionally.
+                // It is true by default, but for certain queries it must be turned off,
+                // therefore we should take it from the user specified options, if it is
+                // supplied (queryOpt_ != null). TestBenchmarks and a few other
+                // tests set it to false to run correctly.
+                // Leaving use_memo_ alone, though.
                 queryOpt_.optimize_.use_memo_ = false;
 
                 setops_.Bind(parent);
@@ -675,6 +693,24 @@ namespace qpmodel.logic
             return newselection;
         }
 
+        internal bool IsAggregateInFrom()
+        {
+            int foundCount = 0;
+            from_.ForEach(x =>
+            {
+                if (x is FromQueryRef fqr && foundCount == 0)
+                {
+                    groupby_.ForEach(y =>
+                    {
+                        if (foundCount == 0 && fqr.FindInsideExpr(y))
+                            ++foundCount;
+                    });
+                }
+            });
+
+            return foundCount != 0;
+        }
+
         internal void BindWithContext(BindContext context)
         {
             // we don't consider setops in this level
@@ -708,7 +744,13 @@ namespace qpmodel.logic
                 hasAgg_ = true;
                 groupby_ = bindOrderByOrGroupBy(context, groupby_);
                 if (groupby_.Any(x => x.HasAggFunc()))
-                    throw new SemanticAnalyzeException("aggregation functions are not allowed in group by clause");
+                {
+                    // remove_from optimization can produce aggregates in
+                    // group by, detect it and suppress this throw if that
+                    // is the case.
+                    if (!IsAggregateInFrom())
+                       throw new SemanticAnalyzeException("aggregation functions are not allowed in group by clause");
+                }
             }
 
             if (having_ != null)
@@ -752,7 +794,17 @@ namespace qpmodel.logic
                     break;
                 case JoinQueryRef jref:
                     jref.tables_.ForEach(x => bindTableRef(context, x));
-                    jref.constraints_.ForEach(x => x = x.BindAndNormalize(context));
+                    jref.constraints_.ForEach(x =>
+                    {
+                        x = x.BindAndNormalize(context);
+                        // join constraints may contain FROM(x) when
+                        // remove_from is true. If FROM(x) is not DeQueryRef'd
+                        // the join  condition may not get pushed down to the proper
+                        // node and also possibly can't be resolved.
+                        if (queryOpt_.optimize_.remove_from_)
+                            x = x.DeQueryRef();
+                    });
+
                     break;
                 default:
                     throw new NotImplementedException();

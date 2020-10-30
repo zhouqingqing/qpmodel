@@ -46,10 +46,10 @@ PhysicOrder  (inccost=225008975874.1, cost=0.1, rows=1, memory=27)
         -> PhysicFromQuery <custsale> (inccost=225006725782, cost=2250090, rows=2250090)
             Output: cntrycode[0],c_acctbal[1]
             -> PhysicFilter  (inccost=225004475692, cost=2250090, rows=2250090)
-                Output: {substring(c_phone,1,2)}[1],c_acctbal[2]
-                Filter: {#marker}[0]
+                Output: {substring(c_phone,1,2)}[0],c_acctbal[1]
+                Filter: {#marker}[2]
                 -> PhysicMarkJoin Left (inccost=225002225602, cost=225000000000, rows=2250090)
-                    Output: #marker,{substring(c_phone,1,2)}[0],c_acctbal[1]
+                    Output: {substring(c_phone,1,2)}[0],c_acctbal[1],#marker
                     Filter: o_custkey[3]=c_custkey[2]
                     -> PhysicScanTable customer (inccost=437801, cost=150000, rows=150000)
                         Output: substring(c_phone[4],1,2),c_acctbal[5],c_custkey[0]
