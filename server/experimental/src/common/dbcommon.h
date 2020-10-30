@@ -17,10 +17,9 @@ enum ClassTag : uint8_t {
     ConstExpr_,
     ColExpr_,
     BaseTableRef_,
-
 };
 
-class TableRef: public UseCurrentResource {
+class TableRef : public UseCurrentResource {
 public:
     ClassTag classTag_;
 };
