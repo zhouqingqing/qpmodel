@@ -2716,6 +2716,57 @@ namespace qpmodel.unittest
             // a1, a3, and a4 should be in group by, we insist on a2 to
             // part of group by. Disabling it for now.
             sql = "select * from a group by a1, a3, a4 having sum(a2) > 1;";
+
+            // Test aggregates WHERE clause in subquery which use outer references.
+            // The subquery must be contained in the HAVING clause of an outer query,
+            // or a select list item. These tests do not test the select list item case.
+            //
+            // CORRECT RESULT, no result set.
+            sql = "select a1, count(*) from a group by a1 having a1 > (select min(b1) from b where b1 = sum(a1) group by b1)";
+            TU.ExecuteSQL(sql, "");
+            sql = "select a1, count(*) from a group by a1 having a1 <= (select min(b1) from b where b1 = sum(a1) group by b1);";
+            TU.ExecuteSQL(sql, "0,1;1,1;2,1");
+            sql = "select a1, count(*) from a group by a1 having a1 <= (select max(b1) from b where b1 = sum(a1) group by b1);";
+            TU.ExecuteSQL(sql, "0,1;1,1;2,1");
+            sql = "select a1, count(*) from a group by a1 having a1 <= (select sum(b1) from b where b1 = sum(a1) group by b1);";
+            TU.ExecuteSQL(sql, "0,1;1,1;2,1");
+
+            // FIXME: WRONG RESULT, three rows expected but reurn one row.
+            sql = "select a1, count(*) from a group by a1 having a1 = (select min(b1) from b where b1 = sum(a1) group by b1)";
+            TU.ExecuteSQL(sql, "2,1");
+
+            // FIXME: WRONG RESULT, no output is expected but produces one row {0,1}
+            sql = "select a1, count(*) from a group by a1 having a1 = (select min(b1) from b where b2 < sum(a1) group by b2)";
+            TU.ExecuteSQL(sql, "0,1"); // check anyway so we will know when it is fixed.
+
+            // CORRECT ERRORS
+            sql = "select a1, count(*) from a group by a1 having a1 > (select min(b1) from b where b1 < sum(a1) group by b1);";
+            TU.ExecuteSQL(sql); Assert.IsTrue(TU.error_.Contains("subquery more than one row returned"));
+            // sum(b1) is invalid in the subquery becuase regular aggregates are not allowed in group by.
+            sql = "select a1, count(*) from a group by a1 having a1 > (select min(b1) from b where b1 = sum(a1) group by sum(b1));";
+            TU.ExecuteSQL(sql);
+            Assert.IsTrue(TU.error_.Contains("aggregation functions are not allowed in group by clause"));
+            // aggregates not allowed in regular WHERE.
+            sql = "select a1, count(*) from a group by a1 having a1 > (select min(b1) from b where sum(b1) = sum(a1) group by sum(b1));";
+            TU.ExecuteSQL(sql);
+            Assert.IsTrue(TU.error_.Contains("WHERE condition must be a boolean expression and no aggregation is allowed"));
+
+            // PROBLEM QUERIES:
+            // Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+            // at qpmodel.logic.SelectStmt.existsToMarkJoin(LogicNode nodeA, ExistSubqueryExpr existExpr) in D:\qpmodel\qpmodel\subquery.cs:line 107
+            // at qpmodel.logic.SelectStmt.oneSubqueryToJoin(LogicNode planWithSubExpr, SubqueryExpr subexpr) in D:\qpmodel\qpmodel\subquery.cs:line 538
+            sql = "select sum(a1) from a having (exists (select sum(b1) from b where sum(a1) > b1));";
+            sql = "select a1, count(*), a3 + a4 from a group by a1, a3, a4 having (exists (select min(b1) from b where b1 < sum(a3 + a4) group by b1));";
+
+            // Assert fail:
+            // at qpmodel.logic.LogicGet`1.<validateReqOutput>b__7_1(Expr y) in D:\qpmodel\qpmodel\LogicNode.cs:line 1363
+            // at qpmodel.utils.TreeNode`1.VisitEachT[T1](Action`1 callback) in D:\qpmodel\qpmodel\Utils.cs:line 75
+            sql = "select a1, count(*), a3 + a4 from a group by a1, a3, a4 having count(*) >= (select min(b1) from b where b1 < sum(a3 + a4) group by min(a3));";
+
+            // Unhandled exception. System.ArgumentOutOfRangeException: Index was out of range. Must be non-negative and less than the size of the collection. (Parameter 'index')
+            // at System.Collections.Generic.List`1.get_Item(Int32 index)
+            // at qpmodel.logic.SelectStmt.moveFilterToInsideAggNode(LogicNode root, Expr filter) in D:\qpmodel\qpmodel\Plan.cs:line 463
+            sql = "select a1, count(*), a3 + a4 from a group by a1, a3, a4 having count(a4) = (select min(b1) from b where sum(a2) = count(a4));";
         }
 
         public static void TestPullPushAgg()
