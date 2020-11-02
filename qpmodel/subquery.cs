@@ -294,6 +294,33 @@ namespace qpmodel.logic
             return newplan;
         }
 
+        Expr extractCurINExprFromNodeAFilter(LogicNode nodeA, InSubqueryExpr curInExpr, ExprRef markerFilter)
+        {
+            var nodeAFilter = nodeA.filter_;
+            if (nodeAFilter != null)
+            {
+                // a1 > @1 and a2 > @2 and a3 > 2, scalarExpr = @1
+                //   keeplist: a1 > @1 and a3 > 2
+                //   andlist after removal: a2 > @2
+                //   nodeAFilter = a1 > @1 and a3 > 2
+                //
+                var andlist = nodeAFilter.FilterToAndList();
+                var keeplist = andlist.Where(x => x.VisitEachExists(e => e.Equals(curInExpr))).ToList();
+                andlist.RemoveAll(x => x.VisitEachExists(e => e.Equals(curInExpr)));
+                if (andlist.Count == 0)
+                    nodeA.NullifyFilter();
+                else
+                {
+                    nodeA.filter_ = andlist.AndListToExpr();
+                    if (keeplist.Count > 0)
+                        nodeAFilter = keeplist.AndListToExpr();
+                    else
+                        nodeAFilter = markerFilter;
+                }
+            }
+            return nodeAFilter;
+        }
+
         LogicNode inToMarkJoin(LogicNode planWithSubExpr, InSubqueryExpr inExpr)
         {
             LogicNode nodeA = planWithSubExpr;
@@ -306,7 +333,7 @@ namespace qpmodel.logic
             // nullify nodeA's filter: the rest is push to top filter. However,
             // if nodeA is a Filter|MarkJoin, keep its mark filter.
             var markerFilter = new ExprRef(new MarkerExpr(nodeBFilter.tableRefs_, inExpr.subqueryid_), 0);
-            var nodeAFilter = nodeA.filter_;
+            var nodeAFilter = extractCurINExprFromNodeAFilter(nodeA, inExpr, markerFilter);
 
             // consider SQL ...a1 in select b1 from... 
             // a1 is outerExpr and b1 is selectExpr
@@ -315,27 +342,6 @@ namespace qpmodel.logic
             Expr selectExpr = inExpr.query_.selection_[0];
             BinExpr inToEqual = BinExpr.MakeBooleanExpr(outerExpr, selectExpr, "=");
 
-            if (nodeAFilter != null)
-            {
-                // a1 > @1 and a2 > @2 and a3 > 2, scalarExpr = @1
-                //   keeplist: a1 > @1 and a3 > 2
-                //   andlist after removal: a2 > @2
-                //   nodeAFilter = a1 > @1 and a3 > 2
-                //
-                var andlist = nodeAFilter.FilterToAndList();
-                var keeplist = andlist.Where(x => x.VisitEachExists(e => e.Equals(inExpr))).ToList();
-                andlist.RemoveAll(x => x.VisitEachExists(e => e.Equals(inExpr)));
-                if (andlist.Count == 0)
-                    nodeA.NullifyFilter();
-                else
-                {
-                    nodeA.filter_ = andlist.AndListToExpr();
-                    if (keeplist.Count > 0)
-                        nodeAFilter = keeplist.AndListToExpr();
-                    else
-                        nodeAFilter = markerFilter;
-                }
-            }
             // make a mark join
             LogicMarkJoin markjoin;
             if (inExpr.hasNot_)
