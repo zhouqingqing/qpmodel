@@ -127,34 +127,32 @@ namespace qpmodel.logic
 
             if (nodeAFilter != null)
             {
-                // a1 > @1 and a2 > @2 and a3 > 2, scalarExpr = @1
+                // a1 > @1 and a2 > @2 and a3 > 2, existExpr = @1
                 //   keeplist: a1 > @1 and a3 > 2
                 //   andlist after removal: a2 > @2
                 //   nodeAFilter = a1 > @1 and a3 > 2
                 //   consider a1>0 and (@1 or @2)
                 //   a1>0 and (@1 or (@2 and @3)) 
+
+                //(@1 or marker@2) and marker@3 existExpr = @1
+                //   keep list (@1 or marker@2)
+                //   andlist after remove @3
+                //   nodeAFilter = (@1 or marker@2)
                 var andlist = nodeAFilter.FilterToAndList();
-
                 var keeplist = andlist.Where(x => x.VisitEachExists(e => e.Equals(existExpr))).ToList();
-
                 andlist.RemoveAll(x => (!(x is LogicOrExpr) && x.Equals(existExpr)) || (x is LogicOrExpr) && !hasAnyExtreSubqueryExprInOR(x, existExpr));
 
-                // if there is any (#marker or @2), the root should be replace
+                // if there is any (#marker@1 or @2), the root should be replace, 
+                // i.e. the (#marker@1 or @2)  keeps at the top for farther unnesting
                 canReplace = andlist.Find(x => (x is LogicOrExpr) && hasAnyExtreSubqueryExprInOR(x, existExpr)) == null ? false : true;
 
-                if (andlist.Count == 0)
+                if (andlist.Count == 0 || canReplace)
+                    // nodeA is root, a ref parameter. (why it is a ref parameter without "ref" or "out" )
                     nodeA.NullifyFilter();
                 else
                 {
-                    if (canReplace) nodeA.NullifyFilter(); // nodeA is root, a ref parameter. (why it is a ref parameter)
-                    else
-                    {
-                        nodeA.filter_ = andlist.AndListToExpr();
-                        if (keeplist.Count > 0)
-                            nodeAFilter = keeplist.AndListToExpr();
-                        else
-                            nodeAFilter = markerFilter;
-                    }
+                    nodeA.filter_ = andlist.AndListToExpr();
+                    nodeAFilter = keeplist.Count > 0 ? keeplist.AndListToExpr() : markerFilter;
                 }
             }
 
@@ -630,8 +628,7 @@ namespace qpmodel.logic
         }
         public override string ToString() => $"PMarkJOIN({lchild_()},{rchild_()}: {Cost()})";
 
-        // always the last column, as it is added at the last time 
-        // the first column may be a good idea?
+        // find the #marker from children output and located the #marker by subquery_id_.
         void fixMarkerValue(Row r, Value value)
         {
             var output = this.logic_.output_;

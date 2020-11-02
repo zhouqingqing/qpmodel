@@ -2191,11 +2191,7 @@ namespace qpmodel.unittest
 
         [TestMethod]
         public void TestAndOrExpr()
-        {
-
-            // Postgre SQL saw null != null. And
-            // null is any value
-            // so 2 not in (1,null) = false
+        {      
             TU.ExecuteSQL("INSERT INTO a VALUES(3,4,5,6)");
             TU.ExecuteSQL("SELECT a1,a2 FROM a", "0,1;1,2;2,3;3,4");
             TU.ExecuteSQL("INSERT INTO a VALUES(4,5,6,7)");

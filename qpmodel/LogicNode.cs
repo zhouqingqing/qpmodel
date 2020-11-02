@@ -38,8 +38,6 @@ using qpmodel.utils;
 
 using LogicSignature = System.Int64;
 using BitVector = System.Int64;
-using Microsoft.Scripting.Utils;
-using System.Runtime.CompilerServices;
 
 namespace qpmodel.logic
 {
@@ -710,6 +708,20 @@ namespace qpmodel.logic
                 var lchild = this.lchild_();
                 var rchild = this.rchild_();
                 List<Expr> reqFromChildRemove = new List<Expr>();
+                // consider (marker@1 or marker@2)
+                // a markjoin@1 b markjoin@2 c
+                //  
+                //  (marker@1,marker@2)   |><|@1
+                //                       /    \
+                //  (marker@2)        |><|@2    a
+                //                     /    \
+                //                   b       c
+                //
+                // if this is the markjoin@1, the marker@1 is produce by this MarkJoin
+                // we should keep marker@1, meanwhile, delete it in reqFromChild
+                // and should figure out which side has produced marker@2
+                // infact, we always use LeftMarkJoin, so the marker@2 may always drop into left.
+                // so the rchild check may be unnecessary
                 lchild.VisitEach(x =>
                 {
                     if (x is LogicMarkJoin)
