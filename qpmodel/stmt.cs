@@ -582,9 +582,11 @@ namespace qpmodel.logic
                         ++matchCount;
                 }
             }
-            if (matchCount >= aggFns.Count)
+
+            bool hasAllTables = filter.TableRefsContainedBy(lag.InclusiveTableRefs());
+            if (matchCount >= aggFns.Count || hasAllTables)
             {
-                lag.having_.AddAndFilter(filter);
+                lag.having_ = lag.having_.AddAndFilter(filter);
                 return true;
             }
             return false; // what now! We will say we can't do this.
