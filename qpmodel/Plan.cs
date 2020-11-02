@@ -35,6 +35,7 @@ using System.Diagnostics;
 using qpmodel.expr;
 using qpmodel.physic;
 using qpmodel.utils;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace qpmodel.logic
 {
@@ -711,6 +712,93 @@ namespace qpmodel.logic
             return foundCount != 0;
         }
 
+        // A subquery can contain an aggregate in selections, where, group by
+        // and having, if all column references contained in in are outer
+        // references.
+        // From IWD 9075-2:201?(E), draft standard, 2011-12-21
+        // Section 7.8 WHERE. Syntax rule (SR) 1: WHERE
+        // Section 7.10 HAVING. SR 3
+        // 10.9.6 Conformance rules. section 77
+        // 1) If a <value expression> directly contained in the <search condition>
+        // is a <set function specification>, then the <where clause> shall be
+        // contained in a <having clause> or <select list>, the <set function specification>
+        // shall contain a column reference, and every column reference contained in
+        // an aggregated argument of the <set function specification> shall
+        // be an outer reference.
+        // Qpmodel extends this by allowing more than one outer references as arguments
+        // aggregates in this context.
+
+        internal bool hasInvalidAggregateInClause(Expr expr)
+        {
+            bool isSelectionExpr(SelectStmt par, SelectStmt e)
+            {
+                bool ans = false;
+                par.selection_.ForEach(x =>
+                {
+                    if (x is SubqueryExpr sqe && sqe.query_ == e)
+                        ans = true;
+                });
+
+                return ans;
+            }
+
+            bool isHavingExpr(Expr hav, SelectStmt e)
+            {
+                bool ans = false;
+                if (hav == null)
+                    return ans;
+
+                List<Expr> lexpr = hav.RetrieveAllType<Expr>();
+                lexpr.ForEach(x =>
+                {
+                    if (x is SubqueryExpr sqe && sqe.query_ == e)
+                        ans = true;
+                });
+
+                return ans;
+            }
+
+            int invCount = 0;
+            SelectStmt par = parent_, self = this;
+            List<AggFunc> aggfncs = expr.RetrieveAllType<AggFunc>();
+            if (aggfncs.Count > 0)
+            {
+                while (par != null && invCount == 0)
+                {
+                    // Is this statement not part of parent's select, or having?
+                    if (isSelectionExpr(par, self) || isHavingExpr(par.having_, self))
+                    {
+                        aggfncs.ForEach(a =>
+                        {
+                            if (a.RetrieveAllColExpr().Count > 0)
+                                ++invCount;
+                        });
+                    }
+                    else
+                    {
+                        ++invCount;
+                    }
+
+                    if (invCount == 0)
+                        par = par.parent_;
+                }
+            }
+
+            return invCount != 0;
+        }
+
+        internal bool hasInvalidAggregateInClause(List<Expr> lexpr)
+        {
+            int invalidCount = 0;
+            lexpr.ForEach(x =>
+            {
+                if (hasInvalidAggregateInClause(x))
+                    ++invalidCount;
+            });
+
+            return invalidCount != 0;
+        }
+
         internal void BindWithContext(BindContext context)
         {
             // we don't consider setops in this level
@@ -732,7 +820,7 @@ namespace qpmodel.logic
             {
                 where_ = where_.BindAndNormalizeClause(context);
                 where_ = where_.FilterNormalize();
-                if (!where_.IsBoolean() || where_.HasAggFunc())
+                if (!where_.IsBoolean() || hasInvalidAggregateInClause(where_))
                     throw new SemanticAnalyzeException(
                         "WHERE condition must be a boolean expression and no aggregation is allowed");
                 if (queryOpt_.optimize_.remove_from_)
@@ -748,7 +836,7 @@ namespace qpmodel.logic
                     // remove_from optimization can produce aggregates in
                     // group by, detect it and suppress this throw if that
                     // is the case.
-                    if (!IsAggregateInFrom())
+                    if (!IsAggregateInFrom() && hasInvalidAggregateInClause(groupby_))
                        throw new SemanticAnalyzeException("aggregation functions are not allowed in group by clause");
                 }
             }

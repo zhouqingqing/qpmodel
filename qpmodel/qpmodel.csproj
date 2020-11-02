@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="Current">
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <OutputType>Exe</OutputType>
@@ -33,6 +33,7 @@
       <Generator>MSBuild:Compile</Generator>
       <CustomToolNamespace>qpmodel.sqlparser</CustomToolNamespace>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetLanguage>CSharp</TargetLanguage>
     </Antlr4>
   </ItemGroup>
   <ItemGroup>

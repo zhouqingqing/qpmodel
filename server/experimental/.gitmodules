@@ -1,0 +1,11 @@
+[submodule "deps/googletest"]
+	path = deps/googletest
+	url = https://github.com/google/googletest.git
+
+[submodule "deps/benchmark"]
+	path = deps/benchmark
+	url = https://github.com/google/benchmark.git
+
+[submodule "deps/fmtlib"]
+	path = deps/fmtlib
+	url = https://github.com/fmtlib/fmt.git
