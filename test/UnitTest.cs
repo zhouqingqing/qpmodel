@@ -2191,7 +2191,7 @@ namespace qpmodel.unittest
 
         [TestMethod]
         public void TestAndOrExpr()
-        {      
+        {
             TU.ExecuteSQL("INSERT INTO a VALUES(3,4,5,6)");
             TU.ExecuteSQL("SELECT a1,a2 FROM a", "0,1;1,2;2,3;3,4");
             TU.ExecuteSQL("INSERT INTO a VALUES(4,5,6,7)");
@@ -2248,8 +2248,6 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(@"select a1 from a where a1<=2 and exists 
                         (select b.b1 from b where b.b2=a.a1 and exists (select c.c2 from c where c.c1=b.b1 and exists (select d.d1 from d where d.d1=c.c1)))", "1;2", out phyplan);
             Assert.AreEqual(3, TU.CountStr(phyplan, "PhysicMarkJoin"));
-
-
 
             TU.ExecuteSQL("drop table a");
             SQLStatement.ExecSQLList(@"create table a (a1 int, a2 int, a3 int, a4 int);
@@ -2909,7 +2907,6 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestFromQueryRemoval()
         {
-
             QueryOption option = new QueryOption();
             // disable remove_from
             option.optimize_.remove_from_ = false;

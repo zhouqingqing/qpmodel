@@ -95,6 +95,10 @@ namespace qpmodel.logic
         // further convert DJoin to semi-join here is by decorrelate process
         //
 
+        bool exprIsNotEqualToCurrentExistsExpr(Expr x, Expr curExistsExpr)
+        {
+            return x is SubqueryExpr && (!x.Equals(curExistsExpr));
+        }
         // check (@1 or (@2 or @3))) if @3 unnested here.
         // (@1 @2)
         bool hasAnyExtreSubqueryExprInOR(Expr x, Expr exsitsExpr)
@@ -105,16 +109,17 @@ namespace qpmodel.logic
             }
             else
             {
-                return x.VisitEachExists(y => (y is SubqueryExpr && (!y.Equals(exsitsExpr))));
+                return x.VisitEachExists(y => exprIsNotEqualToCurrentExistsExpr(y, exsitsExpr));
             }
         }
 
+        bool exprIsNotORExprAndEqualsToExistExpr(Expr x, Expr existExpr)
+        {
+            return (!(x is LogicOrExpr)) && x.Equals(existExpr);
+        }
         // 如果有or， 就不能变成filter，否则无法替换
         LogicNode existsToMarkJoin(LogicNode nodeA, ExistSubqueryExpr existExpr, ref bool canReplace)
         {
-            var nodeAIsOnMarkJoin =
-                nodeA is LogicFilter && (nodeA.child_() is LogicMarkJoin || nodeA.child_() is LogicSingleJoin);
-
             // nodeB contains the join filter
             var nodeB = existExpr.query_.logicPlan_;
             var nodeBFilter = nodeB.filter_;
@@ -140,7 +145,8 @@ namespace qpmodel.logic
                 //   nodeAFilter = (@1 or marker@2)
                 var andlist = nodeAFilter.FilterToAndList();
                 var keeplist = andlist.Where(x => x.VisitEachExists(e => e.Equals(existExpr))).ToList();
-                andlist.RemoveAll(x => (!(x is LogicOrExpr) && x.Equals(existExpr)) || (x is LogicOrExpr) && !hasAnyExtreSubqueryExprInOR(x, existExpr));
+
+                andlist.RemoveAll(x => exprIsNotORExprAndEqualsToExistExpr(x, existExpr) || (x is LogicOrExpr) && !hasAnyExtreSubqueryExprInOR(x, existExpr));
 
                 // if there is any (#marker@1 or @2), the root should be replace, 
                 // i.e. the (#marker@1 or @2)  keeps at the top for farther unnesting
@@ -183,10 +189,14 @@ namespace qpmodel.logic
             }
             return Filter;
         }
-
+        bool isUnresolvedColExpr(Expr e)
+        {
+            return e is ColExpr eCE && eCE.isParameter_;
+        }
         List<Expr> findAndfetchParameterExpr(ref LogicNode nodeA)
         {
             List<Expr> notDeparameterExpr = new List<Expr>();
+
             nodeA.VisitEach(x =>
             {
                 if (x is LogicFilter)
@@ -196,10 +206,8 @@ namespace qpmodel.logic
                     {
                         e.VisitEach(c =>
                         {
-                            if ((c is ColExpr ce) && ce.isParameter_)
-                            {
+                            if (isUnresolvedColExpr(c))
                                 notDeparameterExpr.Add(e);
-                            }
                         });
                     }
                     var removeList = notDeparameterExpr.Where(x => andList.Contains(x));
@@ -208,14 +216,9 @@ namespace qpmodel.logic
                         andList.Remove(r);
                     }
                     if (andList.Count == 0)
-                    {
                         x.NullifyFilter();
-                    }
                     else
-                    {
                         x.filter_ = andList.AndListToExpr();
-                    }
-                    Console.WriteLine("");
                 }
             });
 
