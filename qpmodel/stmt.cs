@@ -710,7 +710,15 @@ namespace qpmodel.logic
                             // take it out from the tree
                             plan = plan.child_();
                         else
+                        {
+                            // find current parent;
+                            // consider if the parent in parents = new List<LogicNode>() is deleted
+                            plan.VisitEach((parent_cur, index, child) =>
+                            {
+                                if (child == filter) parent = parent_cur;
+                            });
                             parent.children_[index] = filter.child_();
+                        }
                     }
                     else
                         filter.filter_ = andlist.AndListToExpr();

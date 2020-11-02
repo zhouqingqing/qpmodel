@@ -267,7 +267,7 @@ namespace qpmodel.logic
             return tableRefs_;
         }
 
-        internal Expr CloneFixColumnOrdinal(Expr toclone, List<Expr> source, bool idonly = false)
+        internal Expr CloneFixColumnOrdinal(Expr toclone, List<Expr> source, List<Expr> output = null, bool idonly = false)
         {
             Debug.Assert(toclone.bounded_);
             Debug.Assert(toclone._ != null);
@@ -276,7 +276,7 @@ namespace qpmodel.logic
             // first try to match the whole expression - don't do this for ColExpr
             // because it has no practial benefits.
             // 
-            if (!(clone is ColExpr)&&!(clone is MarkerExpr))
+            if (!(clone is ColExpr) && !(clone is MarkerExpr))
             {
                 int ordinal = source.FindIndex(clone.Equals);
                 // for derived child node, compare only the expression id
@@ -287,31 +287,43 @@ namespace qpmodel.logic
                     return new ExprRef(clone, ordinal);
             }
 
-            // the LogicOrExpr with Marker should be consider
-            if (clone is LogicOrExpr)
+            // the marker's ordinal should equal to a2, i.e. the frontest index in disapeard colExpr
+            // a1 a2 b2 
+            // a1 marker (a2,b2 disapeared )
+            if (clone is MarkerExpr)
             {
-                Expr temp;
-                if (clone.lchild_() is ExprRef)
-                    temp = clone.lchild_().child_();
-                else
-                    temp = clone.lchild_();
-                int ordinal = source.FindIndex(temp.Equals);
-                if (ordinal != -1)
+                var findExpr = source.Find(x => x._ == clone._);
+                var findIndex = source.FindIndex(x => x._ == clone._);
+                if (findExpr is ExprRef)
                 {
-                    var exprRef = new ExprRef(temp, ordinal);
-                    clone.children_[0] = exprRef;//left
+                    return new ExprRef(clone, findIndex);
                 }
+                else
+                {
+                    Debug.Assert(this is LogicMarkJoin);
+                    int markerOrdinal = source.FindIndex(x => output.Find(y => y._ == x._) == null);
+                    Debug.Assert(markerOrdinal != -1);
+                    // MarkJoin will project out some columns 
+                    // so we set the markExpr's ordinal to smallest of those deleted colExprs
+                    return new ExprRef(clone, markerOrdinal);
+                }
+            }
 
-                if (clone.rchild_() is ExprRef)
-                    temp = clone.rchild_().child_();
-                else
-                    temp = clone.rchild_();
-                ordinal = source.FindIndex(temp.Equals);
-                if (ordinal != -1)
+            // the LogicOrExpr with Marker should be consider
+            //input  (mark@1 or mark@2) or mark@3
+            if (clone is LogicAndOrExpr)
+            {
+                clone.VisitEach(x =>
                 {
-                    var exprRef = new ExprRef(temp, ordinal);
-                    clone.children_[1] = exprRef;//right
-                }
+                    if (x is ExprRef xE && xE.child_() is MarkerExpr xEM) // find #marker
+                    {
+                        int t_ordinal = source.FindIndex(xS =>
+                              //find the #marker by subqueryid_ in children's output
+                              xS is ExprRef xSE && xSE.child_() is MarkerExpr xSEM ? xEM.subqueryid_ == xSEM.subqueryid_ : false);
+                        Debug.Assert(t_ordinal > 0); // there must be a marker produced by child
+                        clone = clone.SearchAndReplace<ExprRef>(xE, new ExprRef(xEM, t_ordinal));
+                    }
+                });
             }
             /*
              * We need to resolve the aggregates here or the next loop will descend into aggregates
@@ -411,7 +423,8 @@ namespace qpmodel.logic
                     idonly = true;
             });
 
-            toclone.ForEach(x => clone.Add(CloneFixColumnOrdinal(x, source, idonly)));
+            List<Expr> output = new List<Expr>(toclone);
+            toclone.ForEach(x => clone.Add(CloneFixColumnOrdinal(x, source, output, idonly)));
             Debug.Assert(clone.Count == toclone.Count);
 
             if (removeRedundant)
@@ -673,6 +686,8 @@ namespace qpmodel.logic
             }
         }
 
+        public bool isSubSet(List<TableRef> small, List<TableRef> big) => small.All(t => big.Any(b => b == t)) ? true : false;
+
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             // request from child including reqOutput and filter
@@ -686,11 +701,74 @@ namespace qpmodel.logic
             var rtables = rchild_().InclusiveTableRefs();
             var lreq = new HashSet<Expr>();
             var rreq = new HashSet<Expr>();
-
-            Expr thisReq = null;
+            // seperate the output to related child respectively
+            Debug.Assert((this.lchild_() != null) && (this.rchild_() != null));
+            if (this is LogicMarkJoin LMJ)
+            {
+                var lchild = this.lchild_();
+                var rchild = this.rchild_();
+                List<Expr> reqFromChildRemove = new List<Expr>();
+                // consider (marker@1 or marker@2)
+                // a markjoin@1 b markjoin@2 c
+                //  
+                //  (marker@1,marker@2)   |><|@1
+                //                       /    \
+                //  (marker@2)        |><|@2    a
+                //                     /    \
+                //                   b       c
+                //
+                // if this is the markjoin@1, the marker@1 is produce by this MarkJoin
+                // we should keep marker@1, meanwhile, delete it in reqFromChild
+                // and should figure out which side has produced marker@2
+                // infact, we always use LeftMarkJoin, so the marker@2 may always drop into left.
+                // so the rchild check may be unnecessary
+                lchild.VisitEach(x =>
+                {
+                    if (x is LogicMarkJoin)
+                    {
+                        foreach (var v in reqFromChild)
+                        {
+                            if (v is MarkerExpr vM)
+                            {
+                                var xTableRef = x.GetTableRef();
+                                if (isSubSet(vM.tableRefs_, xTableRef) && !(LMJ.subquery_id_ == vM.subqueryid_))
+                                {
+                                    lreq.Add(v);
+                                    reqFromChildRemove.Add(v);
+                                }
+                            }
+                        }
+                    }
+                }
+                );
+                rchild.VisitEach(x =>
+                {
+                    if (x is LogicMarkJoin)
+                    {
+                        foreach (var v in reqFromChild)
+                        {
+                            if (v is MarkerExpr vM)
+                            {
+                                var xTableRef = x.GetTableRef();
+                                if (isSubSet(v.tableRefs_, xTableRef) && !(LMJ.subquery_id_ == vM.subqueryid_))
+                                {
+                                    rreq.Add(v);
+                                    reqFromChildRemove.Add(v);
+                                }
+                            }
+                        }
+                    }
+                }
+                );
+                reqFromChildRemove.ForEach(x =>
+                {
+                    reqFromChild.Remove(x);
+                });
+            }
+            Expr thisReq = null; // markjoin will produce a Marker Expr
             foreach (var v in reqFromChild)
             {
-                if(!(v is  MarkerExpr)||!(this is LogicMarkJoin))
+                if (!(v is MarkerExpr vM) || !(this is LogicMarkJoin lmj))
                 {
                     var tables = v.CollectAllTableRef();
                     if (ltables.ContainsList(tables))
@@ -735,7 +813,8 @@ namespace qpmodel.logic
                 }
                 else
                 {
-                    thisReq = v;// the lefted markjoin is requested by this
+                    if (lmj.subquery_id_ == vM.subqueryid_)
+                        thisReq = v;// the lefted markjoin is requested by this
                 }
             }
             // get left and right child to resolve columns
@@ -790,7 +869,7 @@ namespace qpmodel.logic
             {
                 if (!(expr is AggFunc))
                 {
-                    if ((expr is ColExpr ec && !ec.isParameter_)||expr is MarkerExpr)
+                    if ((expr is ColExpr ec && !ec.isParameter_) || expr is MarkerExpr)
                         list.Add(expr);
                     foreach (var v in expr.children_)
                         addColumnAndAggFuncs(v, list);
@@ -848,7 +927,7 @@ namespace qpmodel.logic
         public override LogicSignature MemoLogicSign()
         {
             if (logicSign_ == -1)
-                logicSign_ = (child_().MemoLogicSign() << 32) + ((isLocal_.GetHashCode() ^ 
+                logicSign_ = (child_().MemoLogicSign() << 32) + ((isLocal_.GetHashCode() ^
                     having_.FilterHashCode() ^ rawAggrs_.ListHashCode() ^ groupby_.ListHashCode()) >> 32);
             return logicSign_;
         }
@@ -968,13 +1047,13 @@ namespace qpmodel.logic
 
                 // add back the dependent exprs back
                 x.VisitEachIgnoreRef<AggFunc>(y =>
+            {
+                foreach (var z in y.GetNonFuncExprList())
                 {
-                    foreach (var z in y.GetNonFuncExprList())
-                    {
-                        if (!exprConsistPureKeys(y, keys) && !z.HasAggrRef())
-                            reqList.Add(z);
-                    }
-                });
+                    if (!exprConsistPureKeys(y, keys) && !z.HasAggrRef())
+                        reqList.Add(z);
+                }
+            });
             });
 
             reqList = reqList.Distinct().ToList();

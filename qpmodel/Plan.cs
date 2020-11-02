@@ -286,9 +286,13 @@ namespace qpmodel.logic
                     if (queryOpt_.optimize_.enable_subquery_unnest_)
                     {
                         // use the plan 'root' containing the subexpr 'x'
-                        var replacement = oneSubqueryToJoin(root, x);
+                        bool canReplaceRoot = false;
+                        var replacement = oneSubqueryToJoin(root, x, ref canReplaceRoot);
                         newroot = (LogicNode)newroot.SearchAndReplace(root,
                                                                 replacement);
+                        // consider  mark@1 or @2 , @2 is not unnested yet, 
+                        // so it can't be push down i.e. it keep as a root
+                        if (canReplaceRoot) root = newroot;
                     }
                 }
                 else if (e is FuncExpr f && f.isSRF_)

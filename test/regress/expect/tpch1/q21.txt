@@ -50,15 +50,15 @@ PhysicLimit (100) (inccost=36715148356934.4, cost=100, rows=100)
             Group by: s_name[0]
             -> PhysicFilter  (inccost=36715142242516, cost=6001215, rows=6001215)
                 Output: s_name[0]
-                Filter: {#marker}[1]
+                Filter: {#marker@1}[1]
                 -> PhysicMarkJoin Left (inccost=36715136241301, cost=36014581476225, rows=6001215)
-                    Output: s_name[0],#marker
+                    Output: s_name[0],{#marker@1}[1]
                     Filter: (l_orderkey[3]=l_orderkey[1] and l_suppkey[4]<>l_suppkey[2])
                     -> PhysicFilter  (inccost=700548763861, cost=6001215, rows=6001215)
                         Output: s_name[0],l_orderkey[1],l_suppkey[2]
-                        Filter: {#marker}[3]
+                        Filter: {#marker@2}[3]
                         -> PhysicMarkJoin Left (inccost=700542762646, cost=700515825735, rows=6001215)
-                            Output: s_name[0],l_orderkey[1],l_suppkey[2],#marker
+                            Output: s_name[0],l_orderkey[1],l_suppkey[2],{#marker@2}[3]
                             Filter: (l_orderkey[3]=l_orderkey[1] and l_suppkey[4]<>l_suppkey[2])
                             -> PhysicHashJoin  (inccost=20935696, cost=3035771, rows=116729, memory=23200)
                                 Output: s_name[0],l_orderkey[2],l_suppkey[3]
