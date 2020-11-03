@@ -2258,6 +2258,45 @@ namespace qpmodel.unittest
         }
 
         [TestMethod]
+        public void TestINExprAndINSubquery()
+        {
+            // In Postgre SQL,  null != null. 
+            // And null is any value
+            // so 2 not in (1,null) = false
+            TU.ExecuteSQL("INSERT INTO a VALUES(3,NULL,5,6)");
+            TU.ExecuteSQL("SELECT a1,a2 FROM a", "0,1;1,2;2,3;3,");
+
+            // NULL in inList
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 IN (1,2)", "0;1");
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 IN (1,2,NULL)", "0;1");
+
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 NOT IN (1,2)", "2");
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 NOT IN (1,2,NULL)", "");
+
+            TU.ExecuteSQL("INSERT INTO b VALUES(3,NULL,5,6)");
+
+            // NULL in non-corelated subquery
+            TU.ExecuteSQL("SELECT a2 FROM a WHERE a2 IN (SELECT b2 FROM b WHERE b1<2 )", "1;2"); //(1,2,3,NULL) in [1,2] = 1,2
+
+            TU.ExecuteSQL("SELECT a2 FROM a WHERE a2 IN (SELECT b2 FROM b WHERE b1 < 2 or b1 = 3)", "1;2");// (1,2,3,NULL) in [1,2,NULL]= 1,2
+
+            TU.ExecuteSQL("SELECT a2 FROM a WHERE a2 NOT IN (SELECT b2 FROM b WHERE b1 <2 or b1 =3)", "");//(1,2,3,NULL) not [1,2,NULL] = NULL
+
+            // NULL in corelated subquery
+
+            // RECOVER a,b For other UnitTest
+            TU.ExecuteSQL("drop table a");
+            TU.ExecuteSQL("drop table b");
+            SQLStatement.ExecSQLList(@"create table a (a1 int, a2 int, a3 int, a4 int);
+                            create table b (b1 int, b2 int, b3 int, b4 int);
+                            insert into a values(0,1,2,3);
+                            insert into a values(1,2,3,4);
+                            insert into a values(2,3,4,5);
+                            insert into b select * from a;");
+            TU.ExecuteSQL("select a1 from a", "0;1;2");
+        }
+
+        [TestMethod]
         public void TestSimpleAndSearchedCase()
         {
             string sql = null;
