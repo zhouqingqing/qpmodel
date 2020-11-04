@@ -598,7 +598,7 @@ namespace qpmodel.logic
         public LogicMarkJoin(LogicNode l, LogicNode r, int subquery_id) : base(l, r) { type_ = JoinType.Left; subquery_id_ = subquery_id; }
         public LogicMarkJoin(LogicNode l, LogicNode r, Expr f) : base(l, r, f) { type_ = JoinType.Left; }
 
-        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true, bool isToppest = false)
         {
             var list = base.ResolveColumnOrdinal(reqOutput, removeRedundant);
             return list;
@@ -764,7 +764,7 @@ namespace qpmodel.logic
         // last child is the output node
         public LogicNode OutputChild() => children_[children_.Count - 1];
 
-        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true, bool isToppest = false)
         {
             List<int> ordinals = new List<int>();
 

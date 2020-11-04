@@ -841,7 +841,7 @@ namespace qpmodel.logic
                     // group by, detect it and suppress this throw if that
                     // is the case.
                     if (!IsAggregateInFrom() && hasInvalidAggregateInClause(groupby_))
-                       throw new SemanticAnalyzeException("aggregation functions are not allowed in group by clause");
+                        throw new SemanticAnalyzeException("aggregation functions are not allowed in group by clause");
                 }
             }
 

@@ -148,6 +148,7 @@ namespace qpmodel.logic
 
         public static List<Row> ExecSQL(string sql, out SQLStatement stmt, out string physicplan, out string error, QueryOption option = null)
         {
+
             try
             {
                 stmt = RawParser.ParseSingleSqlStatement(sql);
@@ -782,13 +783,15 @@ namespace qpmodel.logic
             return newselection;
         }
 
+
         internal void ResolveOrdinals()
         {
+            bool isToppestNode = true;
             if (setops_ is null)
             {
                 if (shallExpandSelection_)
                     selection_ = selectionRemoveSubquery(selection_);
-                logicPlan_.ResolveColumnOrdinal(selection_, parent_ != null);
+                logicPlan_.ResolveColumnOrdinal(selection_, parent_ != null, isToppestNode);
             }
             else
             {
@@ -798,7 +801,7 @@ namespace qpmodel.logic
                 {
                     x.logicPlan_.ResolveColumnOrdinal(x.selection_, false);
                 });
-                logicPlan_.ResolveColumnOrdinal(first.selection_, parent_ != null);
+                logicPlan_.ResolveColumnOrdinal(first.selection_, parent_ != null, isToppestNode);
             }
         }
 
