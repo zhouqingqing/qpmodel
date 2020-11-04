@@ -1615,7 +1615,12 @@ namespace qpmodel.logic
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true, bool isToppest = false)
         {
             // limit is the top node and don't remove redundant
-            return base.ResolveColumnOrdinal(reqOutput, false);
+            List<int> ordinals = new List<int>();
+
+            children_[0].ResolveColumnOrdinal(reqOutput, removeRedundant);
+            output_ = children_[0].output_;
+            RefreshOutputRegisteration();
+            return ordinals;
         }
     }
 
