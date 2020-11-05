@@ -156,6 +156,16 @@ namespace qpmodel.unittest
                 }
             }
         }
+
+        public static void restoreTable(string table)
+        {
+            var sql = String.Format(@" drop table {0};
+                            create table {0} ({0}1 int, {0}2 int, {0}3 int, {0}4 int);
+                            copy {0} from '../../../../data/{0}.tbl'", table);
+            SQLStatement.ExecSQLList(sql);
+
+            TU.ExecuteSQL($"select {table}1 from {table}", "0;1;2");
+        }
     }
 
     [TestClass]
@@ -2249,12 +2259,39 @@ namespace qpmodel.unittest
                         (select b.b1 from b where b.b2=a.a1 and exists (select c.c2 from c where c.c1=b.b1 and exists (select d.d1 from d where d.d1=c.c1)))", "1;2", out phyplan);
             Assert.AreEqual(3, TU.CountStr(phyplan, "PhysicMarkJoin"));
 
-            TU.ExecuteSQL("drop table a");
-            SQLStatement.ExecSQLList(@"create table a (a1 int, a2 int, a3 int, a4 int);
-                            insert into a values(0,1,2,3);
-                            insert into a values(1,2,3,4);
-                            insert into a values(2,3,4,5);");
-            TU.ExecuteSQL("select a1 from a", "0;1;2");
+            TU.restoreTable("a");
+        }
+
+        [TestMethod]
+        public void TestINExprAndINSubquery()
+        {
+            // In Postgre SQL,  null != null. 
+            // And null is any value
+            // so 2 not in (1,null) = false
+            TU.ExecuteSQL("INSERT INTO a VALUES(3,NULL,5,6)");
+            TU.ExecuteSQL("SELECT a1,a2 FROM a", "0,1;1,2;2,3;3,");
+
+            // NULL in inList
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 IN (1,2)", "0;1");
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 IN (1,2,NULL)", "0;1");
+
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 NOT IN (1,2)", "2");
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 NOT IN (1,2,NULL)", "");
+
+            TU.ExecuteSQL("INSERT INTO b VALUES(3,NULL,5,6)");
+
+            // NULL in non-corelated subquery
+            TU.ExecuteSQL("SELECT a2 FROM a WHERE a2 IN (SELECT b2 FROM b WHERE b1<2 )", "1;2"); //(1,2,3,NULL) in [1,2] = 1,2
+
+            TU.ExecuteSQL("SELECT a2 FROM a WHERE a2 IN (SELECT b2 FROM b WHERE b1 < 2 or b1 = 3)", "1;2"); // (1,2,3,NULL) in [1,2,NULL]= 1,2
+
+            TU.ExecuteSQL("SELECT a2 FROM a WHERE a2 NOT IN (SELECT b2 FROM b WHERE b1 <2 or b1 =3)", ""); //(1,2,3,NULL) not [1,2,NULL] = NULL
+
+            // NULL in corelated subquery
+
+            // RECOVER a,b For other UnitTest
+            TU.restoreTable("a");
+            TU.restoreTable("b");
         }
 
         [TestMethod]
