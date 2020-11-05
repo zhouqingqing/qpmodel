@@ -1,0 +1,37 @@
+
+This docuement describes the process required to use andb parser in the new
+native code while running on Windows.
+
+GNU fles and bison are not available on Windows. Someone ported them to
+windows, this project is called winflex/winbison and is avaliable on
+sourceforge. It was descided that since Windows is only transitional, not
+to use winfles/winbison but to use a Linux system to compile these files.
+
+
+To maintain naming consistance, the following changes are made to original
+andb.l and andb.y.
+
+   1) Rename bison_parser.h as andb_parser.h.
+   2) Rename andb.tab.c as andb_parser.cpp
+   3) Rename flex_lexer.h as andb_lexer.h
+   4) Rename flex_lexer.cpp ad andb_lexer.cpp
+
+The generated files #include <unistd.h>. winfles/winbison also do the same.
+WHile this is not a problem on Unix platforms, this will not compile on
+Windows, therefore the include is placed under #ifdef _MSC_VER.
+
+All these changes are done automatically by a shell script checked in to
+server/make-tools/port-andb.sh.
+
+If any changes to .l or .y file are to made, make them in andb.l or andb.y as
+required, copy them and the script to a Linux machine with flex and bison and
+run the script.
+copy the output files back into parser/syntax before building the project.
+
+The output files of the script are:
+andb_lexer.cpp
+andb_lexer.h
+andb_parser.cpp
+andb_parser.h
+andb_parser.output
+andb_parser.y

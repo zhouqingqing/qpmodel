@@ -37,8 +37,8 @@ SOFTWARE.
  ***************************/
 %{
 
-#include "../sql/Expr.h"
-#include "bison_parser.h"
+#include "../include/expr.h"
+#include "andb_parser.h"
 #include <stdio.h>
 #include <sstream>
 
@@ -70,7 +70,7 @@ static thread_local std::stringstream strbuf;
 %option nounput
 %option warn
 %option case-insensitive
-%option prefix="hsql_"
+%option prefix="andb_"
 %option bison-locations
 /* %option nodefault */
 
@@ -248,7 +248,7 @@ COMMIT      TOKEN(COMMIT)
 
 \"[^\"\n]+\" {
 	// Crop the leading and trailing quote char
-	yylval->sval = hsql::substr(yytext, 1, strlen(yytext)-1);
+	yylval->sval = andb_::substr(yytext, 1, strlen(yytext)-1);
 	return SQL_IDENTIFIER;
 }
 

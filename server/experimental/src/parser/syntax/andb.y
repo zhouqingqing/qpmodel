@@ -28,7 +28,7 @@ SOFTWARE.
 /**
  * bison_parser.y
  * defines bison_parser.h
- * outputs bison_parser.c
+ * outputs bison_parser.cpp
  *
  * Grammar File Spec: http://dinosaur.compilertools.net/bison/bison_6.html
  *
@@ -37,8 +37,8 @@ SOFTWARE.
  ** Section 1: C Declarations
  *********************************/
 
-#include "bison_parser.h"
-#include "flex_lexer.h"
+#include "andb_parser.h"
+#include "andb_lexer.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -61,9 +61,9 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 %code requires {
 // %code requires block
 
-#include "../sql/statements.h"
-#include "../SQLParserResult.h"
-#include "parser_typedef.h"
+#include "../include/statements.h"
+#include "../include/SQLParserResult.h"
+#include "../include/parser_typedef.h"
 
 // Auto update column and line number
 #define YY_USER_ACTION \
@@ -127,6 +127,8 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 
 	andb::SQLStatement* statement;
 	andb::SelectStatement* 	select_stmt;
+
+#ifdef __LATER
 	andb::ImportStatement* 	import_stmt;
 	andb::ExportStatement* 	export_stmt;
 	andb::CreateStatement* 	create_stmt;
@@ -138,6 +140,7 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 	andb::ExecuteStatement* exec_stmt;
 	andb::ShowStatement*    show_stmt;
 	andb::TransactionStatement* transaction_stmt;
+#endif
 
 	andb::TableName table_name;
 	andb::TableRef* table;
@@ -145,25 +148,41 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 	andb::OrderDescription* order;
 	andb::OrderType order_type;
 	andb::WithDescription* with_description_t;
+
+#ifdef __LATER
 	andb::DatetimeField datetime_field;
 	andb::LimitDescription* limit;
+#endif
+
 	andb::ColumnDefinition* column_t;
 	andb::ColumnType column_type_t;
+
+#ifdef __LATER
 	andb::ImportType import_type_t;
+#endif
+
 	andb::GroupByDescription* group_t;
+
+#ifdef __LATER
 	andb::UpdateClause* update_t;
+#endif
+
 	andb::Alias* alias_t;
 	andb::SetOperation* set_operator_t;
 
-	std::vector<andb::SQLStatement*>* stmt_vec;
+	std::vector<andb::SQLStatement*> * stmt_vec;
 
-	std::vector<char*>* str_vec;
-	std::vector<andb::TableRef*>* table_vec;
-	std::vector<andb::ColumnDefinition*>* column_vec;
-	std::vector<andb::UpdateClause*>* update_vec;
-	std::vector<andb::Expr*>* expr_vec;
-	std::vector<andb::OrderDescription*>* order_vec;
-	std::vector<andb::WithDescription*>* with_description_vec;
+	std::vector<char*> * str_vec;
+	std::vector<andb::TableRef*> * table_vec;
+	std::vector<andb::ColumnDefinition*> * column_vec;
+
+#ifdef __LATER
+	std::vector<andb::UpdateClause*> * update_vec;
+#endif
+
+	std::vector<andb::Expr*> * expr_vec;
+	std::vector<andb::OrderDescription*> * order_vec;
+	std::vector<andb::WithDescription*> * with_description_vec;
 }
 
 

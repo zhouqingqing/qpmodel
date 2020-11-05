@@ -2,8 +2,8 @@
 
 #include "common/common.h"
 #include "common/dbcommon.h"
-#include "expr.h"
-#include "parser/logicnode.h"
+#include "parser/include/expr.h"
+#include "parser/include/logicnode.h"
 
 namespace andb {
 class SQLStatement : public UseCurrentResource {
