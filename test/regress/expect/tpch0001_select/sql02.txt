@@ -12,8 +12,8 @@ where exists
 		and N.n_regionkey=0
 	)
 order by c_name
-Total cost: 2610.03, memory=870
-PhysicOrder  (inccost=2610.03, cost=105.03, rows=30, memory=870) (actual rows=29)
+Total cost: 4151.03, memory=870
+PhysicOrder  (inccost=4151.03, cost=105.03, rows=30, memory=870) (actual rows=29)
     Output: c_name[0],@1
     <ScalarSubqueryExpr> cached 1
         -> PhysicHashAgg  (inccost=1541, cost=3, rows=1, memory=2) (actual rows=1)

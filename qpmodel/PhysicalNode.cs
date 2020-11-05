@@ -174,7 +174,7 @@ namespace qpmodel.physic
                     incCost += x.InclusiveCost();
             });
 
-            // add subquery cost
+            // add subquery cost of Subquery in WHERE clause to inclusive cost
             if (this.logic_.filter_ != null)
             {
                 Expr expr = this.logic_.filter_;
@@ -183,6 +183,21 @@ namespace qpmodel.physic
                     Debug.Assert(x.query_.physicPlan_ != null);
                     var phynode = x.query_.physicPlan_ as PhysicNode;
                     incCost += phynode.InclusiveCost();
+                });
+            }
+
+            // account subquery cost of scalarSubquery in SELECT clause to inclusive cost
+            if (this.logic_.output_ != null)
+            {
+                List<Expr> output = this.logic_.output_;
+                output.ForEach(x =>
+                {
+                    if (x is SubqueryExpr xSE)
+                    {
+                        Debug.Assert(xSE.query_.physicPlan_ != null);
+                        var phynode = xSE.query_.physicPlan_ as PhysicNode;
+                        incCost += phynode.InclusiveCost();
+                    }
                 });
             }
 

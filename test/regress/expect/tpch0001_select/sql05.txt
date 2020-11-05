@@ -19,8 +19,8 @@ where exists
 		)
 	)
 order by c_name
-Total cost: 3136.59, memory=4950
-PhysicOrder  (inccost=3136.59, cost=766.59, rows=150, memory=4950) (actual rows=150)
+Total cost: 6202.59, memory=4950
+PhysicOrder  (inccost=6202.59, cost=766.59, rows=150, memory=4950) (actual rows=150)
     Output: @1,c_name[0],@2
     <ScalarSubqueryExpr> cached 1
         -> PhysicHashAgg  (inccost=1541, cost=3, rows=1, memory=2) (actual rows=1)

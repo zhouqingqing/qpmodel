@@ -26,7 +26,7 @@ PhysicHashAgg  (inccost=27906, cost=32, rows=1, memory=16) (actual rows=1)
             Output: l_extendedprice[0],l_quantity[1],{avg(l_quantity)}[3]
             Filter: l_partkey[4]=p_partkey[2]
             -> PhysicGather Threads: 20 (inccost=12544, cost=300, rows=30) (actual rows=0)
-                Output: l_extendedprice[1],l_quantity[2],p_partkey[0]
+                Output: l_extendedprice[0],l_quantity[1],p_partkey[2]
                 -> PhysicHashJoin  (inccost=12244, cost=6037, rows=30, memory=8) (actual rows=0, loops=10)
                     Output: l_extendedprice[1],l_quantity[2],p_partkey[0]
                     Filter: p_partkey[0]=l_partkey[3]
@@ -42,7 +42,7 @@ PhysicHashAgg  (inccost=27906, cost=32, rows=1, memory=16) (actual rows=1)
                 Aggregates: sum({sum(l_quantity)}[1]), sum({count(l_quantity)}[2])
                 Group by: l_partkey[0]
                 -> PhysicGather Threads: 10 (inccost=14410, cost=2000, rows=200) (actual rows=0)
-                    Output: {l_partkey}[0],{sum(l_quantity)}[1],{count(l_quantity)}[2]
+                    Output: l_partkey[0],{sum(l_quantity)}[1],{count(l_quantity)}[2]
                     -> PhysicHashAgg  (inccost=12410, cost=6405, rows=200, memory=2400) (actual rows=189, loops=10)
                         Output: {l_partkey}[0],{sum(l_quantity)}[1],{count(l_quantity)}[2]
                         Aggregates: sum(l_quantity[1]), count(l_quantity[1])
