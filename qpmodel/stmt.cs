@@ -148,7 +148,6 @@ namespace qpmodel.logic
 
         public static List<Row> ExecSQL(string sql, out SQLStatement stmt, out string physicplan, out string error, QueryOption option = null)
         {
-
             try
             {
                 stmt = RawParser.ParseSingleSqlStatement(sql);
@@ -782,7 +781,6 @@ namespace qpmodel.logic
             });
             return newselection;
         }
-
 
         internal void ResolveOrdinals()
         {
