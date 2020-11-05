@@ -456,9 +456,9 @@ namespace qpmodel.unittest
             TU.ClearTableStatsInCatalog(tabNameList);
 
             try
-            {   
+            {
                 // sql06 does not have ORDER, so the toppest physice node is physicGather
-                var badQueries = new string[] { "sql01", "sql02", "sql03", "sql04", "sql05" ,"sql07"};
+                var badQueries = new string[] { "sql01", "sql02", "sql03", "sql04", "sql05", "sql07", "sql08" };
                 ExplainOption.show_tablename_ = false;
                 RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries, true);
             }

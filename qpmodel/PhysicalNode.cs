@@ -1757,10 +1757,14 @@ namespace qpmodel.physic
                 }
                 else
                 {
+                    if (context.stop_)
+                        return;
+
                     nrows++;
                     Debug.Assert(nrows <= limit);
+                    l = ExecProject(l);
                     if (nrows == limit)
-                        context.stop_ = true;
+                        context.stop_ = true;                              
                     callback(l);
                 }
             });
