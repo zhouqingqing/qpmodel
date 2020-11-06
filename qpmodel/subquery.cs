@@ -340,7 +340,7 @@ namespace qpmodel.logic
             Expr outerExpr = inExpr.child_();
             Debug.Assert(inExpr.query_.selection_.Count == 1);
             Expr selectExpr = inExpr.query_.selection_[0];
-            BinExpr inToEqual = BinExpr.MakeBooleanExpr(outerExpr, selectExpr, "=");
+            BinExpr inToEqual = BinExpr.MakeBooleanExpr(outerExpr, selectExpr, "=", true);
 
             // make a mark join
             LogicMarkJoin markjoin;
@@ -626,12 +626,33 @@ namespace qpmodel.logic
         public override string ToString() => $"PMarkJOIN({lchild_()},{rchild_()}: {Cost()})";
 
         // find the #marker from children output and located the #marker by subquery_id_.
-        void fixMarkerValue(Row r, Value value)
+        void fixMarkerValue(Row r, int ordinal, Value value)
+        {
+
+            r[ordinal] = value;
+        }
+
+        int findMarkerOrdinal()
         {
             var output = this.logic_.output_;
             int ordinal = output.FindIndex(x => x is ExprRef xE && xE.child_() is MarkerExpr xEM && logic_ is LogicMarkJoin lm && xEM.subqueryid_ == lm.subquery_id_);
-            r[ordinal] = value;
+            return ordinal;
         }
+
+
+        private bool colsHasNull(Row r)
+        {
+            for (int i = 0; i < r.ColCount(); i++)
+            {
+                if (r[i] is null)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+
 
         public override void Exec(Action<Row> callback)
         {
@@ -640,38 +661,81 @@ namespace qpmodel.logic
             var filter = logic.filter_;
             bool semi = (logic_ is LogicMarkSemiJoin);
             bool antisemi = (logic_ is LogicMarkAntiSemiJoin);
-
+            bool lIsNull = false; // l represent one row
+            bool RHasNull = false; // R represent a set of Row
+            bool RisEmpty = true;
+            Value marker = false; // 0 false 1 true 2 NULL
+            int markerOrdinal = 0;
             Debug.Assert(filter != null);
+
 
             lchild_().Exec(l =>
             {
-                bool foundOneMatch = false;
+                lIsNull = colsHasNull(l) ? true : false;
+                // if right has NULL then 2 not in (3,NULL) = NULL 
                 rchild_().Exec(r =>
                 {
-                    if (!foundOneMatch)
-                    {
-                        Row n = new Row(l, r);
-                        if (filter.Exec(context, n) is true)
-                        {
-                            foundOneMatch = true;
+                    if (!(r is null))
+                        RHasNull = colsHasNull(r) ? true : false;
 
+                    Row n = new Row(l, r);
+
+                    var andList = filter.FilterToAndList();
+                    // SELECT a1 FROM a WHERE a1 = 3 and a2 NOT IN (SELECT b2 FROM b WHERE a1 < b1);
+                    // a1 < b1 will not produce marker 
+                    // a2 = b2 will produce marker 
+                    if (andList.Count >= 2) // 
+                    {
+                        var markerExpr = andList.Find(x => x is BinExpr xB && xB.IsInMarkerBinExpr());
+                        andList.Remove(markerExpr);
+                        var excludeMarkerExpr = FilterHelper.AndListToExpr(andList);
+                        var flagE = excludeMarkerExpr.Exec(context, n);
+
+                        if (flagE is true)
+                            RisEmpty = false;
+                        else
+                            return;
+
+                        var flagM = markerExpr.Exec(context, n);
+
+                        if (flagM is true)
+                        {
                             // there is at least one match, mark true
-                            n = ExecProject(n);
-                            fixMarkerValue(n, semi ? true : false);
-                            callback(n);
+                            marker = true;
                         }
+                    }
+                    else
+                    {
+                        if (filter.Exec(context, n) is true)
+                            marker = true;
                     }
                 });
 
-                // if there is no match, mark false
-                if (!foundOneMatch)
+                if (marker is false && RHasNull)
+                    marker = null;
+
+                if (lIsNull && RisEmpty)
+                    marker = false;
+
+
+                Row r = new Row(rchild_().logic_.output_.Count);
+                Row n = new Row(l, r);
+
+                n = ExecProject(n);
+
+                markerOrdinal = findMarkerOrdinal();
+
+                if (marker is null)
                 {
-                    Row r = new Row(rchild_().logic_.output_.Count);
-                    Row n = new Row(l, r);
-                    n = ExecProject(n);
-                    fixMarkerValue(n, semi ? false : true);
-                    callback(n);
+                    fixMarkerValue(n, markerOrdinal, false);
                 }
+                else
+                {
+                    bool boolMarker = marker is true ? true : false;
+                    fixMarkerValue(n, markerOrdinal, semi ? boolMarker : !boolMarker);
+                }
+
+                callback(n);
             });
         }
 

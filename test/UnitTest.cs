@@ -2285,10 +2285,39 @@ namespace qpmodel.unittest
 
             TU.ExecuteSQL("SELECT a2 FROM a WHERE a2 IN (SELECT b2 FROM b WHERE b1 < 2 or b1 = 3)", "1;2"); // (1,2,3,NULL) in [1,2,NULL]= 1,2
 
-            TU.ExecuteSQL("SELECT a2 FROM a WHERE a2 NOT IN (SELECT b2 FROM b WHERE b1 <2 or b1 =3)", ""); //(1,2,3,NULL) not [1,2,NULL] = NULL
+            TU.ExecuteSQL("SELECT a2 FROM a WHERE a2 NOT IN (SELECT b2 FROM b WHERE b1 <2 or b1 =3)", ""); //(1,2,3,NULL) not in [1,2,NULL] = NULL
 
-            // NULL in corelated subquery
+            // NULL in corelated subquery, test for markjoin
+            // table a,b
+            // 0 1 2 3
+            // 1 2 3 4
+            // 2 3 4 5
+            // 3 N 4 5
 
+            // 1 NOT in [1] = False, NULL not in [NULL] = NULL
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 NOT IN (SELECT b2 FROM b WHERE a1 = b1)", "");
+
+            // 1 NOT in [1] = False, 2 NOT in [1,2] = False, 3 NOT in [1,2,3] = False, NULL not in [1,2,3,NULL] = False
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 NOT IN (SELECT b2 FROM b WHERE a1 <= b1)", "");
+
+            // NULL in [NULL] = NULL
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a1 = 3 and a2 IN (SELECT b2 FROM b WHERE a1 = b1)", "");
+
+            // NULL not in []
+            // this a2 = b2 is a filter whitch should execute first
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a1 = 3 and a2 NOT IN (SELECT b2 FROM b WHERE a1 < b1)", "3");
+
+            // NULL in [1,2,3] = NULL
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a1 = 3 and a2 IN (SELECT b2 FROM b WHERE a1 < b1)", "");
+
+            // NULL in [] = false
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a1 = 3 and a2 IN (SELECT b2 FROM b WHERE a1 > b1)", "");
+
+            // 3 IN [3,NULL] = 3
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a1 = 2 and a2 IN (SELECT b2 FROM b WHERE b1 >= a1)", "2");
+
+            // 3 NOT IN [1,2,NULL] = NULL
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a1 = 2 and a2 NOT IN (SELECT b2 FROM b WHERE b1 > a1 or b1 < a1)", "");
             // RECOVER a,b For other UnitTest
             TU.restoreTable("a");
             TU.restoreTable("b");
