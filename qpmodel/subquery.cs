@@ -626,9 +626,9 @@ namespace qpmodel.logic
         public override string ToString() => $"PMarkJOIN({lchild_()},{rchild_()}: {Cost()})";
 
         // find the #marker from children output and located the #marker by subquery_id_.
-        void fixMarkerValue(Row r, int ordinal, Value value)
+        void fixMarkerValue(Row r, Value value)
         {
-
+            int ordinal = findMarkerOrdinal();
             r[ordinal] = value;
         }
 
@@ -656,6 +656,14 @@ namespace qpmodel.logic
 
         public override void Exec(Action<Row> callback)
         {
+            var isInMarkJoin = filterHasMarkerBinExpr(logic_.filter_);
+            if (isInMarkJoin)
+                ExecIn(callback);
+            else
+                ExecNotIn(callback);
+        }
+        public void ExecIn(Action<Row> callback)
+        {
             ExecContext context = context_;
             var logic = logic_ as LogicMarkJoin;
             var filter = logic.filter_;
@@ -668,8 +676,6 @@ namespace qpmodel.logic
             int markerOrdinal = 0;
             Debug.Assert(filter != null);
 
-            var isInMarkJoin = filterHasMarkerBinExpr(filter);
-
             lchild_().Exec(l =>
             {
                 lIsNull = colsHasNull(l) ? true : false;
@@ -678,14 +684,13 @@ namespace qpmodel.logic
                 {
                     if (!(r is null))
                         RHasNull = colsHasNull(r) ? true : false;
-
                     Row n = new Row(l, r);
 
                     var andList = filter.FilterToAndList();
                     // SELECT a1 FROM a WHERE a1 = 3 and a2 NOT IN (SELECT b2 FROM b WHERE a1 < b1);
                     // a1 < b1 will not produce marker 
                     // a2 = b2 will produce marker 
-                    if (andList.Count >= 2 && isInMarkJoin) // 
+                    if (andList.Count >= 2) // 
                     {
                         var markerExpr = andList.Find(x => x is BinExpr xB && xB.IsMarkerBinExpr());
                         andList.Remove(markerExpr);
@@ -712,33 +717,74 @@ namespace qpmodel.logic
                     }
                 });
 
-                if (isInMarkJoin)
-                {
-                    if (marker is false && RHasNull)
-                        marker = null;
+                if (marker is false && RHasNull)
+                    marker = null;
 
-                    if (lIsNull && RisEmpty)
-                        marker = false;
+                if (lIsNull && RisEmpty)
+                    marker = false;
 
-                }
 
                 Row r = new Row(rchild_().logic_.output_.Count);
                 Row n = new Row(l, r);
 
                 n = ExecProject(n);
+
                 markerOrdinal = findMarkerOrdinal();
 
                 if (marker is null)
                 {
-                    fixMarkerValue(n, markerOrdinal, false);
+                    fixMarkerValue(n, false);
                 }
                 else
                 {
                     bool boolMarker = marker is true ? true : false;
-                    fixMarkerValue(n, markerOrdinal, semi ? boolMarker : !boolMarker);
+                    fixMarkerValue(n, semi ? boolMarker : !boolMarker);
                 }
 
                 callback(n);
+            });
+        }
+
+        // workround : seperately handling the markerExpr
+        public void ExecNotIn(Action<Row> callback)
+        {
+            ExecContext context = context_;
+            var logic = logic_ as LogicMarkJoin;
+            var filter = logic.filter_;
+            bool semi = (logic_ is LogicMarkSemiJoin);
+            bool antisemi = (logic_ is LogicMarkAntiSemiJoin);
+
+            Debug.Assert(filter != null);
+
+            lchild_().Exec(l =>
+            {
+                bool foundOneMatch = false;
+                rchild_().Exec(r =>
+                {
+                    if (!foundOneMatch)
+                    {
+                        Row n = new Row(l, r);
+                        if (filter.Exec(context, n) is true)
+                        {
+                            foundOneMatch = true;
+
+                            // there is at least one match, mark true
+                            n = ExecProject(n);
+                            fixMarkerValue(n, semi ? true : false);
+                            callback(n);
+                        }
+                    }
+                });
+
+                // if there is no match, mark false
+                if (!foundOneMatch)
+                {
+                    Row r = new Row(rchild_().logic_.output_.Count);
+                    Row n = new Row(l, r);
+                    n = ExecProject(n);
+                    fixMarkerValue(n, semi ? false : true);
+                    callback(n);
+                }
             });
         }
 
