@@ -1,6 +1,7 @@
 #pragma once
 
 #include <deque>
+#include <string>
 
 #include "common/dbcommon.h"
 #include "common/nodebase.h"

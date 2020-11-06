@@ -41,6 +41,7 @@ SOFTWARE.
 #include "andb_parser.h"
 #include <stdio.h>
 #include <sstream>
+#include <locale>
 
 #define TOKEN(name) { return SQL_##name; }
 

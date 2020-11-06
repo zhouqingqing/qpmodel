@@ -42,6 +42,8 @@ SOFTWARE.
 
 #include <stdio.h>
 #include <string.h>
+#include <locale>
+#include <vector>
 
 using namespace andb;
 
@@ -61,7 +63,10 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 %code requires {
 // %code requires block
 
+#include "../include/expr.h"
+#include "../include/stmt.h"
 #include "../include/statements.h"
+#include "../include/expr.h"
 #include "../include/SQLParserResult.h"
 #include "../include/parser_typedef.h"
 
@@ -126,9 +131,8 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 	bool bval;
 
 	andb::SQLStatement* statement;
-	andb::SelectStatement* 	select_stmt;
+	andb::SelectStatement   *select_stmt;
 
-#ifdef __LATER
 	andb::ImportStatement* 	import_stmt;
 	andb::ExportStatement* 	export_stmt;
 	andb::CreateStatement* 	create_stmt;
@@ -140,34 +144,29 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 	andb::ExecuteStatement* exec_stmt;
 	andb::ShowStatement*    show_stmt;
 	andb::TransactionStatement* transaction_stmt;
-#endif
 
 	andb::TableName table_name;
 	andb::TableRef* table;
 	andb::Expr* expr;
+
 	andb::OrderDescription* order;
 	andb::OrderType order_type;
 	andb::WithDescription* with_description_t;
 
-#ifdef __LATER
 	andb::DatetimeField datetime_field;
 	andb::LimitDescription* limit;
-#endif
 
 	andb::ColumnDefinition* column_t;
 	andb::ColumnType column_type_t;
 
-#ifdef __LATER
 	andb::ImportType import_type_t;
-#endif
 
 	andb::GroupByDescription* group_t;
 
-#ifdef __LATER
 	andb::UpdateClause* update_t;
-#endif
 
 	andb::Alias* alias_t;
+
 	andb::SetOperation* set_operator_t;
 
 	std::vector<andb::SQLStatement*> * stmt_vec;
@@ -176,11 +175,10 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 	std::vector<andb::TableRef*> * table_vec;
 	std::vector<andb::ColumnDefinition*> * column_vec;
 
-#ifdef __LATER
 	std::vector<andb::UpdateClause*> * update_vec;
-#endif
 
 	std::vector<andb::Expr*> * expr_vec;
+
 	std::vector<andb::OrderDescription*> * order_vec;
 	std::vector<andb::WithDescription*> * with_description_vec;
 }
@@ -910,7 +908,8 @@ opt_limit:
 	|	LIMIT ALL { $$ = new LimitDescription(nullptr, nullptr); }
 	|	LIMIT ALL OFFSET expr { $$ = new LimitDescription(nullptr, $4); }
 	|	/* empty */ { $$ = nullptr; }
-	;
+   ;
+
 
 /******************************
  * Expressions
