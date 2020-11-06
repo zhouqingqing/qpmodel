@@ -37,11 +37,17 @@ SOFTWARE.
  ***************************/
 %{
 
-#include "../include/expr.h"
-#include "andb_parser.h"
 #include <stdio.h>
 #include <sstream>
 #include <locale>
+#include <stdint.h>
+
+#ifdef __cplusplus
+namespace andb {
+#endif
+
+#include "../include/expr.h"
+#include "andb_parser.h"
 
 #define TOKEN(name) { return SQL_##name; }
 
@@ -275,3 +281,7 @@ COMMIT      TOKEN(COMMIT)
 int yyerror(const char *msg) {
     fprintf(stderr, "[SQL-Lexer-Error] %s\n",msg); return 0;
 }
+
+#ifdef __cplusplus
+}
+#endif

@@ -37,13 +37,24 @@ SOFTWARE.
  ** Section 1: C Declarations
  *********************************/
 
-#include "andb_parser.h"
-#include "andb_lexer.h"
-
 #include <stdio.h>
 #include <string.h>
 #include <locale>
 #include <vector>
+#include <stdint.h>
+
+#ifdef __cplusplus
+namespace andb {
+#endif
+
+#include "../include/expr.h"
+#include "../include/stmt.h"
+#include "../include/statements.h"
+#include "../include/SQLParserResult.h"
+#include "../include/parser_typedef.h"
+
+#include "andb_parser.h"
+#include "andb_lexer.h"
 
 using namespace andb;
 
@@ -63,12 +74,6 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 %code requires {
 // %code requires block
 
-#include "../include/expr.h"
-#include "../include/stmt.h"
-#include "../include/statements.h"
-#include "../include/expr.h"
-#include "../include/SQLParserResult.h"
-#include "../include/parser_typedef.h"
 
 // Auto update column and line number
 #define YY_USER_ACTION \
@@ -345,6 +350,8 @@ statement_list:
 	;
 
 statement:
+		select_statement { $$ = $1; }
+#ifdef __LATER
 		prepare_statement opt_hints {
 			$$ = $1;
 			$$->hints = $2;
@@ -362,6 +369,7 @@ statement:
 	|	export_statement {
 			$$ = $1;
 		 }
+#endif // __LATER
 	;
 
 
@@ -409,7 +417,7 @@ hint:
  * Transaction Statement
  ******************************/
 
- transaction_statement:
+transaction_statement:
     BEGIN opt_transaction_keyword {
             $$ = new TransactionStatement(kBeginTransaction);
         }
@@ -728,14 +736,17 @@ update_clause:
  ******************************/
 
 select_statement:
+#ifdef __LATER
 		opt_with_clause select_with_paren {
 			$$ = $2;
 			$$->withDescriptions = $1;
 		}
+#endif // __LATER
 	|	opt_with_clause select_no_paren {
 			$$ = $2;
 			$$->withDescriptions = $1;
 		}
+#ifdef __LATER
 	|	opt_with_clause select_with_paren set_operator select_within_set_operation opt_order opt_limit {
 			$$ = $2;
 			if ($$->setOperations == nullptr) {
@@ -747,6 +758,7 @@ select_statement:
 			$$->setOperations->back()->resultLimit = $6;
 			$$->withDescriptions = $1;
 		}
+#endif // __LATER
 	;
 
 select_within_set_operation:
@@ -781,6 +793,7 @@ select_no_paren:
 				$$->limit = $3;
 			}
 		}
+#ifdef __LATER
 	|	select_clause set_operator select_within_set_operation opt_order opt_limit {
 			$$ = $1;
 			if ($$->setOperations == nullptr) {
@@ -791,13 +804,16 @@ select_no_paren:
 			$$->setOperations->back()->resultOrder = $4;
 			$$->setOperations->back()->resultLimit = $5;
 		}
+#endif // __LATER
 	;
 
 set_operator:
+#ifdef __LATER
 		set_type opt_all {
 		$$ = $1;
 		$$->isAll = $2;
 		}
+#endif // __LATER
 	;
 
 set_type:
@@ -827,18 +843,26 @@ opt_all:
 select_clause:
 		SELECT opt_top opt_distinct select_list opt_from_clause opt_where opt_group {
 			$$ = new SelectStatement();
+#ifdef __LATER
 			$$->limit = $2;
 			$$->selectDistinct = $3;
 			$$->selectList = $4;
 			$$->fromTable = $5;
 			$$->whereClause = $6;
 			$$->groupBy = $7;
+#else
+            $$->selection_ = $4;
+            $$->from_      = $5;
+            $$->where_     = $6;
+#endif // __LATER
 		}
 	;
 
 opt_distinct:
+#ifdef __LATER
 		DISTINCT { $$ = true; }
 	|	/* empty */ { $$ = false; }
+#endif // __LATER
 	;
 
 select_list:
@@ -847,7 +871,9 @@ select_list:
 
 opt_from_clause:
         from_clause  { $$ = $1; }
+#ifdef __LATER
     |   /* empty */  { $$ = nullptr; }
+#endif // __LATER
     ;
 
 from_clause:
@@ -861,22 +887,28 @@ opt_where:
 	;
 
 opt_group:
+#ifdef __LATER
 		GROUP BY expr_list opt_having {
 			$$ = new GroupByDescription();
 			$$->columns = $3;
 			$$->having = $4;
 		}
 	|	/* empty */ { $$ = nullptr; }
+#endif // __LATER
 	;
 
 opt_having:
+#ifdef __LATER
 		HAVING expr { $$ = $2; }
 	|	/* empty */ { $$ = nullptr; }
+#endif // __LATER
 	;
 
 opt_order:
+#ifdef __LATER
 		ORDER BY order_list { $$ = $3; }
 	|	/* empty */ { $$ = nullptr; }
+#endif // __LATER
 	;
 
 order_list:
@@ -897,17 +929,21 @@ opt_order_type:
 // TODO: TOP and LIMIT can take more than just int literals.
 
 opt_top:
+#ifdef __LATER
 		TOP int_literal { $$ = new LimitDescription($2, nullptr); }
 	|	/* empty */ { $$ = nullptr; }
+#endif // __LATER
 	;
 
 opt_limit:
+#ifdef __LATER
 		LIMIT expr { $$ = new LimitDescription($2, nullptr); }
 	|	OFFSET expr { $$ = new LimitDescription(nullptr, $2); }
 	|	LIMIT expr OFFSET expr { $$ = new LimitDescription($2, $4); }
 	|	LIMIT ALL { $$ = new LimitDescription(nullptr, nullptr); }
 	|	LIMIT ALL OFFSET expr { $$ = new LimitDescription(nullptr, $4); }
 	|	/* empty */ { $$ = nullptr; }
+#endif // __LATER
    ;
 
 
@@ -941,13 +977,16 @@ expr_alias:
 
 expr:
 		operand
+#ifdef __LATER
 	|	between_expr
 	|	logic_expr
 	|	exists_expr
 	|	in_expr
+#endif // __LATER
 	;
 
 operand:
+#ifdef __LATER
 		'(' expr ')' { $$ = $2; }
 	|	array_index
 	|	scalar_expr
@@ -959,6 +998,11 @@ operand:
 	|	cast_expr
 	|	array_expr
 	|	'(' select_no_paren ')' { $$ = Expr::makeSelect($2); }
+#else
+	|	scalar_expr
+	|	binary_expr
+	|	function_expr
+#endif // __LATER
 	;
 
 scalar_expr:
@@ -980,12 +1024,14 @@ binary_expr:
 	|	operand '+' operand			{ $$ = Expr::makeOpBinary($1, kOpPlus, $3); }
 	|	operand '/' operand			{ $$ = Expr::makeOpBinary($1, kOpSlash, $3); }
 	|	operand '*' operand			{ $$ = Expr::makeOpBinary($1, kOpAsterisk, $3); }
+#ifdef __LATER
 	|	operand '%' operand			{ $$ = Expr::makeOpBinary($1, kOpPercentage, $3); }
 	|	operand '^' operand			{ $$ = Expr::makeOpBinary($1, kOpCaret, $3); }
 	|	operand LIKE operand		{ $$ = Expr::makeOpBinary($1, kOpLike, $3); }
 	|	operand NOT LIKE operand	{ $$ = Expr::makeOpBinary($1, kOpNotLike, $4); }
 	|	operand ILIKE operand		{ $$ = Expr::makeOpBinary($1, kOpILike, $3); }
 	|	operand CONCAT operand	{ $$ = Expr::makeOpBinary($1, kOpConcat, $3); }
+#endif // __LATER
 	;
 
 logic_expr:
@@ -1075,7 +1121,9 @@ literal:
 	|	bool_literal
 	|	num_literal
 	|	null_literal
+#ifdef __LATER
 	|	param_expr
+#endif // __LATER
 	;
 
 string_literal:
@@ -1308,3 +1356,6 @@ ident_commalist:
  *********************************/
 
 /* empty */
+#ifdef __cplusplus
+}
+#endif
