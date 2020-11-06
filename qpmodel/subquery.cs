@@ -652,7 +652,7 @@ namespace qpmodel.logic
             return false;
         }
 
-
+        private bool filterHasMarkerBinExpr(Expr filter) => filter.FilterToAndList().Exists(x => x is BinExpr xB && xB.IsMarkerBinExpr());
 
         public override void Exec(Action<Row> callback)
         {
@@ -668,6 +668,7 @@ namespace qpmodel.logic
             int markerOrdinal = 0;
             Debug.Assert(filter != null);
 
+            var isInMarkJoin = filterHasMarkerBinExpr(filter);
 
             lchild_().Exec(l =>
             {
@@ -684,9 +685,9 @@ namespace qpmodel.logic
                     // SELECT a1 FROM a WHERE a1 = 3 and a2 NOT IN (SELECT b2 FROM b WHERE a1 < b1);
                     // a1 < b1 will not produce marker 
                     // a2 = b2 will produce marker 
-                    if (andList.Count >= 2) // 
+                    if (andList.Count >= 2 && isInMarkJoin) // 
                     {
-                        var markerExpr = andList.Find(x => x is BinExpr xB && xB.IsInMarkerBinExpr());
+                        var markerExpr = andList.Find(x => x is BinExpr xB && xB.IsMarkerBinExpr());
                         andList.Remove(markerExpr);
                         var excludeMarkerExpr = FilterHelper.AndListToExpr(andList);
                         var flagE = excludeMarkerExpr.Exec(context, n);
@@ -711,18 +712,20 @@ namespace qpmodel.logic
                     }
                 });
 
-                if (marker is false && RHasNull)
-                    marker = null;
+                if (isInMarkJoin)
+                {
+                    if (marker is false && RHasNull)
+                        marker = null;
 
-                if (lIsNull && RisEmpty)
-                    marker = false;
+                    if (lIsNull && RisEmpty)
+                        marker = false;
 
+                }
 
                 Row r = new Row(rchild_().logic_.output_.Count);
                 Row n = new Row(l, r);
 
                 n = ExecProject(n);
-
                 markerOrdinal = findMarkerOrdinal();
 
                 if (marker is null)

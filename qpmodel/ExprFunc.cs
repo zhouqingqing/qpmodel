@@ -900,8 +900,8 @@ namespace qpmodel.expr
     public partial class BinExpr : Expr
     {
         internal string op_;
-        internal bool isInMarkerBinExpr_ = false;
-        public bool IsInMarkerBinExpr() => isInMarkerBinExpr_;
+        internal bool isMarkerBinExpr_ = false;
+        public bool IsMarkerBinExpr() => isMarkerBinExpr_;
         public override int GetHashCode() => lchild_().GetHashCode() ^ rchild_().GetHashCode() ^ op_.GetHashCode();
         public override bool Equals(object obj)
         {
@@ -911,19 +911,19 @@ namespace qpmodel.expr
                 return exprEquals(lchild_(), bo.lchild_()) && exprEquals(rchild_(), bo.rchild_()) && op_.Equals(bo.op_);
             return false;
         }
-        public BinExpr(Expr l, Expr r, string op, bool isInMarkerBinExpr = false) : base()
+        public BinExpr(Expr l, Expr r, string op, bool isMarkerBinExpr = false) : base()
         {
             children_.Add(l);
             children_.Add(r);
             op_ = op.ToLower();
-            isInMarkerBinExpr_ = isInMarkerBinExpr;
+            isMarkerBinExpr_ = isMarkerBinExpr;
             Debug.Assert(Clone().Equals(this));
         }
 
-        public static BinExpr MakeBooleanExpr(Expr l, Expr r, string op, bool isInMarkerExpr = false)
+        public static BinExpr MakeBooleanExpr(Expr l, Expr r, string op, bool isMarkerBinExpr = false)
         {
             Debug.Assert(l.bounded_ && r.bounded_);
-            var expr = new BinExpr(l, r, op, isInMarkerExpr);
+            var expr = new BinExpr(l, r, op, isMarkerBinExpr);
             expr.ResetAggregateTableRefs();
             expr.markBounded();
             expr.type_ = new BoolType();
