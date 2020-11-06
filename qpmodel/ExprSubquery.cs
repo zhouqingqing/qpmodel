@@ -245,6 +245,7 @@ namespace qpmodel.expr
     {
         internal bool hasNot_;
 
+        internal bool hasNull_;
         // children_[0] is the expr of in-query
         internal Expr expr_() => children_[0];
 
@@ -275,8 +276,11 @@ namespace qpmodel.expr
             // code section to prevent it. This also redu
             if (isCacheable_ && cachedValSet_)
             {
-                var in_cache_flag = (cachedVal_ as HashSet<Value>).Contains(expr);
-                return hasNot_ ? !in_cache_flag : in_cache_flag;
+                var hset = cachedVal_ as HashSet<Value>;
+                hasNull_ = hset.Contains(null) ? true : false;
+                var in_cache_flag = expr is null ? false : hset.Contains(expr); // null in (1,null)  false
+                // not in [.. null ..] = false
+                return hasNot_ ? (!hasNull_ && !in_cache_flag) : in_cache_flag;
             }
 
             var set = new HashSet<Value>();
@@ -286,10 +290,11 @@ namespace qpmodel.expr
                 set.Add(l[0]);
             });
 
+            hasNull_ = set.Contains(null) ? true : false;
             cachedVal_ = set;
             cachedValSet_ = true;
-            var in_flag = set.Contains(expr);
-            return hasNot_ ? !in_flag : in_flag;
+            bool in_flag = set.Contains(expr);
+            return hasNot_ ? (!hasNull_ && !in_flag) : in_flag;
         }
     }
 
@@ -329,8 +334,13 @@ namespace qpmodel.expr
                 return null;
             List<Value> inlist = new List<Value>();
             inlist_().ForEach(x => { inlist.Add(x.Exec(context, input)); });
+
+            // postgreSQL saw NULL as any posible value
+            // i.e. not in (null) is false
+            var hasNull_ = inlist.Exists(x => x is null);
+
             var in_flag = inlist.Exists(v.Equals);
-            return hasNot_ ? !in_flag : in_flag;
+            return hasNot_ ? (!hasNull_ && !in_flag) : in_flag;
         }
 
         public override string ToString()
