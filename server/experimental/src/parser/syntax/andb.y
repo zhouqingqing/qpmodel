@@ -39,24 +39,18 @@ SOFTWARE.
 
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 #include <locale>
 #include <vector>
-#include <stdint.h>
+#include <iostream>
+#include <new>
 
-#ifdef __cplusplus
-namespace andb {
-#endif
-
-#include "../include/expr.h"
-#include "../include/stmt.h"
-#include "../include/statements.h"
-#include "../include/SQLParserResult.h"
-#include "../include/parser_typedef.h"
 
 #include "andb_parser.h"
 #include "andb_lexer.h"
 
 using namespace andb;
+
 
 int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const char *msg) {
 	result->setIsValid(false);
@@ -73,6 +67,11 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 // Specify code that is included in the generated .h and .c files
 %code requires {
 // %code requires block
+
+#include "../include/expr.h"
+#include "../include/stmt.h"
+#include "../include/SQLParserResult.h"
+#include "../include/parser_typedef.h"
 
 
 // Auto update column and line number
@@ -138,54 +137,17 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 	andb::SQLStatement* statement;
 	andb::SelectStatement   *select_stmt;
 
-	andb::ImportStatement* 	import_stmt;
-	andb::ExportStatement* 	export_stmt;
-	andb::CreateStatement* 	create_stmt;
-	andb::InsertStatement* 	insert_stmt;
-	andb::DeleteStatement* 	delete_stmt;
-	andb::UpdateStatement* 	update_stmt;
-	andb::DropStatement*   	drop_stmt;
-	andb::PrepareStatement* prep_stmt;
-	andb::ExecuteStatement* exec_stmt;
-	andb::ShowStatement*    show_stmt;
-	andb::TransactionStatement* transaction_stmt;
-
 	andb::TableName table_name;
 	andb::TableRef* table;
 	andb::Expr* expr;
 
-	andb::OrderDescription* order;
-	andb::OrderType order_type;
-	andb::WithDescription* with_description_t;
-
-	andb::DatetimeField datetime_field;
-	andb::LimitDescription* limit;
-
 	andb::ColumnDefinition* column_t;
 	andb::ColumnType column_type_t;
-
-	andb::ImportType import_type_t;
-
-	andb::GroupByDescription* group_t;
-
-	andb::UpdateClause* update_t;
-
 	andb::Alias* alias_t;
-
-	andb::SetOperation* set_operator_t;
-
 	std::vector<andb::SQLStatement*> * stmt_vec;
 
 	std::vector<char*> * str_vec;
 	std::vector<andb::TableRef*> * table_vec;
-	std::vector<andb::ColumnDefinition*> * column_vec;
-
-	std::vector<andb::UpdateClause*> * update_vec;
-
-	std::vector<andb::Expr*> * expr_vec;
-
-	std::vector<andb::OrderDescription*> * order_vec;
-	std::vector<andb::WithDescription*> * with_description_vec;
 }
 
 
@@ -251,7 +213,7 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 %type <show_stmt>	    show_statement
 %type <table_name>      table_name
 %type <sval> 		    file_path prepare_target_query
-%type <bval> 		    opt_not_exists opt_exists opt_distinct opt_column_nullable opt_all
+%type <bval> 		    opt_not_exists opt_exists opt_column_nullable opt_all
 %type <uval>		    opt_join_type
 %type <table> 		    opt_from_clause from_clause table_ref table_ref_atomic table_ref_name nonjoin_table_ref_atomic
 %type <table>		    join_clause table_ref_name_no_alias
@@ -351,600 +313,36 @@ statement_list:
 
 statement:
 		select_statement { $$ = $1; }
-#ifdef __LATER
-		prepare_statement opt_hints {
-			$$ = $1;
-			$$->hints = $2;
-		}
-	|	preparable_statement opt_hints {
-			$$ = $1;
-			$$->hints = $2;
-		}
-	|	show_statement {
-			$$ = $1;
-		}
-	|	import_statement {
-			$$ = $1;
-		 }
-	|	export_statement {
-			$$ = $1;
-		 }
-#endif // __LATER
 	;
 
-
-preparable_statement:
-		select_statement { $$ = $1; }
-	|	create_statement { $$ = $1; }
-	|	insert_statement { $$ = $1; }
-	|	delete_statement { $$ = $1; }
-	|	truncate_statement { $$ = $1; }
-	|	update_statement { $$ = $1; }
-	|	drop_statement { $$ = $1; }
-	|	execute_statement { $$ = $1; }
-	|	transaction_statement { $$ = $1; }
-	;
-
-
-/******************************
- * Hints
- ******************************/
-
-opt_hints:
-    WITH HINT '(' hint_list ')' { $$ = $4; }
-  | /* empty */ { $$ = nullptr; }
-  ;
-
-
-hint_list:
-	  hint { $$ = new std::vector<Expr*>(); $$->push_back($1); }
-	| hint_list ',' hint { $1->push_back($3); $$ = $1; }
-	;
-
-hint:
-		IDENTIFIER {
-			$$ = Expr::make(kExprHint);
-			$$->name = $1;
-		}
-	| IDENTIFIER '(' literal_list ')' {
-			$$ = Expr::make(kExprHint);
-			$$->name = $1;
-			$$->exprList = $3;
-		}
-	;
-
-/******************************
- * Transaction Statement
- ******************************/
-
-transaction_statement:
-    BEGIN opt_transaction_keyword {
-            $$ = new TransactionStatement(kBeginTransaction);
-        }
-    | ROLLBACK opt_transaction_keyword {
-            $$ = new TransactionStatement(kRollbackTransaction);
-        }
-    | COMMIT opt_transaction_keyword {
-            $$ = new TransactionStatement(kCommitTransaction);
-        }
-    ;
-
-opt_transaction_keyword:
-        TRANSACTION
-    |   /* empty */
-    ;
-
-/******************************
- * Prepared Statement
- ******************************/
-prepare_statement:
-		PREPARE IDENTIFIER FROM prepare_target_query {
-			$$ = new PrepareStatement();
-			$$->name = $2;
-			$$->query = $4;
-		}
-	;
-
-prepare_target_query: STRING
-
-execute_statement:
-		EXECUTE IDENTIFIER {
-			$$ = new ExecuteStatement();
-			$$->name = $2;
-		}
-	|	EXECUTE IDENTIFIER '(' opt_literal_list ')' {
-			$$ = new ExecuteStatement();
-			$$->name = $2;
-			$$->parameters = $4;
-		}
-	;
-
-
-/******************************
- * Import Statement
- * IMPORT FROM TBL FILE 'test/students.tbl' INTO students
- * COPY students FROM 'test/students.tbl' [WITH FORMAT TBL]
- ******************************/
-import_statement:
-		IMPORT FROM file_type FILE file_path INTO table_name {
-			$$ = new ImportStatement($3);
-			$$->filePath = $5;
-			$$->schema = $7.schema;
-			$$->tableName = $7.name;
-		}
-	|	COPY table_name FROM file_path opt_file_type {
-			$$ = new ImportStatement($5);
-			$$->filePath = $4;
-			$$->schema = $2.schema;
-			$$->tableName = $2.name;
-		}
-	;
-
-file_type:
-		IDENTIFIER {
-			if (strcasecmp($1, "csv") == 0) {
-				$$ = kImportCSV;
-			} else if (strcasecmp($1, "tbl") == 0) {
-				$$ = kImportTbl;
-			} else if (strcasecmp($1, "binary") == 0 || strcasecmp($1, "bin") == 0) {
-				$$ = kImportBinary;
-			} else {
-				free($1);
-				yyerror(&yyloc, result, scanner, "File type is unknown.");
-				YYERROR;
-			}
-			free($1);
-		}
-	;
-
-file_path:
-		string_literal { $$ = strdup($1->name); delete $1; }
-	;
-
-opt_file_type:
-		WITH FORMAT file_type {
-			$$ = $3;
-		}
-	|	/* empty */  { $$ = kImportAuto; }
-	;
-
-
-/******************************
- * Export Statement
- * COPY students TO 'test/students.tbl' (WITH FORMAT TBL)
- ******************************/
-export_statement:
-		COPY table_name TO file_path opt_file_type {
-			$$ = new ExportStatement($5);
-			$$->filePath = $4;
-			$$->schema = $2.schema;
-			$$->tableName = $2.name;
-		}
-	;
-
-/******************************
- * Show Statement
- * SHOW TABLES;
- ******************************/
-
-show_statement:
-		SHOW TABLES {
-			$$ = new ShowStatement(kShowTables);
-		}
-	|	SHOW COLUMNS table_name {
-			$$ = new ShowStatement(kShowColumns);
-			$$->schema = $3.schema;
-			$$->name = $3.name;
-		}
-	|	DESCRIBE table_name {
-			$$ = new ShowStatement(kShowColumns);
-			$$->schema = $2.schema;
-			$$->name = $2.name;
-		}
-	;
-
-
-/******************************
- * Create Statement
- * CREATE TABLE students (name TEXT, student_number INTEGER, city TEXT, grade DOUBLE)
- * CREATE TABLE students FROM TBL FILE 'test/students.tbl'
- ******************************/
-create_statement:
-		CREATE TABLE opt_not_exists table_name FROM IDENTIFIER FILE file_path {
-			$$ = new CreateStatement(kCreateTableFromTbl);
-			$$->ifNotExists = $3;
-			$$->schema = $4.schema;
-			$$->tableName = $4.name;
-			if (strcasecmp($6, "tbl") != 0) {
-				free($6);
-				yyerror(&yyloc, result, scanner, "File type is unknown.");
-			 	YYERROR;
-			}
-			free($6);
-			$$->filePath = $8;
-		}
-	|	CREATE TABLE opt_not_exists table_name '(' column_def_commalist ')' {
-			$$ = new CreateStatement(kCreateTable);
-			$$->ifNotExists = $3;
-			$$->schema = $4.schema;
-			$$->tableName = $4.name;
-			$$->columns = $6;
-		}
-	|	CREATE TABLE opt_not_exists table_name AS select_statement {
-			$$ = new CreateStatement(kCreateTable);
-			$$->ifNotExists = $3;
-			$$->schema = $4.schema;
-			$$->tableName = $4.name;
-			$$->select = $6;
-		}
-	|	CREATE VIEW opt_not_exists table_name opt_column_list AS select_statement {
-			$$ = new CreateStatement(kCreateView);
-			$$->ifNotExists = $3;
-			$$->schema = $4.schema;
-			$$->tableName = $4.name;
-			$$->viewColumns = $5;
-			$$->select = $7;
-		}
-	;
-
-opt_not_exists:
-		IF NOT EXISTS { $$ = true; }
-	|	/* empty */ { $$ = false; }
-	;
-
-column_def_commalist:
-		column_def { $$ = new std::vector<ColumnDefinition*>(); $$->push_back($1); }
-	|	column_def_commalist ',' column_def { $1->push_back($3); $$ = $1; }
-	;
-
-column_def:
-		IDENTIFIER column_type opt_column_nullable {
-			$$ = new ColumnDefinition($1, $2, $3);
-		}
-	;
-
-column_type:
-		INT { $$ = ColumnType{DataType::INT}; }
-	|	INTEGER { $$ = ColumnType{DataType::INT}; }
-	|	LONG { $$ = ColumnType{DataType::LONG}; }
-	|	FLOAT { $$ = ColumnType{DataType::FLOAT}; }
-	|	DOUBLE { $$ = ColumnType{DataType::DOUBLE}; }
-	|	VARCHAR '(' INTVAL ')' { $$ = ColumnType{DataType::VARCHAR, $3}; }
-	|	CHAR '(' INTVAL ')' { $$ = ColumnType{DataType::CHAR, $3}; }
-	|	TEXT { $$ = ColumnType{DataType::TEXT}; }
-	|	DATETIME { $$ = ColumnType{DataType::DATETIME}; }
-	|	DATE { $$ = ColumnType{DataType::DATE}; }
-	;
-
-opt_column_nullable:
-		NULL { $$ = true; }
-	|	NOT NULL { $$ = false; }
-	|	/* empty */ { $$ = false; }
-	;
-
-/******************************
- * Drop Statement
- * DROP TABLE students;
- * DEALLOCATE PREPARE stmt;
- ******************************/
-
-drop_statement:
-		DROP TABLE opt_exists table_name {
-			$$ = new DropStatement(kDropTable);
-			$$->ifExists = $3;
-			$$->schema = $4.schema;
-			$$->name = $4.name;
-		}
-	|	DROP VIEW opt_exists table_name {
-			$$ = new DropStatement(kDropView);
-			$$->ifExists = $3;
-			$$->schema = $4.schema;
-			$$->name = $4.name;
-		}
-	|	DEALLOCATE PREPARE IDENTIFIER {
-			$$ = new DropStatement(kDropPreparedStatement);
-			$$->ifExists = false;
-			$$->name = $3;
-		}
-	;
-
-opt_exists:
-		IF EXISTS   { $$ = true; }
-	|	/* empty */ { $$ = false; }
-	;
-
-/******************************
- * Delete Statement / Truncate statement
- * DELETE FROM students WHERE grade > 3.0
- * DELETE FROM students <=> TRUNCATE students
- ******************************/
-delete_statement:
-		DELETE FROM table_name opt_where {
-			$$ = new DeleteStatement();
-			$$->schema = $3.schema;
-			$$->tableName = $3.name;
-			$$->expr = $4;
-		}
-	;
-
-truncate_statement:
-		TRUNCATE table_name {
-			$$ = new DeleteStatement();
-			$$->schema = $2.schema;
-			$$->tableName = $2.name;
-		}
-	;
-
-/******************************
- * Insert Statement
- * INSERT INTO students VALUES ('Max', 1112233, 'Musterhausen', 2.3)
- * INSERT INTO employees SELECT * FROM stundents
- ******************************/
-insert_statement:
-		INSERT INTO table_name opt_column_list VALUES '(' literal_list ')' {
-			$$ = new InsertStatement(kInsertValues);
-			$$->schema = $3.schema;
-			$$->tableName = $3.name;
-			$$->columns = $4;
-			$$->values = $7;
-		}
-	|	INSERT INTO table_name opt_column_list select_no_paren {
-			$$ = new InsertStatement(kInsertSelect);
-			$$->schema = $3.schema;
-			$$->tableName = $3.name;
-			$$->columns = $4;
-			$$->select = $5;
-		}
-	;
-
-
-opt_column_list:
-		'(' ident_commalist ')' { $$ = $2; }
-	|	/* empty */ { $$ = nullptr; }
-	;
-
-
-/******************************
- * Update Statement
- * UPDATE students SET grade = 1.3, name='Felix Fürstenberg' WHERE name = 'Max Mustermann';
- ******************************/
-
-update_statement:
-	UPDATE table_ref_name_no_alias SET update_clause_commalist opt_where {
-		$$ = new UpdateStatement();
-		$$->table = $2;
-		$$->updates = $4;
-		$$->where = $5;
-	}
-	;
-
-update_clause_commalist:
-		update_clause { $$ = new std::vector<UpdateClause*>(); $$->push_back($1); }
-	|	update_clause_commalist ',' update_clause { $1->push_back($3); $$ = $1; }
-	;
-
-update_clause:
-		IDENTIFIER '=' expr {
-			$$ = new UpdateClause();
-			$$->column = $1;
-			$$->value = $3;
-		}
-	;
 
 /******************************
  * Select Statement
  ******************************/
 
 select_statement:
-#ifdef __LATER
-		opt_with_clause select_with_paren {
-			$$ = $2;
-			$$->withDescriptions = $1;
-		}
-#endif // __LATER
-	|	opt_with_clause select_no_paren {
-			$$ = $2;
-			$$->withDescriptions = $1;
-		}
-#ifdef __LATER
-	|	opt_with_clause select_with_paren set_operator select_within_set_operation opt_order opt_limit {
-			$$ = $2;
-			if ($$->setOperations == nullptr) {
-				$$->setOperations = new std::vector<SetOperation*>();
-			}
-			$$->setOperations->push_back($3);
-			$$->setOperations->back()->nestedSelectStatement = $4;
-			$$->setOperations->back()->resultOrder = $5;
-			$$->setOperations->back()->resultLimit = $6;
-			$$->withDescriptions = $1;
-		}
-#endif // __LATER
-	;
-
-select_within_set_operation:
-		select_with_paren
-	|	select_within_set_operation_no_parentheses;
-
-select_within_set_operation_no_parentheses:
-		select_clause { $$ = $1; }
-	|	select_clause set_operator select_within_set_operation {
-		$$ = $1;
-		if ($$->setOperations == nullptr) {
-			$$->setOperations = new std::vector<SetOperation*>();
-		}
-		$$->setOperations->push_back($2);
-		$$->setOperations->back()->nestedSelectStatement = $3;
-	}
-	;
-
-select_with_paren:
-		'(' select_no_paren ')' { $$ = $2; }
-	|	'(' select_with_paren ')' { $$ = $2; }
-	;
-
-select_no_paren:
-		select_clause opt_order opt_limit {
-			$$ = $1;
-			$$->order = $2;
-
-			// Limit could have been set by TOP.
-			if ($3 != nullptr) {
-				delete $$->limit;
-				$$->limit = $3;
-			}
-		}
-#ifdef __LATER
-	|	select_clause set_operator select_within_set_operation opt_order opt_limit {
-			$$ = $1;
-			if ($$->setOperations == nullptr) {
-				$$->setOperations = new std::vector<SetOperation*>();
-			}
-			$$->setOperations->push_back($2);
-			$$->setOperations->back()->nestedSelectStatement = $3;
-			$$->setOperations->back()->resultOrder = $4;
-			$$->setOperations->back()->resultLimit = $5;
-		}
-#endif // __LATER
-	;
-
-set_operator:
-#ifdef __LATER
-		set_type opt_all {
-		$$ = $1;
-		$$->isAll = $2;
-		}
-#endif // __LATER
-	;
-
-set_type:
-		UNION {
-		$$ = new SetOperation();
-		$$->setType = SetType::kSetUnion;
-		}
-	|	INTERSECT {
-		$$ = new SetOperation();
-		$$->setType = SetType::kSetIntersect;
-	}
-	|	EXCEPT {
-		$$ = new SetOperation();
-		$$->setType = SetType::kSetExcept;
-	}
-	;
-
-opt_all:
-		ALL {
-			$$ = true;
-		}
-	|	/* empty */ {
-		$$ = false;
-	}
-	;
-
-select_clause:
-		SELECT opt_top opt_distinct select_list opt_from_clause opt_where opt_group {
+		SELECT select_list from_clause opt_where {
 			$$ = new SelectStatement();
-#ifdef __LATER
-			$$->limit = $2;
-			$$->selectDistinct = $3;
-			$$->selectList = $4;
-			$$->fromTable = $5;
-			$$->whereClause = $6;
-			$$->groupBy = $7;
-#else
-            $$->selection_ = $4;
-            $$->from_      = $5;
-            $$->where_     = $6;
-#endif // __LATER
+         $$->selection_ = $2;
+         $$->from_      = $3;
+         $$->where_     = $4;
 		}
 	;
 
-opt_distinct:
-#ifdef __LATER
-		DISTINCT { $$ = true; }
-	|	/* empty */ { $$ = false; }
-#endif // __LATER
-	;
+opt_where:
+        WHERE expr {$$ = $2}
+    | {$$ = nullptr;} /* empty */
+    ;
+
 
 select_list:
 		expr_list
 	;
 
-opt_from_clause:
-        from_clause  { $$ = $1; }
-#ifdef __LATER
-    |   /* empty */  { $$ = nullptr; }
-#endif // __LATER
-    ;
 
 from_clause:
 		FROM table_ref { $$ = $2; }
 	;
-
-
-opt_where:
-		WHERE expr { $$ = $2; }
-	|	/* empty */ { $$ = nullptr; }
-	;
-
-opt_group:
-#ifdef __LATER
-		GROUP BY expr_list opt_having {
-			$$ = new GroupByDescription();
-			$$->columns = $3;
-			$$->having = $4;
-		}
-	|	/* empty */ { $$ = nullptr; }
-#endif // __LATER
-	;
-
-opt_having:
-#ifdef __LATER
-		HAVING expr { $$ = $2; }
-	|	/* empty */ { $$ = nullptr; }
-#endif // __LATER
-	;
-
-opt_order:
-#ifdef __LATER
-		ORDER BY order_list { $$ = $3; }
-	|	/* empty */ { $$ = nullptr; }
-#endif // __LATER
-	;
-
-order_list:
-		order_desc { $$ = new std::vector<OrderDescription*>(); $$->push_back($1); }
-	|	order_list ',' order_desc { $1->push_back($3); $$ = $1; }
-	;
-
-order_desc:
-		expr opt_order_type { $$ = new OrderDescription($2, $1); }
-	;
-
-opt_order_type:
-		ASC { $$ = kOrderAsc; }
-	|	DESC { $$ = kOrderDesc; }
-	|	/* empty */ { $$ = kOrderAsc; }
-	;
-
-// TODO: TOP and LIMIT can take more than just int literals.
-
-opt_top:
-#ifdef __LATER
-		TOP int_literal { $$ = new LimitDescription($2, nullptr); }
-	|	/* empty */ { $$ = nullptr; }
-#endif // __LATER
-	;
-
-opt_limit:
-#ifdef __LATER
-		LIMIT expr { $$ = new LimitDescription($2, nullptr); }
-	|	OFFSET expr { $$ = new LimitDescription(nullptr, $2); }
-	|	LIMIT expr OFFSET expr { $$ = new LimitDescription($2, $4); }
-	|	LIMIT ALL { $$ = new LimitDescription(nullptr, nullptr); }
-	|	LIMIT ALL OFFSET expr { $$ = new LimitDescription(nullptr, $4); }
-	|	/* empty */ { $$ = nullptr; }
-#endif // __LATER
-   ;
 
 
 /******************************
@@ -977,32 +375,12 @@ expr_alias:
 
 expr:
 		operand
-#ifdef __LATER
-	|	between_expr
-	|	logic_expr
-	|	exists_expr
-	|	in_expr
-#endif // __LATER
 	;
 
 operand:
-#ifdef __LATER
-		'(' expr ')' { $$ = $2; }
-	|	array_index
-	|	scalar_expr
-	|	unary_expr
-	|	binary_expr
-	|	case_expr
-	|	function_expr
-	|	extract_expr
-	|	cast_expr
-	|	array_expr
-	|	'(' select_no_paren ')' { $$ = Expr::makeSelect($2); }
-#else
 	|	scalar_expr
 	|	binary_expr
 	|	function_expr
-#endif // __LATER
 	;
 
 scalar_expr:
@@ -1010,13 +388,6 @@ scalar_expr:
 	|	literal
 	;
 
-unary_expr:
-		'-' operand { $$ = Expr::makeOpUnary(kOpUnaryMinus, $2); }
-	|	NOT operand { $$ = Expr::makeOpUnary(kOpNot, $2); }
-	|	operand ISNULL { $$ = Expr::makeOpUnary(kOpIsNull, $1); }
-	|	operand IS NULL { $$ = Expr::makeOpUnary(kOpIsNull, $1); }
-	|	operand IS NOT NULL { $$ = Expr::makeOpUnary(kOpNot, Expr::makeOpUnary(kOpIsNull, $1)); }
-	;
 
 binary_expr:
 		comp_expr
@@ -1024,45 +395,6 @@ binary_expr:
 	|	operand '+' operand			{ $$ = Expr::makeOpBinary($1, kOpPlus, $3); }
 	|	operand '/' operand			{ $$ = Expr::makeOpBinary($1, kOpSlash, $3); }
 	|	operand '*' operand			{ $$ = Expr::makeOpBinary($1, kOpAsterisk, $3); }
-#ifdef __LATER
-	|	operand '%' operand			{ $$ = Expr::makeOpBinary($1, kOpPercentage, $3); }
-	|	operand '^' operand			{ $$ = Expr::makeOpBinary($1, kOpCaret, $3); }
-	|	operand LIKE operand		{ $$ = Expr::makeOpBinary($1, kOpLike, $3); }
-	|	operand NOT LIKE operand	{ $$ = Expr::makeOpBinary($1, kOpNotLike, $4); }
-	|	operand ILIKE operand		{ $$ = Expr::makeOpBinary($1, kOpILike, $3); }
-	|	operand CONCAT operand	{ $$ = Expr::makeOpBinary($1, kOpConcat, $3); }
-#endif // __LATER
-	;
-
-logic_expr:
-		expr AND expr	{ $$ = Expr::makeOpBinary($1, kOpAnd, $3); }
-	|	expr OR expr	{ $$ = Expr::makeOpBinary($1, kOpOr, $3); }
-	;
-
-in_expr:
-		operand IN '(' expr_list ')'			{ $$ = Expr::makeInOperator($1, $4); }
-	|	operand NOT IN '(' expr_list ')'		{ $$ = Expr::makeOpUnary(kOpNot, Expr::makeInOperator($1, $5)); }
-	|	operand IN '(' select_no_paren ')'		{ $$ = Expr::makeInOperator($1, $4); }
-	|	operand NOT IN '(' select_no_paren ')'	{ $$ = Expr::makeOpUnary(kOpNot, Expr::makeInOperator($1, $5)); }
-	;
-
-// CASE grammar based on: flex & bison by John Levine
-// https://www.safaribooksonline.com/library/view/flex-bison/9780596805418/ch04.html#id352665
-case_expr:
-		CASE expr case_list END         	{ $$ = Expr::makeCase($2, $3, nullptr); }
-	|	CASE expr case_list ELSE expr END	{ $$ = Expr::makeCase($2, $3, $5); }
-	|	CASE case_list END			        { $$ = Expr::makeCase(nullptr, $2, nullptr); }
-	|	CASE case_list ELSE expr END		{ $$ = Expr::makeCase(nullptr, $2, $4); }
-	;
-
-case_list:
-		WHEN expr THEN expr              { $$ = Expr::makeCaseList(Expr::makeCaseListElement($2, $4)); }
-	|	case_list WHEN expr THEN expr    { $$ = Expr::caseListAppend($1, Expr::makeCaseListElement($3, $5)); }
-	;
-
-exists_expr:
-		EXISTS '(' select_no_paren ')' { $$ = Expr::makeExists($3); }
-	|	NOT EXISTS '(' select_no_paren ')' { $$ = Expr::makeOpUnary(kOpNot, Expr::makeExists($4)); }
 	;
 
 comp_expr:
@@ -1077,37 +409,8 @@ comp_expr:
 
 function_expr:
                IDENTIFIER '(' ')' { $$ = Expr::makeFunctionRef($1, new std::vector<Expr*>(), false); }
-       |       IDENTIFIER '(' opt_distinct expr_list ')' { $$ = Expr::makeFunctionRef($1, $4, $3); }
+       |       IDENTIFIER '(' expr_list ')' { $$ = Expr::makeFunctionRef($1, $3, false); }
        ;
-
-extract_expr:
-         EXTRACT '(' datetime_field FROM expr ')'    { $$ = Expr::makeExtract($3, $5); }
-    ;
-
-cast_expr:
-        CAST '(' expr AS column_type ')'    { $$ = Expr::makeCast($3, $5); }
-    ;
-
-datetime_field:
-        SECOND { $$ = kDatetimeSecond; }
-    |   MINUTE { $$ = kDatetimeMinute; }
-    |   HOUR { $$ = kDatetimeHour; }
-    |   DAY { $$ = kDatetimeDay; }
-    |   MONTH { $$ = kDatetimeMonth; }
-    |   YEAR { $$ = kDatetimeYear; }
-    ;
-
-array_expr:
-	  	ARRAY '[' expr_list ']' { $$ = Expr::makeArray($3); }
-	;
-
-array_index:
-	   	operand '[' int_literal ']' { $$ = Expr::makeArrayIndex($1, $3->ival); }
-	;
-
-between_expr:
-		operand BETWEEN operand AND operand { $$ = Expr::makeBetween($1, $3, $5); }
-	;
 
 column_name:
 		IDENTIFIER { $$ = Expr::makeColumnRef($1); }
@@ -1121,9 +424,6 @@ literal:
 	|	bool_literal
 	|	num_literal
 	|	null_literal
-#ifdef __LATER
-	|	param_expr
-#endif // __LATER
 	;
 
 string_literal:
@@ -1146,14 +446,6 @@ int_literal:
 
 null_literal:
 	    	NULL { $$ = Expr::makeNullLiteral(); }
-	;
-
-param_expr:
-		'?' {
-			$$ = Expr::makeParameter(yylloc.total_column);
-			$$->ival2 = yyloc.param_list.size();
-			yyloc.param_list.push_back($$);
-		}
 	;
 
 
@@ -1243,39 +535,6 @@ opt_alias:
 
 
 /******************************
- * With Descriptions
- ******************************/
-
-opt_with_clause:
-		with_clause
-	| 	/* empty */ { $$ = nullptr; }
-	;
-
-with_clause:
-		WITH with_description_list { $$ = $2; }
-	;
-
-with_description_list:
-		with_description {
-			$$ = new std::vector<WithDescription*>();
-			$$->push_back($1);
-		}
-	|	with_description_list ',' with_description {
-			$1->push_back($3);
-                        $$ = $1;
-		}
-	;
-
-with_description:
-		IDENTIFIER AS select_with_paren {
-			$$ = new WithDescription();
-			$$->alias = $1;
-			$$->select = $3;
-		}
-	;
-
-
-/******************************
  * Join Statements
  ******************************/
 
@@ -1356,6 +615,3 @@ ident_commalist:
  *********************************/
 
 /* empty */
-#ifdef __cplusplus
-}
-#endif
