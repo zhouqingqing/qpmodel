@@ -656,13 +656,10 @@ namespace qpmodel.logic
 
         public override void Exec(Action<Row> callback)
         {
-            var isInMarkJoin = filterHasMarkerBinExpr(logic_.filter_);
-            if (isInMarkJoin)
-                ExecIn(callback);
-            else
-                ExecNotIn(callback);
+            var isDerivedFromInClause = filterHasMarkerBinExpr(logic_.filter_);
+            Exec(callback, isDerivedFromInClause);
         }
-        public void ExecIn(Action<Row> callback)
+        public void Exec(Action<Row> callback, bool isDerivedFromInClause)
         {
             ExecContext context = context_;
             var logic = logic_ as LogicMarkJoin;
@@ -672,103 +669,52 @@ namespace qpmodel.logic
             bool lIsNull = false; // l represent one row
             bool RHasNull = false; // R represent a set of Row
             bool RisEmpty = true;
-            Value marker = false; // 0 false 1 true 2 NULL
+            Value marker = false; //false true null
             int markerOrdinal = 0;
             Debug.Assert(filter != null);
 
             lchild_().Exec(l =>
             {
                 lIsNull = colsHasNull(l) ? true : false;
-                // if right has NULL then 2 not in (3,NULL) = NULL 
+                marker = false;
                 rchild_().Exec(r =>
                 {
-                    if (!(r is null))
-                        RHasNull = colsHasNull(r) ? true : false;
                     Row n = new Row(l, r);
-
-                    var andList = filter.FilterToAndList();
-                    // SELECT a1 FROM a WHERE a1 = 3 and a2 NOT IN (SELECT b2 FROM b WHERE a1 < b1);
-                    // a1 < b1 will not produce marker 
-                    // a2 = b2 will produce marker 
-                    if (andList.Count >= 2) // 
+                    if (isDerivedFromInClause)
                     {
-                        var markerExpr = andList.Find(x => x is BinExpr xB && xB.IsMarkerBinExpr());
-                        andList.Remove(markerExpr);
-                        var excludeMarkerExpr = FilterHelper.AndListToExpr(andList);
-                        var flagE = excludeMarkerExpr.Exec(context, n);
-
-                        if (flagE is true)
-                            RisEmpty = false;
-                        else
-                            return;
-
-                        var flagM = markerExpr.Exec(context, n);
-
-                        if (flagM is true)
+                        if (!(r is null))
+                            RHasNull = colsHasNull(r) ? true : false;
+                        var andList = filter.FilterToAndList();
+                        // SELECT a1 FROM a WHERE a1 = 3 and a2 NOT IN (SELECT b2 FROM b WHERE a1 < b1);
+                        // a1 < b1 will not produce marker 
+                        // a2 = b2 will produce marker 
+                        // if the markjoin is derived from IN clause, we need to judge if it is a empty
+                        if (andList.Count >= 2)
                         {
+                            var markerExpr = andList.Find(x => x is BinExpr xB && xB.IsMarkerBinExpr());
+                            andList.Remove(markerExpr);
+                            var excludeMarkerExpr = FilterHelper.AndListToExpr(andList);
+                            var flagE = excludeMarkerExpr.Exec(context, n);
+
+                            if (flagE is true)
+                                RisEmpty = false;
+                            else
+                                return;
+
+                            var flagM = markerExpr.Exec(context, n);
+
                             // there is at least one match, mark true
-                            marker = true;
+                            if (flagM is true)
+                                marker = true;
                         }
-                    }
-                    else
-                    {
-                        if (filter.Exec(context, n) is true)
+                        else if (filter.Exec(context, n) is true)
                             marker = true;
                     }
-                });
-
-                if (marker is false && RHasNull)
-                    marker = null;
-
-                if (lIsNull && RisEmpty)
-                    marker = false;
-
-
-                Row r = new Row(rchild_().logic_.output_.Count);
-                Row n = new Row(l, r);
-
-                n = ExecProject(n);
-
-                markerOrdinal = findMarkerOrdinal();
-
-                if (marker is null)
-                {
-                    fixMarkerValue(n, false);
-                }
-                else
-                {
-                    bool boolMarker = marker is true ? true : false;
-                    fixMarkerValue(n, semi ? boolMarker : !boolMarker);
-                }
-
-                callback(n);
-            });
-        }
-
-        // workround : seperately handling the markerExpr
-        public void ExecNotIn(Action<Row> callback)
-        {
-            ExecContext context = context_;
-            var logic = logic_ as LogicMarkJoin;
-            var filter = logic.filter_;
-            bool semi = (logic_ is LogicMarkSemiJoin);
-            bool antisemi = (logic_ is LogicMarkAntiSemiJoin);
-
-            Debug.Assert(filter != null);
-
-            lchild_().Exec(l =>
-            {
-                bool foundOneMatch = false;
-                rchild_().Exec(r =>
-                {
-                    if (!foundOneMatch)
+                    else if (!(marker is true) && !isDerivedFromInClause)
                     {
-                        Row n = new Row(l, r);
                         if (filter.Exec(context, n) is true)
                         {
-                            foundOneMatch = true;
-
-                            // there is at least one match, mark true
+                            marker = true;
                             n = ExecProject(n);
                             fixMarkerValue(n, semi ? true : false);
                             callback(n);
@@ -776,8 +722,33 @@ namespace qpmodel.logic
                     }
                 });
 
-                // if there is no match, mark false
-                if (!foundOneMatch)
+                if (isDerivedFromInClause)
+                {
+                    if (marker is false && RHasNull)
+                        marker = null;
+
+                    if (lIsNull && RisEmpty)
+                        marker = false;
+
+                    Row r = new Row(rchild_().logic_.output_.Count);
+                    Row n = new Row(l, r);
+
+                    n = ExecProject(n);
+
+                    markerOrdinal = findMarkerOrdinal();
+
+                    if (marker is null)
+                        fixMarkerValue(n, false);
+                    else
+                    {
+                        bool boolMarker = marker is true ? true : false;
+                        fixMarkerValue(n, semi ? boolMarker : !boolMarker);
+                    }
+
+                    callback(n);
+
+                }
+                else if (!(marker is true) && !isDerivedFromInClause)
                 {
                     Row r = new Row(rchild_().logic_.output_.Count);
                     Row n = new Row(l, r);
