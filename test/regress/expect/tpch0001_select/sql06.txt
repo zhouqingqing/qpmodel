@@ -1,0 +1,63 @@
+select	(select count(O.o_orderkey) 
+	 	from orders O 
+	 	where O.o_custkey = 37) as OrderCount, 
+	c_name,
+	(select count(O2.o_custkey) 
+		from orders O2
+		where O2.o_custkey = 26) as CustPhone
+from customer C
+where exists
+	(
+		select *
+		from nation N
+		where N.n_name like '%A%'
+		and exists(
+			select * 
+			from region R
+			where N.n_regionkey = R.r_regionkey
+			and R.r_regionkey<2
+		)
+	)
+Total cost: 1726
+PhysicGather Threads: 10 (inccost=1726, cost=1500, rows=150)
+    Output: @1,c_name[0],@2
+    <ScalarSubqueryExpr> cached 1
+        -> PhysicHashAgg  (inccost=14, cost=3, rows=1, memory=8)
+            Output: {count(o_orderkey)}[0]
+            Aggregates: count(o_orderkey[0])
+            -> PhysicGather Threads: 10 (inccost=11, cost=10, rows=1)
+                Output: o_orderkey[0]
+                -> PhysicScanTable orders as o (inccost=1, cost=1, rows=1)
+                    Output: o_orderkey[0]
+                    Filter: o_custkey[1]=37
+
+    <ScalarSubqueryExpr> cached 2
+        -> PhysicHashAgg  (inccost=14, cost=3, rows=1, memory=8)
+            Output: {count(o_custkey)}[0]
+            Aggregates: count(o_custkey[0])
+            -> PhysicGather Threads: 10 (inccost=11, cost=10, rows=1)
+                Output: o_custkey[0]
+                -> PhysicScanTable orders as o2 (inccost=1, cost=1, rows=1)
+                    Output: o_custkey[1]
+                    Filter: o_custkey[1]=26
+
+    -> PhysicScanTable customer as c (inccost=174, cost=150, rows=150)
+        Output: c_name[1]
+        Filter: @3
+        <ExistSubqueryExpr> cached 3
+            -> PhysicFilter  (inccost=24, cost=1, rows=1)
+                Output: n_nationkey[0],n_name[1],n_regionkey[2],n_comment[3]
+                Filter: {#marker@4}[4]
+                -> PhysicMarkJoin Left (inccost=23, cost=1, rows=1)
+                    Output: n_nationkey[0],n_name[1],n_regionkey[2],n_comment[3],{#marker@4}[4]
+                    Filter: n_regionkey[2]=r_regionkey[4]
+                    -> PhysicGather Threads: 10 (inccost=11, cost=10, rows=1)
+                        Output: n_nationkey[0],n_name[1],n_regionkey[2],n_comment[3]
+                        -> PhysicScanTable nation as n (inccost=1, cost=1, rows=1)
+                            Output: n_nationkey[0],n_name[1],n_regionkey[2],n_comment[3]
+                            Filter: n_name[1] like '%A%'
+                    -> PhysicGather Threads: 10 (inccost=11, cost=10, rows=1)
+                        Output: r_regionkey[0]
+                        -> PhysicScanTable region as r (inccost=1, cost=1, rows=1)
+                            Output: r_regionkey[0]
+                            Filter: r_regionkey[0]<2

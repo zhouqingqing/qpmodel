@@ -774,7 +774,10 @@ namespace qpmodel.physic
             if (cache_ != null)
             {
                 foreach (var row in cache_)
-                    callback(row);
+                {
+                    var r = ExecProject(row);
+                    callback(r);
+                }
             }
             else
             {
@@ -782,6 +785,7 @@ namespace qpmodel.physic
                 Row r;
                 while ((r = channel_.Recv()) != null)
                 {
+                    r = ExecProject(r);
                     callback(r);
                     cache_.Add(r);
                 }

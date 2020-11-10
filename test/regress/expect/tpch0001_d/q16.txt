@@ -37,12 +37,12 @@ PhysicOrder  (inccost=4814.38, cost=754.38, rows=148, memory=6364) (actual rows=
         Aggregates: count(ps_suppkey[3])
         Group by: p_brand[0], p_type[1], p_size[2]
         -> PhysicGather Threads: 20 (inccost=3616, cost=1480, rows=148) (actual rows=136)
-            Output: p_brand[0],p_type[1],p_size[2],ps_suppkey[4]
+            Output: p_brand[0],p_type[1],p_size[2],ps_suppkey[3]
             -> PhysicHashJoin  (inccost=2136, cost=1022, rows=148, memory=3182) (actual rows=13, loops=10)
                 Output: p_brand[0],p_type[1],p_size[2],ps_suppkey[4]
                 Filter: p_partkey[3]=ps_partkey[5]
                 -> PhysicBroadcast  (inccost=274, cost=74, rows=37) (actual rows=34, loops=10)
-                    Output: p_brand[3],p_type[4],p_size[5],p_partkey[0]
+                    Output: p_brand[0],p_type[1],p_size[2],p_partkey[3]
                     -> PhysicScanTable part (inccost=200, cost=200, rows=37) (actual rows=3, loops=10)
                         Output: p_brand[3],p_type[4],p_size[5],p_partkey[0]
                         Filter: ((p_brand[3]<>'Brand#45' and p_type[4] not like 'MEDIUM POLISHED%') and p_size[5] in (49,14,23, ... <Total: 8> ))

@@ -1,0 +1,82 @@
+select
+	cntrycode,
+	count(*) as numcust,
+	sum(c_acctbal) as totacctbal
+from
+	(
+		select
+			substring(c_phone, 1, 2) as cntrycode,
+			c_acctbal
+		from
+			customer
+		where
+			substring(c_phone, 1, 2) in
+				('13', '31', '23', '29', '30', '18', '17')
+			and c_acctbal > (
+				select
+					avg(c_acctbal)
+				from
+					customer
+				where
+					c_acctbal > 0.00
+					and substring(c_phone, 1, 2) in
+						('13', '31', '23', '29', '30', '18', '17')
+			)
+			and not exists (
+				select
+					*
+				from
+					orders
+				where
+					o_custkey = c_custkey
+			)
+	) as custsale
+group by
+	cntrycode
+order by
+	cntrycode
+Total cost: 250508.1, memory=81
+PhysicOrder  (inccost=250508.1, cost=0.1, rows=1, memory=27) (actual rows=7)
+    Output: cntrycode[0],{count(*)(0)}[1],{sum(c_acctbal)}[2]
+    Order by: cntrycode[0]
+    -> PhysicHashAgg  (inccost=250508, cost=2252, rows=1, memory=54) (actual rows=7)
+        Output: {cntrycode}[0],{count(*)(0)}[1],{sum(c_acctbal)}[2]
+        Aggregates: count(*)(0), sum(c_acctbal[1])
+        Group by: cntrycode[0]
+        -> PhysicFromQuery <custsale> (inccost=248256, cost=2250, rows=2250) (actual rows=9)
+            Output: cntrycode[0],c_acctbal[1]
+            -> PhysicFilter  (inccost=246006, cost=2250, rows=2250) (actual rows=9)
+                Output: {substring(c_phone,1,2)}[0],c_acctbal[1]
+                Filter: {#marker@2}[2]
+                -> PhysicMarkJoin Left (inccost=243756, cost=225000, rows=2250) (actual rows=17)
+                    Output: {substring(c_phone,1,2)}[0],c_acctbal[1],{#marker@2}[2]
+                    Filter: o_custkey[3]=c_custkey[2]
+                    -> PhysicGather Threads: 10 (inccost=2256, cost=1500, rows=150) (actual rows=17)
+                        Output: {substring(c_phone,1,2)}[0],c_acctbal[1],c_custkey[2]
+                        -> PhysicScanTable customer (inccost=453, cost=150, rows=150) (actual rows=1, loops=10)
+                            Output: substring(c_phone[4],1,2),c_acctbal[5],c_custkey[0]
+                            Filter: (substring(c_phone[4],1,2) in ('13','31','23', ... <Total: 7> ) and c_acctbal[5]>@1)
+                            <ScalarSubqueryExpr> cached 1
+                                -> PhysicHashAgg  (inccost=303, cost=3, rows=1, memory=2) (actual rows=1)
+                                    Output: {sum({sum(c_acctbal)})}[0]/{sum({count(c_acctbal)})}[1]
+                                    Aggregates: sum({sum(c_acctbal)}[0]), sum({count(c_acctbal)}[1])
+                                    -> PhysicGather Threads: 10 (inccost=300, cost=10, rows=1) (actual rows=10)
+                                        Output: {sum(c_acctbal)}[0],{count(c_acctbal)}[1]
+                                        -> PhysicHashAgg  (inccost=290, cost=140, rows=1, memory=4) (actual rows=1, loops=10)
+                                            Output: {sum(c_acctbal)}[0],{count(c_acctbal)}[1]
+                                            Aggregates: sum(c_acctbal[0]), count(c_acctbal[0])
+                                            -> PhysicScanTable customer as customer__1 (inccost=150, cost=150, rows=138) (actual rows=3, loops=10)
+                                                Output: c_acctbal[5]
+                                                Filter: (c_acctbal[5]>0 and substring(c_phone[4],1,2) in ('13','31','23', ... <Total: 7> ))
+                    -> PhysicGather Threads: 10 (inccost=16500, cost=15000, rows=1500) (actual rows=1500, loops=17)
+                        Output: o_custkey[0]
+                        -> PhysicScanTable orders (inccost=1500, cost=1500, rows=1500) (actual rows=150, loops=10)
+                            Output: o_custkey[1]
+13,1,5679.84
+17,1,9127.27
+18,2,14647.99
+23,1,9255.67
+29,2,17195.08
+30,1,7638.57
+31,1,9331.13
+

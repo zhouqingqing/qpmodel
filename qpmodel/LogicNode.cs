@@ -450,9 +450,12 @@ namespace qpmodel.logic
         public virtual List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             List<int> ordinals = new List<int>();
-
-            children_[0].ResolveColumnOrdinal(reqOutput, removeRedundant);
-            output_ = children_[0].output_;
+            List<Expr> reqFromChild = new List<Expr>();
+            reqFromChild.AddRange(reqOutput.CloneList());
+            reqFromChild.RemoveAll(x => x is SubqueryExpr);
+            children_[0].ResolveColumnOrdinal(reqFromChild);
+            var childout = new List<Expr>(child_().output_);
+            output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
             RefreshOutputRegisteration();
             return ordinals;
         }
@@ -1213,7 +1216,7 @@ namespace qpmodel.logic
             if (newGrpBy != null)
                 reqFromChild.AddRange(newGrpBy);
             else
-               reqFromChild.AddRange(removeAggFuncAndKeyExprsFromOutput(reqList, groupby_));
+                reqFromChild.AddRange(removeAggFuncAndKeyExprsFromOutput(reqList, groupby_));
 
             // Issue exposed by removing remove_from.
             // Remeber the last position of output required by the parent, it is not an error
@@ -1289,7 +1292,7 @@ namespace qpmodel.logic
                 ++offendingPos;
             });
             if (offending != null && offendingFirstPos < grpbyColumnAddPosition)
-                    throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
+                throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
             output_ = newoutput;
             if (having_?.VisitEachExists(y => y is ColExpr, new List<Type> { typeof(ExprRef) }) ?? false)
                 throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
@@ -1332,8 +1335,11 @@ namespace qpmodel.logic
             // in the GROUP BY clause.
             //
             reqFromChild.AddRange(orders_);
+
+            reqFromChild.RemoveAll(x => x is SubqueryExpr);
+
             child_().ResolveColumnOrdinal(reqFromChild);
-            var childout = child_().output_;
+            var childout = new List<Expr>(child_().output_);
 
             orders_ = CloneFixColumnOrdinal(orders_, childout, false);
             output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
@@ -1449,7 +1455,6 @@ namespace qpmodel.logic
                 });
             });
         }
-
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             List<int> ordinals = new List<int>();
@@ -1608,8 +1613,17 @@ namespace qpmodel.logic
 
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
+
+            List<int> ordinals = new List<int>();
+            List<Expr> reqFromChild = new List<Expr>();
+            reqFromChild.AddRange(reqOutput.CloneList());
+            reqFromChild.RemoveAll(x => x is SubqueryExpr);
+            children_[0].ResolveColumnOrdinal(reqFromChild);
+            var childout = new List<Expr>(child_().output_);
             // limit is the top node and don't remove redundant
-            return base.ResolveColumnOrdinal(reqOutput, false);
+            output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
+            RefreshOutputRegisteration();
+            return ordinals;
         }
     }
 
