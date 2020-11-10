@@ -2265,6 +2265,8 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestINExprAndINSubquery()
         {
+
+            var phyplan = "";
             // In Postgre SQL,  null != null. 
             // And null is any value
             // so 2 not in (1,null) = false
@@ -2272,20 +2274,29 @@ namespace qpmodel.unittest
             TU.ExecuteSQL("SELECT a1,a2 FROM a", "0,1;1,2;2,3;3,");
 
             // NULL in inList
-            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 IN (1,2)", "0;1");
-            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 IN (1,2,NULL)", "0;1");
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 IN (1,2)", "0;1", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "    Filter: a.a2[1] in (1,2)"));
 
-            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 NOT IN (1,2)", "2");
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 IN (1,2,NULL)", "0;1", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "    Filter: a.a2[1] in (1,2,null)"));
+
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 NOT IN (1,2)", "2", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "    Filter: a.a2[1] not in (1,2)"));
+
             TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 NOT IN (1,2,NULL)", "");
+            Assert.AreEqual(1, TU.CountStr(phyplan, "    Filter: a.a2[1] not in (1,2)"));
 
             TU.ExecuteSQL("INSERT INTO b VALUES(3,NULL,5,6)");
 
             // NULL in non-corelated subquery
-            TU.ExecuteSQL("SELECT a2 FROM a WHERE a2 IN (SELECT b2 FROM b WHERE b1<2 )", "1;2"); //(1,2,3,NULL) in [1,2] = 1,2
+            TU.ExecuteSQL("SELECT a2 FROM a WHERE a2 IN (SELECT b2 FROM b WHERE b1<2 )", "1;2", out phyplan); //(1,2,3,NULL) in [1,2] = 1,2
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Filter: a.a2[1] in @1"));
 
             TU.ExecuteSQL("SELECT a2 FROM a WHERE a2 IN (SELECT b2 FROM b WHERE b1 < 2 or b1 = 3)", "1;2"); // (1,2,3,NULL) in [1,2,NULL]= 1,2
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Filter: a.a2[1] in @1"));
 
-            TU.ExecuteSQL("SELECT a2 FROM a WHERE a2 NOT IN (SELECT b2 FROM b WHERE b1 <2 or b1 =3)", ""); //(1,2,3,NULL) not in [1,2,NULL] = NULL
+            TU.ExecuteSQL("SELECT a2 FROM a WHERE a2 NOT IN (SELECT b2 FROM b WHERE b1 <2 or b1 =3)", "", out phyplan); //(1,2,3,NULL) not in [1,2,NULL] = NULL
+            Assert.AreEqual(1, TU.CountStr(phyplan, "Filter: a.a2[1] not in @1"));
 
             // NULL in corelated subquery, test for markjoin
             // table a,b
@@ -2295,29 +2306,38 @@ namespace qpmodel.unittest
             // 3 N 4 5
 
             // 1 NOT in [1] = False, NULL not in [NULL] = NULL
-            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 NOT IN (SELECT b2 FROM b WHERE a1 = b1)", "");
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 NOT IN (SELECT b2 FROM b WHERE a1 = b1)", "", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "    -> PhysicMarkJoin Left (actual rows=4)")); 
 
             // 1 NOT in [1] = False, 2 NOT in [1,2] = False, 3 NOT in [1,2,3] = False, NULL not in [1,2,3,NULL] = False
-            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 NOT IN (SELECT b2 FROM b WHERE a1 <= b1)", "");
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 NOT IN (SELECT b2 FROM b WHERE a1 <= b1)", "", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "    -> PhysicMarkJoin Left (actual rows=4)"));
 
             // NULL in [NULL] = NULL
-            TU.ExecuteSQL("SELECT a1 FROM a WHERE a1 = 3 and a2 IN (SELECT b2 FROM b WHERE a1 = b1)", "");
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a1 = 3 and a2 IN (SELECT b2 FROM b WHERE a1 = b1)", "", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "    -> PhysicMarkJoin Left (actual rows=1)"));
 
             // NULL not in []
             // this a2 = b2 is a filter whitch should execute first
-            TU.ExecuteSQL("SELECT a1 FROM a WHERE a1 = 3 and a2 NOT IN (SELECT b2 FROM b WHERE a1 < b1)", "3");
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a1 = 3 and a2 NOT IN (SELECT b2 FROM b WHERE a1 < b1)", "3", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "    -> PhysicMarkJoin Left (actual rows=1)"));
 
             // NULL in [1,2,3] = NULL
-            TU.ExecuteSQL("SELECT a1 FROM a WHERE a1 = 3 and a2 IN (SELECT b2 FROM b WHERE a1 < b1)", "");
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a1 = 3 and a2 IN (SELECT b2 FROM b WHERE a1 < b1)", "", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "    -> PhysicMarkJoin Left (actual rows=1)"));
 
             // NULL in [] = false
-            TU.ExecuteSQL("SELECT a1 FROM a WHERE a1 = 3 and a2 IN (SELECT b2 FROM b WHERE a1 > b1)", "");
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a1 = 3 and a2 IN (SELECT b2 FROM b WHERE a1 > b1)", "", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "    -> PhysicMarkJoin Left (actual rows=1)"));
 
             // 3 IN [3,NULL] = 3
-            TU.ExecuteSQL("SELECT a1 FROM a WHERE a1 = 2 and a2 IN (SELECT b2 FROM b WHERE b1 >= a1)", "2");
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a1 = 2 and a2 IN (SELECT b2 FROM b WHERE b1 >= a1)", "2", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "    -> PhysicMarkJoin Left (actual rows=1)"));
 
             // 3 NOT IN [1,2,NULL] = NULL
-            TU.ExecuteSQL("SELECT a1 FROM a WHERE a1 = 2 and a2 NOT IN (SELECT b2 FROM b WHERE b1 > a1 or b1 < a1)", "");
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a1 = 2 and a2 NOT IN (SELECT b2 FROM b WHERE b1 > a1 or b1 < a1)", "", out phyplan);
+            Assert.AreEqual(1, TU.CountStr(phyplan, "    -> PhysicMarkJoin Left (actual rows=1)"));
+
             // RECOVER a,b For other UnitTest
             TU.restoreTable("a");
             TU.restoreTable("b");
