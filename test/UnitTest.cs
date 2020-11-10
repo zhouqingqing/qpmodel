@@ -455,7 +455,6 @@ namespace qpmodel.unittest
             List<String> tabNameList = new List<String> { "region", "orders", "part", "partsupp", "lineitem", "supplier", "nation" };
             TU.ClearTableStatsInCatalog(tabNameList);
 
-
             try
             {   // test PhysicPlanOnly
                 // sql06 does not have ORDER, so the toppest physice node is physicGather
