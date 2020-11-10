@@ -98,35 +98,40 @@ s/#.*include.*unistd\.h.*/\
 /#.*line /d
 ' $f
 done
-###@### # add namespace wrapper.
-###@### # lexer.h: add them after the first line and before the last line
-###@### # parser: add them after the first PARSER_H_INCLUDED and before the last line
-###@### if [ -f andb_lexer.h ]; then
-###@### sed -i '
-###@### 1a\
-###@### #ifdef __cplusplus\
-###@### namespace andb {\
-###@### #endif\
-###@### #include <stdint.h>\
-###@### 
-###@### $i\
-###@### #ifdef __cplusplus\
-###@### }\
-###@### #endif
-###@### ' andb_lexer.h
-###@### fi
-###@### 
-###@### if [ -f andb_parser.h ]; then
-###@### sed -i '
-###@### /#ifndef YY_ANDB_ANDB_PARSER_H_INCLUDED/a\
-###@### #ifdef __cplusplus\
-###@### namespace andb {\
-###@### #endif\
-###@### #include <stdint.h>\
-###@### 
-###@### $i\
-###@### #ifdef __cplusplus\
-###@### }\
-###@### #endif
-###@### ' andb_parser.h
-###@### fi
+
+for f in *.[h,l,y] *.cpp; do
+    dos2unix $f
+done
+
+# add namespace wrapper.
+# lexer.h: add them after the first line and before the last line
+# parser: add them after the first PARSER_H_INCLUDED and before the last line
+if [ -f andb_lexer.h ]; then
+sed -i '
+1a\
+#ifdef __cplusplus\
+namespace andb {\
+#endif\
+#include <stdint.h>
+
+$i\
+#ifdef __cplusplus\
+}\
+#endif
+' andb_lexer.h
+fi
+
+if [ -f andb_parser.h ]; then
+sed -i '
+/# define YY_ANDB_ANDB_PARSER_H_INCLUDED/a\
+#ifdef __cplusplus\
+namespace andb {\
+#endif\
+#include <stdint.h>
+
+$i\
+#ifdef __cplusplus\
+}\
+#endif
+' andb_parser.h
+fi

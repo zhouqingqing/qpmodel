@@ -7,10 +7,12 @@
 
 #include "common/common.h"
 #include "common/dbcommon.h"
-#include "parser/include/expr.h"
-#include "parser/include/logicnode.h"
 
 namespace andb {
+
+class Expr;
+class LogicNode;
+
 class SQLStatement : public UseCurrentResource {
 public:
    // BEGIN HYRISE

@@ -1,5 +1,6 @@
 #include "common/common.h"
 #include "optimizer/optimizer.h"
+#include "parser/include/stmt.h"
 
 namespace andb {
 PhysicNode* DirectLogicToPhysic (LogicNode* logic) {

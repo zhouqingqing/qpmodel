@@ -3,6 +3,7 @@
 
 #include <vector>
 
+namespace andb {
 
 #ifndef YYtypeDEF_YY_SCANNER_T
 #define YYtypeDEF_YY_SCANNER_T
@@ -33,4 +34,5 @@ struct ANDB_CUST_LTYPE {
 #define ANDB_LTYPE ANDB_CUST_LTYPE
 #define ANDB_LTYPE_IS_DECLARED 1
 
+}
 #endif

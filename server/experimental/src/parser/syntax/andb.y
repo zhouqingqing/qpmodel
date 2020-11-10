@@ -37,24 +37,37 @@ SOFTWARE.
  ** Section 1: C Declarations
  *********************************/
 
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
+
 #include <stdint.h>
+
 #include <locale>
 #include <vector>
 #include <iostream>
+#include <sstream>
 #include <new>
+
+#include "common/common.h"
+#include "common/dbcommon.h"
+#include "parser/include/expr.h"
+#include "parser/include/stmt.h"
+#include "parser/include/SQLParserResult.h"
+#include "parser/include/parser_typedef.h"
 
 
 #include "andb_parser.h"
 #include "andb_lexer.h"
 
-using namespace andb;
+// Guard is there to fool bison into accepting namespace declaration as is.
+#ifdef __cplusplus
+namespace andb {
+#endif
 
 
 int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const char *msg) {
 	result->setIsValid(false);
-	result->setErrorDetails(strdup(msg), llocp->first_line, llocp->first_column);
+	result->setErrorDetails(new std::string(msg), llocp->first_line, llocp->first_column);
 	return 0;
 }
 
@@ -67,11 +80,6 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 // Specify code that is included in the generated .h and .c files
 %code requires {
 // %code requires block
-
-#include "../include/expr.h"
-#include "../include/stmt.h"
-#include "../include/SQLParserResult.h"
-#include "../include/parser_typedef.h"
 
 
 // Auto update column and line number
@@ -128,26 +136,30 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
  ** Define all data-types (http://www.gnu.org/software/bison/manual/html_node/Union-Decl.html)
  *********************************/
 %union {
-	double fval;
-	int64_t ival;
-	char* sval;
-	uintmax_t uval;
-	bool bval;
+	double      fval;
+	int64_t     ival;
+    std::string *sval;
+	uintmax_t   uval;
+	bool        bval;
 
-	andb::SQLStatement* statement;
+	andb::SQLStatement      *statement;
 	andb::SelectStatement   *select_stmt;
 
-	andb::TableName table_name;
-	andb::TableRef* table;
-	andb::Expr* expr;
+	std::string     *table_name;
+	andb::TableRef  *table;
+	andb::Expr      *expr;
 
-	andb::ColumnDefinition* column_t;
-	andb::ColumnType column_type_t;
-	andb::Alias* alias_t;
-	std::vector<andb::SQLStatement*> * stmt_vec;
+	andb::ColumnDef   *column_t;
+	andb::ColumnType  column_type_t;
+	std::vector<andb::SQLStatement*>    *stmt_vec;
 
-	std::vector<char*> * str_vec;
-	std::vector<andb::TableRef*> * table_vec;
+	std::vector<Expr *>           *expr_vec;;
+	std::vector<std::string*>     *str_vec;
+	std::vector<andb::TableRef*>  *table_vec;
+
+   ANDB_STYPE() {}
+
+   
 }
 
 
@@ -155,8 +167,8 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
  ** Destructor symbols
  *********************************/
 %destructor { } <fval> <ival> <uval> <bval> <order_type> <datetime_field> <column_type_t> <import_type_t>
-%destructor { free( ($$.name) ); free( ($$.schema) ); } <table_name>
-%destructor { free( ($$) ); } <sval>
+%destructor { delete( ($$.name) ); } <table_name>
+%destructor { delete( ($$) ); } <sval>
 %destructor {
 	if (($$) != nullptr) {
 		for (auto ptr : *($$)) {
@@ -211,7 +223,7 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 %type <update_stmt>     update_statement
 %type <drop_stmt>	    drop_statement
 %type <show_stmt>	    show_statement
-%type <table_name>      table_name
+%type <sval>            table_name
 %type <sval> 		    file_path prepare_target_query
 %type <bval> 		    opt_not_exists opt_exists opt_column_nullable opt_all
 %type <uval>		    opt_join_type
@@ -230,7 +242,7 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 %type <column_type_t>   column_type
 %type <update_t>	    update_clause
 %type <group_t>		    opt_group
-%type <alias_t>		    opt_table_alias table_alias opt_alias alias
+%type <sval>		    opt_table_alias table_alias opt_alias alias
 %type <with_description_t>  with_description
 %type <set_operator_t>  set_operator set_type
 
@@ -330,7 +342,7 @@ select_statement:
 	;
 
 opt_where:
-        WHERE expr {$$ = $2}
+        WHERE expr {$$ = $2; }
     | {$$ = nullptr;} /* empty */
     ;
 
@@ -367,7 +379,7 @@ expr_alias:
 		expr opt_alias {
 			$$ = $1;
 			if ($2) {
-				$$->alias = strdup($2->name);
+				$$->alias_ = new std::string($2);
 				delete $2;
 			}
 		}
@@ -470,13 +482,16 @@ table_ref_atomic:
 
 nonjoin_table_ref_atomic:
 		table_ref_name
-	|	'(' select_statement ')' opt_table_alias {
-			auto tbl = new TableRef(kTableSelect);
-			tbl->select = $2;
-			tbl->alias = $4;
+	|	'(' select_statement ')' opt_table_alias opt_column_list {
+			auto tbl = new QueryRef($2, $4, $5);
 			$$ = tbl;
 		}
 	;
+
+opt_column_list:
+      '(' ident_commalist ')' { $$ = $2; }
+   | /* empty */ { $$ = nullptr; };
+   ;
 
 table_ref_commalist:
 		table_ref_atomic { $$ = new std::vector<TableRef*>(); $$->push_back($1); }
@@ -486,10 +501,7 @@ table_ref_commalist:
 
 table_ref_name:
 		table_name opt_table_alias {
-			auto tbl = new TableRef(kTableName);
-			tbl->schema = $1.schema;
-			tbl->name = $1.name;
-			tbl->alias = $2;
+			auto tbl = new TableRef($1, $2);
 			$$ = tbl;
 		}
 	;
@@ -497,22 +509,13 @@ table_ref_name:
 
 table_ref_name_no_alias:
 		table_name {
-			$$ = new TableRef(kTableName);
-			$$->schema = $1.schema;
-			$$->name = $1.name;
+			$$ = new TableRef($1, nullptr);
 		}
 	;
 
 
 table_name:
-		IDENTIFIER                { $$.schema = nullptr; $$.name = $1;}
-	|	IDENTIFIER '.' IDENTIFIER { $$.schema = $1; $$.name = $3; }
-	;
-
-
-table_alias:
-		alias
-	|	AS IDENTIFIER '(' ident_commalist ')' { $$ = new Alias($2, $4); }
+		IDENTIFIER                { $$ = $1;}
 	;
 
 
@@ -521,10 +524,8 @@ opt_table_alias:
 	|	/* empty */ { $$ = nullptr; }
 	;
 
-
-alias:
-		AS IDENTIFIER { $$ = new Alias($2); }
-	|	IDENTIFIER { $$ = new Alias($1); }
+table_alias:
+		alias
 	;
 
 
@@ -533,6 +534,10 @@ opt_alias:
 	|	/* empty */ { $$ = nullptr; }
 	;
 
+alias:
+		AS IDENTIFIER { $$ = $2; }
+	|	IDENTIFIER
+	;
 
 /******************************
  * Join Statements
@@ -564,12 +569,12 @@ join_clause:
 			$$->join->type = (JoinType) $2;
 			$$->join->left = $1;
 			$$->join->right = $4;
-			auto left_col = Expr::makeColumnRef(strdup($7->name));
-			if ($7->alias != nullptr) left_col->alias = strdup($7->alias);
-			if ($1->getName() != nullptr) left_col->table = strdup($1->getName());
-			auto right_col = Expr::makeColumnRef(strdup($7->name));
-			if ($7->alias != nullptr) right_col->alias = strdup($7->alias);
-			if ($4->getName() != nullptr) right_col->table = strdup($4->getName());
+			auto left_col = Expr::makeColumnRef(new std::string($7->name));
+			if ($7->alias_ != nullptr) left_col->alias_ = new std::string($7->alias_);
+			if ($1->getName() != nullptr) left_col->table = new std::string($1->getName());
+			auto right_col = Expr::makeColumnRef(new std::string($7->name));
+			if ($7->alias_ != nullptr) right_col->alias_ = new std::string($7->alias_);
+			if ($4->getName() != nullptr) right_col->table = new std::string($4->getName());
 			$$->join->condition = Expr::makeOpBinary(left_col, kOpEquals, right_col);
 			delete $7;
 		}
@@ -605,7 +610,7 @@ opt_semicolon:
 
 
 ident_commalist:
-		IDENTIFIER { $$ = new std::vector<char*>(); $$->push_back($1); }
+		IDENTIFIER { $$ = new std::vector<std::string*>(); $$->push_back($1); }
 	|	ident_commalist ',' IDENTIFIER { $1->push_back($3); $$ = $1; }
 	;
 

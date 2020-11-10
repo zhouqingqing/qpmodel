@@ -1,8 +1,8 @@
 #pragma once
 
-#include "expr.h"
-#include "logicnode.h"
-#include "stmt.h"
+#include "parser/include/expr.h"
+#include "parser/include/logicnode.h"
+#include "parser/include/stmt.h"
 
 namespace andb {
 extern SQLStatement* Parse (char* query);

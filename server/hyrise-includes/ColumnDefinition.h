@@ -5,3 +5,4 @@ struct ColumnDefinition {
 };
 }
 #endif // __COLUMNDEFINITION_H_
+

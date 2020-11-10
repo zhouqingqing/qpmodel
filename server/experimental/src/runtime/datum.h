@@ -6,6 +6,7 @@
 
 #include "common/common.h"
 #include "fmtlib/include/fmt/format.h"
+
 namespace andb {
 
 // Datum is a union of all possible typed

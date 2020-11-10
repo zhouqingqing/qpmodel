@@ -37,19 +37,29 @@ SOFTWARE.
  ***************************/
 %{
 
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
+
 #include <stdint.h>
+
 #include <locale>
 #include <vector>
 #include <iostream>
+#include <sstream>
 #include <new>
 
-#include "../include/expr.h"
-#include "../include/stmt.h"
-#include "../include/parser_typedef.h"
+#include "common/common.h"
+#include "common/dbcommon.h"
+#include "parser/include/expr.h"
+#include "parser/include/stmt.h"
+#include "parser/include/parser_typedef.h"
 
 #include "andb_parser.h"
+
+// Guard is there to fool flex into accepting namespace declaration as is.
+#ifdef __cplusplus
+namespace andb {
+#endif
 
 #define TOKEN(name) { return SQL_##name; }
 
@@ -262,14 +272,14 @@ COMMIT      TOKEN(COMMIT)
 }
 
 [A-Za-z][A-Za-z0-9_]* {
-	yylval->sval = strdup(yytext);
+	yylval->sval = new std::string(yytext);
 	return SQL_IDENTIFIER;
 }
 
 \'                          { BEGIN singlequotedstring; strbuf = std::stringstream{}; }
 <singlequotedstring>\'\'    { strbuf << '\''; }
 <singlequotedstring>[^']*   { strbuf << yytext; }
-<singlequotedstring>\'      { BEGIN 0; yylval->sval = strdup(strbuf.str().c_str()); return SQL_STRING; }
+<singlequotedstring>\'      { BEGIN 0; yylval->sval = new std::string(strbuf.str().c_str()); return SQL_STRING; }
 <singlequotedstring><<EOF>> { fprintf(stderr, "[SQL-Lexer-Error] Unterminated string\n"); return 0; }
 
 . { fprintf(stderr, "[SQL-Lexer-Error] Unknown Character: %c\n", yytext[0]); return 0; }
@@ -283,3 +293,7 @@ COMMIT      TOKEN(COMMIT)
 int yyerror(const char *msg) {
     fprintf(stderr, "[SQL-Lexer-Error] %s\n",msg); return 0;
 }
+
+#ifdef __cplusplus
+}
+#endif

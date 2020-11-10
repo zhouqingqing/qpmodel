@@ -17,6 +17,7 @@ protected:
 public:
     ClassTag classTag_;
     DataType type_;
+    std::string alias_;
 
     // evaluation support
     uint32_t slot_;
