@@ -784,12 +784,11 @@ namespace qpmodel.logic
 
         internal void ResolveOrdinals()
         {
-            bool isToppestNode = true;
             if (setops_ is null)
             {
                 if (shallExpandSelection_)
                     selection_ = selectionRemoveSubquery(selection_);
-                logicPlan_.ResolveColumnOrdinal(selection_, parent_ != null, isToppestNode);
+                logicPlan_.ResolveColumnOrdinal(selection_, parent_ != null);
             }
             else
             {
@@ -799,7 +798,7 @@ namespace qpmodel.logic
                 {
                     x.logicPlan_.ResolveColumnOrdinal(x.selection_, false);
                 });
-                logicPlan_.ResolveColumnOrdinal(first.selection_, parent_ != null, isToppestNode);
+                logicPlan_.ResolveColumnOrdinal(first.selection_, parent_ != null);
             }
         }
 

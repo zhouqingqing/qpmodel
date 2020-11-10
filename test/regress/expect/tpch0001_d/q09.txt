@@ -1,0 +1,141 @@
+select
+	nation,
+	o_year,
+	sum(amount) as sum_profit
+from
+	(
+		select
+			n_name as nation,
+			year(o_orderdate) as o_year,
+			l_extendedprice * (1 - l_discount) - ps_supplycost * l_quantity as amount
+		from
+			part,
+			supplier,
+			lineitem,
+			partsupp,
+			orders,
+			nation
+		where
+			s_suppkey = l_suppkey
+			and ps_suppkey = l_suppkey
+			and ps_partkey = l_partkey
+			and p_partkey = l_partkey
+			and o_orderkey = l_orderkey
+			and s_nationkey = n_nationkey
+			and p_name like '%green%'
+	) as profit
+group by
+	nation,
+	o_year
+order by
+	nation,
+	o_year desc
+Total cost: 52026.1, memory=63341
+PhysicOrder  (inccost=52026.1, cost=0.1, rows=1, memory=41) (actual rows=60)
+    Output: nation[0],o_year[1],{sum(amount)}[2]
+    Order by: nation[0], o_year[1]
+    -> PhysicHashAgg  (inccost=52026, cost=35, rows=1, memory=82) (actual rows=60)
+        Output: {nation}[0],{o_year}[1],{sum(amount)}[2]
+        Aggregates: sum(amount[2])
+        Group by: nation[0], o_year[1]
+        -> PhysicFromQuery <profit> (inccost=51991, cost=33, rows=33) (actual rows=493)
+            Output: nation[0],o_year[1],amount[2]
+            -> PhysicGather Threads: 50 (inccost=51958, cost=330, rows=33) (actual rows=493)
+                Output: n_name (as nation)[0],{year(o_orderdate)}[1],{(l_extendedprice*(1-l_discount)-ps_supplycost*l_quantity(as amount))}[2]
+                -> PhysicHashJoin  (inccost=51628, cost=6707, rows=33, memory=8) (actual rows=49, loops=10)
+                    Output: n_name (as nation)[1],{year(o_orderdate)}[2],{(l_extendedprice*(1-l_discount)-ps_supplycost*l_quantity(as amount))}[3]
+                    Filter: p_partkey[0]=l_partkey[4]
+                    -> PhysicBroadcast  (inccost=202, cost=2, rows=1) (actual rows=9, loops=10)
+                        Output: p_partkey[0]
+                        -> PhysicScanTable part (inccost=200, cost=200, rows=1) (actual rows=0, loops=10)
+                            Output: p_partkey[0]
+                            Filter: p_name[1] like '%green%'
+                    -> PhysicHashJoin  (inccost=44719, cost=9124, rows=6672, memory=1450) (actual rows=844, loops=10)
+                        Output: n_name (as nation)[0],{year(o_orderdate)}[2],{(l_extendedprice*(1-l_discount)-ps_supplycost*l_quantity(as amount))}[3],l_partkey[4]
+                        Filter: s_nationkey[5]=n_nationkey[1]
+                        -> PhysicScanTable nation (inccost=25, cost=25, rows=25) (actual rows=25, loops=10)
+                            Output: n_name (as nation)[1],n_nationkey[0]
+                        -> PhysicHashJoin  (inccost=35570, cost=7804, rows=2402, memory=36000) (actual rows=844, loops=10)
+                            Output: {year(o_orderdate)}[0],{(l_extendedprice*(1-l_discount)-ps_supplycost*l_quantity(as amount))}[2],l_partkey[3],s_nationkey[4]
+                            Filter: o_orderkey[1]=l_orderkey[5]
+                            -> PhysicBroadcast  (inccost=4500, cost=3000, rows=1500) (actual rows=1500, loops=10)
+                                Output: {year(o_orderdate)}[0],o_orderkey[1]
+                                -> PhysicScanTable orders (inccost=1500, cost=1500, rows=1500) (actual rows=150, loops=10)
+                                    Output: year(o_orderdate[4]),o_orderkey[0]
+                            -> PhysicHashJoin  (inccost=23266, cost=4824, rows=2402, memory=160) (actual rows=844, loops=10)
+                                Output: {(l_extendedprice*(1-l_discount)-ps_supplycost*l_quantity(as amount))}[2],l_partkey[3],s_nationkey[0],l_orderkey[4]
+                                Filter: s_suppkey[1]=l_suppkey[5]
+                                -> PhysicBroadcast  (inccost=30, cost=20, rows=10) (actual rows=10, loops=10)
+                                    Output: s_nationkey[0],s_suppkey[1]
+                                    -> PhysicScanTable supplier (inccost=10, cost=10, rows=10) (actual rows=1, loops=10)
+                                        Output: s_nationkey[3],s_suppkey[0]
+                                -> PhysicHashJoin  (inccost=18412, cost=10007, rows=2402, memory=25600) (actual rows=844, loops=10)
+                                    Output: (l_extendedprice[3]*(1-l_discount[4])-ps_supplycost[0]*l_quantity[5](as amount)),l_partkey[6],l_orderkey[7],l_suppkey[8]
+                                    Filter: (ps_suppkey[1]=l_suppkey[8] and ps_partkey[2]=l_partkey[6])
+                                    -> PhysicBroadcast  (inccost=2400, cost=1600, rows=800) (actual rows=800, loops=10)
+                                        Output: ps_supplycost[0],ps_suppkey[1],ps_partkey[2]
+                                        -> PhysicScanTable partsupp (inccost=800, cost=800, rows=800) (actual rows=80, loops=10)
+                                            Output: ps_supplycost[3],ps_suppkey[1],ps_partkey[0]
+                                    -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=6005) (actual rows=600, loops=10)
+                                        Output: l_extendedprice[5],l_discount[6],l_quantity[4],l_partkey[1],l_orderkey[0],l_suppkey[2]
+ARGENTINA,1998,17779.0697
+ARGENTINA,1997,13943.9538
+ARGENTINA,1996,7641.4227
+ARGENTINA,1995,20892.7525
+ARGENTINA,1994,15088.3526
+ARGENTINA,1993,17586.3446
+ARGENTINA,1992,28732.4615
+ETHIOPIA,1998,28217.16
+ETHIOPIA,1996,33970.65
+ETHIOPIA,1995,37720.35
+ETHIOPIA,1994,37251.01
+ETHIOPIA,1993,23782.61
+IRAN,1997,23590.008
+IRAN,1996,7428.2325
+IRAN,1995,21000.9965
+IRAN,1994,29408.13
+IRAN,1993,49876.415
+IRAN,1992,52064.24
+IRAQ,1998,11619.9604
+IRAQ,1997,47910.246
+IRAQ,1996,18459.5675
+IRAQ,1995,32782.3701
+IRAQ,1994,9041.2317
+IRAQ,1993,30687.2625
+IRAQ,1992,29098.2557
+KENYA,1998,33148.3345
+KENYA,1997,54355.0165
+KENYA,1996,53607.4854
+KENYA,1995,85354.8738
+KENYA,1994,102904.2511
+KENYA,1993,109310.8084
+KENYA,1992,138534.121
+MOROCCO,1998,157058.2328
+MOROCCO,1997,88669.961
+MOROCCO,1996,236833.6672
+MOROCCO,1995,381575.8668
+MOROCCO,1994,243523.4336
+MOROCCO,1993,232196.7803
+MOROCCO,1992,347434.1452
+PERU,1998,101109.0196
+PERU,1997,58073.0866
+PERU,1996,30360.5218
+PERU,1995,138451.78
+PERU,1994,55023.0632
+PERU,1993,110409.0863
+PERU,1992,70946.1916
+UNITED KINGDOM,1998,139685.044
+UNITED KINGDOM,1997,183502.0498
+UNITED KINGDOM,1996,374085.2884
+UNITED KINGDOM,1995,548356.7984
+UNITED KINGDOM,1994,266982.768
+UNITED KINGDOM,1993,717309.464
+UNITED KINGDOM,1992,79540.6016
+UNITED STATES,1998,32847.96
+UNITED STATES,1997,30849.5
+UNITED STATES,1996,56125.46
+UNITED STATES,1995,15961.7977
+UNITED STATES,1994,31671.2
+UNITED STATES,1993,55057.469
+UNITED STATES,1992,51970.23
+

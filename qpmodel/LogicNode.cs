@@ -447,13 +447,12 @@ namespace qpmodel.logic
         // this parent class implments a default one for using first child output without any change. You can
         // also piggy back in this method to "finalize" your logic node.
         //
-        public virtual List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true, bool isToppest = false)
+        public virtual List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             List<int> ordinals = new List<int>();
             List<Expr> reqFromChild = new List<Expr>();
             reqFromChild.AddRange(reqOutput.CloneList());
-            if (isToppest)
-                reqFromChild.RemoveAll(x => x is SubqueryExpr);
+            reqFromChild.RemoveAll(x => x is SubqueryExpr);
             children_[0].ResolveColumnOrdinal(reqFromChild);
             var childout = new List<Expr>(child_().output_);
             output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
@@ -692,7 +691,7 @@ namespace qpmodel.logic
 
         public bool isSubSet(List<TableRef> small, List<TableRef> big) => small.All(t => big.Any(b => b == t)) ? true : false;
 
-        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true, bool isToppest = false)
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             // request from child including reqOutput and filter
             List<int> ordinals = new List<int>();
@@ -866,7 +865,7 @@ namespace qpmodel.logic
             children_.Add(child); filter_ = filter;
         }
 
-        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true, bool isToppest = false)
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             // a1 = max(b1) => a1, max(b1)
             void addColumnAndAggFuncs(Expr expr, HashSet<Expr> list)
@@ -1161,7 +1160,7 @@ namespace qpmodel.logic
             return newoutput;
         }
 
-        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true, bool isToppest = false)
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             List<int> ordinals = new List<int>();
 
@@ -1324,7 +1323,7 @@ namespace qpmodel.logic
             descends_ = descends;
         }
 
-        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true, bool isToppest = false)
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             // request from child including reqOutput and filter
             List<int> ordinals = new List<int>();
@@ -1336,8 +1335,8 @@ namespace qpmodel.logic
             // in the GROUP BY clause.
             //
             reqFromChild.AddRange(orders_);
-            if (isToppest)
-                reqFromChild.RemoveAll(x => x is SubqueryExpr);
+
+            reqFromChild.RemoveAll(x => x is SubqueryExpr);
 
             child_().ResolveColumnOrdinal(reqFromChild);
             var childout = new List<Expr>(child_().output_);
@@ -1381,7 +1380,7 @@ namespace qpmodel.logic
 
         public LogicFromQuery(QueryRef query, LogicNode child) { queryRef_ = query; children_.Add(child); }
 
-        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true, bool isToppest = false)
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             List<int> ordinals = new List<int>();
             var query = queryRef_.query_;
@@ -1456,7 +1455,7 @@ namespace qpmodel.logic
                 });
             });
         }
-        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true, bool isToppest = false)
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             List<int> ordinals = new List<int>();
             List<Expr> columns = tabref_.AllColumnsRefs();
@@ -1499,7 +1498,7 @@ namespace qpmodel.logic
         public override string ToString() => targetref_.ToString();
         public override string ExplainInlineDetails() => ToString();
 
-        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true, bool isToppest = false)
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             Debug.Assert(output_.Count == 0);
 
@@ -1513,7 +1512,7 @@ namespace qpmodel.logic
     {
         public override string ToString() => string.Join(",", output_);
         public LogicResult(List<Expr> exprs) => output_ = exprs;
-        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true, bool isToppest = false) => null;
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true) => null;
     }
 
     // LogicAppend needs extra information to allow remove_from optimization to work
@@ -1571,7 +1570,7 @@ namespace qpmodel.logic
             child.ResolveColumnOrdinal(childReq, removeRedundant);
         }
 
-        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true, bool isToppest = false)
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             List<int> ordinals = children_[0].ResolveColumnOrdinal(reqOutput, removeRedundant);
 
@@ -1612,14 +1611,13 @@ namespace qpmodel.logic
                 throw new SemanticAnalyzeException("limit shall be positive");
         }
 
-        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true, bool isToppest = false)
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
 
             List<int> ordinals = new List<int>();
             List<Expr> reqFromChild = new List<Expr>();
             reqFromChild.AddRange(reqOutput.CloneList());
-            if (isToppest)
-                reqFromChild.RemoveAll(x => x is SubqueryExpr);
+            reqFromChild.RemoveAll(x => x is SubqueryExpr);
             children_[0].ResolveColumnOrdinal(reqFromChild);
             var childout = new List<Expr>(child_().output_);
             // limit is the top node and don't remove redundant
@@ -1694,7 +1692,7 @@ namespace qpmodel.logic
                 consumerIds_ = new List<int>(Enumerable.Range(0, QueryOption.num_machines_));
         }
         public override string ToString() => $"Redistribute({child_()})";
-        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true, bool isToppest = false)
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             // request from child including reqOutput and distributeby
             List<Expr> reqFromChild = new List<Expr>();
@@ -1731,7 +1729,7 @@ namespace qpmodel.logic
         }
         public override string ToString() => $"ProjectSet({child_()})";
 
-        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true, bool isToppest = false)
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             var ordinals = new List<int>();
 
