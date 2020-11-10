@@ -472,7 +472,6 @@ namespace qpmodel.logic
                     }
                 }
             }
-
         }
 
         // select * from (select max(b3) maxb3 from b) b where maxb3>1

@@ -3470,7 +3470,6 @@ namespace qpmodel.unittest
             List<String> tabNameList = new List<String> { "region", "orders", "part", "partsupp", "lineitem", "supplier", "nation" };
             TU.ClearTableStatsInCatalog(tabNameList);
         }
-
     }
 
     [TestClass]
