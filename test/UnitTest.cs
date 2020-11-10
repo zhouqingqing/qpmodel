@@ -455,12 +455,13 @@ namespace qpmodel.unittest
             List<String> tabNameList = new List<String> { "region", "orders", "part", "partsupp", "lineitem", "supplier", "nation" };
             TU.ClearTableStatsInCatalog(tabNameList);
 
+
             try
-            {
+            {   // test PhysicPlanOnly
                 // sql06 does not have ORDER, so the toppest physice node is physicGather
-                var badQueries = new string[] { "sql01", "sql02", "sql03", "sql04", "sql05", "sql07", "sql08" };
+                var haveAlreadyTestedQueries = new string[] { "sql01", "sql02", "sql03", "sql04", "sql05", "sql07", "sql08" };
                 ExplainOption.show_tablename_ = false;
-                RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries, true);
+                RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, haveAlreadyTestedQueries, true);
             }
             finally
             {
