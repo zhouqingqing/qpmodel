@@ -340,7 +340,7 @@ namespace qpmodel.logic
             Expr outerExpr = inExpr.child_();
             Debug.Assert(inExpr.query_.selection_.Count == 1);
             Expr selectExpr = inExpr.query_.selection_[0];
-            BinExpr inToEqual = BinExpr.MakeBooleanExpr(outerExpr, selectExpr, "=");
+            BinExpr inToEqual = BinExpr.MakeBooleanExpr(outerExpr, selectExpr, "=", true);
 
             // make a mark join
             LogicMarkJoin markjoin;
@@ -628,34 +628,93 @@ namespace qpmodel.logic
         // find the #marker from children output and located the #marker by subquery_id_.
         void fixMarkerValue(Row r, Value value)
         {
-            var output = this.logic_.output_;
-            int ordinal = output.FindIndex(x => x is ExprRef xE && xE.child_() is MarkerExpr xEM && logic_ is LogicMarkJoin lm && xEM.subqueryid_ == lm.subquery_id_);
+            int ordinal = findMarkerOrdinal();
             r[ordinal] = value;
         }
 
+        int findMarkerOrdinal()
+        {
+            var output = this.logic_.output_;
+            int ordinal = output.FindIndex(x => x is ExprRef xE && xE.child_() is MarkerExpr xEM && logic_ is LogicMarkJoin lm && xEM.subqueryid_ == lm.subquery_id_);
+            return ordinal;
+        }
+
+
+        private bool colsHasNull(Row r)
+        {
+            for (int i = 0; i < r.ColCount(); i++)
+            {
+                if (r[i] is null)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private bool filterHasMarkerBinExpr(Expr filter) => filter.FilterToAndList().Exists(x => x is BinExpr xB && xB.IsMarkerBinExpr());
+
         public override void Exec(Action<Row> callback)
+        {
+            var isDerivedFromInClause = filterHasMarkerBinExpr(logic_.filter_);
+            Exec(callback, isDerivedFromInClause);
+        }
+        public void Exec(Action<Row> callback, bool isDerivedFromInClause)
         {
             ExecContext context = context_;
             var logic = logic_ as LogicMarkJoin;
             var filter = logic.filter_;
             bool semi = (logic_ is LogicMarkSemiJoin);
             bool antisemi = (logic_ is LogicMarkAntiSemiJoin);
-
+            bool lIsNull = false; // l represent one row
+            bool RHasNull = false; // R represent a set of Row
+            bool RisEmpty = true;
+            Value marker = false; //false true null
+            int markerOrdinal = 0;
             Debug.Assert(filter != null);
 
             lchild_().Exec(l =>
             {
-                bool foundOneMatch = false;
+                lIsNull = colsHasNull(l) ? true : false;
+                marker = false;
                 rchild_().Exec(r =>
                 {
-                    if (!foundOneMatch)
+                    Row n = new Row(l, r);
+                    if (isDerivedFromInClause)
                     {
-                        Row n = new Row(l, r);
-                        if (filter.Exec(context, n) is true)
+                        if (!(r is null))
+                            RHasNull = colsHasNull(r) ? true : false;
+                        var andList = filter.FilterToAndList();
+                        // SELECT a1 FROM a WHERE a1 = 3 and a2 NOT IN (SELECT b2 FROM b WHERE a1 < b1);
+                        // a1 < b1 will not produce marker 
+                        // a2 = b2 will produce marker 
+                        // if the markjoin is derived from IN clause, we need to judge if it is a empty
+                        if (andList.Count >= 2)
                         {
-                            foundOneMatch = true;
+                            var markerExpr = andList.Find(x => x is BinExpr xB && xB.IsMarkerBinExpr());
+                            andList.Remove(markerExpr);
+                            var excludeMarkerExpr = FilterHelper.AndListToExpr(andList);
+                            var flagE = excludeMarkerExpr.Exec(context, n);
+
+                            if (flagE is true)
+                                RisEmpty = false;
+                            else
+                                return;
+
+                            var flagM = markerExpr.Exec(context, n);
 
                             // there is at least one match, mark true
+                            if (flagM is true)
+                                marker = true;
+                        }
+                        else if (filter.Exec(context, n) is true)
+                            marker = true;
+                    }
+                    else if (!(marker is true) && !isDerivedFromInClause)
+                    {
+                        if (filter.Exec(context, n) is true)
+                        {
+                            marker = true;
                             n = ExecProject(n);
                             fixMarkerValue(n, semi ? true : false);
                             callback(n);
@@ -663,8 +722,33 @@ namespace qpmodel.logic
                     }
                 });
 
-                // if there is no match, mark false
-                if (!foundOneMatch)
+                if (isDerivedFromInClause)
+                {
+                    if (marker is false && RHasNull)
+                        marker = null;
+
+                    if (lIsNull && RisEmpty)
+                        marker = false;
+
+                    Row r = new Row(rchild_().logic_.output_.Count);
+                    Row n = new Row(l, r);
+
+                    n = ExecProject(n);
+
+                    markerOrdinal = findMarkerOrdinal();
+
+                    if (marker is null)
+                        fixMarkerValue(n, false);
+                    else
+                    {
+                        bool boolMarker = marker is true ? true : false;
+                        fixMarkerValue(n, semi ? boolMarker : !boolMarker);
+                    }
+
+                    callback(n);
+
+                }
+                else if (!(marker is true) && !isDerivedFromInClause)
                 {
                     Row r = new Row(rchild_().logic_.output_.Count);
                     Row n = new Row(l, r);
