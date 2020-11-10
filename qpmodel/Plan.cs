@@ -461,10 +461,16 @@ namespace qpmodel.logic
             {
                 var t_hasdtable = hasdtable;
                 var t_onlyreplicated = onlyreplicated;
-                var from = qx.query_.from_;
-                from.ForEach(x => checkifHasdtableAndifOnlyReplicated(x, ref t_hasdtable, ref t_onlyreplicated));
-                hasdtable = t_hasdtable;
-                onlyreplicated = t_onlyreplicated;
+                if (qx.query_ != null)
+                {
+                    if (qx.query_.from_ != null)
+                    {
+                        var from = qx.query_.from_;
+                        from.ForEach(x => checkifHasdtableAndifOnlyReplicated(x, ref t_hasdtable, ref t_onlyreplicated));
+                        hasdtable = t_hasdtable;
+                        onlyreplicated = t_onlyreplicated;
+                    }
+                }
             }
 
         }
