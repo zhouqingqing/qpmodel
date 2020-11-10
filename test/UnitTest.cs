@@ -2265,7 +2265,6 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestINExprAndINSubquery()
         {
-
             var phyplan = "";
             // In Postgre SQL,  null != null. 
             // And null is any value
