@@ -406,7 +406,7 @@ namespace qpmodel.unittest
             string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}_d";
 
             ExplainOption.show_tablename_ = false;
-            var badQueries = new string[] { "q07", "q08", "q09", "q13", "q15", "q22" };
+            var badQueries = new string[] { "q13", "q15" };
 
             try
             {
@@ -3014,6 +3014,9 @@ namespace qpmodel.unittest
             // same as above but at top level an column expression selection and gouping only on column
             sql = "select sum(a1), a2 + 5 from(select sum(a1), a2 from (select sum(a1), a2 from a group by a2)b(a1, a2) group by a2)c(a1, a2) group by a1, a2";
             TU.ExecuteSQL(sql, "0,6;1,7;2,8");
+
+            sql = "select a1 from (select * from a)b";
+            TU.ExecuteSQL(sql, "0;1;2");
         }
 
         [TestMethod]
@@ -3435,6 +3438,39 @@ namespace qpmodel.unittest
                 Assert.AreEqual(0, TU.CountStr(phyplan, "Redistribute"));
             }
         }
+
+        [TestMethod]
+        public void Issue263()
+        {
+            var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
+            string scale = "0001";
+
+            Tpch.CreateTables(true);
+            Tpch.LoadTables(scale);
+
+            Tpch.AnalyzeTables();
+
+            // run tests and compare plan
+            string sql_dir_fn = "../../../../tpch/select";
+            string write_dir_fn = $"../../../../test/regress/output/tpch{scale}_select";
+            string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}_select";
+
+            ExplainOption.show_tablename_ = false;
+            // FIXME 
+            // sql07 is a subquery in FROM and has some bugs
+            try
+            {
+                ExplainOption.show_tablename_ = false;
+                TU.ExecuteSQL("select n_name from (select * from nation) N2");
+            }
+            finally
+            {
+                ExplainOption.show_tablename_ = true;
+            }
+            List<String> tabNameList = new List<String> { "region", "orders", "part", "partsupp", "lineitem", "supplier", "nation" };
+            TU.ClearTableStatsInCatalog(tabNameList);
+        }
+
     }
 
     [TestClass]

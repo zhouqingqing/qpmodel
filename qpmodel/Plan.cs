@@ -424,19 +424,7 @@ namespace qpmodel.logic
             //
             bool hasdtable = false;
             bool onlyreplicated = true;
-            from_.ForEach(x =>
-            {
-                if (x is BaseTableRef bx)
-                {
-                    var method = bx.Table().distMethod_;
-                    if (bx.IsDistributed())
-                    {
-                        hasdtable = true;
-                        if (method != TableDef.DistributionMethod.Replicated)
-                            onlyreplicated = false;
-                    }
-                }
-            });
+            from_.ForEach(x => checkifHasdtableAndifOnlyReplicated(x, ref hasdtable, ref onlyreplicated));
             if (hasdtable)
             {
                 Debug.Assert(!distributed_);
@@ -453,6 +441,38 @@ namespace qpmodel.logic
             }
 
             return root;
+        }
+
+        // consider select from( select from ( select ...) ...)...
+        // here we use recursion
+        void checkifHasdtableAndifOnlyReplicated(TableRef x, ref bool hasdtable, ref bool onlyreplicated)
+        {
+            if (x is BaseTableRef bx)
+            {
+                var method = bx.Table().distMethod_;
+                if (bx.IsDistributed())
+                {
+                    hasdtable = true;
+                    if (method != TableDef.DistributionMethod.Replicated)
+                        onlyreplicated = false;
+                }
+            }
+            else if (x is QueryRef qx)
+            {
+                var t_hasdtable = hasdtable;
+                var t_onlyreplicated = onlyreplicated;
+                if (qx.query_ != null)
+                {
+                    if (qx.query_.from_ != null)
+                    {
+                        var from = qx.query_.from_;
+                        from.ForEach(x => checkifHasdtableAndifOnlyReplicated(x, ref t_hasdtable, ref t_onlyreplicated));
+                        hasdtable = t_hasdtable;
+                        onlyreplicated = t_onlyreplicated;
+                    }
+                }
+            }
+
         }
 
         // select * from (select max(b3) maxb3 from b) b where maxb3>1

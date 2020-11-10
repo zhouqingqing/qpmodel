@@ -1,0 +1,89 @@
+select
+	supp_nation,
+	cust_nation,
+	l_year,
+	sum(volume) as revenue
+from
+	(
+		select
+			n1.n_name as supp_nation,
+			n2.n_name as cust_nation,
+			year(l_shipdate) as l_year,
+			l_extendedprice * (1 - l_discount) as volume
+		from
+			supplier,
+			lineitem,
+			orders,
+			customer,
+			nation n1,
+			nation n2
+		where
+			s_suppkey = l_suppkey
+			and o_orderkey = l_orderkey
+			and c_custkey = o_custkey
+			and s_nationkey = n1.n_nationkey
+			and c_nationkey = n2.n_nationkey
+			and (
+				(n1.n_name = 'FRANCE' and n2.n_name = 'GERMANY')
+				or (n1.n_name = 'GERMANY' and n2.n_name = 'FRANCE')
+			)
+			and l_shipdate between date '1995-01-01'  and date '1996-12-31'
+	) as shipping
+group by
+	supp_nation,
+	cust_nation,
+	l_year
+order by
+	supp_nation,
+	cust_nation,
+	l_year
+Total cost: 201571.1, memory=99258
+PhysicOrder  (inccost=201571.1, cost=0.1, rows=1, memory=66) (actual rows=0)
+    Output: supp_nation[0],cust_nation[1],l_year[2],{sum(volume)}[3]
+    Order by: supp_nation[0], cust_nation[1], l_year[2]
+    -> PhysicHashAgg  (inccost=201571, cost=7488, rows=1, memory=132) (actual rows=0)
+        Output: {supp_nation}[0],{cust_nation}[1],{l_year}[2],{sum(volume)}[3]
+        Aggregates: sum(volume[3])
+        Group by: supp_nation[0], cust_nation[1], l_year[2]
+        -> PhysicFromQuery <shipping> (inccost=194083, cost=7486, rows=7486) (actual rows=0)
+            Output: supp_nation[0],cust_nation[1],l_year[2],volume[3]
+            -> PhysicHashJoin  (inccost=186597, cost=74881, rows=7486, memory=160) (actual rows=0)
+                Output: n_name (as supp_nation)[2],n_name (as cust_nation)[3],{year(l_shipdate)}[4],{l_extendedprice*(1-l_discount)(as volume)}[5]
+                Filter: (s_suppkey[0]=l_suppkey[6] and s_nationkey[1]=n_nationkey[7])
+                -> PhysicGather Threads: 10 (inccost=110, cost=100, rows=10) (actual rows=10)
+                    Output: s_suppkey[0],s_nationkey[1]
+                    -> PhysicScanTable supplier (inccost=10, cost=10, rows=10) (actual rows=1, loops=10)
+                        Output: s_suppkey[0],s_nationkey[3]
+                -> PhysicHashJoin  (inccost=111606, cost=71320, rows=67375, memory=72500) (actual rows=61)
+                    Output: n_name (as supp_nation)[0],n_name (as cust_nation)[1],{year(l_shipdate)}[4],{l_extendedprice*(1-l_discount)(as volume)}[5],l_suppkey[6],n_nationkey[2]
+                    Filter: c_nationkey[7]=n_nationkey[3]
+                    -> PhysicNLJoin  (inccost=1775, cost=1225, rows=625) (actual rows=2)
+                        Output: n_name (as supp_nation)[2],n_name (as cust_nation)[0],n_nationkey[3],n_nationkey[1]
+                        Filter: ((n_name[2]='FRANCE' and n_name[0]='GERMANY') or (n_name[2]='GERMANY' and n_name[0]='FRANCE'))
+                        -> PhysicGather Threads: 10 (inccost=275, cost=250, rows=25) (actual rows=25)
+                            Output: n_name (as cust_nation)[0],n_nationkey[1]
+                            -> PhysicScanTable nation as n2 (inccost=25, cost=25, rows=25) (actual rows=25)
+                                Output: n_name (as cust_nation)[1],n_nationkey[0]
+                        -> PhysicGather Threads: 10 (inccost=275, cost=250, rows=25) (actual rows=25, loops=25)
+                            Output: n_name (as supp_nation)[0],n_nationkey[1]
+                            -> PhysicScanTable nation as n1 (inccost=25, cost=25, rows=25) (actual rows=25)
+                                Output: n_name (as supp_nation)[1],n_nationkey[0]
+                    -> PhysicHashJoin  (inccost=38511, cost=4792, rows=2695, memory=2400) (actual rows=1793)
+                        Output: {year(l_shipdate)}[2],{l_extendedprice*(1-l_discount)(as volume)}[3],l_suppkey[4],c_nationkey[0]
+                        Filter: c_custkey[1]=o_custkey[5]
+                        -> PhysicGather Threads: 10 (inccost=1650, cost=1500, rows=150) (actual rows=150)
+                            Output: c_nationkey[0],c_custkey[1]
+                            -> PhysicScanTable customer (inccost=150, cost=150, rows=150) (actual rows=15, loops=10)
+                                Output: c_nationkey[3],c_custkey[0]
+                        -> PhysicGather Threads: 10 (inccost=32069, cost=17970, rows=1797) (actual rows=1793)
+                            Output: {year(l_shipdate)}[0],{l_extendedprice*(1-l_discount)(as volume)}[1],l_suppkey[2],o_custkey[3]
+                            -> PhysicHashJoin  (inccost=14099, cost=6594, rows=1797, memory=24000) (actual rows=179, loops=10)
+                                Output: {year(l_shipdate)}[2],{l_extendedprice*(1-l_discount)(as volume)}[3],l_suppkey[4],o_custkey[0]
+                                Filter: o_orderkey[1]=l_orderkey[5]
+                                -> PhysicScanTable orders (inccost=1500, cost=1500, rows=1500) (actual rows=150, loops=10)
+                                    Output: o_custkey[1],o_orderkey[0]
+                                -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=1797) (actual rows=179, loops=10)
+                                    Output: year(l_shipdate[10]),l_extendedprice[5]*(1-l_discount[6])(as volume),l_suppkey[2],l_orderkey[0]
+                                    Filter: (l_shipdate[10]>='1995-01-01' and l_shipdate[10]<='1996-12-31')
+
+
