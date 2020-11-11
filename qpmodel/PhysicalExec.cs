@@ -153,6 +153,15 @@ namespace qpmodel.physic
             return 0;
         }
 
+        public bool ColsHasNull()
+        {
+            for (int i = 0; i < ColCount(); i++)
+            {
+                if (this[i] is null)
+                    return true;
+            }
+            return false;
+        }
         public int ColCount() => values_.Length;
         public override string ToString()
         {
