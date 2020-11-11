@@ -3,10 +3,10 @@
 
 #include <vector>
 
-#include "parser/include/expr.h"
-#include "parser/include/stmt.h"
-
 namespace andb {
+class SQLStatement;
+class Expr;
+
   // Represents the result of the SQLParser.
   // If parsing was successful it contains a list of SQLStatement.
   class SQLParserResult {
@@ -35,7 +35,7 @@ namespace andb {
 
     // Set the details of the error, if available.
     // Takes ownership of errorMsg.
-    void setErrorDetails(char* errorMsg, int errorLine, int errorColumn);
+    void setErrorDetails(const char* errorMsg, int errorLine, int errorColumn);
 
     // Returns the error message, if an error occurred.
     const char* errorMsg() const;

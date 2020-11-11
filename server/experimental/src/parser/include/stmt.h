@@ -37,7 +37,7 @@ public:
     SQLStatement(StatementType type);
     SQLStatement () : type_ (kStmtError) {}
 
-    virtual ~SQLStatement();
+    virtual ~SQLStatement () {}
 
     StatementType type() const;
 
@@ -56,7 +56,7 @@ private:
    // END HYRISE
 
    public:
-    virtual LogicNode* CreatePlan (void) = 0;
+    virtual LogicNode   *CreatePlan (void) = 0;
 };
 
 class SelectStmt : public SQLStatement {
@@ -64,9 +64,11 @@ public:
     SelectStmt () : SQLStatement ()
     {}
 
+    ~SelectStmt () {}
+
     std::pmr::vector<TableRef*> from_{currentResource_};
-    Expr* where_ = nullptr;
-    std::pmr::vector<Expr*> selection_{currentResource_};
+    Expr    *where_ = nullptr;
+    std::pmr::vector<Expr*>     selection_{currentResource_};
 
 private:
     LogicNode* transformFromClause ();

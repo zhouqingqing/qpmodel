@@ -76,6 +76,68 @@ void BinExpr::bindFunction () {
     type_ = search->second.rettype_;
 }
 
+inline Expr* Expr::makeStar (std::string* alias) {
+    Expr* e = new SelStar (alias);
+
+    return e;
+}
+
+inline Expr* Expr::makeOpBinary (Expr* left, BinOp op, Expr* right) {
+    Expr* e = new BinExpr (op, left, right);
+
+    return e;
+}
+
+inline Expr* makeNullLiteral () {
+    Expr* e = new ConstExpr ("null");
+
+    return e;
+}
+
+inline Expr *makeLiteral (const char *cval) {
+    Expr *e = new ConstExpr(Datum(std::string(cval)));
+
+    return e;
+}
+
+inline Expr *makeLiteral(std::string *sval) {
+    Expr *e = new ConstExpr(Datum(sval));
+
+    return e;
+}
+
+inline Expr *makeLiteral(double dval) {
+    Expr *e = new ConstExpr(Datum(dval));
+
+    return e;
+}
+
+inline Expr *makeLiteral(int64_t ival) {
+    Expr *e = new ConstExpr(Datum(ival));
+
+    return e;
+}
+
+inline Expr *makeLiteral(bool bval) {
+    Expr *e = new ConstExpr(Datum(bval));
+}
+
+
+inline Expr *makeColumnRef(char *cname, char *alias) {
+   Expr *e = new ColExpr(cname);
+
+   return e;
+}
+
+
+inline Expr *makeColumnRef(std::string *cname, std::string *alias) {
+   Expr *e = new ColExpr(const_cast<char *>(cname->c_str()));
+
+   return e;
+}
+
+
+
 // given an expression, enqueue all ops
 void ExprEval::Open (Expr* expr) {
     if (expr == nullptr) return;
@@ -163,4 +225,5 @@ void ExprEval::Close () {
         queue_.clear ();
     }
 }
+
 }  // namespace andb

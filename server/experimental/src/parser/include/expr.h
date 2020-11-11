@@ -8,26 +8,67 @@
 #include "runtime/datum.h"
 
 namespace andb {
+
+class BinExpr;
+class SelStar;
+class ConstExpr;
+class ColExpr;
+
 class BindContext {};
 
-class Expr : public RuntimeNodeT<Expr> {
-protected:
-    using base_type = Expr;
+enum BinOp : uint16_t { Add = 0, Sub, Mul, Div, Equal, Neq, Less, Leq, Great, Geq };
 
-public:
-    ClassTag classTag_;
-    DataType type_;
-    std::string alias_;
+class Expr : public RuntimeNodeT<Expr>
+{
+   protected:
+      using base_type = Expr;
 
-    // evaluation support
-    uint32_t slot_;
+   public:
+      ClassTag    classTag_;
+      DataType    type_;
+      std::string *alias_;
 
-    virtual std::string Explain (void* arg = nullptr) const { return {}; }
-    virtual void Bind (BindContext& context) {
-        auto nchildren = childrenCount ();
-        for (int i = 0; i < nchildren; i++) child (i)->Bind (context);
-    };
+      // evaluation support
+      uint32_t    slot_;
+
+      int          ival; // SQLParserResult uses this.
+
+      virtual std::string Explain (void* arg = nullptr) const { return {}; }
+      virtual void Bind (BindContext& context) {
+         auto nchildren = childrenCount ();
+         for (int i = 0; i < nchildren; i++) child (i)->Bind (context);
+      };
+
+      static Expr *makeStar (std::string* alias = nullptr);
+      static Expr *makeOpBinary (Expr* left, BinOp op, Expr* right);
+      static Expr *makeNullLiteral ();
+      static Expr *makeLiteral (const char *cval);
+      static Expr *makeLiteral(std::string *sval);
+      static Expr *makeLiteral(double dval);
+      static Expr *makeLiteral(int64_t ival);
+      static Expr *makeLiteral(bool bval);
+      static Expr *makeColumnRef(const char *cname, const char *alias = 0);
+      static Expr *makeColumnRef(std::string *cname, std::string *alias = 0);
+
+      static inline char* substr(const char* source, int from, int to) {
+         int len = to - from;
+         char* copy = new char[len + 1];
+         strncpy(copy, source + from, len);
+         copy[len] = '\0';
+         return copy;
+      }
 };
+
+class SelStar : public NodeBase<Expr, N0> {
+   public:
+      std::string *tabAlias_;
+
+      SelStar(std::string *alias = nullptr)
+         : tabAlias_(alias)
+      {
+      }
+};
+
 
 class ConstExpr : public NodeBase<Expr, N0> {
 public:
@@ -43,8 +84,8 @@ public:
 
 class ColExpr : public NodeBase<Expr, N0> {
 public:
-    uint16_t ordinal_;
-    char* colname_;
+    uint16_t    ordinal_;
+    std::string *colname_;
 
     explicit ColExpr (uint16_t ordinal) {
         classTag_ = ColExpr_;
@@ -54,12 +95,15 @@ public:
     explicit ColExpr (char *colname) {
         classTag_ = ColExpr_;
         ordinal_ = UINT16_MAX;
+        colname_ = new std::string(colname);
+    };
+    explicit ColExpr (std::string *colname) {
+        classTag_ = ColExpr_;
+        ordinal_ = UINT16_MAX;
         colname_ = colname;
     };
     void Bind (BindContext& context) { type_ = Int32; }
 };
-
-enum BinOp : uint16_t { Add = 0, Sub, Mul, Equal, Leq };
 
 class BinExpr : public NodeBase<Expr, N2> {
 public:

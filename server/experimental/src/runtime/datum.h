@@ -20,8 +20,8 @@ using UserType = void*;
 // DataType keep the same order as std::variant<> as they are used as index to access std::varaint.
 // Null has to be the first.
 //
-enum DataType { D_NullFlag = 0, Bool, Int32, String, DOUBLE, D_UserType };
-using DatumVariant = std::variant<NullFlag, bool, int32_t, std::string, double, UserType>;
+enum DataType { D_NullFlag = 0, Bool, Int32, Int64, String, Double, D_UserType };
+using DatumVariant = std::variant<NullFlag, bool, int32_t, int64_t, std::string, double, UserType>;
 
 class Datum : public DatumVariant {
     using base_type = DatumVariant;

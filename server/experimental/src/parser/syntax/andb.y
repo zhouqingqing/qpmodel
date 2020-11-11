@@ -59,15 +59,12 @@ SOFTWARE.
 #include "andb_parser.h"
 #include "andb_lexer.h"
 
-// Guard is there to fool bison into accepting namespace declaration as is.
-#ifdef __cplusplus
-namespace andb {
-#endif
+using namespace andb;
 
 
 int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const char *msg) {
 	result->setIsValid(false);
-	result->setErrorDetails(new std::string(msg), llocp->first_line, llocp->first_column);
+	result->setErrorDetails(msg, llocp->first_line, llocp->first_column);
 	return 0;
 }
 
@@ -138,7 +135,7 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 %union {
 	double      fval;
 	int64_t     ival;
-    std::string *sval;
+   std::string *sval;
 	uintmax_t   uval;
 	bool        bval;
 
@@ -153,31 +150,27 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 	andb::ColumnType  column_type_t;
 	std::vector<andb::SQLStatement*>    *stmt_vec;
 
-	std::vector<Expr *>           *expr_vec;;
+   std::pmr::vector<Expr*>       expr_vec;
 	std::vector<std::string*>     *str_vec;
-	std::vector<andb::TableRef*>  *table_vec;
+   std::pmr::vector<TableRef*>   table_vec;
 
-   ANDB_STYPE() {}
+   // need to provide them because they get "deleted" by the compiler
+   ANDB_STYPE() { ival = 0; } 
+   ~ANDB_STYPE() {}
 
-   
+   ANDB_STYPE(const ANDB_STYPE &oth) { ival = oth.ival; }
+
+   ANDB_STYPE& operator=(const ANDB_STYPE &oth) {
+      ival = oth.ival;
+
+      return *this;
+   }
 }
 
 
 /*********************************
  ** Destructor symbols
  *********************************/
-%destructor { } <fval> <ival> <uval> <bval> <order_type> <datetime_field> <column_type_t> <import_type_t>
-%destructor { delete( ($$.name) ); } <table_name>
-%destructor { delete( ($$) ); } <sval>
-%destructor {
-	if (($$) != nullptr) {
-		for (auto ptr : *($$)) {
-			delete ptr;
-		}
-	}
-	delete ($$);
-} <str_vec> <table_vec> <column_vec> <update_vec> <expr_vec> <order_vec> <stmt_vec>
-%destructor { delete ($$); } <*>
 
 
 /*********************************
@@ -227,7 +220,8 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 %type <sval> 		    file_path prepare_target_query
 %type <bval> 		    opt_not_exists opt_exists opt_column_nullable opt_all
 %type <uval>		    opt_join_type
-%type <table> 		    opt_from_clause from_clause table_ref table_ref_atomic table_ref_name nonjoin_table_ref_atomic
+%type <table_vec> 	 opt_from_clause from_clause table_list
+%type <table>    table_ref table_ref_atomic table_ref_name nonjoin_table_ref_atomic
 %type <table>		    join_clause table_ref_name_no_alias
 %type <expr> 		    expr operand scalar_expr unary_expr binary_expr logic_expr exists_expr extract_expr cast_expr
 %type <expr>		    function_expr between_expr expr_alias param_expr
@@ -288,7 +282,7 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 
 // Defines our general input.
 input:
-		statement_list opt_semicolon {
+		statement_list ';' {
 			for (SQLStatement* stmt : *$1) {
 				// Transfers ownership of the statement.
 				result->addStatement(stmt);
@@ -353,7 +347,7 @@ select_list:
 
 
 from_clause:
-		FROM table_ref { $$ = $2; }
+		FROM table_list { $$ = $2; }
 	;
 
 
@@ -361,26 +355,21 @@ from_clause:
  * Expressions
  ******************************/
 expr_list:
-		expr_alias { $$ = new std::vector<Expr*>(); $$->push_back($1); }
-	|	expr_list ',' expr_alias { $1->push_back($3); $$ = $1; }
-	;
-
-opt_literal_list:
-		literal_list { $$ = $1; }
-	|	/* empty */ { $$ = nullptr; }
-	;
-
-literal_list:
-		literal { $$ = new std::vector<Expr*>(); $$->push_back($1); }
-	|	literal_list ',' literal { $1->push_back($3); $$ = $1; }
+		expr_alias {
+         /* $$ = new std::pmr::vector<Expr*>(); */
+         $$.push_back($1);
+      }
+	|	expr_list ',' expr_alias {
+      $1.push_back($3);
+      $$ = $1;
+      }
 	;
 
 expr_alias:
 		expr opt_alias {
 			$$ = $1;
 			if ($2) {
-				$$->alias_ = new std::string($2);
-				delete $2;
+				$$->alias_ = $2;
 			}
 		}
 	;
@@ -392,7 +381,6 @@ expr:
 operand:
 	|	scalar_expr
 	|	binary_expr
-	|	function_expr
 	;
 
 scalar_expr:
@@ -403,26 +391,21 @@ scalar_expr:
 
 binary_expr:
 		comp_expr
-	|	operand '-' operand			{ $$ = Expr::makeOpBinary($1, kOpMinus, $3); }
-	|	operand '+' operand			{ $$ = Expr::makeOpBinary($1, kOpPlus, $3); }
-	|	operand '/' operand			{ $$ = Expr::makeOpBinary($1, kOpSlash, $3); }
-	|	operand '*' operand			{ $$ = Expr::makeOpBinary($1, kOpAsterisk, $3); }
+	|	operand '-' operand			{ $$ = Expr::makeOpBinary($1, BinOp::Sub, $3); }
+	|	operand '+' operand			{ $$ = Expr::makeOpBinary($1, BinOp::Add, $3); }
+	|	operand '/' operand			{ $$ = Expr::makeOpBinary($1, BinOp::Div, $3); }
+	|	operand '*' operand			{ $$ = Expr::makeOpBinary($1, BinOp::Mul, $3); }
 	;
 
 comp_expr:
-		operand '=' operand			{ $$ = Expr::makeOpBinary($1, kOpEquals, $3); }
-	|	operand EQUALS operand			{ $$ = Expr::makeOpBinary($1, kOpEquals, $3); }
-	|	operand NOTEQUALS operand	{ $$ = Expr::makeOpBinary($1, kOpNotEquals, $3); }
-	|	operand '<' operand			{ $$ = Expr::makeOpBinary($1, kOpLess, $3); }
-	|	operand '>' operand			{ $$ = Expr::makeOpBinary($1, kOpGreater, $3); }
-	|	operand LESSEQ operand		{ $$ = Expr::makeOpBinary($1, kOpLessEq, $3); }
-	|	operand GREATEREQ operand	{ $$ = Expr::makeOpBinary($1, kOpGreaterEq, $3); }
+		operand '=' operand			{ $$ = Expr::makeOpBinary($1, BinOp::Equal, $3); }
+	|	operand EQUALS operand			{ $$ = Expr::makeOpBinary($1, BinOp::Equal, $3); }
+	|	operand NOTEQUALS operand	{ $$ = Expr::makeOpBinary($1, BinOp::Neq, $3); }
+	|	operand '<' operand			{ $$ = Expr::makeOpBinary($1, BinOp::Less, $3); }
+	|	operand '>' operand			{ $$ = Expr::makeOpBinary($1, BinOp::Great, $3); }
+	|	operand LESSEQ operand		{ $$ = Expr::makeOpBinary($1, BinOp::Leq, $3); }
+	|	operand GREATEREQ operand	{ $$ = Expr::makeOpBinary($1, BinOp::Geq, $3); }
 	;
-
-function_expr:
-               IDENTIFIER '(' ')' { $$ = Expr::makeFunctionRef($1, new std::vector<Expr*>(), false); }
-       |       IDENTIFIER '(' expr_list ')' { $$ = Expr::makeFunctionRef($1, $3, false); }
-       ;
 
 column_name:
 		IDENTIFIER { $$ = Expr::makeColumnRef($1); }
@@ -464,68 +447,29 @@ null_literal:
 /******************************
  * Table
  ******************************/
+table_list:
+      table_ref {
+          // $$ = new std::pmr::vector<TableRef *>();
+          $$.push_back($1);
+       }
+      | table_list ',' table_ref {
+         $1.push_back($3);
+         $$ = $1;
+         }
+	;
+
+
 table_ref:
-		table_ref_atomic
-	|	table_ref_commalist ',' table_ref_atomic {
-			$1->push_back($3);
-			auto tbl = new TableRef(kTableCrossProduct);
-			tbl->list = $1;
-			$$ = tbl;
+      table_name {
+         $$ = new BaseTableRef($1, nullptr);
+         }
+      | table_name alias {
+			$$ = new BaseTableRef($1, $2);
 		}
 	;
-
-
-table_ref_atomic:
-		nonjoin_table_ref_atomic
-	|	join_clause
-	;
-
-nonjoin_table_ref_atomic:
-		table_ref_name
-	|	'(' select_statement ')' opt_table_alias opt_column_list {
-			auto tbl = new QueryRef($2, $4, $5);
-			$$ = tbl;
-		}
-	;
-
-opt_column_list:
-      '(' ident_commalist ')' { $$ = $2; }
-   | /* empty */ { $$ = nullptr; };
-   ;
-
-table_ref_commalist:
-		table_ref_atomic { $$ = new std::vector<TableRef*>(); $$->push_back($1); }
-	|	table_ref_commalist ',' table_ref_atomic { $1->push_back($3); $$ = $1; }
-	;
-
-
-table_ref_name:
-		table_name opt_table_alias {
-			auto tbl = new TableRef($1, $2);
-			$$ = tbl;
-		}
-	;
-
-
-table_ref_name_no_alias:
-		table_name {
-			$$ = new TableRef($1, nullptr);
-		}
-	;
-
 
 table_name:
 		IDENTIFIER                { $$ = $1;}
-	;
-
-
-opt_table_alias:
-		table_alias
-	|	/* empty */ { $$ = nullptr; }
-	;
-
-table_alias:
-		alias
 	;
 
 
@@ -543,71 +487,9 @@ alias:
  * Join Statements
  ******************************/
 
-join_clause:
-		table_ref_atomic NATURAL JOIN nonjoin_table_ref_atomic
-		{
-			$$ = new TableRef(kTableJoin);
-			$$->join = new JoinDefinition();
-			$$->join->type = kJoinNatural;
-			$$->join->left = $1;
-			$$->join->right = $4;
-		}
-	|	table_ref_atomic opt_join_type JOIN table_ref_atomic ON join_condition
-		{
-			$$ = new TableRef(kTableJoin);
-			$$->join = new JoinDefinition();
-			$$->join->type = (JoinType) $2;
-			$$->join->left = $1;
-			$$->join->right = $4;
-			$$->join->condition = $6;
-		}
-	|
-		table_ref_atomic opt_join_type JOIN table_ref_atomic USING '(' column_name ')'
-		{
-			$$ = new TableRef(kTableJoin);
-			$$->join = new JoinDefinition();
-			$$->join->type = (JoinType) $2;
-			$$->join->left = $1;
-			$$->join->right = $4;
-			auto left_col = Expr::makeColumnRef(new std::string($7->name));
-			if ($7->alias_ != nullptr) left_col->alias_ = new std::string($7->alias_);
-			if ($1->getName() != nullptr) left_col->table = new std::string($1->getName());
-			auto right_col = Expr::makeColumnRef(new std::string($7->name));
-			if ($7->alias_ != nullptr) right_col->alias_ = new std::string($7->alias_);
-			if ($4->getName() != nullptr) right_col->table = new std::string($4->getName());
-			$$->join->condition = Expr::makeOpBinary(left_col, kOpEquals, right_col);
-			delete $7;
-		}
-	;
-
-opt_join_type:
-		INNER		{ $$ = kJoinInner; }
-	|	LEFT OUTER	{ $$ = kJoinLeft; }
-	|	LEFT		{ $$ = kJoinLeft; }
-	|	RIGHT OUTER	{ $$ = kJoinRight; }
-	|	RIGHT		{ $$ = kJoinRight; }
-	|	FULL OUTER	{ $$ = kJoinFull; }
-	|	OUTER		{ $$ = kJoinFull; }
-	|	FULL		{ $$ = kJoinFull; }
-	|	CROSS		{ $$ = kJoinCross; }
-	|	/* empty, default */	{ $$ = kJoinInner; }
-	;
-
-
-join_condition:
-		expr
-		;
-
-
 /******************************
  * Misc
  ******************************/
-
-opt_semicolon:
-		';'
-	|	/* empty */
-	;
-
 
 ident_commalist:
 		IDENTIFIER { $$ = new std::vector<std::string*>(); $$->push_back($1); }

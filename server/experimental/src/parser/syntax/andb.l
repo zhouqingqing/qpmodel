@@ -52,14 +52,12 @@ SOFTWARE.
 #include "common/dbcommon.h"
 #include "parser/include/expr.h"
 #include "parser/include/stmt.h"
+#include "parser/include/SQLParserResult.h"
 #include "parser/include/parser_typedef.h"
 
 #include "andb_parser.h"
 
-// Guard is there to fool flex into accepting namespace declaration as is.
-#ifdef __cplusplus
-namespace andb {
-#endif
+using namespace andb;
 
 #define TOKEN(name) { return SQL_##name; }
 
@@ -267,7 +265,7 @@ COMMIT      TOKEN(COMMIT)
 
 \"[^\"\n]+\" {
 	// Crop the leading and trailing quote char
-	yylval->sval = andb_::substr(yytext, 1, strlen(yytext)-1);
+	yylval->sval = new std::string(Expr::substr(yytext, 1, strlen(yytext)-1));
 	return SQL_IDENTIFIER;
 }
 
@@ -293,7 +291,3 @@ COMMIT      TOKEN(COMMIT)
 int yyerror(const char *msg) {
     fprintf(stderr, "[SQL-Lexer-Error] %s\n",msg); return 0;
 }
-
-#ifdef __cplusplus
-}
-#endif
