@@ -173,7 +173,7 @@ namespace qpmodel.logic
                 {
                     // throw on unexpected errors
                     Console.Error.WriteLine(e.StackTrace);
-                    throw e;
+                    throw;
                 }
             }
         }

@@ -302,7 +302,7 @@ namespace qpmodel.utils
                     Console.WriteLine($"Error was: {e.Message}");
                     Console.WriteLine("+++ StackTrace +++");
                     Console.Error.WriteLine(e.StackTrace);
-                    throw e;
+                    throw;
                 };
             }
         }
