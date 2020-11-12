@@ -153,6 +153,15 @@ namespace qpmodel.physic
             return 0;
         }
 
+        public bool ColsHasNull()
+        {
+            for (int i = 0; i < ColCount(); i++)
+            {
+                if (this[i] is null)
+                    return true;
+            }
+            return false;
+        }
         public int ColCount() => values_.Length;
         public override string ToString()
         {
@@ -774,7 +783,10 @@ namespace qpmodel.physic
             if (cache_ != null)
             {
                 foreach (var row in cache_)
-                    callback(row);
+                {
+                    var r = ExecProject(row);
+                    callback(r);
+                }
             }
             else
             {
@@ -782,6 +794,7 @@ namespace qpmodel.physic
                 Row r;
                 while ((r = channel_.Recv()) != null)
                 {
+                    r = ExecProject(r);
                     callback(r);
                     cache_.Add(r);
                 }

@@ -40,7 +40,7 @@ PhysicOrder  (inccost=55448.1, cost=0.1, rows=1, memory=65) (actual rows=0)
     Output: s_name[0],s_address[1]
     Order by: s_name[0]
     -> PhysicGather Threads: 10 (inccost=55448, cost=10, rows=1) (actual rows=0)
-        Output: s_name[1],s_address[2]
+        Output: s_name[0],s_address[1]
         -> PhysicHashJoin  (inccost=55438, cost=13, rows=1, memory=8) (actual rows=0, loops=10)
             Output: s_name[1],s_address[2]
             Filter: s_nationkey[3]=n_nationkey[0]
@@ -55,7 +55,7 @@ PhysicOrder  (inccost=55448.1, cost=0.1, rows=1, memory=65) (actual rows=0)
                         Output: ps_suppkey[0]
                         Filter: ps_availqty[1]>{sum(l_quantity)}[2]*0.5
                         -> PhysicGather Threads: 20 (inccost=27328, cost=3670, rows=367) (actual rows=4)
-                            Output: ps_suppkey[0],ps_availqty[1],{sum(l_quantity)}[3]
+                            Output: ps_suppkey[0],ps_availqty[1],{sum(l_quantity)}[2]
                             -> PhysicHashJoin Left (inccost=23658, cost=2886, rows=367, memory=19200) (actual rows=0, loops=10)
                                 Output: ps_suppkey[0],ps_availqty[1],{sum(l_quantity)}[3]
                                 Filter: (l_partkey[4]=ps_partkey[2] and l_suppkey[5]=ps_suppkey[0])
@@ -75,7 +75,7 @@ PhysicOrder  (inccost=55448.1, cost=0.1, rows=1, memory=65) (actual rows=0)
                                     Aggregates: sum(l_quantity[2])
                                     Group by: l_partkey[0], l_suppkey[1]
                                     -> PhysicGather Threads: 10 (inccost=15195, cost=9190, rows=919) (actual rows=922, loops=3)
-                                        Output: l_partkey[1],l_suppkey[2],l_quantity[4]
+                                        Output: l_partkey[0],l_suppkey[1],l_quantity[2]
                                         -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=919) (actual rows=92, loops=100)
                                             Output: l_partkey[1],l_suppkey[2],l_quantity[4]
                                             Filter: (l_shipdate[10]>='1994-01-01' and l_shipdate[10]<'1/1/1995 12:00:00 AM')

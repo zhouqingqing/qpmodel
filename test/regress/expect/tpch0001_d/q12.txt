@@ -35,7 +35,7 @@ PhysicOrder  (inccost=10136.32, cost=14.32, rows=7, memory=126) (actual rows=2)
         Aggregates: sum({sum(case with 0|1|1)}[1]), sum({sum(case with 0|1|1)}[2])
         Group by: l_shipmode[0]
         -> PhysicGather Threads: 10 (inccost=10101, cost=70, rows=7) (actual rows=16)
-            Output: {l_shipmode}[0],{sum(case with 0|1|1)}[1],{sum(case with 0|1|1)}[2]
+            Output: l_shipmode[0],{sum(case with 0|1|1)}[1],{sum(case with 0|1|1)}[2]
             -> PhysicHashAgg  (inccost=10031, cost=267, rows=7, memory=252) (actual rows=1, loops=10)
                 Output: {l_shipmode}[0],{sum(case with 0|1|1)}[1],{sum(case with 0|1|1)}[2]
                 Aggregates: sum(case with 0|1|1), sum(case with 0|1|1)

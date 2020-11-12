@@ -1,0 +1,1 @@
+select n_name from	(select * from nation) N2
