@@ -1,0 +1,90 @@
+select  
+   s_store_name
+  ,s_company_id
+  ,s_street_number
+  ,s_street_name
+  ,s_street_type
+  ,s_suite_number
+  ,s_city
+  ,s_county
+  ,s_state
+  ,s_zip
+  ,sum(case when (sr_returned_date_sk - ss_sold_date_sk <= 30 ) then 1 else 0 end)  as "30 days" 
+  ,sum(case when (sr_returned_date_sk - ss_sold_date_sk > 30) and 
+                 (sr_returned_date_sk - ss_sold_date_sk <= 60) then 1 else 0 end )  as "31-60 days" 
+  ,sum(case when (sr_returned_date_sk - ss_sold_date_sk > 60) and 
+                 (sr_returned_date_sk - ss_sold_date_sk <= 90) then 1 else 0 end)  as "61-90 days" 
+  ,sum(case when (sr_returned_date_sk - ss_sold_date_sk > 90) and
+                 (sr_returned_date_sk - ss_sold_date_sk <= 120) then 1 else 0 end)  as "91-120 days" 
+  ,sum(case when (sr_returned_date_sk - ss_sold_date_sk  > 120) then 1 else 0 end)  as ">120 days" 
+from
+   store_sales
+  ,store_returns
+  ,store
+  ,date_dim d1
+  ,date_dim d2
+where
+    d2.d_year = 2001
+and d2.d_moy  = 8
+and ss_ticket_number = sr_ticket_number
+and ss_item_sk = sr_item_sk
+and ss_sold_date_sk   = d1.d_date_sk
+and sr_returned_date_sk   = d2.d_date_sk
+and ss_customer_sk = sr_customer_sk
+and ss_store_sk = s_store_sk
+group by
+   s_store_name
+  ,s_company_id
+  ,s_street_number
+  ,s_street_name
+  ,s_street_type
+  ,s_suite_number
+  ,s_city
+  ,s_county
+  ,s_state
+  ,s_zip
+order by s_store_name
+        ,s_company_id
+        ,s_street_number
+        ,s_street_name
+        ,s_street_type
+        ,s_suite_number
+        ,s_city
+        ,s_county
+        ,s_state
+        ,s_zip
+limit 100
+Total cost: 13452381.1, memory=1152221
+PhysicLimit (100) (inccost=13452381.1, cost=100, rows=100) (actual rows=2)
+    Output: store.s_store_name[0],store.s_company_id[1],store.s_street_number[2],store.s_street_name[3],store.s_street_type[4],store.s_suite_number[5],store.s_city[6],store.s_county[7],store.s_state[8],store.s_zip[9],{sum(case with 0|1|1)}[10],{sum(case with 0|1|1)}[11],{sum(case with 0|1|1)}[12],{sum(case with 0|1|1)}[13],{sum(case with 0|1|1)}[14]
+    -> PhysicOrder  (inccost=13452281.1, cost=0.1, rows=1, memory=271) (actual rows=2)
+        Output: store.s_store_name[0],store.s_company_id[1],store.s_street_number[2],store.s_street_name[3],store.s_street_type[4],store.s_suite_number[5],store.s_city[6],store.s_county[7],store.s_state[8],store.s_zip[9],{sum(case with 0|1|1)}[10],{sum(case with 0|1|1)}[11],{sum(case with 0|1|1)}[12],{sum(case with 0|1|1)}[13],{sum(case with 0|1|1)}[14]
+        Order by: store.s_store_name[0], store.s_company_id[1], store.s_street_number[2], store.s_street_name[3], store.s_street_type[4], store.s_suite_number[5], store.s_city[6], store.s_county[7], store.s_state[8], store.s_zip[9]
+        -> PhysicHashAgg  (inccost=13452281, cost=3, rows=1, memory=542) (actual rows=2)
+            Output: {store.s_store_name}[0],{store.s_company_id}[1],{store.s_street_number}[2],{store.s_street_name}[3],{store.s_street_type}[4],{store.s_suite_number}[5],{store.s_city}[6],{store.s_county}[7],{store.s_state}[8],{store.s_zip}[9],{sum(case with 0|1|1)}[10],{sum(case with 0|1|1)}[11],{sum(case with 0|1|1)}[12],{sum(case with 0|1|1)}[13],{sum(case with 0|1|1)}[14]
+            Aggregates: sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1)
+            Group by: store.s_store_name[0], store.s_company_id[1], store.s_street_number[2], store.s_street_name[3], store.s_street_type[4], store.s_suite_number[5], store.s_city[6], store.s_county[7], store.s_state[8], store.s_zip[9]
+            -> PhysicHashJoin  (inccost=13452278, cost=6612664, rows=1, memory=1120328) (actual rows=9)
+                Output: store.s_store_name[11],store.s_company_id[12],store.s_street_number[13],store.s_street_name[14],store.s_street_type[15],store.s_suite_number[16],store.s_city[17],store.s_county[18],store.s_state[19],store.s_zip[20],case with 0|1|1,(store_returns.sr_returned_date_sk[21]-store_sales.ss_sold_date_sk[0])<=30,(store_returns.sr_returned_date_sk[21]-store_sales.ss_sold_date_sk[0]),store_returns.sr_returned_date_sk[21],store_sales.ss_sold_date_sk[0],{30}[1],{1}[2],{0}[3],case with 0|1|1,((store_returns.sr_returned_date_sk[21]-store_sales.ss_sold_date_sk[0])>30 and (store_returns.sr_returned_date_sk[21]-store_sales.ss_sold_date_sk[0])<=60),(store_returns.sr_returned_date_sk[21]-store_sales.ss_sold_date_sk[0])>30,(store_returns.sr_returned_date_sk[21]-store_sales.ss_sold_date_sk[0])<=60,{60}[4],case with 0|1|1,((store_returns.sr_returned_date_sk[21]-store_sales.ss_sold_date_sk[0])>60 and (store_returns.sr_returned_date_sk[21]-store_sales.ss_sold_date_sk[0])<=90),(store_returns.sr_returned_date_sk[21]-store_sales.ss_sold_date_sk[0])>60,(store_returns.sr_returned_date_sk[21]-store_sales.ss_sold_date_sk[0])<=90,{90}[5],case with 0|1|1,((store_returns.sr_returned_date_sk[21]-store_sales.ss_sold_date_sk[0])>90 and (store_returns.sr_returned_date_sk[21]-store_sales.ss_sold_date_sk[0])<=120),(store_returns.sr_returned_date_sk[21]-store_sales.ss_sold_date_sk[0])>90,(store_returns.sr_returned_date_sk[21]-store_sales.ss_sold_date_sk[0])<=120,{120}[6],case with 0|1|1,(store_returns.sr_returned_date_sk[21]-store_sales.ss_sold_date_sk[0])>120
+                Filter: ((((store_sales.ss_ticket_number[7]=store_returns.sr_ticket_number[22] and store_sales.ss_item_sk[8]=store_returns.sr_item_sk[23]) and store_sales.ss_sold_date_sk[0]=d1.d_date_sk[24]) and store_sales.ss_customer_sk[9]=store_returns.sr_customer_sk[25]) and store_sales.ss_store_sk[10]=store.s_store_sk[26])
+                -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=12731)
+                    Output: store_sales.ss_sold_date_sk[0],30,1,0,60,90,120,store_sales.ss_ticket_number[9],store_sales.ss_item_sk[2],store_sales.ss_customer_sk[3],store_sales.ss_store_sk[7]
+                -> PhysicNLJoin  (inccost=6826883, cost=6766560, rows=6587201) (actual rows=4153500)
+                    Output: store.s_store_name[0],store.s_company_id[1],store.s_street_number[2],store.s_street_name[3],store.s_street_type[4],store.s_suite_number[5],store.s_city[6],store.s_county[7],store.s_state[8],store.s_zip[9],store_returns.sr_returned_date_sk[10],store_returns.sr_ticket_number[11],store_returns.sr_item_sk[12],d1.d_date_sk[15],store_returns.sr_customer_sk[13],store.s_store_sk[14]
+                    -> PhysicHashJoin  (inccost=42573, cost=12416, rows=371, memory=31080) (actual rows=234)
+                        Output: store.s_store_name[0],store.s_company_id[1],store.s_street_number[2],store.s_street_name[3],store.s_street_type[4],store.s_suite_number[5],store.s_city[6],store.s_county[7],store.s_state[8],store.s_zip[9],store_returns.sr_returned_date_sk[12],store_returns.sr_ticket_number[13],store_returns.sr_item_sk[14],store_returns.sr_customer_sk[15],store.s_store_sk[10]
+                        Filter: store_returns.sr_returned_date_sk[12]=d2.d_date_sk[11]
+                        -> PhysicNLJoin  (inccost=18232, cost=480, rows=60) (actual rows=62)
+                            Output: store.s_store_name[1],store.s_company_id[2],store.s_street_number[3],store.s_street_name[4],store.s_street_type[5],store.s_suite_number[6],store.s_city[7],store.s_county[8],store.s_state[9],store.s_zip[10],store.s_store_sk[11],d2.d_date_sk[0]
+                            -> PhysicScanTable date_dim as d2 (inccost=17750, cost=17750, rows=30) (actual rows=31)
+                                Output: d2.d_date_sk[0]
+                                Filter: (d2.d_year[6]=2001 and d2.d_moy[8]=8)
+                            -> PhysicScanTable store (inccost=2, cost=2, rows=2) (actual rows=2, loops=31)
+                                Output: store.s_store_name[5],store.s_company_id[16],store.s_street_number[18],store.s_street_name[19],store.s_street_type[20],store.s_suite_number[21],store.s_city[22],store.s_county[23],store.s_state[24],store.s_zip[25],store.s_store_sk[0]
+                        -> PhysicScanTable store_returns (inccost=11925, cost=11925, rows=11925) (actual rows=11925)
+                            Output: store_returns.sr_returned_date_sk[0],store_returns.sr_ticket_number[9],store_returns.sr_item_sk[2],store_returns.sr_customer_sk[3]
+                    -> PhysicScanTable date_dim as d1 (inccost=17750, cost=17750, rows=17750) (actual rows=17750, loops=234)
+                        Output: d1.d_date_sk[0]
+able,1,255,Sycamore,Dr.,Suite 410,Midway,Williamson County,TN,31904,2,1,0,1,4
+ought,1,767,Spring,Wy,Suite 250,Midway,Williamson County,TN,31904,1,0,0,0,0
+

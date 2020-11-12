@@ -1,0 +1,95 @@
+with customer_total_return as
+ (select wr_returning_customer_sk as ctr_customer_sk
+        ,ca_state as ctr_state, 
+ 	sum(wr_return_amt) as ctr_total_return
+ from web_returns
+     ,date_dim
+     ,customer_address
+ where wr_returned_date_sk = d_date_sk 
+   and d_year =2000
+   and wr_returning_addr_sk = ca_address_sk 
+ group by wr_returning_customer_sk
+         ,ca_state)
+  select  c_customer_id,c_salutation,c_first_name,c_last_name,c_preferred_cust_flag
+       ,c_birth_day,c_birth_month,c_birth_year,c_birth_country,c_login,c_email_address
+       ,c_last_review_date_sk,ctr_total_return
+ from customer_total_return ctr1
+     ,customer_address
+     ,customer
+ where ctr1.ctr_total_return > (select avg(ctr_total_return)*1.2
+ 			  from customer_total_return ctr2 
+                  	  where ctr1.ctr_state = ctr2.ctr_state)
+       and ca_address_sk = c_current_addr_sk
+       and ca_state = 'AR'
+       and ctr1.ctr_customer_sk = c_customer_sk
+ order by c_customer_id,c_salutation,c_first_name,c_last_name,c_preferred_cust_flag
+                  ,c_birth_day,c_birth_month,c_birth_year,c_birth_country,c_login,c_email_address
+                  ,c_last_review_date_sk,ctr_total_return
+limit 100
+Total cost: 69829.58, memory=506809
+PhysicLimit (100) (inccost=69829.58, cost=100, rows=100) (actual rows=0)
+    Output: customer.c_customer_id[0],customer.c_salutation[1],customer.c_first_name[2],customer.c_last_name[3],customer.c_preferred_cust_flag[4],customer.c_birth_day[5],customer.c_birth_month[6],customer.c_birth_year[7],customer.c_birth_country[8],customer.c_login[9],customer.c_email_address[10],customer.c_last_review_date_sk[11],ctr1.ctr_total_return[12]
+    -> PhysicOrder  (inccost=69729.58, cost=5109.58, rows=759, memory=138897) (actual rows=0)
+        Output: customer.c_customer_id[0],customer.c_salutation[1],customer.c_first_name[2],customer.c_last_name[3],customer.c_preferred_cust_flag[4],customer.c_birth_day[5],customer.c_birth_month[6],customer.c_birth_year[7],customer.c_birth_country[8],customer.c_login[9],customer.c_email_address[10],customer.c_last_review_date_sk[11],ctr1.ctr_total_return[12]
+        Order by: customer.c_customer_id[0], customer.c_salutation[1], customer.c_first_name[2], customer.c_last_name[3], customer.c_preferred_cust_flag[4], customer.c_birth_day[5], customer.c_birth_month[6], customer.c_birth_year[7], customer.c_birth_country[8], customer.c_login[9], customer.c_email_address[10], customer.c_last_review_date_sk[11], ctr1.ctr_total_return[12]
+        -> PhysicFilter  (inccost=64620, cost=759, rows=759) (actual rows=0)
+            Output: customer.c_customer_id[0],customer.c_salutation[1],customer.c_first_name[2],customer.c_last_name[3],customer.c_preferred_cust_flag[4],customer.c_birth_day[5],customer.c_birth_month[6],customer.c_birth_year[7],customer.c_birth_country[8],customer.c_login[9],customer.c_email_address[10],customer.c_last_review_date_sk[11],ctr1.ctr_total_return[12]
+            Filter: ctr1.ctr_total_return[12]>{avg(ctr2.ctr_total_return)}[13]*1.2
+            -> PhysicHashJoin Left (inccost=63861, cost=2278, rows=759, memory=280830) (actual rows=3)
+                Output: customer.c_customer_id[0],customer.c_salutation[1],customer.c_first_name[2],customer.c_last_name[3],customer.c_preferred_cust_flag[4],customer.c_birth_day[5],customer.c_birth_month[6],customer.c_birth_year[7],customer.c_birth_country[8],customer.c_login[9],customer.c_email_address[10],customer.c_last_review_date_sk[11],ctr1.ctr_total_return[12],{avg(ctr2.ctr_total_return)}[14]
+                Filter: ctr1.ctr_state[13]=ctr2.ctr_state[15]
+                -> PhysicHashJoin  (inccost=32738, cost=1582, rows=759, memory=11520) (actual rows=3)
+                    Output: customer.c_customer_id[0],customer.c_salutation[1],customer.c_first_name[2],customer.c_last_name[3],customer.c_preferred_cust_flag[4],customer.c_birth_day[5],customer.c_birth_month[6],customer.c_birth_year[7],customer.c_birth_country[8],customer.c_login[9],customer.c_email_address[10],customer.c_last_review_date_sk[11],ctr1.ctr_total_return[13],ctr1.ctr_state[14]
+                    Filter: ctr1.ctr_customer_sk[15]=customer.c_customer_sk[12]
+                    -> PhysicHashJoin  (inccost=3072, cost=1072, rows=32, memory=160) (actual rows=13)
+                        Output: customer.c_customer_id[1],customer.c_salutation[2],customer.c_first_name[3],customer.c_last_name[4],customer.c_preferred_cust_flag[5],customer.c_birth_day[6],customer.c_birth_month[7],customer.c_birth_year[8],customer.c_birth_country[9],customer.c_login[10],customer.c_email_address[11],customer.c_last_review_date_sk[12],customer.c_customer_sk[13]
+                        Filter: customer_address.ca_address_sk[0]=customer.c_current_addr_sk[14]
+                        -> PhysicScanTable customer_address (inccost=1000, cost=1000, rows=20) (actual rows=20)
+                            Output: customer_address.ca_address_sk[0]
+                            Filter: customer_address.ca_state[8]='AR'
+                        -> PhysicScanTable customer (inccost=1000, cost=1000, rows=1000) (actual rows=1000)
+                            Output: customer.c_customer_id[1],customer.c_salutation[7],customer.c_first_name[8],customer.c_last_name[9],customer.c_preferred_cust_flag[10],customer.c_birth_day[11],customer.c_birth_month[12],customer.c_birth_year[13],customer.c_birth_country[14],customer.c_login[15],customer.c_email_address[16],customer.c_last_review_date_sk[17],customer.c_customer_sk[0],customer.c_current_addr_sk[4]
+                    -> PhysicFromQuery <customer_total_return as ctr1> (inccost=28084, cost=759, rows=759) (actual rows=210)
+                        Output: ctr1.ctr_total_return[2],ctr1.ctr_state[1],ctr1.ctr_customer_sk[0]
+                        -> PhysicHashAgg  (inccost=27325, cost=2277, rows=759, memory=19734) (actual rows=210)
+                            Output: {web_returns.wr_returning_customer_sk}[0],{customer_address.ca_state}[1],{sum(web_returns.wr_return_amt)}[2]
+                            Aggregates: sum(web_returns.wr_return_amt[2])
+                            Group by: web_returns.wr_returning_customer_sk[0], customer_address.ca_state[1]
+                            -> PhysicHashJoin  (inccost=25048, cost=2761, rows=759, memory=15030) (actual rows=210)
+                                Output: web_returns.wr_returning_customer_sk (as ctr_customer_sk)[0],customer_address.ca_state (as ctr_state)[3],web_returns.wr_return_amt[1]
+                                Filter: web_returns.wr_returning_addr_sk[2]=customer_address.ca_address_sk[4]
+                                -> PhysicHashJoin  (inccost=21287, cost=2385, rows=501, memory=2928) (actual rows=214)
+                                    Output: web_returns.wr_returning_customer_sk (as ctr_customer_sk)[1],web_returns.wr_return_amt[2],web_returns.wr_returning_addr_sk[3]
+                                    Filter: web_returns.wr_returned_date_sk[4]=date_dim.d_date_sk[0]
+                                    -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=366) (actual rows=366)
+                                        Output: date_dim.d_date_sk[0]
+                                        Filter: date_dim.d_year[6]=2000
+                                    -> PhysicScanTable web_returns (inccost=1152, cost=1152, rows=1152) (actual rows=1152)
+                                        Output: web_returns.wr_returning_customer_sk (as ctr_customer_sk)[7],web_returns.wr_return_amt[15],web_returns.wr_returning_addr_sk[10],web_returns.wr_returned_date_sk[0]
+                                -> PhysicScanTable customer_address (inccost=1000, cost=1000, rows=1000) (actual rows=1000)
+                                    Output: customer_address.ca_state (as ctr_state)[8],customer_address.ca_address_sk[0]
+                -> PhysicHashAgg  (inccost=28845, cost=761, rows=1, memory=18) (actual rows=46)
+                    Output: {avg(ctr2.ctr_total_return)}[1],{ctr2.ctr_state}[0]
+                    Aggregates: avg(ctr2.ctr_total_return[1])
+                    Group by: ctr2.ctr_state[0]
+                    -> PhysicFromQuery <customer_total_return as ctr2> (inccost=28084, cost=759, rows=759) (actual rows=210)
+                        Output: ctr2.ctr_state[1],ctr2.ctr_total_return[2]
+                        -> PhysicHashAgg  (inccost=27325, cost=2277, rows=759, memory=19734) (actual rows=210)
+                            Output: {web_returns.wr_returning_customer_sk}[0],{customer_address.ca_state}[1],{sum(web_returns.wr_return_amt)}[2]
+                            Aggregates: sum(web_returns.wr_return_amt[2])
+                            Group by: web_returns.wr_returning_customer_sk[0], customer_address.ca_state[1]
+                            -> PhysicHashJoin  (inccost=25048, cost=2761, rows=759, memory=15030) (actual rows=210)
+                                Output: web_returns.wr_returning_customer_sk (as ctr_customer_sk)[0],customer_address.ca_state (as ctr_state)[3],web_returns.wr_return_amt[1]
+                                Filter: web_returns.wr_returning_addr_sk[2]=customer_address.ca_address_sk[4]
+                                -> PhysicHashJoin  (inccost=21287, cost=2385, rows=501, memory=2928) (actual rows=214)
+                                    Output: web_returns.wr_returning_customer_sk (as ctr_customer_sk)[1],web_returns.wr_return_amt[2],web_returns.wr_returning_addr_sk[3]
+                                    Filter: web_returns.wr_returned_date_sk[4]=date_dim.d_date_sk[0]
+                                    -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=366) (actual rows=366)
+                                        Output: date_dim.d_date_sk[0]
+                                        Filter: date_dim.d_year[6]=2000
+                                    -> PhysicScanTable web_returns (inccost=1152, cost=1152, rows=1152) (actual rows=1152)
+                                        Output: web_returns.wr_returning_customer_sk (as ctr_customer_sk)[7],web_returns.wr_return_amt[15],web_returns.wr_returning_addr_sk[10],web_returns.wr_returned_date_sk[0]
+                                -> PhysicScanTable customer_address (inccost=1000, cost=1000, rows=1000) (actual rows=1000)
+                                    Output: customer_address.ca_state (as ctr_state)[8],customer_address.ca_address_sk[0]
+
+

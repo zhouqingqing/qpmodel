@@ -1,0 +1,307 @@
+select  *
+from
+ (select count(*) h8_30_to_9
+ from store_sales, household_demographics , time_dim, store
+ where ss_sold_time_sk = time_dim.t_time_sk   
+     and ss_hdemo_sk = household_demographics.hd_demo_sk 
+     and ss_store_sk = s_store_sk
+     and time_dim.t_hour = 8
+     and time_dim.t_minute >= 30
+     and ((household_demographics.hd_dep_count = 0 and household_demographics.hd_vehicle_count<=0+2) or
+          (household_demographics.hd_dep_count = -1 and household_demographics.hd_vehicle_count<=-1+2) or
+          (household_demographics.hd_dep_count = 3 and household_demographics.hd_vehicle_count<=3+2)) 
+     and store.s_store_name = 'ese') s1,
+ (select count(*) h9_to_9_30 
+ from store_sales, household_demographics , time_dim, store
+ where ss_sold_time_sk = time_dim.t_time_sk
+     and ss_hdemo_sk = household_demographics.hd_demo_sk
+     and ss_store_sk = s_store_sk 
+     and time_dim.t_hour = 9 
+     and time_dim.t_minute < 30
+     and ((household_demographics.hd_dep_count = 0 and household_demographics.hd_vehicle_count<=0+2) or
+          (household_demographics.hd_dep_count = -1 and household_demographics.hd_vehicle_count<=-1+2) or
+          (household_demographics.hd_dep_count = 3 and household_demographics.hd_vehicle_count<=3+2))
+     and store.s_store_name = 'ese') s2,
+ (select count(*) h9_30_to_10 
+ from store_sales, household_demographics , time_dim, store
+ where ss_sold_time_sk = time_dim.t_time_sk
+     and ss_hdemo_sk = household_demographics.hd_demo_sk
+     and ss_store_sk = s_store_sk
+     and time_dim.t_hour = 9
+     and time_dim.t_minute >= 30
+     and ((household_demographics.hd_dep_count = 0 and household_demographics.hd_vehicle_count<=0+2) or
+          (household_demographics.hd_dep_count = -1 and household_demographics.hd_vehicle_count<=-1+2) or
+          (household_demographics.hd_dep_count = 3 and household_demographics.hd_vehicle_count<=3+2))
+     and store.s_store_name = 'ese') s3,
+ (select count(*) h10_to_10_30
+ from store_sales, household_demographics , time_dim, store
+ where ss_sold_time_sk = time_dim.t_time_sk
+     and ss_hdemo_sk = household_demographics.hd_demo_sk
+     and ss_store_sk = s_store_sk
+     and time_dim.t_hour = 10 
+     and time_dim.t_minute < 30
+     and ((household_demographics.hd_dep_count = 0 and household_demographics.hd_vehicle_count<=0+2) or
+          (household_demographics.hd_dep_count = -1 and household_demographics.hd_vehicle_count<=-1+2) or
+          (household_demographics.hd_dep_count = 3 and household_demographics.hd_vehicle_count<=3+2))
+     and store.s_store_name = 'ese') s4,
+ (select count(*) h10_30_to_11
+ from store_sales, household_demographics , time_dim, store
+ where ss_sold_time_sk = time_dim.t_time_sk
+     and ss_hdemo_sk = household_demographics.hd_demo_sk
+     and ss_store_sk = s_store_sk
+     and time_dim.t_hour = 10 
+     and time_dim.t_minute >= 30
+     and ((household_demographics.hd_dep_count = 0 and household_demographics.hd_vehicle_count<=0+2) or
+          (household_demographics.hd_dep_count = -1 and household_demographics.hd_vehicle_count<=-1+2) or
+          (household_demographics.hd_dep_count = 3 and household_demographics.hd_vehicle_count<=3+2))
+     and store.s_store_name = 'ese') s5,
+ (select count(*) h11_to_11_30
+ from store_sales, household_demographics , time_dim, store
+ where ss_sold_time_sk = time_dim.t_time_sk
+     and ss_hdemo_sk = household_demographics.hd_demo_sk
+     and ss_store_sk = s_store_sk 
+     and time_dim.t_hour = 11
+     and time_dim.t_minute < 30
+     and ((household_demographics.hd_dep_count = 0 and household_demographics.hd_vehicle_count<=0+2) or
+          (household_demographics.hd_dep_count = -1 and household_demographics.hd_vehicle_count<=-1+2) or
+          (household_demographics.hd_dep_count = 3 and household_demographics.hd_vehicle_count<=3+2))
+     and store.s_store_name = 'ese') s6,
+ (select count(*) h11_30_to_12
+ from store_sales, household_demographics , time_dim, store
+ where ss_sold_time_sk = time_dim.t_time_sk
+     and ss_hdemo_sk = household_demographics.hd_demo_sk
+     and ss_store_sk = s_store_sk
+     and time_dim.t_hour = 11
+     and time_dim.t_minute >= 30
+     and ((household_demographics.hd_dep_count = 0 and household_demographics.hd_vehicle_count<=0+2) or
+          (household_demographics.hd_dep_count = -1 and household_demographics.hd_vehicle_count<=-1+2) or
+          (household_demographics.hd_dep_count = 3 and household_demographics.hd_vehicle_count<=3+2))
+     and store.s_store_name = 'ese') s7,
+ (select count(*) h12_to_12_30
+ from store_sales, household_demographics , time_dim, store
+ where ss_sold_time_sk = time_dim.t_time_sk
+     and ss_hdemo_sk = household_demographics.hd_demo_sk
+     and ss_store_sk = s_store_sk
+     and time_dim.t_hour = 12
+     and time_dim.t_minute < 30
+     and ((household_demographics.hd_dep_count = 0 and household_demographics.hd_vehicle_count<=0+2) or
+          (household_demographics.hd_dep_count = -1 and household_demographics.hd_vehicle_count<=-1+2) or
+          (household_demographics.hd_dep_count = 3 and household_demographics.hd_vehicle_count<=3+2))
+     and store.s_store_name = 'ese') s8
+Total cost: 1424871, memory=304064
+PhysicNLJoin  (inccost=1424871, cost=121, rows=1) (actual rows=1)
+    Output: {count(*)(0)}[0],{count(*)(0)}[1],{count(*)(0)}[2],{count(*)(0)}[3],{count(*)(0)}[4],{count(*)(0)}[5],{count(*)(0)}[6],{count(*)(0)}[7]
+    -> PhysicFromQuery <s1> (inccost=178003, cost=1, rows=1) (actual rows=1)
+        Output: {count(*)(0)}[0]
+        -> PhysicHashAgg  (inccost=178002, cost=12732, rows=1, memory=8) (actual rows=1)
+            Output: {count(*)(0)}[0]
+            Aggregates: count(*)(0)
+            -> PhysicHashJoin  (inccost=165270, cost=23750, rows=12730, memory=28784) (actual rows=0)
+                Output: {0}[0]
+                Filter: store_sales.ss_sold_time_sk[2]=time_dim.t_time_sk[1]
+                -> PhysicScanTable time_dim (inccost=86400, cost=86400, rows=1799) (actual rows=1800)
+                    Output: 0,time_dim.t_time_sk[0]
+                    Filter: (time_dim.t_hour[3]=8 and time_dim.t_minute[4]>=30)
+                -> PhysicHashJoin  (inccost=55120, cost=16089, rows=7422, memory=9208) (actual rows=0)
+                    Output: store_sales.ss_sold_time_sk[1]
+                    Filter: store_sales.ss_hdemo_sk[2]=household_demographics.hd_demo_sk[0]
+                    -> PhysicScanTable household_demographics (inccost=7200, cost=7200, rows=1151) (actual rows=1200)
+                        Output: household_demographics.hd_demo_sk[0]
+                        Filter: (((household_demographics.hd_dep_count[3]=0 and household_demographics.hd_vehicle_count[4]<=2) or (household_demographics.hd_dep_count[3]=-1 and household_demographics.hd_vehicle_count[4]<=1)) or (household_demographics.hd_dep_count[3]=3 and household_demographics.hd_vehicle_count[4]<=5))
+                    -> PhysicHashJoin  (inccost=31831, cost=19098, rows=6365, memory=8) (actual rows=0)
+                        Output: store_sales.ss_sold_time_sk[1],store_sales.ss_hdemo_sk[2]
+                        Filter: store_sales.ss_store_sk[3]=store.s_store_sk[0]
+                        -> PhysicScanTable store (inccost=2, cost=2, rows=1) (actual rows=0)
+                            Output: store.s_store_sk[0]
+                            Filter: store.s_store_name[5]='ese'
+                        -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=0)
+                            Output: store_sales.ss_sold_time_sk[1],store_sales.ss_hdemo_sk[5],store_sales.ss_store_sk[7]
+    -> PhysicNLJoin  (inccost=1246747, cost=121, rows=1) (actual rows=1)
+        Output: {count(*)(0)}[1],{count(*)(0)}[2],{count(*)(0)}[3],{count(*)(0)}[4],{count(*)(0)}[5],{count(*)(0)}[6],{count(*)(0)}[0]
+        -> PhysicFromQuery <s8> (inccost=178003, cost=1, rows=1) (actual rows=1)
+            Output: {count(*)(0)}[0]
+            -> PhysicHashAgg  (inccost=178002, cost=12732, rows=1, memory=8) (actual rows=1)
+                Output: {count(*)(0)}[0]
+                Aggregates: count(*)(0)
+                -> PhysicHashJoin  (inccost=165270, cost=23750, rows=12730, memory=28784) (actual rows=0)
+                    Output: {0}[0]
+                    Filter: store_sales.ss_sold_time_sk[2]=time_dim.t_time_sk[1]
+                    -> PhysicScanTable time_dim (inccost=86400, cost=86400, rows=1799) (actual rows=1800)
+                        Output: 0,time_dim.t_time_sk[0]
+                        Filter: (time_dim.t_hour[3]=12 and time_dim.t_minute[4]<30)
+                    -> PhysicHashJoin  (inccost=55120, cost=16089, rows=7422, memory=9208) (actual rows=0)
+                        Output: store_sales.ss_sold_time_sk[1]
+                        Filter: store_sales.ss_hdemo_sk[2]=household_demographics.hd_demo_sk[0]
+                        -> PhysicScanTable household_demographics (inccost=7200, cost=7200, rows=1151) (actual rows=1200)
+                            Output: household_demographics.hd_demo_sk[0]
+                            Filter: (((household_demographics.hd_dep_count[3]=0 and household_demographics.hd_vehicle_count[4]<=2) or (household_demographics.hd_dep_count[3]=-1 and household_demographics.hd_vehicle_count[4]<=1)) or (household_demographics.hd_dep_count[3]=3 and household_demographics.hd_vehicle_count[4]<=5))
+                        -> PhysicHashJoin  (inccost=31831, cost=19098, rows=6365, memory=8) (actual rows=0)
+                            Output: store_sales.ss_sold_time_sk[1],store_sales.ss_hdemo_sk[2]
+                            Filter: store_sales.ss_store_sk[3]=store.s_store_sk[0]
+                            -> PhysicScanTable store (inccost=2, cost=2, rows=1) (actual rows=0)
+                                Output: store.s_store_sk[0]
+                                Filter: store.s_store_name[5]='ese'
+                            -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=0)
+                                Output: store_sales.ss_sold_time_sk[1],store_sales.ss_hdemo_sk[5],store_sales.ss_store_sk[7]
+        -> PhysicNLJoin  (inccost=1068623, cost=121, rows=1) (actual rows=1)
+            Output: {count(*)(0)}[1],{count(*)(0)}[2],{count(*)(0)}[3],{count(*)(0)}[4],{count(*)(0)}[5],{count(*)(0)}[0]
+            -> PhysicFromQuery <s7> (inccost=178003, cost=1, rows=1) (actual rows=1)
+                Output: {count(*)(0)}[0]
+                -> PhysicHashAgg  (inccost=178002, cost=12732, rows=1, memory=8) (actual rows=1)
+                    Output: {count(*)(0)}[0]
+                    Aggregates: count(*)(0)
+                    -> PhysicHashJoin  (inccost=165270, cost=23750, rows=12730, memory=28784) (actual rows=0)
+                        Output: {0}[0]
+                        Filter: store_sales.ss_sold_time_sk[2]=time_dim.t_time_sk[1]
+                        -> PhysicScanTable time_dim (inccost=86400, cost=86400, rows=1799) (actual rows=1800)
+                            Output: 0,time_dim.t_time_sk[0]
+                            Filter: (time_dim.t_hour[3]=11 and time_dim.t_minute[4]>=30)
+                        -> PhysicHashJoin  (inccost=55120, cost=16089, rows=7422, memory=9208) (actual rows=0)
+                            Output: store_sales.ss_sold_time_sk[1]
+                            Filter: store_sales.ss_hdemo_sk[2]=household_demographics.hd_demo_sk[0]
+                            -> PhysicScanTable household_demographics (inccost=7200, cost=7200, rows=1151) (actual rows=1200)
+                                Output: household_demographics.hd_demo_sk[0]
+                                Filter: (((household_demographics.hd_dep_count[3]=0 and household_demographics.hd_vehicle_count[4]<=2) or (household_demographics.hd_dep_count[3]=-1 and household_demographics.hd_vehicle_count[4]<=1)) or (household_demographics.hd_dep_count[3]=3 and household_demographics.hd_vehicle_count[4]<=5))
+                            -> PhysicHashJoin  (inccost=31831, cost=19098, rows=6365, memory=8) (actual rows=0)
+                                Output: store_sales.ss_sold_time_sk[1],store_sales.ss_hdemo_sk[2]
+                                Filter: store_sales.ss_store_sk[3]=store.s_store_sk[0]
+                                -> PhysicScanTable store (inccost=2, cost=2, rows=1) (actual rows=0)
+                                    Output: store.s_store_sk[0]
+                                    Filter: store.s_store_name[5]='ese'
+                                -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=0)
+                                    Output: store_sales.ss_sold_time_sk[1],store_sales.ss_hdemo_sk[5],store_sales.ss_store_sk[7]
+            -> PhysicNLJoin  (inccost=890499, cost=121, rows=1) (actual rows=1)
+                Output: {count(*)(0)}[1],{count(*)(0)}[2],{count(*)(0)}[3],{count(*)(0)}[4],{count(*)(0)}[0]
+                -> PhysicFromQuery <s6> (inccost=178003, cost=1, rows=1) (actual rows=1)
+                    Output: {count(*)(0)}[0]
+                    -> PhysicHashAgg  (inccost=178002, cost=12732, rows=1, memory=8) (actual rows=1)
+                        Output: {count(*)(0)}[0]
+                        Aggregates: count(*)(0)
+                        -> PhysicHashJoin  (inccost=165270, cost=23750, rows=12730, memory=28784) (actual rows=0)
+                            Output: {0}[0]
+                            Filter: store_sales.ss_sold_time_sk[2]=time_dim.t_time_sk[1]
+                            -> PhysicScanTable time_dim (inccost=86400, cost=86400, rows=1799) (actual rows=1800)
+                                Output: 0,time_dim.t_time_sk[0]
+                                Filter: (time_dim.t_hour[3]=11 and time_dim.t_minute[4]<30)
+                            -> PhysicHashJoin  (inccost=55120, cost=16089, rows=7422, memory=9208) (actual rows=0)
+                                Output: store_sales.ss_sold_time_sk[1]
+                                Filter: store_sales.ss_hdemo_sk[2]=household_demographics.hd_demo_sk[0]
+                                -> PhysicScanTable household_demographics (inccost=7200, cost=7200, rows=1151) (actual rows=1200)
+                                    Output: household_demographics.hd_demo_sk[0]
+                                    Filter: (((household_demographics.hd_dep_count[3]=0 and household_demographics.hd_vehicle_count[4]<=2) or (household_demographics.hd_dep_count[3]=-1 and household_demographics.hd_vehicle_count[4]<=1)) or (household_demographics.hd_dep_count[3]=3 and household_demographics.hd_vehicle_count[4]<=5))
+                                -> PhysicHashJoin  (inccost=31831, cost=19098, rows=6365, memory=8) (actual rows=0)
+                                    Output: store_sales.ss_sold_time_sk[1],store_sales.ss_hdemo_sk[2]
+                                    Filter: store_sales.ss_store_sk[3]=store.s_store_sk[0]
+                                    -> PhysicScanTable store (inccost=2, cost=2, rows=1) (actual rows=0)
+                                        Output: store.s_store_sk[0]
+                                        Filter: store.s_store_name[5]='ese'
+                                    -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=0)
+                                        Output: store_sales.ss_sold_time_sk[1],store_sales.ss_hdemo_sk[5],store_sales.ss_store_sk[7]
+                -> PhysicNLJoin  (inccost=712375, cost=121, rows=1) (actual rows=1)
+                    Output: {count(*)(0)}[1],{count(*)(0)}[2],{count(*)(0)}[3],{count(*)(0)}[0]
+                    -> PhysicFromQuery <s5> (inccost=178003, cost=1, rows=1) (actual rows=1)
+                        Output: {count(*)(0)}[0]
+                        -> PhysicHashAgg  (inccost=178002, cost=12732, rows=1, memory=8) (actual rows=1)
+                            Output: {count(*)(0)}[0]
+                            Aggregates: count(*)(0)
+                            -> PhysicHashJoin  (inccost=165270, cost=23750, rows=12730, memory=28784) (actual rows=0)
+                                Output: {0}[0]
+                                Filter: store_sales.ss_sold_time_sk[2]=time_dim.t_time_sk[1]
+                                -> PhysicScanTable time_dim (inccost=86400, cost=86400, rows=1799) (actual rows=1800)
+                                    Output: 0,time_dim.t_time_sk[0]
+                                    Filter: (time_dim.t_hour[3]=10 and time_dim.t_minute[4]>=30)
+                                -> PhysicHashJoin  (inccost=55120, cost=16089, rows=7422, memory=9208) (actual rows=0)
+                                    Output: store_sales.ss_sold_time_sk[1]
+                                    Filter: store_sales.ss_hdemo_sk[2]=household_demographics.hd_demo_sk[0]
+                                    -> PhysicScanTable household_demographics (inccost=7200, cost=7200, rows=1151) (actual rows=1200)
+                                        Output: household_demographics.hd_demo_sk[0]
+                                        Filter: (((household_demographics.hd_dep_count[3]=0 and household_demographics.hd_vehicle_count[4]<=2) or (household_demographics.hd_dep_count[3]=-1 and household_demographics.hd_vehicle_count[4]<=1)) or (household_demographics.hd_dep_count[3]=3 and household_demographics.hd_vehicle_count[4]<=5))
+                                    -> PhysicHashJoin  (inccost=31831, cost=19098, rows=6365, memory=8) (actual rows=0)
+                                        Output: store_sales.ss_sold_time_sk[1],store_sales.ss_hdemo_sk[2]
+                                        Filter: store_sales.ss_store_sk[3]=store.s_store_sk[0]
+                                        -> PhysicScanTable store (inccost=2, cost=2, rows=1) (actual rows=0)
+                                            Output: store.s_store_sk[0]
+                                            Filter: store.s_store_name[5]='ese'
+                                        -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=0)
+                                            Output: store_sales.ss_sold_time_sk[1],store_sales.ss_hdemo_sk[5],store_sales.ss_store_sk[7]
+                    -> PhysicNLJoin  (inccost=534251, cost=121, rows=1) (actual rows=1)
+                        Output: {count(*)(0)}[1],{count(*)(0)}[2],{count(*)(0)}[0]
+                        -> PhysicFromQuery <s4> (inccost=178003, cost=1, rows=1) (actual rows=1)
+                            Output: {count(*)(0)}[0]
+                            -> PhysicHashAgg  (inccost=178002, cost=12732, rows=1, memory=8) (actual rows=1)
+                                Output: {count(*)(0)}[0]
+                                Aggregates: count(*)(0)
+                                -> PhysicHashJoin  (inccost=165270, cost=23750, rows=12730, memory=28784) (actual rows=0)
+                                    Output: {0}[0]
+                                    Filter: store_sales.ss_sold_time_sk[2]=time_dim.t_time_sk[1]
+                                    -> PhysicScanTable time_dim (inccost=86400, cost=86400, rows=1799) (actual rows=1800)
+                                        Output: 0,time_dim.t_time_sk[0]
+                                        Filter: (time_dim.t_hour[3]=10 and time_dim.t_minute[4]<30)
+                                    -> PhysicHashJoin  (inccost=55120, cost=16089, rows=7422, memory=9208) (actual rows=0)
+                                        Output: store_sales.ss_sold_time_sk[1]
+                                        Filter: store_sales.ss_hdemo_sk[2]=household_demographics.hd_demo_sk[0]
+                                        -> PhysicScanTable household_demographics (inccost=7200, cost=7200, rows=1151) (actual rows=1200)
+                                            Output: household_demographics.hd_demo_sk[0]
+                                            Filter: (((household_demographics.hd_dep_count[3]=0 and household_demographics.hd_vehicle_count[4]<=2) or (household_demographics.hd_dep_count[3]=-1 and household_demographics.hd_vehicle_count[4]<=1)) or (household_demographics.hd_dep_count[3]=3 and household_demographics.hd_vehicle_count[4]<=5))
+                                        -> PhysicHashJoin  (inccost=31831, cost=19098, rows=6365, memory=8) (actual rows=0)
+                                            Output: store_sales.ss_sold_time_sk[1],store_sales.ss_hdemo_sk[2]
+                                            Filter: store_sales.ss_store_sk[3]=store.s_store_sk[0]
+                                            -> PhysicScanTable store (inccost=2, cost=2, rows=1) (actual rows=0)
+                                                Output: store.s_store_sk[0]
+                                                Filter: store.s_store_name[5]='ese'
+                                            -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=0)
+                                                Output: store_sales.ss_sold_time_sk[1],store_sales.ss_hdemo_sk[5],store_sales.ss_store_sk[7]
+                        -> PhysicNLJoin  (inccost=356127, cost=121, rows=1) (actual rows=1)
+                            Output: {count(*)(0)}[1],{count(*)(0)}[0]
+                            -> PhysicFromQuery <s3> (inccost=178003, cost=1, rows=1) (actual rows=1)
+                                Output: {count(*)(0)}[0]
+                                -> PhysicHashAgg  (inccost=178002, cost=12732, rows=1, memory=8) (actual rows=1)
+                                    Output: {count(*)(0)}[0]
+                                    Aggregates: count(*)(0)
+                                    -> PhysicHashJoin  (inccost=165270, cost=23750, rows=12730, memory=28784) (actual rows=0)
+                                        Output: {0}[0]
+                                        Filter: store_sales.ss_sold_time_sk[2]=time_dim.t_time_sk[1]
+                                        -> PhysicScanTable time_dim (inccost=86400, cost=86400, rows=1799) (actual rows=1800)
+                                            Output: 0,time_dim.t_time_sk[0]
+                                            Filter: (time_dim.t_hour[3]=9 and time_dim.t_minute[4]>=30)
+                                        -> PhysicHashJoin  (inccost=55120, cost=16089, rows=7422, memory=9208) (actual rows=0)
+                                            Output: store_sales.ss_sold_time_sk[1]
+                                            Filter: store_sales.ss_hdemo_sk[2]=household_demographics.hd_demo_sk[0]
+                                            -> PhysicScanTable household_demographics (inccost=7200, cost=7200, rows=1151) (actual rows=1200)
+                                                Output: household_demographics.hd_demo_sk[0]
+                                                Filter: (((household_demographics.hd_dep_count[3]=0 and household_demographics.hd_vehicle_count[4]<=2) or (household_demographics.hd_dep_count[3]=-1 and household_demographics.hd_vehicle_count[4]<=1)) or (household_demographics.hd_dep_count[3]=3 and household_demographics.hd_vehicle_count[4]<=5))
+                                            -> PhysicHashJoin  (inccost=31831, cost=19098, rows=6365, memory=8) (actual rows=0)
+                                                Output: store_sales.ss_sold_time_sk[1],store_sales.ss_hdemo_sk[2]
+                                                Filter: store_sales.ss_store_sk[3]=store.s_store_sk[0]
+                                                -> PhysicScanTable store (inccost=2, cost=2, rows=1) (actual rows=0)
+                                                    Output: store.s_store_sk[0]
+                                                    Filter: store.s_store_name[5]='ese'
+                                                -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=0)
+                                                    Output: store_sales.ss_sold_time_sk[1],store_sales.ss_hdemo_sk[5],store_sales.ss_store_sk[7]
+                            -> PhysicFromQuery <s2> (inccost=178003, cost=1, rows=1) (actual rows=1)
+                                Output: {count(*)(0)}[0]
+                                -> PhysicHashAgg  (inccost=178002, cost=12732, rows=1, memory=8) (actual rows=1)
+                                    Output: {count(*)(0)}[0]
+                                    Aggregates: count(*)(0)
+                                    -> PhysicHashJoin  (inccost=165270, cost=23750, rows=12730, memory=28784) (actual rows=0)
+                                        Output: {0}[0]
+                                        Filter: store_sales.ss_sold_time_sk[2]=time_dim.t_time_sk[1]
+                                        -> PhysicScanTable time_dim (inccost=86400, cost=86400, rows=1799) (actual rows=1800)
+                                            Output: 0,time_dim.t_time_sk[0]
+                                            Filter: (time_dim.t_hour[3]=9 and time_dim.t_minute[4]<30)
+                                        -> PhysicHashJoin  (inccost=55120, cost=16089, rows=7422, memory=9208) (actual rows=0)
+                                            Output: store_sales.ss_sold_time_sk[1]
+                                            Filter: store_sales.ss_hdemo_sk[2]=household_demographics.hd_demo_sk[0]
+                                            -> PhysicScanTable household_demographics (inccost=7200, cost=7200, rows=1151) (actual rows=1200)
+                                                Output: household_demographics.hd_demo_sk[0]
+                                                Filter: (((household_demographics.hd_dep_count[3]=0 and household_demographics.hd_vehicle_count[4]<=2) or (household_demographics.hd_dep_count[3]=-1 and household_demographics.hd_vehicle_count[4]<=1)) or (household_demographics.hd_dep_count[3]=3 and household_demographics.hd_vehicle_count[4]<=5))
+                                            -> PhysicHashJoin  (inccost=31831, cost=19098, rows=6365, memory=8) (actual rows=0)
+                                                Output: store_sales.ss_sold_time_sk[1],store_sales.ss_hdemo_sk[2]
+                                                Filter: store_sales.ss_store_sk[3]=store.s_store_sk[0]
+                                                -> PhysicScanTable store (inccost=2, cost=2, rows=1) (actual rows=0)
+                                                    Output: store.s_store_sk[0]
+                                                    Filter: store.s_store_name[5]='ese'
+                                                -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=0)
+                                                    Output: store_sales.ss_sold_time_sk[1],store_sales.ss_hdemo_sk[5],store_sales.ss_store_sk[7]
+0,0,0,0,0,0,0,0
+

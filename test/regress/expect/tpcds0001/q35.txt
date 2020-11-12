@@ -1,0 +1,119 @@
+select   
+  ca_state,
+  cd_gender,
+  cd_marital_status,
+  cd_dep_count,
+  count(*) cnt1,
+  avg(cd_dep_count),
+  stddev_samp(cd_dep_count),
+  sum(cd_dep_count),
+  cd_dep_employed_count,
+  count(*) cnt2,
+  avg(cd_dep_employed_count),
+  stddev_samp(cd_dep_employed_count),
+  sum(cd_dep_employed_count),
+  cd_dep_college_count,
+  count(*) cnt3,
+  avg(cd_dep_college_count),
+  stddev_samp(cd_dep_college_count),
+  sum(cd_dep_college_count)
+ from
+  customer c,customer_address ca,customer_demographics
+ where
+  c.c_current_addr_sk = ca.ca_address_sk and
+  cd_demo_sk = c.c_current_cdemo_sk and 
+  exists (select *
+          from store_sales,date_dim
+          where c.c_customer_sk = ss_customer_sk and
+                ss_sold_date_sk = d_date_sk and
+                d_year = 1999 and
+                d_qoy < 4) and
+   (exists (select *
+            from web_sales,date_dim
+            where c.c_customer_sk = ws_bill_customer_sk and
+                  ws_sold_date_sk = d_date_sk and
+                  d_year = 1999 and
+                  d_qoy < 4) or 
+    exists (select * 
+            from catalog_sales,date_dim
+            where c.c_customer_sk = cs_ship_customer_sk and
+                  cs_sold_date_sk = d_date_sk and
+                  d_year = 1999 and
+                  d_qoy < 4))
+ group by ca_state,
+          cd_gender,
+          cd_marital_status,
+          cd_dep_count,
+          cd_dep_employed_count,
+          cd_dep_college_count
+ order by ca_state,
+          cd_gender,
+          cd_marital_status,
+          cd_dep_count,
+          cd_dep_employed_count,
+          cd_dep_college_count
+ limit 100
+Total cost: 89435114371.37, memory=1849872
+PhysicLimit (100) (inccost=89435114371.37, cost=100, rows=100) (actual rows=2)
+    Output: ca.ca_state[0],customer_demographics.cd_gender[1],customer_demographics.cd_marital_status[2],customer_demographics.cd_dep_count[3],{count(*)(0)}[4],{avg(customer_demographics.cd_dep_count)}[5],{stddev_samp(customer_demographics.cd_dep_count)}[6],{sum(customer_demographics.cd_dep_count)}[7],customer_demographics.cd_dep_employed_count[8],{count(*)(0)}[4],{avg(customer_demographics.cd_dep_employed_count)}[9],{stddev_samp(customer_demographics.cd_dep_employed_count)}[10],{sum(customer_demographics.cd_dep_employed_count)}[11],customer_demographics.cd_dep_college_count[12],{count(*)(0)}[4],{avg(customer_demographics.cd_dep_college_count)}[13],{stddev_samp(customer_demographics.cd_dep_college_count)}[14],{sum(customer_demographics.cd_dep_college_count)}[15]
+    -> PhysicOrder  (inccost=89435114271.37, cost=100448.37, rows=10710, memory=599760) (actual rows=2)
+        Output: ca.ca_state[0],customer_demographics.cd_gender[1],customer_demographics.cd_marital_status[2],customer_demographics.cd_dep_count[3],{count(*)(0)}[4],{avg(customer_demographics.cd_dep_count)}[5],{stddev_samp(customer_demographics.cd_dep_count)}[6],{sum(customer_demographics.cd_dep_count)}[7],customer_demographics.cd_dep_employed_count[8],{avg(customer_demographics.cd_dep_employed_count)}[9],{stddev_samp(customer_demographics.cd_dep_employed_count)}[10],{sum(customer_demographics.cd_dep_employed_count)}[11],customer_demographics.cd_dep_college_count[12],{avg(customer_demographics.cd_dep_college_count)}[13],{stddev_samp(customer_demographics.cd_dep_college_count)}[14],{sum(customer_demographics.cd_dep_college_count)}[15]
+        Order by: ca.ca_state[0], customer_demographics.cd_gender[1], customer_demographics.cd_marital_status[2], customer_demographics.cd_dep_count[3], customer_demographics.cd_dep_employed_count[8], customer_demographics.cd_dep_college_count[12]
+        -> PhysicHashAgg  (inccost=89435013823, cost=126967618, rows=10710, memory=1199520) (actual rows=2)
+            Output: {ca.ca_state}[0],{customer_demographics.cd_gender}[1],{customer_demographics.cd_marital_status}[2],{customer_demographics.cd_dep_count}[3],{count(*)(0)}[6],{avg(customer_demographics.cd_dep_count)}[7],{stddev_samp(customer_demographics.cd_dep_count)}[8],{sum(customer_demographics.cd_dep_count)}[9],{customer_demographics.cd_dep_employed_count}[4],{avg(customer_demographics.cd_dep_employed_count)}[10],{stddev_samp(customer_demographics.cd_dep_employed_count)}[11],{sum(customer_demographics.cd_dep_employed_count)}[12],{customer_demographics.cd_dep_college_count}[5],{avg(customer_demographics.cd_dep_college_count)}[13],{stddev_samp(customer_demographics.cd_dep_college_count)}[14],{sum(customer_demographics.cd_dep_college_count)}[15]
+            Aggregates: count(*)(0), avg(customer_demographics.cd_dep_count[3]), stddev_samp(customer_demographics.cd_dep_count[3]), sum(customer_demographics.cd_dep_count[3]), avg(customer_demographics.cd_dep_employed_count[4]), stddev_samp(customer_demographics.cd_dep_employed_count[4]), sum(customer_demographics.cd_dep_employed_count[4]), avg(customer_demographics.cd_dep_college_count[5]), stddev_samp(customer_demographics.cd_dep_college_count[5]), sum(customer_demographics.cd_dep_college_count[5])
+            Group by: ca.ca_state[0], customer_demographics.cd_gender[1], customer_demographics.cd_marital_status[2], customer_demographics.cd_dep_count[3], customer_demographics.cd_dep_employed_count[4], customer_demographics.cd_dep_college_count[5]
+            -> PhysicFilter  (inccost=89308046205, cost=126946198, rows=126946198) (actual rows=2)
+                Output: ca.ca_state[0],customer_demographics.cd_gender[1],customer_demographics.cd_marital_status[2],customer_demographics.cd_dep_count[3],customer_demographics.cd_dep_employed_count[4],customer_demographics.cd_dep_college_count[5]
+                Filter: ({#marker@2}[6] or {#marker@3}[7])
+                -> PhysicMarkJoin Left (inccost=89181100007, cost=82768921396, rows=126946198) (actual rows=8)
+                    Output: ca.ca_state[1],customer_demographics.cd_gender[2],customer_demographics.cd_marital_status[3],customer_demographics.cd_dep_count[4],customer_demographics.cd_dep_employed_count[5],customer_demographics.cd_dep_college_count[6],{#marker@2}[0],{#marker@3}[7]
+                    Filter: c.c_customer_sk[7]=catalog_sales.cs_ship_customer_sk[8]
+                    -> PhysicFilter  (inccost=6412131867, cost=8771611, rows=8771611) (actual rows=8)
+                        Output: {#marker@2}[0],ca.ca_state[1],customer_demographics.cd_gender[2],customer_demographics.cd_marital_status[3],customer_demographics.cd_dep_count[4],customer_demographics.cd_dep_employed_count[5],customer_demographics.cd_dep_college_count[6],c.c_customer_sk[7]
+                        Filter: {#marker@1}[8]
+                        -> PhysicMarkJoin Left (inccost=6403360256, cost=5596288096, rows=8771611) (actual rows=47)
+                            Output: {#marker@2}[8],ca.ca_state[1],customer_demographics.cd_gender[2],customer_demographics.cd_marital_status[3],customer_demographics.cd_dep_count[4],customer_demographics.cd_dep_employed_count[5],customer_demographics.cd_dep_college_count[6],c.c_customer_sk[7],{#marker@1}[0]
+                            Filter: c.c_customer_sk[7]=web_sales.ws_bill_customer_sk[8]
+                            -> PhysicMarkJoin Left (inccost=807025616, cost=806582768, rows=1244726) (actual rows=47)
+                                Output: {#marker@1}[7],ca.ca_state[0],customer_demographics.cd_gender[1],customer_demographics.cd_marital_status[2],customer_demographics.cd_dep_count[3],customer_demographics.cd_dep_employed_count[4],customer_demographics.cd_dep_college_count[5],c.c_customer_sk[6]
+                                Filter: c.c_customer_sk[6]=store_sales.ss_customer_sk[7]
+                                -> PhysicHashJoin  (inccost=394444, cost=282327, rows=173608, memory=32040) (actual rows=47)
+                                    Output: ca.ca_state[0],customer_demographics.cd_gender[3],customer_demographics.cd_marital_status[4],customer_demographics.cd_dep_count[5],customer_demographics.cd_dep_employed_count[6],customer_demographics.cd_dep_college_count[7],c.c_customer_sk[1]
+                                    Filter: customer_demographics.cd_demo_sk[8]=c.c_current_cdemo_sk[2]
+                                    -> PhysicHashJoin  (inccost=6602, cost=4602, rows=1602, memory=12000) (actual rows=1000)
+                                        Output: ca.ca_state[0],c.c_customer_sk[2],c.c_current_cdemo_sk[3]
+                                        Filter: c.c_current_addr_sk[4]=ca.ca_address_sk[1]
+                                        -> PhysicScanTable customer_address as ca (inccost=1000, cost=1000, rows=1000) (actual rows=1000)
+                                            Output: ca.ca_state[8],ca.ca_address_sk[0]
+                                        -> PhysicScanTable customer as c (inccost=1000, cost=1000, rows=1000) (actual rows=1000)
+                                            Output: c.c_customer_sk[0],c.c_current_cdemo_sk[2],c.c_current_addr_sk[4]
+                                    -> PhysicScanTable customer_demographics (inccost=105515, cost=105515, rows=105515) (actual rows=105515)
+                                        Output: customer_demographics.cd_gender[1],customer_demographics.cd_marital_status[2],customer_demographics.cd_dep_count[6],customer_demographics.cd_dep_employed_count[7],customer_demographics.cd_dep_college_count[8],customer_demographics.cd_demo_sk[0]
+                                -> PhysicHashJoin  (inccost=48404, cost=17923, rows=4646, memory=2184) (actual rows=1144, loops=47)
+                                    Output: store_sales.ss_customer_sk[1]
+                                    Filter: store_sales.ss_sold_date_sk[2]=date_dim.d_date_sk[0]
+                                    -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=273) (actual rows=274, loops=47)
+                                        Output: date_dim.d_date_sk[0]
+                                        Filter: (date_dim.d_year[6]=1999 and date_dim.d_qoy[10]<4)
+                                    -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=12731, loops=47)
+                                        Output: store_sales.ss_customer_sk[3],store_sales.ss_sold_date_sk[0]
+                            -> PhysicHashJoin  (inccost=46544, cost=16918, rows=4496, memory=2184) (actual rows=1347, loops=47)
+                                Output: web_sales.ws_bill_customer_sk[1]
+                                Filter: web_sales.ws_sold_date_sk[2]=date_dim.d_date_sk[0]
+                                -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=273) (actual rows=274, loops=47)
+                                    Output: date_dim.d_date_sk[0]
+                                    Filter: (date_dim.d_year[6]=1999 and date_dim.d_qoy[10]<4)
+                                -> PhysicScanTable web_sales (inccost=11876, cost=11876, rows=11876) (actual rows=11876, loops=47)
+                                    Output: web_sales.ws_bill_customer_sk[4],web_sales.ws_sold_date_sk[0]
+                    -> PhysicHashJoin  (inccost=46744, cost=19488, rows=9436, memory=2184) (actual rows=0, loops=8)
+                        Output: catalog_sales.cs_ship_customer_sk[1]
+                        Filter: catalog_sales.cs_sold_date_sk[2]=date_dim.d_date_sk[0]
+                        -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=273) (actual rows=274, loops=8)
+                            Output: date_dim.d_date_sk[0]
+                            Filter: (date_dim.d_year[6]=1999 and date_dim.d_qoy[10]<4)
+                        -> PhysicScanTable catalog_sales (inccost=9506, cost=9506, rows=9506) (actual rows=9506, loops=8)
+                            Output: catalog_sales.cs_ship_customer_sk[7],catalog_sales.cs_sold_date_sk[0]
+LA,M,D,1,1,1,,1,0,1,0,,0,0,1,0,,0
+MI,F,D,6,1,6,,6,1,1,1,,1,0,1,0,,0
+

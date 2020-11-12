@@ -343,7 +343,7 @@ namespace qpmodel.unittest
 
                     File.WriteAllText(write_fn, test_result);
 
-                    // construct file name of expected result
+                    //construct file name of expected result
                     string expect_fn = $@"{expect_dir_fn}/{f_name}.txt";
 
                     // verify query result against the expected result
@@ -385,7 +385,7 @@ namespace qpmodel.unittest
         public void TestBenchmarks()
         {
             TestTpcdsPlanOnly();
-            TestTpcdsWithData();
+            //TestTpcdsWithData();
 
             Tpch.CreateTables();
             TestTpchAndComparePlan("1", new string[] { "" });
@@ -397,6 +397,64 @@ namespace qpmodel.unittest
 
             List<String> tabNameList = new List<String> { "region", "orders", "part", "partsupp", "lineitem", "supplier", "nation" };
             TU.ClearTableStatsInCatalog(tabNameList);
+        }
+
+        [TestMethod]
+        public void TestTpcdsWithDataAndResult()
+        {
+            var files = Directory.GetFiles(@"../../../../tpcds", "*.sql");
+            string stats_dir = "../../../../tpcds/statistics/presto/sf1";
+
+            Tpcds.CreateTables();
+            //load persisted stats
+            PrestoStatsFormatter.ReadConvertPrestoStats(stats_dir);
+            // table already created
+            string scale = "0001";
+            Tpcds.LoadTables("tiny");
+            Tpcds.AnalyzeTables();
+
+            // run tests and compare plan
+            string sql_dir_fn = "../../../../tpcds";
+            string write_dir_fn = $"../../../../test/regress/output/tpcds{scale}";
+            string expect_dir_fn = $"../../../../test/regress/expect/tpcds{scale}";
+
+            // long time: 4 bad plan
+            // 6: distinct not supported, causing wrong result
+            // 10: subquery memo not copy out
+            // q000: jigzag memory allocation pattern but they are runnable with qpmodel Program.Main()
+            //
+            List<string> runnable = new List<string>{
+                "q1", "q2", "q3", "q7", "q15", "q17", "q19", "q21", "q24", "q25",
+                "q26", "q28", "q30", "q32", "q34", "q35", "q37", "q39", "q42", "q43",
+                "q45", "q46", "q50", "q52", "q55", "q58", "q59", "q61", "q62", "q00065",
+                "q68", "q69", "q71", "q73", "q79", "q81", "q82", "q83", "q00084",
+                "q00085",
+                "q88", "q90", "q91", "q92", "q94", "q95", "q96", "q99"
+            };
+            List<string> BadQueries = new List<string>();
+
+            foreach (var v in files)
+            {
+                var q = Path.GetFileNameWithoutExtension(v);
+                if (!runnable.Contains(q))
+                {
+                    BadQueries.Add(q);
+                }
+            }
+            var badqueries = BadQueries.ToArray();
+            // use for debugging single sql
+            runnable.Clear();
+            runnable.Add("q1");
+
+            // make sure all queries can generate phase one opt plan
+            QueryOption option = new QueryOption();
+            option.optimize_.enable_subquery_unnest_ = true;
+            option.optimize_.remove_from_ = false;
+            option.optimize_.use_memo_ = true;
+
+
+            RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badqueries);
+
         }
 
         [TestMethod]
@@ -495,7 +553,7 @@ namespace qpmodel.unittest
             string[] runnable = {
                 "q1", "q2", "q3", "q7", "q15", "q17", "q19", "q21", "q24", "q25",
                 "q26", "q28", "q30", "q32", "q34", "q35", "q37", "q39", "q42", "q43",
-                "q45", "q46", "q50", "q52", "q55", "q58", "q59", "q61", "q62", "q00065",
+                "q45", "q46", "q50", "q52", "q55", "q58", "q59", "q61", "q62", "q65",
                 "q68", "q69", "q71", "q73", "q79", "q81", "q82", "q83", "q00084",
                 "q00085",
                 "q88", "q90", "q91", "q92", "q94", "q95", "q96", "q99"
@@ -2321,7 +2379,7 @@ namespace qpmodel.unittest
 
             // 1 NOT in [1] = False, NULL not in [NULL] = NULL
             TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 NOT IN (SELECT b2 FROM b WHERE a1 = b1)", "", out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "    -> PhysicMarkJoin Left (actual rows=4)")); 
+            Assert.AreEqual(1, TU.CountStr(phyplan, "    -> PhysicMarkJoin Left (actual rows=4)"));
 
             // 1 NOT in [1] = False, 2 NOT in [1,2] = False, 3 NOT in [1,2,3] = False, NULL not in [1,2,3,NULL] = False
             TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 NOT IN (SELECT b2 FROM b WHERE a1 <= b1)", "", out phyplan);

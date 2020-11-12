@@ -1,0 +1,95 @@
+select  c_last_name
+       ,c_first_name
+       ,ca_city
+       ,bought_city
+       ,ss_ticket_number
+       ,extended_price
+       ,extended_tax
+       ,list_price
+ from (select ss_ticket_number
+             ,ss_customer_sk
+             ,ca_city bought_city
+             ,sum(ss_ext_sales_price) extended_price 
+             ,sum(ss_ext_list_price) list_price
+             ,sum(ss_ext_tax) extended_tax 
+       from store_sales
+           ,date_dim
+           ,store
+           ,household_demographics
+           ,customer_address 
+       where store_sales.ss_sold_date_sk = date_dim.d_date_sk
+         and store_sales.ss_store_sk = store.s_store_sk  
+        and store_sales.ss_hdemo_sk = household_demographics.hd_demo_sk
+        and store_sales.ss_addr_sk = customer_address.ca_address_sk
+        and date_dim.d_dom between 1  and 2 
+        and (household_demographics.hd_dep_count = 3 or
+             household_demographics.hd_vehicle_count= 4)
+        and date_dim.d_year in (1998,1998+1,1998+2)
+        and store.s_city in ('Fairview','Midway')
+       group by ss_ticket_number
+               ,ss_customer_sk
+               ,ss_addr_sk,ca_city) dn
+      ,customer
+      ,customer_address current_addr
+ where ss_customer_sk = c_customer_sk
+   and customer.c_current_addr_sk = current_addr.ca_address_sk
+   and current_addr.ca_city <> bought_city
+ order by c_last_name
+         ,ss_ticket_number
+ limit 100
+Total cost: 3603440.21, memory=1543046
+PhysicLimit (100) (inccost=3603440.21, cost=100, rows=100) (actual rows=9)
+    Output: customer.c_last_name[0],customer.c_first_name[1],current_addr.ca_city[2],dn.bought_city[3],dn.ss_ticket_number[4],dn.extended_price[5],dn.extended_tax[6],dn.list_price[7]
+    -> PhysicOrder  (inccost=3603340.21, cost=28338.21, rows=3438, memory=670410) (actual rows=9)
+        Output: customer.c_last_name[0],customer.c_first_name[1],current_addr.ca_city[2],dn.bought_city[3],dn.ss_ticket_number[4],dn.extended_price[5],dn.extended_tax[6],dn.list_price[7]
+        Order by: customer.c_last_name[0], dn.ss_ticket_number[4]
+        -> PhysicHashJoin  (inccost=3575002, cost=8876, rows=3438, memory=116000) (actual rows=9)
+            Output: customer.c_last_name[0],customer.c_first_name[1],current_addr.ca_city[4],dn.bought_city[5],dn.ss_ticket_number[6],dn.extended_price[7],dn.extended_tax[8],dn.list_price[9]
+            Filter: (customer.c_current_addr_sk[2]=current_addr.ca_address_sk[10] and dn.ss_customer_sk[11]=customer.c_customer_sk[3])
+            -> PhysicScanTable customer (inccost=1000, cost=1000, rows=1000) (actual rows=1000)
+                Output: customer.c_last_name[9],customer.c_first_name[8],customer.c_current_addr_sk[4],customer.c_customer_sk[0]
+            -> PhysicNLJoin  (inccost=3565126, cost=3482480, rows=3438) (actual rows=8701)
+                Output: current_addr.ca_city[6],dn.bought_city[0],dn.ss_ticket_number[1],dn.extended_price[2],dn.extended_tax[3],dn.list_price[4],current_addr.ca_address_sk[7],dn.ss_customer_sk[5]
+                Filter: current_addr.ca_city[6]<>dn.bought_city[0]
+                -> PhysicFromQuery <dn> (inccost=81646, cost=3438, rows=3438) (actual rows=9)
+                    Output: dn.bought_city[2],dn.ss_ticket_number[0],dn.extended_price[3],dn.extended_tax[5],dn.list_price[4],dn.ss_customer_sk[1]
+                    -> PhysicHashAgg  (inccost=78208, cost=10314, rows=3438, memory=611964) (actual rows=9)
+                        Output: {store_sales.ss_ticket_number}[0],{store_sales.ss_customer_sk}[1],{customer_address.ca_city}[3],{sum(store_sales.ss_ext_sales_price)}[4],{sum(store_sales.ss_ext_list_price)}[5],{sum(store_sales.ss_ext_tax)}[6]
+                        Aggregates: sum(store_sales.ss_ext_sales_price[3]), sum(store_sales.ss_ext_list_price[4]), sum(store_sales.ss_ext_tax[5])
+                        Group by: store_sales.ss_ticket_number[0], store_sales.ss_customer_sk[1], store_sales.ss_addr_sk[6], customer_address.ca_city[2]
+                        -> PhysicHashJoin  (inccost=67894, cost=8923, rows=3438, memory=14400) (actual rows=101)
+                            Output: store_sales.ss_ticket_number[1],store_sales.ss_customer_sk[2],customer_address.ca_city (as bought_city)[3],store_sales.ss_ext_sales_price[4],store_sales.ss_ext_list_price[5],store_sales.ss_ext_tax[6],store_sales.ss_addr_sk[7]
+                            Filter: store_sales.ss_hdemo_sk[8]=household_demographics.hd_demo_sk[0]
+                            -> PhysicScanTable household_demographics (inccost=7200, cost=7200, rows=1800) (actual rows=1800)
+                                Output: household_demographics.hd_demo_sk[0]
+                                Filter: (household_demographics.hd_dep_count[3]=3 or household_demographics.hd_vehicle_count[4]=4)
+                            -> PhysicHashJoin  (inccost=51771, cost=5093, rows=1885, memory=128000) (actual rows=474)
+                                Output: store_sales.ss_ticket_number[2],store_sales.ss_customer_sk[3],customer_address.ca_city (as bought_city)[0],store_sales.ss_ext_sales_price[4],store_sales.ss_ext_list_price[5],store_sales.ss_ext_tax[6],store_sales.ss_addr_sk[7],store_sales.ss_hdemo_sk[8]
+                                Filter: store_sales.ss_addr_sk[7]=customer_address.ca_address_sk[1]
+                                -> PhysicScanTable customer_address (inccost=1000, cost=1000, rows=1000) (actual rows=1000)
+                                    Output: customer_address.ca_city (as bought_city)[6],customer_address.ca_address_sk[0]
+                                -> PhysicHashJoin  (inccost=45678, cost=14223, rows=1208, memory=2272) (actual rows=481)
+                                    Output: store_sales.ss_ticket_number[2],store_sales.ss_customer_sk[3],store_sales.ss_ext_sales_price[4],store_sales.ss_ext_list_price[5],store_sales.ss_ext_tax[6],store_sales.ss_addr_sk[7],store_sales.ss_hdemo_sk[8]
+                                    Filter: (store_sales.ss_sold_date_sk[9]=date_dim.d_date_sk[0] and store_sales.ss_store_sk[10]=store.s_store_sk[1])
+                                    -> PhysicNLJoin  (inccost=18724, cost=972, rows=142) (actual rows=144)
+                                        Output: date_dim.d_date_sk[1],store.s_store_sk[0]
+                                        -> PhysicScanTable store (inccost=2, cost=2, rows=2) (actual rows=2)
+                                            Output: store.s_store_sk[0]
+                                            Filter: store.s_city[22] in ('Fairview','Midway')
+                                        -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=71) (actual rows=72, loops=2)
+                                            Output: date_dim.d_date_sk[0]
+                                            Filter: ((date_dim.d_dom[9]>=1 and date_dim.d_dom[9]<=2) and date_dim.d_year[6] in (1998,1999,2000))
+                                    -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=12731)
+                                        Output: store_sales.ss_ticket_number[9],store_sales.ss_customer_sk[3],store_sales.ss_ext_sales_price[15],store_sales.ss_ext_list_price[17],store_sales.ss_ext_tax[18],store_sales.ss_addr_sk[6],store_sales.ss_hdemo_sk[5],store_sales.ss_sold_date_sk[0],store_sales.ss_store_sk[7]
+                -> PhysicScanTable customer_address as current_addr (inccost=1000, cost=1000, rows=1000) (actual rows=1000, loops=9)
+                    Output: current_addr.ca_city[6],current_addr.ca_address_sk[0]
+,,Spring Hill,Edgewood,639,11841.32,524.20,39093.99
+Bennett,Gilberto,Waterloo,Greenfield,385,18442.50,733.21,35449.67
+Hernandez,Barbara,Oak Ridge,Webb,914,15215.91,767.08,26726.03
+Lopez,Danny,Deerfield,Silver Springs,159,39066.85,978.23,57361.47
+Miner,Brenda,Oak Hill,Belmont,240,8414.48,335.76,19261.54
+Pond,Nathan,Pine Grove,Greenwood,173,35557.91,616.04,86519.24
+Ryan,Crystal,Bridgeport,California,903,19564.12,1246.16,29396.17
+Salazar,Matt,Jamestown,Belmont,894,12604.88,554.52,28063.98
+Spriggs,Jack,Woodland,Friendship,874,10831.67,472.26,32215.36
+

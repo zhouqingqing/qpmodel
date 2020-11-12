@@ -1,0 +1,55 @@
+select  i_item_id, 
+        avg(cs_quantity) agg1,
+        avg(cs_list_price) agg2,
+        avg(cs_coupon_amt) agg3,
+        avg(cs_sales_price) agg4 
+ from catalog_sales, customer_demographics, date_dim, item, promotion
+ where cs_sold_date_sk = d_date_sk and
+       cs_item_sk = i_item_sk and
+       cs_bill_cdemo_sk = cd_demo_sk and
+       cs_promo_sk = p_promo_sk and
+       cd_gender = 'M' and 
+       cd_marital_status = 'W' and
+       cd_education_status = 'Unknown' and
+       (p_channel_email = 'N' or p_channel_event = 'N') and
+       d_year = 2002 
+ group by i_item_id
+ order by i_item_id
+ limit 100
+Total cost: 311305.76, memory=218107
+PhysicLimit (100) (inccost=311305.76, cost=100, rows=100) (actual rows=0)
+    Output: item.i_item_id[0],{avg(catalog_sales.cs_quantity)}[1],{avg(catalog_sales.cs_list_price)}[2],{avg(catalog_sales.cs_coupon_amt)}[3],{avg(catalog_sales.cs_sales_price)}[4]
+    -> PhysicOrder  (inccost=311205.76, cost=7015.76, rows=1001, memory=41041) (actual rows=0)
+        Output: item.i_item_id[0],{avg(catalog_sales.cs_quantity)}[1],{avg(catalog_sales.cs_list_price)}[2],{avg(catalog_sales.cs_coupon_amt)}[3],{avg(catalog_sales.cs_sales_price)}[4]
+        Order by: item.i_item_id[0]
+        -> PhysicHashAgg  (inccost=304190, cost=37319, rows=1001, memory=82082) (actual rows=0)
+            Output: {item.i_item_id}[0],{avg(catalog_sales.cs_quantity)}[1],{avg(catalog_sales.cs_list_price)}[2],{avg(catalog_sales.cs_coupon_amt)}[3],{avg(catalog_sales.cs_sales_price)}[4]
+            Aggregates: avg(catalog_sales.cs_quantity[1]), avg(catalog_sales.cs_list_price[2]), avg(catalog_sales.cs_coupon_amt[3]), avg(catalog_sales.cs_sales_price[4])
+            Group by: item.i_item_id[0]
+            -> PhysicHashJoin  (inccost=266871, cost=56993, rows=35317, memory=80000) (actual rows=0)
+                Output: item.i_item_id[0],catalog_sales.cs_quantity[2],catalog_sales.cs_list_price[3],catalog_sales.cs_coupon_amt[4],catalog_sales.cs_sales_price[5]
+                Filter: catalog_sales.cs_item_sk[6]=item.i_item_sk[1]
+                -> PhysicScanTable item (inccost=2000, cost=2000, rows=2000) (actual rows=2000)
+                    Output: item.i_item_id[1],item.i_item_sk[0]
+                -> PhysicHashJoin  (inccost=207878, cost=33270, rows=17676, memory=12048) (actual rows=0)
+                    Output: catalog_sales.cs_quantity[1],catalog_sales.cs_list_price[2],catalog_sales.cs_coupon_amt[3],catalog_sales.cs_sales_price[4],catalog_sales.cs_item_sk[5]
+                    Filter: catalog_sales.cs_bill_cdemo_sk[6]=customer_demographics.cd_demo_sk[0]
+                    -> PhysicScanTable customer_demographics (inccost=105515, cost=105515, rows=1506) (actual rows=1507)
+                        Output: customer_demographics.cd_demo_sk[0]
+                        Filter: ((customer_demographics.cd_gender[1]='M' and customer_demographics.cd_marital_status[2]='W') and customer_demographics.cd_education_status[3]='Unknown')
+                    -> PhysicHashJoin  (inccost=69093, cost=22816, rows=12582, memory=2912) (actual rows=0)
+                        Output: catalog_sales.cs_quantity[1],catalog_sales.cs_list_price[2],catalog_sales.cs_coupon_amt[3],catalog_sales.cs_sales_price[4],catalog_sales.cs_item_sk[5],catalog_sales.cs_bill_cdemo_sk[6]
+                        Filter: catalog_sales.cs_sold_date_sk[7]=date_dim.d_date_sk[0]
+                        -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=364) (actual rows=365)
+                            Output: date_dim.d_date_sk[0]
+                            Filter: date_dim.d_year[6]=2002
+                        -> PhysicHashJoin  (inccost=28527, cost=19018, rows=9506, memory=24) (actual rows=9460)
+                            Output: catalog_sales.cs_quantity[1],catalog_sales.cs_list_price[2],catalog_sales.cs_coupon_amt[3],catalog_sales.cs_sales_price[4],catalog_sales.cs_item_sk[5],catalog_sales.cs_bill_cdemo_sk[6],catalog_sales.cs_sold_date_sk[7]
+                            Filter: catalog_sales.cs_promo_sk[8]=promotion.p_promo_sk[0]
+                            -> PhysicScanTable promotion (inccost=3, cost=3, rows=3) (actual rows=3)
+                                Output: promotion.p_promo_sk[0]
+                                Filter: (promotion.p_channel_email[9]='N' or promotion.p_channel_event[14]='N')
+                            -> PhysicScanTable catalog_sales (inccost=9506, cost=9506, rows=9506) (actual rows=9506)
+                                Output: catalog_sales.cs_quantity[18],catalog_sales.cs_list_price[20],catalog_sales.cs_coupon_amt[27],catalog_sales.cs_sales_price[21],catalog_sales.cs_item_sk[15],catalog_sales.cs_bill_cdemo_sk[4],catalog_sales.cs_sold_date_sk[0],catalog_sales.cs_promo_sk[16]
+
+

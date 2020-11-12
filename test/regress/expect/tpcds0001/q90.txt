@@ -1,0 +1,79 @@
+select  cast(amc as decimal(15,4))/(cast(pmc as decimal(15,4))+1) am_pm_ratio
+ from ( select count(*) amc
+       from web_sales, household_demographics , time_dim, web_page
+       where ws_sold_time_sk = time_dim.t_time_sk
+         and ws_ship_hdemo_sk = household_demographics.hd_demo_sk
+         and ws_web_page_sk = web_page.wp_web_page_sk
+         and time_dim.t_hour between 12  and 12+1
+         and household_demographics.hd_dep_count = 6
+         and web_page.wp_char_count between 5000  and 5200) at,
+      ( select count(*) pmc
+       from web_sales, household_demographics , time_dim, web_page
+       where ws_sold_time_sk = time_dim.t_time_sk
+         and ws_ship_hdemo_sk = household_demographics.hd_demo_sk
+         and ws_web_page_sk = web_page.wp_web_page_sk
+         and time_dim.t_hour between 14  and 14+1
+         and household_demographics.hd_dep_count = 6
+         and web_page.wp_char_count between 5000  and 5200) pt
+ order by am_pm_ratio
+ limit 100
+Total cost: 436515.1, memory=169871
+PhysicLimit (100) (inccost=436515.1, cost=100, rows=100) (actual rows=1)
+    Output: {cast(at.amc to numeric(15, 4))/(cast(pt.pmc to numeric(15, 4))+1)(as am_pm_ratio)}[0]
+    -> PhysicOrder  (inccost=436415.1, cost=0.1, rows=1, memory=15) (actual rows=1)
+        Output: {cast(at.amc to numeric(15, 4))/(cast(pt.pmc to numeric(15, 4))+1)(as am_pm_ratio)}[0]
+        Order by: {cast(at.amc to numeric(15, 4))/(cast(pt.pmc to numeric(15, 4))+1)(as am_pm_ratio)}[0]
+        -> PhysicNLJoin  (inccost=436415, cost=121, rows=1) (actual rows=1)
+            Output: cast(at.amc[0] to numeric(15, 4))/(cast(pt.pmc[1] to numeric(15, 4))+1)(as am_pm_ratio)
+            -> PhysicFromQuery <at> (inccost=218147, cost=1, rows=1) (actual rows=1)
+                Output: at.amc[0]
+                -> PhysicHashAgg  (inccost=218146, cost=33258, rows=1, memory=8) (actual rows=1)
+                    Output: {count(*)(0)}[0]
+                    Aggregates: count(*)(0)
+                    -> PhysicHashJoin  (inccost=184888, cost=49629, rows=33256, memory=73392) (actual rows=0)
+                        Output: 0
+                        Filter: web_sales.ws_sold_time_sk[1]=time_dim.t_time_sk[2]
+                        -> PhysicHashJoin  (inccost=48859, cost=11965, rows=4587, memory=11520) (actual rows=0)
+                            Output: {0}[0],web_sales.ws_sold_time_sk[2]
+                            Filter: web_sales.ws_ship_hdemo_sk[3]=household_demographics.hd_demo_sk[1]
+                            -> PhysicScanTable household_demographics (inccost=7200, cost=7200, rows=720) (actual rows=720)
+                                Output: 0,household_demographics.hd_demo_sk[0]
+                                Filter: household_demographics.hd_dep_count[3]=6
+                            -> PhysicHashJoin  (inccost=29694, cost=17816, rows=5938, memory=8) (actual rows=0)
+                                Output: web_sales.ws_sold_time_sk[1],web_sales.ws_ship_hdemo_sk[2]
+                                Filter: web_sales.ws_web_page_sk[3]=web_page.wp_web_page_sk[0]
+                                -> PhysicScanTable web_page (inccost=2, cost=2, rows=1) (actual rows=0)
+                                    Output: web_page.wp_web_page_sk[0]
+                                    Filter: (web_page.wp_char_count[10]>=5000 and web_page.wp_char_count[10]<=5200)
+                                -> PhysicScanTable web_sales (inccost=11876, cost=11876, rows=11876) (actual rows=0)
+                                    Output: web_sales.ws_sold_time_sk[1],web_sales.ws_ship_hdemo_sk[10],web_sales.ws_web_page_sk[12]
+                        -> PhysicScanTable time_dim (inccost=86400, cost=86400, rows=7199) (actual rows=0)
+                            Output: time_dim.t_time_sk[0]
+                            Filter: (time_dim.t_hour[3]>=12 and time_dim.t_hour[3]<=13)
+            -> PhysicFromQuery <pt> (inccost=218147, cost=1, rows=1) (actual rows=1)
+                Output: pt.pmc[0]
+                -> PhysicHashAgg  (inccost=218146, cost=33258, rows=1, memory=8) (actual rows=1)
+                    Output: {count(*)(0)}[0]
+                    Aggregates: count(*)(0)
+                    -> PhysicHashJoin  (inccost=184888, cost=49629, rows=33256, memory=73392) (actual rows=0)
+                        Output: 0
+                        Filter: web_sales.ws_sold_time_sk[1]=time_dim.t_time_sk[2]
+                        -> PhysicHashJoin  (inccost=48859, cost=11965, rows=4587, memory=11520) (actual rows=0)
+                            Output: {0}[0],web_sales.ws_sold_time_sk[2]
+                            Filter: web_sales.ws_ship_hdemo_sk[3]=household_demographics.hd_demo_sk[1]
+                            -> PhysicScanTable household_demographics (inccost=7200, cost=7200, rows=720) (actual rows=720)
+                                Output: 0,household_demographics.hd_demo_sk[0]
+                                Filter: household_demographics.hd_dep_count[3]=6
+                            -> PhysicHashJoin  (inccost=29694, cost=17816, rows=5938, memory=8) (actual rows=0)
+                                Output: web_sales.ws_sold_time_sk[1],web_sales.ws_ship_hdemo_sk[2]
+                                Filter: web_sales.ws_web_page_sk[3]=web_page.wp_web_page_sk[0]
+                                -> PhysicScanTable web_page (inccost=2, cost=2, rows=1) (actual rows=0)
+                                    Output: web_page.wp_web_page_sk[0]
+                                    Filter: (web_page.wp_char_count[10]>=5000 and web_page.wp_char_count[10]<=5200)
+                                -> PhysicScanTable web_sales (inccost=11876, cost=11876, rows=11876) (actual rows=0)
+                                    Output: web_sales.ws_sold_time_sk[1],web_sales.ws_ship_hdemo_sk[10],web_sales.ws_web_page_sk[12]
+                        -> PhysicScanTable time_dim (inccost=86400, cost=86400, rows=7199) (actual rows=0)
+                            Output: time_dim.t_time_sk[0]
+                            Filter: (time_dim.t_hour[3]>=14 and time_dim.t_hour[3]<=15)
+0
+
