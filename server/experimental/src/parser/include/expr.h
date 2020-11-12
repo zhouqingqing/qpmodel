@@ -33,30 +33,24 @@ class Expr : public RuntimeNodeT<Expr>
 
       int          ival; // SQLParserResult uses this.
 
+      Expr () : RuntimeNodeT<Expr> (), classTag_ (Expr_), type_ (D_NullFlag), alias_ (nullptr), slot_(0), ival(0) {}
+
+      Expr (DataType type,std::string *alias = 0)
+          : RuntimeNodeT<Expr> ()
+          , classTag_ (Expr_)
+          , type_ (type)
+          , alias_ (alias)
+          , slot_ (0)
+          , ival (0)
+      {}
+
+
       virtual std::string Explain (void* arg = nullptr) const { return {}; }
       virtual void Bind (BindContext& context) {
          auto nchildren = childrenCount ();
          for (int i = 0; i < nchildren; i++) child (i)->Bind (context);
       };
 
-      static Expr *makeStar (std::string* alias = nullptr);
-      static Expr *makeOpBinary (Expr* left, BinOp op, Expr* right);
-      static Expr *makeNullLiteral ();
-      static Expr *makeLiteral (const char *cval);
-      static Expr *makeLiteral(std::string *sval);
-      static Expr *makeLiteral(double dval);
-      static Expr *makeLiteral(int64_t ival);
-      static Expr *makeLiteral(bool bval);
-      static Expr *makeColumnRef(const char *cname, const char *alias = 0);
-      static Expr *makeColumnRef(std::string *cname, std::string *alias = 0);
-
-      static inline char* substr(const char* source, int from, int to) {
-         int len = to - from;
-         char* copy = new char[len + 1];
-         strncpy(copy, source + from, len);
-         copy[len] = '\0';
-         return copy;
-      }
 };
 
 class SelStar : public NodeBase<Expr, N0> {
@@ -141,4 +135,17 @@ public:
     Datum Exec (Row* l);
     void Close ();
 };
+
+Expr *makeStar (std::string* alias = nullptr);
+Expr *makeOpBinary (Expr* left, BinOp op, Expr* right);
+Expr *makeNullLiteral ();
+Expr *makeLiteral (const char *cval);
+Expr *makeLiteral(std::string *sval);
+Expr *makeLiteral(double dval);
+Expr *makeLiteral(int64_t ival);
+Expr *makeLiteral(bool bval);
+Expr *makeColumnRef(const char *cname, const char *alias = 0);
+Expr *makeColumnRef(std::string *cname, std::string *alias = 0);
+char* substr (const char* source, int from, int to);
+
 }  // namespace andb

@@ -79,7 +79,7 @@ class Expr;
     bool isValid_;
 
     // Error message, if an error occurred.
-    char* errorMsg_;
+    const char* errorMsg_;
 
     // Line number of the occurrance of the error in the query.
     int errorLine_;

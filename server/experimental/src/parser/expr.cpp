@@ -76,64 +76,71 @@ void BinExpr::bindFunction () {
     type_ = search->second.rettype_;
 }
 
-inline Expr* Expr::makeStar (std::string* alias) {
+Expr* makeStar (std::string* alias) {
     Expr* e = new SelStar (alias);
 
     return e;
 }
 
-inline Expr* Expr::makeOpBinary (Expr* left, BinOp op, Expr* right) {
+Expr* makeOpBinary (Expr* left, BinOp op, Expr* right) {
     Expr* e = new BinExpr (op, left, right);
 
     return e;
 }
 
-inline Expr* makeNullLiteral () {
+Expr* makeNullLiteral () {
     Expr* e = new ConstExpr ("null");
 
     return e;
 }
 
-inline Expr *makeLiteral (const char *cval) {
-    Expr *e = new ConstExpr(Datum(std::string(cval)));
+Expr* makeLiteral (const char* cval) {
+    Expr* e = new ConstExpr (Datum (std::string (cval)));
 
     return e;
 }
 
-inline Expr *makeLiteral(std::string *sval) {
-    Expr *e = new ConstExpr(Datum(sval));
+Expr* makeLiteral (std::string* sval) {
+    Expr* e = new ConstExpr (Datum (sval));
 
     return e;
 }
 
-inline Expr *makeLiteral(double dval) {
-    Expr *e = new ConstExpr(Datum(dval));
+Expr* makeLiteral (double dval) {
+    Expr* e = new ConstExpr (Datum (dval));
 
     return e;
 }
 
-inline Expr *makeLiteral(int64_t ival) {
-    Expr *e = new ConstExpr(Datum(ival));
+Expr* makeLiteral (int64_t ival) {
+    Expr* e = new ConstExpr (Datum (ival));
 
     return e;
 }
 
-inline Expr *makeLiteral(bool bval) {
-    Expr *e = new ConstExpr(Datum(bval));
+Expr* makeLiteral (bool bval) {
+    Expr* e = new ConstExpr (Datum (bval));
+    return e;
 }
 
+Expr* makeColumnRef (char* cname, char* alias) {
+    Expr* e = new ColExpr (cname);
 
-inline Expr *makeColumnRef(char *cname, char *alias) {
-   Expr *e = new ColExpr(cname);
-
-   return e;
+    return e;
 }
 
+Expr* makeColumnRef (std::string* cname, std::string* alias) {
+    Expr* e = new ColExpr (const_cast<char*> (cname->c_str ()));
 
-inline Expr *makeColumnRef(std::string *cname, std::string *alias) {
-   Expr *e = new ColExpr(const_cast<char *>(cname->c_str()));
+    return e;
+}
 
-   return e;
+char* substr (const char* source, int from, int to) {
+    int len = to - from;
+    char* copy = new char[len + 1];
+    strncpy (copy, source + from, len);
+    copy[len] = '\0';
+    return copy;
 }
 
 

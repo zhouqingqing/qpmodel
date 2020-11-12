@@ -150,9 +150,9 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 	andb::ColumnType  column_type_t;
 	std::vector<andb::SQLStatement*>    *stmt_vec;
 
-   std::pmr::vector<Expr*>       expr_vec;
+   std::pmr::vector<Expr*>       expr_vec{currentRescource_};
 	std::vector<std::string*>     *str_vec;
-   std::pmr::vector<TableRef*>   table_vec;
+   std::pmr::vector<TableRef*>   table_vec{currentRescource_};
 
    // need to provide them because they get "deleted" by the compiler
    ANDB_STYPE() { ival = 0; } 
@@ -391,27 +391,27 @@ scalar_expr:
 
 binary_expr:
 		comp_expr
-	|	operand '-' operand			{ $$ = Expr::makeOpBinary($1, BinOp::Sub, $3); }
-	|	operand '+' operand			{ $$ = Expr::makeOpBinary($1, BinOp::Add, $3); }
-	|	operand '/' operand			{ $$ = Expr::makeOpBinary($1, BinOp::Div, $3); }
-	|	operand '*' operand			{ $$ = Expr::makeOpBinary($1, BinOp::Mul, $3); }
+	|	operand '-' operand			{ $$ = makeOpBinary($1, BinOp::Sub, $3); }
+	|	operand '+' operand			{ $$ = makeOpBinary($1, BinOp::Add, $3); }
+	|	operand '/' operand			{ $$ = makeOpBinary($1, BinOp::Div, $3); }
+	|	operand '*' operand			{ $$ = makeOpBinary($1, BinOp::Mul, $3); }
 	;
 
 comp_expr:
-		operand '=' operand			{ $$ = Expr::makeOpBinary($1, BinOp::Equal, $3); }
-	|	operand EQUALS operand			{ $$ = Expr::makeOpBinary($1, BinOp::Equal, $3); }
-	|	operand NOTEQUALS operand	{ $$ = Expr::makeOpBinary($1, BinOp::Neq, $3); }
-	|	operand '<' operand			{ $$ = Expr::makeOpBinary($1, BinOp::Less, $3); }
-	|	operand '>' operand			{ $$ = Expr::makeOpBinary($1, BinOp::Great, $3); }
-	|	operand LESSEQ operand		{ $$ = Expr::makeOpBinary($1, BinOp::Leq, $3); }
-	|	operand GREATEREQ operand	{ $$ = Expr::makeOpBinary($1, BinOp::Geq, $3); }
+		operand '=' operand			{ $$ = makeOpBinary($1, BinOp::Equal, $3); }
+	|	operand EQUALS operand			{ $$ = makeOpBinary($1, BinOp::Equal, $3); }
+	|	operand NOTEQUALS operand	{ $$ = makeOpBinary($1, BinOp::Neq, $3); }
+	|	operand '<' operand			{ $$ = makeOpBinary($1, BinOp::Less, $3); }
+	|	operand '>' operand			{ $$ = makeOpBinary($1, BinOp::Great, $3); }
+	|	operand LESSEQ operand		{ $$ = makeOpBinary($1, BinOp::Leq, $3); }
+	|	operand GREATEREQ operand	{ $$ = makeOpBinary($1, BinOp::Geq, $3); }
 	;
 
 column_name:
-		IDENTIFIER { $$ = Expr::makeColumnRef($1); }
-	|	IDENTIFIER '.' IDENTIFIER { $$ = Expr::makeColumnRef($1, $3); }
-	|	'*' { $$ = Expr::makeStar(); }
-	|	IDENTIFIER '.' '*' { $$ = Expr::makeStar($1); }
+		IDENTIFIER { $$ = makeColumnRef($1); }
+	|	IDENTIFIER '.' IDENTIFIER { $$ = makeColumnRef($1, $3); }
+	|	'*' { $$ = makeStar(); }
+	|	IDENTIFIER '.' '*' { $$ = makeStar($1); }
 	;
 
 literal:
@@ -422,25 +422,25 @@ literal:
 	;
 
 string_literal:
-		STRING { $$ = Expr::makeLiteral($1); }
+		STRING { $$ = makeLiteral($1); }
 	;
 
 bool_literal:
-		TRUE { $$ = Expr::makeLiteral(true); }
-	|	FALSE { $$ = Expr::makeLiteral(false); }
+		TRUE { $$ = makeLiteral(true); }
+	|	FALSE { $$ = makeLiteral(false); }
 	;
 
 num_literal:
-		FLOATVAL { $$ = Expr::makeLiteral($1); }
+		FLOATVAL { $$ = makeLiteral($1); }
 	|	int_literal
 	;
 
 int_literal:
-		INTVAL { $$ = Expr::makeLiteral($1); }
+		INTVAL { $$ = makeLiteral($1); }
 	;
 
 null_literal:
-	    	NULL { $$ = Expr::makeNullLiteral(); }
+		NULL { $$ = makeNullLiteral(); }
 	;
 
 
