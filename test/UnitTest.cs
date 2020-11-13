@@ -907,7 +907,8 @@ namespace qpmodel.unittest
             for (int i = 0; i < 2; i++)
             {
                 option.optimize_.use_memo_ = i == 0;
-                option.optimize_.enable_subquery_unnest_ = true; // FIXME: replace 'true' to 'i == 0', we hit some bugs
+                option.optimize_.enable_subquery_unnest_ = i==0;
+                option.optimize_.remove_from_ = option.optimize_.enable_subquery_unnest_;
                 bool unnest = option.optimize_.enable_subquery_unnest_;
 
                 // exist-subquery
