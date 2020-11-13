@@ -946,7 +946,6 @@ namespace qpmodel.unittest
                     Assert.AreEqual(j == 0 ? 0 : 3, TU.CountStr(phyplan, "PhysicMarkJoin"));
                 }
             }
-
         }
 
         [TestMethod]
