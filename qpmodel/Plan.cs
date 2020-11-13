@@ -344,7 +344,7 @@ namespace qpmodel.logic
                         break;
                     case QueryRef qref:
                         var plan = qref.query_.CreatePlan();
-                        if (qref is FromQueryRef && queryOpt_.optimize_.remove_from_)
+                        if (qref is FromQueryRef && queryOpt_.optimize_.remove_from_&&queryOpt_.optimize_.enable_subquery_unnest_)
                             from = plan;
                         else
                         {
