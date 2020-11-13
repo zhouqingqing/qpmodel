@@ -903,98 +903,106 @@ namespace qpmodel.unittest
         public void TestExistsSubquery()
         {
             QueryOption option = new QueryOption();
-
-            for (int i = 0; i < 2; i++)
+            for (int j = 0; j < 2; j++)
             {
-                option.optimize_.use_memo_ = i == 0;
-                // exist-subquery
-                var phyplan = "";
-                var sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1);";
-                TU.ExecuteSQL(sql, "1;2", out phyplan, option);
-                Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin"));
-                sql = "select a2 from a where exists (select * from a);";
-                TU.ExecuteSQL(sql, "1;2;3", out phyplan, option);
-                Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicMarkJoin"));
-                sql = "select a2 from a where not exists (select * from a b where b.a3>=a.a1+b.a1+1);";
-                TU.ExecuteSQL(sql, "3", out phyplan, option);
-                Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin"));
-                sql = "select a2 from a where not not not not exists (select * from a b where b.a3>=a.a1+b.a1+1) and a2>2;";
-                var result = TU.ExecuteSQL(sql, out phyplan);
-                Assert.AreEqual(0, result.Count);
-                sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2;";
-                TU.ExecuteSQL(sql, "1;2;3", out phyplan, option);
-                Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin"));
-                sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
-                TU.ExecuteSQL(sql, "0,1;1,2", out phyplan, option);
-                Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin"));
-                // multiple subquery - not exists ... and ... to test not <logical_expr> precedence
-                sql = @"select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1)
+                option.optimize_.remove_from_ = j == 1;
+                option.optimize_.enable_subquery_unnest_ = option.optimize_.remove_from_;
+                for (int i = 0; i < 2; i++)
+                {
+                    option.optimize_.use_memo_ = i == 0;
+                    // exist-subquery
+                    var phyplan = "";
+                    var sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1);";
+                    TU.ExecuteSQL(sql, "1;2", out phyplan, option);
+                    Assert.AreEqual(j == 0 ? 0 : 1, TU.CountStr(phyplan, "PhysicMarkJoin"));
+                    sql = "select a2 from a where exists (select * from a);";
+                    TU.ExecuteSQL(sql, "1;2;3", out phyplan, option);
+                    Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicMarkJoin"));
+                    sql = "select a2 from a where not exists (select * from a b where b.a3>=a.a1+b.a1+1);";
+                    TU.ExecuteSQL(sql, "3", out phyplan, option);
+                    Assert.AreEqual(j == 0 ? 0 : 1, TU.CountStr(phyplan, "PhysicMarkJoin"));
+                    sql = "select a2 from a where not not not not exists (select * from a b where b.a3>=a.a1+b.a1+1) and a2>2;";
+                    var result = TU.ExecuteSQL(sql, out phyplan);
+                    Assert.AreEqual(0, result.Count);
+                    sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2;";
+                    TU.ExecuteSQL(sql, "1;2;3", out phyplan, option);
+                    Assert.AreEqual(j == 0 ? 0 : 1, TU.CountStr(phyplan, "PhysicMarkJoin"));
+                    sql = "select a2/2, count(*) from (select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2) b group by a2/2;";
+                    TU.ExecuteSQL(sql, "0,1;1,2", out phyplan, option);
+                    Assert.AreEqual(j == 0 ? 0 : 1, TU.CountStr(phyplan, "PhysicMarkJoin"));
+                    // multiple subquery - not exists ... and ... to test not <logical_expr> precedence
+                    sql = @"select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1)
                      and a2>1 and not exists (select * from a b where b.a2+7=a.a1+b.a1) and a2>1 and a2<4;";
-                TU.ExecuteSQL(sql, "2", out phyplan, option);
-                Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicMarkJoin"));
-                sql = "select a1 from a where exists (select b.b1 from b where b.b2=a.a1 and exists (select c.c2 from c where c.c1=b.b1))";
-                TU.ExecuteSQL(sql, "1;2", out phyplan, option);
-                Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicMarkJoin"));
-                sql = "select a1 from a where a1<=3 and exists (select b.b1 from b where b.b2=a.a1 and exists (select c.c2 from c where c.c1=b.b1 and exists (select d.d1 from d where d.d1=c.c1)))";
-                TU.ExecuteSQL(sql, "1;2", out phyplan, option);
-                Assert.AreEqual(3, TU.CountStr(phyplan, "PhysicMarkJoin"));
-                sql = "select a1 from a where exists (select b.b1 from b where b.b2=a.a1 and exists (select c.c2 from c where c.c1=b.b1 and exists (select d.d1 from d where d.d1=c.c1)))";
-                TU.ExecuteSQL(sql, "1;2", out phyplan, option);
-                Assert.AreEqual(3, TU.CountStr(phyplan, "PhysicMarkJoin"));
+                    TU.ExecuteSQL(sql, "2", out phyplan, option);
+                    Assert.AreEqual(j == 0 ? 0 : 2, TU.CountStr(phyplan, "PhysicMarkJoin"));
+                    sql = "select a1 from a where exists (select b.b1 from b where b.b2=a.a1 and exists (select c.c2 from c where c.c1=b.b1))";
+                    TU.ExecuteSQL(sql, "1;2", out phyplan, option);
+                    Assert.AreEqual(j == 0 ? 0 : 2, TU.CountStr(phyplan, "PhysicMarkJoin"));
+                    sql = "select a1 from a where a1<=3 and exists (select b.b1 from b where b.b2=a.a1 and exists (select c.c2 from c where c.c1=b.b1 and exists (select d.d1 from d where d.d1=c.c1)))";
+                    TU.ExecuteSQL(sql, "1;2", out phyplan, option);
+                    Assert.AreEqual(j == 0 ? 0 : 3, TU.CountStr(phyplan, "PhysicMarkJoin"));
+                    sql = "select a1 from a where exists (select b.b1 from b where b.b2=a.a1 and exists (select c.c2 from c where c.c1=b.b1 and exists (select d.d1 from d where d.d1=c.c1)))";
+                    TU.ExecuteSQL(sql, "1;2", out phyplan, option);
+                    Assert.AreEqual(j == 0 ? 0 : 3, TU.CountStr(phyplan, "PhysicMarkJoin"));
+                }
             }
+
         }
 
         [TestMethod]
         public void TestInSubquery()
         {
             QueryOption option = new QueryOption();
-
-            for (int i = 0; i < 2; i++)
+            for (int j = 0; j < 2; j++)
             {
-                option.optimize_.use_memo_ = i == 0;
-                var phyplan = "";
+                option.optimize_.enable_subquery_unnest_ = j == 1;
+                for (int i = 0; i < 2; i++)
+                {
+                    option.optimize_.use_memo_ = i == 0;
+                    var phyplan = "";
 
-                // many NOT test, there are only IN and NOT IN supported in SQL. 
-                var sql = "select a1 from a where a2 not not in (1,2)";
-                var result = ExecuteSQL(sql); Assert.IsNull(result);
-                Assert.IsTrue(TU.error_.Contains(@"no viable alternative at input 'a2 not not'"));
+                    // many NOT test, there are only IN and NOT IN supported in SQL. 
+                    var sql = "select a1 from a where a2 not not in (1,2)";
+                    var result = ExecuteSQL(sql); Assert.IsNull(result);
+                    Assert.IsTrue(TU.error_.Contains(@"no viable alternative at input 'a2 not not'"));
 
-                sql = "select a1 from a where a2 not not not in (1,2)";
-                result = ExecuteSQL(sql); Assert.IsNull(result);
-                Assert.IsTrue(TU.error_.Contains(@"no viable alternative at input 'a2 not not'"));
+                    sql = "select a1 from a where a2 not not not in (1,2)";
+                    result = ExecuteSQL(sql); Assert.IsNull(result);
+                    Assert.IsTrue(TU.error_.Contains(@"no viable alternative at input 'a2 not not'"));
 
-                // List InSubquery
-                sql = "select a1 from a where a2 not in (1,2)";
-                TU.ExecuteSQL(sql, "2", out phyplan, option);
-                Assert.AreEqual(1, TU.CountStr(phyplan, "not in"));
-                sql = "select a1 from a where a2 in (1,2)";
-                TU.ExecuteSQL(sql, "0;1", out phyplan, option);
-                Assert.AreEqual(0, TU.CountStr(phyplan, "not in"));
+                    // List InSubquery
+                    sql = "select a1 from a where a2 not in (1,2)";
+                    TU.ExecuteSQL(sql, "2", out phyplan, option);
+                    Assert.AreEqual(1, TU.CountStr(phyplan, "not in"));
+                    sql = "select a1 from a where a2 in (1,2)";
+                    TU.ExecuteSQL(sql, "0;1", out phyplan, option);
+                    Assert.AreEqual(0, TU.CountStr(phyplan, "not in"));
 
-                // non-corelated InSubquery
-                sql = "select a1 from a where a2 not in (select b1 from b where b2>1)"; // not in (1,2)
-                TU.ExecuteSQL(sql, "2", out phyplan, option);
-                Assert.AreEqual(1, TU.CountStr(phyplan, "not in"));
+                    // non-corelated InSubquery
+                    sql = "select a1 from a where a2 not in (select b1 from b where b2>1)"; // not in (1,2)
+                    TU.ExecuteSQL(sql, "2", out phyplan, option);
+                    Assert.AreEqual(1, TU.CountStr(phyplan, "not in"));
 
-                sql = "select a1 from a where a2 in (select b1 from b where b2>1)"; // in (1,2)
-                TU.ExecuteSQL(sql, "0;1", out phyplan, option);
-                Assert.AreEqual(0, TU.CountStr(phyplan, "not in"));
+                    sql = "select a1 from a where a2 in (select b1 from b where b2>1)"; // in (1,2)
+                    TU.ExecuteSQL(sql, "0;1", out phyplan, option);
+                    Assert.AreEqual(0, TU.CountStr(phyplan, "not in"));
 
-                sql = "select a1 from a where a1 in (3,4) or a1 in (0,1)";
-                TU.ExecuteSQL(sql, "0;1", out phyplan, option);
-                Assert.AreEqual(0, TU.CountStr(phyplan, "#marker"));
+                    sql = "select a1 from a where a1 in (3,4) or a1 in (0,1)";
+                    TU.ExecuteSQL(sql, "0;1", out phyplan, option);
+                    Assert.AreEqual(0, TU.CountStr(phyplan, "#marker"));
 
-                // corelated InSubquery
-                sql = "select a1 from a where a2 in (select b2 from b where b2 = a1)";
-                TU.ExecuteSQL(sql, "", out phyplan, option);
-                Assert.AreEqual(2, TU.CountStr(phyplan, "#marker"));
+                    // corelated InSubquery
+                    sql = "select a1 from a where a2 in (select b2 from b where b2 = a1)";
+                    TU.ExecuteSQL(sql, "", out phyplan, option);
+                    Assert.AreEqual(j == 0 ? 0 : 2, TU.CountStr(phyplan, "#marker"));
 
-                sql = "select a1 from a where a2 not in (select b2 from b where b2 = a1)";
-                TU.ExecuteSQL(sql, "0;1;2", out phyplan, option);
-                Assert.AreEqual(2, TU.CountStr(phyplan, "#marker"));
+                    sql = "select a1 from a where a2 not in (select b2 from b where b2 = a1)";
+                    TU.ExecuteSQL(sql, "0;1;2", out phyplan, option);
+                    Assert.AreEqual(j == 0 ? 0 : 2, TU.CountStr(phyplan, "#marker"));
 
-                sql = "select a1 from a where a2 in (select b2 from b where b1 = a1 and b3 > 2 ) and a1 > 0";
-                TU.ExecuteSQL(sql, "1;2", out phyplan, option);
+                    sql = "select a1 from a where a2 in (select b2 from b where b1 = a1 and b3 > 2 ) and a1 > 0";
+                    TU.ExecuteSQL(sql, "1;2", out phyplan, option);
+                }
             }
         }
 
@@ -1003,39 +1011,43 @@ namespace qpmodel.unittest
         {
             QueryOption option = new QueryOption();
 
-            for (int i = 0; i < 2; i++)
+            for (int j = 0; j < 2; j++)
             {
-                option.optimize_.use_memo_ = i == 0;
+                option.optimize_.enable_subquery_unnest_ = j == 1;
+                for (int i = 0; i < 2; i++)
+                {
+                    option.optimize_.use_memo_ = i == 0;
 
-                var phyplan = "";
-                var sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2);";
-                TU.ExecuteSQL(sql, "0,2;1,3;2,4", out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
-                sql = "select a1, a3  from a where a.a2 = (select b1*2 from b where b2 = a2);";
-                TU.ExecuteSQL(sql, "1,3", out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
-                sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<3);";
-                TU.ExecuteSQL(sql, "0,2", out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
-                sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) and a2>1;";
-                TU.ExecuteSQL(sql, "1,3", out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
-                sql = @"select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) 
+                    var phyplan = "";
+                    var sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2);";
+                    TU.ExecuteSQL(sql, "0,2;1,3;2,4", out phyplan, option); Assert.AreEqual(j == 0 ? 0 : 1, TU.CountStr(phyplan, "PhysicSingleJoin"));
+                    sql = "select a1, a3  from a where a.a2 = (select b1*2 from b where b2 = a2);";
+                    TU.ExecuteSQL(sql, "1,3", out phyplan, option); Assert.AreEqual(j == 0 ? 0 : 1, TU.CountStr(phyplan, "PhysicSingleJoin"));
+                    sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<3);";
+                    TU.ExecuteSQL(sql, "0,2", out phyplan, option); Assert.AreEqual(j == 0 ? 0 : 1, TU.CountStr(phyplan, "PhysicSingleJoin"));
+                    sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) and a2>1;";
+                    TU.ExecuteSQL(sql, "1,3", out phyplan, option); Assert.AreEqual(j == 0 ? 0 : 1, TU.CountStr(phyplan, "PhysicSingleJoin"));
+                    sql = @"select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) 
                 and b.b1 > (select c2 / 2 from c where c.c3 = 3);";
-                TU.ExecuteSQL(sql, "2", out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
-                sql = @"select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) 
+                    TU.ExecuteSQL(sql, "2", out phyplan, option); Assert.AreEqual(j == 0 ? 0 : 1, TU.CountStr(phyplan, "PhysicSingleJoin"));
+                    sql = @"select b1 from b where  b.b2 > (select c2 / 2 from c where c.c2 = b2) 
                 and b.b1 > (select c2 / 2 from c where c.c3 = b3);";
-                TU.ExecuteSQL(sql, "2", out phyplan, option); Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicSingleJoin"));
-                sql = @"select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 
+                    TU.ExecuteSQL(sql, "2", out phyplan, option); Assert.AreEqual(j == 0 ? 0 : 2, TU.CountStr(phyplan, "PhysicSingleJoin"));
+                    sql = @"select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 
                 and b1 = (select b1 from b where b3 = a3 and b3>1) and b2<3);";
-                TU.ExecuteSQL(sql, "0;1", out phyplan, option); Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicSingleJoin"));
-                sql = "select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b2 = 2*a1 and b3>1) and b2<3);";
-                TU.ExecuteSQL(sql, "1", out phyplan, option); Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicSingleJoin"));
-                sql = "select a1,a2,b2 from b join a on a1=b1 where a1-1 < (select a2/2 from a where a2=b2);";
-                TU.ExecuteSQL(sql, "0,1,1;1,2,2", out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
+                    TU.ExecuteSQL(sql, "0;1", out phyplan, option); Assert.AreEqual(j == 0 ? 0 : 2, TU.CountStr(phyplan, "PhysicSingleJoin"));
+                    sql = "select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 and b1 = (select b1 from b where b2 = 2*a1 and b3>1) and b2<3);";
+                    TU.ExecuteSQL(sql, "1", out phyplan, option); Assert.AreEqual(j == 0 ? 0 : 2, TU.CountStr(phyplan, "PhysicSingleJoin"));
+                    sql = "select a1,a2,b2 from b join a on a1=b1 where a1-1 < (select a2/2 from a where a2=b2);";
+                    TU.ExecuteSQL(sql, "0,1,1;1,2,2", out phyplan, option); Assert.AreEqual(j == 0 ? 0 : 1, TU.CountStr(phyplan, "PhysicSingleJoin"));
 
-                //  OR condition failed 
-                sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) or a2>1;";
-                TU.ExecuteSQL(sql, "0,2;1,3;2,4", out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
+                    //  OR condition failed 
+                    sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) or a2>1;";
+                    TU.ExecuteSQL(sql, "0,2;1,3;2,4", out phyplan, option); Assert.AreEqual(j == 0 ? 0 : 1, TU.CountStr(phyplan, "PhysicSingleJoin"));
 
-                //  OR condition failed
-                sql = "select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 or b1 = (select b1 from b where b2 = 2*a1 and b3>1) and b2<3);";
+                    //  OR condition failed
+                    sql = "select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 or b1 = (select b1 from b where b2 = 2*a1 and b3>1) and b2<3);";
+                }
             }
         }
 
@@ -2321,7 +2333,7 @@ namespace qpmodel.unittest
 
             // 1 NOT in [1] = False, NULL not in [NULL] = NULL
             TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 NOT IN (SELECT b2 FROM b WHERE a1 = b1)", "", out phyplan);
-            Assert.AreEqual(1, TU.CountStr(phyplan, "    -> PhysicMarkJoin Left (actual rows=4)")); 
+            Assert.AreEqual(1, TU.CountStr(phyplan, "    -> PhysicMarkJoin Left (actual rows=4)"));
 
             // 1 NOT in [1] = False, 2 NOT in [1,2] = False, 3 NOT in [1,2,3] = False, NULL not in [1,2,3,NULL] = False
             TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 NOT IN (SELECT b2 FROM b WHERE a1 <= b1)", "", out phyplan);
