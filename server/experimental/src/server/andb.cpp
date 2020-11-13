@@ -36,24 +36,11 @@ int main () {
     auto resource = DefaultResource::CreateMemoryResource (currentResource_, "current query");
     currentResource_ = resource;
 
-#ifdef __LATER
-    auto query = "select count(*) from a join b on a.i=b.i";
-    auto logplan = ParseAndAnalyze ((char*)query);
-#else
-    char *query = "select a1 from a";
+    char *query = "select 1 from a;";
     SQLParserResult presult;
     bool ret = ParseSQL (query, &presult);
-#endif
 
-#ifdef __LATER
-    auto phyplan = Optimize(logplan);
-    Execute (phyplan, [] (Row* l) {
-        std::cout << l->ToString () << std::endl;
-        return false;
-    });
-
-    std::cout << phyplan->Explain () << std::endl;
-#endif
+    std::cout << "parse: " << query << (ret ? " passed " : " failed ") << std::endl;
 
     DefaultResource::DeleteMemoryResource (resource);
     instance_.Shutdown ();

@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "gtest/gtest.h"
+#include "parser/include/expr.h"
 #include "parser/include/stmt.h"
 #include "parser/include/logicnode.h"
 #include "optimizer/optimizer.h"

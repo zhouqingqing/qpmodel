@@ -32,7 +32,6 @@ class Expr : public RuntimeNodeT<Expr>
       uint32_t    slot_;
 
       int          ival; // SQLParserResult uses this.
-
       Expr () : RuntimeNodeT<Expr> (), classTag_ (Expr_), type_ (D_NullFlag), alias_ (nullptr), slot_(0), ival(0) {}
 
       Expr (DataType type,std::string *alias = 0)
@@ -43,7 +42,6 @@ class Expr : public RuntimeNodeT<Expr>
           , slot_ (0)
           , ival (0)
       {}
-
 
       virtual std::string Explain (void* arg = nullptr) const { return {}; }
       virtual void Bind (BindContext& context) {
@@ -94,7 +92,7 @@ public:
     explicit ColExpr (std::string *colname) {
         classTag_ = ColExpr_;
         ordinal_ = UINT16_MAX;
-        colname_ = colname;
+        colname_ = new std::string(*colname);
     };
     void Bind (BindContext& context) { type_ = Int32; }
 };

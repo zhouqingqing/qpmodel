@@ -142,7 +142,6 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 	andb::SQLStatement      *statement;
 	andb::SelectStatement   *select_stmt;
 
-	std::string     *table_name;
 	andb::TableRef  *table;
 	andb::Expr      *expr;
 
@@ -150,9 +149,9 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 	andb::ColumnType  column_type_t;
 	std::vector<andb::SQLStatement*>    *stmt_vec;
 
-   std::pmr::vector<Expr*>       expr_vec{currentRescource_};
+   std::vector<Expr*>       *expr_vec;  // selection, group by, order by etc.
+   std::vector<TableRef*>   *table_vec; // FROM
 	std::vector<std::string*>     *str_vec;
-   std::pmr::vector<TableRef*>   table_vec{currentRescource_};
 
    // need to provide them because they get "deleted" by the compiler
    ANDB_STYPE() { ival = 0; } 
@@ -304,12 +303,14 @@ input:
 
 statement_list:
 		statement {
+         /* ACCEPT: statement */
 			$1->stringLength = yylloc.string_length;
 			yylloc.string_length = 0;
 			$$ = new std::vector<SQLStatement*>();
 			$$->push_back($1);
 		}
 	|	statement_list ';' statement {
+         /* ADD: statement to statement_list */
 			$3->stringLength = yylloc.string_length;
 			yylloc.string_length = 0;
 			$1->push_back($3);
@@ -328,15 +329,20 @@ statement:
 
 select_statement:
 		SELECT select_list from_clause opt_where {
+         /* ACCEPT: select_statement */
 			$$ = new SelectStatement();
-         $$->selection_ = $2;
-         $$->from_      = $3;
+         $$->setSelections($2);
+         $$->setFrom($3);
          $$->where_     = $4;
 		}
 	;
 
 opt_where:
-        WHERE expr {$$ = $2; }
+        WHERE expr {
+         /* ACCEPT: opt_where */
+           $$ = $2;
+        }
+
     | {$$ = nullptr;} /* empty */
     ;
 
@@ -347,7 +353,10 @@ select_list:
 
 
 from_clause:
-		FROM table_list { $$ = $2; }
+		FROM table_list {
+         /* ACCEPT: from_clause */
+         $$ = $2;
+      }
 	;
 
 
@@ -356,22 +365,25 @@ from_clause:
  ******************************/
 expr_list:
 		expr_alias {
-         /* $$ = new std::pmr::vector<Expr*>(); */
-         $$.push_back($1);
+         /* ACCEPT: expr_alias */
+         $$ = new std::vector<Expr*>();
+         $$->push_back($1);
       }
 	|	expr_list ',' expr_alias {
-      $1.push_back($3);
-      $$ = $1;
+         /* ADD: expr_alias to expr_list */
+         $1->push_back($3);
+         $$ = $1;
       }
 	;
 
 expr_alias:
 		expr opt_alias {
+         /* ACCEPT: expr opt_alias */
 			$$ = $1;
 			if ($2) {
 				$$->alias_ = $2;
 			}
-		}
+      }
 	;
 
 expr:
@@ -449,12 +461,14 @@ null_literal:
  ******************************/
 table_list:
       table_ref {
-          // $$ = new std::pmr::vector<TableRef *>();
-          $$.push_back($1);
+         /* ACCEPT: table_ref */
+          $$ = new std::vector<TableRef *>();
+          $$->push_back($1);
        }
       | table_list ',' table_ref {
-         $1.push_back($3);
-         $$ = $1;
+            /* ADD: table_ref to table_list */
+            $1->push_back($3);
+            $$ = $1;
          }
 	;
 
@@ -469,7 +483,10 @@ table_ref:
 	;
 
 table_name:
-		IDENTIFIER                { $$ = $1;}
+		IDENTIFIER {
+         /* ACCEPT: table_name */
+         $$ = new std::string(*$1);
+      }
 	;
 
 
@@ -479,8 +496,14 @@ opt_alias:
 	;
 
 alias:
-		AS IDENTIFIER { $$ = $2; }
-	|	IDENTIFIER
+		AS IDENTIFIER {
+         /* ACCEPT: AS alias */
+         $$ = new std::string(*$2);
+      }
+	|	IDENTIFIER {
+         /* ACCEPT: alias */
+         $$ = new std::string(*$1);
+      }
 	;
 
 /******************************
@@ -492,8 +515,16 @@ alias:
  ******************************/
 
 ident_commalist:
-		IDENTIFIER { $$ = new std::vector<std::string*>(); $$->push_back($1); }
-	|	ident_commalist ',' IDENTIFIER { $1->push_back($3); $$ = $1; }
+		IDENTIFIER {
+         $$ = new std::vector<std::string*>();
+         std::string *icl = new std::string(*$1);
+         $$->push_back(icl);
+      }
+	|	ident_commalist ',' IDENTIFIER {
+         std::string *ice = new std::string(*$3);
+         $1->push_back(ice);
+         $$ = $1;
+      }
 	;
 
 %%

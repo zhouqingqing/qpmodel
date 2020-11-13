@@ -66,9 +66,25 @@ public:
 
     ~SelectStmt () {}
 
+    void setSelections (std::vector<Expr*>* sels) {
+        std::vector<Expr*>& ev = *sels;
+        for (int i = 0; i < sels->size (); ++i) {
+            Expr *ne = new Expr(*ev[i]);
+            selection_.push_back (ne);
+        }
+    }
+
+    void setFrom (std::vector<TableRef*>* tbls) {
+        std::vector<TableRef*>& tv = *tbls;
+        for (int i = 0; i < tbls->size (); ++i) {
+           TableRef *nt = new TableRef(*tv[i]);
+           from_.push_back (nt);
+        }
+    }
+
+    std::pmr::vector<Expr*>     selection_{currentResource_};
     std::pmr::vector<TableRef*> from_{currentResource_};
     Expr    *where_ = nullptr;
-    std::pmr::vector<Expr*>     selection_{currentResource_};
 
 private:
     LogicNode* transformFromClause ();
