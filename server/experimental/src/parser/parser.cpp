@@ -59,8 +59,8 @@ LogicNode* ParseAndAnalyze (char* query) {
 }
 
 bool ParseSQL (char* query, SQLParserResult* result) {
-    yyscan_t scanner;
-    YY_BUFFER_STATE state;
+   yyscan_t scanner;
+   YY_BUFFER_STATE state;
 
     if (andb_lex_init (&scanner)) {
         throw "ParseSQL: andb_lex_init() failed\n";
@@ -70,6 +70,7 @@ bool ParseSQL (char* query, SQLParserResult* result) {
     int ret = andb_parse (result, scanner);
 
     result->setIsValid (ret == 0);
+
     andb__delete_buffer (state, scanner);
     andb_lex_destroy (scanner);
 
