@@ -30,6 +30,8 @@ select a1 from a where a1 + 1 < a1 + 4;
 select x1, true from q;
 select false, true from q;
 select false, true from q where false = true;
+select a1 + a2 from a where a1 < 10 or a2 > 20;
+select (a1 + a2) * a3 from a where (a1 < 10 or a2 > 20) and a4 < 100;
 
 # these three will fail.
 select * from a where a1 = null;
