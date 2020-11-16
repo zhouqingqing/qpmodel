@@ -78,13 +78,11 @@ int main(int argc, char* argv[])
 static void processSQL (void) {
     
     setupInput ();
-    bool moreInput = true;
     
     strcpy (query, "select a1 from a");
-    (void)getNextStmt ();
+    bool moreInput = getNextStmt ();
 
-    do {
-
+    while ((mode_interactive_on || mode_batch_on) && moreInput) {
         SQLParserResult presult;
         bool ret = ParseSQL (query, &presult);
 
@@ -100,8 +98,7 @@ static void processSQL (void) {
         }
 
         moreInput = getNextStmt ();
-
-    } while ((mode_interactive_on || mode_batch_on) && moreInput);
+    }
 }
 
 static void processOptions (int argc, char* argv[]) {
@@ -126,6 +123,8 @@ static void processOptions (int argc, char* argv[]) {
 
             case 'f':
                 inputFile = optarg;
+                mode_interactive_on = false;
+                mode_batch_on = true;
                 break;
 
             default:
@@ -136,7 +135,7 @@ static void processOptions (int argc, char* argv[]) {
 }
 
 static bool setupInput () {
-    if (mode_interactive_on) {
+    if (mode_batch_on) {
         querySrc = std::ifstream (inputFile);
         if (querySrc.bad () || querySrc.eof()) return false;
     }
@@ -147,29 +146,35 @@ static bool setupInput () {
 static bool getNextStmt () {
 
     int blen;
-    if (mode_batch_on) {
-        querySrc.getline (bufptr, ANDB_LINE_SIZE - 1, ';');
-        if (querySrc.bad () || querySrc.eof ()) return false;
-    } else if (mode_interactive_on) {
-        std::cout << "ASQL> ";
-        std::cin.getline (bufptr, ANDB_LINE_SIZE - 1, ';');
-    }
-    
-    blen = strlen (bufptr);
-    char *cp = bufptr;
-    for (int i = 0; i < blen; ++i) {
-        if (*cp == '\r' || *cp == '\n')
-            *cp++ = ' ';
-        else
-            break;
-    }
 
-    if (bufptr[0] == 0 || (blen = strlen (bufptr)) >= ANDB_LINE_SIZE - 1 ||
-        !strcmp(bufptr, "QUIT;") || !strcmp(bufptr, "\nQUIT;"))
-        return false;
-    /* append ; and return true */
-    bufptr[blen++] = ';';
-    bufptr[blen] = 0;
+    while (true) {
+        if (mode_batch_on) {
+            querySrc.getline (bufptr, ANDB_LINE_SIZE - 1, ';');
+            if (querySrc.bad () || querySrc.eof ()) return false;
+        } else if (mode_interactive_on) {
+            std::cout << "ASQL> ";
+            std::cin.getline (bufptr, ANDB_LINE_SIZE - 1, ';');
+        }
 
-    return true;
+        blen = strlen (bufptr);
+        char* cp = bufptr;
+        for (int i = 0; i < blen; ++i) {
+            if (*cp == '\r' || *cp == '\n' || isspace(*cp))
+                *cp++ = ' ';
+            else
+                break;
+        }
+
+        if (!cp || cp[0] == 0 || *cp == '#' || (*cp == '-' && *(cp + 1) == '-')) {
+            continue;
+        } else if ((blen = strlen (cp)) >= ANDB_LINE_SIZE - 1 ||
+            !strcmp (cp, "QUIT") || !strcmp (cp, "QUIT;") || !strcmp (cp, "\nQUIT;")) {
+            return false;
+        }
+        /* append ; and return true */
+        cp[blen++] = ';';
+        cp[blen] = 0;
+
+        return true;
+    }
 }

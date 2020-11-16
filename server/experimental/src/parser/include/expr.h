@@ -16,7 +16,7 @@ class ColExpr;
 
 class BindContext {};
 
-enum BinOp : uint16_t { Add = 0, Sub, Mul, Div, Equal, Neq, Less, Leq, Great, Geq };
+enum BinOp : uint16_t { Add = 0, Sub, Mul, Div, Equal, Neq, Less, Leq, Great, Geq, And, Or };
 
 class Expr : public RuntimeNodeT<Expr>
 {

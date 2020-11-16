@@ -27,9 +27,11 @@ select 1 + 2 + a1, a2 + 4 + 5 from a;
 select 1 + a1 + 2, 100 + a2 + 15 from a;
 select a1 * 0, a2 + 0, a3 - 0 from a;
 select a1 from a where a1 + 1 < a1 + 4;
-select * from a where a1 = null;
-select * from a where a1 is null;
-select * from a where a1 <> null;
 select x1, true from q;
 select false, true from q;
 select false, true from q where false = true;
+
+# these three will fail.
+select * from a where a1 = null;
+select * from a where a1 is null;
+select * from a where a1 <> null;

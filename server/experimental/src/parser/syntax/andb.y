@@ -381,16 +381,18 @@ expr_alias:
          /* ACCEPT: expr opt_alias */
 			$$ = $1;
 			if ($2) {
-				$$->alias_ = $2;
+				$$->alias_ = new std::string(*$2);
 			}
       }
 	;
 
 expr:
 		operand
+   | logic_expr
 	;
 
 operand:
+      '(' expr ')' { $$ = $2; }
 	|	scalar_expr
 	|	binary_expr
 	;
@@ -408,6 +410,11 @@ binary_expr:
 	|	operand '/' operand			{ $$ = makeOpBinary($1, BinOp::Div, $3); }
 	|	operand '*' operand			{ $$ = makeOpBinary($1, BinOp::Mul, $3); }
 	;
+
+logic_expr:
+          expr AND expr { $$ = makeOpBinary($1, BinOp::And, $3); }
+      | expr OR expr    { $$ = makeOpBinary($1, BinOp::Or, $3);  }
+      ;
 
 comp_expr:
 		operand '=' operand			{ $$ = makeOpBinary($1, BinOp::Equal, $3); }
