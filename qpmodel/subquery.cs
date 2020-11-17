@@ -95,31 +95,29 @@ namespace qpmodel.logic
         // further convert DJoin to semi-join here is by decorrelate process
         //
 
-        bool exprIsNotEqualToCurrentExistsExpr(Expr x, Expr curExistsExpr)
-        {
-            return x is SubqueryExpr && (!x.Equals(curExistsExpr));
-        }
         // check (@1 or (@2 or @3))) if @3 unnested here.
         // (@1 @2)
-        bool hasAnyExtreSubqueryExprInOR(Expr x, Expr exsitsExpr)
+        bool hasAnyExtraSubqueryExprInOR(Expr x, Expr exsitsExpr)
         {
+            bool exprIsNotEqualToCurrentExistsExpr(Expr x, Expr curExistsExpr)
+            {
+                return x is SubqueryExpr && (!x.Equals(curExistsExpr));
+            }
             if (x is LogicOrExpr xOR)
-            {
-                return hasAnyExtreSubqueryExprInOR(xOR.rchild_(), exsitsExpr) || hasAnyExtreSubqueryExprInOR(xOR.lchild_(), exsitsExpr);
-            }
+                return hasAnyExtraSubqueryExprInOR(xOR.rchild_(), exsitsExpr) || hasAnyExtraSubqueryExprInOR(xOR.lchild_(), exsitsExpr);
             else
-            {
                 return x.VisitEachExists(y => exprIsNotEqualToCurrentExistsExpr(y, exsitsExpr));
-            }
         }
 
-        bool exprIsNotORExprAndEqualsToExistExpr(Expr x, Expr existExpr)
-        {
-            return (!(x is LogicOrExpr)) && x.Equals(existExpr);
-        }
-        // 如果有or， 就不能变成filter，否则无法替换
+        // If there is OR in the predicate, can't turn into a filter
+        //
         LogicNode existsToMarkJoin(LogicNode nodeA, ExistSubqueryExpr existExpr, ref bool canReplace)
         {
+            bool exprIsNotORExprAndEqualsToExistExpr(Expr x, Expr existExpr)
+            {
+                return (!(x is LogicOrExpr)) && x.Equals(existExpr);
+            }
+
             // nodeB contains the join filter
             var nodeB = existExpr.query_.logicPlan_;
             var nodeBFilter = nodeB.filter_;
@@ -129,7 +127,6 @@ namespace qpmodel.logic
             // if nodeA is a Filter|MarkJoin, keep its mark filter.
             var markerFilter = new ExprRef(new MarkerExpr(nodeBFilter.tableRefs_, existExpr.subqueryid_), 0);
             var nodeAFilter = nodeA.filter_;
-
             Debug.Assert(!(nodeA is null));
 
             // a1 > @1 and a2 > @2 and a3 > 2, existExpr = @1
@@ -145,12 +142,12 @@ namespace qpmodel.logic
             //   nodeAFilter = (@1 or marker@2)
             var andlist = nodeAFilter.FilterToAndList();
             var keeplist = andlist.Where(x => x.VisitEachExists(e => e.Equals(existExpr))).ToList();
-
-            andlist.RemoveAll(x => exprIsNotORExprAndEqualsToExistExpr(x, existExpr) || (x is LogicOrExpr) && !hasAnyExtreSubqueryExprInOR(x, existExpr));
+            andlist.RemoveAll(x => exprIsNotORExprAndEqualsToExistExpr(x, existExpr) ||
+                            (x is LogicOrExpr) && !hasAnyExtraSubqueryExprInOR(x, existExpr));
 
             // if there is any (#marker@1 or @2), the root should be replace, 
             // i.e. the (#marker@1 or @2)  keeps at the top for farther unnesting
-            canReplace = andlist.Find(x => (x is LogicOrExpr) && hasAnyExtreSubqueryExprInOR(x, existExpr)) == null ? false : true;
+            canReplace = andlist.Find(x => (x is LogicOrExpr) && hasAnyExtraSubqueryExprInOR(x, existExpr)) == null ? false : true;
 
             if (andlist.Count == 0 || canReplace)
                 // nodeA is root, a ref parameter. (why it is a ref parameter without "ref" or "out" )
@@ -170,14 +167,11 @@ namespace qpmodel.logic
 
             // make a filter on top of the mark join collecting all filters
             Expr topfilter;
-
             topfilter = nodeAFilter.SearchAndReplace(existExpr, markerFilter);
-
             nodeBFilter.DeParameter(nodeA.InclusiveTableRefs());
 
             // find all expr contains Parameter col and move it to the toper
             var TableRefs = nodeA.InclusiveTableRefs();
-
             topfilter = topfilter.AddAndFilter(nodeBFilter);
             LogicFilter Filter = new LogicFilter(markjoin, topfilter);
             var notDeparameterExpr = findAndfetchParameterExpr(ref nodeA);
@@ -188,12 +182,13 @@ namespace qpmodel.logic
             }
             return Filter;
         }
-        bool isUnresolvedColExpr(Expr e)
-        {
-            return e is ColExpr eCE && eCE.isParameter_;
-        }
+
         List<Expr> findAndfetchParameterExpr(ref LogicNode nodeA)
         {
+            bool isUnresolvedColExpr(Expr e)
+            {
+                return e is ColExpr eCE && eCE.isParameter_;
+            }
             List<Expr> notDeparameterExpr = new List<Expr>();
 
             nodeA.VisitEach(x =>
@@ -635,21 +630,9 @@ namespace qpmodel.logic
         int findMarkerOrdinal()
         {
             var output = this.logic_.output_;
-            int ordinal = output.FindIndex(x => x is ExprRef xE && xE.child_() is MarkerExpr xEM && logic_ is LogicMarkJoin lm && xEM.subqueryid_ == lm.subquery_id_);
+            int ordinal = output.FindIndex(x => x is ExprRef xE && xE.child_() is MarkerExpr xEM
+                            && logic_ is LogicMarkJoin lm && xEM.subqueryid_ == lm.subquery_id_);
             return ordinal;
-        }
-
-
-        private bool colsHasNull(Row r)
-        {
-            for (int i = 0; i < r.ColCount(); i++)
-            {
-                if (r[i] is null)
-                {
-                    return true;
-                }
-            }
-            return false;
         }
 
         private bool filterHasMarkerBinExpr(Expr filter) => filter.FilterToAndList().Exists(x => x is BinExpr xB && xB.IsMarkerBinExpr());
@@ -675,7 +658,7 @@ namespace qpmodel.logic
 
             lchild_().Exec(l =>
             {
-                lIsNull = colsHasNull(l) ? true : false;
+                lIsNull = l.ColsHasNull();
                 marker = false;
                 rchild_().Exec(r =>
                 {
@@ -683,12 +666,14 @@ namespace qpmodel.logic
                     if (isDerivedFromInClause)
                     {
                         if (!(r is null))
-                            RHasNull = colsHasNull(r) ? true : false;
+                            RHasNull = r.ColsHasNull();
                         var andList = filter.FilterToAndList();
+
                         // SELECT a1 FROM a WHERE a1 = 3 and a2 NOT IN (SELECT b2 FROM b WHERE a1 < b1);
                         // a1 < b1 will not produce marker 
                         // a2 = b2 will produce marker 
                         // if the markjoin is derived from IN clause, we need to judge if it is a empty
+                        //
                         if (andList.Count >= 2)
                         {
                             var markerExpr = andList.Find(x => x is BinExpr xB && xB.IsMarkerBinExpr());
@@ -701,10 +686,8 @@ namespace qpmodel.logic
                             else
                                 return;
 
-                            var flagM = markerExpr.Exec(context, n);
-
                             // there is at least one match, mark true
-                            if (flagM is true)
+                            if (markerExpr.Exec(context, n) is true)
                                 marker = true;
                         }
                         else if (filter.Exec(context, n) is true)
@@ -716,7 +699,7 @@ namespace qpmodel.logic
                         {
                             marker = true;
                             n = ExecProject(n);
-                            fixMarkerValue(n, semi ? true : false);
+                            fixMarkerValue(n, semi);
                             callback(n);
                         }
                     }
@@ -732,11 +715,9 @@ namespace qpmodel.logic
 
                     Row r = new Row(rchild_().logic_.output_.Count);
                     Row n = new Row(l, r);
-
                     n = ExecProject(n);
 
                     markerOrdinal = findMarkerOrdinal();
-
                     if (marker is null)
                         fixMarkerValue(n, false);
                     else
@@ -746,7 +727,6 @@ namespace qpmodel.logic
                     }
 
                     callback(n);
-
                 }
                 else if (!(marker is true) && !isDerivedFromInClause)
                 {

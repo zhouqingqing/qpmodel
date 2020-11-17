@@ -36,11 +36,8 @@ using System.Numerics;
 using BitVector = System.Int64;
 using LogicSignature = System.Int64;
 
-using qpmodel.utils;
 using qpmodel.logic;
 using qpmodel.physic;
-using qpmodel.optimizer;
-using qpmodel.stat;
 using qpmodel.expr;
 using qpmodel.optimizer.test;
 

@@ -29,7 +29,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 
 using qpmodel.logic;
 using qpmodel.physic;
@@ -37,7 +36,6 @@ using qpmodel.expr;
 using qpmodel.utils;
 
 using LogicSignature = System.Int64;
-using Microsoft.VisualBasic.CompilerServices;
 
 // TODO:
 //  - branch and bound prouning
