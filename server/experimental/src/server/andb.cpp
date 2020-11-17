@@ -88,6 +88,25 @@ static void processSQL (void) {
 
         if (ret) {
             std::cout << "passed: " << query << std::endl;
+            // Adhoc explain:
+            const SelectStatement *selStmt = (const SelectStmt *)presult.getStatement (0);
+            for (auto eit = selStmt->selection_.cbegin (); eit != selStmt->selection_.cend ();
+                 ++eit) {
+                if ((*eit)->classTag_ == ColExpr_) {
+                    const ColExpr* ce = (const ColExpr*)*eit;
+                    std::cout << "col = " << *(ce->colname_) << ", ";
+                }
+            }
+            std::cout << "\n";
+
+            for (auto cti = selStmt->from_.cbegin(); cti != selStmt->from_.cend(); cti++) {
+                if ((*cti)->classTag_ == BaseTableRef_) {
+                    const BaseTableRef* bt = (const BaseTableRef*)(*cti);
+                    std::cout << "tbl = " << *(bt->tabname_) << ", ";
+                }
+            }
+            std::cout << "\n";
+
         } else {
             const char* emsg = presult.errorMsg ();
             int el = presult.errorLine ();
@@ -97,6 +116,7 @@ static void processSQL (void) {
                       << std::endl;
         }
 
+        presult.reset ();
         moreInput = getNextStmt ();
     }
 }

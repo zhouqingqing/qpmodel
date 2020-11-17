@@ -43,6 +43,16 @@ class Expr : public RuntimeNodeT<Expr>
           , ival (0)
       {}
 
+      virtual Expr* Clone() {
+         Expr* e = new Expr ();
+         e->alias_ = alias_;
+         e->type_ = type_;
+         e->slot_ = slot_;
+         e->ival = ival;
+
+         return e;
+      }
+
       virtual std::string Explain (void* arg = nullptr) const { return {}; }
       virtual void Bind (BindContext& context) {
          auto nchildren = childrenCount ();
@@ -59,6 +69,8 @@ class SelStar : public NodeBase<Expr, N0> {
          : tabAlias_(alias)
       {
       }
+
+      void Bind (BindContext& context) {}
 };
 
 
@@ -71,6 +83,12 @@ public:
         classTag_ = ConstExpr_;
         value_ = value;
         type_ = (DataType)value.index ();
+    }
+
+    Expr* Clone() override { return new ConstExpr (value_); }
+
+    void Binbf(BindContext& context) {
+
     }
 };
 
@@ -94,6 +112,14 @@ public:
         ordinal_ = UINT16_MAX;
         colname_ = new std::string(*colname);
     };
+
+    explicit ColExpr (uint16_t ordinal, const std::string &colname) {
+        classTag_ = ColExpr_;
+        ordinal_  = ordinal;
+        colname_  = new std::string (colname);
+    }
+
+    Expr* Clone () override { return new ColExpr (ordinal_, *colname_); }
     void Bind (BindContext& context) { type_ = Int32; }
 };
 
@@ -109,6 +135,11 @@ public:
         op_ = op;
         children_[0] = l;
         children_[1] = r;
+    }
+
+    // TODO: not setting fn_
+    Expr *Clone() override {
+        return new BinExpr (op_, children_[0], children_[1]);
     }
 
     void Bind (BindContext& context) {

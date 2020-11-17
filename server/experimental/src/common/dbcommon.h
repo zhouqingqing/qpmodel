@@ -27,6 +27,7 @@ enum ClassTag : uint8_t {
     TypeBase_,
     ColumnType_,
     ColumnDef_,
+    TableRef_,
     BaseTableRef_,
     Expr_,
     QueryRef_
@@ -77,13 +78,22 @@ class ColumnDef : public UseCurrentResource {
 class TableRef : public UseCurrentResource {
 public:
     ClassTag classTag_;
+
+    TableRef () : classTag_ (TableRef_)
+    {}
+
+    virtual TableRef* Clone () { TableRef* tr = new TableRef ();
+        tr->classTag_ = TableRef_;
+
+        return tr;
+    }
 };
 
 class BaseTableRef : public TableRef {
+public:
     std::string* tabname_;
     std::string* alias_;
 
-public:
     BaseTableRef (std::string* tabname, std::string* alias = nullptr)
         : tabname_ (tabname), alias_ (alias) {
         classTag_ = BaseTableRef_;
@@ -93,6 +103,11 @@ public:
         classTag_ = BaseTableRef_;
         tabname_ = new std::string (tabname);
         alias_ = alias ? new std::string (alias) : nullptr;
+    }
+
+    virtual TableRef *Clone () override {
+        BaseTableRef* btrf = new BaseTableRef (tabname_, alias_);
+        return btrf;
     }
 };
 

@@ -35,9 +35,11 @@ public:
   };
 
     SQLStatement(StatementType type);
-    SQLStatement () : type_ (kStmtError) {}
+    SQLStatement () : type_ (kStmtError) {
+    }
 
-    virtual ~SQLStatement () {}
+    virtual ~SQLStatement () {
+    }
 
     StatementType type() const;
 
@@ -62,22 +64,25 @@ private:
 class SelectStmt : public SQLStatement {
 public:
     SelectStmt () : SQLStatement ()
-    {}
+    {
+    }
 
-    ~SelectStmt () {}
+    ~SelectStmt () {
+    }
 
     void setSelections (std::vector<Expr*>* sels) {
         std::vector<Expr*>& ev = *sels;
+        Expr* ne = nullptr;
         for (int i = 0; i < sels->size (); ++i) {
-            Expr *ne = new Expr(*ev[i]);
-            selection_.push_back (ne);
+            Expr* pev = ev[i]->Clone ();
+            selection_.push_back (pev);
         }
     }
 
     void setFrom (std::vector<TableRef*>* tbls) {
         std::vector<TableRef*>& tv = *tbls;
         for (int i = 0; i < tbls->size (); ++i) {
-           TableRef *nt = new TableRef(*tv[i]);
+            TableRef* nt = tv[i]->Clone ();
            from_.push_back (nt);
         }
     }
