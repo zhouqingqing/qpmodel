@@ -431,6 +431,12 @@ namespace qpmodel.unittest
                 "q00085",
                 "q88", "q90", "q91", "q92", "q94", "q95", "q96", "q99"
             };
+
+            // if only run one sql
+            //
+            runnable = new List<string>{
+                "q4"
+            };
             List<string> BadQueries = new List<string>();
 
             foreach (var v in files)
@@ -452,9 +458,7 @@ namespace qpmodel.unittest
             option.optimize_.remove_from_ = false;
             option.optimize_.use_memo_ = true;
 
-
             RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badqueries);
-
         }
 
         [TestMethod]
@@ -2270,6 +2274,19 @@ namespace qpmodel.unittest
             sql = "select a1 aa1, sum(a2) aa2 from a group by aa1 order by aa1";
             TU.ExecuteSQL(sql, "0,1;1,2;2,3", out phyplan);
             Assert.IsTrue(phyplan.Contains("Output: a.a1 (as aa1)[0],{sum(a.a2)}[1]"));
+        }
+
+        [TestMethod]
+        public void TestCaseWhen()
+        {
+            var sql = "select case a1 when 0 then 'a' when 1 then 'b' when 2 then 'c' else 'd' end from a;";
+            TU.ExecuteSQL(sql, "a;b;c");
+
+            // FIXME 
+            // tpcds q4 has CASE WHEN in From clause
+            // below is test for it but failed
+            //
+            // TU.ExecuteSQL("select a1 from a where case when a1 > 1 then a1 = 2 else a1 = 0 end", "0,2", out phyplan);
         }
 
         [TestMethod]
