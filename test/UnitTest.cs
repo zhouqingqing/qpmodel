@@ -432,11 +432,11 @@ namespace qpmodel.unittest
                 "q88", "q90", "q91", "q92", "q94", "q95", "q96", "q99"
             };
 
-            // if only run one sql
+            // if only run one sql, 
             //
-            runnable = new List<string>{
-                "q4"
-            };
+            //runnable = new List<string>{
+            //    "q4"
+            //};
             List<string> BadQueries = new List<string>();
 
             foreach (var v in files)
