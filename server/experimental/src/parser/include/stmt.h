@@ -88,7 +88,7 @@ public:
         }
     }
 
-    virtual std::string Explain(void *arg = nullptr) const override {
+    std::string Explain(void *arg = nullptr) const override {
        std::string ret = "select ";
         for (int i = 0; i < selection_.size (); ++i) {
            if (i > 0) ret += ", ";

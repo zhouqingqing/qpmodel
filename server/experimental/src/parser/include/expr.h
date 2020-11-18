@@ -120,14 +120,13 @@ public:
 
     Expr* Clone() override { return new ConstExpr (value_); }
 
-    virtual std::string Explain (void* arg = nullptr) const override {
+    std::string Explain (void* arg = nullptr) const override {
        std::string val = value_.ToString();
 
        return val;
     }
 
-    virtual void Bind(BindContext& context) override {
-
+    void Bind(BindContext& context) override {
     }
 };
 

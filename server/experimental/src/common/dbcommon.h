@@ -108,7 +108,7 @@ public:
         alias_ = alias ? new std::string (alias) : nullptr;
     }
 
-    virtual TableRef *Clone () override {
+    TableRef *Clone () override {
         BaseTableRef* btrf = new BaseTableRef (tabname_, alias_);
         return btrf;
     }

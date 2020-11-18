@@ -76,7 +76,6 @@ int main(int argc, char* argv[])
 }
 
 static void processSQL (void) {
-    
     setupInput ();
     
     strcpy (query, "select a1 from a");
@@ -148,7 +147,6 @@ static bool setupInput () {
 }
 
 static bool getNextStmt () {
-
     int blen;
 
     while (true) {
