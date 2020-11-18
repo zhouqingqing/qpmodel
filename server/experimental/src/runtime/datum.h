@@ -38,10 +38,14 @@ public:  // extension methods
                 using T = std::decay_t<decltype (datum)>;
                 if constexpr (std::is_same_v<T, int>)
                     s = std::to_string (std::get<int> (d));
+                else if constexpr (std::is_same_v<T, __int64>)
+                    s = std::to_string (std::get<__int64> (d));
                 else if constexpr (std::is_same_v<T, std::string>)
                     s = std::get<std::string> (d);
-                else if constexpr (std::is_same_v<T, bool>)
-                    s = std::get<bool> (d);
+                else if constexpr (std::is_same_v<T, bool>) {
+                    bool bv = std::get<bool> (d);
+                    s = bv ? " TRUE " : " FALSE ";
+                }
                 else if constexpr (std::is_same_v<T, NullFlag>)
                     s = "<null>";
             },

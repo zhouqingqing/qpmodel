@@ -87,6 +87,9 @@ public:
 
         return tr;
     }
+
+    virtual std::string Explain(void *arg = nullptr) const { return {};
+    }
 };
 
 class BaseTableRef : public TableRef {
@@ -108,6 +111,15 @@ public:
     virtual TableRef *Clone () override {
         BaseTableRef* btrf = new BaseTableRef (tabname_, alias_);
         return btrf;
+    }
+
+    std::string Explain(void *arg = nullptr) const override {
+       std::string ret = *tabname_;
+
+       if (alias_)
+          ret += " " + *alias_;
+
+       return ret;
     }
 };
 

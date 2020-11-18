@@ -59,6 +59,7 @@ private:
 
    public:
     virtual LogicNode   *CreatePlan (void) = 0;
+    virtual std::string Explain (void* arg = nullptr) const = 0;
 };
 
 class SelectStmt : public SQLStatement {
@@ -85,6 +86,28 @@ public:
             TableRef* nt = tv[i]->Clone ();
            from_.push_back (nt);
         }
+    }
+
+    virtual std::string Explain(void *arg = nullptr) const override {
+       std::string ret = "select ";
+        for (int i = 0; i < selection_.size (); ++i) {
+           if (i > 0) ret += ", ";
+            ret += selection_[i]->Explain() + " ";
+        }
+
+        ret += " FROM ";
+        for (int i = 0; i < from_.size (); ++i) {
+          if (i > 0)
+             ret += ", ";
+           ret += from_[i]->Explain();
+        }
+
+        if (where_ != nullptr) {
+           ret += " WHERE ";
+           ret += where_->Explain() + ";";
+        }
+
+        return ret;
     }
 
     std::pmr::vector<Expr*>     selection_{currentResource_};

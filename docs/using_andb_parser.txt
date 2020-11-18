@@ -2,13 +2,13 @@
 This docuement describes the process required to use andb parser in the new
 native code while running on Windows.
 
-GNU fles and bison are not available on Windows. Someone ported them to
+GNU flex and bison are not available on Windows. Someone ported them to
 windows, this project is called winflex/winbison and is avaliable on
 sourceforge. It was descided that since Windows is only transitional, not
 to use winfles/winbison but to use a Linux system to compile these files.
 
 
-To maintain naming consistance, the following changes are made to original
+To maintain naming consistency, the following changes are made to original
 andb.l and andb.y.
 
    1) Rename bison_parser.h as andb_parser.h.

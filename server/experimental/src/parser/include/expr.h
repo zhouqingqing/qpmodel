@@ -59,6 +59,39 @@ class Expr : public RuntimeNodeT<Expr>
          for (int i = 0; i < nchildren; i++) child (i)->Bind (context);
       };
 
+      static std::string ExplainBinOp(BinOp op) {
+          switch (op) {
+              case Add:
+                  return " + ";
+              case Sub:
+                  return " - ";
+              case Mul:
+                  return " * ";
+              case Div:
+                  return " / ";
+              case Equal:
+                  return " = ";
+              case Neq:
+                  return " <> ";
+              case Less:
+                  return " < ";
+              case Leq:
+                  return " <= ";
+                  /* Add = 0, Sub, Mul, Div, Equal, Neq, Less, Leq, Great, Geq, And, Or */
+              case Great:
+                  return " > ";
+              case Geq:
+                  return " >= ";
+              case And:
+                  return " AND ";
+              case Or:
+                  return " OR ";
+              default:
+                  assert ("unknown op in BinOp::explain");
+                  return "???";
+          }
+      }
+
 };
 
 class SelStar : public NodeBase<Expr, N0> {
@@ -87,7 +120,13 @@ public:
 
     Expr* Clone() override { return new ConstExpr (value_); }
 
-    void Binbf(BindContext& context) {
+    virtual std::string Explain (void* arg = nullptr) const override {
+       std::string val = value_.ToString();
+
+       return val;
+    }
+
+    virtual void Bind(BindContext& context) override {
 
     }
 };
@@ -96,31 +135,63 @@ class ColExpr : public NodeBase<Expr, N0> {
 public:
     uint16_t    ordinal_;
     std::string *colname_;
+    std::string *tabname_;
+    std::string *schname_;
 
-    explicit ColExpr (uint16_t ordinal) {
+    explicit ColExpr (uint16_t ordinal, std::string *colname = nullptr, std::string *tabname = nullptr, std::string *schname = nullptr) {
         classTag_ = ColExpr_;
         ordinal_ = ordinal;
-        colname_ = nullptr;
+        colname_ = colname ? new std::string(*colname) : nullptr;
+        tabname_ = tabname ? new std::string(*tabname) : nullptr;
+        schname_ = schname ? new std::string(*schname) : nullptr;
     };
-    explicit ColExpr (char *colname) {
+
+    explicit ColExpr (const char *colname, const char *tabname = nullptr, const char *schname = nullptr) {
         classTag_ = ColExpr_;
         ordinal_ = UINT16_MAX;
         colname_ = new std::string(colname);
+        tabname_ = tabname ? new std::string(tabname) : nullptr;
+        schname_ = schname ? new std::string(schname) : nullptr;
     };
+
     explicit ColExpr (std::string *colname) {
         classTag_ = ColExpr_;
         ordinal_ = UINT16_MAX;
         colname_ = new std::string(*colname);
+        tabname_ = nullptr;
+        schname_ = nullptr;
     };
 
     explicit ColExpr (uint16_t ordinal, const std::string &colname) {
         classTag_ = ColExpr_;
         ordinal_  = ordinal;
         colname_  = new std::string (colname);
+        tabname_ = nullptr;
+        schname_ = nullptr;
     }
 
     Expr* Clone () override { return new ColExpr (ordinal_, *colname_); }
     void Bind (BindContext& context) { type_ = Int32; }
+
+    std::string ToString() const {
+       std::string ret;
+
+       if (schname_) {
+           ret = *schname_ + ".";
+       }
+
+       if (tabname_) {
+               ret += *tabname_ + ".";
+       }
+
+       ret += *colname_;
+
+       return ret;
+    }
+
+    std::string Explain(void *arg = nullptr) const override {
+       return ToString();
+    }
 };
 
 class BinExpr : public NodeBase<Expr, N2> {
@@ -140,6 +211,24 @@ public:
     // TODO: not setting fn_
     Expr *Clone() override {
         return new BinExpr (op_, children_[0], children_[1]);
+    }
+
+    std::string Explain (void* arg = nullptr) const override {
+        bool addParen = false;
+        switch (op_) {
+            case BinOp::Add:
+            case BinOp::Sub:
+            case BinOp::Or:
+                addParen = true;
+        }
+
+        std::string ret;
+
+        if (addParen) ret += "(";
+        ret += child (0)->Explain () + Expr::ExplainBinOp (op_) + child (1)->Explain();
+        if (addParen) ret += ")";
+
+        return ret;
     }
 
     void Bind (BindContext& context) {
