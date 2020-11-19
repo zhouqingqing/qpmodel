@@ -6,6 +6,7 @@
 
 #include "common/common.h"
 #include "fmtlib/include/fmt/format.h"
+
 namespace andb {
 
 // Datum is a union of all possible typed
@@ -19,8 +20,8 @@ using UserType = void*;
 // DataType keep the same order as std::variant<> as they are used as index to access std::varaint.
 // Null has to be the first.
 //
-enum DataType { D_NullFlag = 0, Bool, Int32, String, D_UserType };
-using DatumVariant = std::variant<NullFlag, bool, int32_t, std::string, UserType>;
+enum DataType { D_NullFlag = 0, Bool, Int32, Int64, String, Double, D_UserType };
+using DatumVariant = std::variant<NullFlag, bool, int32_t, int64_t, std::string, double, UserType>;
 
 class Datum : public DatumVariant {
     using base_type = DatumVariant;
@@ -37,10 +38,14 @@ public:  // extension methods
                 using T = std::decay_t<decltype (datum)>;
                 if constexpr (std::is_same_v<T, int>)
                     s = std::to_string (std::get<int> (d));
+                else if constexpr (std::is_same_v<T, __int64>)
+                    s = std::to_string (std::get<__int64> (d));
                 else if constexpr (std::is_same_v<T, std::string>)
                     s = std::get<std::string> (d);
-                else if constexpr (std::is_same_v<T, bool>)
-                    s = std::get<bool> (d);
+                else if constexpr (std::is_same_v<T, bool>) {
+                    bool bv = std::get<bool> (d);
+                    s = bv ? " TRUE " : " FALSE ";
+                }
                 else if constexpr (std::is_same_v<T, NullFlag>)
                     s = "<null>";
             },

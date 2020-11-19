@@ -3,7 +3,7 @@
 
 #include "common/dbcommon.h"
 #include "common/nodebase.h"
-#include "parser/logicnode.h"
+#include "parser/include/logicnode.h"
 #include "runtime/datum.h"
 
 namespace andb {
