@@ -7,6 +7,7 @@
 #include <numeric>
 #include <random>
 
+#include "common/platform.h"
 #include "debug.h"
 #include "memory.h"
 

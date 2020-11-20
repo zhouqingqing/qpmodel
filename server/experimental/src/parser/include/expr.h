@@ -168,7 +168,10 @@ public:
         schname_ = nullptr;
     }
 
-    Expr* Clone () override { return new ColExpr (ordinal_, *colname_); }
+    Expr* Clone () override {
+        return new ColExpr (ordinal_, colname_, tabname_, schname_);
+    }
+
     void Bind (BindContext& context) { type_ = Int32; }
 
     std::string ToString() const {

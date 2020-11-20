@@ -1,18 +1,17 @@
-#include "common/catalog.h"
-
 #include "common/common.h"
 #include "common/dbcommon.h"
+#include "common/catalog.h"
 
 namespace andb {
 
-static SysTable* systable_ = new SysTable();
-static SysStats* sysstat_ = new SysStats ();
+SysTable* Catalog::systable_ = new SysTable();
+SysStats* Catalog::sysstat_ = new SysStats ();
 
 // NOTE: None of the operations here are Multi-Thread (MT) safe.
 bool SysTable::CreateTable (const std::string* tabName, std::vector<ColumnDef*>* columns,
                             std::string* distBy) {
     TableDef* tblDef = new TableDef (tabName, *columns);
-    auto [it, added] = records_.insert (make_pair(tabName, tblDef));
+    auto [it, added] = records_.insert (make_pair(tblDef->name_, tblDef));
 
     if (!added) {
         // ??? throw?

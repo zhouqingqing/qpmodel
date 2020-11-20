@@ -129,8 +129,9 @@ Expr* makeColumnRef (char* cname, char* alias) {
     return e;
 }
 
-Expr* makeColumnRef (std::string* cname, std::string* alias) {
-    Expr* e = new ColExpr (const_cast<char*> (cname->c_str ()));
+Expr* makeColumnRef (std::string* cname, std::string* tname) {
+    const char* tab = tname ? tname->c_str () : nullptr;
+    Expr* e = new ColExpr (const_cast<char*> (cname->c_str ()), tab);
 
     return e;
 }

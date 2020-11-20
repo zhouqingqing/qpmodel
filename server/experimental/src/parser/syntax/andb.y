@@ -428,7 +428,7 @@ comp_expr:
 
 column_name:
 		IDENTIFIER { $$ = makeColumnRef($1); }
-	|	IDENTIFIER '.' IDENTIFIER { $$ = makeColumnRef($1, $3); }
+	|	IDENTIFIER '.' IDENTIFIER { $$ = makeColumnRef($3, $1); }
 	|	'*' { $$ = makeStar(); }
 	|	IDENTIFIER '.' '*' { $$ = makeStar($1); }
 	;

@@ -11,6 +11,10 @@ class SystemTable : public UseCurrentResource {};
 
 class SysTable : public SystemTable {
 public:
+
+    SysTable() {
+    }
+
     bool CreateTable (const std::string* tabName, std::vector<ColumnDef*>* columns,
                       std::string* distBy = nullptr);
 

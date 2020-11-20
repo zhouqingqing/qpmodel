@@ -117,6 +117,11 @@ class ColumnDef : public UseCurrentResource {
             quoted_ = true;
          }
       }
+
+      ColumnDef* Clone () {
+          ColumnDef* ncd = new ColumnDef (name_, type_, ordinal_, nullable_);
+          return ncd;
+      }
 };
 
 class TableDef : public UseCurrentResource { /* */
@@ -136,7 +141,11 @@ class TableDef : public UseCurrentResource { /* */
 
          columns_ = new std::map<const std::string*, ColumnDef*>();
 
-         for (auto c : columns) (*columns_)[c->name_] = c;
+         for (auto c : columns) {
+             ColumnDef* cdef = c->Clone ();
+             auto [it, added] = columns_->insert (std::make_pair(c->name_, cdef));
+             if (!added) throw "DuplicateColumnDefition";
+         }
       }
 
       // Let there be RVO

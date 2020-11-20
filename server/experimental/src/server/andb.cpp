@@ -4,6 +4,7 @@
 #include <cctype>
 
 #include "common/common.h"
+#include "common/catalog.h"
 #include "optimizer/optimizer.h"
 #include "parser/include/parser.h"
 #include "runtime/runtime.h"
@@ -68,6 +69,7 @@ int main(int argc, char* argv[])
     auto resource = DefaultResource::CreateMemoryResource (currentResource_, "current query");
     currentResource_ = resource;
 
+    Catalog::Init ();
     processOptions (argc, argv);
     processSQL ();
 
@@ -170,7 +172,8 @@ static bool getNextStmt () {
         if (!cp || cp[0] == 0 || *cp == '#' || (*cp == '-' && *(cp + 1) == '-')) {
             continue;
         } else if ((blen = strlen (cp)) >= ANDB_LINE_SIZE - 1 ||
-            !strcmp (cp, "QUIT") || !strcmp (cp, "QUIT;") || !strcmp (cp, "\nQUIT;")) {
+                    !andb_strcmp_nocase (cp, "quit") || !andb_strcmp_nocase (cp, "quit;") ||
+                    !andb_strcmp_nocase (cp, "\nquit;")) {
             return false;
         }
         /* append ; and return true */
