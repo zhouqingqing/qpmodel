@@ -1,6 +1,9 @@
 #pragma once
 
 #include <string>
+#include <string>
+#include <limits>
+#include <map>
 
 #include "common.h"
 
@@ -25,6 +28,7 @@ enum ClassTag : uint8_t {
     ColExpr_,
     SQLType_,
     TypeBase_,
+    TableDef_,
     ColumnType_,
     ColumnDef_,
     TableRef_,
@@ -36,6 +40,8 @@ enum ClassTag : uint8_t {
 
 enum class SQLType : int8_t {
    SQL_ANYTYPE
+      , SQL_INTEGER
+      , SQL_LONG
       , SQL_NUMERIC
       , SQL_DOUBLE
       , SQL_BOOL
@@ -48,6 +54,8 @@ enum class SQLType : int8_t {
 struct TypeBase {
     static constexpr SQLType precedence_[static_cast<uint64_t>(SQLType::SQL_LAST_TYPE)] {
           SQLType::SQL_ANYTYPE
+         , SQLType::SQL_INTEGER
+         , SQLType::SQL_LONG
          , SQLType::SQL_NUMERIC
          , SQLType::SQL_DOUBLE
          , SQLType::SQL_BOOL
@@ -56,7 +64,29 @@ struct TypeBase {
          , SQLType::SQL_CHAR};
 };
 
+struct TypeLenghts {
+   static constexpr int lens_[] = {
+      std::numeric_limits<int>::min()
+      , sizeof(int)
+      , sizeof(long)
+      , sizeof(double)  // we will simulate NUMERIC with double for now
+      , sizeof(double)
+      , sizeof(bool)
+      , sizeof(long)
+      , std::numeric_limits<int>::max() // we don't know now
+      , std::numeric_limits<int>::max() // we don't know now
+      , std::numeric_limits<int>::min() // Not applicable
+   };
+};
 
+
+// All the object names shuld not be plain strings so as to handle
+// case sensitivity of quoted names.
+// TODO: create a data structure to contain the name and a flag
+// to indicate if it is a quoted name.
+// Also change the scanner to keep the quotes so that we can deduce
+// the "quoted" attribute here and deal with SQL_IDENTIFER in the scanner
+// and parser regardless of the quoted-ness of it.
 class ColumnType : public UseCurrentResource {
    public:
       SQLType  type_;
@@ -70,9 +100,69 @@ class ColumnType : public UseCurrentResource {
 
 
 class ColumnDef : public UseCurrentResource {
-   std::string name_;
-   ColumnType  type_;
-   bool        nullable_;
+   public:
+      ClassTag    classTag_;
+      std::string *name_;
+      ColumnType  type_;
+      int         ordinal_;
+      bool        nullable_;
+      bool        quoted_;
+
+      ColumnDef(const std::string* name, ColumnType type, int ordinal = -1, bool nullable = true)
+         : classTag_(ColumnDef_), name_(new std::string(*name)), type_(type)
+         , ordinal_(ordinal), nullable_(nullable), quoted_(false)
+      {
+         // TODO: andb scanner/parser throw away quoted qualifier, revisit
+         if (RemoveQuotes(*name_)) {
+            name_ = StdStrLower(name_);
+            quoted_ = true;
+         }
+      }
+};
+
+class TableDef : public UseCurrentResource { /* */
+   public:
+      ClassTag    classTag_;
+      std::string *name_;
+      std::map<const std::string*, ColumnDef*> *columns_;
+      bool        quoted_;
+
+      TableDef(const std::string *name, std::vector<ColumnDef *>& columns)
+         : classTag_(TableDef_), name_(new std::string(*name))
+      {
+         if (RemoveQuotes(*name_)) {
+            name_ = StdStrLower(name_);
+            quoted_ = true;
+         }
+
+         columns_ = new std::map<const std::string*, ColumnDef*>();
+
+         for (auto c : columns) (*columns_)[c->name_] = c;
+      }
+
+      // Let there be RVO
+      std::vector<ColumnDef *> ColumnsInOrder()
+      {
+         std::vector<ColumnDef *> inOrder;
+          for (auto c : *columns_) inOrder.emplace_back (c.second);
+
+         std::sort(inOrder.begin(), inOrder.end(),
+               [](auto &lc, auto &rc) {
+                  return lc->ordinal_ < rc->ordinal_;
+               });
+
+         return inOrder;
+      }
+
+      int EstRowSize()
+      {
+         int size = 0, cs;
+
+         for (auto c : *columns_)
+            size += ((cs = (c.second->type_).len_) > 0 ? cs : 0);
+
+         return size;
+      }
 };
 
 class TableRef : public UseCurrentResource {
