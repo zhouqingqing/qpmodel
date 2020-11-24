@@ -35,6 +35,7 @@ using System.Diagnostics;
 using qpmodel.expr;
 using qpmodel.logic;
 using qpmodel.physic;
+using qpmodel.stream;
 
 namespace qpmodel.optimizer
 {
@@ -177,7 +178,24 @@ namespace qpmodel.optimizer
         }
     }
 
-    public class Scan2Scan : SimpleImplementationRule<LogicScanTable, PhysicScanTable, NumberArgs.N0> { }
+    public class Scan2Scan : ImplmentationRule
+    {
+        public override bool Appliable(CGroupMember expr)
+        {
+            var log = expr.logic_ as LogicScanTable;
+            return log != null;
+        }
+
+        public override CGroupMember Apply(CGroupMember expr)
+        {
+            var log = expr.logic_ as LogicScanTable;
+            var phy = new PhysicScanTable(log);
+            if (log is LogicScanStream)
+                phy = new PhysicScanStream(log);
+            return new CGroupMember(phy, expr.group_);
+        }
+    }
+
     public class Filter2Filter : SimpleImplementationRule<LogicFilter, PhysicFilter, NumberArgs.N1> { }
     public class Agg2HashAgg : SimpleImplementationRule<LogicAgg, PhysicHashAgg, NumberArgs.N1> { }
     public class Agg2StreamAgg : SimpleImplementationRule<LogicAgg, PhysicStreamAgg, NumberArgs.N1> { }

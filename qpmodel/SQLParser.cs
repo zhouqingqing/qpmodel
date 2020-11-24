@@ -540,6 +540,9 @@ namespace qpmodel.sqlparser
 
         public override object VisitCreate_table_stmt([NotNull] SQLiteParser.Create_table_stmtContext context)
         {
+            TableDef.TableSource source = TableDef.TableSource.Table;
+            if (context.K_STREAM() != null)
+                source = TableDef.TableSource.Stream;
             var cols = new List<ColumnDef>();
             foreach (var v in context.column_def())
                 cols.Add(VisitColumn_def(v) as ColumnDef);
@@ -553,7 +556,10 @@ namespace qpmodel.sqlparser
                 distributedBy = "REPLICATED";
             else if (context.K_ROUNDROBIN() != null)
                 distributedBy = "ROUNDROBIN";
-            return new CreateTableStmt(context.table_name().GetText(), cols, cons, distributedBy, GetRawText(context));
+            if (source == TableDef.TableSource.Table)
+                return new CreateTableStmt(context.table_name().GetText(), cols, cons, distributedBy, GetRawText(context));
+            else
+                return new CreateStreamStmt(context.table_name().GetText(), cols, cons, distributedBy, GetRawText(context));
         }
 
         public override object VisitAnalyze_stmt([NotNull] SQLiteParser.Analyze_stmtContext context)

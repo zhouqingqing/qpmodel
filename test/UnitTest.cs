@@ -3542,6 +3542,15 @@ namespace qpmodel.unittest
     public class Streaming
     {
         [TestMethod]
+        public void GeneralStreaming()
+        {
+            var phyplan = "";
+            var sql = "select * from ainf";
+            TU.ExecuteSQL(sql, "", out phyplan);
+            Assert.IsTrue(phyplan.Contains("PhysicScanStream"));
+        }
+
+        [TestMethod]
         public void TumbleWindow()
         {
             var phyplan = "";

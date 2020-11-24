@@ -28,14 +28,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Diagnostics;
 
 using qpmodel.expr;
 using qpmodel.physic;
 using qpmodel.utils;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
+using qpmodel.stream;
 
 namespace qpmodel.logic
 {
@@ -335,7 +333,10 @@ namespace qpmodel.logic
                 switch (tab)
                 {
                     case BaseTableRef bref:
-                        from = new LogicScanTable(bref);
+                        if (bref.Table().source_ == TableDef.TableSource.Table)
+                            from = new LogicScanTable(bref);
+                        else
+                            from = new LogicScanStream(bref);
                         if (bref.tableSample_ != null)
                             from = new LogicSampleScan(from, bref.tableSample_);
                         break;
