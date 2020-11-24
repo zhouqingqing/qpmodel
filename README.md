@@ -69,6 +69,8 @@ Zoom: https://futurewei.zoom.us/j/97155138938
 Zoom: https://futurewei.zoom.us/j/8320379082
 3) Wednesday, Oct 28, 2020 07:00 PM-8:30 PM (UTC-08:00) Pacific Time (US and Canada)
 Zoom: https://futurewei.zoom.us/j/8320379082
+4) Tuesday, Nov 24, 2020 06:00 PM-7:30 PM (UTC-08:00) Pacific Time (US and Canada)
+Zoom: https://futurewei.zoom.us/j/8320379082
 
 Meeting minutes: 
 https://github.com/zhouqingqing/qpmodel/tree/master/docs/qpmodel_m*.pptx
