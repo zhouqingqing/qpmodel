@@ -12,6 +12,7 @@ namespace andb {
 
 class Expr;
 class LogicNode;
+class Binder;
 
 class SQLStatement : public UseCurrentResource {
 public:
@@ -40,6 +41,8 @@ public:
 
     virtual ~SQLStatement () {
     }
+
+    virtual void Bind (Binder* binder) {}
 
     StatementType type() const;
 
@@ -109,6 +112,24 @@ public:
 
         return ret;
     }
+
+    void Bind(Binder* binder) override {
+        // bind from clause
+        bindFrom (binder);
+        if (binder->GetError ()) return;
+        
+        bindSelections (binder);
+        if (binder->GetError ()) return;
+
+        if (where_) {
+            bindWhere (binder);
+            if (binder->GetError ()) return;
+        }
+    }
+
+    void bindFrom (Binder*);
+    void bindSelections (Binder*);
+    void bindWhere (Binder*);
 
     std::pmr::vector<Expr*>     selection_{currentResource_};
     std::pmr::vector<TableRef*> from_{currentResource_};

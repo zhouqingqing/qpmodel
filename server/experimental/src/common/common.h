@@ -1,5 +1,7 @@
 #pragma once
 
+#include <iostream>
+#include <exception>
 #include <cctype>
 #include <string>
 #include <algorithm>
@@ -20,7 +22,7 @@ namespace andb {
       return inStr;
    }
 
-   inline bool IsQuotedName(const std::string &name)
+   inline bool IsQuotedName(std::string &name)
    {
       return name[0] == '"';
    }
@@ -39,12 +41,62 @@ namespace andb {
          }
 
          RandomDevice () : rgen (rdev ()), rdist (1, std::numeric_limits<int>::max ()) {}
-         RandomDevice(const RandomDevice &) = delete;
-         RandomDevice& operator=(const RandomDevice&) = delete;
+         RandomDevice(RandomDevice &) = delete;
+         RandomDevice& operator=(RandomDevice&) = delete;
 
       private:
          std::random_device               rdev;
          std::mt19937                     rgen;
          std::uniform_int_distribution<> rdist;
    };
-}
+
+   class SemanticAnalyzeException : public std::exception {
+        public:
+            SemanticAnalyzeException (const std::string& msg)
+            {
+                std::cerr << "ANDB ERROR[SAE]: " << msg << "\n";
+            }
+   };
+
+   class SemanticExecutionException : public std::runtime_error
+   {
+        public:
+            SemanticExecutionException (const std::string& msg) : runtime_error (msg)
+            {
+                std::cerr << "ANDB ERROR[SEE]: " << msg << "\n"; 
+            }
+
+            SemanticExecutionException (const char* msg) : runtime_error (msg) {
+                std::cerr << "ANDB ERROR[SEE]: " << msg << "\n";
+            }
+   };
+
+   class SemanticException : public std::logic_error
+   {
+        public:
+            SemanticException (const std::string& msg) : logic_error (msg)
+            {
+                std::cerr << "ANDB [SME]: " << msg << "\n";
+            }
+
+            SemanticException (const char* msg) : logic_error (msg) {
+                std::cerr << "ANDB [SME]: " << msg << "\n";
+            }
+   };
+
+   #ifdef __LATER
+   class NotImplementedException : public std::logic_error
+   {
+        public:
+            NotImplementedException (const std::string& msg) : logic_error (msg)
+            {
+                std::cerr << "ANDB ERROR[NIE]: " << msg << "\n";
+            }
+
+            NotImplementedException (const char* msg) : logic_error (msg) {
+                std::cerr << "ANDB ERROR[NIE]: " << msg << "\n";
+            }
+   };
+   #endif
+
+   }

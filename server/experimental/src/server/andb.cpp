@@ -10,6 +10,7 @@
 #include "runtime/runtime.h"
 #include "parser/include/expr.h"
 #include "parser/include/stmt.h"
+#include "optimizer/binder.h"
 #include "parser/include/SQLParserResult.h"
 
 #ifdef _MSC_VER
@@ -90,8 +91,13 @@ static void processSQL (void) {
         if (ret) {
             std::cout << "PASSED: " << query << std::endl;
 
-            const SelectStatement *selStmt = (const SelectStmt *)presult.getStatement (0);
+            SelectStatement *selStmt = (SelectStmt *)presult.getStatement (0);
             std::cout << "EXPLAIN: " << selStmt->Explain () << "\n";
+            Binder binder (selStmt);
+            binder.Bind ();
+            if (binder.GetError ()) {
+                std::cout << "ERROR: Binder error\n";
+            }
         } else {
             const char* emsg = presult.errorMsg ();
             int el = presult.errorLine ();
