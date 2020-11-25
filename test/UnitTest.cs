@@ -385,7 +385,6 @@ namespace qpmodel.unittest
         public void TestBenchmarks()
         {
             TestTpcdsPlanOnly();
-            //TestTpcdsWithData();
 
             Tpch.CreateTables();
             TestTpchAndComparePlan("1", new string[] { "" });
@@ -432,11 +431,11 @@ namespace qpmodel.unittest
                 "q88", "q90", "q91", "q92", "q94", "q95", "q96", "q99"
             };
 
-            // if only run one sql
+            // if only run one sql, for debugging singgle SQL
             //
-            runnable = new List<string>{
-                "q4"
-            };
+            //runnable = new List<string>{
+            //    "q4"
+            //};
             List<string> BadQueries = new List<string>();
 
             foreach (var v in files)
