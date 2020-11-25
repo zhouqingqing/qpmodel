@@ -2,7 +2,7 @@
 #include <benchmark/benchmark.h>
 
 #include "optimizer/optimizer.h"
-#include "parser/parser.h"
+#include "parser/include/parser.h"
 #include "runtime/runtime.h"
 
 using namespace andb;

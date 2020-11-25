@@ -8,5 +8,5 @@ target_include_directories(${t} PUBLIC ..)
 target_include_directories(${t} PUBLIC ../../deps)
 
 # to build syntax
-#	bison andb.y --output=andb_parser.cpp --defines=andb_parser.h --verbose
-#	flex andb.l 
+# bison andb.y --output=andb_parser.cpp --defines=andb_parser.h --verbose
+# flex andb.l

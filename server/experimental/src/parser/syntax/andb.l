@@ -37,10 +37,27 @@ SOFTWARE.
  ***************************/
 %{
 
-#include "../sql/Expr.h"
-#include "bison_parser.h"
-#include <stdio.h>
+#include <cstdio>
+#include <cstring>
+
+#include <stdint.h>
+
+#include <locale>
+#include <vector>
+#include <iostream>
 #include <sstream>
+#include <new>
+
+#include "common/common.h"
+#include "common/dbcommon.h"
+#include "parser/include/expr.h"
+#include "parser/include/stmt.h"
+#include "parser/include/SQLParserResult.h"
+#include "parser/include/parser_typedef.h"
+
+#include "andb_parser.h"
+
+using namespace andb;
 
 #define TOKEN(name) { return SQL_##name; }
 
@@ -70,7 +87,7 @@ static thread_local std::stringstream strbuf;
 %option nounput
 %option warn
 %option case-insensitive
-%option prefix="hsql_"
+%option prefix="andb_"
 %option bison-locations
 /* %option nodefault */
 
@@ -248,19 +265,19 @@ COMMIT      TOKEN(COMMIT)
 
 \"[^\"\n]+\" {
 	// Crop the leading and trailing quote char
-	yylval->sval = hsql::substr(yytext, 1, strlen(yytext)-1);
+	yylval->sval = new std::string(Expr::substr(yytext, 1, strlen(yytext)-1));
 	return SQL_IDENTIFIER;
 }
 
 [A-Za-z][A-Za-z0-9_]* {
-	yylval->sval = strdup(yytext);
+	yylval->sval = new std::string(yytext);
 	return SQL_IDENTIFIER;
 }
 
 \'                          { BEGIN singlequotedstring; strbuf = std::stringstream{}; }
 <singlequotedstring>\'\'    { strbuf << '\''; }
 <singlequotedstring>[^']*   { strbuf << yytext; }
-<singlequotedstring>\'      { BEGIN 0; yylval->sval = strdup(strbuf.str().c_str()); return SQL_STRING; }
+<singlequotedstring>\'      { BEGIN 0; yylval->sval = new std::string(strbuf.str().c_str()); return SQL_STRING; }
 <singlequotedstring><<EOF>> { fprintf(stderr, "[SQL-Lexer-Error] Unterminated string\n"); return 0; }
 
 . { fprintf(stderr, "[SQL-Lexer-Error] Unknown Character: %c\n", yytext[0]); return 0; }

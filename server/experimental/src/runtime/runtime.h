@@ -3,6 +3,9 @@
 #include <functional>
 #include <string>
 
+#include "common/common.h"
+#include "common/dbcommon.h"
+#include "parser/include/expr.h"
 #include "datum.h"
 #include "PhysicNode.h"
 
