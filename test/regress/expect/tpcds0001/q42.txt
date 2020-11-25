@@ -1,0 +1,48 @@
+select  dt.d_year
+ 	,item.i_category_id
+ 	,item.i_category
+ 	,sum(ss_ext_sales_price)
+ from 	date_dim dt
+ 	,store_sales
+ 	,item
+ where dt.d_date_sk = store_sales.ss_sold_date_sk
+ 	and store_sales.ss_item_sk = item.i_item_sk
+ 	and item.i_manager_id = 1  	
+ 	and dt.d_moy=11
+ 	and dt.d_year=1998
+ group by 	dt.d_year
+ 		,item.i_category_id
+ 		,item.i_category
+ order by       sum(ss_ext_sales_price) desc,dt.d_year
+ 		,item.i_category_id
+ 		,item.i_category
+limit 100
+Total cost: 45793.35, memory=4666
+PhysicLimit (100) (inccost=45793.35, cost=100, rows=100) (actual rows=4)
+    Output: dt.d_year[0],item.i_category_id[1],item.i_category[2],{sum(store_sales.ss_ext_sales_price)}[3]
+    -> PhysicOrder  (inccost=45693.35, cost=11.35, rows=6, memory=390) (actual rows=4)
+        Output: dt.d_year[0],item.i_category_id[1],item.i_category[2],{sum(store_sales.ss_ext_sales_price)}[3]
+        Order by: {sum(store_sales.ss_ext_sales_price)}[3], dt.d_year[0], item.i_category_id[1], item.i_category[2]
+        -> PhysicHashAgg  (inccost=45682, cost=18, rows=6, memory=780) (actual rows=4)
+            Output: {dt.d_year}[0],{item.i_category_id}[1],{item.i_category}[2],{sum(store_sales.ss_ext_sales_price)}[3]
+            Aggregates: sum(store_sales.ss_ext_sales_price[3])
+            Group by: dt.d_year[0], item.i_category_id[1], item.i_category[2]
+            -> PhysicHashJoin  (inccost=45664, cost=233, rows=6, memory=480) (actual rows=5)
+                Output: dt.d_year[0],item.i_category_id[2],item.i_category[3],store_sales.ss_ext_sales_price[4]
+                Filter: dt.d_date_sk[1]=store_sales.ss_sold_date_sk[5]
+                -> PhysicScanTable date_dim as dt (inccost=17750, cost=17750, rows=30) (actual rows=30)
+                    Output: dt.d_year[6],dt.d_date_sk[0]
+                    Filter: (dt.d_moy[8]=11 and dt.d_year[6]=1998)
+                -> PhysicHashJoin  (inccost=27681, cost=12950, rows=167, memory=3016) (actual rows=158)
+                    Output: item.i_category_id[0],item.i_category[1],store_sales.ss_ext_sales_price[3],store_sales.ss_sold_date_sk[4]
+                    Filter: store_sales.ss_item_sk[5]=item.i_item_sk[2]
+                    -> PhysicScanTable item (inccost=2000, cost=2000, rows=26) (actual rows=26)
+                        Output: item.i_category_id[11],item.i_category[12],item.i_item_sk[0]
+                        Filter: item.i_manager_id[20]=1
+                    -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=12731)
+                        Output: store_sales.ss_ext_sales_price[15],store_sales.ss_sold_date_sk[0],store_sales.ss_item_sk[2]
+1998,6,Jewelry,4434.31
+1998,10,Electronics,2260.72
+1998,9,Books,1373.02
+1998,7,Home,211.74
+

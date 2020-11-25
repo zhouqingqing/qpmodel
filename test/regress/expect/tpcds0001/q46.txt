@@ -1,0 +1,122 @@
+select  c_last_name
+       ,c_first_name
+       ,ca_city
+       ,bought_city
+       ,ss_ticket_number
+       ,amt,profit 
+ from
+   (select ss_ticket_number
+          ,ss_customer_sk
+          ,ca_city bought_city
+          ,sum(ss_coupon_amt) amt
+          ,sum(ss_net_profit) profit
+    from store_sales,date_dim,store,household_demographics,customer_address 
+    where store_sales.ss_sold_date_sk = date_dim.d_date_sk
+    and store_sales.ss_store_sk = store.s_store_sk  
+    and store_sales.ss_hdemo_sk = household_demographics.hd_demo_sk
+    and store_sales.ss_addr_sk = customer_address.ca_address_sk
+    and (household_demographics.hd_dep_count = 8 or
+         household_demographics.hd_vehicle_count= 0)
+    and date_dim.d_dow in (6,0)
+    and date_dim.d_year in (2000,2000+1,2000+2) 
+    and store.s_city in ('Midway','Fairview','Fairview','Midway','Fairview') 
+    group by ss_ticket_number,ss_customer_sk,ss_addr_sk,ca_city) dn,customer,customer_address current_addr
+    where ss_customer_sk = c_customer_sk
+      and customer.c_current_addr_sk = current_addr.ca_address_sk
+      and current_addr.ca_city <> bought_city
+  order by c_last_name
+          ,c_first_name
+          ,ca_city
+          ,bought_city
+          ,ss_ticket_number
+  limit 100
+Total cost: 15664677.55, memory=5603328
+PhysicLimit (100) (inccost=15664677.55, cost=100, rows=100) (actual rows=43)
+    Output: customer.c_last_name[0],customer.c_first_name[1],current_addr.ca_city[2],dn.bought_city[3],dn.ss_ticket_number[4],dn.amt[5],dn.profit[6]
+    -> PhysicOrder  (inccost=15664577.55, cost=147409.55, rows=15156, memory=2849328) (actual rows=43)
+        Output: customer.c_last_name[0],customer.c_first_name[1],current_addr.ca_city[2],dn.bought_city[3],dn.ss_ticket_number[4],dn.amt[5],dn.profit[6]
+        Order by: customer.c_last_name[0], customer.c_first_name[1], current_addr.ca_city[2], dn.bought_city[3], dn.ss_ticket_number[4]
+        -> PhysicHashJoin  (inccost=15517168, cost=32312, rows=15156, memory=116000) (actual rows=43)
+            Output: customer.c_last_name[0],customer.c_first_name[1],current_addr.ca_city[4],dn.bought_city[5],dn.ss_ticket_number[6],dn.amt[7],dn.profit[8]
+            Filter: (customer.c_current_addr_sk[2]=current_addr.ca_address_sk[9] and dn.ss_customer_sk[10]=customer.c_customer_sk[3])
+            -> PhysicScanTable customer (inccost=1000, cost=1000, rows=1000) (actual rows=1000)
+                Output: customer.c_last_name[9],customer.c_first_name[8],customer.c_current_addr_sk[4],customer.c_customer_sk[0]
+            -> PhysicNLJoin  (inccost=15483856, cost=15317660, rows=15156) (actual rows=47162)
+                Output: current_addr.ca_city[5],dn.bought_city[0],dn.ss_ticket_number[1],dn.amt[2],dn.profit[3],current_addr.ca_address_sk[6],dn.ss_customer_sk[4]
+                Filter: current_addr.ca_city[5]<>dn.bought_city[0]
+                -> PhysicFromQuery <dn> (inccost=165196, cost=15156, rows=15156) (actual rows=52)
+                    Output: dn.bought_city[2],dn.ss_ticket_number[0],dn.amt[3],dn.profit[4],dn.ss_customer_sk[1]
+                    -> PhysicHashAgg  (inccost=150040, cost=45468, rows=15156, memory=2485584) (actual rows=52)
+                        Output: {store_sales.ss_ticket_number}[0],{store_sales.ss_customer_sk}[1],{customer_address.ca_city}[3],{sum(store_sales.ss_coupon_amt)}[4],{sum(store_sales.ss_net_profit)}[5]
+                        Aggregates: sum(store_sales.ss_coupon_amt[3]), sum(store_sales.ss_net_profit[4])
+                        Group by: store_sales.ss_ticket_number[0], store_sales.ss_customer_sk[1], store_sales.ss_addr_sk[5], customer_address.ca_city[2]
+                        -> PhysicHashJoin  (inccost=104572, cost=27066, rows=15156, memory=14400) (actual rows=538)
+                            Output: store_sales.ss_ticket_number[1],store_sales.ss_customer_sk[2],customer_address.ca_city (as bought_city)[3],store_sales.ss_coupon_amt[4],store_sales.ss_net_profit[5],store_sales.ss_addr_sk[6]
+                            Filter: store_sales.ss_hdemo_sk[7]=household_demographics.hd_demo_sk[0]
+                            -> PhysicScanTable household_demographics (inccost=7200, cost=7200, rows=1800) (actual rows=1800)
+                                Output: household_demographics.hd_demo_sk[0]
+                                Filter: (household_demographics.hd_dep_count[3]=8 or household_demographics.hd_vehicle_count[4]=0)
+                            -> PhysicHashJoin  (inccost=70306, cost=15637, rows=8310, memory=128000) (actual rows=2218)
+                                Output: store_sales.ss_ticket_number[2],store_sales.ss_customer_sk[3],customer_address.ca_city (as bought_city)[0],store_sales.ss_coupon_amt[4],store_sales.ss_net_profit[5],store_sales.ss_addr_sk[6],store_sales.ss_hdemo_sk[7]
+                                Filter: store_sales.ss_addr_sk[6]=customer_address.ca_address_sk[1]
+                                -> PhysicScanTable customer_address (inccost=1000, cost=1000, rows=1000) (actual rows=1000)
+                                    Output: customer_address.ca_city (as bought_city)[6],customer_address.ca_address_sk[0]
+                                -> PhysicHashJoin  (inccost=53669, cost=19310, rows=5327, memory=10016) (actual rows=2240)
+                                    Output: store_sales.ss_ticket_number[2],store_sales.ss_customer_sk[3],store_sales.ss_coupon_amt[4],store_sales.ss_net_profit[5],store_sales.ss_addr_sk[6],store_sales.ss_hdemo_sk[7]
+                                    Filter: (store_sales.ss_sold_date_sk[8]=date_dim.d_date_sk[0] and store_sales.ss_store_sk[9]=store.s_store_sk[1])
+                                    -> PhysicNLJoin  (inccost=21628, cost=3876, rows=626) (actual rows=628)
+                                        Output: date_dim.d_date_sk[1],store.s_store_sk[0]
+                                        -> PhysicScanTable store (inccost=2, cost=2, rows=2) (actual rows=2)
+                                            Output: store.s_store_sk[0]
+                                            Filter: store.s_city[22] in ('Midway','Fairview','Fairview', ... <Total: 5> )
+                                        -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=313) (actual rows=314, loops=2)
+                                            Output: date_dim.d_date_sk[0]
+                                            Filter: (date_dim.d_dow[7] in (6,0) and date_dim.d_year[6] in (2000,2001,2002))
+                                    -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=12731)
+                                        Output: store_sales.ss_ticket_number[9],store_sales.ss_customer_sk[3],store_sales.ss_coupon_amt[19],store_sales.ss_net_profit[22],store_sales.ss_addr_sk[6],store_sales.ss_hdemo_sk[5],store_sales.ss_sold_date_sk[0],store_sales.ss_store_sk[7]
+                -> PhysicScanTable customer_address as current_addr (inccost=1000, cost=1000, rows=1000) (actual rows=1000, loops=52)
+                    Output: current_addr.ca_city[6],current_addr.ca_address_sk[0]
+,Sean,Union Hill,Highland,549,0.00,-4611.60
+Aguilar,Roy,Montpelier,Green Acres,614,772.30,-9281.95
+Alger,Jennifer,Bloomingdale,Belmont,528,4100.28,-5613.47
+Amundson,Gary,Greenwood,Oakdale,145,95.95,-7481.16
+Anderson,Kimberly,Antioch,Concord,475,947.41,-9788.15
+Butler,Jay,Edgewood,Liberty,603,1565.90,-20565.19
+Caro,Florence,Oakland,Harmony,611,0.00,-6245.74
+Chester,Julie,Pinecrest,Woodland,360,13556.94,-15897.96
+Chiu,Wendy,Harmony,Pleasant Grove,168,518.11,-9266.23
+Clancy,Gladys,Macedonia,Johnsonville,957,556.89,-14063.80
+Combs,Betty,Friendship,Riverdale,898,2618.11,-4793.17
+Dudley,Tonia,Union Hill,Newport,142,3551.31,-15564.69
+Fowler,Cody,Edgewood,Five Points,672,116.08,-5045.42
+Hawkins,Jolene,Red Hill,Waterloo,176,2720.05,-23501.88
+Hudson,Malcolm,Salem,Marion,651,1018.30,-2428.30
+Jackson,Cindy,Glendale,Woodland,530,2727.53,-14795.20
+Johnson,Pamela,Mount Zion,Hillcrest,466,2711.27,3940.71
+Jones,Fiona,Clinton,Waterloo,515,2454.59,-10704.68
+Kelly,Floyd,Green Acres,Harmony,516,3434.76,-9315.64
+Lane,Damaris,Pleasant Grove,Florence,527,454.04,-17628.26
+Lee,,Five Points,Mount Pleasant,509,338.59,-3866.45
+Lewis,Brian,Riverview,Ruth,623,0.00,-13986.74
+Madison,Francis,Rankin,Five Points,90,910.78,-11623.83
+Marino,Jack,New Town,Walnut Grove,936,5552.49,-10970.59
+Marlow,Polly,Maple Grove,Mountain View,883,14701.44,-13845.62
+Martinez,Victor,Centerville,Shiloh,512,6145.94,-2561.36
+Olvera,Bruce,Bridgeport,Lawrenceville,1016,0.00,-13402.18
+Parsons,Zachary,Edgewood,Red Hill,605,1464.64,-7208.44
+Perez,Pamela,Springfield,Harmony,1028,315.46,-3778.77
+Pierce,William,Fayetteville,Wildwood,288,3010.03,-2256.62
+Pierson,Jennifer,Crossroads,Greenwood,640,904.65,-16842.82
+Qualls,James,Pleasant Valley,Jamestown,433,5956.07,-9746.75
+Richards,Andrew,Glenwood,Forest Hills,232,933.50,-7838.93
+Santana,Matt,Riverview,Oakdale,356,0.00,-3307.65
+Silva,Jodi,Glenwood,Deerfield,294,138.26,-10694.78
+Smith,Elizabeth,Wilson,Mount Zion,726,5379.58,-6343.38
+Spriggs,Jack,Woodland,Friendship,874,2546.39,-13862.24
+Stout,Donald,Edgewood,Providence,273,23.40,-4016.09
+Velazquez,Chester,Red Hill,Clifton,568,54.90,-4545.41
+Walton,Cedric,Antioch,Newport,164,4714.20,-8510.92
+Welsh,Cherise,Marion,Union,834,1800.93,-3354.40
+White,Ruth,Newport,Maple Grove,7,623.59,-6718.14
+Williams,Dolores,Centerville,Brownsville,358,449.05,-15796.41
+
