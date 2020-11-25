@@ -1,0 +1,64 @@
+select c_last_name
+       ,c_first_name
+       ,c_salutation
+       ,c_preferred_cust_flag 
+       ,ss_ticket_number
+       ,cnt from
+   (select ss_ticket_number
+          ,ss_customer_sk
+          ,count(*) cnt
+    from store_sales,date_dim,store,household_demographics
+    where store_sales.ss_sold_date_sk = date_dim.d_date_sk
+    and store_sales.ss_store_sk = store.s_store_sk  
+    and store_sales.ss_hdemo_sk = household_demographics.hd_demo_sk
+    and date_dim.d_dom between 1  and 2 
+    and (household_demographics.hd_buy_potential = '1001-5000' or
+         household_demographics.hd_buy_potential = '5001-10000')
+    and household_demographics.hd_vehicle_count > 0
+    and case when household_demographics.hd_vehicle_count > 0 then 
+             household_demographics.hd_dep_count/ household_demographics.hd_vehicle_count else null end > 1
+    and date_dim.d_year in (2000,2000+1,2000+2)
+    and store.s_county in ('Williamson County','Williamson County','Williamson County','Williamson County')
+    group by ss_ticket_number,ss_customer_sk) dj,customer
+    where ss_customer_sk = c_customer_sk
+      and cnt between 1  and 5
+    order by cnt desc, c_last_name asc
+Total cost: 102194.4, memory=416705
+PhysicOrder  (inccost=102194.4, cost=24510.4, rows=3021, memory=208449) (actual rows=0)
+    Output: customer.c_last_name[0],customer.c_first_name[1],customer.c_salutation[2],customer.c_preferred_cust_flag[3],dj.ss_ticket_number[4],dj.cnt[5]
+    Order by: dj.cnt[5], customer.c_last_name[0]
+    -> PhysicFilter  (inccost=77684, cost=3021, rows=3021) (actual rows=0)
+        Output: customer.c_last_name[0],customer.c_first_name[1],customer.c_salutation[2],customer.c_preferred_cust_flag[3],dj.ss_ticket_number[4],dj.cnt[5]
+        Filter: (dj.cnt[5]>=1 and dj.cnt[5]<=5)
+        -> PhysicHashJoin  (inccost=74663, cost=6979, rows=3021, memory=130000) (actual rows=5)
+            Output: customer.c_last_name[0],customer.c_first_name[1],customer.c_salutation[2],customer.c_preferred_cust_flag[3],dj.ss_ticket_number[5],dj.cnt[6]
+            Filter: dj.ss_customer_sk[7]=customer.c_customer_sk[4]
+            -> PhysicScanTable customer (inccost=1000, cost=1000, rows=1000) (actual rows=1000)
+                Output: customer.c_last_name[9],customer.c_first_name[8],customer.c_salutation[7],customer.c_preferred_cust_flag[10],customer.c_customer_sk[0]
+            -> PhysicFromQuery <dj> (inccost=66684, cost=1958, rows=1958) (actual rows=6)
+                Output: dj.ss_ticket_number[0],dj.cnt[2],dj.ss_customer_sk[1]
+                -> PhysicHashAgg  (inccost=64726, cost=5874, rows=1958, memory=46992) (actual rows=6)
+                    Output: {store_sales.ss_ticket_number}[0],{store_sales.ss_customer_sk}[1],{count(*)(0)}[2]
+                    Aggregates: count(*)(0)
+                    Group by: store_sales.ss_ticket_number[0], store_sales.ss_customer_sk[1]
+                    -> PhysicHashJoin  (inccost=58852, cost=5974, rows=1958, memory=28992) (actual rows=60)
+                        Output: store_sales.ss_ticket_number[0],store_sales.ss_customer_sk[1]
+                        Filter: store_sales.ss_hdemo_sk[2]=household_demographics.hd_demo_sk[3]
+                        -> PhysicHashJoin  (inccost=45678, cost=14223, rows=1208, memory=2272) (actual rows=490)
+                            Output: store_sales.ss_ticket_number[2],store_sales.ss_customer_sk[3],store_sales.ss_hdemo_sk[4]
+                            Filter: (store_sales.ss_sold_date_sk[5]=date_dim.d_date_sk[0] and store_sales.ss_store_sk[6]=store.s_store_sk[1])
+                            -> PhysicNLJoin  (inccost=18724, cost=972, rows=142) (actual rows=144)
+                                Output: date_dim.d_date_sk[1],store.s_store_sk[0]
+                                -> PhysicScanTable store (inccost=2, cost=2, rows=2) (actual rows=2)
+                                    Output: store.s_store_sk[0]
+                                    Filter: store.s_county[23] in ('Williamson County','Williamson County','Williamson County','Williamson County')
+                                -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=71) (actual rows=72, loops=2)
+                                    Output: date_dim.d_date_sk[0]
+                                    Filter: ((date_dim.d_dom[9]>=1 and date_dim.d_dom[9]<=2) and date_dim.d_year[6] in (2000,2001,2002))
+                            -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=12731)
+                                Output: store_sales.ss_ticket_number[9],store_sales.ss_customer_sk[3],store_sales.ss_hdemo_sk[5],store_sales.ss_sold_date_sk[0],store_sales.ss_store_sk[7]
+                        -> PhysicScanTable household_demographics (inccost=7200, cost=7200, rows=1600) (actual rows=800)
+                            Output: household_demographics.hd_demo_sk[0]
+                            Filter: (((household_demographics.hd_buy_potential[2]='1001-5000' or household_demographics.hd_buy_potential[2]='5001-10000') and household_demographics.hd_vehicle_count[4]>0) and case with 0|1|1>1)
+
+

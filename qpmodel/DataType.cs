@@ -228,6 +228,15 @@ namespace qpmodel.expr
         //
         public string alias_;
 
+        // consider TPC-DS SQL95
+        // there are two tabel have the same alias
+        // 
+        public bool isSameAlias_ = false;
+
+        public string aliasWithoutSuffix = "";
+
+        public int sameAliasId_;
+
         // if it is a table sample
         public SelectStmt.TableSample tableSample_;
 

@@ -561,7 +561,7 @@ namespace qpmodel.logic
                     break;
             }
             if (oldplan != newplan)
-                decorrelatedSubs_.Add(new NamedQuery(subexpr.query_, null));
+                decorrelatedSubs_.Add(new NamedQuery(subexpr.query_, null, NamedQuery.QueryType.UNSURE));
             return newplan;
         }
 
@@ -575,10 +575,11 @@ namespace qpmodel.logic
             if (list.Count == 0)
                 return root;
 
-            var seqNode = new LogicSequence();
+            var seqNode = new LogicSequence(); 
             seqNode.children_.AddRange(list.Select(x =>
                     new LogicCteProducer(x.query_.logicPlan_, x)));
             seqNode.children_.Add(root);
+
             return seqNode;
         }
     }

@@ -1,0 +1,44 @@
+select  count(*) 
+from store_sales
+    ,household_demographics 
+    ,time_dim, store
+where ss_sold_time_sk = time_dim.t_time_sk   
+    and ss_hdemo_sk = household_demographics.hd_demo_sk 
+    and ss_store_sk = s_store_sk
+    and time_dim.t_hour = 8
+    and time_dim.t_minute >= 30
+    and household_demographics.hd_dep_count = 0
+    and store.s_store_name = 'ese'
+order by count(*)
+limit 100
+Total cost: 162148.1, memory=34564
+PhysicLimit (100) (inccost=162148.1, cost=100, rows=100) (actual rows=1)
+    Output: {count(*)(0)}[0]
+    -> PhysicOrder  (inccost=162048.1, cost=0.1, rows=1, memory=4) (actual rows=1)
+        Output: {count(*)(0)}[0]
+        Order by: {count(*)(0)}[0]
+        -> PhysicHashAgg  (inccost=162048, cost=7965, rows=1, memory=8) (actual rows=1)
+            Output: {count(*)(0)}[0]
+            Aggregates: count(*)(0)
+            -> PhysicHashJoin  (inccost=154083, cost=16204, rows=7963, memory=28784) (actual rows=0)
+                Output: {0}[0]
+                Filter: store_sales.ss_sold_time_sk[2]=time_dim.t_time_sk[1]
+                -> PhysicScanTable time_dim (inccost=86400, cost=86400, rows=1799) (actual rows=1800)
+                    Output: 0,time_dim.t_time_sk[0]
+                    Filter: (time_dim.t_hour[3]=8 and time_dim.t_minute[4]>=30)
+                -> PhysicHashJoin  (inccost=51479, cost=12448, rows=4643, memory=5760) (actual rows=0)
+                    Output: store_sales.ss_sold_time_sk[1]
+                    Filter: store_sales.ss_hdemo_sk[2]=household_demographics.hd_demo_sk[0]
+                    -> PhysicScanTable household_demographics (inccost=7200, cost=7200, rows=720) (actual rows=720)
+                        Output: household_demographics.hd_demo_sk[0]
+                        Filter: household_demographics.hd_dep_count[3]=0
+                    -> PhysicHashJoin  (inccost=31831, cost=19098, rows=6365, memory=8) (actual rows=0)
+                        Output: store_sales.ss_sold_time_sk[1],store_sales.ss_hdemo_sk[2]
+                        Filter: store_sales.ss_store_sk[3]=store.s_store_sk[0]
+                        -> PhysicScanTable store (inccost=2, cost=2, rows=1) (actual rows=0)
+                            Output: store.s_store_sk[0]
+                            Filter: store.s_store_name[5]='ese'
+                        -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=0)
+                            Output: store_sales.ss_sold_time_sk[1],store_sales.ss_hdemo_sk[5],store_sales.ss_store_sk[7]
+0
+

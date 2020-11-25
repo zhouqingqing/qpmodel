@@ -1,0 +1,47 @@
+select  ca_zip
+       ,sum(cs_sales_price)
+ from catalog_sales
+     ,customer
+     ,customer_address
+     ,date_dim
+ where cs_bill_customer_sk = c_customer_sk
+ 	and c_current_addr_sk = ca_address_sk 
+ 	and ( substr(ca_zip,1,5) in ('85669', '86197','88274','83405','86475',
+                                   '85392', '85460', '80348', '81792')
+ 	      or ca_state in ('CA','WA','GA')
+ 	      or cs_sales_price > 500)
+ 	and cs_sold_date_sk = d_date_sk
+ 	and d_qoy = 2 and d_year = 2001
+ group by ca_zip
+ order by ca_zip
+ limit 100
+Total cost: 3454696.9, memory=49403
+PhysicLimit (100) (inccost=3454696.9, cost=100, rows=100) (actual rows=0)
+    Output: customer_address.ca_zip[0],{sum(catalog_sales.cs_sales_price)}[1]
+    -> PhysicOrder  (inccost=3454596.9, cost=4206.9, rows=641, memory=10897) (actual rows=0)
+        Output: customer_address.ca_zip[0],{sum(catalog_sales.cs_sales_price)}[1]
+        Order by: customer_address.ca_zip[0]
+        -> PhysicHashAgg  (inccost=3450390, cost=143860, rows=641, memory=21794) (actual rows=0)
+            Output: {customer_address.ca_zip}[0],{sum(catalog_sales.cs_sales_price)}[1]
+            Aggregates: sum(catalog_sales.cs_sales_price[1])
+            Group by: customer_address.ca_zip[0]
+            -> PhysicHashJoin  (inccost=3306530, cost=147654, rows=142578, memory=16000) (actual rows=0)
+                Output: customer_address.ca_zip[2],catalog_sales.cs_sales_price[3]
+                Filter: (customer.c_current_addr_sk[0]=customer_address.ca_address_sk[4] and catalog_sales.cs_bill_customer_sk[5]=customer.c_customer_sk[1])
+                -> PhysicScanTable customer (inccost=1000, cost=1000, rows=1000) (actual rows=1000)
+                    Output: customer.c_current_addr_sk[4],customer.c_customer_sk[0]
+                -> PhysicNLJoin  (inccost=3157876, cost=3116860, rows=3076) (actual rows=0)
+                    Output: customer_address.ca_zip[2],catalog_sales.cs_sales_price[0],customer_address.ca_address_sk[3],catalog_sales.cs_bill_customer_sk[1]
+                    Filter: ((substring(customer_address.ca_zip[2],1,5) in ('85669','86197','88274', ... <Total: 9> ) or customer_address.ca_state[4] in ('CA','WA','GA')) or catalog_sales.cs_sales_price[0]>500)
+                    -> PhysicHashJoin  (inccost=40016, cost=12760, rows=3076, memory=712) (actual rows=0)
+                        Output: catalog_sales.cs_sales_price[1],catalog_sales.cs_bill_customer_sk[2]
+                        Filter: catalog_sales.cs_sold_date_sk[3]=date_dim.d_date_sk[0]
+                        -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=89) (actual rows=91)
+                            Output: date_dim.d_date_sk[0]
+                            Filter: (date_dim.d_qoy[10]=2 and date_dim.d_year[6]=2001)
+                        -> PhysicScanTable catalog_sales (inccost=9506, cost=9506, rows=9506) (actual rows=9506)
+                            Output: catalog_sales.cs_sales_price[21],catalog_sales.cs_bill_customer_sk[3],catalog_sales.cs_sold_date_sk[0]
+                    -> PhysicScanTable customer_address (inccost=1000, cost=1000, rows=1000) (actual rows=0)
+                        Output: customer_address.ca_zip[9],customer_address.ca_address_sk[0],customer_address.ca_state[8]
+
+

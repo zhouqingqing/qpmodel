@@ -35,6 +35,7 @@ using qpmodel.logic;
 using qpmodel.physic;
 using qpmodel.utils;
 using qpmodel.index;
+using System.Text.RegularExpressions;
 
 namespace qpmodel.expr
 {
@@ -93,11 +94,34 @@ namespace qpmodel.expr
             }
 
             if (FindSameInParents(tab))
+            {
+                tab.aliasWithoutSuffix = tab.alias_;
                 tab.alias_ = $"{tab.alias_}__{TopContext().globalSubqCounter_}";
+                tab.isSameAlias_ = true;
+                tab.sameAliasId_ = TopContext().globalSubqCounter_;
+            }
+
             boundFrom_.Add(boundFrom_.Count, tab);
         }
         public List<TableRef> AllTableRefs() => boundFrom_.Values.ToList();
-        public TableRef Table(string alias) => boundFrom_.Values.FirstOrDefault(x => x.alias_.Equals(alias));
+
+        // FIXME:
+        // alias should be a class instead of a string, 
+        // if so, we may need a more complex suffix like "__@#￥%SUFFIX_@1", 
+        // in case some users uses a tabel named "tabel__a" to trigger the bug. 
+        // 
+        public bool isSameAlias(string alias)
+        {
+            // end with __#
+            return Regex.IsMatch(alias, "__\\d$");
+        }
+
+
+        public TableRef Table(string alias) =>
+            boundFrom_.Values.FirstOrDefault(x =>
+                {
+                    return x.aliasWithoutSuffix.Equals(alias) || x.alias_.Equals(alias);
+                });
         public int TableIndex(string alias)
         {
             var pair = boundFrom_.FirstOrDefault(x => x.Value.alias_.Equals(alias));
@@ -281,7 +305,6 @@ namespace qpmodel.expr
 
     public static class FilterHelper
     {
-
         public static Expr MakeFullComparator(List<Expr> left, List<Expr> right)
         {
             // a rough check here - caller's responsiblity to do a full check
@@ -1319,7 +1342,7 @@ namespace qpmodel.expr
                 return false;
 
             if ((type_ is IntType && (int)val_ == 0) || (type_ is DoubleType && (double)val_ == 0.0) || (type_ is NumericType && (Decimal)val_ is 0))
-                return true;          
+                return true;
             return false;
         }
 

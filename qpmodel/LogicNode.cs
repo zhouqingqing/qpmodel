@@ -1378,6 +1378,7 @@ namespace qpmodel.logic
             return false;
         }
 
+        public bool IsCteConsumer() => queryRef_ is CTEQueryRef;
         public LogicFromQuery(QueryRef query, LogicNode child) { queryRef_ = query; children_.Add(child); }
 
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)

@@ -343,7 +343,7 @@ namespace qpmodel.unittest
 
                     File.WriteAllText(write_fn, test_result);
 
-                    // construct file name of expected result
+                    //construct file name of expected result
                     string expect_fn = $@"{expect_dir_fn}/{f_name}.txt";
 
                     // verify query result against the expected result
@@ -385,7 +385,7 @@ namespace qpmodel.unittest
         public void TestBenchmarks()
         {
             TestTpcdsPlanOnly();
-            TestTpcdsWithData();
+            //TestTpcdsWithData();
 
             Tpch.CreateTables();
             TestTpchAndComparePlan("1", new string[] { "" });
@@ -397,6 +397,59 @@ namespace qpmodel.unittest
 
             List<String> tabNameList = new List<String> { "region", "orders", "part", "partsupp", "lineitem", "supplier", "nation" };
             TU.ClearTableStatsInCatalog(tabNameList);
+        }
+
+        [TestMethod]
+        public void TestTpcdsWithDataAndResult()
+        {
+            var files = Directory.GetFiles(@"../../../../tpcds", "*.sql");
+            string stats_dir = "../../../../tpcds/statistics/presto/sf1";
+
+            Tpcds.CreateTables();
+            //load persisted stats
+            PrestoStatsFormatter.ReadConvertPrestoStats(stats_dir);
+            // table already created
+            string scale = "0001";
+            Tpcds.LoadTables("tiny");
+            Tpcds.AnalyzeTables();
+
+            // run tests and compare plan
+            string sql_dir_fn = "../../../../tpcds";
+            string write_dir_fn = $"../../../../test/regress/output/tpcds{scale}";
+            string expect_dir_fn = $"../../../../test/regress/expect/tpcds{scale}";
+
+            // long time: 4 bad plan
+            // 6: distinct not supported, causing wrong result
+            // 10: subquery memo not copy out
+            // q000: jigzag memory allocation pattern but they are runnable with qpmodel Program.Main()
+            //
+            List<string> runnable = new List<string>{
+                "q1", "q2", "q3", "q7", "q15", "q17", "q19", "q21", "q24", "q25",
+                "q26", "q28", "q30", "q32", "q34", "q35", "q37", "q39", "q42", "q43",
+                "q45", "q46", "q50", "q52", "q55", "q58", "q59", "q61", "q62", "q00065",
+                "q68", "q69", "q71", "q73", "q79", "q81", "q82", "q83", "q00084",
+                "q00085",
+                "q88", "q90", "q91", "q92", "q94", "q95", "q96", "q99"
+            };
+
+            //For Debuging
+            //if only run one sql, 
+            //runnable = new List<string>{
+            //    "q95"
+            //};
+
+            List<string> BadQueries = new List<string>();
+            foreach (var v in files)
+            {
+                var q = Path.GetFileNameWithoutExtension(v);
+                if (!runnable.Contains(q))
+                {
+                    BadQueries.Add(q);
+                }
+            }
+            var badqueries = BadQueries.ToArray();
+
+            RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badqueries);
         }
 
         [TestMethod]
@@ -495,7 +548,7 @@ namespace qpmodel.unittest
             string[] runnable = {
                 "q1", "q2", "q3", "q7", "q15", "q17", "q19", "q21", "q24", "q25",
                 "q26", "q28", "q30", "q32", "q34", "q35", "q37", "q39", "q42", "q43",
-                "q45", "q46", "q50", "q52", "q55", "q58", "q59", "q61", "q62", "q00065",
+                "q45", "q46", "q50", "q52", "q55", "q58", "q59", "q61", "q62", "q65",
                 "q68", "q69", "q71", "q73", "q79", "q81", "q82", "q83", "q00084",
                 "q00085",
                 "q88", "q90", "q91", "q92", "q94", "q95", "q96", "q99"
@@ -676,6 +729,9 @@ namespace qpmodel.unittest
                 Assert.AreEqual(7, result.Count);
                 option.optimize_.remove_from_ = true;
             }
+
+            List<String> tabNameList = new List<String> { "region", "orders", "part", "partsupp", "lineitem", "supplier", "nation" };
+            TU.ClearTableStatsInCatalog(tabNameList);
         }
     }
 
@@ -2226,6 +2282,21 @@ namespace qpmodel.unittest
         }
 
         [TestMethod]
+        public void TestCaseWhen()
+        {
+            var sql = "select case a1 when 0 then 'a' when 1 then 'b' when 2 then 'c' else 'd' end from a;";
+            TU.ExecuteSQL(sql, "a;b;c");
+            var phyplan = "";
+            // FIXME 
+            // tpcds q4 has CASE WHEN in From clause
+            // below is test for it but failed
+            //
+            //TU.ExecuteSQL("select a1 from a where a1 >= 0 and case when a1 > 1 then a1 = 2 else a1 = 0 end", "0,2", out phyplan);
+
+            TU.ExecuteSQL("select a1 from a where a1 >= 0 and case when a1 > 1 then 2 else 0 end > case when a1 > 1 then 0 else 2 end", "2", out phyplan);
+        }
+
+        [TestMethod]
         public void TestAndOrExpr()
         {
             TU.ExecuteSQL("INSERT INTO a VALUES(3,4,5,6)");
@@ -2982,13 +3053,16 @@ namespace qpmodel.unittest
         public void TestCTE()
         {
             QueryOption option = new QueryOption();
+
             for (int i = 0; i < 2; i++)
             {
                 option.optimize_.use_memo_ = i == 0;
                 for (int j = 0; j < 2; j++)
                 {
                     option.optimize_.enable_cte_plan_ = j == 0;
+                    var cte_plan = option.optimize_.enable_cte_plan_;
 
+                    var phyplan = "";
                     var sql = "with cte1 as (select* from a) select * from a where a1>1;"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
                     sql = "with cte1 as (select* from a) select * from cte1 where a1>1;"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
                     sql = "with cte1 as (select * from a),cte3 as (select * from cte1) select * from cte3 where a1>1"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
@@ -3011,6 +3085,20 @@ namespace qpmodel.unittest
                     TU.ExecuteSQL(sql, "2,2", out _, option);
                     sql = "with cte as (select count(*) from a join b on a1=b1) select * from cte cte1, cte cte2;";
                     TU.ExecuteSQL(sql, "3,3", out _, option);
+
+                    // this is similar to tpcds q04 
+                    sql = "with cte as ( select a1,b1 from (select a1,a2,b1 from a,b where a1 = b1)ab where a1 < 3 )  select cte1.a1,cte2.a1,c.c1 from cte cte1, cte cte2, c where cte1.a1 = 1 and c.c1 = 1"; ;
+                    TU.ExecuteSQL(sql, "1,0,1;1,1,1;1,2,1", out phyplan, option);
+
+                    sql = "with cte as (select a_common2.a1 from a a_common2 where a1 = 1) select a_common.a1 from a a_common where a_common.a1 in (select a1 from cte)";
+                    TU.ExecuteSQL(sql, "1", out phyplan, option);
+
+                    // same table_ref one in CTE and the other in FROM, 
+                    // cte in subquery and cte has refer to a same-name tabel alias(a_common) TPCDS Q95
+                    // 
+                    sql = "with cte as (select a_common.a1 from a a_common where a1 = 1) select a_common.a1 from a a_common where a_common.a1 in (select a1 from cte)";
+                    TU.ExecuteSQL(sql, "1", out phyplan, option);
+
                 }
             }
         }

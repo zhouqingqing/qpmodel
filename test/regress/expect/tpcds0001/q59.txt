@@ -1,0 +1,194 @@
+with wss as 
+ (select d_week_seq,
+        ss_store_sk,
+        sum(case when (d_day_name='Sunday') then ss_sales_price else null end) sun_sales,
+        sum(case when (d_day_name='Monday') then ss_sales_price else null end) mon_sales,
+        sum(case when (d_day_name='Tuesday') then ss_sales_price else  null end) tue_sales,
+        sum(case when (d_day_name='Wednesday') then ss_sales_price else null end) wed_sales,
+        sum(case when (d_day_name='Thursday') then ss_sales_price else null end) thu_sales,
+        sum(case when (d_day_name='Friday') then ss_sales_price else null end) fri_sales,
+        sum(case when (d_day_name='Saturday') then ss_sales_price else null end) sat_sales
+ from store_sales,date_dim
+ where d_date_sk = ss_sold_date_sk
+ group by d_week_seq,ss_store_sk
+ )
+  select  s_store_name1,s_store_id1,d_week_seq1
+       ,sun_sales1/sun_sales2,mon_sales1/mon_sales2
+       ,tue_sales1/tue_sales2,wed_sales1/wed_sales2,thu_sales1/thu_sales2
+       ,fri_sales1/fri_sales2,sat_sales1/sat_sales2
+ from
+ (select s_store_name s_store_name1,wss.d_week_seq d_week_seq1
+        ,s_store_id s_store_id1,sun_sales sun_sales1
+        ,mon_sales mon_sales1,tue_sales tue_sales1
+        ,wed_sales wed_sales1,thu_sales thu_sales1
+        ,fri_sales fri_sales1,sat_sales sat_sales1
+  from wss,store,date_dim d
+  where d.d_week_seq = wss.d_week_seq and
+        ss_store_sk = s_store_sk and 
+        d_month_seq between 1195  and 1195 + 11) y,
+ (select s_store_name s_store_name2,wss.d_week_seq d_week_seq2
+        ,s_store_id s_store_id2,sun_sales sun_sales2
+        ,mon_sales mon_sales2,tue_sales tue_sales2
+        ,wed_sales wed_sales2,thu_sales thu_sales2
+        ,fri_sales fri_sales2,sat_sales sat_sales2
+  from wss,store,date_dim d
+  where d.d_week_seq = wss.d_week_seq and
+        ss_store_sk = s_store_sk and 
+        d_month_seq between 1195+ 12  and 1195 + 23) x
+ where s_store_id1=s_store_id2
+   and d_week_seq1=d_week_seq2-52
+ order by s_store_name1,s_store_id1,d_week_seq1
+limit 100
+Total cost: 844311.18, memory=10389444
+PhysicSequence  (inccost=844311.18, cost=2537, rows=5074) (actual rows=100)
+    Output: y.s_store_name1[0],y.s_store_id1[1],y.d_week_seq1[2],{y.sun_sales1/x.sun_sales2}[3],{y.mon_sales1/x.mon_sales2}[4],{y.tue_sales1/x.tue_sales2}[5],{y.wed_sales1/x.wed_sales2}[6],{y.thu_sales1/x.thu_sales2}[7],{y.fri_sales1/x.fri_sales2}[8],{y.sat_sales1/x.sat_sales2}[9]
+    -> PhysicCteProducer wss (inccost=690588, cost=2537, rows=5074) (actual rows=0)
+        Output: date_dim.d_week_seq[0],store_sales.ss_store_sk[1],{sum(case with 0|1|1)}[2],{sum(case with 0|1|1)}[3],{sum(case with 0|1|1)}[4],{sum(case with 0|1|1)}[5],{sum(case with 0|1|1)}[6],{sum(case with 0|1|1)}[7],{sum(case with 0|1|1)}[8]
+        -> PhysicHashAgg  (inccost=688051, cost=312253, rows=5074, memory=578436) (actual rows=577)
+            Output: {date_dim.d_week_seq}[0],{store_sales.ss_store_sk}[1],{sum(case with 0|1|1)}[2],{sum(case with 0|1|1)}[3],{sum(case with 0|1|1)}[4],{sum(case with 0|1|1)}[5],{sum(case with 0|1|1)}[6],{sum(case with 0|1|1)}[7],{sum(case with 0|1|1)}[8]
+            Aggregates: sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1)
+            Group by: date_dim.d_week_seq[0], store_sales.ss_store_sk[1]
+            -> PhysicHashJoin  (inccost=375798, cost=345317, rows=302105, memory=2215194) (actual rows=12224)
+                Output: date_dim.d_week_seq[11],store_sales.ss_store_sk[0],case with 0|1|1,{date_dim.d_day_name='Sunday'}[13],date_dim.d_day_name[12],{'Sunday'}[2],store_sales.ss_sales_price[1],{null}[3],case with 0|1|1,{date_dim.d_day_name='Monday'}[14],{'Monday'}[4],case with 0|1|1,{date_dim.d_day_name='Tuesday'}[15],{'Tuesday'}[5],case with 0|1|1,{date_dim.d_day_name='Wednesday'}[16],{'Wednesday'}[6],case with 0|1|1,{date_dim.d_day_name='Thursday'}[17],{'Thursday'}[7],case with 0|1|1,{date_dim.d_day_name='Friday'}[18],{'Friday'}[8],case with 0|1|1,{date_dim.d_day_name='Saturday'}[19],{'Saturday'}[9]
+                Filter: date_dim.d_date_sk[20]=store_sales.ss_sold_date_sk[10]
+                -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=12731)
+                    Output: store_sales.ss_store_sk[7],store_sales.ss_sales_price[13],'Sunday',null,'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday',store_sales.ss_sold_date_sk[0]
+                -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=17750) (actual rows=17750)
+                    Output: date_dim.d_week_seq[4],date_dim.d_day_name[14],date_dim.d_day_name[14]='Sunday',date_dim.d_day_name[14]='Monday',date_dim.d_day_name[14]='Tuesday',date_dim.d_day_name[14]='Wednesday',date_dim.d_day_name[14]='Thursday',date_dim.d_day_name[14]='Friday',date_dim.d_day_name[14]='Saturday',date_dim.d_date_sk[0]
+    -> PhysicLimit (100) (inccost=151186.18, cost=100, rows=100) (actual rows=100)
+        Output: y.s_store_name1[0],y.s_store_id1[1],y.d_week_seq1[2],{y.sun_sales1/x.sun_sales2}[3],{y.mon_sales1/x.mon_sales2}[4],{y.tue_sales1/x.tue_sales2}[5],{y.wed_sales1/x.wed_sales2}[6],{y.thu_sales1/x.thu_sales2}[7],{y.fri_sales1/x.fri_sales2}[8],{y.sat_sales1/x.sat_sales2}[9]
+        -> PhysicOrder  (inccost=151086.18, cost=43798.18, rows=5074, memory=603806) (actual rows=100)
+            Output: y.s_store_name1[0],y.s_store_id1[1],y.d_week_seq1[2],{y.sun_sales1/x.sun_sales2}[3],{y.mon_sales1/x.mon_sales2}[4],{y.tue_sales1/x.tue_sales2}[5],{y.wed_sales1/x.wed_sales2}[6],{y.thu_sales1/x.thu_sales2}[7],{y.fri_sales1/x.fri_sales2}[8],{y.sat_sales1/x.sat_sales2}[9]
+            Order by: y.s_store_name1[0], y.s_store_id1[1], y.d_week_seq1[2]
+            -> PhysicHashJoin  (inccost=107288, cost=20296, rows=5074, memory=1207612) (actual rows=3675)
+                Output: y.s_store_name1[0],y.s_store_id1[1],y.d_week_seq1[2],y.sun_sales1[3]/x.sun_sales2[10],y.mon_sales1[4]/x.mon_sales2[11],y.tue_sales1[5]/x.tue_sales2[12],y.wed_sales1[6]/x.wed_sales2[13],y.thu_sales1[7]/x.thu_sales2[14],y.fri_sales1[8]/x.fri_sales2[15],y.sat_sales1[9]/x.sat_sales2[16]
+                Filter: (y.s_store_id1[1]=x.s_store_id2[17] and y.d_week_seq1[2]=(x.d_week_seq2[18]-52))
+                -> PhysicFromQuery <y> (inccost=43320, cost=5074, rows=5074) (actual rows=576)
+                    Output: y.s_store_name1[0],y.s_store_id1[2],y.d_week_seq1[1],y.sun_sales1[3],y.mon_sales1[4],y.tue_sales1[5],y.wed_sales1[6],y.thu_sales1[7],y.fri_sales1[8],y.sat_sales1[9]
+                    -> PhysicHashJoin  (inccost=38246, cost=11436, rows=5074, memory=95312) (actual rows=576)
+                        Output: store.s_store_name (as s_store_name1)[0],wss.d_week_seq (as d_week_seq1)[4],store.s_store_id (as s_store_id1)[1],wss.sun_sales (as sun_sales1)[5],wss.mon_sales (as mon_sales1)[6],wss.tue_sales (as tue_sales1)[7],wss.wed_sales (as wed_sales1)[8],wss.thu_sales (as thu_sales1)[9],wss.fri_sales (as fri_sales1)[10],wss.sat_sales (as sat_sales1)[11]
+                        Filter: (d.d_week_seq[2]=wss.d_week_seq[4] and wss.ss_store_sk[12]=store.s_store_sk[3])
+                        -> PhysicNLJoin  (inccost=21736, cost=3984, rows=644) (actual rows=732)
+                            Output: store.s_store_name (as s_store_name1)[1],store.s_store_id (as s_store_id1)[2],d.d_week_seq[0],store.s_store_sk[3]
+                            -> PhysicScanTable date_dim as d (inccost=17750, cost=17750, rows=322) (actual rows=366)
+                                Output: d.d_week_seq[4]
+                                Filter: (d.d_month_seq[3]>=1195 and d.d_month_seq[3]<=1206)
+                            -> PhysicScanTable store (inccost=2, cost=2, rows=2) (actual rows=2, loops=366)
+                                Output: store.s_store_name (as s_store_name1)[5],store.s_store_id (as s_store_id1)[1],store.s_store_sk[0]
+                        -> PhysicFromQuery <wss> (inccost=5074, cost=5074, rows=5074) (actual rows=577)
+                            Output: wss.d_week_seq (as d_week_seq1)[0],wss.sun_sales (as sun_sales1)[2],wss.mon_sales (as mon_sales1)[3],wss.tue_sales (as tue_sales1)[4],wss.wed_sales (as wed_sales1)[5],wss.thu_sales (as thu_sales1)[6],wss.fri_sales (as fri_sales1)[7],wss.sat_sales (as sat_sales1)[8],wss.ss_store_sk[1]
+                -> PhysicFromQuery <x> (inccost=43672, cost=5074, rows=5074) (actual rows=625)
+                    Output: x.sun_sales2[3],x.mon_sales2[4],x.tue_sales2[5],x.wed_sales2[6],x.thu_sales2[7],x.fri_sales2[8],x.sat_sales2[9],x.s_store_id2[2],x.d_week_seq2[1]
+                    -> PhysicHashJoin  (inccost=38598, cost=11524, rows=5074, memory=101824) (actual rows=625)
+                        Output: store.s_store_name (as s_store_name2)[0],wss.d_week_seq (as d_week_seq2)[4],store.s_store_id (as s_store_id2)[1],wss.sun_sales (as sun_sales2)[5],wss.mon_sales (as mon_sales2)[6],wss.tue_sales (as tue_sales2)[7],wss.wed_sales (as wed_sales2)[8],wss.thu_sales (as thu_sales2)[9],wss.fri_sales (as fri_sales2)[10],wss.sat_sales (as sat_sales2)[11]
+                        Filter: (d.d_week_seq[2]=wss.d_week_seq[4] and wss.ss_store_sk[12]=store.s_store_sk[3])
+                        -> PhysicNLJoin  (inccost=22000, cost=4248, rows=688) (actual rows=730)
+                            Output: store.s_store_name (as s_store_name2)[1],store.s_store_id (as s_store_id2)[2],d.d_week_seq[0],store.s_store_sk[3]
+                            -> PhysicScanTable date_dim as d (inccost=17750, cost=17750, rows=344) (actual rows=365)
+                                Output: d.d_week_seq[4]
+                                Filter: (d.d_month_seq[3]>=1207 and d.d_month_seq[3]<=1218)
+                            -> PhysicScanTable store (inccost=2, cost=2, rows=2) (actual rows=2, loops=365)
+                                Output: store.s_store_name (as s_store_name2)[5],store.s_store_id (as s_store_id2)[1],store.s_store_sk[0]
+                        -> PhysicFromQuery <wss> (inccost=5074, cost=5074, rows=5074) (actual rows=577)
+                            Output: wss.d_week_seq (as d_week_seq2)[0],wss.sun_sales (as sun_sales2)[2],wss.mon_sales (as mon_sales2)[3],wss.tue_sales (as tue_sales2)[4],wss.wed_sales (as wed_sales2)[5],wss.thu_sales (as thu_sales2)[6],wss.fri_sales (as fri_sales2)[7],wss.sat_sales (as sat_sales2)[8],wss.ss_store_sk[1]
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5198,,,,,,,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5199,,,,,,2.1566731141199226305609284333,
+able,AAAAAAAACAAAAAAA,5200,,,,,,0.505712434033885751319322285,
+able,AAAAAAAACAAAAAAA,5200,,,,,,0.505712434033885751319322285,
+

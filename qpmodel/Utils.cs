@@ -82,12 +82,12 @@ namespace qpmodel.utils
         // FOR EACH with parent-child relationship
         //   can also skip certain parent type and its children recursively
         //
-        public void VisitEach(Action<T, int, T> callback, Type skipParentType = null)
+        public void VisitEach(Action<T, int, T> callback, List<Type> skipParentType = null)
         {
             void visitParentAndChildren(T parent,
-                        Action<T, int, T> callback, Type skipParentType = null)
+                        Action<T, int, T> callback, List<Type> skipParentType = null)
             {
-                if (parent.GetType() == skipParentType)
+                if (!(skipParentType is null) && skipParentType.Contains(parent.GetType()))
                     return;
 
                 if (parent == this)
@@ -135,7 +135,7 @@ namespace qpmodel.utils
 
         // lookup all T1 types in the tree and return the parent-target relationship
         public int FindNodeTypeMatch<T1>(List<T> parents,
-            List<int> childIndex, List<T1> targets, Type skipParentType = null) where T1 : TreeNode<T>
+            List<int> childIndex, List<T1> targets, List<Type> skipParentType = null) where T1 : TreeNode<T>
         {
             VisitEach((parent, index, child) =>
             {
@@ -242,7 +242,7 @@ namespace qpmodel.utils
         // postgreSQL dont support [A-Z]
         public static bool StringLike(this string s, string pattern)
         {
-            string regpattern="";
+            string regpattern = "";
             regpattern = pattern;
             if (!pattern.Contains("%"))
             {
@@ -251,11 +251,12 @@ namespace qpmodel.utils
             if (Regex.IsMatch(pattern, "[^%]+%"))
             {
                 regpattern = "^" + regpattern;
-            }else if (Regex.IsMatch(pattern, "%[^%]+"))
+            }
+            else if (Regex.IsMatch(pattern, "%[^%]+"))
             {
                 regpattern = regpattern + "$";
             }
-            regpattern =regpattern.Replace("%", ".*");
+            regpattern = regpattern.Replace("%", ".*");
             regpattern = regpattern.Replace("_", ".{1}");
             return Regex.IsMatch(s, regpattern);
         }

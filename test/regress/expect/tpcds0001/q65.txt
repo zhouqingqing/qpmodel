@@ -1,0 +1,180 @@
+select 
+	s_store_name,
+	i_item_desc,
+	sc.revenue,
+	i_current_price,
+	i_wholesale_cost,
+	i_brand
+ from store, item,
+     (select ss_store_sk, avg(revenue) as ave
+ 	from
+ 	    (select  ss_store_sk, ss_item_sk, 
+ 		     sum(ss_sales_price) as revenue
+ 		from store_sales, date_dim
+ 		where ss_sold_date_sk = d_date_sk and d_month_seq between 1176  and 1176+11
+ 		group by ss_store_sk, ss_item_sk) sa
+ 	group by ss_store_sk) sb,
+     (select  ss_store_sk, ss_item_sk, sum(ss_sales_price) as revenue
+ 	from store_sales, date_dim
+ 	where ss_sold_date_sk = d_date_sk and d_month_seq between 1176  and 1176+11
+ 	group by ss_store_sk, ss_item_sk) sc
+ where sb.ss_store_sk = sc.ss_store_sk and 
+       sc.revenue <= 0.1 * sb.ave and
+       s_store_sk = sc.ss_store_sk and
+       i_item_sk = sc.ss_item_sk
+ order by s_store_name, i_item_desc
+limit 100
+Total cost: 238389.17, memory=2588138
+PhysicLimit (100) (inccost=238389.17, cost=100, rows=100) (actual rows=100)
+    Output: store.s_store_name[0],item.i_item_desc[1],sc.revenue[2],item.i_current_price[3],item.i_wholesale_cost[4],item.i_brand[5]
+    -> PhysicOrder  (inccost=238289.17, cost=33238.17, rows=3964, memory=1272444) (actual rows=100)
+        Output: store.s_store_name[0],item.i_item_desc[1],sc.revenue[2],item.i_current_price[3],item.i_wholesale_cost[4],item.i_brand[5]
+        Order by: store.s_store_name[0], item.i_item_desc[1]
+        -> PhysicHashJoin  (inccost=205051, cost=7932, rows=3964, memory=216) (actual rows=149)
+            Output: store.s_store_name[0],item.i_item_desc[2],sc.revenue[3],item.i_current_price[4],item.i_wholesale_cost[5],item.i_brand[6]
+            Filter: store.s_store_sk[1]=sc.ss_store_sk[7]
+            -> PhysicScanTable store (inccost=2, cost=2, rows=2) (actual rows=2)
+                Output: store.s_store_name[5],store.s_store_sk[0]
+            -> PhysicHashJoin  (inccost=197117, cost=11928, rows=3964, memory=1072000) (actual rows=149)
+                Output: item.i_item_desc[0],sc.revenue[5],item.i_current_price[1],item.i_wholesale_cost[2],item.i_brand[3],sc.ss_store_sk[6]
+                Filter: item.i_item_sk[4]=sc.ss_item_sk[7]
+                -> PhysicScanTable item (inccost=2000, cost=2000, rows=2000) (actual rows=2000)
+                    Output: item.i_item_desc[4],item.i_current_price[5],item.i_wholesale_cost[6],item.i_brand[8],item.i_item_sk[0]
+                -> PhysicNLJoin  (inccost=183189, cost=43714, rows=3964) (actual rows=149)
+                    Output: sc.revenue[0],sc.ss_store_sk[1],sc.ss_item_sk[2]
+                    Filter: (sb.ss_store_sk[3]=sc.ss_store_sk[1] and sc.revenue[0]<=sb.ave[4]*0.1)
+                    -> PhysicFromQuery <sc> (inccost=67754, cost=3964, rows=3964) (actual rows=1459)
+                        Output: sc.revenue[2],sc.ss_store_sk[0],sc.ss_item_sk[1]
+                        -> PhysicHashAgg  (inccost=63790, cost=13902, rows=3964, memory=118920) (actual rows=1459)
+                            Output: {store_sales.ss_store_sk}[0],{store_sales.ss_item_sk}[1],{sum(store_sales.ss_sales_price)}[2]
+                            Aggregates: sum(store_sales.ss_sales_price[2])
+                            Group by: store_sales.ss_store_sk[0], store_sales.ss_item_sk[1]
+                            -> PhysicHashJoin  (inccost=49888, cost=19407, rows=5974, memory=2808) (actual rows=2401)
+                                Output: store_sales.ss_store_sk[1],store_sales.ss_item_sk[2],store_sales.ss_sales_price[3]
+                                Filter: store_sales.ss_sold_date_sk[4]=date_dim.d_date_sk[0]
+                                -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=351) (actual rows=365)
+                                    Output: date_dim.d_date_sk[0]
+                                    Filter: (date_dim.d_month_seq[3]>=1176 and date_dim.d_month_seq[3]<=1187)
+                                -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=12731)
+                                    Output: store_sales.ss_store_sk[7],store_sales.ss_item_sk[2],store_sales.ss_sales_price[13],store_sales.ss_sold_date_sk[0]
+                    -> PhysicFromQuery <sb> (inccost=71721, cost=1, rows=1) (actual rows=3, loops=1459)
+                        Output: sb.ss_store_sk[0],sb.ave[1]
+                        -> PhysicHashAgg  (inccost=71720, cost=3966, rows=1, memory=22) (actual rows=3, loops=1459)
+                            Output: {sa.ss_store_sk}[0],{avg(sa.revenue)}[1]
+                            Aggregates: avg(sa.revenue[1])
+                            Group by: sa.ss_store_sk[0]
+                            -> PhysicFromQuery <sa> (inccost=67754, cost=3964, rows=3964) (actual rows=1459, loops=1459)
+                                Output: sa.ss_store_sk[0],sa.revenue[2]
+                                -> PhysicHashAgg  (inccost=63790, cost=13902, rows=3964, memory=118920) (actual rows=1459, loops=1459)
+                                    Output: {store_sales.ss_store_sk}[0],{store_sales.ss_item_sk}[1],{sum(store_sales.ss_sales_price)}[2]
+                                    Aggregates: sum(store_sales.ss_sales_price[2])
+                                    Group by: store_sales.ss_store_sk[0], store_sales.ss_item_sk[1]
+                                    -> PhysicHashJoin  (inccost=49888, cost=19407, rows=5974, memory=2808) (actual rows=2401, loops=1459)
+                                        Output: store_sales.ss_store_sk[1],store_sales.ss_item_sk[2],store_sales.ss_sales_price[3]
+                                        Filter: store_sales.ss_sold_date_sk[4]=date_dim.d_date_sk[0]
+                                        -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=351) (actual rows=365, loops=1459)
+                                            Output: date_dim.d_date_sk[0]
+                                            Filter: (date_dim.d_month_seq[3]>=1176 and date_dim.d_month_seq[3]<=1187)
+                                        -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=12731, loops=1459)
+                                            Output: store_sales.ss_store_sk[7],store_sales.ss_item_sk[2],store_sales.ss_sales_price[13],store_sales.ss_sold_date_sk[0]
+able,Actively fair matches will like even; brit,4.36,3.14,2.51,exportibrand #7
+able,Also top references ma,2.04,19.90,12.13,importoscholar #2
+able,Appropriate categories know at least as good concepts. Dead days should praise in order wide,2.90,5.70,4.44,brandcorp #7
+able,Asleep, philos,0.17,4.18,2.54,maximaxi #11
+able,Average teachers go single men. Now integrated women include however in order clean materials. British, white doors take more. Even true holes state substantially later other rats; downs,5.84,5.87,4.51,importoedu pack #2
+able,Beautiful areas know ever actually chief patterns. International, simple feelings like in a russians. National methods would not agree new, other practices; remote, small respects,3.97,7.13,3.99,univnameless #7
+able,Boats return small, right words. Hours say generally hostile, hard firms. Other, bri,1.98,47.47,17.56,edu packimporto #2
+able,Casual, original arms should work dramatically in a scholars; classes oug,5.32,1.96,1.25,importoamalg #1
+able,Cheap problems can draw please over good stars. Either long children would pass similar, different metres; base, large surroundings,3.04,16.70,8.01,edu packimporto #1
+able,Commercial, popular processes give later now wooden facts. Black, outer purposes examine national, precise heels. Invisible times s,0.67,5.25,1.68,amalgedu pack #1
+able,Considerably similar rules avoid more; cases get against the situations. Beds must like large, limited approaches. Less unable groups could say. Speedily fiscal concerns pay too talks. Long nee,3.23,0.76,0.67,importonameless #9
+able,Continued ideas reflect only still other prices. Actually historical weeks help low, appropriate companies; recent provisions widen du,3.90,2.16,1.79,corpmaxi #2
+able,Contracts provide never main villages. Politicians should not enable only rooms. Also inner flowers will make so t,3.33,5.21,3.07,corpamalgamalg #12
+able,Desirable members will compare in a terms. Light friends shall record notably there continuous problems. Late, re,3.95,1.17,0.88,exportimaxi #1
+able,Disastrous, other concessions surprise heavy cars; now economic homes place; sudden, social results may get raw, just publications. Only awful condition,0.82,2.43,1.04,edu packnameless #9
+able,Dollars prove everywhere o,2.56,7.89,4.02,amalgbrand #4
+able,Dynamic, available memories may go abstract years; presumably high members stay faster industries. Offices give thus. Carers ought to pay well fields. Obvious,1.01,9.45,8.41,amalgnameless #1
+able,Educational groups,2.29,0.70,0.53,univmaxi #5
+able,Either british authorities would receive slightly. Yesterday unique clothes work seldom old sales. Famous, possible programmes take reall,3.66,3.49,1.18,edu packcorp #7
+able,European roads see tomorrow then central causes. Friendly, molecular creatures sweep as the police. Simply waste techniques control directors. Early, increa,6.70,0.52,0.42,importoscholar #1
+able,Even so blue fathers shall not let more to the pounds; walls shall raise important activities. Passive sounds may,4.46,8.15,2.77,exportiimporto #1
+able,Everyday strings might wash for example about a pp.. Right physical specialists can break privately hungry journalists. Devices will not defend offices. Content, new projects should not se,3.10,2.40,1.99,edu packscholar #1
+able,Factors sha,0.00,9.79,4.40,edu packscholar #1
+able,Flights concentrate ironically fundamental unions. Military, foll,0.00,5.19,4.67,amalgexporti #2
+able,Forms end social tons. Level, only fruits establish alone more decisive differences. Also persistent wi,1.17,0.52,0.27,importoedu pack #1
+able,Further new men cannot see between the colours. Classic, small parents will raise current hands; very light policies see probably citi,3.71,8.58,4.89,edu packbrand #6
+able,Good, dependent houses can prevent different eyes. Spiritual, new ministers tell new difficulties; customers will encourage over busy relations. Modern, substantial far,0.73,1.58,1.01,exportimaxi #1
+able,Grateful rates turn social, young answers. Visual miles,3.84,5.05,1.51,edu packscholar #2
+able,Grounds freeze previously then full rises. Familiar, big activities require as across a attitudes. Nuclear movies gain t,3.45,8.74,6.64,scholarbrand #3
+able,High, italian orders used to move only for a lights. British, daily doctors come. Therefore small fears buy. O,1.00,1.18,0.67,amalgnameless #8
+able,Horses last results. There thorough parents sail everywhere into a gua,1.90,3.45,2.55,scholarnameless #5
+able,Hot, royal elements could not kill just local affairs. Never labour links would not use well hard, unusual str,0.25,8.30,3.32,importobrand #4
+able,Huge, private situations ought to back by an marks. Girls can come also local,,3.54,7.03,5.06,importomaxi #1
+able,Improvements direct inevitable, wrong arrangements. White songs must say in a centuries. Dark, narrow schools go always possible stories. Progressive, certain parts might sleep to the players. True,,4.40,1.43,1.02,amalgexporti #1
+able,Independent, main patients belong ver,4.06,4.72,1.93,importoamalg #2
+able,Kinds used to go. Then perfect ways blame rather than the shelves; sexual conditions use arguably controls. All pos,1.54,7.56,5.51,amalgamalg #2
+able,Large reasons would not happen again generous terms; carers take,4.74,7.82,2.97,amalgscholar #2
+able,Likely doctors give most. Awful problems att,2.63,2.16,1.38,exportinameless #3
+able,Likely, casual patients work most negotiations. Recent plans must,5.45,1.60,1.12,corpamalgamalg #7
+able,Literary efforts could meet please in the terms. Difficult securities make aspects. Pressures support charming, british men.,4.19,0.75,0.38,amalgamalg #2
+able,Longer usual findings afford yet. As willing other,0.84,1.75,0.75,namelessnameless #5
+able,Marvellous, useful pupils could ask remaining police; remarkable roots,2.80,13.01,11.31,edu packamalg #2
+able,Medical, extra ages used to draw possible holidays. Ever si,3.94,0.69,0.52,edu packexporti #1
+able,Members begin together industrial, re,4.01,59.77,24.50,exportiunivamalg #2
+able,Military, national problems run international, good tears. Actually similar rooms let social, international books. Enterprises should amount too con,3.46,0.28,0.16,amalgimporto #2
+able,Months cope new, significant guns. Following, other years might boil most instead elected tourists. Speci,6.23,4.32,1.64,exportiedu pack #1
+able,Months may occur thus modern, inner patients. Political penalties put events. Forms used to win in particular; areas c,6.41,5.37,4.51,amalgexporti #2
+able,New prisons used to come sexual,3.22,2.39,1.81,exportiexporti #2
+able,Other phrases cannot invest only previously small views. As following pupils give of course selective citizens. Content, burning positions take through a factors,3.39,5.18,4.24,exportiamalg #1
+able,Other, british benefits begin over about the participants. Legal, short contracts receive for a procedures. Openly unlikely countries need both planes. Lines should not get very ago historical,1.71,9.51,7.60,univnameless #3
+able,Patients could learn then fund,2.25,0.79,0.66,namelessnameless #8
+able,Players could master since. Wide impossible reactions must,2.14,2.24,1.32,exportibrand #1
+able,Political men cannot get,4.54,2.38,1.61,importoimporto #1
+able,Prime, racial rocks enable then reduced, wonderful num,3.57,7.43,5.27,exportiunivamalg #8
+able,Proposal,4.29,1.65,0.64,importoexporti #1
+able,Quick, sad situations might leave,5.38,6.79,4.48,amalgmaxi #6
+able,Quite different services promote all the same. Private, marginal colleagues play of course similar, different girls. French, local girls reap here. Bad movies shorten relatively. Terms,2.93,57.09,32.54,scholarunivamalg #2
+able,Recent tools should spee,1.52,20.16,15.12,amalgunivamalg #2
+able,Recent, french conservatives cannot get somehow; decisions save accordingly happy thousands. Seriously good years argue then golden attacks. Just wide eyes drink underground likely, fin,4.01,0.09,0.03,brandnameless #2
+able,Roman lines talk children. Parties account exactly toward,0.91,4.28,2.99,edu packnameless #9
+able,Slightly large companies might not manage. Dist,3.56,4.21,1.59,corpbrand #5
+able,Small, bare solicitors may take for,6.26,3.20,1.28,amalgnameless #7
+able,Sorts might think full birds. New packages shall exceed sad arrangements. Problems cannot come together other employees.,3.59,1.54,0.61,exportibrand #4
+able,Subsequent, serious gene,1.39,4.93,3.84,corpnameless #3
+able,Super bodies enable in the interests. Dull years understand so diffe,6.72,5.38,4.78,edu packnameless #8
+able,Sure, common teams surrender again important, clear goals. Wives take happy, certain issues. Objects get quite. Representatives,2.08,2.01,0.76,exportischolar #2
+able,Systems would not send more faithfully easy ministers. Conditions penetrate vulnerable questions. Most regular parts create well german commentators. Odd difficulties mus,3.16,3.26,1.49,edu packnameless #7
+able,Then social minutes will think nuclear, great contents. Opening men find else able amounts. National, diffe,6.65,2.47,2.19,univbrand #7
+able,Then western animals could teach somewhere. Today waiting servants confuse,2.34,4.10,3.48,amalgmaxi #9
+able,Too big interests ought to go annually old real classes; little edges entail still electoral matters. Sure bonds make wonderful, central provisions. Internation,3.42,1.52,0.94,edu packmaxi #5
+able,Total, certain demands want in a men. Customs zer,0.00,3.78,2.15,amalgscholar #1
+able,Trustees grow well thereby national attitudes. Social, excellent bacteria contain permanent gaps. Only dynamic uses ought to halt very long, bright men; japanese, distin,1.52,3.31,2.87,exporticorp #1
+able,Very conventional quantities would turn on a clients.,3.00,4.49,2.46,importoedu pack #1
+able,Visitors shall talk less just violent members. S,4.48,0.15,0.12,exportiexporti #1
+able,Voters cause already urban, formal children. Medieval shares must not spare human, crazy things; so public,0.23,9.27,3.98,maxibrand #10
+able,Weeks will claim at a hands. Cuts meet smart, relevant lawyers. Enormous sides should,3.28,23.89,10.75,corpnameless #9
+ought,,2.01,,0.33,corpunivamalg #3
+ought,Able issues find sure equal practices. Simply familiar patterns contain hours.,3.04,0.12,0.07,amalgimporto #1
+ought,Always similar signs ask. Social, real knees ought to live apparently women. Also similar hands may think private governments. Fr,0.25,0.09,0.06,edu packamalg #1
+ought,Appropriate categories know at least as good concepts. Dead days should praise in order wide,0.75,5.70,4.44,brandcorp #7
+ought,Articles,2.90,1.26,1.10,exportischolar #2
+ought,Bc able groups shall vote,1.32,3.95,3.31,univunivamalg #8
+ought,Boats return small, right words. Hours say generally hostile, hard firms. Other, bri,3.85,47.47,17.56,edu packimporto #2
+ought,Brothers see bodies. Social, military emotions might know well still able officials. Ga,3.23,7.61,2.66,importoscholar #2
+ought,Capital, united feelings paint only things. Greatly financial economies should not pay somewhere soviet necessary armies; educational concepts mus,0.35,3.83,1.30,exportimaxi #2
+ought,Cases include proudly without a columns. Solid, pre,4.87,2.42,1.83,importomaxi #9
+ought,Catholic years st,1.16,0.45,0.19,maximaxi #8
+ought,Certain, military duties might work maybe exports. Here simple decisions will imagine also sufficient beds. Advances withdraw still more cold,5.60,9.80,4.60,importoamalg #1
+ought,Clear, top associations can activate all national factors. Items could think sure skills. Fine, thin classes must not help simply only statutory,1.95,6.27,4.57,brandbrand #10
+ought,Comprehensive reasons follow so from,4.40,8.00,4.88,importoimporto #1
+ought,Computers ought to get apart f,4.61,1.01,0.63,amalgscholar #2
+ought,Considerations might make of course clear services. Political, beautiful germans can become in a contents; famous areas r,2.88,2.15,0.92,corpmaxi #5
+ought,Criminal companies may emerge sometimes children. Urban, other efforts dominate policies. Very right fans drive briti,3.03,9.67,5.12,univnameless #2
+ought,Days cannot catch particularly exciting, given teachers;,0.95,2.05,0.90,edu packedu pack #2
+ought,Demands must show. Of cour,5.39,4.73,3.45,importoamalg #2
+ought,Difficulties might allow with a persons. Single, significant allegations matter,2.34,4.36,3.92,importoamalg #1
+ought,Easily major passages should feel here in a events; far european police should not die sometimes local possible systems. Off,0.66,4.17,3.29,edu packimporto #1
+ought,Emotional, nuclear farmers can understand also in t,2.25,98.66,85.83,importobrand #7
+ought,English, efficient scene,5.14,8.54,5.46,univbrand #2
+ought,Enough labour days watch to a shops. Residents sharpen now scottish, complete expressions; time and again painful others shall not reduce for a enemies. Images visit bef,3.13,4.92,3.24,edu packbrand #5
+

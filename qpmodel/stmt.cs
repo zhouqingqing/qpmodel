@@ -425,12 +425,20 @@ namespace qpmodel.logic
         {
             internal SelectStmt query_;
             internal string alias_;
-
-            internal NamedQuery(SelectStmt query, string alias)
+            internal QueryType queryType_;
+            public enum QueryType
+            {
+                UNSURE,
+                CET,
+                FROM
+            }
+            public bool IsCteNamedQuery() => queryType_ == QueryType.CET;
+            internal NamedQuery(SelectStmt query, string alias, QueryType queryType)
             {
                 Debug.Assert(query != null);
                 query_ = query;
                 alias_ = alias;
+                queryType_ = queryType;
             }
 
             public override bool Equals(object obj)
@@ -478,6 +486,7 @@ namespace qpmodel.logic
         internal List<NamedQuery> subQueries_ = new List<NamedQuery>();
         internal List<NamedQuery> decorrelatedSubs_ = new List<NamedQuery>();
         internal Dictionary<NamedQuery, LogicFromQuery> fromQueries_ = new Dictionary<NamedQuery, LogicFromQuery>();
+        internal Dictionary<NamedQuery, LogicCteProducer> cteQueries_ = new Dictionary<NamedQuery, LogicCteProducer>();
         internal bool hasAgg_ = false;
         internal bool bounded_ = false;
 
@@ -654,11 +663,16 @@ namespace qpmodel.logic
             // be optimized by subquery optimization and this will cause double 
             // predicate push down (e.g., a1>1 && a1>1)
             //
+
             var parents = new List<LogicNode>();
             var indexes = new List<int>();
             var filters = new List<LogicFilter>();
+
+            // if not enable_cte_plan, the LogicCteProducer Node should skip as well
+            List<Type> skip = queryOpt_.optimize_.enable_cte_plan_ ? new List<Type> { typeof(LogicFromQuery) } : new List<Type> { typeof(LogicFromQuery), typeof(LogicCteProducer) };
+
             var cntFilter = plan.FindNodeTypeMatch(parents,
-                                    indexes, filters, skipParentType: typeof(LogicFromQuery));
+                                    indexes, filters, skipParentType: skip);
 
             for (int i = 0; i < cntFilter; i++)
             {
@@ -707,17 +721,25 @@ namespace qpmodel.logic
                     if (andlist.Count == 0)
                     {
                         if (parent is null)
+                        {
                             // take it out from the tree
                             plan = plan.child_();
-                        else
+                        }
+                        else 
                         {
                             // find current parent;
                             // consider if the parent in parents = new List<LogicNode>() is deleted
-                            plan.VisitEach((parent_cur, index, child) =>
+                            // consider if from cte, then the parent is wrongly found as From
+                            // 
+                            if (!queryOpt_.optimize_.enable_cte_plan_)
                             {
-                                if (child == filter) parent = parent_cur;
-                            });
+                                plan.VisitEach((parent_cur, index, child) =>
+                                {
+                                    if (child == filter) parent = parent_cur;
+                                });                              
+                            }
                             parent.children_[index] = filter.child_();
+
                         }
                     }
                     else
@@ -845,6 +867,7 @@ namespace qpmodel.logic
                 if (!decorrelatedSubs_.Contains(x))
                     x.query_.SubstitutionOptimize();
             });
+
             foreach (var x in fromQueries_)
             {
                 var fromQuery = x.Value as LogicFromQuery;
@@ -852,7 +875,6 @@ namespace qpmodel.logic
                 if (newplan != null)
                     fromQuery.children_[0] = newplan.query_.logicPlan_;
             }
-
             // now we can adjust join order
             logic.VisitEach(x =>
             {

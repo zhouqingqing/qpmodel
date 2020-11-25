@@ -75,6 +75,7 @@ namespace qpmodel.logic
             {
                 enable_subquery_unnest_ = true;
                 remove_from_ = true;
+                enable_cte_plan_ = true;
 
                 enable_hashjoin_ = true;
                 enable_nljoin_ = true;
@@ -218,6 +219,13 @@ namespace qpmodel.logic
                 var output = exp_output ? ExplainOutput(depth, option) : null;
                 if (output != null)
                     r += Utils.Spaces(depth + 2) + output + "\n";
+
+                if (this is PhysicFromQuery pfq)
+                {
+                    if (pfq.IsCteConsumer())
+                        return r;
+                }
+
                 if (details != null)
                 {
                     // remove the last \n in case the details is a subquery
@@ -279,7 +287,7 @@ namespace qpmodel.logic
                 {
                     Debug.Assert(expr.HasSubQuery());
                     x.query_.CreatePlan();
-                    subplans.Add(new NamedQuery(x.query_, null));
+                    subplans.Add(new NamedQuery(x.query_, null, NamedQuery.QueryType.UNSURE));
 
                     // functionally we don't have to do rewrite since above
                     // plan is already runnable
@@ -349,12 +357,22 @@ namespace qpmodel.logic
                         else
                         {
                             string alias = null;
+                            NamedQuery key;
                             if (qref is CTEQueryRef cq)
+                            {
                                 alias = cq.alias_;
-                            else if (qref is FromQueryRef fq)
+                                key = new NamedQuery(qref.query_, alias, NamedQuery.QueryType.CET);
+                            }
+                            else
+                            {
+                                var fq = qref as FromQueryRef;
                                 alias = fq.alias_;
-                            var key = new NamedQuery(qref.query_, alias);
+                                key = new NamedQuery(qref.query_, alias, NamedQuery.QueryType.FROM);
+                            }
+
                             from = new LogicFromQuery(qref, plan);
+                            // CTE query is optimised in LogicSequece
+                            // 
                             subQueries_.Add(key);
 
                             // if from CTE, then it could be duplicates

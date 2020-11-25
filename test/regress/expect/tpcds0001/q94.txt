@@ -1,0 +1,73 @@
+select  
+   count(distinct ws_order_number) as "order count"
+  ,sum(ws_ext_ship_cost) as "total shipping cost"
+  ,sum(ws_net_profit) as "total net profit"
+from
+   web_sales ws1
+  ,date_dim
+  ,customer_address
+  ,web_site
+where
+    d_date between date '2002-5-01' and
+           (cast('2002-5-01' as date) + 60 days)
+and ws1.ws_ship_date_sk = d_date_sk
+and ws1.ws_ship_addr_sk = ca_address_sk
+and ca_state = 'OK'
+and ws1.ws_web_site_sk = web_site_sk
+and web_company_name = 'pri'
+and exists (select *
+            from web_sales ws2
+            where ws1.ws_order_number = ws2.ws_order_number
+              and ws1.ws_warehouse_sk <> ws2.ws_warehouse_sk)
+and not exists(select *
+               from web_returns wr1
+               where ws1.ws_order_number = wr1.wr_order_number)
+order by count(distinct ws_order_number)
+limit 100
+Total cost: 219040.1, memory=734
+PhysicLimit (100) (inccost=219040.1, cost=100, rows=100) (actual rows=1)
+    Output: {count(ws1.ws_order_number)}[0],{sum(ws1.ws_ext_ship_cost)}[1],{sum(ws1.ws_net_profit)}[2]
+    -> PhysicOrder  (inccost=218940.1, cost=0.1, rows=1, memory=18) (actual rows=1)
+        Output: {count(ws1.ws_order_number)}[0],{sum(ws1.ws_ext_ship_cost)}[1],{sum(ws1.ws_net_profit)}[2]
+        Order by: {count(ws1.ws_order_number)}[0]
+        -> PhysicHashAgg  (inccost=218940, cost=11878, rows=1, memory=36) (actual rows=1)
+            Output: {count(ws1.ws_order_number)}[0],{sum(ws1.ws_ext_ship_cost)}[1],{sum(ws1.ws_net_profit)}[2]
+            Aggregates: count(ws1.ws_order_number[0]), sum(ws1.ws_ext_ship_cost[1]), sum(ws1.ws_net_profit[2])
+            -> PhysicFilter  (inccost=207062, cost=11876, rows=11876) (actual rows=0)
+                Output: ws1.ws_order_number[0],ws1.ws_ext_ship_cost[1],ws1.ws_net_profit[2]
+                Filter: {#marker@1}[3]
+                -> PhysicMarkJoin Left (inccost=195186, cost=130636, rows=11876) (actual rows=0)
+                    Output: ws1.ws_order_number[0],ws1.ws_ext_ship_cost[1],ws1.ws_net_profit[2],{#marker@1}[3]
+                    Filter: (ws1.ws_order_number[0]=ws2.ws_order_number[4] and ws1.ws_warehouse_sk[3]<>ws2.ws_warehouse_sk[5])
+                    -> PhysicFilter  (inccost=52674, cost=11, rows=11) (actual rows=0)
+                        Output: ws1.ws_order_number[0],ws1.ws_ext_ship_cost[1],ws1.ws_net_profit[2],ws1.ws_warehouse_sk[3]
+                        Filter: {#marker@2}[4]
+                        -> PhysicMarkJoin Left (inccost=52663, cost=8064, rows=11) (actual rows=0)
+                            Output: ws1.ws_order_number[0],ws1.ws_ext_ship_cost[1],ws1.ws_net_profit[2],ws1.ws_warehouse_sk[3],{#marker@2}[4]
+                            Filter: ws1.ws_order_number[0]=wr1.wr_order_number[4]
+                            -> PhysicHashJoin  (inccost=43447, cost=23, rows=7, memory=8) (actual rows=0)
+                                Output: ws1.ws_order_number[1],ws1.ws_ext_ship_cost[2],ws1.ws_net_profit[3],ws1.ws_warehouse_sk[4]
+                                Filter: ws1.ws_web_site_sk[5]=web_site.web_site_sk[0]
+                                -> PhysicScanTable web_site (inccost=2, cost=2, rows=1) (actual rows=0)
+                                    Output: web_site.web_site_sk[0]
+                                    Filter: web_site.web_company_name[14]='pri'
+                                -> PhysicHashJoin  (inccost=43422, cost=433, rows=14, memory=200) (actual rows=0)
+                                    Output: ws1.ws_order_number[1],ws1.ws_ext_ship_cost[2],ws1.ws_net_profit[3],ws1.ws_warehouse_sk[4],ws1.ws_web_site_sk[5]
+                                    Filter: ws1.ws_ship_addr_sk[6]=customer_address.ca_address_sk[0]
+                                    -> PhysicScanTable customer_address (inccost=1000, cost=1000, rows=25) (actual rows=0)
+                                        Output: customer_address.ca_address_sk[0]
+                                        Filter: customer_address.ca_state[8]='OK'
+                                    -> PhysicHashJoin  (inccost=41989, cost=12363, rows=369, memory=472) (actual rows=0)
+                                        Output: ws1.ws_order_number[1],ws1.ws_ext_ship_cost[2],ws1.ws_net_profit[3],ws1.ws_warehouse_sk[4],ws1.ws_web_site_sk[5],ws1.ws_ship_addr_sk[6]
+                                        Filter: ws1.ws_ship_date_sk[7]=date_dim.d_date_sk[0]
+                                        -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=59) (actual rows=0)
+                                            Output: date_dim.d_date_sk[0]
+                                            Filter: (date_dim.d_date[2]>='2002-5-01' and date_dim.d_date[2]<='6/30/2002 12:00:00 AM')
+                                        -> PhysicScanTable web_sales as ws1 (inccost=11876, cost=11876, rows=11876) (actual rows=0)
+                                            Output: ws1.ws_order_number[17],ws1.ws_ext_ship_cost[28],ws1.ws_net_profit[33],ws1.ws_warehouse_sk[15],ws1.ws_web_site_sk[13],ws1.ws_ship_addr_sk[11],ws1.ws_ship_date_sk[2]
+                            -> PhysicScanTable web_returns as wr1 (inccost=1152, cost=1152, rows=1152) (actual rows=0)
+                                Output: wr1.wr_order_number[13]
+                    -> PhysicScanTable web_sales as ws2 (inccost=11876, cost=11876, rows=11876) (actual rows=0)
+                        Output: ws2.ws_order_number[17],ws2.ws_warehouse_sk[15]
+0,,
+

@@ -1,0 +1,113 @@
+select  *
+from (select avg(ss_list_price) B1_LP
+            ,count(ss_list_price) B1_CNT
+            ,count(distinct ss_list_price) B1_CNTD
+      from store_sales
+      where ss_quantity between 0  and 5
+        and (ss_list_price between 107  and 107+10 
+             or ss_coupon_amt between 1319  and 1319+1000
+             or ss_wholesale_cost between 60  and 60+20)) B1,
+     (select avg(ss_list_price) B2_LP
+            ,count(ss_list_price) B2_CNT
+            ,count(distinct ss_list_price) B2_CNTD
+      from store_sales
+      where ss_quantity between 6  and 10
+        and (ss_list_price between 23  and 23+10
+          or ss_coupon_amt between 825  and 825+1000
+          or ss_wholesale_cost between 43  and 43+20)) B2,
+     (select avg(ss_list_price) B3_LP
+            ,count(ss_list_price) B3_CNT
+            ,count(distinct ss_list_price) B3_CNTD
+      from store_sales
+      where ss_quantity between 11  and 15
+        and (ss_list_price between 74  and 74+10
+          or ss_coupon_amt between 4381  and 4381+1000
+          or ss_wholesale_cost between 57  and 57+20)) B3,
+     (select avg(ss_list_price) B4_LP
+            ,count(ss_list_price) B4_CNT
+            ,count(distinct ss_list_price) B4_CNTD
+      from store_sales
+      where ss_quantity between 16  and 20
+        and (ss_list_price between 89  and 89+10
+          or ss_coupon_amt between 3117  and 3117+1000
+          or ss_wholesale_cost between 68  and 68+20)) B4,
+     (select avg(ss_list_price) B5_LP
+            ,count(ss_list_price) B5_CNT
+            ,count(distinct ss_list_price) B5_CNTD
+      from store_sales
+      where ss_quantity between 21  and 25
+        and (ss_list_price between 58  and 58+10
+          or ss_coupon_amt between 9402  and 9402+1000
+          or ss_wholesale_cost between 38  and 38+20)) B5,
+     (select avg(ss_list_price) B6_LP
+            ,count(ss_list_price) B6_CNT
+            ,count(distinct ss_list_price) B6_CNTD
+      from store_sales
+      where ss_quantity between 26  and 30
+        and (ss_list_price between 64  and 64+10
+          or ss_coupon_amt between 5792  and 5792+1000
+          or ss_wholesale_cost between 73  and 73+20)) B6
+limit 100
+Total cost: 78085, memory=132
+PhysicLimit (100) (inccost=78085, cost=100, rows=100) (actual rows=1)
+    Output: {avg(b1.ss_list_price)}[0],{count(b1.ss_list_price)}[1],{count(b1.ss_list_price)}[1],{avg(b2.ss_list_price)}[2],{count(b2.ss_list_price)}[3],{count(b2.ss_list_price)}[3],{avg(b3.ss_list_price)}[4],{count(b3.ss_list_price)}[5],{count(b3.ss_list_price)}[5],{avg(b4.ss_list_price)}[6],{count(b4.ss_list_price)}[7],{count(b4.ss_list_price)}[7],{avg(b5.ss_list_price)}[8],{count(b5.ss_list_price)}[9],{count(b5.ss_list_price)}[9],{avg(b6.ss_list_price)}[10],{count(b6.ss_list_price)}[11],{count(b6.ss_list_price)}[11]
+    -> PhysicNLJoin  (inccost=77985, cost=121, rows=1) (actual rows=1)
+        Output: {avg(b1.ss_list_price)}[0],{count(b1.ss_list_price)}[1],{avg(b2.ss_list_price)}[2],{count(b2.ss_list_price)}[3],{avg(b3.ss_list_price)}[4],{count(b3.ss_list_price)}[5],{avg(b4.ss_list_price)}[6],{count(b4.ss_list_price)}[7],{avg(b5.ss_list_price)}[8],{count(b5.ss_list_price)}[9],{avg(b6.ss_list_price)}[10],{count(b6.ss_list_price)}[11]
+        -> PhysicFromQuery <b1> (inccost=12901, cost=1, rows=1) (actual rows=1)
+            Output: {avg(b1.ss_list_price)}[0],{count(b1.ss_list_price)}[1]
+            -> PhysicHashAgg  (inccost=12900, cost=169, rows=1, memory=22) (actual rows=1)
+                Output: {avg(store_sales.ss_list_price)}[0],{count(store_sales.ss_list_price)}[1]
+                Aggregates: avg(store_sales.ss_list_price[0]), count(store_sales.ss_list_price[0])
+                -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=167) (actual rows=144)
+                    Output: store_sales.ss_list_price[12]
+                    Filter: ((store_sales.ss_quantity[10]>=0 and store_sales.ss_quantity[10]<=5) and (((store_sales.ss_list_price[12]>=107 and store_sales.ss_list_price[12]<=117) or (store_sales.ss_coupon_amt[19]>=1319 and store_sales.ss_coupon_amt[19]<=2319)) or (store_sales.ss_wholesale_cost[11]>=60 and store_sales.ss_wholesale_cost[11]<=80)))
+        -> PhysicNLJoin  (inccost=64963, cost=121, rows=1) (actual rows=1)
+            Output: {avg(b2.ss_list_price)}[2],{count(b2.ss_list_price)}[3],{avg(b3.ss_list_price)}[4],{count(b3.ss_list_price)}[5],{avg(b4.ss_list_price)}[6],{count(b4.ss_list_price)}[7],{avg(b5.ss_list_price)}[8],{count(b5.ss_list_price)}[9],{avg(b6.ss_list_price)}[0],{count(b6.ss_list_price)}[1]
+            -> PhysicFromQuery <b6> (inccost=12888, cost=1, rows=1) (actual rows=1)
+                Output: {avg(b6.ss_list_price)}[0],{count(b6.ss_list_price)}[1]
+                -> PhysicHashAgg  (inccost=12887, cost=156, rows=1, memory=22) (actual rows=1)
+                    Output: {avg(store_sales.ss_list_price)}[0],{count(store_sales.ss_list_price)}[1]
+                    Aggregates: avg(store_sales.ss_list_price[0]), count(store_sales.ss_list_price[0])
+                    -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=154) (actual rows=156)
+                        Output: store_sales.ss_list_price[12]
+                        Filter: ((store_sales.ss_quantity[10]>=26 and store_sales.ss_quantity[10]<=30) and (((store_sales.ss_list_price[12]>=64 and store_sales.ss_list_price[12]<=74) or (store_sales.ss_coupon_amt[19]>=5792 and store_sales.ss_coupon_amt[19]<=6792)) or (store_sales.ss_wholesale_cost[11]>=73 and store_sales.ss_wholesale_cost[11]<=93)))
+            -> PhysicNLJoin  (inccost=51954, cost=121, rows=1) (actual rows=1)
+                Output: {avg(b2.ss_list_price)}[2],{count(b2.ss_list_price)}[3],{avg(b3.ss_list_price)}[4],{count(b3.ss_list_price)}[5],{avg(b4.ss_list_price)}[6],{count(b4.ss_list_price)}[7],{avg(b5.ss_list_price)}[0],{count(b5.ss_list_price)}[1]
+                -> PhysicFromQuery <b5> (inccost=12896, cost=1, rows=1) (actual rows=1)
+                    Output: {avg(b5.ss_list_price)}[0],{count(b5.ss_list_price)}[1]
+                    -> PhysicHashAgg  (inccost=12895, cost=164, rows=1, memory=22) (actual rows=1)
+                        Output: {avg(store_sales.ss_list_price)}[0],{count(store_sales.ss_list_price)}[1]
+                        Aggregates: avg(store_sales.ss_list_price[0]), count(store_sales.ss_list_price[0])
+                        -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=162) (actual rows=139)
+                            Output: store_sales.ss_list_price[12]
+                            Filter: ((store_sales.ss_quantity[10]>=21 and store_sales.ss_quantity[10]<=25) and (((store_sales.ss_list_price[12]>=58 and store_sales.ss_list_price[12]<=68) or (store_sales.ss_coupon_amt[19]>=9402 and store_sales.ss_coupon_amt[19]<=10402)) or (store_sales.ss_wholesale_cost[11]>=38 and store_sales.ss_wholesale_cost[11]<=58)))
+                -> PhysicNLJoin  (inccost=38937, cost=121, rows=1) (actual rows=1)
+                    Output: {avg(b2.ss_list_price)}[2],{count(b2.ss_list_price)}[3],{avg(b3.ss_list_price)}[4],{count(b3.ss_list_price)}[5],{avg(b4.ss_list_price)}[0],{count(b4.ss_list_price)}[1]
+                    -> PhysicFromQuery <b4> (inccost=12897, cost=1, rows=1) (actual rows=1)
+                        Output: {avg(b4.ss_list_price)}[0],{count(b4.ss_list_price)}[1]
+                        -> PhysicHashAgg  (inccost=12896, cost=165, rows=1, memory=22) (actual rows=1)
+                            Output: {avg(store_sales.ss_list_price)}[0],{count(store_sales.ss_list_price)}[1]
+                            Aggregates: avg(store_sales.ss_list_price[0]), count(store_sales.ss_list_price[0])
+                            -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=163) (actual rows=143)
+                                Output: store_sales.ss_list_price[12]
+                                Filter: ((store_sales.ss_quantity[10]>=16 and store_sales.ss_quantity[10]<=20) and (((store_sales.ss_list_price[12]>=89 and store_sales.ss_list_price[12]<=99) or (store_sales.ss_coupon_amt[19]>=3117 and store_sales.ss_coupon_amt[19]<=4117)) or (store_sales.ss_wholesale_cost[11]>=68 and store_sales.ss_wholesale_cost[11]<=88)))
+                    -> PhysicNLJoin  (inccost=25919, cost=121, rows=1) (actual rows=1)
+                        Output: {avg(b2.ss_list_price)}[2],{count(b2.ss_list_price)}[3],{avg(b3.ss_list_price)}[0],{count(b3.ss_list_price)}[1]
+                        -> PhysicFromQuery <b3> (inccost=12886, cost=1, rows=1) (actual rows=1)
+                            Output: {avg(b3.ss_list_price)}[0],{count(b3.ss_list_price)}[1]
+                            -> PhysicHashAgg  (inccost=12885, cost=154, rows=1, memory=22) (actual rows=1)
+                                Output: {avg(store_sales.ss_list_price)}[0],{count(store_sales.ss_list_price)}[1]
+                                Aggregates: avg(store_sales.ss_list_price[0]), count(store_sales.ss_list_price[0])
+                                -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=152) (actual rows=126)
+                                    Output: store_sales.ss_list_price[12]
+                                    Filter: ((store_sales.ss_quantity[10]>=11 and store_sales.ss_quantity[10]<=15) and (((store_sales.ss_list_price[12]>=74 and store_sales.ss_list_price[12]<=84) or (store_sales.ss_coupon_amt[19]>=4381 and store_sales.ss_coupon_amt[19]<=5381)) or (store_sales.ss_wholesale_cost[11]>=57 and store_sales.ss_wholesale_cost[11]<=77)))
+                        -> PhysicFromQuery <b2> (inccost=12912, cost=1, rows=1) (actual rows=1)
+                            Output: {avg(b2.ss_list_price)}[0],{count(b2.ss_list_price)}[1]
+                            -> PhysicHashAgg  (inccost=12911, cost=180, rows=1, memory=22) (actual rows=1)
+                                Output: {avg(store_sales.ss_list_price)}[0],{count(store_sales.ss_list_price)}[1]
+                                Aggregates: avg(store_sales.ss_list_price[0]), count(store_sales.ss_list_price[0])
+                                -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=178) (actual rows=170)
+                                    Output: store_sales.ss_list_price[12]
+                                    Filter: ((store_sales.ss_quantity[10]>=6 and store_sales.ss_quantity[10]<=10) and (((store_sales.ss_list_price[12]>=23 and store_sales.ss_list_price[12]<=33) or (store_sales.ss_coupon_amt[19]>=825 and store_sales.ss_coupon_amt[19]<=1825)) or (store_sales.ss_wholesale_cost[11]>=43 and store_sales.ss_wholesale_cost[11]<=63)))
+107.40472222222222222222222222,144,144,66.976785714285714285714285714,168,168,97.96136,125,125,114.48114285714285714285714286,140,140,69.68496402877697841726618705,139,139,113.33348387096774193548387097,155,155
+

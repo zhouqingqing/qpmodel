@@ -1,0 +1,124 @@
+select  promotions,total,cast(promotions as decimal(15,4))/cast(total as decimal(15,4))*100
+from
+  (select sum(ss_ext_sales_price) promotions
+   from  store_sales
+        ,store
+        ,promotion
+        ,date_dim
+        ,customer
+        ,customer_address 
+        ,item
+   where ss_sold_date_sk = d_date_sk
+   and   ss_store_sk = s_store_sk
+   and   ss_promo_sk = p_promo_sk
+   and   ss_customer_sk= c_customer_sk
+   and   ca_address_sk = c_current_addr_sk
+   and   ss_item_sk = i_item_sk 
+   and   ca_gmt_offset = -7
+   and   i_category = 'Home'
+   and   (p_channel_dmail = 'Y' or p_channel_email = 'Y' or p_channel_tv = 'Y')
+   and   s_gmt_offset = -7
+   and   d_year = 2000
+   and   d_moy  = 12) promotional_sales,
+  (select sum(ss_ext_sales_price) total
+   from  store_sales
+        ,store
+        ,date_dim
+        ,customer
+        ,customer_address
+        ,item
+   where ss_sold_date_sk = d_date_sk
+   and   ss_store_sk = s_store_sk
+   and   ss_customer_sk= c_customer_sk
+   and   ca_address_sk = c_current_addr_sk
+   and   ss_item_sk = i_item_sk
+   and   ca_gmt_offset = -7
+   and   i_category = 'Home'
+   and   s_gmt_offset = -7
+   and   d_year = 2000
+   and   d_moy  = 12) all_sales
+order by promotions, total
+limit 100
+Total cost: 98860.1, memory=6061
+PhysicLimit (100) (inccost=98860.1, cost=100, rows=100) (actual rows=1)
+    Output: promotional_sales.promotions[0],all_sales.total[1],{cast(promotional_sales.promotions to numeric(15, 4))/cast(all_sales.total to numeric(15, 4))*100}[2]
+    -> PhysicOrder  (inccost=98760.1, cost=0.1, rows=1, memory=29) (actual rows=1)
+        Output: promotional_sales.promotions[0],all_sales.total[1],{cast(promotional_sales.promotions to numeric(15, 4))/cast(all_sales.total to numeric(15, 4))*100}[2]
+        Order by: promotional_sales.promotions[0], all_sales.total[1]
+        -> PhysicNLJoin  (inccost=98760, cost=121, rows=1) (actual rows=1)
+            Output: promotional_sales.promotions[0],all_sales.total[1],cast(promotional_sales.promotions[0] to numeric(15, 4))/cast(all_sales.total[1] to numeric(15, 4))*100
+            -> PhysicFromQuery <promotional_sales> (inccost=49554, cost=1, rows=1) (actual rows=1)
+                Output: promotional_sales.promotions[0]
+                -> PhysicHashAgg  (inccost=49553, cost=3, rows=1, memory=14) (actual rows=1)
+                    Output: {sum(store_sales.ss_ext_sales_price)}[0]
+                    Aggregates: sum(store_sales.ss_ext_sales_price[0])
+                    -> PhysicHashJoin  (inccost=49550, cost=193, rows=1, memory=22) (actual rows=0)
+                        Output: store_sales.ss_ext_sales_price[0]
+                        Filter: store_sales.ss_item_sk[1]=item.i_item_sk[2]
+                        -> PhysicHashJoin  (inccost=47357, cost=13030, rows=1, memory=4768) (actual rows=0)
+                            Output: store_sales.ss_ext_sales_price[4],store_sales.ss_item_sk[5]
+                            Filter: (((store_sales.ss_sold_date_sk[6]=date_dim.d_date_sk[0] and store_sales.ss_store_sk[7]=store.s_store_sk[1]) and store_sales.ss_promo_sk[8]=promotion.p_promo_sk[2]) and store_sales.ss_customer_sk[9]=customer.c_customer_sk[3])
+                            -> PhysicNLJoin  (inccost=21596, cost=574, rows=149) (actual rows=0)
+                                Output: date_dim.d_date_sk[3],store.s_store_sk[0],promotion.p_promo_sk[1],customer.c_customer_sk[2]
+                                -> PhysicNLJoin  (inccost=3272, cost=143, rows=4) (actual rows=0)
+                                    Output: store.s_store_sk[0],promotion.p_promo_sk[2],customer.c_customer_sk[1]
+                                    -> PhysicNLJoin  (inccost=3126, cost=121, rows=1) (actual rows=0)
+                                        Output: store.s_store_sk[0],customer.c_customer_sk[1]
+                                        -> PhysicScanTable store (inccost=2, cost=2, rows=1) (actual rows=0)
+                                            Output: store.s_store_sk[0]
+                                            Filter: store.s_gmt_offset[27]=-7
+                                        -> PhysicHashJoin  (inccost=3003, cost=1003, rows=1, memory=8) (actual rows=0)
+                                            Output: customer.c_customer_sk[1]
+                                            Filter: customer_address.ca_address_sk[0]=customer.c_current_addr_sk[2]
+                                            -> PhysicScanTable customer_address (inccost=1000, cost=1000, rows=1) (actual rows=0)
+                                                Output: customer_address.ca_address_sk[0]
+                                                Filter: customer_address.ca_gmt_offset[11]=-7
+                                            -> PhysicScanTable customer (inccost=1000, cost=1000, rows=1000) (actual rows=0)
+                                                Output: customer.c_customer_sk[0],customer.c_current_addr_sk[4]
+                                    -> PhysicScanTable promotion (inccost=3, cost=3, rows=3) (actual rows=0)
+                                        Output: promotion.p_promo_sk[0]
+                                        Filter: ((promotion.p_channel_dmail[8]='Y' or promotion.p_channel_email[9]='Y') or promotion.p_channel_tv[11]='Y')
+                                -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=31) (actual rows=0)
+                                    Output: date_dim.d_date_sk[0]
+                                    Filter: (date_dim.d_year[6]=2000 and date_dim.d_moy[8]=12)
+                            -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=0)
+                                Output: store_sales.ss_ext_sales_price[15],store_sales.ss_item_sk[2],store_sales.ss_sold_date_sk[0],store_sales.ss_store_sk[7],store_sales.ss_promo_sk[8],store_sales.ss_customer_sk[3]
+                        -> PhysicScanTable item (inccost=2000, cost=2000, rows=190) (actual rows=0)
+                            Output: item.i_item_sk[0]
+                            Filter: item.i_category[12]='Home'
+            -> PhysicFromQuery <all_sales> (inccost=49085, cost=1, rows=1) (actual rows=1)
+                Output: all_sales.total[0]
+                -> PhysicHashAgg  (inccost=49084, cost=3, rows=1, memory=14) (actual rows=1)
+                    Output: {sum(store_sales.ss_ext_sales_price)}[0]
+                    Aggregates: sum(store_sales.ss_ext_sales_price[0])
+                    -> PhysicHashJoin  (inccost=49081, cost=193, rows=1, memory=22) (actual rows=0)
+                        Output: store_sales.ss_ext_sales_price[0]
+                        Filter: store_sales.ss_item_sk[1]=item.i_item_sk[2]
+                        -> PhysicHashJoin  (inccost=46888, cost=12830, rows=1, memory=1176) (actual rows=0)
+                            Output: store_sales.ss_ext_sales_price[3],store_sales.ss_item_sk[4]
+                            Filter: ((store_sales.ss_sold_date_sk[5]=date_dim.d_date_sk[0] and store_sales.ss_store_sk[6]=store.s_store_sk[1]) and store_sales.ss_customer_sk[7]=customer.c_customer_sk[2])
+                            -> PhysicNLJoin  (inccost=21327, cost=451, rows=49) (actual rows=0)
+                                Output: date_dim.d_date_sk[2],store.s_store_sk[0],customer.c_customer_sk[1]
+                                -> PhysicNLJoin  (inccost=3126, cost=121, rows=1) (actual rows=0)
+                                    Output: store.s_store_sk[1],customer.c_customer_sk[0]
+                                    -> PhysicHashJoin  (inccost=3003, cost=1003, rows=1, memory=8) (actual rows=121)
+                                        Output: customer.c_customer_sk[1]
+                                        Filter: customer_address.ca_address_sk[0]=customer.c_current_addr_sk[2]
+                                        -> PhysicScanTable customer_address (inccost=1000, cost=1000, rows=1) (actual rows=110)
+                                            Output: customer_address.ca_address_sk[0]
+                                            Filter: customer_address.ca_gmt_offset[11]=-7
+                                        -> PhysicScanTable customer (inccost=1000, cost=1000, rows=1000) (actual rows=1000)
+                                            Output: customer.c_customer_sk[0],customer.c_current_addr_sk[4]
+                                    -> PhysicScanTable store (inccost=2, cost=2, rows=1) (actual rows=0, loops=121)
+                                        Output: store.s_store_sk[0]
+                                        Filter: store.s_gmt_offset[27]=-7
+                                -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=31) (actual rows=0)
+                                    Output: date_dim.d_date_sk[0]
+                                    Filter: (date_dim.d_year[6]=2000 and date_dim.d_moy[8]=12)
+                            -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=0)
+                                Output: store_sales.ss_ext_sales_price[15],store_sales.ss_item_sk[2],store_sales.ss_sold_date_sk[0],store_sales.ss_store_sk[7],store_sales.ss_customer_sk[3]
+                        -> PhysicScanTable item (inccost=2000, cost=2000, rows=190) (actual rows=0)
+                            Output: item.i_item_sk[0]
+                            Filter: item.i_category[12]='Home'
+,,
+

@@ -166,15 +166,26 @@ namespace qpmodel.physic
         {
             var incCost = 0.0;
             incCost += Cost();
+
+            // CTE has been cached, so there is no need to cal its cost
+            //
+            if (this is PhysicFromQuery pfq && pfq.IsCteConsumer())
+                return incCost;
+
             children_.ForEach(x =>
             {
                 if (x is PhysicMemoRef xp)
                     incCost += xp.Group().nullPropertyMinIncCost;
                 else
+                {
+                    if (x is PhysicProfiling) x = x.child_();
                     incCost += x.InclusiveCost();
+                }
             });
 
             // add subquery cost of Subquery in WHERE clause to inclusive cost
+            // CTE may show in here, we should also ignore it
+            //
             if (this.logic_.filter_ != null)
             {
                 Expr expr = this.logic_.filter_;
@@ -182,7 +193,10 @@ namespace qpmodel.physic
                 {
                     Debug.Assert(x.query_.physicPlan_ != null);
                     var phynode = x.query_.physicPlan_ as PhysicNode;
-                    incCost += phynode.InclusiveCost();
+                    if (phynode.logic_ is LogicFromQuery lfq && lfq.IsCteConsumer())
+                        incCost += 0;
+                    else
+                        incCost += phynode.InclusiveCost();
                 });
             }
 
@@ -1536,6 +1550,8 @@ namespace qpmodel.physic
     {
         List<Row> cteCache_ = null;
 
+        public bool IsCteConsumer() => (logic_ as LogicFromQuery).IsCteConsumer();
+
         public override string ToString() => $"PFrom({(logic_ as LogicFromQuery)}: {Cost()})";
 
         public PhysicFromQuery(LogicFromQuery logic, PhysicNode l) : base(logic) => children_.Add(l);
@@ -1764,7 +1780,7 @@ namespace qpmodel.physic
                     Debug.Assert(nrows <= limit);
                     l = ExecProject(l);
                     if (nrows == limit)
-                        context.stop_ = true;                              
+                        context.stop_ = true;
                     callback(l);
                 }
             });

@@ -28,15 +28,15 @@ order by
 	p_brand,
 	p_type,
 	p_size
-Total cost: 3901902.61, memory=19158650
-PhysicOrder  (inccost=3901902.61, cost=1509052.61, rows=127300, memory=5473900)
+Total cost: 3891902.61, memory=19158650
+PhysicOrder  (inccost=3891902.61, cost=1509052.61, rows=127300, memory=5473900)
     Output: p_brand[0],p_type[1],p_size[2],{count(ps_suppkey)}[3]
     Order by: {count(ps_suppkey)}[3], p_brand[0], p_type[1], p_size[2]
-    -> PhysicHashAgg  (inccost=2392850, cost=381900, rows=127300, memory=10947800)
+    -> PhysicHashAgg  (inccost=2382850, cost=381900, rows=127300, memory=10947800)
         Output: {p_brand}[0],{p_type}[1],{p_size}[2],{count(ps_suppkey)}[3]
         Aggregates: count(ps_suppkey[3])
         Group by: p_brand[0], p_type[1], p_size[2]
-        -> PhysicHashJoin  (inccost=2010950, cost=990950, rows=127300, memory=2736950)
+        -> PhysicHashJoin  (inccost=2000950, cost=990950, rows=127300, memory=2736950)
             Output: p_brand[0],p_type[1],p_size[2],ps_suppkey[4]
             Filter: p_partkey[3]=ps_partkey[5]
             -> PhysicScanTable part (inccost=200000, cost=200000, rows=31825)

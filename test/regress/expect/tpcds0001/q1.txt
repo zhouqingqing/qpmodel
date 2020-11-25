@@ -1,0 +1,170 @@
+with customer_total_return as
+	(select sr_customer_sk as ctr_customer_sk
+	,sr_store_sk as ctr_store_sk
+	,sum(sr_fee) as ctr_total_return
+	from store_returns
+	,date_dim
+	where sr_returned_date_sk = d_date_sk
+	and d_year =2000
+	group by sr_customer_sk
+	,sr_store_sk)
+select  c_customer_id
+from customer_total_return ctr1
+	,store
+	,customer
+where ctr1.ctr_total_return > (select avg(ctr_total_return)*1.2
+from customer_total_return ctr2
+where ctr1.ctr_store_sk = ctr2.ctr_store_sk)
+	and s_store_sk = ctr1.ctr_store_sk
+	and s_state = 'TN'
+	and ctr1.ctr_customer_sk = c_customer_sk
+order by c_customer_id
+limit 100
+Total cost: 93368.8, memory=368822
+PhysicSequence  (inccost=93368.8, cost=1000, rows=2000) (actual rows=100)
+    Output: customer.c_customer_id[0]
+    -> PhysicCteProducer customer_total_return (inccost=51858, cost=1000, rows=2000) (actual rows=0)
+        Output: store_returns.sr_customer_sk (as ctr_customer_sk)[0],store_returns.sr_store_sk (as ctr_store_sk)[1],{sum(store_returns.sr_fee)}[2]
+        -> PhysicHashAgg  (inccost=50858, cost=6263, rows=2000, memory=60000) (actual rows=1286)
+            Output: {store_returns.sr_customer_sk}[0],{store_returns.sr_store_sk}[1],{sum(store_returns.sr_fee)}[2]
+            Aggregates: sum(store_returns.sr_fee[2])
+            Group by: store_returns.sr_customer_sk[0], store_returns.sr_store_sk[1]
+            -> PhysicHashJoin  (inccost=44595, cost=14920, rows=2263, memory=2928) (actual rows=2250)
+                Output: store_returns.sr_customer_sk (as ctr_customer_sk)[1],store_returns.sr_store_sk (as ctr_store_sk)[2],store_returns.sr_fee[3]
+                Filter: store_returns.sr_returned_date_sk[4]=date_dim.d_date_sk[0]
+                -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=366) (actual rows=366)
+                    Output: date_dim.d_date_sk[0]
+                    Filter: date_dim.d_year[6]=2000
+                -> PhysicScanTable store_returns (inccost=11925, cost=11925, rows=11925) (actual rows=11925)
+                    Output: store_returns.sr_customer_sk (as ctr_customer_sk)[3],store_returns.sr_store_sk (as ctr_store_sk)[7],store_returns.sr_fee[14],store_returns.sr_returned_date_sk[0]
+    -> PhysicLimit (100) (inccost=40510.8, cost=100, rows=100) (actual rows=100)
+        Output: customer.c_customer_id[0]
+        -> PhysicOrder  (inccost=40410.8, cost=15401.8, rows=2000, memory=32000) (actual rows=100)
+            Output: customer.c_customer_id[0]
+            Order by: customer.c_customer_id[0]
+            -> PhysicFilter  (inccost=25009, cost=2000, rows=2000) (actual rows=369)
+                Output: customer.c_customer_id[0]
+                Filter: ctr1.ctr_total_return[1]>{avg(ctr2.ctr_total_return)}[2]*1.2
+                -> PhysicHashJoin Left (inccost=23009, cost=6001, rows=2000, memory=108000) (actual rows=1249)
+                    Output: customer.c_customer_id[0],ctr1.ctr_total_return[1],{avg(ctr2.ctr_total_return)}[3]
+                    Filter: ctr1.ctr_store_sk[2]=ctr2.ctr_store_sk[4]
+                    -> PhysicHashJoin  (inccost=13006, cost=4004, rows=2000, memory=16) (actual rows=1249)
+                        Output: customer.c_customer_id[1],ctr1.ctr_total_return[2],ctr1.ctr_store_sk[3]
+                        Filter: store.s_store_sk[0]=ctr1.ctr_store_sk[3]
+                        -> PhysicScanTable store (inccost=2, cost=2, rows=2) (actual rows=2)
+                            Output: store.s_store_sk[0]
+                            Filter: store.s_state[24]='TN'
+                        -> PhysicHashJoin  (inccost=9000, cost=6000, rows=2000, memory=40000) (actual rows=1283)
+                            Output: customer.c_customer_id[0],ctr1.ctr_total_return[2],ctr1.ctr_store_sk[3]
+                            Filter: ctr1.ctr_customer_sk[4]=customer.c_customer_sk[1]
+                            -> PhysicScanTable customer (inccost=1000, cost=1000, rows=1000) (actual rows=1000)
+                                Output: customer.c_customer_id[1],customer.c_customer_sk[0]
+                            -> PhysicFromQuery <customer_total_return as ctr1> (inccost=2000, cost=2000, rows=2000) (actual rows=1286)
+                                Output: ctr1.ctr_total_return[2],ctr1.ctr_store_sk[1],ctr1.ctr_customer_sk[0]
+                    -> PhysicHashAgg  (inccost=4002, cost=2002, rows=1, memory=22) (actual rows=3)
+                        Output: {avg(ctr2.ctr_total_return)}[1],{ctr2.ctr_store_sk}[0]
+                        Aggregates: avg(ctr2.ctr_total_return[1])
+                        Group by: ctr2.ctr_store_sk[0]
+                        -> PhysicFromQuery <customer_total_return as ctr2> (inccost=2000, cost=2000, rows=2000) (actual rows=1286)
+                            Output: ctr2.ctr_store_sk[1],ctr2.ctr_total_return[2]
+AAAAAAAAAACAAAAA
+AAAAAAAAAACAAAAA
+AAAAAAAAAADAAAAA
+AAAAAAAAABDAAAAA
+AAAAAAAAADDAAAAA
+AAAAAAAAAFDAAAAA
+AAAAAAAAAHCAAAAA
+AAAAAAAAAJDAAAAA
+AAAAAAAAAKBAAAAA
+AAAAAAAAAKBAAAAA
+AAAAAAAAALAAAAAA
+AAAAAAAAALDAAAAA
+AAAAAAAAALDAAAAA
+AAAAAAAAAMDAAAAA
+AAAAAAAAAMDAAAAA
+AAAAAAAAANAAAAAA
+AAAAAAAAAODAAAAA
+AAAAAAAAAODAAAAA
+AAAAAAAAAPCAAAAA
+AAAAAAAABBAAAAAA
+AAAAAAAABBBAAAAA
+AAAAAAAABBBAAAAA
+AAAAAAAABCAAAAAA
+AAAAAAAABCAAAAAA
+AAAAAAAABCCAAAAA
+AAAAAAAABEAAAAAA
+AAAAAAAABEBAAAAA
+AAAAAAAABEDAAAAA
+AAAAAAAABGAAAAAA
+AAAAAAAABGBAAAAA
+AAAAAAAABHAAAAAA
+AAAAAAAABIBAAAAA
+AAAAAAAABIBAAAAA
+AAAAAAAABJAAAAAA
+AAAAAAAABKCAAAAA
+AAAAAAAABLBAAAAA
+AAAAAAAABMBAAAAA
+AAAAAAAABMCAAAAA
+AAAAAAAABMDAAAAA
+AAAAAAAABNBAAAAA
+AAAAAAAABNBAAAAA
+AAAAAAAABOAAAAAA
+AAAAAAAABODAAAAA
+AAAAAAAACACAAAAA
+AAAAAAAACBCAAAAA
+AAAAAAAACEBAAAAA
+AAAAAAAACEDAAAAA
+AAAAAAAACFDAAAAA
+AAAAAAAACGBAAAAA
+AAAAAAAACHAAAAAA
+AAAAAAAACHBAAAAA
+AAAAAAAACICAAAAA
+AAAAAAAACJAAAAAA
+AAAAAAAACJAAAAAA
+AAAAAAAACJDAAAAA
+AAAAAAAACJDAAAAA
+AAAAAAAACNAAAAAA
+AAAAAAAACNBAAAAA
+AAAAAAAACOCAAAAA
+AAAAAAAACODAAAAA
+AAAAAAAACPAAAAAA
+AAAAAAAACPAAAAAA
+AAAAAAAACPCAAAAA
+AAAAAAAADBAAAAAA
+AAAAAAAADBDAAAAA
+AAAAAAAADCAAAAAA
+AAAAAAAADCBAAAAA
+AAAAAAAADCCAAAAA
+AAAAAAAADCDAAAAA
+AAAAAAAADEDAAAAA
+AAAAAAAADFAAAAAA
+AAAAAAAADFAAAAAA
+AAAAAAAADFBAAAAA
+AAAAAAAADFBAAAAA
+AAAAAAAADFCAAAAA
+AAAAAAAADGBAAAAA
+AAAAAAAADGDAAAAA
+AAAAAAAADHBAAAAA
+AAAAAAAADJAAAAAA
+AAAAAAAADJDAAAAA
+AAAAAAAADKBAAAAA
+AAAAAAAADMDAAAAA
+AAAAAAAADNBAAAAA
+AAAAAAAADNCAAAAA
+AAAAAAAADOCAAAAA
+AAAAAAAADODAAAAA
+AAAAAAAADODAAAAA
+AAAAAAAADPBAAAAA
+AAAAAAAADPCAAAAA
+AAAAAAAAEAAAAAAA
+AAAAAAAAEACAAAAA
+AAAAAAAAEADAAAAA
+AAAAAAAAEBCAAAAA
+AAAAAAAAECBAAAAA
+AAAAAAAAECCAAAAA
+AAAAAAAAEDCAAAAA
+AAAAAAAAEEBAAAAA
+AAAAAAAAEGDAAAAA
+AAAAAAAAEHDAAAAA
+AAAAAAAAEICAAAAA
+

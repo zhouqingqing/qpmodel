@@ -1,0 +1,63 @@
+select  sum(cs_ext_discount_amt)  as "excess discount amount" 
+from 
+   catalog_sales 
+   ,item 
+   ,date_dim
+where
+i_manufact_id = 722
+and i_item_sk = cs_item_sk 
+and d_date between date '2001-03-09' and (cast('2001-03-09' as date) + 90 days)
+and d_date_sk = cs_sold_date_sk 
+and cs_ext_discount_amt  
+     > ( 
+         select 
+            1.3 * avg(cs_ext_discount_amt) 
+         from 
+            catalog_sales 
+           ,date_dim
+         where 
+              cs_item_sk = i_item_sk 
+          and d_date between date '2001-03-09' and (cast('2001-03-09' as date) + 90 days)
+          and d_date_sk = cs_sold_date_sk 
+      ) 
+limit 100
+Total cost: 85215, memory=23444
+PhysicLimit (100) (inccost=85215, cost=100, rows=100) (actual rows=1)
+    Output: {sum(catalog_sales.cs_ext_discount_amt)}[0]
+    -> PhysicHashAgg  (inccost=85115, cost=8, rows=1, memory=14) (actual rows=1)
+        Output: {sum(catalog_sales.cs_ext_discount_amt)}[0]
+        Aggregates: sum(catalog_sales.cs_ext_discount_amt[0])
+        -> PhysicFilter  (inccost=85107, cost=6, rows=6) (actual rows=0)
+            Output: catalog_sales.cs_ext_discount_amt[0]
+            Filter: catalog_sales.cs_ext_discount_amt[0]>{avg(catalog_sales__1.cs_ext_discount_amt)}[1]*1.3
+            -> PhysicHashJoin Left (inccost=85101, cost=1019, rows=6, memory=132) (actual rows=0)
+                Output: catalog_sales.cs_ext_discount_amt[0],{avg(catalog_sales__1.cs_ext_discount_amt)}[2]
+                Filter: catalog_sales__1.cs_item_sk[3]=item.i_item_sk[1]
+                -> PhysicHashJoin  (inccost=38916, cost=132, rows=6, memory=540) (actual rows=0)
+                    Output: catalog_sales.cs_ext_discount_amt[0],item.i_item_sk[1]
+                    Filter: date_dim.d_date_sk[3]=catalog_sales.cs_sold_date_sk[2]
+                    -> PhysicHashJoin  (inccost=21034, cost=9528, rows=18, memory=16) (actual rows=0)
+                        Output: catalog_sales.cs_ext_discount_amt[1],item.i_item_sk[0],catalog_sales.cs_sold_date_sk[2]
+                        Filter: item.i_item_sk[0]=catalog_sales.cs_item_sk[3]
+                        -> PhysicScanTable item (inccost=2000, cost=2000, rows=2) (actual rows=1)
+                            Output: item.i_item_sk[0]
+                            Filter: item.i_manufact_id[13]=722
+                        -> PhysicScanTable catalog_sales (inccost=9506, cost=9506, rows=9506) (actual rows=9506)
+                            Output: catalog_sales.cs_ext_discount_amt[22],catalog_sales.cs_sold_date_sk[0],catalog_sales.cs_item_sk[15]
+                    -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=90) (actual rows=0)
+                        Output: date_dim.d_date_sk[0]
+                        Filter: (date_dim.d_date[2]>='2001-03-09' and date_dim.d_date[2]<='6/7/2001 12:00:00 AM')
+                -> PhysicHashAgg  (inccost=45166, cost=5113, rows=1001, memory=22022) (actual rows=0)
+                    Output: {avg(catalog_sales__1.cs_ext_discount_amt)}[1],{catalog_sales__1.cs_item_sk}[0]
+                    Aggregates: avg(catalog_sales__1.cs_ext_discount_amt[1])
+                    Group by: catalog_sales__1.cs_item_sk[0]
+                    -> PhysicHashJoin  (inccost=40053, cost=12797, rows=3111, memory=720) (actual rows=0)
+                        Output: catalog_sales__1.cs_item_sk[1],catalog_sales__1.cs_ext_discount_amt[2]
+                        Filter: date_dim__1.d_date_sk[0]=catalog_sales__1.cs_sold_date_sk[3]
+                        -> PhysicScanTable date_dim as date_dim__1 (inccost=17750, cost=17750, rows=90) (actual rows=0)
+                            Output: date_dim__1.d_date_sk[0]
+                            Filter: (date_dim__1.d_date[2]>='2001-03-09' and date_dim__1.d_date[2]<='6/7/2001 12:00:00 AM')
+                        -> PhysicScanTable catalog_sales as catalog_sales__1 (inccost=9506, cost=9506, rows=9506) (actual rows=0)
+                            Output: catalog_sales__1.cs_item_sk[15],catalog_sales__1.cs_ext_discount_amt[22],catalog_sales__1.cs_sold_date_sk[0]
+
+
