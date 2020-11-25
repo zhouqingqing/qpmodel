@@ -10,7 +10,7 @@
 #include "runtime/runtime.h"
 #include "parser/include/expr.h"
 #include "parser/include/stmt.h"
-#include "optimizer/binder.h"
+// #include "optimizer/binder.h"
 #include "parser/include/SQLParserResult.h"
 
 #ifdef _MSC_VER
