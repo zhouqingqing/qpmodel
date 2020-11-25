@@ -22,72 +22,50 @@ where inv1.i_item_sk = inv2.i_item_sk
   and inv2.d_moy=1+1
 order by inv1.w_warehouse_sk,inv1.i_item_sk,inv1.d_moy,inv1.mean,inv1.cov
         ,inv2.d_moy,inv2.mean, inv2.cov
-Total cost: 4253197.41, memory=6379712
-PhysicOrder  (inccost=4253197.41, cost=244459.41, rows=24000, memory=1152000) (actual rows=3)
+Total cost: 2356828.41, memory=8417568
+PhysicSequence  (inccost=2356828.41, cost=12000, rows=24000) (actual rows=3)
     Output: inv1.w_warehouse_sk[0],inv1.i_item_sk[1],inv1.d_moy[2],inv1.mean[3],inv1.cov[4],inv2.w_warehouse_sk[5],inv2.i_item_sk[6],inv2.d_moy[7],inv2.mean[8],inv2.cov[9]
-    Order by: inv2.w_warehouse_sk[5], inv2.i_item_sk[6], inv2.d_moy[7], inv2.mean[8], inv2.cov[9], inv2.d_moy[7], inv2.mean[8], inv2.cov[9]
-    -> PhysicFilter  (inccost=4008738, cost=24000, rows=24000) (actual rows=3)
+    -> PhysicCteProducer inv (inccost=1932369, cost=12000, rows=24000) (actual rows=0)
+        Output: foo.w_warehouse_name[0],foo.w_warehouse_sk[1],foo.i_item_sk[2],foo.d_moy[3],foo.stdev[4],foo.mean[5],{case with 1|1|1}[6]
+        -> PhysicFilter  (inccost=1920369, cost=24000, rows=24000) (actual rows=665)
+            Output: foo.w_warehouse_name[0],foo.w_warehouse_sk[1],foo.i_item_sk[2],foo.d_moy[3],foo.stdev[4],foo.mean[5],{case with 1|1|1}[6]
+            Filter: case with 1|1|1>1
+            -> PhysicFromQuery <foo> (inccost=1896369, cost=24000, rows=24000) (actual rows=12012)
+                Output: foo.w_warehouse_name[0],foo.w_warehouse_sk[1],foo.i_item_sk[2],foo.d_moy[3],foo.stdev[4],foo.mean[5],case with 1|1|1
+                -> PhysicHashAgg  (inccost=1872369, cost=414366, rows=24000, memory=1920000) (actual rows=12012)
+                    Output: {warehouse.w_warehouse_name}[0],{warehouse.w_warehouse_sk}[1],{item.i_item_sk}[2],{date_dim.d_moy}[3],{stddev_samp(inventory.inv_quantity_on_hand)}[4],{avg(inventory.inv_quantity_on_hand)}[5]
+                    Aggregates: stddev_samp(inventory.inv_quantity_on_hand[4]), avg(inventory.inv_quantity_on_hand[4])
+                    Group by: warehouse.w_warehouse_name[0], warehouse.w_warehouse_sk[1], item.i_item_sk[2], date_dim.d_moy[3]
+                    -> PhysicHashJoin  (inccost=1458003, cost=628359, rows=366366, memory=5856) (actual rows=52052)
+                        Output: warehouse.w_warehouse_name[2],warehouse.w_warehouse_sk[3],item.i_item_sk[4],date_dim.d_moy[0],inventory.inv_quantity_on_hand[5]
+                        Filter: inventory.inv_date_sk[6]=date_dim.d_date_sk[1]
+                        -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=366) (actual rows=366)
+                            Output: date_dim.d_moy[8],date_dim.d_date_sk[0]
+                            Filter: date_dim.d_year[6]=2000
+                        -> PhysicHashJoin  (inccost=811894, cost=526522, rows=261261, memory=112000) (actual rows=261261)
+                            Output: warehouse.w_warehouse_name[0],warehouse.w_warehouse_sk[1],item.i_item_sk[2],inventory.inv_quantity_on_hand[3],inventory.inv_date_sk[4]
+                            Filter: (inventory.inv_item_sk[5]=item.i_item_sk[2] and inventory.inv_warehouse_sk[6]=warehouse.w_warehouse_sk[1])
+                            -> PhysicNLJoin  (inccost=24111, cost=22110, rows=2000) (actual rows=2000)
+                                Output: warehouse.w_warehouse_name[0],warehouse.w_warehouse_sk[1],item.i_item_sk[2]
+                                -> PhysicScanTable warehouse (inccost=1, cost=1, rows=1) (actual rows=1)
+                                    Output: warehouse.w_warehouse_name[2],warehouse.w_warehouse_sk[0]
+                                -> PhysicScanTable item (inccost=2000, cost=2000, rows=2000) (actual rows=2000)
+                                    Output: item.i_item_sk[0]
+                            -> PhysicScanTable inventory (inccost=261261, cost=261261, rows=261261) (actual rows=261261)
+                                Output: inventory.inv_quantity_on_hand[3],inventory.inv_date_sk[0],inventory.inv_item_sk[1],inventory.inv_warehouse_sk[2]
+    -> PhysicOrder  (inccost=412459.41, cost=244459.41, rows=24000, memory=1152000) (actual rows=3)
         Output: inv1.w_warehouse_sk[0],inv1.i_item_sk[1],inv1.d_moy[2],inv1.mean[3],inv1.cov[4],inv2.w_warehouse_sk[5],inv2.i_item_sk[6],inv2.d_moy[7],inv2.mean[8],inv2.cov[9]
-        Filter: (inv1.d_moy[2]=1 and inv2.d_moy[7]=2)
-        -> PhysicHashJoin  (inccost=3984738, cost=96000, rows=24000, memory=1152000) (actual rows=1129)
+        Order by: inv2.w_warehouse_sk[5], inv2.i_item_sk[6], inv2.d_moy[7], inv2.mean[8], inv2.cov[9], inv2.d_moy[7], inv2.mean[8], inv2.cov[9]
+        -> PhysicFilter  (inccost=168000, cost=24000, rows=24000) (actual rows=3)
             Output: inv1.w_warehouse_sk[0],inv1.i_item_sk[1],inv1.d_moy[2],inv1.mean[3],inv1.cov[4],inv2.w_warehouse_sk[5],inv2.i_item_sk[6],inv2.d_moy[7],inv2.mean[8],inv2.cov[9]
-            Filter: (inv1.i_item_sk[1]=inv2.i_item_sk[6] and inv1.w_warehouse_sk[0]=inv2.w_warehouse_sk[5])
-            -> PhysicFromQuery <inv as inv1> (inccost=1944369, cost=24000, rows=24000) (actual rows=665)
-                Output: inv1.w_warehouse_sk[1],inv1.i_item_sk[2],inv1.d_moy[3],inv1.mean[5],inv1.cov[6]
-                -> PhysicFilter  (inccost=1920369, cost=24000, rows=24000) (actual rows=665)
-                    Output: foo.w_warehouse_name[0],foo.w_warehouse_sk[1],foo.i_item_sk[2],foo.d_moy[3],foo.stdev[4],foo.mean[5],{case with 1|1|1}[6]
-                    Filter: case with 1|1|1>1
-                    -> PhysicFromQuery <foo> (inccost=1896369, cost=24000, rows=24000) (actual rows=12012)
-                        Output: foo.w_warehouse_name[0],foo.w_warehouse_sk[1],foo.i_item_sk[2],foo.d_moy[3],foo.stdev[4],foo.mean[5],case with 1|1|1
-                        -> PhysicHashAgg  (inccost=1872369, cost=414366, rows=24000, memory=1920000) (actual rows=12012)
-                            Output: {warehouse.w_warehouse_name}[0],{warehouse.w_warehouse_sk}[1],{item.i_item_sk}[2],{date_dim.d_moy}[3],{stddev_samp(inventory.inv_quantity_on_hand)}[4],{avg(inventory.inv_quantity_on_hand)}[5]
-                            Aggregates: stddev_samp(inventory.inv_quantity_on_hand[4]), avg(inventory.inv_quantity_on_hand[4])
-                            Group by: warehouse.w_warehouse_name[0], warehouse.w_warehouse_sk[1], item.i_item_sk[2], date_dim.d_moy[3]
-                            -> PhysicHashJoin  (inccost=1458003, cost=628359, rows=366366, memory=5856) (actual rows=52052)
-                                Output: warehouse.w_warehouse_name[2],warehouse.w_warehouse_sk[3],item.i_item_sk[4],date_dim.d_moy[0],inventory.inv_quantity_on_hand[5]
-                                Filter: inventory.inv_date_sk[6]=date_dim.d_date_sk[1]
-                                -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=366) (actual rows=366)
-                                    Output: date_dim.d_moy[8],date_dim.d_date_sk[0]
-                                    Filter: date_dim.d_year[6]=2000
-                                -> PhysicHashJoin  (inccost=811894, cost=526522, rows=261261, memory=112000) (actual rows=261261)
-                                    Output: warehouse.w_warehouse_name[0],warehouse.w_warehouse_sk[1],item.i_item_sk[2],inventory.inv_quantity_on_hand[3],inventory.inv_date_sk[4]
-                                    Filter: (inventory.inv_item_sk[5]=item.i_item_sk[2] and inventory.inv_warehouse_sk[6]=warehouse.w_warehouse_sk[1])
-                                    -> PhysicNLJoin  (inccost=24111, cost=22110, rows=2000) (actual rows=2000)
-                                        Output: warehouse.w_warehouse_name[0],warehouse.w_warehouse_sk[1],item.i_item_sk[2]
-                                        -> PhysicScanTable warehouse (inccost=1, cost=1, rows=1) (actual rows=1)
-                                            Output: warehouse.w_warehouse_name[2],warehouse.w_warehouse_sk[0]
-                                        -> PhysicScanTable item (inccost=2000, cost=2000, rows=2000) (actual rows=2000)
-                                            Output: item.i_item_sk[0]
-                                    -> PhysicScanTable inventory (inccost=261261, cost=261261, rows=261261) (actual rows=261261)
-                                        Output: inventory.inv_quantity_on_hand[3],inventory.inv_date_sk[0],inventory.inv_item_sk[1],inventory.inv_warehouse_sk[2]
-            -> PhysicFromQuery <inv as inv2> (inccost=1944369, cost=24000, rows=24000) (actual rows=665)
-                Output: inv2.w_warehouse_sk[1],inv2.i_item_sk[2],inv2.d_moy[3],inv2.mean[5],inv2.cov[6]
-                -> PhysicFilter  (inccost=1920369, cost=24000, rows=24000) (actual rows=665)
-                    Output: foo.w_warehouse_name[0],foo.w_warehouse_sk[1],foo.i_item_sk[2],foo.d_moy[3],foo.stdev[4],foo.mean[5],{case with 1|1|1}[6]
-                    Filter: case with 1|1|1>1
-                    -> PhysicFromQuery <foo> (inccost=1896369, cost=24000, rows=24000) (actual rows=12012)
-                        Output: foo.w_warehouse_name[0],foo.w_warehouse_sk[1],foo.i_item_sk[2],foo.d_moy[3],foo.stdev[4],foo.mean[5],case with 1|1|1
-                        -> PhysicHashAgg  (inccost=1872369, cost=414366, rows=24000, memory=1920000) (actual rows=12012)
-                            Output: {warehouse.w_warehouse_name}[0],{warehouse.w_warehouse_sk}[1],{item.i_item_sk}[2],{date_dim.d_moy}[3],{stddev_samp(inventory.inv_quantity_on_hand)}[4],{avg(inventory.inv_quantity_on_hand)}[5]
-                            Aggregates: stddev_samp(inventory.inv_quantity_on_hand[4]), avg(inventory.inv_quantity_on_hand[4])
-                            Group by: warehouse.w_warehouse_name[0], warehouse.w_warehouse_sk[1], item.i_item_sk[2], date_dim.d_moy[3]
-                            -> PhysicHashJoin  (inccost=1458003, cost=628359, rows=366366, memory=5856) (actual rows=52052)
-                                Output: warehouse.w_warehouse_name[2],warehouse.w_warehouse_sk[3],item.i_item_sk[4],date_dim.d_moy[0],inventory.inv_quantity_on_hand[5]
-                                Filter: inventory.inv_date_sk[6]=date_dim.d_date_sk[1]
-                                -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=366) (actual rows=366)
-                                    Output: date_dim.d_moy[8],date_dim.d_date_sk[0]
-                                    Filter: date_dim.d_year[6]=2000
-                                -> PhysicHashJoin  (inccost=811894, cost=526522, rows=261261, memory=112000) (actual rows=261261)
-                                    Output: warehouse.w_warehouse_name[0],warehouse.w_warehouse_sk[1],item.i_item_sk[2],inventory.inv_quantity_on_hand[3],inventory.inv_date_sk[4]
-                                    Filter: (inventory.inv_item_sk[5]=item.i_item_sk[2] and inventory.inv_warehouse_sk[6]=warehouse.w_warehouse_sk[1])
-                                    -> PhysicNLJoin  (inccost=24111, cost=22110, rows=2000) (actual rows=2000)
-                                        Output: warehouse.w_warehouse_name[0],warehouse.w_warehouse_sk[1],item.i_item_sk[2]
-                                        -> PhysicScanTable warehouse (inccost=1, cost=1, rows=1) (actual rows=1)
-                                            Output: warehouse.w_warehouse_name[2],warehouse.w_warehouse_sk[0]
-                                        -> PhysicScanTable item (inccost=2000, cost=2000, rows=2000) (actual rows=2000)
-                                            Output: item.i_item_sk[0]
-                                    -> PhysicScanTable inventory (inccost=261261, cost=261261, rows=261261) (actual rows=261261)
-                                        Output: inventory.inv_quantity_on_hand[3],inventory.inv_date_sk[0],inventory.inv_item_sk[1],inventory.inv_warehouse_sk[2]
+            Filter: (inv1.d_moy[2]=1 and inv2.d_moy[7]=2)
+            -> PhysicHashJoin  (inccost=144000, cost=96000, rows=24000, memory=1152000) (actual rows=1129)
+                Output: inv1.w_warehouse_sk[0],inv1.i_item_sk[1],inv1.d_moy[2],inv1.mean[3],inv1.cov[4],inv2.w_warehouse_sk[5],inv2.i_item_sk[6],inv2.d_moy[7],inv2.mean[8],inv2.cov[9]
+                Filter: (inv1.i_item_sk[1]=inv2.i_item_sk[6] and inv1.w_warehouse_sk[0]=inv2.w_warehouse_sk[5])
+                -> PhysicFromQuery <inv as inv1> (inccost=24000, cost=24000, rows=24000) (actual rows=665)
+                    Output: inv1.w_warehouse_sk[1],inv1.i_item_sk[2],inv1.d_moy[3],inv1.mean[5],inv1.cov[6]
+                -> PhysicFromQuery <inv as inv2> (inccost=24000, cost=24000, rows=24000) (actual rows=665)
+                    Output: inv2.w_warehouse_sk[1],inv2.i_item_sk[2],inv2.d_moy[3],inv2.mean[5],inv2.cov[6]
 1,319,1,75,1.4602,1,319,2,382,1.0573
 1,548,1,151,1.3403,1,548,2,338,1.2373
 1,955,1,229,1.2621,1,955,2,427,1.0205
@@ -117,71 +95,49 @@ where inv1.i_item_sk = inv2.i_item_sk
   and inv1.cov > 1.5
 order by inv1.w_warehouse_sk,inv1.i_item_sk,inv1.d_moy,inv1.mean,inv1.cov
         ,inv2.d_moy,inv2.mean, inv2.cov
-Total cost: 4253197.41, memory=6379712
-PhysicOrder  (inccost=4253197.41, cost=244459.41, rows=24000, memory=1152000) (actual rows=0)
+Total cost: 2356828.41, memory=8417568
+PhysicSequence  (inccost=2356828.41, cost=12000, rows=24000) (actual rows=0)
     Output: inv1.w_warehouse_sk[0],inv1.i_item_sk[1],inv1.d_moy[2],inv1.mean[3],inv1.cov[4],inv2.w_warehouse_sk[5],inv2.i_item_sk[6],inv2.d_moy[7],inv2.mean[8],inv2.cov[9]
-    Order by: inv2.w_warehouse_sk[5], inv2.i_item_sk[6], inv2.d_moy[7], inv2.mean[8], inv2.cov[9], inv2.d_moy[7], inv2.mean[8], inv2.cov[9]
-    -> PhysicFilter  (inccost=4008738, cost=24000, rows=24000) (actual rows=0)
+    -> PhysicCteProducer inv (inccost=1932369, cost=12000, rows=24000) (actual rows=0)
+        Output: foo.w_warehouse_name[0],foo.w_warehouse_sk[1],foo.i_item_sk[2],foo.d_moy[3],foo.stdev[4],foo.mean[5],{case with 1|1|1}[6]
+        -> PhysicFilter  (inccost=1920369, cost=24000, rows=24000) (actual rows=665)
+            Output: foo.w_warehouse_name[0],foo.w_warehouse_sk[1],foo.i_item_sk[2],foo.d_moy[3],foo.stdev[4],foo.mean[5],{case with 1|1|1}[6]
+            Filter: case with 1|1|1>1
+            -> PhysicFromQuery <foo> (inccost=1896369, cost=24000, rows=24000) (actual rows=12012)
+                Output: foo.w_warehouse_name[0],foo.w_warehouse_sk[1],foo.i_item_sk[2],foo.d_moy[3],foo.stdev[4],foo.mean[5],case with 1|1|1
+                -> PhysicHashAgg  (inccost=1872369, cost=414366, rows=24000, memory=1920000) (actual rows=12012)
+                    Output: {warehouse.w_warehouse_name}[0],{warehouse.w_warehouse_sk}[1],{item.i_item_sk}[2],{date_dim.d_moy}[3],{stddev_samp(inventory.inv_quantity_on_hand)}[4],{avg(inventory.inv_quantity_on_hand)}[5]
+                    Aggregates: stddev_samp(inventory.inv_quantity_on_hand[4]), avg(inventory.inv_quantity_on_hand[4])
+                    Group by: warehouse.w_warehouse_name[0], warehouse.w_warehouse_sk[1], item.i_item_sk[2], date_dim.d_moy[3]
+                    -> PhysicHashJoin  (inccost=1458003, cost=628359, rows=366366, memory=5856) (actual rows=52052)
+                        Output: warehouse.w_warehouse_name[2],warehouse.w_warehouse_sk[3],item.i_item_sk[4],date_dim.d_moy[0],inventory.inv_quantity_on_hand[5]
+                        Filter: inventory.inv_date_sk[6]=date_dim.d_date_sk[1]
+                        -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=366) (actual rows=366)
+                            Output: date_dim.d_moy[8],date_dim.d_date_sk[0]
+                            Filter: date_dim.d_year[6]=2000
+                        -> PhysicHashJoin  (inccost=811894, cost=526522, rows=261261, memory=112000) (actual rows=261261)
+                            Output: warehouse.w_warehouse_name[0],warehouse.w_warehouse_sk[1],item.i_item_sk[2],inventory.inv_quantity_on_hand[3],inventory.inv_date_sk[4]
+                            Filter: (inventory.inv_item_sk[5]=item.i_item_sk[2] and inventory.inv_warehouse_sk[6]=warehouse.w_warehouse_sk[1])
+                            -> PhysicNLJoin  (inccost=24111, cost=22110, rows=2000) (actual rows=2000)
+                                Output: warehouse.w_warehouse_name[0],warehouse.w_warehouse_sk[1],item.i_item_sk[2]
+                                -> PhysicScanTable warehouse (inccost=1, cost=1, rows=1) (actual rows=1)
+                                    Output: warehouse.w_warehouse_name[2],warehouse.w_warehouse_sk[0]
+                                -> PhysicScanTable item (inccost=2000, cost=2000, rows=2000) (actual rows=2000)
+                                    Output: item.i_item_sk[0]
+                            -> PhysicScanTable inventory (inccost=261261, cost=261261, rows=261261) (actual rows=261261)
+                                Output: inventory.inv_quantity_on_hand[3],inventory.inv_date_sk[0],inventory.inv_item_sk[1],inventory.inv_warehouse_sk[2]
+    -> PhysicOrder  (inccost=412459.41, cost=244459.41, rows=24000, memory=1152000) (actual rows=0)
         Output: inv1.w_warehouse_sk[0],inv1.i_item_sk[1],inv1.d_moy[2],inv1.mean[3],inv1.cov[4],inv2.w_warehouse_sk[5],inv2.i_item_sk[6],inv2.d_moy[7],inv2.mean[8],inv2.cov[9]
-        Filter: ((inv1.d_moy[2]=1 and inv1.cov[4]>1.5) and inv2.d_moy[7]=2)
-        -> PhysicHashJoin  (inccost=3984738, cost=96000, rows=24000, memory=1152000) (actual rows=1129)
+        Order by: inv2.w_warehouse_sk[5], inv2.i_item_sk[6], inv2.d_moy[7], inv2.mean[8], inv2.cov[9], inv2.d_moy[7], inv2.mean[8], inv2.cov[9]
+        -> PhysicFilter  (inccost=168000, cost=24000, rows=24000) (actual rows=0)
             Output: inv1.w_warehouse_sk[0],inv1.i_item_sk[1],inv1.d_moy[2],inv1.mean[3],inv1.cov[4],inv2.w_warehouse_sk[5],inv2.i_item_sk[6],inv2.d_moy[7],inv2.mean[8],inv2.cov[9]
-            Filter: (inv1.i_item_sk[1]=inv2.i_item_sk[6] and inv1.w_warehouse_sk[0]=inv2.w_warehouse_sk[5])
-            -> PhysicFromQuery <inv as inv1> (inccost=1944369, cost=24000, rows=24000) (actual rows=665)
-                Output: inv1.w_warehouse_sk[1],inv1.i_item_sk[2],inv1.d_moy[3],inv1.mean[5],inv1.cov[6]
-                -> PhysicFilter  (inccost=1920369, cost=24000, rows=24000) (actual rows=665)
-                    Output: foo.w_warehouse_name[0],foo.w_warehouse_sk[1],foo.i_item_sk[2],foo.d_moy[3],foo.stdev[4],foo.mean[5],{case with 1|1|1}[6]
-                    Filter: case with 1|1|1>1
-                    -> PhysicFromQuery <foo> (inccost=1896369, cost=24000, rows=24000) (actual rows=12012)
-                        Output: foo.w_warehouse_name[0],foo.w_warehouse_sk[1],foo.i_item_sk[2],foo.d_moy[3],foo.stdev[4],foo.mean[5],case with 1|1|1
-                        -> PhysicHashAgg  (inccost=1872369, cost=414366, rows=24000, memory=1920000) (actual rows=12012)
-                            Output: {warehouse.w_warehouse_name}[0],{warehouse.w_warehouse_sk}[1],{item.i_item_sk}[2],{date_dim.d_moy}[3],{stddev_samp(inventory.inv_quantity_on_hand)}[4],{avg(inventory.inv_quantity_on_hand)}[5]
-                            Aggregates: stddev_samp(inventory.inv_quantity_on_hand[4]), avg(inventory.inv_quantity_on_hand[4])
-                            Group by: warehouse.w_warehouse_name[0], warehouse.w_warehouse_sk[1], item.i_item_sk[2], date_dim.d_moy[3]
-                            -> PhysicHashJoin  (inccost=1458003, cost=628359, rows=366366, memory=5856) (actual rows=52052)
-                                Output: warehouse.w_warehouse_name[2],warehouse.w_warehouse_sk[3],item.i_item_sk[4],date_dim.d_moy[0],inventory.inv_quantity_on_hand[5]
-                                Filter: inventory.inv_date_sk[6]=date_dim.d_date_sk[1]
-                                -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=366) (actual rows=366)
-                                    Output: date_dim.d_moy[8],date_dim.d_date_sk[0]
-                                    Filter: date_dim.d_year[6]=2000
-                                -> PhysicHashJoin  (inccost=811894, cost=526522, rows=261261, memory=112000) (actual rows=261261)
-                                    Output: warehouse.w_warehouse_name[0],warehouse.w_warehouse_sk[1],item.i_item_sk[2],inventory.inv_quantity_on_hand[3],inventory.inv_date_sk[4]
-                                    Filter: (inventory.inv_item_sk[5]=item.i_item_sk[2] and inventory.inv_warehouse_sk[6]=warehouse.w_warehouse_sk[1])
-                                    -> PhysicNLJoin  (inccost=24111, cost=22110, rows=2000) (actual rows=2000)
-                                        Output: warehouse.w_warehouse_name[0],warehouse.w_warehouse_sk[1],item.i_item_sk[2]
-                                        -> PhysicScanTable warehouse (inccost=1, cost=1, rows=1) (actual rows=1)
-                                            Output: warehouse.w_warehouse_name[2],warehouse.w_warehouse_sk[0]
-                                        -> PhysicScanTable item (inccost=2000, cost=2000, rows=2000) (actual rows=2000)
-                                            Output: item.i_item_sk[0]
-                                    -> PhysicScanTable inventory (inccost=261261, cost=261261, rows=261261) (actual rows=261261)
-                                        Output: inventory.inv_quantity_on_hand[3],inventory.inv_date_sk[0],inventory.inv_item_sk[1],inventory.inv_warehouse_sk[2]
-            -> PhysicFromQuery <inv as inv2> (inccost=1944369, cost=24000, rows=24000) (actual rows=665)
-                Output: inv2.w_warehouse_sk[1],inv2.i_item_sk[2],inv2.d_moy[3],inv2.mean[5],inv2.cov[6]
-                -> PhysicFilter  (inccost=1920369, cost=24000, rows=24000) (actual rows=665)
-                    Output: foo.w_warehouse_name[0],foo.w_warehouse_sk[1],foo.i_item_sk[2],foo.d_moy[3],foo.stdev[4],foo.mean[5],{case with 1|1|1}[6]
-                    Filter: case with 1|1|1>1
-                    -> PhysicFromQuery <foo> (inccost=1896369, cost=24000, rows=24000) (actual rows=12012)
-                        Output: foo.w_warehouse_name[0],foo.w_warehouse_sk[1],foo.i_item_sk[2],foo.d_moy[3],foo.stdev[4],foo.mean[5],case with 1|1|1
-                        -> PhysicHashAgg  (inccost=1872369, cost=414366, rows=24000, memory=1920000) (actual rows=12012)
-                            Output: {warehouse.w_warehouse_name}[0],{warehouse.w_warehouse_sk}[1],{item.i_item_sk}[2],{date_dim.d_moy}[3],{stddev_samp(inventory.inv_quantity_on_hand)}[4],{avg(inventory.inv_quantity_on_hand)}[5]
-                            Aggregates: stddev_samp(inventory.inv_quantity_on_hand[4]), avg(inventory.inv_quantity_on_hand[4])
-                            Group by: warehouse.w_warehouse_name[0], warehouse.w_warehouse_sk[1], item.i_item_sk[2], date_dim.d_moy[3]
-                            -> PhysicHashJoin  (inccost=1458003, cost=628359, rows=366366, memory=5856) (actual rows=52052)
-                                Output: warehouse.w_warehouse_name[2],warehouse.w_warehouse_sk[3],item.i_item_sk[4],date_dim.d_moy[0],inventory.inv_quantity_on_hand[5]
-                                Filter: inventory.inv_date_sk[6]=date_dim.d_date_sk[1]
-                                -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=366) (actual rows=366)
-                                    Output: date_dim.d_moy[8],date_dim.d_date_sk[0]
-                                    Filter: date_dim.d_year[6]=2000
-                                -> PhysicHashJoin  (inccost=811894, cost=526522, rows=261261, memory=112000) (actual rows=261261)
-                                    Output: warehouse.w_warehouse_name[0],warehouse.w_warehouse_sk[1],item.i_item_sk[2],inventory.inv_quantity_on_hand[3],inventory.inv_date_sk[4]
-                                    Filter: (inventory.inv_item_sk[5]=item.i_item_sk[2] and inventory.inv_warehouse_sk[6]=warehouse.w_warehouse_sk[1])
-                                    -> PhysicNLJoin  (inccost=24111, cost=22110, rows=2000) (actual rows=2000)
-                                        Output: warehouse.w_warehouse_name[0],warehouse.w_warehouse_sk[1],item.i_item_sk[2]
-                                        -> PhysicScanTable warehouse (inccost=1, cost=1, rows=1) (actual rows=1)
-                                            Output: warehouse.w_warehouse_name[2],warehouse.w_warehouse_sk[0]
-                                        -> PhysicScanTable item (inccost=2000, cost=2000, rows=2000) (actual rows=2000)
-                                            Output: item.i_item_sk[0]
-                                    -> PhysicScanTable inventory (inccost=261261, cost=261261, rows=261261) (actual rows=261261)
-                                        Output: inventory.inv_quantity_on_hand[3],inventory.inv_date_sk[0],inventory.inv_item_sk[1],inventory.inv_warehouse_sk[2]
+            Filter: ((inv1.d_moy[2]=1 and inv1.cov[4]>1.5) and inv2.d_moy[7]=2)
+            -> PhysicHashJoin  (inccost=144000, cost=96000, rows=24000, memory=1152000) (actual rows=1129)
+                Output: inv1.w_warehouse_sk[0],inv1.i_item_sk[1],inv1.d_moy[2],inv1.mean[3],inv1.cov[4],inv2.w_warehouse_sk[5],inv2.i_item_sk[6],inv2.d_moy[7],inv2.mean[8],inv2.cov[9]
+                Filter: (inv1.i_item_sk[1]=inv2.i_item_sk[6] and inv1.w_warehouse_sk[0]=inv2.w_warehouse_sk[5])
+                -> PhysicFromQuery <inv as inv1> (inccost=24000, cost=24000, rows=24000) (actual rows=665)
+                    Output: inv1.w_warehouse_sk[1],inv1.i_item_sk[2],inv1.d_moy[3],inv1.mean[5],inv1.cov[6]
+                -> PhysicFromQuery <inv as inv2> (inccost=24000, cost=24000, rows=24000) (actual rows=665)
+                    Output: inv2.w_warehouse_sk[1],inv2.i_item_sk[2],inv2.d_moy[3],inv2.mean[5],inv2.cov[6]
 
 

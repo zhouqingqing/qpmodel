@@ -55,71 +55,94 @@ with wscs as
         d_year = 1998+1) z
  where d_week_seq1=d_week_seq2-53
  order by d_week_seq1
-Total cost: 515146.57, memory=8577895
-PhysicOrder  (inccost=515146.57, cost=20140.57, rows=2537, memory=134461) (actual rows=2268)
+Total cost: 729313.57, memory=12396229
+PhysicSequence  (inccost=729313.57, cost=1268.5, rows=2537) (actual rows=2268)
     Output: y.d_week_seq1[0],{round(y.sun_sales1/z.sun_sales2,2)}[1],{round(y.mon_sales1/z.mon_sales2,2)}[2],{round(y.tue_sales1/z.tue_sales2,2)}[3],{round(y.wed_sales1/z.wed_sales2,2)}[4],{round(y.thu_sales1/z.thu_sales2,2)}[5],{round(y.fri_sales1/z.fri_sales2,2)}[6],{round(y.sat_sales1/z.sat_sales2,2)}[7]
-    Order by: y.d_week_seq1[0]
-    -> PhysicHashJoin  (inccost=495006, cost=10148, rows=2537, memory=268922) (actual rows=2268)
-        Output: y.d_week_seq1[0],round(y.sun_sales1[1]/z.sun_sales2[8],2),round(y.mon_sales1[2]/z.mon_sales2[9],2),round(y.tue_sales1[3]/z.tue_sales2[10],2),round(y.wed_sales1[4]/z.wed_sales2[11],2),round(y.thu_sales1[5]/z.thu_sales2[12],2),round(y.fri_sales1[6]/z.fri_sales2[13],2),round(y.sat_sales1[7]/z.sat_sales2[14],2)
-        Filter: y.d_week_seq1[0]=(z.d_week_seq2[15]-53)
-        -> PhysicFromQuery <y> (inccost=242429, cost=2537, rows=2537) (actual rows=365)
-            Output: y.d_week_seq1[0],y.sun_sales1[1],y.mon_sales1[2],y.tue_sales1[3],y.wed_sales1[4],y.thu_sales1[5],y.fri_sales1[6],y.sat_sales1[7]
-            -> PhysicHashJoin  (inccost=239892, cost=7975, rows=2537, memory=268922) (actual rows=365)
-                Output: wswscs.d_week_seq (as d_week_seq1)[0],wswscs.sun_sales (as sun_sales1)[1],wswscs.mon_sales (as mon_sales1)[2],wswscs.tue_sales (as tue_sales1)[3],wswscs.wed_sales (as wed_sales1)[4],wswscs.thu_sales (as thu_sales1)[5],wswscs.fri_sales (as fri_sales1)[6],wswscs.sat_sales (as sat_sales1)[7]
-                Filter: date_dim.d_week_seq[8]=wswscs.d_week_seq[0]
-                -> PhysicFromQuery <wswscs> (inccost=214167, cost=2537, rows=2537) (actual rows=238)
+    -> PhysicCteProducer wswscs (inccost=212898.5, cost=1268.5, rows=2537) (actual rows=0)
+        Output: date_dim.d_week_seq[0],{sum(case with 0|1|1)}[1],{sum(case with 0|1|1)}[2],{sum(case with 0|1|1)}[3],{sum(case with 0|1|1)}[4],{sum(case with 0|1|1)}[5],{sum(case with 0|1|1)}[6],{sum(case with 0|1|1)}[7]
+        -> PhysicHashAgg  (inccost=211630, cost=26456, rows=2537, memory=268922) (actual rows=238)
+            Output: {date_dim.d_week_seq}[0],{sum(case with 0|1|1)}[1],{sum(case with 0|1|1)}[2],{sum(case with 0|1|1)}[3],{sum(case with 0|1|1)}[4],{sum(case with 0|1|1)}[5],{sum(case with 0|1|1)}[6],{sum(case with 0|1|1)}[7]
+            Aggregates: sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1)
+            Group by: date_dim.d_week_seq[0]
+            -> PhysicHashJoin  (inccost=185174, cost=81896, rows=21382, memory=3549412) (actual rows=21324)
+                Output: date_dim.d_week_seq[10],case with 0|1|1,{date_dim.d_day_name='Sunday'}[12],date_dim.d_day_name[11],{'Sunday'}[1],wscs.sales_price[0],{null}[2],case with 0|1|1,{date_dim.d_day_name='Monday'}[13],{'Monday'}[3],case with 0|1|1,{date_dim.d_day_name='Tuesday'}[14],{'Tuesday'}[4],case with 0|1|1,{date_dim.d_day_name='Wednesday'}[15],{'Wednesday'}[5],case with 0|1|1,{date_dim.d_day_name='Thursday'}[16],{'Thursday'}[6],case with 0|1|1,{date_dim.d_day_name='Friday'}[17],{'Friday'}[7],case with 0|1|1,{date_dim.d_day_name='Saturday'}[18],{'Saturday'}[8]
+                Filter: date_dim.d_date_sk[19]=wscs.sold_date_sk[9]
+                -> PhysicFromQuery <wscs> (inccost=85528, cost=21382, rows=21382) (actual rows=21382)
+                    Output: wscs.sales_price[1],'Sunday',null,'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday',wscs.sold_date_sk[0]
+                    -> PhysicFromQuery <anonymous> (inccost=64146, cost=21382, rows=21382) (actual rows=21382)
+                        Output: anonymous.sold_date_sk[0],anonymous.sales_price[1]
+                        -> PhysicAppend  (inccost=42764, cost=21382, rows=21382) (actual rows=21382)
+                            Output: web_sales.ws_sold_date_sk (as sold_date_sk)[0],web_sales.ws_ext_sales_price (as sales_price)[1]
+                            -> PhysicScanTable web_sales (inccost=11876, cost=11876, rows=11876) (actual rows=11876)
+                                Output: web_sales.ws_sold_date_sk (as sold_date_sk)[0],web_sales.ws_ext_sales_price (as sales_price)[23]
+                            -> PhysicScanTable catalog_sales (inccost=9506, cost=9506, rows=9506) (actual rows=9506)
+                                Output: catalog_sales.cs_sold_date_sk (as sold_date_sk)[0],catalog_sales.cs_ext_sales_price (as sales_price)[23]
+                -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=17750) (actual rows=17750)
+                    Output: date_dim.d_week_seq[4],date_dim.d_day_name[14],date_dim.d_day_name[14]='Sunday',date_dim.d_day_name[14]='Monday',date_dim.d_day_name[14]='Tuesday',date_dim.d_day_name[14]='Wednesday',date_dim.d_day_name[14]='Thursday',date_dim.d_day_name[14]='Friday',date_dim.d_day_name[14]='Saturday',date_dim.d_date_sk[0]
+    -> PhysicOrder  (inccost=515146.57, cost=20140.57, rows=2537, memory=134461) (actual rows=2268)
+        Output: y.d_week_seq1[0],{round(y.sun_sales1/z.sun_sales2,2)}[1],{round(y.mon_sales1/z.mon_sales2,2)}[2],{round(y.tue_sales1/z.tue_sales2,2)}[3],{round(y.wed_sales1/z.wed_sales2,2)}[4],{round(y.thu_sales1/z.thu_sales2,2)}[5],{round(y.fri_sales1/z.fri_sales2,2)}[6],{round(y.sat_sales1/z.sat_sales2,2)}[7]
+        Order by: y.d_week_seq1[0]
+        -> PhysicHashJoin  (inccost=495006, cost=10148, rows=2537, memory=268922) (actual rows=2268)
+            Output: y.d_week_seq1[0],round(y.sun_sales1[1]/z.sun_sales2[8],2),round(y.mon_sales1[2]/z.mon_sales2[9],2),round(y.tue_sales1[3]/z.tue_sales2[10],2),round(y.wed_sales1[4]/z.wed_sales2[11],2),round(y.thu_sales1[5]/z.thu_sales2[12],2),round(y.fri_sales1[6]/z.fri_sales2[13],2),round(y.sat_sales1[7]/z.sat_sales2[14],2)
+            Filter: y.d_week_seq1[0]=(z.d_week_seq2[15]-53)
+            -> PhysicFromQuery <y> (inccost=242429, cost=2537, rows=2537) (actual rows=365)
+                Output: y.d_week_seq1[0],y.sun_sales1[1],y.mon_sales1[2],y.tue_sales1[3],y.wed_sales1[4],y.thu_sales1[5],y.fri_sales1[6],y.sat_sales1[7]
+                -> PhysicHashJoin  (inccost=239892, cost=7975, rows=2537, memory=268922) (actual rows=365)
                     Output: wswscs.d_week_seq (as d_week_seq1)[0],wswscs.sun_sales (as sun_sales1)[1],wswscs.mon_sales (as mon_sales1)[2],wswscs.tue_sales (as tue_sales1)[3],wswscs.wed_sales (as wed_sales1)[4],wswscs.thu_sales (as thu_sales1)[5],wswscs.fri_sales (as fri_sales1)[6],wswscs.sat_sales (as sat_sales1)[7]
-                    -> PhysicHashAgg  (inccost=211630, cost=26456, rows=2537, memory=268922) (actual rows=238)
-                        Output: {date_dim.d_week_seq}[0],{sum(case with 0|1|1)}[1],{sum(case with 0|1|1)}[2],{sum(case with 0|1|1)}[3],{sum(case with 0|1|1)}[4],{sum(case with 0|1|1)}[5],{sum(case with 0|1|1)}[6],{sum(case with 0|1|1)}[7]
-                        Aggregates: sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1)
-                        Group by: date_dim.d_week_seq[0]
-                        -> PhysicHashJoin  (inccost=185174, cost=81896, rows=21382, memory=3549412) (actual rows=21324)
-                            Output: date_dim.d_week_seq[10],case with 0|1|1,{date_dim.d_day_name='Sunday'}[12],date_dim.d_day_name[11],{'Sunday'}[1],wscs.sales_price[0],{null}[2],case with 0|1|1,{date_dim.d_day_name='Monday'}[13],{'Monday'}[3],case with 0|1|1,{date_dim.d_day_name='Tuesday'}[14],{'Tuesday'}[4],case with 0|1|1,{date_dim.d_day_name='Wednesday'}[15],{'Wednesday'}[5],case with 0|1|1,{date_dim.d_day_name='Thursday'}[16],{'Thursday'}[6],case with 0|1|1,{date_dim.d_day_name='Friday'}[17],{'Friday'}[7],case with 0|1|1,{date_dim.d_day_name='Saturday'}[18],{'Saturday'}[8]
-                            Filter: date_dim.d_date_sk[19]=wscs.sold_date_sk[9]
-                            -> PhysicFromQuery <wscs> (inccost=85528, cost=21382, rows=21382) (actual rows=21382)
-                                Output: wscs.sales_price[1],'Sunday',null,'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday',wscs.sold_date_sk[0]
-                                -> PhysicFromQuery <anonymous> (inccost=64146, cost=21382, rows=21382) (actual rows=21382)
-                                    Output: anonymous.sold_date_sk[0],anonymous.sales_price[1]
-                                    -> PhysicAppend  (inccost=42764, cost=21382, rows=21382) (actual rows=21382)
-                                        Output: web_sales.ws_sold_date_sk (as sold_date_sk)[0],web_sales.ws_ext_sales_price (as sales_price)[1]
-                                        -> PhysicScanTable web_sales (inccost=11876, cost=11876, rows=11876) (actual rows=11876)
-                                            Output: web_sales.ws_sold_date_sk (as sold_date_sk)[0],web_sales.ws_ext_sales_price (as sales_price)[23]
-                                        -> PhysicScanTable catalog_sales (inccost=9506, cost=9506, rows=9506) (actual rows=9506)
-                                            Output: catalog_sales.cs_sold_date_sk (as sold_date_sk)[0],catalog_sales.cs_ext_sales_price (as sales_price)[23]
-                            -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=17750) (actual rows=17750)
-                                Output: date_dim.d_week_seq[4],date_dim.d_day_name[14],date_dim.d_day_name[14]='Sunday',date_dim.d_day_name[14]='Monday',date_dim.d_day_name[14]='Tuesday',date_dim.d_day_name[14]='Wednesday',date_dim.d_day_name[14]='Thursday',date_dim.d_day_name[14]='Friday',date_dim.d_day_name[14]='Saturday',date_dim.d_date_sk[0]
-                -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=364) (actual rows=365)
-                    Output: date_dim.d_week_seq[4]
-                    Filter: date_dim.d_year[6]=1998
-        -> PhysicFromQuery <z> (inccost=242429, cost=2537, rows=2537) (actual rows=330)
-            Output: z.sun_sales2[1],z.mon_sales2[2],z.tue_sales2[3],z.wed_sales2[4],z.thu_sales2[5],z.fri_sales2[6],z.sat_sales2[7],z.d_week_seq2[0]
-            -> PhysicHashJoin  (inccost=239892, cost=7975, rows=2537, memory=268922) (actual rows=330)
-                Output: wswscs.d_week_seq (as d_week_seq2)[0],wswscs.sun_sales (as sun_sales2)[1],wswscs.mon_sales (as mon_sales2)[2],wswscs.tue_sales (as tue_sales2)[3],wswscs.wed_sales (as wed_sales2)[4],wswscs.thu_sales (as thu_sales2)[5],wswscs.fri_sales (as fri_sales2)[6],wswscs.sat_sales (as sat_sales2)[7]
-                Filter: date_dim.d_week_seq[8]=wswscs.d_week_seq[0]
-                -> PhysicFromQuery <wswscs> (inccost=214167, cost=2537, rows=2537) (actual rows=238)
+                    Filter: date_dim.d_week_seq[8]=wswscs.d_week_seq[0]
+                    -> PhysicFromQuery <wswscs> (inccost=214167, cost=2537, rows=2537) (actual rows=238)
+                        Output: wswscs.d_week_seq (as d_week_seq1)[0],wswscs.sun_sales (as sun_sales1)[1],wswscs.mon_sales (as mon_sales1)[2],wswscs.tue_sales (as tue_sales1)[3],wswscs.wed_sales (as wed_sales1)[4],wswscs.thu_sales (as thu_sales1)[5],wswscs.fri_sales (as fri_sales1)[6],wswscs.sat_sales (as sat_sales1)[7]
+                        -> PhysicHashAgg  (inccost=211630, cost=26456, rows=2537, memory=268922) (actual rows=0)
+                            Output: {date_dim.d_week_seq}[0],{sum(case with 0|1|1)}[1],{sum(case with 0|1|1)}[2],{sum(case with 0|1|1)}[3],{sum(case with 0|1|1)}[4],{sum(case with 0|1|1)}[5],{sum(case with 0|1|1)}[6],{sum(case with 0|1|1)}[7]
+                            Aggregates: sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1)
+                            Group by: date_dim.d_week_seq[0]
+                            -> PhysicHashJoin  (inccost=185174, cost=81896, rows=21382, memory=3549412) (actual rows=0)
+                                Output: date_dim.d_week_seq[10],case with 0|1|1,{date_dim.d_day_name='Sunday'}[12],date_dim.d_day_name[11],{'Sunday'}[1],wscs.sales_price[0],{null}[2],case with 0|1|1,{date_dim.d_day_name='Monday'}[13],{'Monday'}[3],case with 0|1|1,{date_dim.d_day_name='Tuesday'}[14],{'Tuesday'}[4],case with 0|1|1,{date_dim.d_day_name='Wednesday'}[15],{'Wednesday'}[5],case with 0|1|1,{date_dim.d_day_name='Thursday'}[16],{'Thursday'}[6],case with 0|1|1,{date_dim.d_day_name='Friday'}[17],{'Friday'}[7],case with 0|1|1,{date_dim.d_day_name='Saturday'}[18],{'Saturday'}[8]
+                                Filter: date_dim.d_date_sk[19]=wscs.sold_date_sk[9]
+                                -> PhysicFromQuery <wscs> (inccost=85528, cost=21382, rows=21382) (actual rows=0)
+                                    Output: wscs.sales_price[1],'Sunday',null,'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday',wscs.sold_date_sk[0]
+                                    -> PhysicFromQuery <anonymous> (inccost=64146, cost=21382, rows=21382) (actual rows=0)
+                                        Output: anonymous.sold_date_sk[0],anonymous.sales_price[1]
+                                        -> PhysicAppend  (inccost=42764, cost=21382, rows=21382) (actual rows=0)
+                                            Output: web_sales.ws_sold_date_sk (as sold_date_sk)[0],web_sales.ws_ext_sales_price (as sales_price)[1]
+                                            -> PhysicScanTable web_sales (inccost=11876, cost=11876, rows=11876) (actual rows=0)
+                                                Output: web_sales.ws_sold_date_sk (as sold_date_sk)[0],web_sales.ws_ext_sales_price (as sales_price)[23]
+                                            -> PhysicScanTable catalog_sales (inccost=9506, cost=9506, rows=9506) (actual rows=0)
+                                                Output: catalog_sales.cs_sold_date_sk (as sold_date_sk)[0],catalog_sales.cs_ext_sales_price (as sales_price)[23]
+                                -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=17750) (actual rows=0)
+                                    Output: date_dim.d_week_seq[4],date_dim.d_day_name[14],date_dim.d_day_name[14]='Sunday',date_dim.d_day_name[14]='Monday',date_dim.d_day_name[14]='Tuesday',date_dim.d_day_name[14]='Wednesday',date_dim.d_day_name[14]='Thursday',date_dim.d_day_name[14]='Friday',date_dim.d_day_name[14]='Saturday',date_dim.d_date_sk[0]
+                    -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=364) (actual rows=365)
+                        Output: date_dim.d_week_seq[4]
+                        Filter: date_dim.d_year[6]=1998
+            -> PhysicFromQuery <z> (inccost=242429, cost=2537, rows=2537) (actual rows=330)
+                Output: z.sun_sales2[1],z.mon_sales2[2],z.tue_sales2[3],z.wed_sales2[4],z.thu_sales2[5],z.fri_sales2[6],z.sat_sales2[7],z.d_week_seq2[0]
+                -> PhysicHashJoin  (inccost=239892, cost=7975, rows=2537, memory=268922) (actual rows=330)
                     Output: wswscs.d_week_seq (as d_week_seq2)[0],wswscs.sun_sales (as sun_sales2)[1],wswscs.mon_sales (as mon_sales2)[2],wswscs.tue_sales (as tue_sales2)[3],wswscs.wed_sales (as wed_sales2)[4],wswscs.thu_sales (as thu_sales2)[5],wswscs.fri_sales (as fri_sales2)[6],wswscs.sat_sales (as sat_sales2)[7]
-                    -> PhysicHashAgg  (inccost=211630, cost=26456, rows=2537, memory=268922) (actual rows=238)
-                        Output: {date_dim.d_week_seq}[0],{sum(case with 0|1|1)}[1],{sum(case with 0|1|1)}[2],{sum(case with 0|1|1)}[3],{sum(case with 0|1|1)}[4],{sum(case with 0|1|1)}[5],{sum(case with 0|1|1)}[6],{sum(case with 0|1|1)}[7]
-                        Aggregates: sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1)
-                        Group by: date_dim.d_week_seq[0]
-                        -> PhysicHashJoin  (inccost=185174, cost=81896, rows=21382, memory=3549412) (actual rows=21324)
-                            Output: date_dim.d_week_seq[10],case with 0|1|1,{date_dim.d_day_name='Sunday'}[12],date_dim.d_day_name[11],{'Sunday'}[1],wscs.sales_price[0],{null}[2],case with 0|1|1,{date_dim.d_day_name='Monday'}[13],{'Monday'}[3],case with 0|1|1,{date_dim.d_day_name='Tuesday'}[14],{'Tuesday'}[4],case with 0|1|1,{date_dim.d_day_name='Wednesday'}[15],{'Wednesday'}[5],case with 0|1|1,{date_dim.d_day_name='Thursday'}[16],{'Thursday'}[6],case with 0|1|1,{date_dim.d_day_name='Friday'}[17],{'Friday'}[7],case with 0|1|1,{date_dim.d_day_name='Saturday'}[18],{'Saturday'}[8]
-                            Filter: date_dim.d_date_sk[19]=wscs.sold_date_sk[9]
-                            -> PhysicFromQuery <wscs> (inccost=85528, cost=21382, rows=21382) (actual rows=21382)
-                                Output: wscs.sales_price[1],'Sunday',null,'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday',wscs.sold_date_sk[0]
-                                -> PhysicFromQuery <anonymous> (inccost=64146, cost=21382, rows=21382) (actual rows=21382)
-                                    Output: anonymous.sold_date_sk[0],anonymous.sales_price[1]
-                                    -> PhysicAppend  (inccost=42764, cost=21382, rows=21382) (actual rows=21382)
-                                        Output: web_sales.ws_sold_date_sk (as sold_date_sk)[0],web_sales.ws_ext_sales_price (as sales_price)[1]
-                                        -> PhysicScanTable web_sales (inccost=11876, cost=11876, rows=11876) (actual rows=11876)
-                                            Output: web_sales.ws_sold_date_sk (as sold_date_sk)[0],web_sales.ws_ext_sales_price (as sales_price)[23]
-                                        -> PhysicScanTable catalog_sales (inccost=9506, cost=9506, rows=9506) (actual rows=9506)
-                                            Output: catalog_sales.cs_sold_date_sk (as sold_date_sk)[0],catalog_sales.cs_ext_sales_price (as sales_price)[23]
-                            -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=17750) (actual rows=17750)
-                                Output: date_dim.d_week_seq[4],date_dim.d_day_name[14],date_dim.d_day_name[14]='Sunday',date_dim.d_day_name[14]='Monday',date_dim.d_day_name[14]='Tuesday',date_dim.d_day_name[14]='Wednesday',date_dim.d_day_name[14]='Thursday',date_dim.d_day_name[14]='Friday',date_dim.d_day_name[14]='Saturday',date_dim.d_date_sk[0]
-                -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=364) (actual rows=365)
-                    Output: date_dim.d_week_seq[4]
-                    Filter: date_dim.d_year[6]=1999
+                    Filter: date_dim.d_week_seq[8]=wswscs.d_week_seq[0]
+                    -> PhysicFromQuery <wswscs> (inccost=214167, cost=2537, rows=2537) (actual rows=238)
+                        Output: wswscs.d_week_seq (as d_week_seq2)[0],wswscs.sun_sales (as sun_sales2)[1],wswscs.mon_sales (as mon_sales2)[2],wswscs.tue_sales (as tue_sales2)[3],wswscs.wed_sales (as wed_sales2)[4],wswscs.thu_sales (as thu_sales2)[5],wswscs.fri_sales (as fri_sales2)[6],wswscs.sat_sales (as sat_sales2)[7]
+                        -> PhysicHashAgg  (inccost=211630, cost=26456, rows=2537, memory=268922) (actual rows=0)
+                            Output: {date_dim.d_week_seq}[0],{sum(case with 0|1|1)}[1],{sum(case with 0|1|1)}[2],{sum(case with 0|1|1)}[3],{sum(case with 0|1|1)}[4],{sum(case with 0|1|1)}[5],{sum(case with 0|1|1)}[6],{sum(case with 0|1|1)}[7]
+                            Aggregates: sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1)
+                            Group by: date_dim.d_week_seq[0]
+                            -> PhysicHashJoin  (inccost=185174, cost=81896, rows=21382, memory=3549412) (actual rows=0)
+                                Output: date_dim.d_week_seq[10],case with 0|1|1,{date_dim.d_day_name='Sunday'}[12],date_dim.d_day_name[11],{'Sunday'}[1],wscs.sales_price[0],{null}[2],case with 0|1|1,{date_dim.d_day_name='Monday'}[13],{'Monday'}[3],case with 0|1|1,{date_dim.d_day_name='Tuesday'}[14],{'Tuesday'}[4],case with 0|1|1,{date_dim.d_day_name='Wednesday'}[15],{'Wednesday'}[5],case with 0|1|1,{date_dim.d_day_name='Thursday'}[16],{'Thursday'}[6],case with 0|1|1,{date_dim.d_day_name='Friday'}[17],{'Friday'}[7],case with 0|1|1,{date_dim.d_day_name='Saturday'}[18],{'Saturday'}[8]
+                                Filter: date_dim.d_date_sk[19]=wscs.sold_date_sk[9]
+                                -> PhysicFromQuery <wscs> (inccost=85528, cost=21382, rows=21382) (actual rows=0)
+                                    Output: wscs.sales_price[1],'Sunday',null,'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday',wscs.sold_date_sk[0]
+                                    -> PhysicFromQuery <anonymous> (inccost=64146, cost=21382, rows=21382) (actual rows=0)
+                                        Output: anonymous.sold_date_sk[0],anonymous.sales_price[1]
+                                        -> PhysicAppend  (inccost=42764, cost=21382, rows=21382) (actual rows=0)
+                                            Output: web_sales.ws_sold_date_sk (as sold_date_sk)[0],web_sales.ws_ext_sales_price (as sales_price)[1]
+                                            -> PhysicScanTable web_sales (inccost=11876, cost=11876, rows=11876) (actual rows=0)
+                                                Output: web_sales.ws_sold_date_sk (as sold_date_sk)[0],web_sales.ws_ext_sales_price (as sales_price)[23]
+                                            -> PhysicScanTable catalog_sales (inccost=9506, cost=9506, rows=9506) (actual rows=0)
+                                                Output: catalog_sales.cs_sold_date_sk (as sold_date_sk)[0],catalog_sales.cs_ext_sales_price (as sales_price)[23]
+                                -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=17750) (actual rows=0)
+                                    Output: date_dim.d_week_seq[4],date_dim.d_day_name[14],date_dim.d_day_name[14]='Sunday',date_dim.d_day_name[14]='Monday',date_dim.d_day_name[14]='Tuesday',date_dim.d_day_name[14]='Wednesday',date_dim.d_day_name[14]='Thursday',date_dim.d_day_name[14]='Friday',date_dim.d_day_name[14]='Saturday',date_dim.d_date_sk[0]
+                    -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=364) (actual rows=365)
+                        Output: date_dim.d_week_seq[4]
+                        Filter: date_dim.d_year[6]=1999
 5114,1.21,2.3,,,,,
 5114,1.21,2.3,,,,,
 5114,1.21,2.3,,,,,

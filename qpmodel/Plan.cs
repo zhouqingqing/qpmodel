@@ -75,6 +75,7 @@ namespace qpmodel.logic
             {
                 enable_subquery_unnest_ = true;
                 remove_from_ = true;
+                enable_cte_plan_ = true;
 
                 enable_hashjoin_ = true;
                 enable_nljoin_ = true;

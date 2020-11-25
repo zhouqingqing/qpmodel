@@ -424,11 +424,11 @@ namespace qpmodel.unittest
             //
             List<string> runnable = new List<string>{
                 "q1", "q2", "q3", "q7", "q15", "q17", "q19", "q21", "q24", "q25",
-                "q26", "q28", "q30", "q32", "q34", "q35", "q37", "q39", "q42", "q43",
+                "q26", "q28", "q30", "q32", "q34", "q35", "q37", "q39_cte", "q42", "q43",
                 "q45", "q46", "q50", "q52", "q55", "q58", "q59", "q61", "q62", "q00065",
                 "q68", "q69", "q71", "q73", "q79", "q81", "q82", "q83", "q00084",
                 "q00085",
-                "q88", "q90", "q91", "q92", "q94", "q95", "q96", "q99"
+                "q88", "q90", "q91", "q92", "q94", "q95_cte", "q96", "q99"
             };
 
             // if only run one sql, for debugging singgle SQL
