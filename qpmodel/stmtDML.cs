@@ -77,6 +77,27 @@ namespace qpmodel.dml
         }
     }
 
+    public class CreateStreamStmt : CreateTableStmt
+    {
+        string streamName_;
+
+        public CreateStreamStmt(string tabName, List<ColumnDef> cols, List<TableConstraint> cons,
+            string distributedBy, string text) : base(tabName, cols, cons, distributedBy, text)
+        {
+            streamName_ = tabName_;
+        }
+        public override string ToString()
+        {
+            return $"CREATE STREAM {streamName_}: {string.Join(",", cols_)} :{distributedBy_}";
+        }
+
+        public override List<Row> Exec()
+        {
+            Catalog.systable_.CreateStream(streamName_, cols_, distributedBy_);
+            return null;
+        }
+    }
+
     public class DropTableStmt : SQLStatement
     {
         public readonly string tabName_;

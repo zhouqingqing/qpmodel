@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 using qpmodel.expr;
 using qpmodel.physic;
+using qpmodel.logic;
 
 namespace qpmodel.stream
 {
@@ -160,6 +161,44 @@ namespace qpmodel.stream
         {
             argcnt_ = 3;
             type_ = new IntType();
+        }
+    }
+
+    public class LogicScanStream : LogicScanTable
+    {
+        public LogicScanStream(BaseTableRef tab) : base(tab) { }
+    }
+
+    public class PhysicScanStream : PhysicScanTable
+    {
+        public PhysicScanStream(LogicNode logic) : base(logic) { }
+        public override string ToString() => $"PStream({(logic_ as LogicScanStream).tabref_}: {Cost()})";
+
+        List<Row> getSourceIterators(int distId)
+        {
+            var logic = logic_ as LogicScanTable;
+            return (logic.tabref_).Table().distributions_[distId].heap_;
+        }
+
+        public override void Exec(Action<Row> callback)
+        {
+            var context = context_;
+            var logic = logic_ as LogicScanTable;
+            var filter = logic.filter_;
+            var distId = (logic.tabref_).IsDistributed() ? (context as DistributedContext).machineId_ : 0;
+            var source = getSourceIterators(distId);
+
+            if (!context.option_.optimize_.use_codegen_)
+            {
+            }
+        }
+
+        protected override double EstimateCost()
+        {
+            var logic = (logic_) as LogicScanTable;
+            var tablerows = Math.Max(1,
+                        Catalog.sysstat_.EstCardinality(logic.tabref_.relname_));
+            return tablerows * 1.0;
         }
     }
 }
