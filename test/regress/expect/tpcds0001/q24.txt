@@ -1,0 +1,334 @@
+with ssales as
+(select c_last_name
+      ,c_first_name
+      ,s_store_name
+      ,ca_state
+      ,s_state
+      ,i_color
+      ,i_current_price
+      ,i_manager_id
+      ,i_units
+      ,i_size
+      ,sum(ss_net_paid) netpaid
+from store_sales
+    ,store_returns
+    ,store
+    ,item
+    ,customer
+    ,customer_address
+where ss_ticket_number = sr_ticket_number
+  and ss_item_sk = sr_item_sk
+  and ss_customer_sk = c_customer_sk
+  and ss_item_sk = i_item_sk
+  and ss_store_sk = s_store_sk
+  and c_current_addr_sk = ca_address_sk
+  and c_birth_country <> upper(ca_country)
+  and s_zip = ca_zip
+and s_market_id=5
+group by c_last_name
+        ,c_first_name
+        ,s_store_name
+        ,ca_state
+        ,s_state
+        ,i_color
+        ,i_current_price
+        ,i_manager_id
+        ,i_units
+        ,i_size)
+select c_last_name
+      ,c_first_name
+      ,s_store_name
+      ,sum(netpaid) paid
+from ssales
+where i_color = 'aquamarine'
+group by c_last_name
+        ,c_first_name
+        ,s_store_name
+having sum(netpaid) > (select 0.05*avg(netpaid)
+                                 from ssales)
+order by c_last_name
+        ,c_first_name
+        ,s_store_name
+Total cost: 95410519596.1, memory=4740589
+PhysicSequence  (inccost=95410519596.1, cost=28.5, rows=57) (actual rows=0)
+    Output: ssales.c_last_name[0],ssales.c_first_name[1],ssales.s_store_name[2],{sum(ssales.netpaid)}[3]
+    -> PhysicCteProducer ssales (inccost=47705259711.5, cost=28.5, rows=57) (actual rows=0)
+        Output: customer.c_last_name[0],customer.c_first_name[1],store.s_store_name[2],customer_address.ca_state[3],store.s_state[4],item.i_color[5],item.i_current_price[6],item.i_manager_id[7],item.i_units[8],item.i_size[9],{sum(store_sales.ss_net_paid)}[10]
+        -> PhysicHashAgg  (inccost=47705259683, cost=171, rows=57, memory=19608) (actual rows=0)
+            Output: {customer.c_last_name}[0],{customer.c_first_name}[1],{store.s_store_name}[2],{customer_address.ca_state}[3],{store.s_state}[4],{item.i_color}[5],{item.i_current_price}[6],{item.i_manager_id}[7],{item.i_units}[8],{item.i_size}[9],{sum(store_sales.ss_net_paid)}[10]
+            Aggregates: sum(store_sales.ss_net_paid[10])
+            Group by: customer.c_last_name[0], customer.c_first_name[1], store.s_store_name[2], customer_address.ca_state[3], store.s_state[4], item.i_color[5], item.i_current_price[6], item.i_manager_id[7], item.i_units[8], item.i_size[9]
+            -> PhysicHashJoin  (inccost=47705259512, cost=23850025519, rows=57, memory=585626) (actual rows=0)
+                Output: customer.c_last_name[5],customer.c_first_name[6],store.s_store_name[7],customer_address.ca_state[8],store.s_state[9],item.i_color[10],item.i_current_price[11],item.i_manager_id[12],item.i_units[13],item.i_size[14],store_sales.ss_net_paid[0]
+                Filter: ((((store_sales.ss_ticket_number[1]=store_returns.sr_ticket_number[15] and store_sales.ss_item_sk[2]=store_returns.sr_item_sk[16]) and store_sales.ss_customer_sk[3]=customer.c_customer_sk[17]) and store_sales.ss_item_sk[2]=item.i_item_sk[18]) and store_sales.ss_store_sk[4]=store.s_store_sk[19])
+                -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=12731)
+                    Output: store_sales.ss_net_paid[20],store_sales.ss_ticket_number[9],store_sales.ss_item_sk[2],store_sales.ss_customer_sk[3],store_sales.ss_store_sk[7]
+                -> PhysicHashJoin  (inccost=23855221262, cost=23852023850, rows=23850000000, memory=1764900) (actual rows=0)
+                    Output: customer.c_last_name[6],customer.c_first_name[7],store.s_store_name[0],customer_address.ca_state[8],store.s_state[1],item.i_color[9],item.i_current_price[10],item.i_manager_id[11],item.i_units[12],item.i_size[13],store_returns.sr_ticket_number[2],store_returns.sr_item_sk[3],customer.c_customer_sk[14],item.i_item_sk[15],store.s_store_sk[4]
+                    Filter: store.s_zip[5]=customer_address.ca_zip[16]
+                    -> PhysicNLJoin  (inccost=143212, cost=131285, rows=11925) (actual rows=0)
+                        Output: store.s_store_name[0],store.s_state[1],store_returns.sr_ticket_number[4],store_returns.sr_item_sk[5],store.s_store_sk[2],store.s_zip[3]
+                        -> PhysicScanTable store (inccost=2, cost=2, rows=1) (actual rows=0)
+                            Output: store.s_store_name[5],store.s_state[24],store.s_store_sk[0],store.s_zip[25]
+                            Filter: store.s_market_id[10]=5
+                        -> PhysicScanTable store_returns (inccost=11925, cost=11925, rows=11925) (actual rows=0)
+                            Output: store_returns.sr_ticket_number[9],store_returns.sr_item_sk[2]
+                    -> PhysicNLJoin  (inccost=3054200, cost=2030100, rows=2000000) (actual rows=0)
+                        Output: customer.c_last_name[0],customer.c_first_name[1],customer_address.ca_state[2],item.i_color[5],item.i_current_price[6],item.i_manager_id[7],item.i_units[8],item.i_size[9],customer.c_customer_sk[3],item.i_item_sk[10],customer_address.ca_zip[4]
+                        -> PhysicNLJoin  (inccost=1022100, cost=1020100, rows=1000) (actual rows=0)
+                            Output: customer.c_last_name[4],customer.c_first_name[5],customer_address.ca_state[0],customer.c_customer_sk[6],customer_address.ca_zip[1]
+                            Filter: (customer.c_current_addr_sk[7]=customer_address.ca_address_sk[2] and customer.c_birth_country[8]<>upper(customer_address.ca_country[3]))
+                            -> PhysicScanTable customer_address (inccost=1000, cost=1000, rows=1000) (actual rows=0)
+                                Output: customer_address.ca_state[8],customer_address.ca_zip[9],customer_address.ca_address_sk[0],customer_address.ca_country[10]
+                            -> PhysicScanTable customer (inccost=1000, cost=1000, rows=1000) (actual rows=0)
+                                Output: customer.c_last_name[9],customer.c_first_name[8],customer.c_customer_sk[0],customer.c_current_addr_sk[4],customer.c_birth_country[14]
+                        -> PhysicScanTable item (inccost=2000, cost=2000, rows=2000) (actual rows=0)
+                            Output: item.i_color[17],item.i_current_price[5],item.i_manager_id[20],item.i_units[18],item.i_size[15],item.i_item_sk[0]
+    -> PhysicOrder  (inccost=47705259856.1, cost=0.1, rows=1, memory=107) (actual rows=0)
+        Output: ssales.c_last_name[0],ssales.c_first_name[1],ssales.s_store_name[2],{sum(ssales.netpaid)}[3]
+        Order by: ssales.c_last_name[0], ssales.c_first_name[1], ssales.s_store_name[2]
+        -> PhysicHashAgg  (inccost=47705259856, cost=59, rows=1, memory=214) (actual rows=0)
+            Output: {ssales.c_last_name}[0],{ssales.c_first_name}[1],{ssales.s_store_name}[2],{sum(ssales.netpaid)}[3]
+            Aggregates: sum(ssales.netpaid[3])
+            Group by: ssales.c_last_name[0], ssales.c_first_name[1], ssales.s_store_name[2]
+            Filter: {sum(ssales.netpaid)}[3]>@1
+            <ScalarSubqueryExpr> cached 1
+                -> PhysicHashAgg  (inccost=47705259799, cost=59, rows=1, memory=14) (actual rows=0)
+                    Output: {avg(ssales__1.netpaid)}[0]*0.05
+                    Aggregates: avg(ssales__1.netpaid[0])
+                    -> PhysicFromQuery <ssales as ssales__1> (inccost=47705259740, cost=57, rows=57) (actual rows=0)
+                        Output: ssales__1.netpaid[10]
+                        -> PhysicHashAgg  (inccost=47705259683, cost=171, rows=57, memory=19608) (actual rows=0)
+                            Output: {customer.c_last_name}[0],{customer.c_first_name}[1],{store.s_store_name}[2],{customer_address.ca_state}[3],{store.s_state}[4],{item.i_color}[5],{item.i_current_price}[6],{item.i_manager_id}[7],{item.i_units}[8],{item.i_size}[9],{sum(store_sales.ss_net_paid)}[10]
+                            Aggregates: sum(store_sales.ss_net_paid[10])
+                            Group by: customer.c_last_name[0], customer.c_first_name[1], store.s_store_name[2], customer_address.ca_state[3], store.s_state[4], item.i_color[5], item.i_current_price[6], item.i_manager_id[7], item.i_units[8], item.i_size[9]
+                            -> PhysicHashJoin  (inccost=47705259512, cost=23850025519, rows=57, memory=585626) (actual rows=0)
+                                Output: customer.c_last_name[5],customer.c_first_name[6],store.s_store_name[7],customer_address.ca_state[8],store.s_state[9],item.i_color[10],item.i_current_price[11],item.i_manager_id[12],item.i_units[13],item.i_size[14],store_sales.ss_net_paid[0]
+                                Filter: ((((store_sales.ss_ticket_number[1]=store_returns.sr_ticket_number[15] and store_sales.ss_item_sk[2]=store_returns.sr_item_sk[16]) and store_sales.ss_customer_sk[3]=customer.c_customer_sk[17]) and store_sales.ss_item_sk[2]=item.i_item_sk[18]) and store_sales.ss_store_sk[4]=store.s_store_sk[19])
+                                -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=0)
+                                    Output: store_sales.ss_net_paid[20],store_sales.ss_ticket_number[9],store_sales.ss_item_sk[2],store_sales.ss_customer_sk[3],store_sales.ss_store_sk[7]
+                                -> PhysicHashJoin  (inccost=23855221262, cost=23852023850, rows=23850000000, memory=1764900) (actual rows=0)
+                                    Output: customer.c_last_name[6],customer.c_first_name[7],store.s_store_name[0],customer_address.ca_state[8],store.s_state[1],item.i_color[9],item.i_current_price[10],item.i_manager_id[11],item.i_units[12],item.i_size[13],store_returns.sr_ticket_number[2],store_returns.sr_item_sk[3],customer.c_customer_sk[14],item.i_item_sk[15],store.s_store_sk[4]
+                                    Filter: store.s_zip[5]=customer_address.ca_zip[16]
+                                    -> PhysicNLJoin  (inccost=143212, cost=131285, rows=11925) (actual rows=0)
+                                        Output: store.s_store_name[0],store.s_state[1],store_returns.sr_ticket_number[4],store_returns.sr_item_sk[5],store.s_store_sk[2],store.s_zip[3]
+                                        -> PhysicScanTable store (inccost=2, cost=2, rows=1) (actual rows=0)
+                                            Output: store.s_store_name[5],store.s_state[24],store.s_store_sk[0],store.s_zip[25]
+                                            Filter: store.s_market_id[10]=5
+                                        -> PhysicScanTable store_returns (inccost=11925, cost=11925, rows=11925) (actual rows=0)
+                                            Output: store_returns.sr_ticket_number[9],store_returns.sr_item_sk[2]
+                                    -> PhysicNLJoin  (inccost=3054200, cost=2030100, rows=2000000) (actual rows=0)
+                                        Output: customer.c_last_name[0],customer.c_first_name[1],customer_address.ca_state[2],item.i_color[5],item.i_current_price[6],item.i_manager_id[7],item.i_units[8],item.i_size[9],customer.c_customer_sk[3],item.i_item_sk[10],customer_address.ca_zip[4]
+                                        -> PhysicNLJoin  (inccost=1022100, cost=1020100, rows=1000) (actual rows=0)
+                                            Output: customer.c_last_name[4],customer.c_first_name[5],customer_address.ca_state[0],customer.c_customer_sk[6],customer_address.ca_zip[1]
+                                            Filter: (customer.c_current_addr_sk[7]=customer_address.ca_address_sk[2] and customer.c_birth_country[8]<>upper(customer_address.ca_country[3]))
+                                            -> PhysicScanTable customer_address (inccost=1000, cost=1000, rows=1000) (actual rows=0)
+                                                Output: customer_address.ca_state[8],customer_address.ca_zip[9],customer_address.ca_address_sk[0],customer_address.ca_country[10]
+                                            -> PhysicScanTable customer (inccost=1000, cost=1000, rows=1000) (actual rows=0)
+                                                Output: customer.c_last_name[9],customer.c_first_name[8],customer.c_customer_sk[0],customer.c_current_addr_sk[4],customer.c_birth_country[14]
+                                        -> PhysicScanTable item (inccost=2000, cost=2000, rows=2000) (actual rows=0)
+                                            Output: item.i_color[17],item.i_current_price[5],item.i_manager_id[20],item.i_units[18],item.i_size[15],item.i_item_sk[0]
+            -> PhysicFilter  (inccost=47705259797, cost=57, rows=57) (actual rows=0)
+                Output: ssales.c_last_name[0],ssales.c_first_name[1],ssales.s_store_name[2],ssales.netpaid[3]
+                Filter: ssales.i_color[4]='aquamarine'
+                -> PhysicFromQuery <ssales> (inccost=47705259740, cost=57, rows=57) (actual rows=0)
+                    Output: ssales.c_last_name[0],ssales.c_first_name[1],ssales.s_store_name[2],ssales.netpaid[10],ssales.i_color[5]
+                    -> PhysicHashAgg  (inccost=47705259683, cost=171, rows=57, memory=19608) (actual rows=0)
+                        Output: {customer.c_last_name}[0],{customer.c_first_name}[1],{store.s_store_name}[2],{customer_address.ca_state}[3],{store.s_state}[4],{item.i_color}[5],{item.i_current_price}[6],{item.i_manager_id}[7],{item.i_units}[8],{item.i_size}[9],{sum(store_sales.ss_net_paid)}[10]
+                        Aggregates: sum(store_sales.ss_net_paid[10])
+                        Group by: customer.c_last_name[0], customer.c_first_name[1], store.s_store_name[2], customer_address.ca_state[3], store.s_state[4], item.i_color[5], item.i_current_price[6], item.i_manager_id[7], item.i_units[8], item.i_size[9]
+                        -> PhysicHashJoin  (inccost=47705259512, cost=23850025519, rows=57, memory=585626) (actual rows=0)
+                            Output: customer.c_last_name[5],customer.c_first_name[6],store.s_store_name[7],customer_address.ca_state[8],store.s_state[9],item.i_color[10],item.i_current_price[11],item.i_manager_id[12],item.i_units[13],item.i_size[14],store_sales.ss_net_paid[0]
+                            Filter: ((((store_sales.ss_ticket_number[1]=store_returns.sr_ticket_number[15] and store_sales.ss_item_sk[2]=store_returns.sr_item_sk[16]) and store_sales.ss_customer_sk[3]=customer.c_customer_sk[17]) and store_sales.ss_item_sk[2]=item.i_item_sk[18]) and store_sales.ss_store_sk[4]=store.s_store_sk[19])
+                            -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=0)
+                                Output: store_sales.ss_net_paid[20],store_sales.ss_ticket_number[9],store_sales.ss_item_sk[2],store_sales.ss_customer_sk[3],store_sales.ss_store_sk[7]
+                            -> PhysicHashJoin  (inccost=23855221262, cost=23852023850, rows=23850000000, memory=1764900) (actual rows=0)
+                                Output: customer.c_last_name[6],customer.c_first_name[7],store.s_store_name[0],customer_address.ca_state[8],store.s_state[1],item.i_color[9],item.i_current_price[10],item.i_manager_id[11],item.i_units[12],item.i_size[13],store_returns.sr_ticket_number[2],store_returns.sr_item_sk[3],customer.c_customer_sk[14],item.i_item_sk[15],store.s_store_sk[4]
+                                Filter: store.s_zip[5]=customer_address.ca_zip[16]
+                                -> PhysicNLJoin  (inccost=143212, cost=131285, rows=11925) (actual rows=0)
+                                    Output: store.s_store_name[0],store.s_state[1],store_returns.sr_ticket_number[4],store_returns.sr_item_sk[5],store.s_store_sk[2],store.s_zip[3]
+                                    -> PhysicScanTable store (inccost=2, cost=2, rows=1) (actual rows=0)
+                                        Output: store.s_store_name[5],store.s_state[24],store.s_store_sk[0],store.s_zip[25]
+                                        Filter: store.s_market_id[10]=5
+                                    -> PhysicScanTable store_returns (inccost=11925, cost=11925, rows=11925) (actual rows=0)
+                                        Output: store_returns.sr_ticket_number[9],store_returns.sr_item_sk[2]
+                                -> PhysicNLJoin  (inccost=3054200, cost=2030100, rows=2000000) (actual rows=0)
+                                    Output: customer.c_last_name[0],customer.c_first_name[1],customer_address.ca_state[2],item.i_color[5],item.i_current_price[6],item.i_manager_id[7],item.i_units[8],item.i_size[9],customer.c_customer_sk[3],item.i_item_sk[10],customer_address.ca_zip[4]
+                                    -> PhysicNLJoin  (inccost=1022100, cost=1020100, rows=1000) (actual rows=0)
+                                        Output: customer.c_last_name[4],customer.c_first_name[5],customer_address.ca_state[0],customer.c_customer_sk[6],customer_address.ca_zip[1]
+                                        Filter: (customer.c_current_addr_sk[7]=customer_address.ca_address_sk[2] and customer.c_birth_country[8]<>upper(customer_address.ca_country[3]))
+                                        -> PhysicScanTable customer_address (inccost=1000, cost=1000, rows=1000) (actual rows=0)
+                                            Output: customer_address.ca_state[8],customer_address.ca_zip[9],customer_address.ca_address_sk[0],customer_address.ca_country[10]
+                                        -> PhysicScanTable customer (inccost=1000, cost=1000, rows=1000) (actual rows=0)
+                                            Output: customer.c_last_name[9],customer.c_first_name[8],customer.c_customer_sk[0],customer.c_current_addr_sk[4],customer.c_birth_country[14]
+                                    -> PhysicScanTable item (inccost=2000, cost=2000, rows=2000) (actual rows=0)
+                                        Output: item.i_color[17],item.i_current_price[5],item.i_manager_id[20],item.i_units[18],item.i_size[15],item.i_item_sk[0]
+
+
+with ssales as
+(select c_last_name
+      ,c_first_name
+      ,s_store_name
+      ,ca_state
+      ,s_state
+      ,i_color
+      ,i_current_price
+      ,i_manager_id
+      ,i_units
+      ,i_size
+      ,sum(ss_net_paid) netpaid
+from store_sales
+    ,store_returns
+    ,store
+    ,item
+    ,customer
+    ,customer_address
+where ss_ticket_number = sr_ticket_number
+  and ss_item_sk = sr_item_sk
+  and ss_customer_sk = c_customer_sk
+  and ss_item_sk = i_item_sk
+  and ss_store_sk = s_store_sk
+  and c_current_addr_sk = ca_address_sk
+  and c_birth_country <> upper(ca_country)
+  and s_zip = ca_zip
+  and s_market_id = 5
+group by c_last_name
+        ,c_first_name
+        ,s_store_name
+        ,ca_state
+        ,s_state
+        ,i_color
+        ,i_current_price
+        ,i_manager_id
+        ,i_units
+        ,i_size)
+select c_last_name
+      ,c_first_name
+      ,s_store_name
+      ,sum(netpaid) paid
+from ssales
+where i_color = 'seashell'
+group by c_last_name
+        ,c_first_name
+        ,s_store_name
+having sum(netpaid) > (select 0.05*avg(netpaid)
+                           from ssales)
+order by c_last_name
+        ,c_first_name
+        ,s_store_name
+Total cost: 95410519596.1, memory=4740589
+PhysicSequence  (inccost=95410519596.1, cost=28.5, rows=57) (actual rows=0)
+    Output: ssales.c_last_name[0],ssales.c_first_name[1],ssales.s_store_name[2],{sum(ssales.netpaid)}[3]
+    -> PhysicCteProducer ssales (inccost=47705259711.5, cost=28.5, rows=57) (actual rows=0)
+        Output: customer.c_last_name[0],customer.c_first_name[1],store.s_store_name[2],customer_address.ca_state[3],store.s_state[4],item.i_color[5],item.i_current_price[6],item.i_manager_id[7],item.i_units[8],item.i_size[9],{sum(store_sales.ss_net_paid)}[10]
+        -> PhysicHashAgg  (inccost=47705259683, cost=171, rows=57, memory=19608) (actual rows=0)
+            Output: {customer.c_last_name}[0],{customer.c_first_name}[1],{store.s_store_name}[2],{customer_address.ca_state}[3],{store.s_state}[4],{item.i_color}[5],{item.i_current_price}[6],{item.i_manager_id}[7],{item.i_units}[8],{item.i_size}[9],{sum(store_sales.ss_net_paid)}[10]
+            Aggregates: sum(store_sales.ss_net_paid[10])
+            Group by: customer.c_last_name[0], customer.c_first_name[1], store.s_store_name[2], customer_address.ca_state[3], store.s_state[4], item.i_color[5], item.i_current_price[6], item.i_manager_id[7], item.i_units[8], item.i_size[9]
+            -> PhysicHashJoin  (inccost=47705259512, cost=23850025519, rows=57, memory=585626) (actual rows=0)
+                Output: customer.c_last_name[5],customer.c_first_name[6],store.s_store_name[7],customer_address.ca_state[8],store.s_state[9],item.i_color[10],item.i_current_price[11],item.i_manager_id[12],item.i_units[13],item.i_size[14],store_sales.ss_net_paid[0]
+                Filter: ((((store_sales.ss_ticket_number[1]=store_returns.sr_ticket_number[15] and store_sales.ss_item_sk[2]=store_returns.sr_item_sk[16]) and store_sales.ss_customer_sk[3]=customer.c_customer_sk[17]) and store_sales.ss_item_sk[2]=item.i_item_sk[18]) and store_sales.ss_store_sk[4]=store.s_store_sk[19])
+                -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=12731)
+                    Output: store_sales.ss_net_paid[20],store_sales.ss_ticket_number[9],store_sales.ss_item_sk[2],store_sales.ss_customer_sk[3],store_sales.ss_store_sk[7]
+                -> PhysicHashJoin  (inccost=23855221262, cost=23852023850, rows=23850000000, memory=1764900) (actual rows=0)
+                    Output: customer.c_last_name[6],customer.c_first_name[7],store.s_store_name[0],customer_address.ca_state[8],store.s_state[1],item.i_color[9],item.i_current_price[10],item.i_manager_id[11],item.i_units[12],item.i_size[13],store_returns.sr_ticket_number[2],store_returns.sr_item_sk[3],customer.c_customer_sk[14],item.i_item_sk[15],store.s_store_sk[4]
+                    Filter: store.s_zip[5]=customer_address.ca_zip[16]
+                    -> PhysicNLJoin  (inccost=143212, cost=131285, rows=11925) (actual rows=0)
+                        Output: store.s_store_name[0],store.s_state[1],store_returns.sr_ticket_number[4],store_returns.sr_item_sk[5],store.s_store_sk[2],store.s_zip[3]
+                        -> PhysicScanTable store (inccost=2, cost=2, rows=1) (actual rows=0)
+                            Output: store.s_store_name[5],store.s_state[24],store.s_store_sk[0],store.s_zip[25]
+                            Filter: store.s_market_id[10]=5
+                        -> PhysicScanTable store_returns (inccost=11925, cost=11925, rows=11925) (actual rows=0)
+                            Output: store_returns.sr_ticket_number[9],store_returns.sr_item_sk[2]
+                    -> PhysicNLJoin  (inccost=3054200, cost=2030100, rows=2000000) (actual rows=0)
+                        Output: customer.c_last_name[0],customer.c_first_name[1],customer_address.ca_state[2],item.i_color[5],item.i_current_price[6],item.i_manager_id[7],item.i_units[8],item.i_size[9],customer.c_customer_sk[3],item.i_item_sk[10],customer_address.ca_zip[4]
+                        -> PhysicNLJoin  (inccost=1022100, cost=1020100, rows=1000) (actual rows=0)
+                            Output: customer.c_last_name[4],customer.c_first_name[5],customer_address.ca_state[0],customer.c_customer_sk[6],customer_address.ca_zip[1]
+                            Filter: (customer.c_current_addr_sk[7]=customer_address.ca_address_sk[2] and customer.c_birth_country[8]<>upper(customer_address.ca_country[3]))
+                            -> PhysicScanTable customer_address (inccost=1000, cost=1000, rows=1000) (actual rows=0)
+                                Output: customer_address.ca_state[8],customer_address.ca_zip[9],customer_address.ca_address_sk[0],customer_address.ca_country[10]
+                            -> PhysicScanTable customer (inccost=1000, cost=1000, rows=1000) (actual rows=0)
+                                Output: customer.c_last_name[9],customer.c_first_name[8],customer.c_customer_sk[0],customer.c_current_addr_sk[4],customer.c_birth_country[14]
+                        -> PhysicScanTable item (inccost=2000, cost=2000, rows=2000) (actual rows=0)
+                            Output: item.i_color[17],item.i_current_price[5],item.i_manager_id[20],item.i_units[18],item.i_size[15],item.i_item_sk[0]
+    -> PhysicOrder  (inccost=47705259856.1, cost=0.1, rows=1, memory=107) (actual rows=0)
+        Output: ssales.c_last_name[0],ssales.c_first_name[1],ssales.s_store_name[2],{sum(ssales.netpaid)}[3]
+        Order by: ssales.c_last_name[0], ssales.c_first_name[1], ssales.s_store_name[2]
+        -> PhysicHashAgg  (inccost=47705259856, cost=59, rows=1, memory=214) (actual rows=0)
+            Output: {ssales.c_last_name}[0],{ssales.c_first_name}[1],{ssales.s_store_name}[2],{sum(ssales.netpaid)}[3]
+            Aggregates: sum(ssales.netpaid[3])
+            Group by: ssales.c_last_name[0], ssales.c_first_name[1], ssales.s_store_name[2]
+            Filter: {sum(ssales.netpaid)}[3]>@1
+            <ScalarSubqueryExpr> cached 1
+                -> PhysicHashAgg  (inccost=47705259799, cost=59, rows=1, memory=14) (actual rows=0)
+                    Output: {avg(ssales__1.netpaid)}[0]*0.05
+                    Aggregates: avg(ssales__1.netpaid[0])
+                    -> PhysicFromQuery <ssales as ssales__1> (inccost=47705259740, cost=57, rows=57) (actual rows=0)
+                        Output: ssales__1.netpaid[10]
+                        -> PhysicHashAgg  (inccost=47705259683, cost=171, rows=57, memory=19608) (actual rows=0)
+                            Output: {customer.c_last_name}[0],{customer.c_first_name}[1],{store.s_store_name}[2],{customer_address.ca_state}[3],{store.s_state}[4],{item.i_color}[5],{item.i_current_price}[6],{item.i_manager_id}[7],{item.i_units}[8],{item.i_size}[9],{sum(store_sales.ss_net_paid)}[10]
+                            Aggregates: sum(store_sales.ss_net_paid[10])
+                            Group by: customer.c_last_name[0], customer.c_first_name[1], store.s_store_name[2], customer_address.ca_state[3], store.s_state[4], item.i_color[5], item.i_current_price[6], item.i_manager_id[7], item.i_units[8], item.i_size[9]
+                            -> PhysicHashJoin  (inccost=47705259512, cost=23850025519, rows=57, memory=585626) (actual rows=0)
+                                Output: customer.c_last_name[5],customer.c_first_name[6],store.s_store_name[7],customer_address.ca_state[8],store.s_state[9],item.i_color[10],item.i_current_price[11],item.i_manager_id[12],item.i_units[13],item.i_size[14],store_sales.ss_net_paid[0]
+                                Filter: ((((store_sales.ss_ticket_number[1]=store_returns.sr_ticket_number[15] and store_sales.ss_item_sk[2]=store_returns.sr_item_sk[16]) and store_sales.ss_customer_sk[3]=customer.c_customer_sk[17]) and store_sales.ss_item_sk[2]=item.i_item_sk[18]) and store_sales.ss_store_sk[4]=store.s_store_sk[19])
+                                -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=0)
+                                    Output: store_sales.ss_net_paid[20],store_sales.ss_ticket_number[9],store_sales.ss_item_sk[2],store_sales.ss_customer_sk[3],store_sales.ss_store_sk[7]
+                                -> PhysicHashJoin  (inccost=23855221262, cost=23852023850, rows=23850000000, memory=1764900) (actual rows=0)
+                                    Output: customer.c_last_name[6],customer.c_first_name[7],store.s_store_name[0],customer_address.ca_state[8],store.s_state[1],item.i_color[9],item.i_current_price[10],item.i_manager_id[11],item.i_units[12],item.i_size[13],store_returns.sr_ticket_number[2],store_returns.sr_item_sk[3],customer.c_customer_sk[14],item.i_item_sk[15],store.s_store_sk[4]
+                                    Filter: store.s_zip[5]=customer_address.ca_zip[16]
+                                    -> PhysicNLJoin  (inccost=143212, cost=131285, rows=11925) (actual rows=0)
+                                        Output: store.s_store_name[0],store.s_state[1],store_returns.sr_ticket_number[4],store_returns.sr_item_sk[5],store.s_store_sk[2],store.s_zip[3]
+                                        -> PhysicScanTable store (inccost=2, cost=2, rows=1) (actual rows=0)
+                                            Output: store.s_store_name[5],store.s_state[24],store.s_store_sk[0],store.s_zip[25]
+                                            Filter: store.s_market_id[10]=5
+                                        -> PhysicScanTable store_returns (inccost=11925, cost=11925, rows=11925) (actual rows=0)
+                                            Output: store_returns.sr_ticket_number[9],store_returns.sr_item_sk[2]
+                                    -> PhysicNLJoin  (inccost=3054200, cost=2030100, rows=2000000) (actual rows=0)
+                                        Output: customer.c_last_name[0],customer.c_first_name[1],customer_address.ca_state[2],item.i_color[5],item.i_current_price[6],item.i_manager_id[7],item.i_units[8],item.i_size[9],customer.c_customer_sk[3],item.i_item_sk[10],customer_address.ca_zip[4]
+                                        -> PhysicNLJoin  (inccost=1022100, cost=1020100, rows=1000) (actual rows=0)
+                                            Output: customer.c_last_name[4],customer.c_first_name[5],customer_address.ca_state[0],customer.c_customer_sk[6],customer_address.ca_zip[1]
+                                            Filter: (customer.c_current_addr_sk[7]=customer_address.ca_address_sk[2] and customer.c_birth_country[8]<>upper(customer_address.ca_country[3]))
+                                            -> PhysicScanTable customer_address (inccost=1000, cost=1000, rows=1000) (actual rows=0)
+                                                Output: customer_address.ca_state[8],customer_address.ca_zip[9],customer_address.ca_address_sk[0],customer_address.ca_country[10]
+                                            -> PhysicScanTable customer (inccost=1000, cost=1000, rows=1000) (actual rows=0)
+                                                Output: customer.c_last_name[9],customer.c_first_name[8],customer.c_customer_sk[0],customer.c_current_addr_sk[4],customer.c_birth_country[14]
+                                        -> PhysicScanTable item (inccost=2000, cost=2000, rows=2000) (actual rows=0)
+                                            Output: item.i_color[17],item.i_current_price[5],item.i_manager_id[20],item.i_units[18],item.i_size[15],item.i_item_sk[0]
+            -> PhysicFilter  (inccost=47705259797, cost=57, rows=57) (actual rows=0)
+                Output: ssales.c_last_name[0],ssales.c_first_name[1],ssales.s_store_name[2],ssales.netpaid[3]
+                Filter: ssales.i_color[4]='seashell'
+                -> PhysicFromQuery <ssales> (inccost=47705259740, cost=57, rows=57) (actual rows=0)
+                    Output: ssales.c_last_name[0],ssales.c_first_name[1],ssales.s_store_name[2],ssales.netpaid[10],ssales.i_color[5]
+                    -> PhysicHashAgg  (inccost=47705259683, cost=171, rows=57, memory=19608) (actual rows=0)
+                        Output: {customer.c_last_name}[0],{customer.c_first_name}[1],{store.s_store_name}[2],{customer_address.ca_state}[3],{store.s_state}[4],{item.i_color}[5],{item.i_current_price}[6],{item.i_manager_id}[7],{item.i_units}[8],{item.i_size}[9],{sum(store_sales.ss_net_paid)}[10]
+                        Aggregates: sum(store_sales.ss_net_paid[10])
+                        Group by: customer.c_last_name[0], customer.c_first_name[1], store.s_store_name[2], customer_address.ca_state[3], store.s_state[4], item.i_color[5], item.i_current_price[6], item.i_manager_id[7], item.i_units[8], item.i_size[9]
+                        -> PhysicHashJoin  (inccost=47705259512, cost=23850025519, rows=57, memory=585626) (actual rows=0)
+                            Output: customer.c_last_name[5],customer.c_first_name[6],store.s_store_name[7],customer_address.ca_state[8],store.s_state[9],item.i_color[10],item.i_current_price[11],item.i_manager_id[12],item.i_units[13],item.i_size[14],store_sales.ss_net_paid[0]
+                            Filter: ((((store_sales.ss_ticket_number[1]=store_returns.sr_ticket_number[15] and store_sales.ss_item_sk[2]=store_returns.sr_item_sk[16]) and store_sales.ss_customer_sk[3]=customer.c_customer_sk[17]) and store_sales.ss_item_sk[2]=item.i_item_sk[18]) and store_sales.ss_store_sk[4]=store.s_store_sk[19])
+                            -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=0)
+                                Output: store_sales.ss_net_paid[20],store_sales.ss_ticket_number[9],store_sales.ss_item_sk[2],store_sales.ss_customer_sk[3],store_sales.ss_store_sk[7]
+                            -> PhysicHashJoin  (inccost=23855221262, cost=23852023850, rows=23850000000, memory=1764900) (actual rows=0)
+                                Output: customer.c_last_name[6],customer.c_first_name[7],store.s_store_name[0],customer_address.ca_state[8],store.s_state[1],item.i_color[9],item.i_current_price[10],item.i_manager_id[11],item.i_units[12],item.i_size[13],store_returns.sr_ticket_number[2],store_returns.sr_item_sk[3],customer.c_customer_sk[14],item.i_item_sk[15],store.s_store_sk[4]
+                                Filter: store.s_zip[5]=customer_address.ca_zip[16]
+                                -> PhysicNLJoin  (inccost=143212, cost=131285, rows=11925) (actual rows=0)
+                                    Output: store.s_store_name[0],store.s_state[1],store_returns.sr_ticket_number[4],store_returns.sr_item_sk[5],store.s_store_sk[2],store.s_zip[3]
+                                    -> PhysicScanTable store (inccost=2, cost=2, rows=1) (actual rows=0)
+                                        Output: store.s_store_name[5],store.s_state[24],store.s_store_sk[0],store.s_zip[25]
+                                        Filter: store.s_market_id[10]=5
+                                    -> PhysicScanTable store_returns (inccost=11925, cost=11925, rows=11925) (actual rows=0)
+                                        Output: store_returns.sr_ticket_number[9],store_returns.sr_item_sk[2]
+                                -> PhysicNLJoin  (inccost=3054200, cost=2030100, rows=2000000) (actual rows=0)
+                                    Output: customer.c_last_name[0],customer.c_first_name[1],customer_address.ca_state[2],item.i_color[5],item.i_current_price[6],item.i_manager_id[7],item.i_units[8],item.i_size[9],customer.c_customer_sk[3],item.i_item_sk[10],customer_address.ca_zip[4]
+                                    -> PhysicNLJoin  (inccost=1022100, cost=1020100, rows=1000) (actual rows=0)
+                                        Output: customer.c_last_name[4],customer.c_first_name[5],customer_address.ca_state[0],customer.c_customer_sk[6],customer_address.ca_zip[1]
+                                        Filter: (customer.c_current_addr_sk[7]=customer_address.ca_address_sk[2] and customer.c_birth_country[8]<>upper(customer_address.ca_country[3]))
+                                        -> PhysicScanTable customer_address (inccost=1000, cost=1000, rows=1000) (actual rows=0)
+                                            Output: customer_address.ca_state[8],customer_address.ca_zip[9],customer_address.ca_address_sk[0],customer_address.ca_country[10]
+                                        -> PhysicScanTable customer (inccost=1000, cost=1000, rows=1000) (actual rows=0)
+                                            Output: customer.c_last_name[9],customer.c_first_name[8],customer.c_customer_sk[0],customer.c_current_addr_sk[4],customer.c_birth_country[14]
+                                    -> PhysicScanTable item (inccost=2000, cost=2000, rows=2000) (actual rows=0)
+                                        Output: item.i_color[17],item.i_current_price[5],item.i_manager_id[20],item.i_units[18],item.i_size[15],item.i_item_sk[0]
+
+

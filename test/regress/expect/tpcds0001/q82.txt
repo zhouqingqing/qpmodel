@@ -1,0 +1,45 @@
+select  i_item_id
+       ,i_item_desc
+       ,i_current_price
+ from item, inventory, date_dim, store_sales
+ where i_current_price between 58  and 58+30
+ and inv_item_sk = i_item_sk
+ and d_date_sk=inv_date_sk
+ and d_date between (cast ('2001-01-13' as date)) and (cast('2001-01-13' as date) +  60 days)
+ and i_manufact_id in (259,559,580,485)
+ and inv_quantity_on_hand between 100  and 500
+ and ss_item_sk = i_item_sk
+ group by i_item_id,i_item_desc,i_current_price
+ order by i_item_id
+ limit 100
+Total cost: 460548.17, memory=55171
+PhysicLimit (100) (inccost=460548.17, cost=100, rows=100) (actual rows=0)
+    Output: item.i_item_id[0],item.i_item_desc[1],item.i_current_price[2]
+    -> PhysicOrder  (inccost=460448.17, cost=342.17, rows=77, memory=17171) (actual rows=0)
+        Output: item.i_item_id[0],item.i_item_desc[1],item.i_current_price[2]
+        Order by: item.i_item_id[0]
+        -> PhysicHashAgg  (inccost=460106, cost=231, rows=77, memory=34342) (actual rows=0)
+            Output: {item.i_item_id}[0],{item.i_item_desc}[1],{item.i_current_price}[2]
+            Group by: item.i_item_id[0], item.i_item_desc[1], item.i_current_price[2]
+            -> PhysicHashJoin  (inccost=459875, cost=24212, rows=77, memory=2724) (actual rows=0)
+                Output: item.i_item_id[0],item.i_item_desc[1],item.i_current_price[2]
+                Filter: inventory.inv_item_sk[4]=item.i_item_sk[3]
+                -> PhysicHashJoin  (inccost=27470, cost=12739, rows=6, memory=454) (actual rows=0)
+                    Output: item.i_item_id[0],item.i_item_desc[1],item.i_current_price[2],item.i_item_sk[3]
+                    Filter: store_sales.ss_item_sk[4]=item.i_item_sk[3]
+                    -> PhysicScanTable item (inccost=2000, cost=2000, rows=1) (actual rows=0)
+                        Output: item.i_item_id[1],item.i_item_desc[4],item.i_current_price[5],item.i_item_sk[0]
+                        Filter: ((item.i_current_price[5]>=58 and item.i_current_price[5]<=88) and item.i_manufact_id[13] in (259,559,580,485))
+                    -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=0)
+                        Output: store_sales.ss_item_sk[2]
+                -> PhysicHashJoin  (inccost=408193, cost=129182, rows=24123, memory=480) (actual rows=0)
+                    Output: inventory.inv_item_sk[1]
+                    Filter: date_dim.d_date_sk[0]=inventory.inv_date_sk[2]
+                    -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=60) (actual rows=0)
+                        Output: date_dim.d_date_sk[0]
+                        Filter: (date_dim.d_date[2]>='1/13/2001 12:00:00 AM' and date_dim.d_date[2]<='3/14/2001 12:00:00 AM')
+                    -> PhysicScanTable inventory (inccost=261261, cost=261261, rows=104939) (actual rows=0)
+                        Output: inventory.inv_item_sk[1],inventory.inv_date_sk[0]
+                        Filter: (inventory.inv_quantity_on_hand[3]>=100 and inventory.inv_quantity_on_hand[3]<=500)
+
+

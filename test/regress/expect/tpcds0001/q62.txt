@@ -1,0 +1,70 @@
+select  
+   substr(w_warehouse_name,1,20)
+  ,sm_type
+  ,web_name
+  ,sum(case when (ws_ship_date_sk - ws_sold_date_sk <= 30 ) then 1 else 0 end)  as "30 days" 
+  ,sum(case when (ws_ship_date_sk - ws_sold_date_sk > 30) and 
+                 (ws_ship_date_sk - ws_sold_date_sk <= 60) then 1 else 0 end )  as "31-60 days" 
+  ,sum(case when (ws_ship_date_sk - ws_sold_date_sk > 60) and 
+                 (ws_ship_date_sk - ws_sold_date_sk <= 90) then 1 else 0 end)  as "61-90 days" 
+  ,sum(case when (ws_ship_date_sk - ws_sold_date_sk > 90) and
+                 (ws_ship_date_sk - ws_sold_date_sk <= 120) then 1 else 0 end)  as "91-120 days" 
+  ,sum(case when (ws_ship_date_sk - ws_sold_date_sk  > 120) then 1 else 0 end)  as ">120 days" 
+from
+   web_sales
+  ,warehouse
+  ,ship_mode
+  ,web_site
+  ,date_dim
+where
+    d_month_seq between 1223  and 1223 + 11
+and ws_ship_date_sk   = d_date_sk
+and ws_warehouse_sk   = w_warehouse_sk
+and ws_ship_mode_sk   = sm_ship_mode_sk
+and ws_web_site_sk    = web_site_sk
+group by
+   substr(w_warehouse_name,1,20)
+  ,sm_type
+  ,web_name
+order by substr(w_warehouse_name,1,20)
+        ,sm_type
+       ,web_name
+limit 100
+Total cost: 50920.35, memory=17216
+PhysicLimit (100) (inccost=50920.35, cost=100, rows=100) (actual rows=6)
+    Output: {substring(warehouse.w_warehouse_name,1,20)}[0],ship_mode.sm_type[1],web_site.web_name[2],{sum(case with 0|1|1)}[3],{sum(case with 0|1|1)}[4],{sum(case with 0|1|1)}[5],{sum(case with 0|1|1)}[6],{sum(case with 0|1|1)}[7]
+    -> PhysicOrder  (inccost=50820.35, cost=11.35, rows=6, memory=720) (actual rows=6)
+        Output: {substring(warehouse.w_warehouse_name,1,20)}[0],ship_mode.sm_type[1],web_site.web_name[2],{sum(case with 0|1|1)}[3],{sum(case with 0|1|1)}[4],{sum(case with 0|1|1)}[5],{sum(case with 0|1|1)}[6],{sum(case with 0|1|1)}[7]
+        Order by: {substring(warehouse.w_warehouse_name,1,20)}[0], ship_mode.sm_type[1], web_site.web_name[2]
+        -> PhysicHashAgg  (inccost=50809, cost=2026, rows=6, memory=1440) (actual rows=6)
+            Output: {substring(warehouse.w_warehouse_name,1,20)}[0],{ship_mode.sm_type}[1],{web_site.web_name}[2],{sum(case with 0|1|1)}[3],{sum(case with 0|1|1)}[4],{sum(case with 0|1|1)}[5],{sum(case with 0|1|1)}[6],{sum(case with 0|1|1)}[7]
+            Aggregates: sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1)
+            Group by: {substring(warehouse.w_warehouse_name,1,20)}[0], ship_mode.sm_type[1], web_site.web_name[2]
+            -> PhysicHashJoin  (inccost=48783, cost=4108, rows=2014, memory=12480) (actual rows=2309)
+                Output: {substring(warehouse.w_warehouse_name,1,20)}[0],ship_mode.sm_type[1],web_site.web_name[2],{case with 0|1|1}[13],{(web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)<=30}[14],{(web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)}[15],web_sales.ws_ship_date_sk[16],web_sales.ws_sold_date_sk[17],{30}[3],{1}[4],{0}[5],{case with 0|1|1}[18],{((web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)>30 and (web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)<=60)}[19],{(web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)>30}[20],{(web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)<=60}[21],{60}[6],{case with 0|1|1}[22],{((web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)>60 and (web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)<=90)}[23],{(web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)>60}[24],{(web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)<=90}[25],{90}[7],{case with 0|1|1}[26],{((web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)>90 and (web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)<=120)}[27],{(web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)>90}[28],{(web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)<=120}[29],{120}[8],{case with 0|1|1}[30],{(web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)>120}[31],warehouse.w_warehouse_name[9]
+                Filter: ((web_sales.ws_warehouse_sk[32]=warehouse.w_warehouse_sk[10] and web_sales.ws_ship_mode_sk[33]=ship_mode.sm_ship_mode_sk[11]) and web_sales.ws_web_site_sk[34]=web_site.web_site_sk[12])
+                -> PhysicNLJoin  (inccost=515, cost=360, rows=40) (actual rows=40)
+                    Output: {substring(warehouse.w_warehouse_name,1,20)}[0],ship_mode.sm_type[11],web_site.web_name[1],30,1,0,60,90,120,warehouse.w_warehouse_name[8],warehouse.w_warehouse_sk[9],ship_mode.sm_ship_mode_sk[12],web_site.web_site_sk[10]
+                    -> PhysicNLJoin  (inccost=135, cost=132, rows=2) (actual rows=2)
+                        Output: {substring(warehouse.w_warehouse_name,1,20)}[8],web_site.web_name[0],{30}[1],{1}[2],{0}[3],{60}[4],{90}[5],{120}[6],warehouse.w_warehouse_name[9],warehouse.w_warehouse_sk[10],web_site.web_site_sk[7]
+                        -> PhysicScanTable web_site (inccost=2, cost=2, rows=2) (actual rows=2)
+                            Output: web_site.web_name[4],30,1,0,60,90,120,web_site.web_site_sk[0]
+                        -> PhysicScanTable warehouse (inccost=1, cost=1, rows=1) (actual rows=1, loops=2)
+                            Output: substring(warehouse.w_warehouse_name[2],1,20),warehouse.w_warehouse_name[2],warehouse.w_warehouse_sk[0]
+                    -> PhysicScanTable ship_mode (inccost=20, cost=20, rows=20) (actual rows=20, loops=2)
+                        Output: ship_mode.sm_type[2],ship_mode.sm_ship_mode_sk[0]
+                -> PhysicHashJoin  (inccost=44160, cost=14534, rows=2014, memory=2576) (actual rows=2309)
+                    Output: {case with 0|1|1}[1],{(web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)<=30}[2],{(web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)}[3],web_sales.ws_ship_date_sk[4],web_sales.ws_sold_date_sk[5],{case with 0|1|1}[6],{((web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)>30 and (web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)<=60)}[7],{(web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)>30}[8],{(web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)<=60}[9],{case with 0|1|1}[10],{((web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)>60 and (web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)<=90)}[11],{(web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)>60}[12],{(web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)<=90}[13],{case with 0|1|1}[14],{((web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)>90 and (web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)<=120)}[15],{(web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)>90}[16],{(web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)<=120}[17],{case with 0|1|1}[18],{(web_sales.ws_ship_date_sk-web_sales.ws_sold_date_sk)>120}[19],web_sales.ws_warehouse_sk[20],web_sales.ws_ship_mode_sk[21],web_sales.ws_web_site_sk[22]
+                    Filter: web_sales.ws_ship_date_sk[4]=date_dim.d_date_sk[0]
+                    -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=322) (actual rows=365)
+                        Output: date_dim.d_date_sk[0]
+                        Filter: (date_dim.d_month_seq[3]>=1223 and date_dim.d_month_seq[3]<=1234)
+                    -> PhysicScanTable web_sales (inccost=11876, cost=11876, rows=11876) (actual rows=11876)
+                        Output: case with 0|1|1,(web_sales.ws_ship_date_sk[2]-web_sales.ws_sold_date_sk[0])<=30,(web_sales.ws_ship_date_sk[2]-web_sales.ws_sold_date_sk[0]),web_sales.ws_ship_date_sk[2],web_sales.ws_sold_date_sk[0],case with 0|1|1,((web_sales.ws_ship_date_sk[2]-web_sales.ws_sold_date_sk[0])>30 and (web_sales.ws_ship_date_sk[2]-web_sales.ws_sold_date_sk[0])<=60),(web_sales.ws_ship_date_sk[2]-web_sales.ws_sold_date_sk[0])>30,(web_sales.ws_ship_date_sk[2]-web_sales.ws_sold_date_sk[0])<=60,case with 0|1|1,((web_sales.ws_ship_date_sk[2]-web_sales.ws_sold_date_sk[0])>60 and (web_sales.ws_ship_date_sk[2]-web_sales.ws_sold_date_sk[0])<=90),(web_sales.ws_ship_date_sk[2]-web_sales.ws_sold_date_sk[0])>60,(web_sales.ws_ship_date_sk[2]-web_sales.ws_sold_date_sk[0])<=90,case with 0|1|1,((web_sales.ws_ship_date_sk[2]-web_sales.ws_sold_date_sk[0])>90 and (web_sales.ws_ship_date_sk[2]-web_sales.ws_sold_date_sk[0])<=120),(web_sales.ws_ship_date_sk[2]-web_sales.ws_sold_date_sk[0])>90,(web_sales.ws_ship_date_sk[2]-web_sales.ws_sold_date_sk[0])<=120,case with 0|1|1,(web_sales.ws_ship_date_sk[2]-web_sales.ws_sold_date_sk[0])>120,web_sales.ws_warehouse_sk[15],web_sales.ws_ship_mode_sk[14],web_sales.ws_web_site_sk[13]
+Conventional childr,EXPRESS,site_0,126,121,118,121,0
+Conventional childr,LIBRARY,site_0,87,79,87,93,0
+Conventional childr,NEXT DAY,site_0,99,116,129,119,0
+Conventional childr,OVERNIGHT,site_0,82,79,93,89,0
+Conventional childr,REGULAR,site_0,80,79,81,110,0
+Conventional childr,TWO DAY,site_0,81,66,70,104,0
+

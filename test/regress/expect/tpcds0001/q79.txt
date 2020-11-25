@@ -1,0 +1,134 @@
+select 
+  c_last_name,c_first_name,substr(s_city,1,30),ss_ticket_number,amt,profit
+  from
+   (select ss_ticket_number
+          ,ss_customer_sk
+          ,store.s_city
+          ,sum(ss_coupon_amt) amt
+          ,sum(ss_net_profit) profit
+    from store_sales,date_dim,store,household_demographics
+    where store_sales.ss_sold_date_sk = date_dim.d_date_sk
+    and store_sales.ss_store_sk = store.s_store_sk  
+    and store_sales.ss_hdemo_sk = household_demographics.hd_demo_sk
+    and (household_demographics.hd_dep_count = 7 or household_demographics.hd_vehicle_count > -1)
+    and date_dim.d_dow = 1
+    and date_dim.d_year in (2000,2000+1,2000+2) 
+    and store.s_number_employees between 200  and 295
+    group by ss_ticket_number,ss_customer_sk,ss_addr_sk,store.s_city) ms,customer
+    where ss_customer_sk = c_customer_sk
+ order by c_last_name,c_first_name,substr(s_city,1,30), profit
+limit 100
+Total cost: 454545.85, memory=6579100
+PhysicLimit (100) (inccost=454545.85, cost=100, rows=100) (actual rows=77)
+    Output: customer.c_last_name[0],customer.c_first_name[1],{substring(ms.s_city,1,30)}[2],ms.ss_ticket_number[3],ms.amt[4],ms.profit[5]
+    -> PhysicOrder  (inccost=454445.85, cost=260170.85, rows=25401, memory=3251328) (actual rows=77)
+        Output: customer.c_last_name[0],customer.c_first_name[1],{substring(ms.s_city,1,30)}[2],ms.ss_ticket_number[3],ms.amt[4],ms.profit[5]
+        Order by: customer.c_last_name[0], customer.c_first_name[1], {substring(ms.s_city,1,30)}[2], ms.profit[5]
+        -> PhysicHashJoin  (inccost=194275, cost=43861, rows=25401, memory=108000) (actual rows=77)
+            Output: customer.c_last_name[0],customer.c_first_name[1],{substring(ms.s_city,1,30)}[3],ms.ss_ticket_number[4],ms.amt[5],ms.profit[6]
+            Filter: ms.ss_customer_sk[7]=customer.c_customer_sk[2]
+            -> PhysicScanTable customer (inccost=1000, cost=1000, rows=1000) (actual rows=1000)
+                Output: customer.c_last_name[9],customer.c_first_name[8],customer.c_customer_sk[0]
+            -> PhysicFromQuery <ms> (inccost=149414, cost=16460, rows=16460) (actual rows=81)
+                Output: substring(ms.s_city[2],1,30),ms.ss_ticket_number[0],ms.amt[3],ms.profit[4],ms.ss_customer_sk[1]
+                -> PhysicHashAgg  (inccost=132954, cost=49380, rows=16460, memory=2699440) (actual rows=81)
+                    Output: {store_sales.ss_ticket_number}[0],{store_sales.ss_customer_sk}[1],{store.s_city}[3],{sum(store_sales.ss_coupon_amt)}[4],{sum(store_sales.ss_net_profit)}[5]
+                    Aggregates: sum(store_sales.ss_coupon_amt[3]), sum(store_sales.ss_net_profit[4])
+                    Group by: store_sales.ss_ticket_number[0], store_sales.ss_customer_sk[1], store_sales.ss_addr_sk[5], store.s_city[2]
+                    -> PhysicHashJoin  (inccost=83574, cost=27889, rows=16460, memory=477900) (actual rows=750)
+                        Output: store_sales.ss_ticket_number[0],store_sales.ss_customer_sk[1],store.s_city[2],store_sales.ss_coupon_amt[3],store_sales.ss_net_profit[4],store_sales.ss_addr_sk[5]
+                        Filter: store_sales.ss_hdemo_sk[6]=household_demographics.hd_demo_sk[7]
+                        -> PhysicHashJoin  (inccost=48485, cost=16010, rows=2655, memory=42432) (actual rows=857)
+                            Output: store_sales.ss_ticket_number[3],store_sales.ss_customer_sk[4],store.s_city[0],store_sales.ss_coupon_amt[5],store_sales.ss_net_profit[6],store_sales.ss_addr_sk[7],store_sales.ss_hdemo_sk[8]
+                            Filter: (store_sales.ss_sold_date_sk[9]=date_dim.d_date_sk[1] and store_sales.ss_store_sk[10]=store.s_store_sk[2])
+                            -> PhysicNLJoin  (inccost=19744, cost=1992, rows=312) (actual rows=314)
+                                Output: store.s_city[0],date_dim.d_date_sk[2],store.s_store_sk[1]
+                                -> PhysicScanTable store (inccost=2, cost=2, rows=2) (actual rows=2)
+                                    Output: store.s_city[22],store.s_store_sk[0]
+                                    Filter: (store.s_number_employees[6]>=200 and store.s_number_employees[6]<=295)
+                                -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=156) (actual rows=157, loops=2)
+                                    Output: date_dim.d_date_sk[0]
+                                    Filter: (date_dim.d_dow[7]=1 and date_dim.d_year[6] in (2000,2001,2002))
+                            -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=12731)
+                                Output: store_sales.ss_ticket_number[9],store_sales.ss_customer_sk[3],store_sales.ss_coupon_amt[19],store_sales.ss_net_profit[22],store_sales.ss_addr_sk[6],store_sales.ss_hdemo_sk[5],store_sales.ss_sold_date_sk[0],store_sales.ss_store_sk[7]
+                        -> PhysicScanTable household_demographics (inccost=7200, cost=7200, rows=6119) (actual rows=6120)
+                            Output: household_demographics.hd_demo_sk[0]
+                            Filter: (household_demographics.hd_dep_count[3]=7 or household_demographics.hd_vehicle_count[4]>-1)
+,,Midway,373,763.26,-6479.27
+Baldwin,Michele,Midway,945,340.53,-7201.01
+Blair,John,Midway,688,1361.48,-6199.49
+Bray,Guy,Midway,734,645.17,-19434.47
+Brown,Heather,Midway,332,439.41,-4005.66
+Bryant,Alfred,Midway,331,137.87,-6695.13
+Bryant,Rosemary,Midway,534,79.68,-7065.29
+Burgess,Ross,Midway,246,81.50,-4299.69
+Burt,Evelyn,Midway,150,1463.11,-12715.81
+Butler,Claudia,Midway,187,319.98,2546.39
+Byrd,Craig,Midway,859,242.52,-9338.58
+Carlton,Gloria,Midway,362,545.72,-12767.12
+Caro,Florence,Midway,1032,876.78,-2770.57
+Carter,Debra,Midway,62,6026.87,-10441.95
+Clark,Lisa,Midway,789,1527.80,-9647.38
+Cole,Ruby,Midway,932,6079.80,-14231.07
+Cole,Ruby,Midway,932,0.00,332.64
+Colley,Wendy,Midway,931,118.59,-11712.63
+Contreras,Joni,Midway,485,5608.60,-13830.80
+Copley,Leonard,Midway,293,792.84,-23272.47
+Croteau,Daniel,Midway,192,4539.03,-14790.23
+Davis,Chris,Midway,519,469.26,-10880.20
+Davis,Chris,Midway,519,0.00,-270.57
+Dickey,Timothy,Midway,54,176.49,-2741.13
+Flynn,Clifford,Midway,75,0.00,-15183.34
+Gilmore,Raymond,Midway,645,1060.34,-7463.30
+Hardy,Shea,Midway,386,3498.13,-7861.52
+Hoffman,Amber,Midway,513,129.44,-18277.20
+Hoover,Carl,Midway,304,2874.76,-14603.01
+Hoover,Carl,Midway,115,1616.60,-9675.56
+Jackson,John,Midway,1057,7875.93,-27238.68
+Jones,Issac,Midway,453,110.68,-1664.41
+Kay,Howard,Midway,781,734.13,-15431.31
+Kelly,Betty,Midway,156,8302.12,-16116.20
+Lee,,Midway,313,92.88,-1384.59
+Little,Will,Midway,631,4761.16,-11855.28
+Martin,Jason,Midway,696,1639.86,-3589.42
+Mcdowell,Terry,Midway,1017,625.00,-7494.60
+Mcnabb,David,Midway,715,0.00,
+Mcnabb,David,Midway,715,0.00,-4293.67
+Merritt,Allen,Midway,863,307.30,-8639.40
+Miller,Veronica,Midway,437,0.00,
+Miller,Veronica,Midway,437,1450.33,-2318.93
+Moran,Robert,Midway,467,251.27,-5359.51
+Mueller,Max,Midway,747,5633.79,-3173.53
+Neal,,Midway,1048,299.52,-12231.75
+Phillips,Julia,Midway,797,180.23,-7981.75
+Pierson,Jennifer,Midway,136,4115.50,-16472.61
+Porter,Joseph,Midway,941,3938.57,-12073.93
+Porter,Joseph,Midway,1019,17.10,95.62
+Ramirez,Salvador,Midway,103,242.61,-7241.41
+Richards,Andrew,Midway,719,57.27,-3957.91
+Riggs,Teresa,Midway,890,1958.75,-9754.65
+Robinson,Charles,Midway,979,5324.88,-20299.73
+Rodgers,Kerrie,Midway,912,2742.03,-978.73
+Rojas,Ida,Midway,380,1352.01,1381.66
+Sandlin,Eduardo,Midway,383,0.00,
+Sandlin,Eduardo,Midway,383,16.98,87.92
+Sharp,Brunilda,Midway,1,145.57,-5080.17
+Sylvester,Craig,Midway,607,5354.34,-3116.78
+Thayer,Manuela,Midway,823,4419.33,-12720.37
+Thompson,Glenn,Midway,118,2275.78,-19234.69
+Thompson,Glenn,Midway,792,5197.34,-13327.22
+Thompson,Glenn,Midway,810,2862.28,-10663.62
+Thompson,Lan,Midway,621,0.86,-8725.23
+Tillery,Cristy,Midway,511,5001.61,-11851.30
+Warren,Amy,Midway,821,0.00,-13930.23
+Warren,Amy,Midway,401,2432.64,-5502.42
+White,Alexander,Midway,349,386.87,-5326.56
+White,Bobby,Midway,284,1164.92,-2493.43
+White,Michael,Midway,249,9.15,-4494.38
+Whitney,Tommy,Midway,476,546.96,-10168.68
+Wiles,Fonda,Midway,403,0.00,
+Wiles,Fonda,Midway,403,622.58,676.76
+Williams,Steven,Midway,798,10900.96,-30256.79
+Wong,Carolyn,Midway,571,0.00,-21043.53
+Wooten,Penelope,Midway,110,0.00,-8721.95
+

@@ -1,0 +1,60 @@
+select  ca_zip, ca_city, sum(ws_sales_price)
+ from web_sales, customer, customer_address, date_dim, item
+ where ws_bill_customer_sk = c_customer_sk
+ 	and c_current_addr_sk = ca_address_sk 
+ 	and ws_item_sk = i_item_sk 
+ 	and ( substr(ca_zip,1,5) in ('85669', '86197','88274','83405','86475', '85392', '85460', '80348', '81792')
+ 	      or 
+ 	      i_item_id in (select i_item_id
+                             from item
+                             where i_item_sk in (2, 3, 5, 7, 11, 13, 17, 19, 23, 29)
+                             )
+ 	    )
+ 	and ws_sold_date_sk = d_date_sk
+ 	and d_qoy = 1 and d_year = 2000
+ group by ca_zip, ca_city
+ order by ca_zip, ca_city
+ limit 100
+Total cost: 1614718.1, memory=61899
+PhysicLimit (100) (inccost=1614718.1, cost=100, rows=100) (actual rows=5)
+    Output: customer_address.ca_zip[0],customer_address.ca_city[1],{sum(web_sales.ws_sales_price)}[2]
+    -> PhysicOrder  (inccost=1614618.1, cost=0.1, rows=1, memory=77) (actual rows=5)
+        Output: customer_address.ca_zip[0],customer_address.ca_city[1],{sum(web_sales.ws_sales_price)}[2]
+        Order by: customer_address.ca_zip[0], customer_address.ca_city[1]
+        -> PhysicHashAgg  (inccost=1614618, cost=3, rows=1, memory=154) (actual rows=5)
+            Output: {customer_address.ca_zip}[0],{customer_address.ca_city}[1],{sum(web_sales.ws_sales_price)}[2]
+            Aggregates: sum(web_sales.ws_sales_price[2])
+            Group by: customer_address.ca_zip[0], customer_address.ca_city[1]
+            -> PhysicHashJoin  (inccost=1614615, cost=3529, rows=1, memory=16000) (actual rows=5)
+                Output: customer_address.ca_zip[2],customer_address.ca_city[3],web_sales.ws_sales_price[4]
+                Filter: (customer.c_current_addr_sk[0]=customer_address.ca_address_sk[5] and web_sales.ws_bill_customer_sk[6]=customer.c_customer_sk[1])
+                -> PhysicScanTable customer (inccost=1000, cost=1000, rows=1000) (actual rows=1000)
+                    Output: customer.c_current_addr_sk[4],customer.c_customer_sk[0]
+                -> PhysicNLJoin  (inccost=1608086, cost=1553380, rows=1528) (actual rows=5000)
+                    Output: customer_address.ca_zip[3],customer_address.ca_city[4],web_sales.ws_sales_price[0],customer_address.ca_address_sk[5],web_sales.ws_bill_customer_sk[1]
+                    Filter: (substring(customer_address.ca_zip[3],1,5) in ('85669','86197','88274', ... <Total: 9> ) or item.i_item_id[2] in @1)
+                    <InSubqueryExpr> cached 1
+                        -> PhysicScanTable item as item__1 (inccost=2000, cost=2000, rows=10) (actual rows=10)
+                            Output: item__1.i_item_id[1]
+                            Filter: item__1.i_item_sk[0] in (2,3,5, ... <Total: 10> )
+                    -> PhysicHashJoin  (inccost=51706, cost=6524, rows=1528, memory=44940) (actual rows=237)
+                        Output: web_sales.ws_sales_price[0],web_sales.ws_bill_customer_sk[1],item.i_item_id[3]
+                        Filter: web_sales.ws_item_sk[2]=item.i_item_sk[4]
+                        -> PhysicHashJoin  (inccost=43182, cost=13556, rows=1498, memory=728) (actual rows=237)
+                            Output: web_sales.ws_sales_price[1],web_sales.ws_bill_customer_sk[2],web_sales.ws_item_sk[3]
+                            Filter: web_sales.ws_sold_date_sk[4]=date_dim.d_date_sk[0]
+                            -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=91) (actual rows=91)
+                                Output: date_dim.d_date_sk[0]
+                                Filter: (date_dim.d_qoy[10]=1 and date_dim.d_year[6]=2000)
+                            -> PhysicScanTable web_sales (inccost=11876, cost=11876, rows=11876) (actual rows=11876)
+                                Output: web_sales.ws_sales_price[21],web_sales.ws_bill_customer_sk[4],web_sales.ws_item_sk[3],web_sales.ws_sold_date_sk[0]
+                        -> PhysicScanTable item (inccost=2000, cost=2000, rows=2000) (actual rows=2000)
+                            Output: item.i_item_id[1],item.i_item_sk[0]
+                    -> PhysicScanTable customer_address (inccost=1000, cost=1000, rows=1000) (actual rows=1000, loops=237)
+                        Output: customer_address.ca_zip[9],customer_address.ca_city[6],customer_address.ca_address_sk[0]
+,,7.26
+08346,Union Hill,29.57
+10965,Brookwood,30.85
+28994,Tanglewood,105.99
+49843,,24.40
+

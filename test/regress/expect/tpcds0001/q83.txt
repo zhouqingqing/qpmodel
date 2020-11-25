@@ -1,0 +1,159 @@
+with sr_items as
+ (select i_item_id item_id,
+        sum(sr_return_quantity) sr_item_qty
+ from store_returns,
+      item,
+      date_dim
+ where sr_item_sk = i_item_sk
+ and   d_date    in 
+	(select d_date
+	from date_dim
+	where d_week_seq in 
+		(select d_week_seq
+		from date_dim
+	  where d_date in (date '2001-07-13',date '2001-09-10',date '2001-11-16')))
+ and   sr_returned_date_sk   = d_date_sk
+ group by i_item_id),
+ cr_items as
+ (select i_item_id item_id,
+        sum(cr_return_quantity) cr_item_qty
+ from catalog_returns,
+      item,
+      date_dim
+ where cr_item_sk = i_item_sk
+ and   d_date    in 
+	(select d_date
+	from date_dim
+	where d_week_seq in 
+		(select d_week_seq
+		from date_dim
+	  where d_date in (date '2001-07-13',date '2001-09-10',date '2001-11-16')))
+ and   cr_returned_date_sk   = d_date_sk
+ group by i_item_id),
+ wr_items as
+ (select i_item_id item_id,
+        sum(wr_return_quantity) wr_item_qty
+ from web_returns,
+      item,
+      date_dim
+ where wr_item_sk = i_item_sk
+ and   d_date    in 
+	(select d_date
+	from date_dim
+	where d_week_seq in 
+		(select d_week_seq
+		from date_dim
+		where d_date in (date '2001-07-13',date '2001-09-10',date '2001-11-16')))
+ and   wr_returned_date_sk   = d_date_sk
+ group by i_item_id)
+  select  sr_items.item_id
+       ,sr_item_qty
+       ,sr_item_qty/(sr_item_qty+cr_item_qty+wr_item_qty)/3.0 * 100 sr_dev
+       ,cr_item_qty
+       ,cr_item_qty/(sr_item_qty+cr_item_qty+wr_item_qty)/3.0 * 100 cr_dev
+       ,wr_item_qty
+       ,wr_item_qty/(sr_item_qty+cr_item_qty+wr_item_qty)/3.0 * 100 wr_dev
+       ,(sr_item_qty+cr_item_qty+wr_item_qty)/3.0 average
+ from sr_items
+     ,cr_items
+     ,wr_items
+ where sr_items.item_id=cr_items.item_id
+   and sr_items.item_id=wr_items.item_id 
+ order by sr_items.item_id
+         ,sr_item_qty
+ limit 100
+Total cost: 16032515.49, memory=61681740
+PhysicLimit (100) (inccost=16032515.49, cost=100, rows=100) (actual rows=0)
+    Output: sr_items.item_id[0],sr_items.sr_item_qty[1],{sr_items.sr_item_qty/((sr_items.sr_item_qty+cr_items.cr_item_qty)+wr_items.wr_item_qty)/3*100(as sr_dev)}[2],cr_items.cr_item_qty[3],{cr_items.cr_item_qty/((sr_items.sr_item_qty+cr_items.cr_item_qty)+wr_items.wr_item_qty)/3*100(as cr_dev)}[4],wr_items.wr_item_qty[5],{wr_items.wr_item_qty/((sr_items.sr_item_qty+cr_items.cr_item_qty)+wr_items.wr_item_qty)/3*100(as wr_dev)}[6],{((sr_items.sr_item_qty+cr_items.cr_item_qty)+wr_items.wr_item_qty)/3(as average)}[7]
+    -> PhysicOrder  (inccost=16032415.49, cost=13945358.49, rows=1002001, memory=60120060) (actual rows=0)
+        Output: sr_items.item_id[0],sr_items.sr_item_qty[1],{sr_items.sr_item_qty/((sr_items.sr_item_qty+cr_items.cr_item_qty)+wr_items.wr_item_qty)/3*100(as sr_dev)}[2],cr_items.cr_item_qty[3],{cr_items.cr_item_qty/((sr_items.sr_item_qty+cr_items.cr_item_qty)+wr_items.wr_item_qty)/3*100(as cr_dev)}[4],wr_items.wr_item_qty[5],{wr_items.wr_item_qty/((sr_items.sr_item_qty+cr_items.cr_item_qty)+wr_items.wr_item_qty)/3*100(as wr_dev)}[6],{((sr_items.sr_item_qty+cr_items.cr_item_qty)+wr_items.wr_item_qty)/3(as average)}[7]
+        Order by: sr_items.item_id[0], sr_items.sr_item_qty[1]
+        -> PhysicHashJoin  (inccost=2087057, cost=1005004, rows=1002001, memory=48048) (actual rows=0)
+            Output: sr_items.item_id[0],sr_items.sr_item_qty[1],sr_items.sr_item_qty[1]/((sr_items.sr_item_qty[1]+cr_items.cr_item_qty[3])+wr_items.wr_item_qty[2])/3*100(as sr_dev),cr_items.cr_item_qty[3],cr_items.cr_item_qty[3]/((sr_items.sr_item_qty[1]+cr_items.cr_item_qty[3])+wr_items.wr_item_qty[2])/3*100(as cr_dev),wr_items.wr_item_qty[2],wr_items.wr_item_qty[2]/((sr_items.sr_item_qty[1]+cr_items.cr_item_qty[3])+wr_items.wr_item_qty[2])/3*100(as wr_dev),((sr_items.sr_item_qty[1]+cr_items.cr_item_qty[3])+wr_items.wr_item_qty[2])/3(as average)
+            Filter: sr_items.item_id[0]=cr_items.item_id[4]
+            -> PhysicHashJoin  (inccost=717351, cost=4004, rows=1001, memory=40040) (actual rows=2)
+                Output: sr_items.item_id[0],sr_items.sr_item_qty[1],wr_items.wr_item_qty[2]
+                Filter: sr_items.item_id[0]=wr_items.item_id[3]
+                -> PhysicFromQuery <sr_items> (inccost=436882, cost=1001, rows=1001) (actual rows=97)
+                    Output: sr_items.item_id[0],sr_items.sr_item_qty[1]
+                    -> PhysicHashAgg  (inccost=435881, cost=114661, rows=1001, memory=40040) (actual rows=97)
+                        Output: {item.i_item_id}[0],{sum(store_returns.sr_return_quantity)}[1]
+                        Aggregates: sum(store_returns.sr_return_quantity[1])
+                        Group by: item.i_item_id[0]
+                        -> PhysicHashJoin  (inccost=321220, cost=154883, rows=112659, memory=587376) (actual rows=102)
+                            Output: item.i_item_id (as item_id)[0],store_returns.sr_return_quantity[1]
+                            Filter: store_returns.sr_returned_date_sk[2]=date_dim.d_date_sk[3]
+                            -> PhysicHashJoin  (inccost=42087, cost=28162, rows=12237, memory=80000) (actual rows=11925)
+                                Output: item.i_item_id (as item_id)[0],store_returns.sr_return_quantity[2],store_returns.sr_returned_date_sk[3]
+                                Filter: store_returns.sr_item_sk[4]=item.i_item_sk[1]
+                                -> PhysicScanTable item (inccost=2000, cost=2000, rows=2000) (actual rows=2000)
+                                    Output: item.i_item_id (as item_id)[1],item.i_item_sk[0]
+                                -> PhysicScanTable store_returns (inccost=11925, cost=11925, rows=11925) (actual rows=11925)
+                                    Output: store_returns.sr_return_quantity[10],store_returns.sr_returned_date_sk[0],store_returns.sr_item_sk[2]
+                            -> PhysicScanTable date_dim (inccost=71000, cost=17750, rows=17750) (actual rows=21)
+                                Output: date_dim.d_date_sk[0]
+                                Filter: date_dim.d_date[2] in @1
+                                <InSubqueryExpr> cached 1
+                                    -> PhysicScanTable date_dim as date_dim__1 (inccost=35500, cost=17750, rows=17750) (actual rows=21)
+                                        Output: date_dim__1.d_date[2]
+                                        Filter: date_dim__1.d_week_seq[4] in @2
+                                        <InSubqueryExpr> cached 2
+                                            -> PhysicScanTable date_dim as date_dim__2 (inccost=17750, cost=17750, rows=3) (actual rows=3)
+                                                Output: date_dim__2.d_week_seq[4]
+                                                Filter: date_dim__2.d_date[2] in ('2001-07-13','2001-09-10','2001-11-16')
+                -> PhysicFromQuery <wr_items> (inccost=276465, cost=1001, rows=1001) (actual rows=10)
+                    Output: wr_items.wr_item_qty[1],wr_items.item_id[0]
+                    -> PhysicHashAgg  (inccost=275464, cost=59892, rows=1001, memory=40040) (actual rows=10)
+                        Output: {item.i_item_id}[0],{sum(web_returns.wr_return_quantity)}[1]
+                        Aggregates: sum(web_returns.wr_return_quantity[1])
+                        Group by: item.i_item_id[0]
+                        -> PhysicHashJoin  (inccost=215572, cost=81124, rows=57890, memory=131616) (actual rows=10)
+                            Output: item.i_item_id (as item_id)[0],web_returns.wr_return_quantity[1]
+                            Filter: web_returns.wr_returned_date_sk[2]=date_dim.d_date_sk[3]
+                            -> PhysicHashJoin  (inccost=10198, cost=7046, rows=2742, memory=27648) (actual rows=1152)
+                                Output: item.i_item_id (as item_id)[3],web_returns.wr_return_quantity[0],web_returns.wr_returned_date_sk[1]
+                                Filter: web_returns.wr_item_sk[2]=item.i_item_sk[4]
+                                -> PhysicScanTable web_returns (inccost=1152, cost=1152, rows=1152) (actual rows=1152)
+                                    Output: web_returns.wr_return_quantity[14],web_returns.wr_returned_date_sk[0],web_returns.wr_item_sk[2]
+                                -> PhysicScanTable item (inccost=2000, cost=2000, rows=2000) (actual rows=2000)
+                                    Output: item.i_item_id (as item_id)[1],item.i_item_sk[0]
+                            -> PhysicScanTable date_dim (inccost=71000, cost=17750, rows=17750) (actual rows=21)
+                                Output: date_dim.d_date_sk[0]
+                                Filter: date_dim.d_date[2] in @5
+                                <InSubqueryExpr> cached 5
+                                    -> PhysicScanTable date_dim as date_dim__5 (inccost=35500, cost=17750, rows=17750) (actual rows=21)
+                                        Output: date_dim__5.d_date[2]
+                                        Filter: date_dim__5.d_week_seq[4] in @6
+                                        <InSubqueryExpr> cached 6
+                                            -> PhysicScanTable date_dim as date_dim__6 (inccost=17750, cost=17750, rows=3) (actual rows=3)
+                                                Output: date_dim__6.d_week_seq[4]
+                                                Filter: date_dim__6.d_date[2] in ('2001-07-13','2001-09-10','2001-11-16')
+            -> PhysicFromQuery <cr_items> (inccost=364702, cost=1001, rows=1001) (actual rows=71)
+                Output: cr_items.cr_item_qty[1],cr_items.item_id[0]
+                -> PhysicHashAgg  (inccost=363701, cost=85965, rows=1001, memory=40040) (actual rows=71)
+                    Output: {item.i_item_id}[0],{sum(catalog_returns.cr_return_quantity)}[1]
+                    Aggregates: sum(catalog_returns.cr_return_quantity[1])
+                    Group by: item.i_item_id[0]
+                    -> PhysicHashJoin  (inccost=277736, cost=120331, rows=83963, memory=446832) (actual rows=73)
+                        Output: item.i_item_id (as item_id)[0],catalog_returns.cr_return_quantity[1]
+                        Filter: catalog_returns.cr_returned_date_sk[2]=date_dim.d_date_sk[3]
+                        -> PhysicHashJoin  (inccost=33155, cost=22232, rows=9309, memory=80000) (actual rows=8923)
+                            Output: item.i_item_id (as item_id)[0],catalog_returns.cr_return_quantity[2],catalog_returns.cr_returned_date_sk[3]
+                            Filter: catalog_returns.cr_item_sk[4]=item.i_item_sk[1]
+                            -> PhysicScanTable item (inccost=2000, cost=2000, rows=2000) (actual rows=2000)
+                                Output: item.i_item_id (as item_id)[1],item.i_item_sk[0]
+                            -> PhysicScanTable catalog_returns (inccost=8923, cost=8923, rows=8923) (actual rows=8923)
+                                Output: catalog_returns.cr_return_quantity[17],catalog_returns.cr_returned_date_sk[0],catalog_returns.cr_item_sk[2]
+                        -> PhysicScanTable date_dim (inccost=71000, cost=17750, rows=17750) (actual rows=21)
+                            Output: date_dim.d_date_sk[0]
+                            Filter: date_dim.d_date[2] in @3
+                            <InSubqueryExpr> cached 3
+                                -> PhysicScanTable date_dim as date_dim__3 (inccost=35500, cost=17750, rows=17750) (actual rows=21)
+                                    Output: date_dim__3.d_date[2]
+                                    Filter: date_dim__3.d_week_seq[4] in @4
+                                    <InSubqueryExpr> cached 4
+                                        -> PhysicScanTable date_dim as date_dim__4 (inccost=17750, cost=17750, rows=3) (actual rows=3)
+                                            Output: date_dim__4.d_week_seq[4]
+                                            Filter: date_dim__4.d_date[2] in ('2001-07-13','2001-09-10','2001-11-16')
+
+

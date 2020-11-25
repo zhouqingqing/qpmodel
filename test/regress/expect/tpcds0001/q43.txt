@@ -1,0 +1,43 @@
+select  s_store_name, s_store_id,
+        sum(case when (d_day_name='Sunday') then ss_sales_price else null end) sun_sales,
+        sum(case when (d_day_name='Monday') then ss_sales_price else null end) mon_sales,
+        sum(case when (d_day_name='Tuesday') then ss_sales_price else  null end) tue_sales,
+        sum(case when (d_day_name='Wednesday') then ss_sales_price else null end) wed_sales,
+        sum(case when (d_day_name='Thursday') then ss_sales_price else null end) thu_sales,
+        sum(case when (d_day_name='Friday') then ss_sales_price else null end) fri_sales,
+        sum(case when (d_day_name='Saturday') then ss_sales_price else null end) sat_sales
+ from date_dim, store_sales, store
+ where d_date_sk = ss_sold_date_sk and
+       s_store_sk = ss_store_sk and
+       s_gmt_offset = -5 and
+       d_year = 2000 
+ group by s_store_name, s_store_id
+ order by s_store_name, s_store_id,sun_sales,mon_sales,tue_sales,wed_sales,thu_sales,fri_sales,sat_sales
+ limit 100
+Total cost: 63019.94, memory=68864
+PhysicLimit (100) (inccost=63019.94, cost=100, rows=100) (actual rows=2)
+    Output: store.s_store_name[0],store.s_store_id[1],{sum(case with 0|1|1)}[2],{sum(case with 0|1|1)}[3],{sum(case with 0|1|1)}[4],{sum(case with 0|1|1)}[5],{sum(case with 0|1|1)}[6],{sum(case with 0|1|1)}[7],{sum(case with 0|1|1)}[8]
+    -> PhysicOrder  (inccost=62919.94, cost=5.94, rows=4, memory=460) (actual rows=2)
+        Output: store.s_store_name[0],store.s_store_id[1],{sum(case with 0|1|1)}[2],{sum(case with 0|1|1)}[3],{sum(case with 0|1|1)}[4],{sum(case with 0|1|1)}[5],{sum(case with 0|1|1)}[6],{sum(case with 0|1|1)}[7],{sum(case with 0|1|1)}[8]
+        Order by: store.s_store_name[0], store.s_store_id[1], {sum(case with 0|1|1)}[2], {sum(case with 0|1|1)}[3], {sum(case with 0|1|1)}[4], {sum(case with 0|1|1)}[5], {sum(case with 0|1|1)}[6], {sum(case with 0|1|1)}[7], {sum(case with 0|1|1)}[8]
+        -> PhysicHashAgg  (inccost=62914, cost=3122, rows=4, memory=920) (actual rows=2)
+            Output: {store.s_store_name}[0],{store.s_store_id}[1],{sum(case with 0|1|1)}[2],{sum(case with 0|1|1)}[3],{sum(case with 0|1|1)}[4],{sum(case with 0|1|1)}[5],{sum(case with 0|1|1)}[6],{sum(case with 0|1|1)}[7],{sum(case with 0|1|1)}[8]
+            Aggregates: sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1)
+            Group by: store.s_store_name[0], store.s_store_id[1]
+            -> PhysicHashJoin  (inccost=59792, cost=10211, rows=3114, memory=67344) (actual rows=2422)
+                Output: store.s_store_name[17],store.s_store_id[18],case with 0|1|1,{date_dim.d_day_name='Sunday'}[1],date_dim.d_day_name[0],{'Sunday'}[2],store_sales.ss_sales_price[19],{null}[3],case with 0|1|1,{date_dim.d_day_name='Monday'}[4],{'Monday'}[5],case with 0|1|1,{date_dim.d_day_name='Tuesday'}[6],{'Tuesday'}[7],case with 0|1|1,{date_dim.d_day_name='Wednesday'}[8],{'Wednesday'}[9],case with 0|1|1,{date_dim.d_day_name='Thursday'}[10],{'Thursday'}[11],case with 0|1|1,{date_dim.d_day_name='Friday'}[12],{'Friday'}[13],case with 0|1|1,{date_dim.d_day_name='Saturday'}[14],{'Saturday'}[15]
+                Filter: date_dim.d_date_sk[16]=store_sales.ss_sold_date_sk[20]
+                -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=366) (actual rows=366)
+                    Output: date_dim.d_day_name[14],date_dim.d_day_name[14]='Sunday','Sunday',null,date_dim.d_day_name[14]='Monday','Monday',date_dim.d_day_name[14]='Tuesday','Tuesday',date_dim.d_day_name[14]='Wednesday','Wednesday',date_dim.d_day_name[14]='Thursday','Thursday',date_dim.d_day_name[14]='Friday','Friday',date_dim.d_day_name[14]='Saturday','Saturday',date_dim.d_date_sk[0]
+                    Filter: date_dim.d_year[6]=2000
+                -> PhysicHashJoin  (inccost=31831, cost=19098, rows=6365, memory=140) (actual rows=12160)
+                    Output: store.s_store_name[0],store.s_store_id[1],store_sales.ss_sales_price[3],store_sales.ss_sold_date_sk[4]
+                    Filter: store.s_store_sk[2]=store_sales.ss_store_sk[5]
+                    -> PhysicScanTable store (inccost=2, cost=2, rows=1) (actual rows=2)
+                        Output: store.s_store_name[5],store.s_store_id[1],store.s_store_sk[0]
+                        Filter: store.s_gmt_offset[27]=-5
+                    -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=12731)
+                        Output: store_sales.ss_sales_price[13],store_sales.ss_sold_date_sk[0],store_sales.ss_store_sk[7]
+able,AAAAAAAACAAAAAAA,10054.17,10584.75,668.24,8755.28,10667.57,12983.09,9530.96
+ought,AAAAAAAABAAAAAAA,10054.17,10584.75,,8755.28,10667.57,13423.38,9530.96
+

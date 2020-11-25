@@ -1,0 +1,96 @@
+select  
+ i_item_id
+ ,i_item_desc
+ ,s_store_id
+ ,s_store_name
+ ,max(ss_net_profit) as store_sales_profit
+ ,max(sr_net_loss) as store_returns_loss
+ ,max(cs_net_profit) as catalog_sales_profit
+ from
+ store_sales
+ ,store_returns
+ ,catalog_sales
+ ,date_dim d1
+ ,date_dim d2
+ ,date_dim d3
+ ,store
+ ,item
+ where
+ d1.d_moy = 4
+ and d1.d_year = 1999
+ and d1.d_date_sk = ss_sold_date_sk
+ and i_item_sk = ss_item_sk
+ and s_store_sk = ss_store_sk
+ and ss_customer_sk = sr_customer_sk
+ and ss_item_sk = sr_item_sk
+ and ss_ticket_number = sr_ticket_number
+ and sr_returned_date_sk = d2.d_date_sk
+ and d2.d_moy               between 4  and 10
+ and d2.d_year              = 1999
+ and sr_customer_sk = cs_bill_customer_sk
+ and sr_item_sk = cs_item_sk
+ and cs_sold_date_sk = d3.d_date_sk
+ and d3.d_moy               between 4  and 10 
+ and d3.d_year              = 1999
+ group by
+ i_item_id
+ ,i_item_desc
+ ,s_store_id
+ ,s_store_name
+ order by
+ i_item_id
+ ,i_item_desc
+ ,s_store_id
+ ,s_store_name
+ limit 100
+Total cost: 139337.1, memory=401525
+PhysicLimit (100) (inccost=139337.1, cost=100, rows=100) (actual rows=0)
+    Output: item.i_item_id[0],item.i_item_desc[1],store.s_store_id[2],store.s_store_name[3],{max(store_sales.ss_net_profit)}[4],{max(store_returns.sr_net_loss)}[5],{max(catalog_sales.cs_net_profit)}[6]
+    -> PhysicOrder  (inccost=139237.1, cost=0.1, rows=1, memory=303) (actual rows=0)
+        Output: item.i_item_id[0],item.i_item_desc[1],store.s_store_id[2],store.s_store_name[3],{max(store_sales.ss_net_profit)}[4],{max(store_returns.sr_net_loss)}[5],{max(catalog_sales.cs_net_profit)}[6]
+        Order by: item.i_item_id[0], item.i_item_desc[1], store.s_store_id[2], store.s_store_name[3]
+        -> PhysicHashAgg  (inccost=139237, cost=3, rows=1, memory=606) (actual rows=0)
+            Output: {item.i_item_id}[0],{item.i_item_desc}[1],{store.s_store_id}[2],{store.s_store_name}[3],{max(store_sales.ss_net_profit)}[4],{max(store_returns.sr_net_loss)}[5],{max(catalog_sales.cs_net_profit)}[6]
+            Aggregates: max(store_sales.ss_net_profit[4]), max(store_returns.sr_net_loss[5]), max(catalog_sales.cs_net_profit[6])
+            Group by: item.i_item_id[0], item.i_item_desc[1], store.s_store_id[2], store.s_store_name[3]
+            -> PhysicHashJoin  (inccost=139234, cost=2003, rows=1, memory=182) (actual rows=0)
+                Output: item.i_item_id[6],item.i_item_desc[7],store.s_store_id[0],store.s_store_name[1],store_sales.ss_net_profit[2],store_returns.sr_net_loss[3],catalog_sales.cs_net_profit[4]
+                Filter: item.i_item_sk[8]=store_sales.ss_item_sk[5]
+                -> PhysicHashJoin  (inccost=135231, cost=5, rows=1, memory=58) (actual rows=0)
+                    Output: store.s_store_id[5],store.s_store_name[6],store_sales.ss_net_profit[0],store_returns.sr_net_loss[1],catalog_sales.cs_net_profit[2],store_sales.ss_item_sk[3]
+                    Filter: store.s_store_sk[7]=store_sales.ss_store_sk[4]
+                    -> PhysicHashJoin  (inccost=135224, cost=13586, rows=1, memory=25620) (actual rows=0)
+                        Output: store_sales.ss_net_profit[6],store_returns.sr_net_loss[0],catalog_sales.cs_net_profit[1],store_sales.ss_item_sk[7],store_sales.ss_store_sk[8]
+                        Filter: (((d1.d_date_sk[2]=store_sales.ss_sold_date_sk[9] and store_sales.ss_customer_sk[10]=store_returns.sr_customer_sk[3]) and store_sales.ss_item_sk[7]=store_returns.sr_item_sk[4]) and store_sales.ss_ticket_number[11]=store_returns.sr_ticket_number[5])
+                        -> PhysicHashJoin  (inccost=108907, cost=1405, rows=427, memory=1696) (actual rows=0)
+                            Output: store_returns.sr_net_loss[1],catalog_sales.cs_net_profit[2],d1.d_date_sk[3],store_returns.sr_customer_sk[4],store_returns.sr_item_sk[5],store_returns.sr_ticket_number[6]
+                            Filter: catalog_sales.cs_sold_date_sk[7]=d3.d_date_sk[0]
+                            -> PhysicScanTable date_dim as d3 (inccost=17750, cost=17750, rows=212) (actual rows=214)
+                                Output: d3.d_date_sk[0]
+                                Filter: ((d3.d_moy[8]>=4 and d3.d_moy[8]<=10) and d3.d_year[6]=1999)
+                            -> PhysicNLJoin  (inccost=89752, cost=1131, rows=554) (actual rows=300)
+                                Output: store_returns.sr_net_loss[0],catalog_sales.cs_net_profit[1],d1.d_date_sk[6],store_returns.sr_customer_sk[2],store_returns.sr_item_sk[3],store_returns.sr_ticket_number[4],catalog_sales.cs_sold_date_sk[5]
+                                -> PhysicHashJoin  (inccost=70871, cost=579, rows=19, memory=11832) (actual rows=10)
+                                    Output: store_returns.sr_net_loss[0],catalog_sales.cs_net_profit[1],store_returns.sr_customer_sk[2],store_returns.sr_item_sk[3],store_returns.sr_ticket_number[4],catalog_sales.cs_sold_date_sk[5]
+                                    Filter: store_returns.sr_returned_date_sk[6]=d2.d_date_sk[7]
+                                    -> PhysicHashJoin  (inccost=52542, cost=31111, rows=174, memory=361228) (actual rows=75)
+                                        Output: store_returns.sr_net_loss[4],catalog_sales.cs_net_profit[0],store_returns.sr_customer_sk[5],store_returns.sr_item_sk[6],store_returns.sr_ticket_number[7],catalog_sales.cs_sold_date_sk[1],store_returns.sr_returned_date_sk[8]
+                                        Filter: (store_returns.sr_customer_sk[5]=catalog_sales.cs_bill_customer_sk[2] and store_returns.sr_item_sk[6]=catalog_sales.cs_item_sk[3])
+                                        -> PhysicScanTable catalog_sales (inccost=9506, cost=9506, rows=9506) (actual rows=9506)
+                                            Output: catalog_sales.cs_net_profit[33],catalog_sales.cs_sold_date_sk[0],catalog_sales.cs_bill_customer_sk[3],catalog_sales.cs_item_sk[15]
+                                        -> PhysicScanTable store_returns (inccost=11925, cost=11925, rows=11925) (actual rows=11925)
+                                            Output: store_returns.sr_net_loss[19],store_returns.sr_customer_sk[3],store_returns.sr_item_sk[2],store_returns.sr_ticket_number[9],store_returns.sr_returned_date_sk[0]
+                                    -> PhysicScanTable date_dim as d2 (inccost=17750, cost=17750, rows=212) (actual rows=214)
+                                        Output: d2.d_date_sk[0]
+                                        Filter: ((d2.d_moy[8]>=4 and d2.d_moy[8]<=10) and d2.d_year[6]=1999)
+                                -> PhysicScanTable date_dim as d1 (inccost=17750, cost=17750, rows=29) (actual rows=30, loops=10)
+                                    Output: d1.d_date_sk[0]
+                                    Filter: (d1.d_moy[8]=4 and d1.d_year[6]=1999)
+                        -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=0)
+                            Output: store_sales.ss_net_profit[22],store_sales.ss_item_sk[2],store_sales.ss_store_sk[7],store_sales.ss_sold_date_sk[0],store_sales.ss_customer_sk[3],store_sales.ss_ticket_number[9]
+                    -> PhysicScanTable store (inccost=2, cost=2, rows=2) (actual rows=0)
+                        Output: store.s_store_id[1],store.s_store_name[5],store.s_store_sk[0]
+                -> PhysicScanTable item (inccost=2000, cost=2000, rows=2000) (actual rows=0)
+                    Output: item.i_item_id[1],item.i_item_desc[4],item.i_item_sk[0]
+
+

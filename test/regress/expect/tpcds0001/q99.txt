@@ -1,0 +1,65 @@
+select  
+   substr(w_warehouse_name,1,20)
+  ,sm_type
+  ,cc_name
+  ,sum(case when (cs_ship_date_sk - cs_sold_date_sk <= 30 ) then 1 else 0 end)  as "30 days" 
+  ,sum(case when (cs_ship_date_sk - cs_sold_date_sk > 30) and 
+                 (cs_ship_date_sk - cs_sold_date_sk <= 60) then 1 else 0 end )  as "31-60 days" 
+  ,sum(case when (cs_ship_date_sk - cs_sold_date_sk > 60) and 
+                 (cs_ship_date_sk - cs_sold_date_sk <= 90) then 1 else 0 end)  as "61-90 days" 
+  ,sum(case when (cs_ship_date_sk - cs_sold_date_sk > 90) and
+                 (cs_ship_date_sk - cs_sold_date_sk <= 120) then 1 else 0 end)  as "91-120 days" 
+  ,sum(case when (cs_ship_date_sk - cs_sold_date_sk  > 120) then 1 else 0 end)  as ">120 days" 
+from
+   catalog_sales
+  ,warehouse
+  ,ship_mode
+  ,call_center
+  ,date_dim
+where
+    d_month_seq between 1194  and 1194 + 11
+and cs_ship_date_sk   = d_date_sk
+and cs_warehouse_sk   = w_warehouse_sk
+and cs_ship_mode_sk   = sm_ship_mode_sk
+and cs_call_center_sk = cc_call_center_sk
+group by
+   substr(w_warehouse_name,1,20)
+  ,sm_type
+  ,cc_name
+order by substr(w_warehouse_name,1,20)
+        ,sm_type
+        ,cc_name
+limit 100
+Total cost: 72164.01, memory=19376
+PhysicLimit (100) (inccost=72164.01, cost=100, rows=100) (actual rows=0)
+    Output: {substring(warehouse.w_warehouse_name,1,20)}[0],ship_mode.sm_type[1],call_center.cc_name[2],{sum(case with 0|1|1)}[3],{sum(case with 0|1|1)}[4],{sum(case with 0|1|1)}[5],{sum(case with 0|1|1)}[6],{sum(case with 0|1|1)}[7]
+    -> PhysicOrder  (inccost=72064.01, cost=31.01, rows=12, memory=1440) (actual rows=0)
+        Output: {substring(warehouse.w_warehouse_name,1,20)}[0],ship_mode.sm_type[1],call_center.cc_name[2],{sum(case with 0|1|1)}[3],{sum(case with 0|1|1)}[4],{sum(case with 0|1|1)}[5],{sum(case with 0|1|1)}[6],{sum(case with 0|1|1)}[7]
+        Order by: {substring(warehouse.w_warehouse_name,1,20)}[0], ship_mode.sm_type[1], call_center.cc_name[2]
+        -> PhysicHashAgg  (inccost=72033, cost=8526, rows=12, memory=2880) (actual rows=0)
+            Output: {substring(warehouse.w_warehouse_name,1,20)}[0],{ship_mode.sm_type}[1],{call_center.cc_name}[2],{sum(case with 0|1|1)}[3],{sum(case with 0|1|1)}[4],{sum(case with 0|1|1)}[5],{sum(case with 0|1|1)}[6],{sum(case with 0|1|1)}[7]
+            Aggregates: sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1), sum(case with 0|1|1)
+            Group by: {substring(warehouse.w_warehouse_name,1,20)}[0], ship_mode.sm_type[1], call_center.cc_name[2]
+            -> PhysicHashJoin  (inccost=63507, cost=17084, rows=8502, memory=12480) (actual rows=0)
+                Output: {substring(warehouse.w_warehouse_name,1,20)}[0],ship_mode.sm_type[1],call_center.cc_name[2],{case with 0|1|1}[13],{(catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)<=30}[14],{(catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)}[15],catalog_sales.cs_ship_date_sk[16],catalog_sales.cs_sold_date_sk[17],{30}[3],{1}[4],{0}[5],{case with 0|1|1}[18],{((catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)>30 and (catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)<=60)}[19],{(catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)>30}[20],{(catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)<=60}[21],{60}[6],{case with 0|1|1}[22],{((catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)>60 and (catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)<=90)}[23],{(catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)>60}[24],{(catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)<=90}[25],{90}[7],{case with 0|1|1}[26],{((catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)>90 and (catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)<=120)}[27],{(catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)>90}[28],{(catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)<=120}[29],{120}[8],{case with 0|1|1}[30],{(catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)>120}[31],warehouse.w_warehouse_name[9]
+                Filter: ((catalog_sales.cs_warehouse_sk[32]=warehouse.w_warehouse_sk[10] and catalog_sales.cs_ship_mode_sk[33]=ship_mode.sm_ship_mode_sk[11]) and catalog_sales.cs_call_center_sk[34]=call_center.cc_call_center_sk[12])
+                -> PhysicNLJoin  (inccost=515, cost=360, rows=40) (actual rows=40)
+                    Output: {substring(warehouse.w_warehouse_name,1,20)}[0],ship_mode.sm_type[11],call_center.cc_name[1],30,1,0,60,90,120,warehouse.w_warehouse_name[8],warehouse.w_warehouse_sk[9],ship_mode.sm_ship_mode_sk[12],call_center.cc_call_center_sk[10]
+                    -> PhysicNLJoin  (inccost=135, cost=132, rows=2) (actual rows=2)
+                        Output: {substring(warehouse.w_warehouse_name,1,20)}[8],call_center.cc_name[0],{30}[1],{1}[2],{0}[3],{60}[4],{90}[5],{120}[6],warehouse.w_warehouse_name[9],warehouse.w_warehouse_sk[10],call_center.cc_call_center_sk[7]
+                        -> PhysicScanTable call_center (inccost=2, cost=2, rows=2) (actual rows=2)
+                            Output: call_center.cc_name[6],30,1,0,60,90,120,call_center.cc_call_center_sk[0]
+                        -> PhysicScanTable warehouse (inccost=1, cost=1, rows=1) (actual rows=1, loops=2)
+                            Output: substring(warehouse.w_warehouse_name[2],1,20),warehouse.w_warehouse_name[2],warehouse.w_warehouse_sk[0]
+                    -> PhysicScanTable ship_mode (inccost=20, cost=20, rows=20) (actual rows=20, loops=2)
+                        Output: ship_mode.sm_type[2],ship_mode.sm_ship_mode_sk[0]
+                -> PhysicHashJoin  (inccost=45908, cost=18652, rows=8502, memory=2576) (actual rows=0)
+                    Output: {case with 0|1|1}[1],{(catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)<=30}[2],{(catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)}[3],catalog_sales.cs_ship_date_sk[4],catalog_sales.cs_sold_date_sk[5],{case with 0|1|1}[6],{((catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)>30 and (catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)<=60)}[7],{(catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)>30}[8],{(catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)<=60}[9],{case with 0|1|1}[10],{((catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)>60 and (catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)<=90)}[11],{(catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)>60}[12],{(catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)<=90}[13],{case with 0|1|1}[14],{((catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)>90 and (catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)<=120)}[15],{(catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)>90}[16],{(catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)<=120}[17],{case with 0|1|1}[18],{(catalog_sales.cs_ship_date_sk-catalog_sales.cs_sold_date_sk)>120}[19],catalog_sales.cs_warehouse_sk[20],catalog_sales.cs_ship_mode_sk[21],catalog_sales.cs_call_center_sk[22]
+                    Filter: catalog_sales.cs_ship_date_sk[4]=date_dim.d_date_sk[0]
+                    -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=322) (actual rows=366)
+                        Output: date_dim.d_date_sk[0]
+                        Filter: (date_dim.d_month_seq[3]>=1194 and date_dim.d_month_seq[3]<=1205)
+                    -> PhysicScanTable catalog_sales (inccost=9506, cost=9506, rows=9506) (actual rows=9506)
+                        Output: case with 0|1|1,(catalog_sales.cs_ship_date_sk[2]-catalog_sales.cs_sold_date_sk[0])<=30,(catalog_sales.cs_ship_date_sk[2]-catalog_sales.cs_sold_date_sk[0]),catalog_sales.cs_ship_date_sk[2],catalog_sales.cs_sold_date_sk[0],case with 0|1|1,((catalog_sales.cs_ship_date_sk[2]-catalog_sales.cs_sold_date_sk[0])>30 and (catalog_sales.cs_ship_date_sk[2]-catalog_sales.cs_sold_date_sk[0])<=60),(catalog_sales.cs_ship_date_sk[2]-catalog_sales.cs_sold_date_sk[0])>30,(catalog_sales.cs_ship_date_sk[2]-catalog_sales.cs_sold_date_sk[0])<=60,case with 0|1|1,((catalog_sales.cs_ship_date_sk[2]-catalog_sales.cs_sold_date_sk[0])>60 and (catalog_sales.cs_ship_date_sk[2]-catalog_sales.cs_sold_date_sk[0])<=90),(catalog_sales.cs_ship_date_sk[2]-catalog_sales.cs_sold_date_sk[0])>60,(catalog_sales.cs_ship_date_sk[2]-catalog_sales.cs_sold_date_sk[0])<=90,case with 0|1|1,((catalog_sales.cs_ship_date_sk[2]-catalog_sales.cs_sold_date_sk[0])>90 and (catalog_sales.cs_ship_date_sk[2]-catalog_sales.cs_sold_date_sk[0])<=120),(catalog_sales.cs_ship_date_sk[2]-catalog_sales.cs_sold_date_sk[0])>90,(catalog_sales.cs_ship_date_sk[2]-catalog_sales.cs_sold_date_sk[0])<=120,case with 0|1|1,(catalog_sales.cs_ship_date_sk[2]-catalog_sales.cs_sold_date_sk[0])>120,catalog_sales.cs_warehouse_sk[14],catalog_sales.cs_ship_mode_sk[13],catalog_sales.cs_call_center_sk[11]
+
+
