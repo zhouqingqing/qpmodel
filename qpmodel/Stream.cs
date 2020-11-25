@@ -174,7 +174,7 @@ namespace qpmodel.stream
         public PhysicScanStream(LogicNode logic) : base(logic) { }
         public override string ToString() => $"PStream({(logic_ as LogicScanStream).tabref_}: {Cost()})";
 
-        List<Row> getHeapRows(int distId)
+        List<Row> getSourceIterators(int distId)
         {
             var logic = logic_ as LogicScanTable;
             return (logic.tabref_).Table().distributions_[distId].heap_;
@@ -186,23 +186,10 @@ namespace qpmodel.stream
             var logic = logic_ as LogicScanTable;
             var filter = logic.filter_;
             var distId = (logic.tabref_).IsDistributed() ? (context as DistributedContext).machineId_ : 0;
-            var heap = getHeapRows(distId);
+            var source = getSourceIterators(distId);
 
             if (!context.option_.optimize_.use_codegen_)
             {
-                foreach (var l in heap)
-                {
-                    if (context.stop_)
-                        break;
-
-                    if (logic.tabref_.colRefedBySubq_.Count != 0)
-                        context.AddParam(logic.tabref_, l);
-                    if (filter is null || filter.Exec(context, l) is true)
-                    {
-                        var r = ExecProject(l);
-                        callback(r);
-                    }
-                }
             }
         }
 

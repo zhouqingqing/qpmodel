@@ -352,7 +352,7 @@ namespace qpmodel.physic
             children_.ForEach(x => x.Open(context));
         }
 
-        List<Row> getHeapRows(int distId)
+        List<Row> getSourceIterators(int distId)
         {
             var logic = logic_ as LogicScanTable;
             string tablename = null;
@@ -371,7 +371,7 @@ namespace qpmodel.physic
             var logic = logic_ as LogicScanTable;
             var filter = logic.filter_;
             var distId = (logic.tabref_).IsDistributed() ? (context as DistributedContext).machineId_ : 0;
-            var heap = getHeapRows(distId);
+            var heap = getSourceIterators(distId);
 
             if (context.option_.optimize_.use_codegen_)
             {
