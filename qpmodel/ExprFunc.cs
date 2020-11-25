@@ -781,11 +781,6 @@ namespace qpmodel.expr
         internal int nWhen_;
         internal int nElse_ = 0;
 
-        //public override string ToString()
-        //{
-        //    var else_clause = nElse_ == 0 ? "" : $" else {else_()} ";
-        //    return $"case when {when_()[0]}{else_clause}";
-        //}
         public override string ToString() => $"case with {nEval_}|{when_().Count}|{nElse_}";
         internal Expr eval_() => nEval_ != 0 ? children_[0] : null;
         internal List<Expr> when_() => children_.GetRange(nEval_, nWhen_);

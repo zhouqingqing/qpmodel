@@ -3087,7 +3087,8 @@ namespace qpmodel.unittest
                     TU.ExecuteSQL(sql, "3,3", out _, option);
 
                     // this is similar to tpcds q04 
-                    sql = "with cte as ( select a1,b1 from (select a1,a2,b1 from a,b where a1 = b1)ab where a1 < 3 )  select cte1.a1,cte2.a1,c.c1 from cte cte1, cte cte2, c where cte1.a1 = 1 and c.c1 = 1"; ;
+                    sql = "with cte as ( select a1,b1 from (select a1,a2,b1 from a,b where a1 = b1)ab where a1 < 3 )  " +
+                        "select cte1.a1,cte2.a1,c.c1 from cte cte1, cte cte2, c where cte1.a1 = 1 and c.c1 = 1";
                     TU.ExecuteSQL(sql, "1,0,1;1,1,1;1,2,1", out phyplan, option);
 
                     sql = "with cte as (select a_common2.a1 from a a_common2 where a1 = 1) select a_common.a1 from a a_common where a_common.a1 in (select a1 from cte)";
@@ -3098,7 +3099,6 @@ namespace qpmodel.unittest
                     // 
                     sql = "with cte as (select a_common.a1 from a a_common where a1 = 1) select a_common.a1 from a a_common where a_common.a1 in (select a1 from cte)";
                     TU.ExecuteSQL(sql, "1", out phyplan, option);
-
                 }
             }
         }

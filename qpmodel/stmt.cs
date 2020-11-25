@@ -739,7 +739,6 @@ namespace qpmodel.logic
                                 });                              
                             }
                             parent.children_[index] = filter.child_();
-
                         }
                     }
                     else
