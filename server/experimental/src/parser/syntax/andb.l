@@ -52,6 +52,7 @@ SOFTWARE.
 #include "common/dbcommon.h"
 #include "parser/include/expr.h"
 #include "parser/include/stmt.h"
+#include "optimizer/binder.h"
 #include "parser/include/SQLParserResult.h"
 #include "parser/include/parser_typedef.h"
 
@@ -265,7 +266,7 @@ COMMIT      TOKEN(COMMIT)
 
 \"[^\"\n]+\" {
 	// Crop the leading and trailing quote char
-	yylval->sval = new std::string(Expr::substr(yytext, 1, strlen(yytext)-1));
+	yylval->sval = new std::string(andb::substr(yytext, 1, strlen(yytext)-1));
 	return SQL_IDENTIFIER;
 }
 

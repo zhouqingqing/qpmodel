@@ -112,13 +112,6 @@ namespace andb {
                 , ordinal_(ordinal), nullable_(nullable), quoted_(false)
             {
                 // TODO: andb scanner/parser throw away quoted qualifier, revisit
-#ifdef __QUOTED_NAMES
-                if (RemoveQuotes(*name_)) {
-                    name_ = StdStrLower(name_);
-                    quoted_ = true;
-                }
-#endif // __QUOTED_NAMES
-
                 columnId_ = -1;   // for now
             }
 
@@ -129,7 +122,7 @@ namespace andb {
             }
     };
 
-    class TableDef : public UseCurrentResource { /* */
+    class TableDef : public UseCurrentResource {
         public:
             ClassTag    classTag_;
             std::string *name_;
@@ -141,13 +134,6 @@ namespace andb {
                 : classTag_(TableDef_), name_(new std::string(*name))
             {
                quoted_ = false;
-#ifdef __QUOTED_NAMES
-                if (RemoveQuotes(*name_)) {
-                    name_ = StdStrLower(name_);
-                    quoted_ = true;
-                }
-#endif // __QUOTED_NAMES
-
                 columns_ = new std::map<std::string*, ColumnDef*>();
 
                 for (auto c : columns) {
@@ -183,5 +169,4 @@ namespace andb {
                 return size;
             }
     };
-
 }  // namespace andb

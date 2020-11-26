@@ -76,27 +76,24 @@ namespace andb {
         public:
             SemanticException (const std::string& msg) : logic_error (msg)
             {
-                std::cerr << "ANDB [SME]: " << msg << "\n";
+                std::cerr << "ANDB ERROR[SME]: " << msg << "\n";
             }
 
             SemanticException (const char* msg) : logic_error (msg) {
-                std::cerr << "ANDB [SME]: " << msg << "\n";
+                std::cerr << "ANDB ERROR:[SME]: " << msg << "\n";
             }
    };
 
-   #ifdef __LATER
-   class NotImplementedException : public std::logic_error
-   {
-        public:
-            NotImplementedException (const std::string& msg) : logic_error (msg)
-            {
-                std::cerr << "ANDB ERROR[NIE]: " << msg << "\n";
-            }
+   class ParserException : public std::logic_error {
+   public:
+       ParserException (const char *msg = 0)
+          : std::logic_error (msg ? msg : "ANDB ERROR[PAE]")
+       {
+       }
 
-            NotImplementedException (const char* msg) : logic_error (msg) {
-                std::cerr << "ANDB ERROR[NIE]: " << msg << "\n";
-            }
+       ParserException (const std::string& msg)
+          : std::logic_error (msg.c_str())
+       {
+       }
    };
-   #endif
-
-   }
+}

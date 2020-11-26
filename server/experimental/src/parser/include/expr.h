@@ -15,6 +15,7 @@ class ConstExpr;
 class ColExpr;
 class Binder;
 class SQLStatement;
+class SelectStmt;
 
 class BindContext {};
 
@@ -247,177 +248,119 @@ public:
 };
 
     // represents a base table reference or a derived table
-    class TableRef : public UseCurrentResource {
-        public:
-            ClassTag classTag_;
-            std::string* alias_;
-            TableDef* tabDef_;
-            std::vector<Expr *> columnRefs_;
+class TableRef : public UseCurrentResource {
+     public:
+         ClassTag classTag_;
+         std::string* alias_;
+         TableDef* tabDef_;
+         std::vector<Expr *> columnRefs_;
 
             TableRef (std::string* alias)
-               : classTag_ (TableRef_)
-               , alias_(alias ? new std::string(*alias) : nullptr)
-               , tabDef_ (nullptr)
-            {
-            }
+                : classTag_ (TableRef_)
+                  , alias_(alias ? new std::string(*alias) : nullptr)
+                  , tabDef_ (nullptr)
+                  {
+                  }
 
-            TableRef (ClassTag classTag, std::string* alias)
-               : classTag_ (classTag)
-               , alias_(alias ? new std::string(*alias) : nullptr)
-               , tabDef_ (nullptr)
-            {
-            }
+         TableRef (ClassTag classTag, std::string* alias)
+            : classTag_ (classTag)
+            , alias_(alias ? new std::string(*alias) : nullptr)
+            , tabDef_ (nullptr)
+         {
+         }
 
-            TableRef (ClassTag classTag, const char* alias)
-                : classTag_ (classTag), alias_ (alias ? new std::string (alias) : nullptr)
-                , tabDef_(nullptr)
-            {}
+         TableRef (ClassTag classTag, const char* alias)
+             : classTag_ (classTag), alias_ (alias ? new std::string (alias) : nullptr)
+             , tabDef_(nullptr)
+         {}
+
+            TableRef (ClassTag classTag, const char* alias, TableDef* tdef)
+                : classTag_ (classTag), alias_ (new std::string (alias)), tabDef_ (tdef) {}
+
+            TableRef (ClassTag classTag, std::string* alias, TableDef* tdef)
+                : TableRef (classTag, alias->c_str (), tdef) {}
 
             std::string* getAlias() const
             {
                 return alias_;
             }
 
-            Expr* findColumn(std::string* colname) {
-                // all columns in the scope are not yet available
-                for (auto e : columnRefs_) {
-                    if (e->alias_->compare(*colname)) return e;
-                }
+         Expr* findColumn(std::string* colname) {
+             // all columns in the scope are not yet available
+             for (auto e : columnRefs_) {
+                 if (e->alias_->compare(*colname)) return e;
+             }
 
-                return nullptr;
-            }
+             return nullptr;
+         }
 
-            virtual TableRef* Clone ()
-            {
-                TableRef* tr = new TableRef (alias_);
-                tr->tabDef_ = tabDef_;
+         virtual TableRef* Clone ()
+         {
+             TableRef* tr = new TableRef (alias_);
+             tr->tabDef_ = tabDef_;
 
-                return tr;
-            }
+             return tr;
+         }
 
-            virtual std::string Explain(void *arg = nullptr) const
-            {
-                return {};
-            }
-    };
+         virtual std::string Explain(void *arg = nullptr) const
+         {
+             return {};
+         }
+ };
 
-    class BaseTableRef : public TableRef {
-        public:
-            std::string* tabName_;
+class BaseTableRef : public TableRef {
+     public:
+         std::string* tabName_;
 
-            BaseTableRef (std::string* tabname, std::string* alias = nullptr)
-                : TableRef(BaseTableRef_, alias), tabName_ (new std::string(*tabname))
-            {
-                if (!alias) {
-                    alias_ = new std::string (*tabName_);
-                }
-            }
+         BaseTableRef (std::string* tabname, std::string* alias = nullptr)
+             : TableRef(BaseTableRef_, alias), tabName_ (new std::string(*tabname))
+         {
+             if (!alias) {
+                 alias_ = new std::string (*tabName_);
+             }
+         }
 
-            BaseTableRef (const char* tabname, const char* alias = nullptr)
-                : TableRef(BaseTableRef_, alias)
-                , tabName_(new std::string(tabname))
-            {
-                if (!alias) {
-                    alias_ = new std::string (*tabName_);
-                }
-            }
+         BaseTableRef (const char* tabname, const char* alias = nullptr)
+             : TableRef(BaseTableRef_, alias)
+             , tabName_(new std::string(tabname))
+         {
+             if (!alias) {
+                 alias_ = new std::string (*tabName_);
+             }
+         }
 
-            TableRef *Clone () override
-            {
-                BaseTableRef* btrf = new BaseTableRef (tabName_, alias_);
-                return btrf;
-            }
+         TableRef *Clone () override
+         {
+             BaseTableRef* btrf = new BaseTableRef (tabName_, alias_);
+             return btrf;
+         }
 
-            std::string Explain(void *arg = nullptr) const override
-            {
-                std::string ret = *tabName_;
+         std::string Explain(void *arg = nullptr) const override
+         {
+             std::string ret = *tabName_;
 
-                if (getAlias())
-                    ret += " " + *getAlias();
+             if (getAlias())
+                 ret += " " + *getAlias();
 
-                return ret;
-            }
-    };
+             return ret;
+         }
+ };
 
-    class QueryRef : public TableRef {
-        public:
-            SelectStmt* query_;
-            std::vector<std::string*>* colOutputNames_;
+class QueryRef : public TableRef {
+     public:
+         SelectStmt* query_;
+         std::vector<std::string*>* colOutputNames_;
 
-            QueryRef (SelectStmt* stmt, std::string* alias = nullptr,
-                    std::vector<std::string*>* outputNames = nullptr)
-                : TableRef(QueryRef_, alias), query_ (stmt)
-                , colOutputNames_ (outputNames)
-            {
-            }
-    };
+         QueryRef (SelectStmt* stmt, std::string* alias = nullptr,
+                 std::vector<std::string*>* outputNames = nullptr)
+             : TableRef(QueryRef_, alias), query_ (stmt)
+             , colOutputNames_ (outputNames)
+         {
+         }
+ };
 
-    class Binder : public UseCurrentResource {
-    public:
-        Binder (SQLStatement* stmt, Binder* parent = nullptr)
-            : stmt_ (stmt),
-              parent_ (parent),
-              globalSubqCounter_ (0),
-              globalValueIdCounre_ (1),
-              binderError_ (0) {}
 
-        ~Binder () {}
-
-        void Bind ();
-        TableDef* ResolveTable (std::string* tref);
-
-        int GetError () { return binderError_; }
-
-        void SetError (int err) { binderError_ = err; }
-
-        void addTableToScope (std::string* tblName) {
-            auto it = tablesInScope_.find (tblName);
-            if (it == tablesInScope_.end ()) {
-                // read table def from Catalog and add it here
-            }
-        }
-
-        void addTableToScope(TableRef * tref)
-        {
-            tablesInScope_.insert (std::make_pair (tref->alias_, tref));
-        }
-
-        TableRef* GetTableRef (std::string* tabName) {
-            auto ti = tablesInScope_.find (tabName);
-            if (ti != tablesInScope_.end ()) return ti->second;
-
-            return nullptr;
-        }
-
-        ColExpr* GetColumnRef (std::string* colName, std::string* tabName = nullptr) {
-            // not chasing the outer scopes yet
-            TableRef* tref = nullptr;
-            if (tabName) {
-                tref = GetTableRef (tabName);
-                tref->findColumn (colName);
-            }
-
-            // no table name, again, not checking for duplicate columns
-            for (auto tr : tablesInScope_) {
-                tref = tr.second;
-                Expr* er = tref->findColumn (colName);
-                if (er) {
-                    assert (er->classTag_ == ColExpr_);
-                    return static_cast<ColExpr*> (er);
-                }
-            }
-            return nullptr;
-        }
-
-        SQLStatement* stmt_;  // current statement
-        Binder* parent_;
-        int globalSubqCounter_;
-        int globalValueIdCounre_;
-        int binderError_;
-        std::map<std::string*, TableRef*> tablesInScope_;
-        std::map<std::pair<std::string*, std::string*>, int> columnsInScope;
-    };
-    class ExprEval {
+class ExprEval {
     Expr* expr_ = nullptr;
     Datum** pointer_ = nullptr;
     Datum* board_ = nullptr;

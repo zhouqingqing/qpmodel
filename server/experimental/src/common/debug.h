@@ -20,13 +20,3 @@ class NotImplementedException : public std::logic_error {
 public:
     NotImplementedException () : std::logic_error ("not yet implemented.") {}
 };
-
-class ParserException : public std::logic_error {
-public:
-    ParserException () : std::logic_error ("parser error") {}
-};
-
-class SemanticException : public std::logic_error {
-public:
-    SemanticException () : std::logic_error ("semantic error.") {}
-};

@@ -7,6 +7,7 @@
 
 #include "common/common.h"
 #include "common/dbcommon.h"
+#include "optimizer/binder.h"
 
 namespace andb {
 

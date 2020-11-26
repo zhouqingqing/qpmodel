@@ -52,6 +52,7 @@ SOFTWARE.
 #include "common/dbcommon.h"
 #include "parser/include/expr.h"
 #include "parser/include/stmt.h"
+#include "optimizer/binder.h"
 #include "parser/include/SQLParserResult.h"
 #include "parser/include/parser_typedef.h"
 

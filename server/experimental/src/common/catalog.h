@@ -30,22 +30,8 @@ public:
     bool CreateTable (std::string* tabName, std::vector<ColumnDef*>* columns,
                       std::string* distBy = nullptr);
 
-    TableDef* TryTable (std::string* tblName) {
-        auto it = records_.find (tblName);
-        if (it != records_.end ()) return it->second;
-
-        return nullptr;
-    }
-
-    ColumnDef* Column (std::string* colName, std::string* tblName) {
-        TableDef* td = TryTable (colName);
-        if (td != nullptr) {
-            auto it = td->columns_->find (colName);
-            if (it != td->columns_->end ()) return it->second;
-        }
-
-        return nullptr;
-    }
+    TableDef* TryTable (std::string* tblName);
+    ColumnDef* Column (std::string* colName, std::string* tblName);
 
 private:
     std::map<std::string*, TableDef*, NameCompare> records_;

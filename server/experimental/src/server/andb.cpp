@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <stdexcept>
 #include <cstring>
 #include <cctype>
 
@@ -10,7 +11,7 @@
 #include "runtime/runtime.h"
 #include "parser/include/expr.h"
 #include "parser/include/stmt.h"
-// #include "optimizer/binder.h"
+#include "optimizer/binder.h"
 #include "parser/include/SQLParserResult.h"
 
 #ifdef _MSC_VER
@@ -80,33 +81,36 @@ int main(int argc, char* argv[])
 
 static void processSQL (void) {
     setupInput ();
-    
+
     strcpy (query, "select a1 from a");
     bool moreInput = getNextStmt ();
 
     while ((mode_interactive_on || mode_batch_on) && moreInput) {
-        SQLParserResult presult;
-        bool ret = ParseSQL (query, &presult);
+            SQLParserResult presult;
+        try {
+            bool ret = ParseSQL (query, &presult);
 
-        if (ret) {
-            std::cout << "PASSED: " << query << std::endl;
+            if (ret) {
+                std::cout << "PASSED: " << query << std::endl;
 
-            SelectStatement *selStmt = (SelectStmt *)presult.getStatement (0);
-            std::cout << "EXPLAIN: " << selStmt->Explain () << "\n";
-            Binder binder (selStmt);
-            binder.Bind ();
-            if (binder.GetError ()) {
-                std::cout << "ERROR: Binder error\n";
+                SelectStatement* selStmt = (SelectStmt*)presult.getStatement (0);
+                std::cout << "EXPLAIN: " << selStmt->Explain () << "\n";
+                Binder binder (selStmt);
+                binder.Bind ();
+                if (binder.GetError ()) {
+                    std::cout << "ERROR: Binder error\n";
+                }
+            } else {
+                const char* emsg = presult.errorMsg ();
+                int el = presult.errorLine ();
+                int ec = presult.errorColumn ();
+                std::cout << "FAILED: " << query << std::endl;
+                std::cout << "ERROR: " << (emsg ? emsg : "unkown") << " L = " << el << " C = " << ec
+                          << std::endl;
             }
-        } else {
-            const char* emsg = presult.errorMsg ();
-            int el = presult.errorLine ();
-            int ec = presult.errorColumn ();
-            std::cout << "FAILED: " << query << std::endl;
-            std::cout << "ERROR: " << (emsg ? emsg : "unkown") << " L = " << el << " C = " << ec
-                      << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "EXCEPTION: " << e.what() << "\n";
         }
-
         presult.reset ();
         moreInput = getNextStmt ();
     }

@@ -6,12 +6,30 @@
 #include "common/dbcommon.h"
 #include "common/catalog.h"
 
+// NOTE: None of the operations here are Multi-Thread (MT) safe.
+
 namespace andb {
 
 SysTable* Catalog::systable_ = new SysTable();
 SysStats* Catalog::sysstat_ = new SysStats ();
 
-// NOTE: None of the operations here are Multi-Thread (MT) safe.
+TableDef* SysTable::TryTable (std::string* tblName) {
+  auto it = records_.find (tblName);
+  if (it != records_.end ()) return it->second;
+
+  return nullptr;
+}
+
+ColumnDef* SysTable::Column (std::string* colName, std::string* tblName) {
+  TableDef* td = TryTable (colName);
+  if (td != nullptr) {
+      auto it = td->columns_->find (colName);
+      if (it != td->columns_->end ()) return it->second;
+  }
+
+  return nullptr;
+}
+
 bool SysTable::CreateTable (std::string* tabName, std::vector<ColumnDef*>* columns,
                             std::string* distBy) {
     TableDef* tblDef = new TableDef (tabName, *columns);
