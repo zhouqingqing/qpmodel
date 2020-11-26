@@ -47,6 +47,7 @@ TableDef* Binder::ResolveTable (std::string* tname) {
     if (tdef && next == current) {
         // found the table in local scope in the catalog, add it to local scope
         TableRef* ltref = new TableRef (BaseTableRef_, tname, tdef);
+        ltref->tabDef_ = tdef;
         AddTableRefToScope (ltref);
     }
     return tdef;

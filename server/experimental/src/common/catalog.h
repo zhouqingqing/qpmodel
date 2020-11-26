@@ -13,14 +13,6 @@ namespace andb {
 // Tables are not aware of a SCHEMA, yet.
 class SystemTable : public UseCurrentResource {};
 
-class NameCompare {
-    public :
-        bool operator()(const std::string *lv, const std::string *rv) const
-        {
-            return lv->compare (*rv) < 0;
-        }
-};
-
 class SysTable : public SystemTable {
 public:
 
@@ -34,7 +26,7 @@ public:
     ColumnDef* Column (std::string* colName, std::string* tblName);
 
 private:
-    std::map<std::string*, TableDef*, NameCompare> records_;
+    std::map<std::string*, TableDef*, CaselessStringPtrCmp> records_;
 };
 
 class Catalog : public UseCurrentResource {
