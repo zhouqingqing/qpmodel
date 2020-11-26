@@ -35,6 +35,7 @@ using qpmodel.physic;
 using qpmodel.index;
 using qpmodel.optimizer;
 using qpmodel.utils;
+using qpmodel.stream;
 
 using LogicSignature = System.Int64;
 using BitVector = System.Int64;
@@ -138,18 +139,23 @@ namespace qpmodel.logic
             switch (this)
             {
                 case LogicScanTable ln:
-                    // if there are indexes can help filter, use them
-                    IndexDef index = null;
-                    if (ln.filter_ != null)
-                    {
-                        if (option.optimize_.enable_indexseek_)
-                            index = ln.filter_.FilterCanUseIndex(ln.tabref_);
-                        ln.filter_.SubqueryDirectToPhysic();
-                    }
-                    if (index is null)
-                        result = new PhysicScanTable(ln);
+                    if (ln is LogicScanStream)
+                        result = new PhysicScanStream(ln);
                     else
-                        result = new PhysicIndexSeek(ln, index);
+                    {
+                        // if there are indexes can help filter, use them
+                        IndexDef index = null;
+                        if (ln.filter_ != null)
+                        {
+                            if (option.optimize_.enable_indexseek_)
+                                index = ln.filter_.FilterCanUseIndex(ln.tabref_);
+                            ln.filter_.SubqueryDirectToPhysic();
+                        }
+                        if (index is null)
+                            result = new PhysicScanTable(ln);
+                        else
+                            result = new PhysicIndexSeek(ln, index);
+                    }
                     break;
                 case LogicJoin lc:
                     var phyleft = phyfirst;

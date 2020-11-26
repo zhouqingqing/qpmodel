@@ -293,16 +293,17 @@ namespace qpmodel.expr
     // FROM <table> [alias]
     public class BaseTableRef : TableRef
     {
+        // can be a stream or table name
         public string relname_;
 
         public BaseTableRef(string name, string alias = null, SelectStmt.TableSample tableSample = null)
         {
             Debug.Assert(name != null);
-            relname_ = qpmodel.utils.Utils.normalizeName(name);
+            relname_ = Utils.normalizeName(name);
             if (alias is null)
                 alias_ = relname_;
             else
-                alias_ = qpmodel.utils.Utils.normalizeName(alias);
+                alias_ = Utils.normalizeName(alias);
             tableSample_ = tableSample;
         }
 

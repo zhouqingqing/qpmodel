@@ -1,4 +1,4 @@
- /*
+﻿ /*
  * The MIT License (MIT)
  *
  * Copyright (c) 2014 by Bart Kiers
@@ -75,8 +75,11 @@ create_index_stmt
    ( K_WHERE expr )?
  ;
 
+/*
+ create table or stream
+ */
 create_table_stmt
- : K_CREATE K_TABLE ( K_IF K_NOT K_EXISTS )?
+ : K_CREATE ( K_TABLE | K_STREAM ) ( K_IF K_NOT K_EXISTS )?
    ( database_name '.' )? table_name
    ( '(' column_def ( ',' column_def )* ( ',' table_constraint )* ')'
    ( K_ROUNDROBIN | K_REPLICATED | ( K_DISTRIBUTED K_BY column_name) )?
@@ -447,6 +450,7 @@ keyword
  | K_ROW
  | K_SELECT
  | K_SET
+ | K_STREAM
  | K_TABLE
  | K_THEN
  | K_TO
@@ -658,6 +662,7 @@ K_RIGHT : R I G H T;
 K_ROW : R O W;
 K_SELECT : S E L E C T;
 K_SET : S E T;
+K_STREAM : S T R E A M;
 K_TABLE : T A B L E;
 K_TABLESAMPLE : T A B L E S A M P L E;
 K_THEN : T H E N;
