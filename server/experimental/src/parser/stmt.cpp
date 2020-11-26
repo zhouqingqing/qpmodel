@@ -1,8 +1,7 @@
 #include "parser/include/logicnode.h"
 #include "parser/include/stmt.h"
 
-using namespace andb;
-
+namespace andb {
 // from clause -
 //  pair each from item with cross join, their join conditions will be handled
 //  with where clause processing.
@@ -57,3 +56,4 @@ LogicNode* SelectStmt::CreatePlan () {
     LogicNode* root = transformFromClause ();
     return root;
 }
+}  // namespace andb

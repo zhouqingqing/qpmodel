@@ -52,6 +52,7 @@ SOFTWARE.
 #include "common/dbcommon.h"
 #include "parser/include/expr.h"
 #include "parser/include/stmt.h"
+#include "optimizer/binder.h"
 #include "parser/include/SQLParserResult.h"
 #include "parser/include/parser_typedef.h"
 
@@ -428,7 +429,7 @@ comp_expr:
 
 column_name:
 		IDENTIFIER { $$ = makeColumnRef($1); }
-	|	IDENTIFIER '.' IDENTIFIER { $$ = makeColumnRef($1, $3); }
+	|	IDENTIFIER '.' IDENTIFIER { $$ = makeColumnRef($3, $1); }
 	|	'*' { $$ = makeStar(); }
 	|	IDENTIFIER '.' '*' { $$ = makeStar($1); }
 	;

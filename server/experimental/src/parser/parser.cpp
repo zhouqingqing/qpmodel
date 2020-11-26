@@ -63,7 +63,7 @@ bool ParseSQL (char* query, SQLParserResult* result) {
    YY_BUFFER_STATE state;
 
     if (andb_lex_init (&scanner)) {
-        throw "ParseSQL: andb_lex_init() failed\n";
+        throw ParserException();
     }
 
     state = andb__scan_string (query, scanner);

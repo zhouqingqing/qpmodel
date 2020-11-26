@@ -1,14 +1,17 @@
 #include <iostream>
 #include <fstream>
+#include <stdexcept>
 #include <cstring>
 #include <cctype>
 
 #include "common/common.h"
+#include "common/catalog.h"
 #include "optimizer/optimizer.h"
 #include "parser/include/parser.h"
 #include "runtime/runtime.h"
 #include "parser/include/expr.h"
 #include "parser/include/stmt.h"
+#include "optimizer/binder.h"
 #include "parser/include/SQLParserResult.h"
 
 #ifdef _MSC_VER
@@ -68,6 +71,7 @@ int main(int argc, char* argv[])
     auto resource = DefaultResource::CreateMemoryResource (currentResource_, "current query");
     currentResource_ = resource;
 
+    Catalog::Init ();
     processOptions (argc, argv);
     processSQL ();
 
@@ -77,28 +81,36 @@ int main(int argc, char* argv[])
 
 static void processSQL (void) {
     setupInput ();
-    
+
     strcpy (query, "select a1 from a");
     bool moreInput = getNextStmt ();
 
     while ((mode_interactive_on || mode_batch_on) && moreInput) {
-        SQLParserResult presult;
-        bool ret = ParseSQL (query, &presult);
+            SQLParserResult presult;
+        try {
+            bool ret = ParseSQL (query, &presult);
 
-        if (ret) {
-            std::cout << "PASSED: " << query << std::endl;
+            if (ret) {
+                std::cout << "PASSED: " << query << std::endl;
 
-            const SelectStatement *selStmt = (const SelectStmt *)presult.getStatement (0);
-            std::cout << "EXPLAIN: " << selStmt->Explain () << "\n";
-        } else {
-            const char* emsg = presult.errorMsg ();
-            int el = presult.errorLine ();
-            int ec = presult.errorColumn ();
-            std::cout << "FAILED: " << query << std::endl;
-            std::cout << "ERROR: " << (emsg ? emsg : "unkown") << " L = " << el << " C = " << ec
-                      << std::endl;
+                SelectStatement* selStmt = (SelectStmt*)presult.getStatement (0);
+                std::cout << "EXPLAIN: " << selStmt->Explain () << "\n";
+                Binder binder (selStmt);
+                binder.Bind ();
+                if (binder.GetError ()) {
+                    std::cout << "ERROR: Binder error\n";
+                }
+            } else {
+                const char* emsg = presult.errorMsg ();
+                int el = presult.errorLine ();
+                int ec = presult.errorColumn ();
+                std::cout << "FAILED: " << query << std::endl;
+                std::cout << "ERROR: " << (emsg ? emsg : "unkown") << " L = " << el << " C = " << ec
+                          << std::endl;
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "EXCEPTION: " << e.what() << "\n";
         }
-
         presult.reset ();
         moreInput = getNextStmt ();
     }
@@ -170,7 +182,8 @@ static bool getNextStmt () {
         if (!cp || cp[0] == 0 || *cp == '#' || (*cp == '-' && *(cp + 1) == '-')) {
             continue;
         } else if ((blen = strlen (cp)) >= ANDB_LINE_SIZE - 1 ||
-            !strcmp (cp, "QUIT") || !strcmp (cp, "QUIT;") || !strcmp (cp, "\nQUIT;")) {
+                    !andb_strcmp_nocase (cp, "quit") || !andb_strcmp_nocase (cp, "quit;") ||
+                    !andb_strcmp_nocase (cp, "\nquit;")) {
             return false;
         }
         /* append ; and return true */

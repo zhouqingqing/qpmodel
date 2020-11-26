@@ -70,7 +70,7 @@ void BinExpr::bindFunction () {
     auto key = BinFunctionDesc{op_, children_[0]->type_, children_[1]->type_};
     auto search = BinMap_.find (key);
     if (search == BinMap_.end ()) {
-        throw SemanticException ();
+        throw SemanticException ("function not found");
     }
     fn_ = search->second.fn_;
     type_ = search->second.rettype_;
@@ -124,13 +124,14 @@ Expr* makeLiteral (bool bval) {
 }
 
 Expr* makeColumnRef (char* cname, char* alias) {
-    Expr* e = new ColExpr (cname);
+    Expr* e = new ColExpr (cname, alias);
 
     return e;
 }
 
-Expr* makeColumnRef (std::string* cname, std::string* alias) {
-    Expr* e = new ColExpr (const_cast<char*> (cname->c_str ()));
+Expr* makeColumnRef (std::string* cname, std::string* tname) {
+    const char* tab = tname ? tname->c_str () : nullptr;
+    Expr* e = new ColExpr (const_cast<char*> (cname->c_str ()), tab);
 
     return e;
 }
