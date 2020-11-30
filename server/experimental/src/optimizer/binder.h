@@ -22,7 +22,6 @@ class Binder : public UseCurrentResource {
         void Bind ();
         TableDef* ResolveTable (std::string* tref);
         ColExpr* ResolveColumn(std::string* cname, std::string* tname = nullptr);
-
         int GetError () { return binderError_; }
 
         void SetError (int err) { binderError_ = err; }

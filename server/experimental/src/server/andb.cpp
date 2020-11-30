@@ -32,7 +32,7 @@ andb [-h] [-i] [-e] [-f file]\n\
 -f file : take the input from file\n\
 ";
 
-bool mode_interactive_on{true}, mode_batch_on, mode_explain_on;
+bool mode_interactive_on{true}, mode_batch_on{false}, mode_explain_on{false};
 std::string inputFile;
 static std::ifstream querySrc;
 static char query[ANDB_LINE_SIZE] = {0};

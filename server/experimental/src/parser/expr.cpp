@@ -1,3 +1,4 @@
+#include "common/common.h"
 #include "parser/include/expr.h"
 #include "parser/include/stmt.h"
 
@@ -41,7 +42,10 @@ namespace andb
 #pragma endregion binfunctions
     void ColExpr::Bind(Binder* binder)
     {
-        auto ce = static_cast<ColExpr*>(binder->ResolveColumn(alias_ ? alias_ : colname_, tabname_));
+        std::string* cname = alias_ ? alias_ : colname_;
+        auto ce = static_cast<ColExpr*>(binder->ResolveColumn(cname, tabname_));
+        if (!ce)
+            throw SemanticAnalyzeException("column " + *cname + " not found");
         ColumnDef* cdef = ce->columnDef_;
         ordinal_ = cdef->ordinal_;
         columnDef_ = cdef->Clone();
@@ -119,87 +123,6 @@ namespace andb
                 break;
         }
     }
-
-    Expr* makeStar(std::string* alias)
-    {
-        Expr* e = new SelStar(alias);
-
-        return e;
-    }
-
-    Expr* makeOpBinary(Expr* left, BinOp op, Expr* right)
-    {
-        Expr* e = new BinExpr(op, left, right);
-
-        return e;
-    }
-
-    Expr* makeNullLiteral()
-    {
-        Expr* e = new ConstExpr("null");
-
-        return e;
-    }
-
-    Expr* makeLiteral(const char* cval)
-    {
-        Expr* e = new ConstExpr(Datum(std::string(cval)));
-
-        return e;
-    }
-
-    Expr* makeLiteral(std::string* sval)
-    {
-        Expr* e = new ConstExpr(Datum(sval));
-
-        return e;
-    }
-
-    Expr* makeLiteral(double dval)
-    {
-        Expr* e = new ConstExpr(Datum(dval));
-
-        return e;
-    }
-
-    Expr* makeLiteral(int64_t ival)
-    {
-        Expr* e = new ConstExpr(Datum(ival));
-
-        return e;
-    }
-
-    Expr* makeLiteral(bool bval)
-    {
-        Expr* e = new ConstExpr(Datum(bval));
-        return e;
-    }
-
-    Expr* makeColumnRef(char* cname, char* alias)
-    {
-        Expr* e = new ColExpr(cname, alias);
-
-        return e;
-    }
-
-    Expr* makeColumnRef(std::string* cname, std::string* tname)
-    {
-        const char* tab = tname ? tname->c_str() : nullptr;
-        Expr* e = new ColExpr(const_cast<char*> (cname->c_str()), tab);
-
-        return e;
-    }
-
-    char* substr(const char* source, int from, int to)
-    {
-        int len = to - from;
-        char* copy = new char[len + 1];
-        strncpy(copy, source + from, len);
-        copy[len] = '\0';
-        return copy;
-    }
-
-
 
     // given an expression, enqueue all ops
     void ExprEval::Open(Expr* expr)
@@ -295,4 +218,83 @@ namespace andb
         }
     }
 
+
+    Expr* makeStar(std::string* alias)
+    {
+        Expr* e = new SelStar(alias);
+
+        return e;
+    }
+
+    Expr* makeOpBinary(Expr* left, BinOp op, Expr* right)
+    {
+        Expr* e = new BinExpr(op, left, right);
+
+        return e;
+    }
+
+    Expr* makeNullLiteral()
+    {
+        Expr* e = new ConstExpr("null");
+
+        return e;
+    }
+
+    Expr* makeLiteral(const char* cval)
+    {
+        Expr* e = new ConstExpr(Datum(std::string(cval)));
+
+        return e;
+    }
+
+    Expr* makeLiteral(std::string* sval)
+    {
+        Expr* e = new ConstExpr(Datum(sval));
+
+        return e;
+    }
+
+    Expr* makeLiteral(double dval)
+    {
+        Expr* e = new ConstExpr(Datum(dval));
+
+        return e;
+    }
+
+    Expr* makeLiteral(int64_t ival)
+    {
+        Expr* e = new ConstExpr(Datum(ival));
+
+        return e;
+    }
+
+    Expr* makeLiteral(bool bval)
+    {
+        Expr* e = new ConstExpr(Datum(bval));
+        return e;
+    }
+
+    Expr* makeColumnRef(char* cname, char* alias)
+    {
+        Expr* e = new ColExpr(cname, alias);
+
+        return e;
+    }
+
+    Expr* makeColumnRef(std::string* cname, std::string* tname)
+    {
+        const char* tab = tname ? tname->c_str() : nullptr;
+        Expr* e = new ColExpr(const_cast<char*> (cname->c_str()), tab);
+
+        return e;
+    }
+
+    char* substr(const char* source, int from, int to)
+    {
+        int len = to - from;
+        char* copy = new char[len + 1];
+        strncpy(copy, source + from, len);
+        copy[len] = '\0';
+        return copy;
+    }
 }  // namespace andb

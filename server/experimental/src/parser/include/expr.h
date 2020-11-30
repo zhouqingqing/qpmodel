@@ -70,35 +70,6 @@ namespace andb
             for (int i = 0; i < nchildren; i++) child(i)->Bind(context);
         }
 
-        void SetType(ColumnDef* cdef)
-        {
-            switch (cdef->type_.type_)
-            {
-                case SQLType::SQL_TYPE_INTEGER:
-                    type_ = DataType::Int32;
-                    break;
-
-                case SQLType::SQL_TYPE_LONG:
-                    type_ = DataType::Int64;
-                    break;
-
-                case SQLType::SQL_TYPE_BOOL:
-                    type_ = DataType::Bool;
-                    break;
-
-                case SQLType::SQL_TYPE_DOUBLE:
-                    type_ = DataType::Double;
-                    break;
-
-                case SQLType::SQL_TYPE_CHAR:
-                    type_ = DataType::String;
-                    break;
-
-                default:
-                    throw SemanticAnalyzeException("Unspported type: " + cdef->type_.ToString());
-                    break;
-            }
-        }
 
         static std::string ExplainBinOp(BinOp op)
         {
@@ -131,6 +102,36 @@ namespace andb
                 default:
                     assert("unknown op in BinOp::explain");
                     return "???";
+            }
+        }
+
+        void SetType(ColumnDef* cdef)
+        {
+            switch (cdef->type_.type_)
+            {
+                case SQLType::SQL_TYPE_INTEGER:
+                    type_ = DataType::Int32;
+                    break;
+
+                case SQLType::SQL_TYPE_LONG:
+                    type_ = DataType::Int64;
+                    break;
+
+                case SQLType::SQL_TYPE_BOOL:
+                    type_ = DataType::Bool;
+                    break;
+
+                case SQLType::SQL_TYPE_DOUBLE:
+                    type_ = DataType::Double;
+                    break;
+
+                case SQLType::SQL_TYPE_CHAR:
+                    type_ = DataType::String;
+                    break;
+
+                default:
+                    throw SemanticAnalyzeException("Unspported type: " + cdef->type_.ToString());
+                    break;
             }
         }
     };
@@ -385,15 +386,10 @@ namespace andb
         private:
         void SetColumnRefs()
         {
-            /*
-            *         std::vector<Expr*> columnRefs_;
-            * std::map<std::string*, ColumnDef*> *columns_;
-            * */
             if (tabDef_ && columnRefs_.empty()) {
                 for (auto d : *tabDef_->columns_) {
                     std::string* tname = tabDef_->name_;
                     ColumnDef* cdef = d.second;
-                    /* explicit ColExpr(uint16_t ordinal, std::string* colname = nullptr, std::string* tabname = nullptr, std::string* schname = nullptr, ColumnDef* columnDef = nullptr)*/
                     auto cref = new ColExpr(cdef->ordinal_, cdef->name_, tname, nullptr, cdef);
                     columnRefs_.emplace_back(std::move(cref));
                 }
@@ -482,5 +478,4 @@ namespace andb
     Expr* makeColumnRef(const char* cname, const char* alias = 0);
     Expr* makeColumnRef(std::string* cname, std::string* alias = 0);
     char* substr(const char* source, int from, int to);
-
 }  // namespace andb
