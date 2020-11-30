@@ -20,7 +20,7 @@
 #include <getopt.h>
 #endif
 
-char* ANDB_OPTIONS = "heif:";
+const char* ANDB_OPTIONS = "heif:";
 const int ANDB_LINE_SIZE = 8192;
 const char ANDB_HELP[] =
     "\n\

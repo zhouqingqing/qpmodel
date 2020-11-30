@@ -78,7 +78,7 @@ public:
         return str;
     }
 
-    static MemoryResource* CreateMemoryResource (MemoryResource* parent, char* name) {
+    static MemoryResource* CreateMemoryResource (MemoryResource* parent, const char* name) {
         auto resource = new DefaultResource ();
         resource->parent_ = parent;
         return resource;

@@ -3,6 +3,7 @@
 #include "common/dbcommon.h"
 #include "common/nodebase.h"
 #include "runtime/datum.h"
+#include "parser/include/expr.h"
 
 namespace andb {
 class Binder : public UseCurrentResource {
@@ -23,7 +24,7 @@ class Binder : public UseCurrentResource {
 
         void SetError (int err) { binderError_ = err; }
 
-        void Binder::AddTableRefToScope (TableRef* tref) {
+        void AddTableRefToScope (TableRef* tref) {
             auto it = tablesInScope_.insert (std::make_pair (tref->getAlias (), tref));
         }
 
