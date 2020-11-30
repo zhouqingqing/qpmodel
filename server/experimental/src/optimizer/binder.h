@@ -21,6 +21,7 @@ class Binder : public UseCurrentResource {
 
         void Bind ();
         TableDef* ResolveTable (std::string* tref);
+        ColExpr* ResolveColumn(std::string* cname, std::string* tname = nullptr);
 
         int GetError () { return binderError_; }
 
@@ -38,6 +39,9 @@ class Binder : public UseCurrentResource {
         }
 
         ColExpr* GetColumnRef (std::string* colName, std::string* tabName = nullptr);
+
+        std::vector<ColExpr*>* GetTableColumns (std::string *tabName);
+        std::vector<ColExpr*>* GetAllTableColumns ();
 
         SQLStatement* stmt_;  // current statement
         Binder* parent_;

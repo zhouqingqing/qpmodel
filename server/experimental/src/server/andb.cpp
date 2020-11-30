@@ -27,11 +27,12 @@ const char ANDB_HELP[] =
 andb [-h] [-i] [-e] [-f file]\n\
 -h      : Print this help and exit\n\
 -e      : EXPLAIN the input statement\n\
--i      : Enter interactive mode. QUIT exits\n\
+-i      : Enter interactive mode, default. QUIT exits\n\
+          if -i and -f are specified, -f takes precedence.\n\
 -f file : take the input from file\n\
 ";
 
-bool mode_interactive_on, mode_batch_on, mode_explain_on;
+bool mode_interactive_on{true}, mode_batch_on, mode_explain_on;
 std::string inputFile;
 static std::ifstream querySrc;
 static char query[ANDB_LINE_SIZE] = {0};
@@ -132,8 +133,8 @@ static void processOptions (int argc, char* argv[]) {
                 break;
 
             case 'i':
-                mode_interactive_on = true;
-                mode_batch_on = false;
+                if (!mode_batch_on)
+                    mode_interactive_on = true;
                 break;
 
             case 'f':
