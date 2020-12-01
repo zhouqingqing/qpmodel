@@ -18,6 +18,7 @@ namespace andb {
         PhysicHashJoin_,
         PhysicScan_,
         LogicStart__,
+        LogicGet_,
         LogicAgg_,
         LogicScan_,
         LogicJoin_,

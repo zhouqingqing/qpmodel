@@ -52,8 +52,24 @@ duplicates.
 7. ORDER BY clause: sort the results with the specified order.
 8. LIMIT|FETCH|OFFSET clause: restrict amount of results output.
 */
-LogicNode* SelectStmt::CreatePlan () {
+LogicNode* SelectStmt::CreatePlan ()
+{
     LogicNode* root = transformFromClause ();
+
+    if (!root)
+        return nullptr;
+    
+    if (where_) {
+        LogicScan* lscan = static_cast<LogicScan*>(root);
+        switch (root->classTag_) {
+            case LogicScan_:
+                lscan->AddFilter(where_);
+                break;
+            default:
+                throw NotImplementedException("WHERE is not implemented for non table scans");
+        }
+    }
+
     return root;
 }
 }  // namespace andb

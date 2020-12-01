@@ -114,6 +114,7 @@ namespace andb
             case andb::Sub:
             case andb::Mul:
             case andb::Equal:
+            case andb::Leq:
                 children_[0]->Bind(binder);
                 children_[1]->Bind(binder);
                 bindFunction();

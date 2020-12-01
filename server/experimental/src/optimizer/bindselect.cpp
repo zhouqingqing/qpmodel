@@ -34,7 +34,7 @@ namespace andb
 
         if (from_.size() > 1) {
             binder->SetError(-1);
-            std::cout << "ANDB: JOIN not supported\n";
+            throw SemanticAnalyzeException("ANDB: JOIN not supported");
             return;
         }
     }
@@ -60,5 +60,9 @@ namespace andb
         }
     }
 
-    void SelectStmt::bindWhere(Binder* binder) {}
+    void SelectStmt::bindWhere(Binder* binder)
+    {
+        where_->Bind(binder);
+        where_->type_ = DataType::Bool;
+    }
 }  // namespace andb
