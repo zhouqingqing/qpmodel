@@ -46,7 +46,7 @@ bool SysTable::CreateTable (std::string* tabName, std::vector<ColumnDef*>* colum
 
 void Catalog::createOptimizerTestTables () {
     std::string colName{"i"};
-    ColumnType colType{SQLType::SQL_INTEGER, TypeLenghts::lens_[(int)SQLType::SQL_INTEGER]};
+    ColumnType colType{SQLType::SQL_TYPE_INTEGER, TypeLenghts::lens_[(int)SQLType::SQL_TYPE_INTEGER]};
     ColumnDef cd{&colName, colType, 0};
 
     std::vector<ColumnDef*> cols{&cd};
@@ -62,12 +62,12 @@ void Catalog::createBuiltInTestTables () {
     std::vector<std::string> tblNames{"a", "b", "c", "d"};
     std::vector<std::string> colNames{"a1", "a2", "a3", "a4", "b1", "b2", "b3", "b4",
                                       "c1", "c2", "c3", "c4", "d1", "d2", "d3", "d4"};
-    ColumnType colType{SQLType::SQL_INTEGER, TypeLenghts::lens_[(int)SQLType::SQL_INTEGER]};
+    ColumnType colType{SQLType::SQL_TYPE_INTEGER, TypeLenghts::lens_[(int)SQLType::SQL_TYPE_INTEGER]};
     for (int i = 0, j = 0; i < tblNames.size (); ++i) {
         ColumnDef cd1 (static_cast<std::string*>(&colNames[j++]), colType, 0);
-        ColumnDef cd2 (static_cast<std::string*>(&colNames[j++]), colType, 0);
-        ColumnDef cd3 (static_cast<std::string*>(&colNames[j++]), colType, 0);
-        ColumnDef cd4 (static_cast<std::string*>(&colNames[j++]), colType, 0);
+        ColumnDef cd2 (static_cast<std::string*>(&colNames[j++]), colType, 1);
+        ColumnDef cd3 (static_cast<std::string*>(&colNames[j++]), colType, 2);
+        ColumnDef cd4 (static_cast<std::string*>(&colNames[j++]), colType, 3);
         std::vector<ColumnDef*> cols{&cd1, &cd2, &cd3, &cd4};
         Catalog::systable_->CreateTable (static_cast<std::string*> (&tblNames[i]), &cols);
     }

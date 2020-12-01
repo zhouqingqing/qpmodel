@@ -84,6 +84,14 @@ public:
         }
     }
 
+    void setSelections(std::vector<ColExpr*>* sels)
+    {
+        Expr* ne = nullptr;
+        for (int i = 0; i < sels->size(); ++i) {
+            Expr* pev = (*sels)[i]->Clone();
+            selection_.push_back(pev);
+        }
+    }
     void setFrom (std::vector<TableRef*>* tbls) {
         std::vector<TableRef*>& tv = *tbls;
         for (int i = 0; i < tbls->size (); ++i) {
@@ -131,6 +139,7 @@ public:
     void bindFrom (Binder*);
     void bindSelections (Binder*);
     void bindWhere (Binder*);
+    void BindSelStar(Binder* binder, SelStar& ss);
 
     std::pmr::vector<Expr*>     selection_{currentResource_};
     std::pmr::vector<TableRef*> from_{currentResource_};
