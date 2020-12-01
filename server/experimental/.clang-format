@@ -1,16 +1,40 @@
 # We'll use defaults from the LLVM style, but with 4 columns indentation.
-BasedOnStyle: google
+BasedOnStyle: Mozilla
 IndentWidth: 4
 TabWidth: 4
 ColumnLimit: 100
 UseTab: false
 # --- C++ style ---
 Language: Cpp
+AccessModifierOffset: 0
+AlignAfterOpenBracket : Align
 # Force pointers to the type for C++.
 DerivePointerAlignment: false
 PointerAlignment: Left
-AllowShortFunctionsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: false
 AllowAllParametersOfDeclarationOnNextLine: true
 IncludeBlocks: Regroup
-AccessModifierOffset: -4
 SpaceBeforeParens: Always
+
+# Customizations
+AlignConsecutiveAssignments : true
+AlignConsecutiveDeclarations : true
+AlignEscapedNewlines : true
+AlignOperands : true
+AlignTrailingComments : true
+AllowShortBlocksOnASingleLine : Never
+AllowShortCaseLabelsOnASingleLine : false
+# AllowShortEnumsOnASingleLine : true
+AllowShortFunctionsOnASingleLine : true
+AllowShortIfStatementsOnASingleLine : Never
+AllowShortLambdasOnASingleLine : Empty
+AllowShortLoopsOnASingleLine : false
+AlwaysBreakAfterReturnType : None
+PenaltyReturnTypeOnItsOwnLine : 5000
+# Thanks to nsnze on stackoverflow
+AlwaysBreakAfterDefinitionReturnType : None
+# Disable ordering of includes or there will be tears!
+SortIncludes : false
+SortUsingDeclarations : false
+SpaceBeforeParens : ControlStatements
+UseCRLF : false

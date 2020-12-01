@@ -1,13 +1,14 @@
 #pragma once
 
-#include <iostream>
-#include <exception>
-#include <cctype>
-#include <string>
 #include <algorithm>
+#include <cctype>
+#include <exception>
+#include <functional>
+#include <iostream>
 #include <limits>
 #include <numeric>
 #include <random>
+#include <string>
 
 #include "common/platform.h"
 #include "debug.h"
@@ -32,6 +33,21 @@ namespace andb {
    {
       return false;
    }
+
+class CaselessStringPtrCmp {
+public:
+    bool operator() (const std::string* lv, const std::string* rv) const {
+        return lv->compare (*rv) < 0;
+    }
+};
+
+struct CaselessStringPtrHash {
+public:
+    decltype (auto) operator() (const std::string* p) const {
+        std::string* ptr = const_cast<std::string*> (p);
+        return std::hash<std::string> () (*ptr);
+    }
+};
 
    class RandomDevice {
       public:
@@ -96,4 +112,4 @@ namespace andb {
        {
        }
    };
-}
+} // namespace andb

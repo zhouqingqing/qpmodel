@@ -18,5 +18,6 @@
 
 class NotImplementedException : public std::logic_error {
 public:
-    NotImplementedException () : std::logic_error ("not yet implemented.") {}
+    NotImplementedException (const char* extra = nullptr)
+        : std::logic_error (extra ? extra : "not yet implemented.") {}
 };

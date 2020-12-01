@@ -18,6 +18,7 @@ namespace andb {
         PhysicHashJoin_,
         PhysicScan_,
         LogicStart__,
+        LogicGet_,
         LogicAgg_,
         LogicScan_,
         LogicJoin_,
@@ -25,6 +26,7 @@ namespace andb {
         BinExpr_,
         ConstExpr_,
         ColExpr_,
+        SelStar_,
         SQLType_,
         TypeBase_,
         TableDef_,
@@ -38,29 +40,30 @@ namespace andb {
 
 
     enum class SQLType : int8_t {
-        SQL_ANYTYPE
-            , SQL_INTEGER
-            , SQL_LONG
-            , SQL_NUMERIC
-            , SQL_DOUBLE
-            , SQL_BOOL
-            , SQL_DATETIME
-            , SQL_VARCHAR
-            , SQL_CHAR
-            , SQL_LAST_TYPE
+            SQL_TYPE_NONE
+            , SQL_TYPE_ANY
+            , SQL_TYPE_INTEGER
+            , SQL_TYPE_LONG
+            , SQL_TYPE_NUMERIC
+            , SQL_TYPE_DOUBLE
+            , SQL_TYPE_BOOL
+            , SQL_TYPE_DATETIME
+            , SQL_TYPE_VARCHAR
+            , SQL_TYPE_CHAR
+            , SQL_TYPE_LAST
     };
 
     struct TypeBase {
-        static constexpr SQLType precedence_[static_cast<uint64_t>(SQLType::SQL_LAST_TYPE)] {
-            SQLType::SQL_ANYTYPE
-                , SQLType::SQL_INTEGER
-                , SQLType::SQL_LONG
-                , SQLType::SQL_NUMERIC
-                , SQLType::SQL_DOUBLE
-                , SQLType::SQL_BOOL
-                , SQLType::SQL_DATETIME
-                , SQLType::SQL_VARCHAR
-                , SQLType::SQL_CHAR};
+        static constexpr SQLType precedence_[static_cast<uint64_t>(SQLType::SQL_TYPE_LAST)] {
+                SQLType::SQL_TYPE_ANY
+                , SQLType::SQL_TYPE_INTEGER
+                , SQLType::SQL_TYPE_LONG
+                , SQLType::SQL_TYPE_NUMERIC
+                , SQLType::SQL_TYPE_DOUBLE
+                , SQLType::SQL_TYPE_BOOL
+                , SQLType::SQL_TYPE_DATETIME
+                , SQLType::SQL_TYPE_VARCHAR
+                , SQLType::SQL_TYPE_CHAR};
     };
 
     struct TypeLenghts {
@@ -93,6 +96,37 @@ namespace andb {
             ColumnType(SQLType type, int len)
                 : type_(type), len_(len)
             {
+            }
+
+            std::string ToString()
+            {
+                switch (type_)
+                {
+                    case andb::SQLType::SQL_TYPE_NONE:
+                        return "none";
+                    case andb::SQLType::SQL_TYPE_ANY:
+                        return "any";
+                    case andb::SQLType::SQL_TYPE_INTEGER:
+                        return "integer";
+                    case andb::SQLType::SQL_TYPE_LONG:
+                        return "long";
+                    case andb::SQLType::SQL_TYPE_NUMERIC:
+                        return "numeric";
+                    case andb::SQLType::SQL_TYPE_DOUBLE:
+                        return "double";
+                    case andb::SQLType::SQL_TYPE_BOOL:
+                        return "boolean";
+                    case andb::SQLType::SQL_TYPE_DATETIME:
+                        return "datetime";
+                    case andb::SQLType::SQL_TYPE_VARCHAR:
+                        return "varchar";
+                    case andb::SQLType::SQL_TYPE_CHAR:
+                        return "char";
+                    case andb::SQLType::SQL_TYPE_LAST:
+                        return "sentinel";
+                    default:
+                        break;
+                }
             }
     };
 
@@ -143,6 +177,16 @@ namespace andb {
                 }
 
                 tableId_ = -1;
+            }
+
+            ColumnDef* GetColumnDef(std::string* colName)
+            {
+                ColumnDef* cdef = nullptr;
+                auto it = columns_->find(colName);
+                if (it != columns_->end())
+                    cdef = it->second;
+
+                return cdef;
             }
 
             // Let there be RVO

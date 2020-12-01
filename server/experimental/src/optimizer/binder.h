@@ -1,5 +1,8 @@
 #pragma once
 
+#include <utility>
+
+#include "common/common.h"
 #include "common/dbcommon.h"
 #include "common/nodebase.h"
 #include "runtime/datum.h"
@@ -18,7 +21,7 @@ class Binder : public UseCurrentResource {
 
         void Bind ();
         TableDef* ResolveTable (std::string* tref);
-
+        ColExpr* ResolveColumn(std::string* cname, std::string* tname = nullptr);
         int GetError () { return binderError_; }
 
         void SetError (int err) { binderError_ = err; }
@@ -35,6 +38,9 @@ class Binder : public UseCurrentResource {
         }
 
         ColExpr* GetColumnRef (std::string* colName, std::string* tabName = nullptr);
+
+        std::vector<ColExpr*>* GetTableColumns (std::string *tabName);
+        std::vector<ColExpr*>* GetAllTableColumns ();
 
         SQLStatement* stmt_;  // current statement
         Binder* parent_;
