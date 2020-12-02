@@ -47,7 +47,7 @@ class Binder : public UseCurrentResource {
         int globalSubqCounter_;
         int globalValueIdCounre_;
         int binderError_;
-        std::map<std::string*, TableRef*> tablesInScope_;
-        std::map<std::pair<std::string*, std::string*>, int> columnsInScope;
+        std::map<std::string*, TableRef*,  CaselessStringPtrCmp> tablesInScope_;
+        std::map<std::pair<std::string*, std::string*>, int, CaselessStringPtrCmp> columnsInScope;
 };
 } // namespace andb

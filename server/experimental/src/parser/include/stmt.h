@@ -15,35 +15,39 @@ class Expr;
 class LogicNode;
 class Binder;
 
-class SQLStatement : public UseCurrentResource {
-public:
-   // BEGIN HYRISE
-    enum StatementType {
-    kStmtError, // unused
-    kStmtSelect,
-    kStmtImport,
-    kStmtInsert,
-    kStmtUpdate,
-    kStmtDelete,
-    kStmtCreate,
-    kStmtDrop,
-    kStmtPrepare,
-    kStmtExecute,
-    kStmtExport,
-    kStmtRename,
-    kStmtAlter,
-    kStmtShow,
-    kStmtTransaction
-  };
+class SQLStatement : public UseCurrentResource
+{
+    public:
+    // BEGIN HYRISE
+    enum StatementType
+    {
+        kStmtError, // unused
+        kStmtSelect,
+        kStmtImport,
+        kStmtInsert,
+        kStmtUpdate,
+        kStmtDelete,
+        kStmtCreate,
+        kStmtDrop,
+        kStmtPrepare,
+        kStmtExecute,
+        kStmtExport,
+        kStmtRename,
+        kStmtAlter,
+        kStmtShow,
+        kStmtTransaction
+    };
 
     SQLStatement(StatementType type);
-    SQLStatement () : type_ (kStmtError) {
-    }
+    SQLStatement()
+      : stringLength(0)
+      , hints(nullptr)
+      , type_(kStmtError)
+    {}
 
-    virtual ~SQLStatement () {
-    }
+    virtual ~SQLStatement() {}
 
-    virtual void Bind (Binder* binder) {}
+    virtual void Bind(Binder* binder) {}
 
     StatementType type() const;
 
@@ -57,30 +61,32 @@ public:
 
     std::vector<Expr*>* hints;
 
-private:
-     StatementType type_;
-   // END HYRISE
+    private:
+    StatementType type_;
+    // END HYRISE
 
-   public:
-    virtual LogicNode   *CreatePlan (void) = 0;
-    virtual std::string Explain (void* arg = nullptr) const = 0;
+    public:
+    virtual LogicNode*  CreatePlan(void)                   = 0;
+    virtual std::string Explain(void* arg = nullptr) const = 0;
 };
 
-class SelectStmt : public SQLStatement {
-public:
-    SelectStmt () : SQLStatement ()
+class SelectStmt : public SQLStatement
+{
+    public:
+    SelectStmt()
+      : SQLStatement()
+    {}
+
+    ~SelectStmt()
+    {}
+
+    void setSelections(std::vector<Expr*>* sels)
     {
-    }
-
-    ~SelectStmt () {
-    }
-
-    void setSelections (std::vector<Expr*>* sels) {
         std::vector<Expr*>& ev = *sels;
-        Expr* ne = nullptr;
-        for (int i = 0; i < sels->size (); ++i) {
-            Expr* pev = ev[i]->Clone ();
-            selection_.push_back (pev);
+        Expr*               ne = nullptr;
+        for (int i = 0; i < sels->size(); ++i) {
+            Expr* pev = ev[i]->Clone();
+            selection_.push_back(pev);
         }
     }
 
@@ -92,78 +98,85 @@ public:
             selection_.push_back(pev);
         }
     }
-    void setFrom (std::vector<TableRef*>* tbls) {
+    void setFrom(std::vector<TableRef*>* tbls)
+    {
         std::vector<TableRef*>& tv = *tbls;
-        for (int i = 0; i < tbls->size (); ++i) {
-            TableRef* nt = tv[i]->Clone ();
-           from_.push_back (nt);
+        for (int i = 0; i < tbls->size(); ++i) {
+            TableRef* nt = tv[i]->Clone();
+            from_.push_back(nt);
         }
     }
 
-    std::string Explain(void *arg = nullptr) const override {
-       std::string ret = "select ";
-        for (int i = 0; i < selection_.size (); ++i) {
-           if (i > 0) ret += ", ";
+    std::string Explain(void* arg = nullptr) const override
+    {
+        std::string ret = "select ";
+        for (int i = 0; i < selection_.size(); ++i) {
+            if (i > 0)
+                ret += ", ";
             ret += selection_[i]->Explain() + " ";
         }
 
         ret += " FROM ";
-        for (int i = 0; i < from_.size (); ++i) {
-          if (i > 0)
-             ret += ", ";
-           ret += from_[i]->Explain();
+        for (int i = 0; i < from_.size(); ++i) {
+            if (i > 0)
+                ret += ", ";
+            ret += from_[i]->Explain();
         }
 
         if (where_ != nullptr) {
-           ret += " WHERE ";
-           ret += where_->Explain() + ";";
+            ret += " WHERE ";
+            ret += where_->Explain() + ";";
         }
 
         return ret;
     }
 
-    void Bind(Binder* binder) override {
+    void Bind(Binder* binder) override
+    {
         // bind from clause
-        bindFrom (binder);
-        if (binder->GetError ()) return;
-        
-        bindSelections (binder);
-        if (binder->GetError ()) return;
+        bindFrom(binder);
+        if (binder->GetError())
+            return;
+
+        bindSelections(binder);
+        if (binder->GetError())
+            return;
 
         if (where_) {
-            bindWhere (binder);
-            if (binder->GetError ()) return;
+            bindWhere(binder);
+            if (binder->GetError())
+                return;
         }
     }
 
-    void bindFrom (Binder*);
-    void bindSelections (Binder*);
-    void bindWhere (Binder*);
+    void bindFrom(Binder*);
+    void bindSelections(Binder*);
+    void bindWhere(Binder*);
     void BindSelStar(Binder* binder, SelStar& ss);
 
-    std::pmr::vector<Expr*>     selection_{currentResource_};
-    std::pmr::vector<TableRef*> from_{currentResource_};
-    Expr    *where_ = nullptr;
+    std::pmr::vector<Expr*>     selection_{ currentResource_ };
+    std::pmr::vector<TableRef*> from_{ currentResource_ };
+    Expr*                       where_ = nullptr;
 
-private:
-    LogicNode* transformFromClause ();
+    private:
+    LogicNode* transformFromClause();
 
-public:
-    LogicNode* CreatePlan () override;
+    public:
+    LogicNode* CreatePlan() override;
 };
 
 //
 // BEGIN HYRISE PARSER
 // These are from hyrise/third-party/sql-parser and will go away
 // one after another as integration proceeds.
-enum SetType {
+enum SetType
+{
     kSetUnion,
     kSetIntersect,
     kSetExcept
 };
 
-
 typedef SelectStmt SelectStatement;
 // END HYRISE PARSER
 
-}  // namespace andb
+} // namespace andb

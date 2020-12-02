@@ -160,7 +160,7 @@ namespace andb {
         public:
             ClassTag    classTag_;
             std::string *name_;
-            std::map<std::string*, ColumnDef*> *columns_;
+            std::map<std::string*, ColumnDef*, CaselessStringPtrCmp> *columns_;
             bool        quoted_;
             int         tableId_;   // take over table lookup
 
@@ -168,7 +168,7 @@ namespace andb {
                 : classTag_(TableDef_), name_(new std::string(*name))
             {
                quoted_ = false;
-                columns_ = new std::map<std::string*, ColumnDef*>();
+                columns_ = new std::map<std::string*, ColumnDef*, CaselessStringPtrCmp>();
 
                 for (auto c : columns) {
                     ColumnDef* cdef = c->Clone ();
