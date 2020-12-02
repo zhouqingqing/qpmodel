@@ -98,6 +98,7 @@ class SelectStmt : public SQLStatement
             selection_.push_back(pev);
         }
     }
+
     void setFrom(std::vector<TableRef*>* tbls)
     {
         std::vector<TableRef*>& tv = *tbls;

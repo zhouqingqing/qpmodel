@@ -70,7 +70,6 @@ namespace andb
             for (int i = 0; i < nchildren; i++) child(i)->Bind(context);
         }
 
-
         static std::string ExplainBinOp(BinOp op)
         {
             switch (op) {
@@ -156,7 +155,6 @@ namespace andb
 
         void virtual Bind(Binder* context);
     };
-
 
     class ConstExpr : public NodeBase<Expr, N0>
     {

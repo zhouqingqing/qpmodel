@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include "common/catalog.h"
 #include "common/common.h"
 #include "common/catalog.h"
 #include "common/dbcommon.h"
@@ -11,6 +12,7 @@
 #include "parser/include/expr.h"
 #include "parser/include/parser.h"
 #include "parser/include/stmt.h"
+
 #include "optimizer/binder.h"
 #include "runtime/runtime.h"
 

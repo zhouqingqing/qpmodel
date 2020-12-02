@@ -47,18 +47,18 @@ template <class T, NChildren NC>
 class NodeBase : public T,
                  public std::conditional_t<NC == NDynamic, DynamicStorage<T>, FixedStorage<T, NC>> {
 public:
-    NodeBase () { nChildren_ = NC; }
+    NodeBase () { this->nChildren_ = NC; }
 
     constexpr inline T* child (int n) const {
         assert (NC != N0);
-        return children_[n];
+        return this->children_[n];
     }
 
     constexpr inline size_t childrenCount () const {
         if constexpr (NC != NDynamic)
-            return nChildren_;
+            return this->nChildren_;
         else
-            return children_.size ();
+            return this->children_.size ();
     }
 
     template <TraOrder Order = TraOrder::PreOrder, typename Fn>
@@ -69,7 +69,7 @@ public:
             int n = childrenCount ();
             for (int i = 0; i < n; i++) child (i)->deepVisit<Order> (callback);
         } else {
-            for (auto v : children_) {
+            for (auto v : this->children_) {
                 v->deepVisit<Order> (callback);
             }
         }
@@ -88,7 +88,7 @@ public:
             for (int i = 0; i < n; i++)
                 child (i)->template deepVisitParentChild<Order> (This, level, nth++, callback);
         } else {
-            for (auto v : children_) {
+            for (auto v : this->children_) {
                 v->template deepVisitParentChild<Order> (This, level, nth++, callback);
             }
         }
@@ -104,7 +104,7 @@ public:
     }
 
     bool childrenEqual (const NodeBase<T, NC>* r) const {
-        assert (classTag_ == r->classTag_);
+        assert (this->classTag_ == r->classTag_);
         auto nchildren = r->childrenCount ();
         // caller shall already verify the basics
         assert (childrenCount () == nchildren && nchildren > 0);
@@ -114,7 +114,7 @@ public:
     }
 
     T* childrenClone (NodeBase<T, NC>* r) const {
-        assert (classTag_ == r->classTag_);
+        assert (this->classTag_ == r->classTag_);
         auto nchildren = childrenCount ();
         auto& newchildren = r->children_;
         if constexpr (NC != NDynamic) {
@@ -136,7 +136,7 @@ public:
 template <class T>
 class NodeBase<T, NChildren::N0> : public T {
 public:
-    NodeBase () { nChildren_ = N0; }
+    NodeBase () { this->nChildren_ = N0; }
 };
 
 // RuntimeNodeT is served as a runtime shared implementation for ExprNode and LogicNode etc, so they
@@ -183,7 +183,7 @@ public:
     }
 
     inline bool Equals (T* r) const {
-        if (classTag_ != r->classTag_) return false;
+        if (this->classTag_ != r->classTag_) return false;
         return doEquals (r);
     }
     inline int GetHashCode () { return doHashCode () ^ childrenOrderedHash (); }
