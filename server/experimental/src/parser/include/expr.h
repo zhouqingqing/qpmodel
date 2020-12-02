@@ -58,7 +58,6 @@ namespace andb
             e->slot_ = slot_;
             e->valueId_ = valueId_;
             e->ival = ival;
-
             return e;
         }
 

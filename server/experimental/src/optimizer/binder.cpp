@@ -1,18 +1,18 @@
+#include "optimizer/binder.h"
+
 #include <iostream>
 #include <new>
 #include <string>
 #include <vector>
 
-
+#include "common/catalog.h"
 #include "common/common.h"
 #include "common/dbcommon.h"
-#include "common/catalog.h"
 #include "optimizer/optimizer.h"
 #include "parser/include/SQLParserResult.h"
 #include "parser/include/expr.h"
 #include "parser/include/parser.h"
 #include "parser/include/stmt.h"
-#include "optimizer/binder.h"
 #include "runtime/runtime.h"
 
 namespace andb
