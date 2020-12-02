@@ -1,6 +1,9 @@
 #define CATCH_CONFIG_MAIN  // This tells Catch to provide a main() - only do this in one cpp file
 #include <benchmark/benchmark.h>
 
+#include "parser/include/expr.h"
+#include "common/catalog.h"
+#include "optimizer/binder.h"
 #include "optimizer/optimizer.h"
 #include "parser/include/parser.h"
 #include "runtime/runtime.h"
@@ -38,9 +41,18 @@ void AggJoin1K_1M (benchmark::State& state) { AggJoinFn (state, 1 * 1024, 1 * 10
 void AggJoin1M_1M (benchmark::State& state) { AggJoinFn (state, 1 * 1024 * 1024, 1 * 1024 * 1024); }
 
 void AggFn (benchmark::State& state, int nrows, bool filter = false) {
-    auto tab = new LogicScan (new BaseTableRef ("a"), nrows);
+    std::string tabName{ "a" };
+    Catalog::Init();
+    SelectStmt stmt;
+    Binder     binder{ &stmt, nullptr };
+    auto tab = new LogicScan (new BaseTableRef (&tabName), nrows);
+    binder.ResolveTable(&tabName);
+    std::string col1{ "a1" };
     auto logic = new LogicAgg (tab);
-    if (filter) tab->AddFilter (new BinExpr (BinOp::Leq, new ColExpr ((uint16_t)0), new ConstExpr (nrows)));
+    BinExpr *leq = new BinExpr (BinOp::Leq, new ColExpr ((uint16_t)0, &col1), new ConstExpr (nrows));
+    leq->Bind(&binder);
+    if (filter)
+        tab->AddFilter(leq);
     auto physic = Optimize (logic);
     int result = 0;
     for (auto _ : state) {
@@ -59,6 +71,9 @@ void Agg1MFilter (benchmark::State& state) { AggFn (state, 1 * 1024 * 1024, true
 
 void ExprAddConst (benchmark::State& state) {
     auto expr = new BinExpr (BinOp::Add, new ConstExpr (2), new ConstExpr (7));
+    SelectStmt stmt{};
+    Binder       binder{ &stmt, nullptr };
+    expr->Bind(&binder);
     ExprEval eval;
     eval.Open (expr);
     for (auto _ : state) {
@@ -68,10 +83,17 @@ void ExprAddConst (benchmark::State& state) {
 }
 
 void ExprAddRow (benchmark::State& state) {
+    Catalog::Init();
+    SelectStmt stmt{};
+    Binder     binder{ &stmt, nullptr };
     Row r (2);
     r[0] = 2;
     r[1] = 7;
-    auto expr = new BinExpr (BinOp::Add, new ColExpr ((uint16_t)0), new ColExpr (1));
+    std::string col1{ "a1" }, col2{ "a2" }, tab{ "a" };
+    binder.ResolveTable(&tab);
+    auto expr = new BinExpr (BinOp::Add, new ColExpr ((uint16_t)0, &col1, &tab), new ColExpr (1, &col2, &tab));
+
+    expr->Bind(&binder);
     ExprEval eval;
     eval.Open (expr);
     for (auto _ : state) {

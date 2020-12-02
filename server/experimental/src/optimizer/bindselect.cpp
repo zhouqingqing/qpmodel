@@ -18,6 +18,7 @@
 
 namespace andb
 {
+
     void SelectStmt::bindFrom(Binder* binder)
     {
         std::unordered_set<std::string> aliasMap;
