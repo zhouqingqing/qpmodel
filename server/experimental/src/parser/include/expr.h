@@ -58,6 +58,7 @@ namespace andb
             e->slot_ = slot_;
             e->valueId_ = valueId_;
             e->ival = ival;
+
             return e;
         }
 
@@ -68,7 +69,6 @@ namespace andb
             auto nchildren = childrenCount();
             for (int i = 0; i < nchildren; i++) child(i)->Bind(context);
         }
-
 
         static std::string ExplainBinOp(BinOp op)
         {
@@ -155,7 +155,6 @@ namespace andb
 
         void virtual Bind(Binder* context);
     };
-
 
     class ConstExpr : public NodeBase<Expr, N0>
     {
