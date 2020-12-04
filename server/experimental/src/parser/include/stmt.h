@@ -13,6 +13,7 @@ namespace andb {
 
 class Expr;
 class LogicNode;
+class PhysicNode;
 class Binder;
 
 class SQLStatement : public UseCurrentResource
@@ -43,6 +44,10 @@ class SQLStatement : public UseCurrentResource
       : stringLength(0)
       , hints(nullptr)
       , type_(kStmtError)
+      , context(nullptr)
+      , logicPlan_(nullptr)
+      , physicPlan_(nullptr)
+      , queryOpts_(nullptr)
     {}
 
     virtual ~SQLStatement() {}
@@ -56,6 +61,9 @@ class SQLStatement : public UseCurrentResource
     // Shorthand for isType(type).
     bool is(StatementType type) const;
 
+    virtual LogicNode*  CreatePlan(void)                   = 0;
+    virtual std::string Explain(void* arg = nullptr) const = 0;
+
     // Length of the string in the SQL query string
     size_t stringLength;
 
@@ -65,9 +73,10 @@ class SQLStatement : public UseCurrentResource
     StatementType type_;
     // END HYRISE
 
-    public:
-    virtual LogicNode*  CreatePlan(void)                   = 0;
-    virtual std::string Explain(void* arg = nullptr) const = 0;
+    Binder*       context;
+    LogicNode* logicPlan_;
+    PhysicNode* physicPlan_;
+    QueryOptions* queryOpts_;
 };
 
 class SelectStmt : public SQLStatement

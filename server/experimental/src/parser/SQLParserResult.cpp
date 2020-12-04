@@ -67,7 +67,7 @@ void SQLParserResult::setIsValid(bool isValid) {
 }
 
 void SQLParserResult::setErrorDetails(const char* errorMsg, int errorLine, int errorColumn) {
-   errorMsg_ = new char[strlen(errorMsg) + 1];
+   errorMsg_ = DBG_NEW char[strlen(errorMsg) + 1];
    strcpy ((char *)errorMsg_, errorMsg);
    errorLine_ = errorLine;
    errorColumn_ = errorColumn;

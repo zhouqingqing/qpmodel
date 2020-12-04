@@ -10,11 +10,34 @@
 #include <random>
 #include <string>
 
+/*
+* Aid to debug catalog memory leaks. There are still two blocks
+* not freed. This code may be left in and DEBUG_CAT_MEMLEAK
+* turned into a runtime debug level options.
+*/
+// #define DEBUG_CAT_MEMLEAK
+
+#ifdef DEBUG_CAT_MEMLEAK
+    #define DBG_NEW new ( _NORMAL_BLOCK , __FILE__ , __LINE__ )
+    // Replace _NORMAL_BLOCK with _CLIENT_BLOCK if you want the
+    // allocations to be of _CLIENT_BLOCK type
+#else
+    #define DBG_NEW new
+#endif
+
 #include "common/platform.h"
 #include "debug.h"
 #include "memory.h"
 
 namespace andb {
+    class QueryOptions
+    {
+        // Just a place holder for now.
+        public:
+        QueryOptions(){}
+        ~QueryOptions(){}
+    };
+
    // modifies input string
    inline std::string *StdStrLower(std::string* inStr)
    {

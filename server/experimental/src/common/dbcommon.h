@@ -137,21 +137,38 @@ namespace andb {
             ColumnType  type_;
             int         ordinal_;
             bool        nullable_;
-            bool        quoted_;
             int         columnId_;  // take over lookup by name
+            bool         quoted_;
+            bool         isCloned_;
 
-            ColumnDef(std::string* name, ColumnType type, int ordinal = -1, bool nullable = true)
-                : classTag_(ColumnDef_), name_(new std::string(*name))
+            ColumnDef(std::string* name, ColumnType type, int ordinal = -1, bool nullable = true, int columnId = -1, bool quoted = false, bool isClone = false)
+                : classTag_(ColumnDef_)
+                , name_(DBG_NEW std::string(*name))
                 , type_(type)
-                , ordinal_(ordinal), nullable_(nullable), quoted_(false)
+              , ordinal_(ordinal)
+              , nullable_(nullable)
+              , columnId_(columnId)
+              , quoted_(quoted)
+              , isCloned_(isClone)
             {
-                // TODO: andb scanner/parser throw away quoted qualifier, revisit
-                columnId_ = -1;   // for now
+#ifdef DEBUG_CAT_MEMLEAK
+                std::cout << "ColumnDef::cons(name = " << *name_ << ", clone = " << isCloned_
+                          << "\n";
+#endif
+            }
+
+            ~ColumnDef() {
+#ifdef DEBUG_CAT_MEMLEAK
+                std::cout << "ColumnDef::dest(name = " << *name_ << ", clone = " << isCloned_ << "\n";
+#endif
+                delete name_;
+                name_ = 0;
             }
 
             ColumnDef* Clone ()
             {
-                ColumnDef* ncd = new ColumnDef (name_, type_, ordinal_, nullable_);
+                ColumnDef* ncd = new ColumnDef (name_, type_, ordinal_, nullable_, -1, false, true);
+                ncd->isCloned_ = true;
                 return ncd;
             }
     };
@@ -163,12 +180,18 @@ namespace andb {
             std::map<std::string*, ColumnDef*, CaselessStringPtrCmp> *columns_;
             bool        quoted_;
             int         tableId_;   // take over table lookup
+            bool isCloned_;
 
-            TableDef(std::string *name, std::vector<ColumnDef *>& columns)
-                : classTag_(TableDef_), name_(new std::string(*name))
+            TableDef(std::string *name, std::vector<ColumnDef *>& columns, bool isClone = false)
+              : classTag_(TableDef_)
+              , name_(DBG_NEW std::string(*name))
+              , quoted_(false)
+              , isCloned_(isClone)
             {
-               quoted_ = false;
-                columns_ = new std::map<std::string*, ColumnDef*, CaselessStringPtrCmp>();
+#ifdef DEBUG_CAT_MEMLEAK
+                std::cout << "TableDef::cons(name = " << *name_ << ", clone = " << isCloned_ << "\n";
+#endif
+                columns_ = DBG_NEW std::map<std::string*, ColumnDef*, CaselessStringPtrCmp>();
 
                 for (auto c : columns) {
                     ColumnDef* cdef = c->Clone ();
@@ -177,6 +200,20 @@ namespace andb {
                 }
 
                 tableId_ = -1;
+            }
+
+            ~TableDef() {
+#ifdef DEBUG_CAT_MEMLEAK
+                std::cout << "TableDef::dest(name = " << *name_ << ", clone = " << isCloned_ << "\n";
+#endif
+                for (auto c : *columns_) {
+                    delete c.second;
+                }
+
+                columns_->clear();
+                delete columns_;
+                columns_ = nullptr;
+                delete name_;
             }
 
             ColumnDef* GetColumnDef(std::string* colName)

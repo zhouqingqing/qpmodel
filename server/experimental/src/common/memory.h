@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory_resource>
+#include <iostream>
 #include <string>
 #include <unordered_set>
 
@@ -18,7 +19,7 @@ struct CrtCheckMemory {
     bool asserit_;
 
     CrtCheckMemory (bool asserit = true) {
-        _CrtSetDbgFlag (_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+        _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
         _CrtMemCheckpoint (&state1_);
         asserit_ = asserit;
     }
@@ -28,7 +29,10 @@ struct CrtCheckMemory {
         if (_CrtMemDifference (&state3_, &state1_, &state2_)) {
             _CrtDumpMemoryLeaks ();
             _CrtMemDumpStatistics (&state3_);
-            if (asserit_) assert (false);
+#ifndef  DEBUG_CAT_MEMLEAK
+            if (asserit_)
+               assert (false);
+#endif
         }
     }
 };
@@ -87,7 +91,9 @@ public:
     static void DeleteMemoryResource (MemoryResource* target) { delete target; }
 
     void release () {
-        for (auto r : pointers_) free (r);
+        for (auto r = pointers_.begin(); r != pointers_.end(); ) {
+            do_deallocate(*r++, 0, 0);
+        }
         pointers_.clear ();
     }
     ~DefaultResource () override { release (); }
