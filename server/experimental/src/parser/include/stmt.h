@@ -48,9 +48,15 @@ class SQLStatement : public UseCurrentResource
       , logicPlan_(nullptr)
       , physicPlan_(nullptr)
       , queryOpts_(nullptr)
-    {}
+    {
+           DEBUG_CONS("SQLStatement", "def");
+    }
 
-    virtual ~SQLStatement() {}
+    virtual ~SQLStatement()
+    {
+           DEBUG_DEST("SQLStatement", "@@@");
+    }
+
 
     virtual void Bind(Binder* binder) {}
 
@@ -84,10 +90,14 @@ class SelectStmt : public SQLStatement
     public:
     SelectStmt()
       : SQLStatement()
-    {}
+    {
+           DEBUG_CONS("SelectStmt", "def");
+    }
 
     ~SelectStmt()
-    {}
+    {
+           DEBUG_DEST("SelectStmt", "def");
+    }
 
     void setSelections(std::vector<Expr*>* sels)
     {

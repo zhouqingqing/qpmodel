@@ -171,6 +171,9 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 /*********************************
  ** Destructor symbols
  *********************************/
+%destructor { delete $$; } <sval>
+%destructor { for (auto s : $$) delete s; delete $$;} <str_vec>
+
 
 
 /*********************************
@@ -308,6 +311,9 @@ statement_list:
 			$1->stringLength = yylloc.string_length;
 			yylloc.string_length = 0;
 			$$ = new std::vector<SQLStatement*>();
+#ifdef __DEBUG_PARSER_MEMLEAK
+         std::cout << __FILE__ << " " << __LINE__ << " PAR STMTVEC PTR " << (void*)$$ << std::endl;
+#endif
 			$$->push_back($1);
 		}
 	|	statement_list ';' statement {
@@ -332,6 +338,9 @@ select_statement:
 		SELECT select_list from_clause opt_where {
          /* ACCEPT: select_statement */
 			$$ = new SelectStatement();
+#ifdef __DEBUG_PARSER_MEMLEAK
+         std::cout << __FILE__ << " " << __LINE__ << " PAR SELETMT PTR " << (void*)$$ << std::endl;
+#endif
          $$->setSelections($2);
          $$->setFrom($3);
          $$->where_     = $4;
@@ -368,6 +377,9 @@ expr_list:
 		expr_alias {
          /* ACCEPT: expr_alias */
          $$ = new std::vector<Expr*>();
+#ifdef __DEBUG_PARSER_MEMLEAK
+         std::cout << __FILE__ << " " << __LINE__ << " PAR EXPRVEC PTR " << (void*)$$ << std::endl;
+#endif
          $$->push_back($1);
       }
 	|	expr_list ',' expr_alias {
@@ -382,7 +394,7 @@ expr_alias:
          /* ACCEPT: expr opt_alias */
 			$$ = $1;
 			if ($2) {
-				$$->alias_ = new std::string(*$2);
+				$$->alias_ = $2;
 			}
       }
 	;
@@ -471,6 +483,9 @@ table_list:
       table_ref {
          /* ACCEPT: table_ref */
           $$ = new std::vector<TableRef *>();
+#ifdef __DEBUG_PARSER_MEMLEAK
+         std::cout << __FILE__ << " " << __LINE__ << " PAR TABREFVEC PTR " << (void*)$$ << std::endl;
+#endif
           $$->push_back($1);
        }
       | table_list ',' table_ref {
@@ -484,16 +499,22 @@ table_list:
 table_ref:
       table_name {
          $$ = new BaseTableRef($1, nullptr);
+#ifdef __DEBUG_PARSER_MEMLEAK
+         std::cout << __FILE__ << " " << __LINE__ << " PAR BASETAB NAME " << $1 << " PTR " << (void*)$$ << std::endl;
+#endif
          }
       | table_name alias {
 			$$ = new BaseTableRef($1, $2);
+#ifdef __DEBUG_PARSER_MEMLEAK
+         std::cout << __FILE__ << " " << __LINE__ << " PAR BASETAB NAME " << $1 << " ALIAS " << $2 << " PTR " << (void*)$$ << std::endl;
+#endif
 		}
 	;
 
 table_name:
 		IDENTIFIER {
          /* ACCEPT: table_name */
-         $$ = new std::string(*$1);
+         $$ = $1;
       }
 	;
 
@@ -506,11 +527,11 @@ opt_alias:
 alias:
 		AS IDENTIFIER {
          /* ACCEPT: AS alias */
-         $$ = new std::string(*$2);
+         $$ = $2;
       }
 	|	IDENTIFIER {
          /* ACCEPT: alias */
-         $$ = new std::string(*$1);
+         $$ = $1;
       }
 	;
 
@@ -525,12 +546,13 @@ alias:
 ident_commalist:
 		IDENTIFIER {
          $$ = new std::vector<std::string*>();
-         std::string *icl = new std::string(*$1);
-         $$->push_back(icl);
+#ifdef __DEBUG_PARSER_MEMLEAK
+         std::cout << __FILE__ << " " << __LINE__ << " PAR IDVEC PTR " << (void*)$$ << std::endl;
+#endif
+         $$->push_back($1);
       }
 	|	ident_commalist ',' IDENTIFIER {
-         std::string *ice = new std::string(*$3);
-         $1->push_back(ice);
+         $1->push_back($3);
          $$ = $1;
       }
 	;

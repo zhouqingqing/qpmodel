@@ -29,7 +29,7 @@ struct CrtCheckMemory {
         if (_CrtMemDifference (&state3_, &state1_, &state2_)) {
             _CrtDumpMemoryLeaks ();
             _CrtMemDumpStatistics (&state3_);
-#ifndef  DEBUG_CAT_MEMLEAK
+#if !defined( __DEBUG_CAT_MEMLEAK) && !defined(__DEBUG_PARSER_MEMLEAK)
             if (asserit_)
                assert (false);
 #endif

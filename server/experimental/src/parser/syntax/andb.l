@@ -267,18 +267,31 @@ COMMIT      TOKEN(COMMIT)
 \"[^\"\n]+\" {
 	// Crop the leading and trailing quote char
 	yylval->sval = new std::string(andb::substr(yytext, 1, strlen(yytext)-1));
+#ifdef __DEBUG_PARSER_MEMLEAK
+   std::cout << __FILE__ << " " << __LINE__ << " LEX ID " << yylval->sval << " PTR " << (void*)yylval->sval << std::endl;
+#endif
 	return SQL_IDENTIFIER;
 }
 
 [A-Za-z][A-Za-z0-9_]* {
 	yylval->sval = new std::string(yytext);
+#ifdef __DEBUG_PARSER_MEMLEAK
+   std::cout << __FILE__ << " " << __LINE__ << " LEX ID " << yylval->sval << " PTR " << (void*)yylval->sval << std::endl;
+#endif
 	return SQL_IDENTIFIER;
 }
 
 \'                          { BEGIN singlequotedstring; strbuf = std::stringstream{}; }
 <singlequotedstring>\'\'    { strbuf << '\''; }
 <singlequotedstring>[^']*   { strbuf << yytext; }
-<singlequotedstring>\'      { BEGIN 0; yylval->sval = new std::string(strbuf.str().c_str()); return SQL_STRING; }
+<singlequotedstring>\'      {
+                              BEGIN 0;
+                              yylval->sval = new std::string(strbuf.str().c_str());
+#ifdef __DEBUG_PARSER_MEMLEAK
+                             std::cout << __FILE__ << " " << __LINE__ << " LEX SQSTR " << yylval->sval << " PTR " << (void*)yylval->sval << std::endl;
+#endif
+                              return SQL_STRING;
+                            }
 <singlequotedstring><<EOF>> { fprintf(stderr, "[SQL-Lexer-Error] Unterminated string\n"); return 0; }
 
 . { fprintf(stderr, "[SQL-Lexer-Error] Unknown Character: %c\n", yytext[0]); return 0; }

@@ -718,12 +718,12 @@ static const yytype_uint8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   285,   285,   306,   313,   323,   332,   342,   347,   352,
-     357,   368,   373,   381,   391,   392,   396,   397,   398,   402,
-     403,   408,   409,   410,   411,   412,   416,   417,   421,   422,
-     423,   424,   425,   426,   427,   431,   432,   433,   434,   438,
-     439,   440,   441,   445,   449,   450,   454,   455,   459,   463,
-     471,   476,   485,   488,   494,   502,   503,   507,   511
+       0,   288,   288,   309,   319,   329,   338,   351,   356,   361,
+     366,   377,   385,   393,   403,   404,   408,   409,   410,   414,
+     415,   420,   421,   422,   423,   424,   428,   429,   433,   434,
+     435,   436,   437,   438,   439,   443,   444,   445,   446,   450,
+     451,   452,   453,   457,   461,   462,   466,   467,   471,   475,
+     483,   491,   500,   506,   515,   523,   524,   528,   532
 };
 #endif
 
@@ -1418,7 +1418,42 @@ yydestruct (const char *yymsg, int yytype, YYSTYPE *yyvaluep, YYLTYPE *yylocatio
   YY_SYMBOL_PRINT (yymsg, yytype, yyvaluep, yylocationp);
 
   YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN
-  YYUSE (yytype);
+  switch (yytype)
+    {
+          case 3: /* IDENTIFIER  */
+
+      { delete ((*yyvaluep).sval); }
+
+        break;
+
+    case 4: /* STRING  */
+
+      { delete ((*yyvaluep).sval); }
+
+        break;
+
+    case 193: /* table_name  */
+
+      { delete ((*yyvaluep).sval); }
+
+        break;
+
+    case 194: /* opt_alias  */
+
+      { delete ((*yyvaluep).sval); }
+
+        break;
+
+    case 195: /* alias  */
+
+      { delete ((*yyvaluep).sval); }
+
+        break;
+
+
+      default:
+        break;
+    }
   YY_IGNORE_MAYBE_UNINITIALIZED_END
 }
 
@@ -1746,6 +1781,9 @@ yyreduce:
 			(yyvsp[0].statement)->stringLength = yylloc.string_length;
 			yylloc.string_length = 0;
 			(yyval.stmt_vec) = new std::vector<SQLStatement*>();
+#ifdef __DEBUG_PARSER_MEMLEAK
+         std::cout << __FILE__ << " " << __LINE__ << " PAR STMTVEC PTR " << (void*)(yyval.stmt_vec) << std::endl;
+#endif
 			(yyval.stmt_vec)->push_back((yyvsp[0].statement));
 		}
 
@@ -1774,6 +1812,9 @@ yyreduce:
     {
          /* ACCEPT: select_statement */
 			(yyval.select_stmt) = new SelectStatement();
+#ifdef __DEBUG_PARSER_MEMLEAK
+         std::cout << __FILE__ << " " << __LINE__ << " PAR SELETMT PTR " << (void*)(yyval.select_stmt) << std::endl;
+#endif
          (yyval.select_stmt)->setSelections((yyvsp[-2].expr_vec));
          (yyval.select_stmt)->setFrom((yyvsp[-1].table_vec));
          (yyval.select_stmt)->where_     = (yyvsp[0].expr);
@@ -1810,6 +1851,9 @@ yyreduce:
     {
          /* ACCEPT: expr_alias */
          (yyval.expr_vec) = new std::vector<Expr*>();
+#ifdef __DEBUG_PARSER_MEMLEAK
+         std::cout << __FILE__ << " " << __LINE__ << " PAR EXPRVEC PTR " << (void*)(yyval.expr_vec) << std::endl;
+#endif
          (yyval.expr_vec)->push_back((yyvsp[0].expr));
       }
 
@@ -1831,7 +1875,7 @@ yyreduce:
          /* ACCEPT: expr opt_alias */
 			(yyval.expr) = (yyvsp[-1].expr);
 			if ((yyvsp[0].sval)) {
-				(yyval.expr)->alias_ = new std::string(*(yyvsp[0].sval));
+				(yyval.expr)->alias_ = (yyvsp[0].sval);
 			}
       }
 
@@ -1986,6 +2030,9 @@ yyreduce:
     {
          /* ACCEPT: table_ref */
           (yyval.table_vec) = new std::vector<TableRef *>();
+#ifdef __DEBUG_PARSER_MEMLEAK
+         std::cout << __FILE__ << " " << __LINE__ << " PAR TABREFVEC PTR " << (void*)(yyval.table_vec) << std::endl;
+#endif
           (yyval.table_vec)->push_back((yyvsp[0].table));
        }
 
@@ -2005,6 +2052,9 @@ yyreduce:
 
     {
          (yyval.table) = new BaseTableRef((yyvsp[0].sval), nullptr);
+#ifdef __DEBUG_PARSER_MEMLEAK
+         std::cout << __FILE__ << " " << __LINE__ << " PAR BASETAB NAME " << (yyvsp[0].sval) << " PTR " << (void*)(yyval.table) << std::endl;
+#endif
          }
 
     break;
@@ -2013,6 +2063,9 @@ yyreduce:
 
     {
 			(yyval.table) = new BaseTableRef((yyvsp[-1].sval), (yyvsp[0].sval));
+#ifdef __DEBUG_PARSER_MEMLEAK
+         std::cout << __FILE__ << " " << __LINE__ << " PAR BASETAB NAME " << (yyvsp[-1].sval) << " ALIAS " << (yyvsp[0].sval) << " PTR " << (void*)(yyval.table) << std::endl;
+#endif
 		}
 
     break;
@@ -2021,7 +2074,7 @@ yyreduce:
 
     {
          /* ACCEPT: table_name */
-         (yyval.sval) = new std::string(*(yyvsp[0].sval));
+         (yyval.sval) = (yyvsp[0].sval);
       }
 
     break;
@@ -2036,7 +2089,7 @@ yyreduce:
 
     {
          /* ACCEPT: AS alias */
-         (yyval.sval) = new std::string(*(yyvsp[0].sval));
+         (yyval.sval) = (yyvsp[0].sval);
       }
 
     break;
@@ -2045,7 +2098,7 @@ yyreduce:
 
     {
          /* ACCEPT: alias */
-         (yyval.sval) = new std::string(*(yyvsp[0].sval));
+         (yyval.sval) = (yyvsp[0].sval);
       }
 
     break;

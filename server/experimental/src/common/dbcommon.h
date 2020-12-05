@@ -151,16 +151,11 @@ namespace andb {
               , quoted_(quoted)
               , isCloned_(isClone)
             {
-#ifdef DEBUG_CAT_MEMLEAK
-                std::cout << "ColumnDef::cons(name = " << *name_ << ", clone = " << isCloned_
-                          << "\n";
-#endif
+                DEBUG_CONS("ColumnDef", isCloned_);
             }
 
             ~ColumnDef() {
-#ifdef DEBUG_CAT_MEMLEAK
-                std::cout << "ColumnDef::dest(name = " << *name_ << ", clone = " << isCloned_ << "\n";
-#endif
+                DEBUG_DEST("ColumnDef", isCloned_);
                 delete name_;
                 name_ = 0;
             }
@@ -188,9 +183,7 @@ namespace andb {
               , quoted_(false)
               , isCloned_(isClone)
             {
-#ifdef DEBUG_CAT_MEMLEAK
-                std::cout << "TableDef::cons(name = " << *name_ << ", clone = " << isCloned_ << "\n";
-#endif
+                DEBUG_CONS("TableDef", isCloned_);
                 columns_ = DBG_NEW std::map<std::string*, ColumnDef*, CaselessStringPtrCmp>();
 
                 for (auto c : columns) {
@@ -203,9 +196,7 @@ namespace andb {
             }
 
             ~TableDef() {
-#ifdef DEBUG_CAT_MEMLEAK
-                std::cout << "TableDef::dest(name = " << *name_ << ", clone = " << isCloned_ << "\n";
-#endif
+                DEBUG_DEST("TableDef", isCloned_);
                 for (auto c : *columns_) {
                     delete c.second;
                 }

@@ -96,6 +96,7 @@ s/#.*include.*unistd\.h.*/\
 #endif\
 /
 /#.*line /d
+s/^[\t ]*register[\t ][\t ]*//
 ' $f
 done
 

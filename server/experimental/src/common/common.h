@@ -9,15 +9,18 @@
 #include <numeric>
 #include <random>
 #include <string>
+#include <cstdio>    // __VAR_ARGS__
 
 /*
 * Aid to debug catalog memory leaks. There are still two blocks
-* not freed. This code may be left in and DEBUG_CAT_MEMLEAK
+* not freed. This code may be left in and __DEBUG_CAT_MEMLEAK
 * turned into a runtime debug level options.
 */
-// #define DEBUG_CAT_MEMLEAK
+// #define __DEBUG_CAT_MEMLEAK
+// #define __DEBUG_PARSER_MEMLEAK
+// #define __ENABLE_DEBUG_MSG
 
-#ifdef DEBUG_CAT_MEMLEAK
+#ifdef __DEBUG_CAT_MEMLEAK
     #define DBG_NEW new ( _NORMAL_BLOCK , __FILE__ , __LINE__ )
     // Replace _NORMAL_BLOCK with _CLIENT_BLOCK if you want the
     // allocations to be of _CLIENT_BLOCK type
@@ -30,6 +33,57 @@
 #include "memory.h"
 
 namespace andb {
+#ifdef __ENABLE_DEBUG_MSG
+   // Simple interface to debug messages and to track memory usage
+   // This is compile time construct.
+   // We can add some interesting local variables to be prined too
+   // with a vector of ANY *, but ... not now.
+   //
+   class AutoDebug
+   {
+      public:
+      AutoDebug(const char *file, int line, const char *func,
+            int num = 0, const char *head = nullptr,
+            const char *body = nullptr)
+      {
+         std::cout << "ENTRY { : " << file << " : " << line
+                  << " : " << func << " : num " << num
+                  << " : head " << (head ? head : "")
+                  << " : body " << (body ? body : "") << ":" << std::endl;
+         file_ = file;
+         func_ = func;
+         num_ = num;
+      }
+
+      ~AutoDebug()
+      {
+         std::cout << "EXIT  : " << file_ << " : " << func_
+               << " : num " << num_ << ":}" << std::endl;
+      }
+
+      private:
+         const char *file_;
+         const char *func_;
+         int        num_;
+   };
+
+#define ADBG(...) AutoDebug adbg_##__LINE__{__FILE__, __LINE__, __func__, __VA_ARGS__}
+
+#define DEBUG_CONS(class___, extra___) \
+    std::cout << __FILE__ << ": " \
+   << __LINE__ << ": " << class___ "_cons(" << extra___ << ") : PTR " \
+   << (void *)this << std::endl;
+
+#define DEBUG_DEST(class___, extra___) \
+    std::cout << __FILE__ << ": " \
+   << __LINE__ << ": " << class___ "_dest(" << extra___ << ") : PTR " \
+   << (void *)this << std::endl;
+#else
+#define ADBG(...)
+#define DEBUG_CONS(...)
+#define DEBUG_DEST(...)
+#endif // __ENABLE_DEBUG_MSG
+
     class QueryOptions
     {
         // Just a place holder for now.
