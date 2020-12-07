@@ -3103,6 +3103,23 @@ namespace qpmodel.unittest
             }
         }
 
+
+        [TestMethod]
+        public void TestCTENew()
+        {
+            // costbase cte optimizer have to use memo
+            //
+            QueryOption option = new QueryOption();
+            option.optimize_.use_memo_ = true;
+            option.optimize_.enable_cte_plan_ = true;
+            var cte_plan = option.optimize_.enable_cte_plan_;
+            var phyplan = "";
+            var sql = "with cte as (select a_common.a1 from a a_common where a1 = 1) select a_common.a1 from a a_common where a_common.a1 in (select a1 from cte)";
+            //TU.ExecuteSQL(sql, "1", out phyplan, option);
+            //sql = "with cte1 as (select* from a) select * from cte1 where a1>1;"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
+            sql = "with cte1 as (select * from a),cte3 as (select * from cte1) select * from cte3 where a1>1"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
+        }
+
         [TestMethod]
         public void TestFromQueryRemoval()
         {

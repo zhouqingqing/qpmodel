@@ -350,7 +350,10 @@ namespace qpmodel.logic
                     case ExternalTableRef eref:
                         from = new LogicScanFile(eref);
                         break;
-                    case QueryRef qref:
+                    case CTEQueryRef cref:
+                        from = new LogicCteConsumer(cref.cte_.cteId_, cref.cte_);
+                        break;
+                    case FromQueryRef qref:
                         var plan = qref.query_.CreatePlan();
                         if (qref is FromQueryRef && queryOpt_.optimize_.remove_from_)
                             from = plan;
@@ -358,17 +361,10 @@ namespace qpmodel.logic
                         {
                             string alias = null;
                             NamedQuery key;
-                            if (qref is CTEQueryRef cq)
-                            {
-                                alias = cq.alias_;
-                                key = new NamedQuery(qref.query_, alias, NamedQuery.QueryType.CET);
-                            }
-                            else
-                            {
-                                var fq = qref as FromQueryRef;
-                                alias = fq.alias_;
-                                key = new NamedQuery(qref.query_, alias, NamedQuery.QueryType.FROM);
-                            }
+
+                            var fq = qref as FromQueryRef;
+                            alias = fq.alias_;
+                            key = new NamedQuery(qref.query_, alias, NamedQuery.QueryType.FROM);
 
                             from = new LogicFromQuery(qref, plan);
                             // CTE query is optimised in LogicSequece

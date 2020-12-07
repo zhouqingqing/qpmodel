@@ -537,7 +537,7 @@ namespace qpmodel.optimizer
             foreach (var v in exprList_)
             {
                 if (v.logic_ != null)
-                    clogic++;
+                    clogic++; 
                 else
                     cphysic++;
             }
@@ -1060,7 +1060,7 @@ namespace qpmodel.optimizer
                 memoset_.Add(memo);
 
                 // the statment shall already have plan generated
-                var logicroot = select.logicPlan_;
+                 var logicroot = select.logicPlan_;
                 // remove all remote exchange nodes
                 logicroot = RemoveDataExchange(logicroot);
                 // convert top order node to requirement and extract root node

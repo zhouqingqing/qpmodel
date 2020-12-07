@@ -1139,13 +1139,14 @@ namespace qpmodel.expr
     // 
     public class CteExpr : Expr
     {
+        internal int cteId_;
         internal string cteName_;
         internal SelectStmt query_;
         internal List<string> colNames_;
 
         internal int refcnt_;
 
-        public CteExpr(string cteName, List<string> colNames, SQLStatement query) : base()
+        public CteExpr(string cteName, List<string> colNames, SQLStatement query,int cteid) : base()
         {
             Utils.Assumes(query is SelectStmt);
 
@@ -1159,6 +1160,7 @@ namespace qpmodel.expr
                 colNames_[i] = Utils.normalizeName(colNames_[i]);
             }
             refcnt_ = 0;
+            cteId_ = cteid;
         }
 
         public void VerifyColNames()
@@ -1168,6 +1170,7 @@ namespace qpmodel.expr
                 throw new SemanticAnalyzeException(
                     $"WITH query '{cteName_}' only have {query_.selection_.Count} columns but {colNames_.Count} specified");
         }
+
     }
 
     public class OrderTerm : Expr

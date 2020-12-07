@@ -575,7 +575,7 @@ namespace qpmodel.logic
             if (list.Count == 0)
                 return root;
 
-            var seqNode = new LogicSequence(); 
+            var seqNode = new LogicSequence();
             seqNode.children_.AddRange(list.Select(x =>
                     new LogicCteProducer(x.query_.logicPlan_, x)));
             seqNode.children_.Add(root);
@@ -891,9 +891,66 @@ namespace qpmodel.logic
         }
     }
 
+    public class CteInfoEntry
+    {
+        // if this Cte is Used
+        // when a cte1 is used in cte2, but cte2 is never used 
+        // we should mark both cte1 and cte2 isUsed = False.
+        //
+        bool isUsed_;
+
+        CteExpr exprCteProducer_;
+
+        public CteInfoEntry(CteExpr exprCteProducer)
+        {
+            Debug.Assert(exprCteProducer != null);
+            exprCteProducer_ = exprCteProducer;
+            // TODO how to set it?
+            isUsed_ = false;
+        }
+
+        // something to save cte producer
+
+        void MarkUnusedCTEs()
+        {
+
+            isUsed_ = false;
+        }
+    }
+
+    public class CteInfo
+    {
+        // map cteId to Cteinfo
+        public Dictionary<int, CteInfoEntry> CteIdToCteInfoEntry_;
+
+        public int cteCount_;
+
+        public CteInfo()
+        {
+            CteIdToCteInfoEntry_ = new Dictionary<int, CteInfoEntry>();
+        }
+
+        public void addCteProducer(int cteId, CteExpr cteExpr)
+        {
+            Debug.Assert(cteId >= 0);
+            Debug.Assert(cteExpr != null);
+            CteIdToCteInfoEntry_.Add(cteId, new CteInfoEntry(cteExpr));
+            cteCount_++;
+        }
+
+        // find all CTE Consumer In Parent and push it into stack
+        public void FindConsumerInParent()
+        {
+
+        }
+    }
+
     public class LogicCteProducer : LogicNode
     {
         internal CteExpr cte_;
+
+        // represent the id of CTE, it should match the related CteProducer
+        public int cteId_;
         public override string ToString() => $"CteProducer({child_()})";
 
         public LogicCteProducer(LogicNode child, CteExpr cte)
@@ -903,6 +960,38 @@ namespace qpmodel.logic
         }
 
         public override string ExplainInlineDetails() => cte_.cteName_;
+    }
+
+    public class LogicCteConsumer : LogicNode
+    {
+        // represent the id of CTE, it should match the related CteProducer
+        public int cteId_ = -1;
+        public override string ToString() => $"CteConsumer({cteId_})";
+
+        public CteExpr cteExpr_;
+
+        // Cte Consumer has no child
+        public LogicCteConsumer(int cteId, CteExpr cteExpr)
+        {
+            cteId_ = cteId;
+            cteExpr_ = cteExpr;
+        }
+        public override string ExplainInlineDetails() => "CTEConsumer";
+    }
+
+
+    public class LogicCteAnchor : LogicNode
+    {
+        // represent the id of CTE, it should match the related CteProducer
+        public int cteId_ = -1;
+        public override string ToString() => $"CteAnchor({cteId_})";
+
+        // Cte Consumer has no child
+        public LogicCteAnchor(int cteId)
+        {
+            cteId_ = cteId;
+        }
+        public override string ExplainInlineDetails() => "CteAnchor";
     }
 
     public class PhysicCteProducer : PhysicNode

@@ -54,6 +54,8 @@ namespace qpmodel.logic
         public Optimizer optimizer_;
         public QueryOption queryOpt_ = new QueryOption();
 
+        public CteInfo cteInfo_ = new CteInfo();
+
         // mark if current plan is distirbuted: it does not include children plan
         internal bool distributed_ = false;
 
@@ -86,11 +88,25 @@ namespace qpmodel.logic
                 return new ExecContext(queryOpt_);
         }
 
+        public void initCteInfo()
+        {
+            var ss = this as SelectStmt;
+            if (ss!= null && ss.ctes_.Count() > 0)
+            {
+                foreach (var cte in ss.ctes_)
+                {
+                    cteInfo_.addCteProducer(cte.cteId_, cte);
+                }
+            }
+        }
+
         public virtual List<Row> Exec()
         {
             ExprSearch.Reset();
             Bind(null);
-            CreatePlan();
+            // we should handel cte here
+            initCteInfo();
+             CreatePlan();
             SubstitutionOptimize();
 
             if (queryOpt_.optimize_.use_memo_)
@@ -725,7 +741,7 @@ namespace qpmodel.logic
                             // take it out from the tree
                             plan = plan.child_();
                         }
-                        else 
+                        else
                         {
                             // find current parent;
                             // consider if the parent in parents = new List<LogicNode>() is deleted
@@ -736,7 +752,7 @@ namespace qpmodel.logic
                                 plan.VisitEach((parent_cur, index, child) =>
                                 {
                                     if (child == filter) parent = parent_cur;
-                                });                              
+                                });
                             }
                             parent.children_[index] = filter.child_();
                         }
