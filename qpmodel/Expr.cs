@@ -1139,14 +1139,14 @@ namespace qpmodel.expr
     // 
     public class CteExpr : Expr
     {
-        internal int cteId_;
+        public int cteId_;
         internal string cteName_;
         internal SelectStmt query_;
         internal List<string> colNames_;
 
         internal int refcnt_;
 
-        public CteExpr(string cteName, List<string> colNames, SQLStatement query,int cteid) : base()
+        public CteExpr(string cteName, List<string> colNames, SQLStatement query, int cteid) : base()
         {
             Utils.Assumes(query is SelectStmt);
 

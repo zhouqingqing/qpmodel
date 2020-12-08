@@ -91,11 +91,11 @@ namespace qpmodel.logic
         public void initCteInfo()
         {
             var ss = this as SelectStmt;
-            if (ss!= null && ss.ctes_.Count() > 0)
+            if (ss != null && ss.ctes_ != null && ss.ctes_.Count() > 0)
             {
                 foreach (var cte in ss.ctes_)
                 {
-                    cteInfo_.addCteProducer(cte.cteId_, cte);
+                    cteInfo_.addCteProducer(cte.cteId_, cte, this);
                 }
             }
         }
@@ -103,10 +103,10 @@ namespace qpmodel.logic
         public virtual List<Row> Exec()
         {
             ExprSearch.Reset();
+            initCteInfo();
             Bind(null);
             // we should handel cte here
-            initCteInfo();
-             CreatePlan();
+            CreatePlan();
             SubstitutionOptimize();
 
             if (queryOpt_.optimize_.use_memo_)
@@ -164,12 +164,16 @@ namespace qpmodel.logic
 
         public static List<Row> ExecSQL(string sql, out SQLStatement stmt, out string physicplan, out string error, QueryOption option = null)
         {
+            stmt = RawParser.ParseSingleSqlStatement(sql);
+            var results = ExecSQL(stmt, out physicplan, option);
+            error = "";
+            return results;
             try
             {
-                stmt = RawParser.ParseSingleSqlStatement(sql);
-                var results = ExecSQL(stmt, out physicplan, option);
-                error = "";
-                return results;
+                //stmt = RawParser.ParseSingleSqlStatement(sql);
+                //var results = ExecSQL(stmt, out physicplan, option);
+                //error = "";
+                //return results;
             }
             catch (Exception e)
             {

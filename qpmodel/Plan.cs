@@ -621,7 +621,8 @@ namespace qpmodel.logic
 
             // ctes
             if (ctes_ != null)
-                root = tryCteToSequencePlan(root);
+                root = cteToAnchor(root);
+
 
             // let's make sure the plan is in good shape
             //  - there is no filter except filter node (ok to be multiple)
@@ -906,6 +907,9 @@ namespace qpmodel.logic
                         context.RegisterTable(eref);
                     else
                         throw new SemanticAnalyzeException($@"base table '{eref.baseref_.relname_}' not exists");
+                    break;
+                case CTEQueryRef cqrf:
+                    context.RegisterTable(cqrf);
                     break;
                 case QueryRef qref:
                     if (qref.query_.bindContext_ is null)

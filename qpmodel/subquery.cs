@@ -582,6 +582,70 @@ namespace qpmodel.logic
 
             return seqNode;
         }
+
+
+        void findCteConsumerInParent(LogicNode parent, ref Stack<int> scie)
+        {
+            var scieTemp = scie;
+            parent.VisitEach(logicNode =>
+            {
+                if (logicNode is LogicCteConsumer lcc)
+                {
+                    var cteId = lcc.cteId_;
+                    var cteInfoEntry = cteInfo_.GetCteInfoEntryByCteId(cteId);
+                    if (scieTemp.Contains(cteId))
+                    {
+                        cteInfoEntry.refTimes++;
+                    }
+                    else
+                    {
+                        cteInfoEntry.refTimes = 1;
+                        cteInfoEntry.MarkCTEUsed();
+                        scieTemp.Push(cteId);
+                    };
+                    cteInfo_.SetCetInfoEntryByCteId(cteId, cteInfoEntry);
+                }
+            });
+            scie = scieTemp;
+        }
+
+        LogicNode cteToAnchor(LogicNode root)
+        {
+
+            // find the unused cte
+            // consider "with cte0 as (select * from a),cte1 as (select * from cte0) select * from a
+            // although cte0 is used in cte1 , but cte1 is never used, so we have to delete cte1 too 
+            Stack<int> scie = new Stack<int>(); // save cteId
+            findCteConsumerInParent(root, ref scie);
+            foreach (var subq in subQueries_)
+            {
+                findCteConsumerInParent(subq.query_.logicPlan_, ref scie);
+            }
+            while (scie.Count() > 0)
+            {
+                var cteId = scie.Pop();
+                var ctePlan = cteInfo_.GetCteInfoEntryByCteId(cteId).plan_;
+                findCteConsumerInParent(ctePlan, ref scie);
+            }
+
+            var usedCte = ctes_;
+
+            // ignore cte whitch is unused 
+            usedCte.RemoveAll(cte => !cteInfo_.GetCteInfoEntryByCteId(cte.cteId_).IsUsed());
+
+            // cte0 is declared firstly (erlier than cte1), so cte0 should in a lower level
+            //
+            for (int i = 0; i < ctes_.Count; i++)
+            {
+                CteExpr cteProducer = ctes_[i];
+                Debug.Assert(cteProducer.cteId_ == i);
+                var lca = new LogicCteAnchor(cteProducer.cteId_);
+                lca.children_.Add(root);
+                root = lca;
+            }
+            return root;
+
+        }
     }
 
     // mark join is like semi-join form with an extra boolean column ("mark") indicating join 
@@ -891,6 +955,7 @@ namespace qpmodel.logic
         }
     }
 
+    // a entry of CTE info
     public class CteInfoEntry
     {
         // if this Cte is Used
@@ -899,50 +964,65 @@ namespace qpmodel.logic
         //
         bool isUsed_;
 
-        CteExpr exprCteProducer_;
+        // a cteProducer refer times
+        //
+        public int refTimes = 0;
 
-        public CteInfoEntry(CteExpr exprCteProducer)
+        public CteExpr exprCteProducer_;
+
+        public LogicNode plan_;
+        public CteInfoEntry(CteExpr exprCteProducer, SQLStatement stmt)
         {
             Debug.Assert(exprCteProducer != null);
             exprCteProducer_ = exprCteProducer;
+            // we dont neet the tabel ref
+            exprCteProducer_.query_.BindWithContext(new BindContext(stmt, null));
+            plan_ = exprCteProducer_.query_.CreatePlan();
             // TODO how to set it?
             isUsed_ = false;
         }
 
-        // something to save cte producer
-
-        void MarkUnusedCTEs()
+        public CteInfoEntry()
         {
 
-            isUsed_ = false;
         }
+
+        // something to save cte producer
+        //
+        public void MarkCTEUsed() => isUsed_ = true;
+
+        public bool IsUsed() => isUsed_;
     }
 
     public class CteInfo
     {
+        public int cteCount_;
         // map cteId to Cteinfo
         public Dictionary<int, CteInfoEntry> CteIdToCteInfoEntry_;
-
-        public int cteCount_;
 
         public CteInfo()
         {
             CteIdToCteInfoEntry_ = new Dictionary<int, CteInfoEntry>();
         }
 
-        public void addCteProducer(int cteId, CteExpr cteExpr)
+        public CteInfoEntry GetCteInfoEntryByCteId(int cteId)
+        {
+            var cteInfoEntry = new CteInfoEntry();
+            bool isGet = CteIdToCteInfoEntry_.TryGetValue(cteId, out cteInfoEntry);
+            Debug.Assert(isGet);
+            return cteInfoEntry;
+        }
+
+        public void SetCetInfoEntryByCteId(int cteId, CteInfoEntry cie) => CteIdToCteInfoEntry_[cteId] = cie;
+        public void addCteProducer(int cteId, CteExpr cteExpr, SQLStatement stmt)
         {
             Debug.Assert(cteId >= 0);
             Debug.Assert(cteExpr != null);
-            CteIdToCteInfoEntry_.Add(cteId, new CteInfoEntry(cteExpr));
+            CteIdToCteInfoEntry_.Add(cteId, new CteInfoEntry(cteExpr, stmt));
             cteCount_++;
         }
 
         // find all CTE Consumer In Parent and push it into stack
-        public void FindConsumerInParent()
-        {
-
-        }
     }
 
     public class LogicCteProducer : LogicNode
@@ -966,7 +1046,7 @@ namespace qpmodel.logic
     {
         // represent the id of CTE, it should match the related CteProducer
         public int cteId_ = -1;
-        public override string ToString() => $"CteConsumer({cteId_})";
+        public override string ToString() => $"LogicCteConsumer({cteId_})";
 
         public CteExpr cteExpr_;
 
@@ -976,9 +1056,8 @@ namespace qpmodel.logic
             cteId_ = cteId;
             cteExpr_ = cteExpr;
         }
-        public override string ExplainInlineDetails() => "CTEConsumer";
+        public override string ExplainInlineDetails() => "LogicCTEConsumer";
     }
-
 
     public class LogicCteAnchor : LogicNode
     {

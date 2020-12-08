@@ -3114,10 +3114,18 @@ namespace qpmodel.unittest
             option.optimize_.enable_cte_plan_ = true;
             var cte_plan = option.optimize_.enable_cte_plan_;
             var phyplan = "";
-            var sql = "with cte as (select a_common.a1 from a a_common where a1 = 1) select a_common.a1 from a a_common where a_common.a1 in (select a1 from cte)";
+
+            // delete all unused cte include cte referd in cte
+            // like the cte0 in cte1 
+            //
+            var sql = "with cte0 as (select * from a),cte1 as (select * from cte0) select * from b where b.b1 = 2";
+            //TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
             //TU.ExecuteSQL(sql, "1", out phyplan, option);
             //sql = "with cte1 as (select* from a) select * from cte1 where a1>1;"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
-            sql = "with cte1 as (select * from a),cte3 as (select * from cte1) select * from cte3 where a1>1"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
+            sql = "with cte0 as (select * from a),cte1 as (select * from cte0) select * from cte1 where a1 = (select cte2.a1 from cte1 cte2 where cte2.a1 = 0)";
+            TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
+
+
         }
 
         [TestMethod]
