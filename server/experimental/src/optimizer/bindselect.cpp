@@ -59,6 +59,7 @@ namespace andb
         selection_.clear();
         for (auto e : seCopy) {
             e->Bind(binder);
+            selection_.emplace_back(e);
         }
     }
 

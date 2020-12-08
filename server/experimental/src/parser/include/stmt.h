@@ -49,14 +49,30 @@ class SQLStatement : public UseCurrentResource
       , physicPlan_(nullptr)
       , queryOpts_(nullptr)
     {
-           DEBUG_CONS("SQLStatement", "def");
+        DEBUG_CONS("SQLStatement", "def");
     }
 
     virtual ~SQLStatement()
     {
-           DEBUG_DEST("SQLStatement", "@@@");
-    }
+        DEBUG_DEST("SQLStatement", "@@@");
 
+        if (hints) {
+            for (auto h : *hints) {
+                delete h++;
+            }
+            hints->clear();
+            delete hints;
+            hints = 0;
+        }
+
+        delete logicPlan_;
+        delete physicPlan_;
+        delete queryOpts_;
+
+        logicPlan_  = nullptr;
+        physicPlan_ = nullptr;
+        queryOpts_  = nullptr;
+    }
 
     virtual void Bind(Binder* binder) {}
 
@@ -80,8 +96,8 @@ class SQLStatement : public UseCurrentResource
     // END HYRISE
 
     Binder*       context;
-    LogicNode* logicPlan_;
-    PhysicNode* physicPlan_;
+    LogicNode*    logicPlan_;
+    PhysicNode*   physicPlan_;
     QueryOptions* queryOpts_;
 };
 
@@ -91,12 +107,22 @@ class SelectStmt : public SQLStatement
     SelectStmt()
       : SQLStatement()
     {
-           DEBUG_CONS("SelectStmt", "def");
+        DEBUG_CONS("SelectStmt", "def");
     }
 
-    ~SelectStmt()
+    virtual ~SelectStmt()
     {
-           DEBUG_DEST("SelectStmt", "def");
+        DEBUG_DEST("SelectStmt", "def");
+
+        for (auto s : selection_) {
+            delete s++;
+        }
+        selection_.clear();
+
+        for (auto f : from_) {
+            delete f++;
+        }
+        from_.clear();
     }
 
     void setSelections(std::vector<Expr*>* sels)

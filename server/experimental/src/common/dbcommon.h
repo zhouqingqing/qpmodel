@@ -157,7 +157,7 @@ namespace andb {
             ~ColumnDef() {
                 DEBUG_DEST("ColumnDef", isCloned_);
                 delete name_;
-                name_ = 0;
+                name_ = nullptr;
             }
 
             ColumnDef* Clone ()
@@ -197,14 +197,16 @@ namespace andb {
 
             ~TableDef() {
                 DEBUG_DEST("TableDef", isCloned_);
-                for (auto c : *columns_) {
-                    delete c.second;
+                if (columns_) {
+                    for (auto c : *columns_) {
+                        delete c.second;
+                    }
+                    columns_->clear();
+                    delete columns_;
+                    columns_ = nullptr;
                 }
-
-                columns_->clear();
-                delete columns_;
-                columns_ = nullptr;
                 delete name_;
+                name_ = nullptr;
             }
 
             ColumnDef* GetColumnDef(std::string* colName)

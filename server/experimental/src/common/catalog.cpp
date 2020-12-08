@@ -65,16 +65,16 @@ void SysTable::dropAllTables()
 void Catalog::createOptimizerTestTables()
 {
     std::string colName{ "i" };
-    ColumnType  colType{ SQLType::SQL_TYPE_INTEGER,
+    ColumnType   colType{ SQLType::SQL_TYPE_INTEGER,
                         TypeLenghts::lens_[(int)SQLType::SQL_TYPE_INTEGER] };
-    ColumnDef   cd{ &colName, colType, 0 };
-
-    std::vector<ColumnDef*> cols{ &cd };
 
     for (int i = 0; i < 30; ++i) {
-        std::string tname = "t";
+        std::string             tname{ "t" };
+        ColumnDef    cd{&colName, colType, 0 };
+        std::vector<ColumnDef*> cols{ &cd };
         tname += std::to_string(i);
         Catalog::systable_->CreateTable(static_cast<std::string*>(&tname), &cols);
+        cd.name_ = nullptr;
     }
 }
 
@@ -93,6 +93,7 @@ void Catalog::createBuiltInTestTables()
         std::vector<ColumnDef*> cols{ &cd1, &cd2, &cd3, &cd4 };
         Catalog::systable_->CreateTable(static_cast<std::string*>(&builtinTestTableNames[i]),
                                         &cols);
+        cd1.name_ = cd2.name_ = cd3.name_ = cd4.name_ = nullptr;
     }
 }
 } // namespace andb

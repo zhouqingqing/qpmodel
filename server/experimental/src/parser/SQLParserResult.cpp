@@ -87,7 +87,7 @@ std::vector<SQLStatement*> SQLParserResult::releaseStatements() {
 
 void SQLParserResult::reset() {
    for (SQLStatement* statement : statements_) {
-      delete statement;
+      delete statement++;
    }
 
    statements_.clear();

@@ -69,6 +69,50 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 	return 0;
 }
 
+// selection, group by, order by etc.
+void ReleaseMemory(std::vector<Expr*>* expr_vec)
+{
+   if (expr_vec) {
+      for (int i = 0; i < expr_vec->size(); ++i) {
+         Expr *e = expr_vec->at(i);
+         delete e;
+      }
+      expr_vec->clear();
+      delete expr_vec;
+   }
+}
+
+// WHERE
+void ReleaseMemory(Expr* expr)
+{
+    delete expr;
+}
+
+// FROM
+void ReleaseMemory(std::vector<TableRef*>* table_vec)
+{
+    if (table_vec) {
+        for (int i = 0; i < table_vec->size(); ++i) {
+            TableRef *t = table_vec->at(i);
+            delete t;
+        }
+        table_vec->clear();
+        delete table_vec;
+    }
+}
+
+// strings
+void ReleaseMemory(std::vector<std::string*>* str_vec)
+{
+    if (str_vec) {
+        for (int i = 0; i < str_vec->size(); ++i) {
+            std::string *s = str_vec->at(i);
+            delete s;
+        }
+        delete str_vec;
+    }
+}
+
 %}
 /*********************************
  ** Section 2: Bison Parser Declarations
@@ -171,9 +215,16 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 /*********************************
  ** Destructor symbols
  *********************************/
-%destructor { delete $$; } <sval>
-%destructor { for (auto s : $$) delete s; delete $$;} <str_vec>
-
+%destructor { delete $$; $$ = nullptr; } <sval>
+%destructor {
+   if (($$) != nullptr) {
+      for (auto s : *($$)) {
+         delete s;
+      }
+      delete $$;
+      $$ = nullptr;
+   }
+} <str_vec> <table_vec> <column_vec> <expr_vec> <stmt_vec>
 
 
 /*********************************
@@ -344,6 +395,19 @@ select_statement:
          $$->setSelections($2);
          $$->setFrom($3);
          $$->where_     = $4;
+
+    /*
+    * Something is not right here, all of these objects were cloned
+    * into respective places in the SQLStatement but somehow
+    * these deletes are deleting the clones too.
+         ReleaseMemory($2);
+         ReleaseMemory($3);
+         ReleaseMemory($4);
+
+         $2 = nullptr;
+         $3 = nullptr;
+         $4 = nullptr;
+    */
 		}
 	;
 
@@ -355,7 +419,6 @@ opt_where:
 
     | {$$ = nullptr;} /* empty */
     ;
-
 
 select_list:
 		expr_list
@@ -418,32 +481,94 @@ scalar_expr:
 
 binary_expr:
 		comp_expr
-	|	operand '-' operand			{ $$ = makeOpBinary($1, BinOp::Sub, $3); }
-	|	operand '+' operand			{ $$ = makeOpBinary($1, BinOp::Add, $3); }
-	|	operand '/' operand			{ $$ = makeOpBinary($1, BinOp::Div, $3); }
-	|	operand '*' operand			{ $$ = makeOpBinary($1, BinOp::Mul, $3); }
+	|	operand '-' operand			{
+         Expr *left = $1->Clone();
+         Expr *right = $3->Clone();
+         $$ = makeOpBinary(left, BinOp::Sub, right);
+      }
+	|	operand '+' operand			{
+         Expr *left = $1->Clone();
+         Expr *right = $3->Clone();
+         $$ = makeOpBinary(left, BinOp::Add, right);
+      }
+	|	operand '/' operand			{
+         Expr *left = $1->Clone();
+         Expr *right = $3->Clone();
+         $$ = makeOpBinary(left, BinOp::Div, right);
+      }
+	|	operand '*' operand			{
+         Expr *left = $1->Clone();
+         Expr *right = $3->Clone();
+         $$ = makeOpBinary(left, BinOp::Mul, right);
+      }
 	;
 
 logic_expr:
-          expr AND expr { $$ = makeOpBinary($1, BinOp::And, $3); }
-      | expr OR expr    { $$ = makeOpBinary($1, BinOp::Or, $3);  }
+          expr AND expr {
+            Expr *left = $1->Clone();
+            Expr *right = $3->Clone();
+            $$ = makeOpBinary(left, BinOp::And, right);
+        }
+      | expr OR expr {
+             Expr *left = $1->Clone();
+             Expr *right = $3->Clone();
+              $$ = makeOpBinary(left, BinOp::Or, right);
+          }
       ;
 
 comp_expr:
-		operand '=' operand			{ $$ = makeOpBinary($1, BinOp::Equal, $3); }
-	|	operand EQUALS operand			{ $$ = makeOpBinary($1, BinOp::Equal, $3); }
-	|	operand NOTEQUALS operand	{ $$ = makeOpBinary($1, BinOp::Neq, $3); }
-	|	operand '<' operand			{ $$ = makeOpBinary($1, BinOp::Less, $3); }
-	|	operand '>' operand			{ $$ = makeOpBinary($1, BinOp::Great, $3); }
-	|	operand LESSEQ operand		{ $$ = makeOpBinary($1, BinOp::Leq, $3); }
-	|	operand GREATEREQ operand	{ $$ = makeOpBinary($1, BinOp::Geq, $3); }
+		operand '=' operand			{
+             Expr *left = $1->Clone();
+             Expr *right = $3->Clone();
+            $$ = makeOpBinary(left, BinOp::Equal, right);
+        }
+	|	operand EQUALS operand			{
+             Expr *left = $1->Clone();
+             Expr *right = $3->Clone();
+            $$ = makeOpBinary(left, BinOp::Equal, right);
+        }
+	|	operand NOTEQUALS operand	{
+             Expr *left = $1->Clone();
+             Expr *right = $3->Clone();
+            $$ = makeOpBinary(left, BinOp::Neq, right);
+        }
+	|	operand '<' operand			{
+             Expr *left = $1->Clone();
+             Expr *right = $3->Clone();
+            $$ = makeOpBinary(left, BinOp::Less, right);
+        }
+	|	operand '>' operand			{
+             Expr *left = $1->Clone();
+             Expr *right = $3->Clone();
+            $$ = makeOpBinary(left, BinOp::Great, right);
+        }
+	|	operand LESSEQ operand		{
+             Expr *left = $1->Clone();
+             Expr *right = $3->Clone();
+            $$ = makeOpBinary(left, BinOp::Leq, right);
+        }
+	|	operand GREATEREQ operand	{
+             Expr *left = $1->Clone();
+             Expr *right = $3->Clone();
+            $$ = makeOpBinary(left, BinOp::Geq, right);
+        }
 	;
 
 column_name:
-		IDENTIFIER { $$ = makeColumnRef($1); }
-	|	IDENTIFIER '.' IDENTIFIER { $$ = makeColumnRef($3, $1); }
+		IDENTIFIER {
+            $$ = makeColumnRef($1);
+            delete $1;
+        }
+	|	IDENTIFIER '.' IDENTIFIER {
+            $$ = makeColumnRef($3, $1);
+            delete $1;
+            delete $3;
+        }
 	|	'*' { $$ = makeStar(); }
-	|	IDENTIFIER '.' '*' { $$ = makeStar($1); }
+	|	IDENTIFIER '.' '*' {
+            $$ = makeStar($1);
+            delete $1;
+        }
 	;
 
 literal:
@@ -502,12 +627,15 @@ table_ref:
 #ifdef __DEBUG_PARSER_MEMLEAK
          std::cout << __FILE__ << " " << __LINE__ << " PAR BASETAB NAME " << $1 << " PTR " << (void*)$$ << std::endl;
 #endif
+            delete $1;
          }
       | table_name alias {
 			$$ = new BaseTableRef($1, $2);
 #ifdef __DEBUG_PARSER_MEMLEAK
          std::cout << __FILE__ << " " << __LINE__ << " PAR BASETAB NAME " << $1 << " ALIAS " << $2 << " PTR " << (void*)$$ << std::endl;
 #endif
+            delete $1;
+            delete $2;
 		}
 	;
 

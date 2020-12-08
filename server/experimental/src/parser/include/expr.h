@@ -71,6 +71,7 @@ namespace andb
         {
            DEBUG_DEST("Expr", "@@@");
            delete alias_;
+           alias_ = nullptr;
         }
 
         virtual std::string Explain(void* arg = nullptr) const { return {}; }
@@ -171,6 +172,7 @@ namespace andb
         {
            DEBUG_DEST("SelStar", "@@@");
            delete tabAlias_;
+           tabAlias_ = nullptr;
         }
     };
 
@@ -272,6 +274,11 @@ namespace andb
             delete tabname_;
             delete schname_;
             delete columnDef_;
+
+            colname_ = nullptr;
+            tabname_ = nullptr;
+            schname_ = nullptr;
+            columnDef_ = nullptr;
         }
 
         void Bind(Binder* context) override;
@@ -328,6 +335,9 @@ namespace andb
            DEBUG_DEST("BinExpr", "@@@");
            delete children_[0];
            delete children_[1];
+
+           children_[0] = nullptr;
+           children_[1] = nullptr;
         }
 
         std::string Explain(void* arg = nullptr) const override
@@ -431,10 +441,15 @@ namespace andb
         {
            DEBUG_DEST("TableRef", columnRefs_.size());
            delete alias_;
+           alias_ = nullptr;
 
            auto cr = columnRefs_.begin();
            while (cr != columnRefs_.end())
               delete (*cr++);
+           columnRefs_.clear();
+
+           delete tabDef_;
+           tabDef_ = nullptr;
         }
 
         virtual std::string Explain(void* arg = nullptr) const
@@ -490,6 +505,7 @@ namespace andb
         {
            DEBUG_DEST("BaseTableRef", tabName_);
            delete tabName_;
+           tabName_ = nullptr;
         }
 
         std::string Explain(void* arg = nullptr) const override

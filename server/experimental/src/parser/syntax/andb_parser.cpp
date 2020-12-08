@@ -116,6 +116,50 @@ int yyerror(YYLTYPE* llocp, SQLParserResult* result, yyscan_t scanner, const cha
 	return 0;
 }
 
+// selection, group by, order by etc.
+void ReleaseMemory(std::vector<Expr*>* expr_vec)
+{
+   if (expr_vec) {
+      for (int i = 0; i < expr_vec->size(); ++i) {
+         Expr *e = expr_vec->at(i);
+         delete e;
+      }
+      expr_vec->clear();
+      delete expr_vec;
+   }
+}
+
+// WHERE
+void ReleaseMemory(Expr* expr)
+{
+    delete expr;
+}
+
+// FROM
+void ReleaseMemory(std::vector<TableRef*>* table_vec)
+{
+    if (table_vec) {
+        for (int i = 0; i < table_vec->size(); ++i) {
+            TableRef *t = table_vec->at(i);
+            delete t;
+        }
+        table_vec->clear();
+        delete table_vec;
+    }
+}
+
+// strings
+void ReleaseMemory(std::vector<std::string*>* str_vec)
+{
+    if (str_vec) {
+        for (int i = 0; i < str_vec->size(); ++i) {
+            std::string *s = str_vec->at(i);
+            delete s;
+        }
+        delete str_vec;
+    }
+}
+
 
 
 
@@ -718,12 +762,12 @@ static const yytype_uint8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   288,   288,   309,   319,   329,   338,   351,   356,   361,
-     366,   377,   385,   393,   403,   404,   408,   409,   410,   414,
-     415,   420,   421,   422,   423,   424,   428,   429,   433,   434,
-     435,   436,   437,   438,   439,   443,   444,   445,   446,   450,
-     451,   452,   453,   457,   461,   462,   466,   467,   471,   475,
-     483,   491,   500,   506,   515,   523,   524,   528,   532
+       0,   339,   339,   360,   370,   380,   389,   415,   420,   424,
+     429,   440,   448,   456,   466,   467,   471,   472,   473,   477,
+     478,   483,   484,   489,   494,   499,   507,   512,   520,   525,
+     530,   535,   540,   545,   550,   558,   562,   567,   568,   575,
+     576,   577,   578,   582,   586,   587,   591,   592,   596,   600,
+     608,   616,   625,   632,   643,   651,   652,   656,   660
 };
 #endif
 
@@ -1422,31 +1466,101 @@ yydestruct (const char *yymsg, int yytype, YYSTYPE *yyvaluep, YYLTYPE *yylocatio
     {
           case 3: /* IDENTIFIER  */
 
-      { delete ((*yyvaluep).sval); }
+      { delete ((*yyvaluep).sval); ((*yyvaluep).sval) = nullptr; }
 
         break;
 
     case 4: /* STRING  */
 
-      { delete ((*yyvaluep).sval); }
+      { delete ((*yyvaluep).sval); ((*yyvaluep).sval) = nullptr; }
+
+        break;
+
+    case 170: /* statement_list  */
+
+      {
+   if ((((*yyvaluep).stmt_vec)) != nullptr) {
+      for (auto s : *(((*yyvaluep).stmt_vec))) {
+         delete s;
+      }
+      delete ((*yyvaluep).stmt_vec);
+      ((*yyvaluep).stmt_vec) = nullptr;
+   }
+}
+
+        break;
+
+    case 174: /* select_list  */
+
+      {
+   if ((((*yyvaluep).expr_vec)) != nullptr) {
+      for (auto s : *(((*yyvaluep).expr_vec))) {
+         delete s;
+      }
+      delete ((*yyvaluep).expr_vec);
+      ((*yyvaluep).expr_vec) = nullptr;
+   }
+}
+
+        break;
+
+    case 175: /* from_clause  */
+
+      {
+   if ((((*yyvaluep).table_vec)) != nullptr) {
+      for (auto s : *(((*yyvaluep).table_vec))) {
+         delete s;
+      }
+      delete ((*yyvaluep).table_vec);
+      ((*yyvaluep).table_vec) = nullptr;
+   }
+}
+
+        break;
+
+    case 176: /* expr_list  */
+
+      {
+   if ((((*yyvaluep).expr_vec)) != nullptr) {
+      for (auto s : *(((*yyvaluep).expr_vec))) {
+         delete s;
+      }
+      delete ((*yyvaluep).expr_vec);
+      ((*yyvaluep).expr_vec) = nullptr;
+   }
+}
+
+        break;
+
+    case 191: /* table_list  */
+
+      {
+   if ((((*yyvaluep).table_vec)) != nullptr) {
+      for (auto s : *(((*yyvaluep).table_vec))) {
+         delete s;
+      }
+      delete ((*yyvaluep).table_vec);
+      ((*yyvaluep).table_vec) = nullptr;
+   }
+}
 
         break;
 
     case 193: /* table_name  */
 
-      { delete ((*yyvaluep).sval); }
+      { delete ((*yyvaluep).sval); ((*yyvaluep).sval) = nullptr; }
 
         break;
 
     case 194: /* opt_alias  */
 
-      { delete ((*yyvaluep).sval); }
+      { delete ((*yyvaluep).sval); ((*yyvaluep).sval) = nullptr; }
 
         break;
 
     case 195: /* alias  */
 
-      { delete ((*yyvaluep).sval); }
+      { delete ((*yyvaluep).sval); ((*yyvaluep).sval) = nullptr; }
 
         break;
 
@@ -1818,6 +1932,19 @@ yyreduce:
          (yyval.select_stmt)->setSelections((yyvsp[-2].expr_vec));
          (yyval.select_stmt)->setFrom((yyvsp[-1].table_vec));
          (yyval.select_stmt)->where_     = (yyvsp[0].expr);
+
+    /*
+    * Something is not right here, all of these objects were cloned
+    * into respective places in the SQLStatement but somehow
+    * these deletes are deleting the clones too.
+         ReleaseMemory($2);
+         ReleaseMemory($3);
+         ReleaseMemory($4);
+
+         $2 = nullptr;
+         $3 = nullptr;
+         $4 = nullptr;
+    */
 		}
 
     break;
@@ -1889,91 +2016,150 @@ yyreduce:
 
   case 22:
 
-    { (yyval.expr) = makeOpBinary((yyvsp[-2].expr), BinOp::Sub, (yyvsp[0].expr)); }
+    {
+         Expr *left = (yyvsp[-2].expr)->Clone();
+         Expr *right = (yyvsp[0].expr)->Clone();
+         (yyval.expr) = makeOpBinary(left, BinOp::Sub, right);
+      }
 
     break;
 
   case 23:
 
-    { (yyval.expr) = makeOpBinary((yyvsp[-2].expr), BinOp::Add, (yyvsp[0].expr)); }
+    {
+         Expr *left = (yyvsp[-2].expr)->Clone();
+         Expr *right = (yyvsp[0].expr)->Clone();
+         (yyval.expr) = makeOpBinary(left, BinOp::Add, right);
+      }
 
     break;
 
   case 24:
 
-    { (yyval.expr) = makeOpBinary((yyvsp[-2].expr), BinOp::Div, (yyvsp[0].expr)); }
+    {
+         Expr *left = (yyvsp[-2].expr)->Clone();
+         Expr *right = (yyvsp[0].expr)->Clone();
+         (yyval.expr) = makeOpBinary(left, BinOp::Div, right);
+      }
 
     break;
 
   case 25:
 
-    { (yyval.expr) = makeOpBinary((yyvsp[-2].expr), BinOp::Mul, (yyvsp[0].expr)); }
+    {
+         Expr *left = (yyvsp[-2].expr)->Clone();
+         Expr *right = (yyvsp[0].expr)->Clone();
+         (yyval.expr) = makeOpBinary(left, BinOp::Mul, right);
+      }
 
     break;
 
   case 26:
 
-    { (yyval.expr) = makeOpBinary((yyvsp[-2].expr), BinOp::And, (yyvsp[0].expr)); }
+    {
+            Expr *left = (yyvsp[-2].expr)->Clone();
+            Expr *right = (yyvsp[0].expr)->Clone();
+            (yyval.expr) = makeOpBinary(left, BinOp::And, right);
+        }
 
     break;
 
   case 27:
 
-    { (yyval.expr) = makeOpBinary((yyvsp[-2].expr), BinOp::Or, (yyvsp[0].expr));  }
+    {
+             Expr *left = (yyvsp[-2].expr)->Clone();
+             Expr *right = (yyvsp[0].expr)->Clone();
+              (yyval.expr) = makeOpBinary(left, BinOp::Or, right);
+          }
 
     break;
 
   case 28:
 
-    { (yyval.expr) = makeOpBinary((yyvsp[-2].expr), BinOp::Equal, (yyvsp[0].expr)); }
+    {
+             Expr *left = (yyvsp[-2].expr)->Clone();
+             Expr *right = (yyvsp[0].expr)->Clone();
+            (yyval.expr) = makeOpBinary(left, BinOp::Equal, right);
+        }
 
     break;
 
   case 29:
 
-    { (yyval.expr) = makeOpBinary((yyvsp[-2].expr), BinOp::Equal, (yyvsp[0].expr)); }
+    {
+             Expr *left = (yyvsp[-2].expr)->Clone();
+             Expr *right = (yyvsp[0].expr)->Clone();
+            (yyval.expr) = makeOpBinary(left, BinOp::Equal, right);
+        }
 
     break;
 
   case 30:
 
-    { (yyval.expr) = makeOpBinary((yyvsp[-2].expr), BinOp::Neq, (yyvsp[0].expr)); }
+    {
+             Expr *left = (yyvsp[-2].expr)->Clone();
+             Expr *right = (yyvsp[0].expr)->Clone();
+            (yyval.expr) = makeOpBinary(left, BinOp::Neq, right);
+        }
 
     break;
 
   case 31:
 
-    { (yyval.expr) = makeOpBinary((yyvsp[-2].expr), BinOp::Less, (yyvsp[0].expr)); }
+    {
+             Expr *left = (yyvsp[-2].expr)->Clone();
+             Expr *right = (yyvsp[0].expr)->Clone();
+            (yyval.expr) = makeOpBinary(left, BinOp::Less, right);
+        }
 
     break;
 
   case 32:
 
-    { (yyval.expr) = makeOpBinary((yyvsp[-2].expr), BinOp::Great, (yyvsp[0].expr)); }
+    {
+             Expr *left = (yyvsp[-2].expr)->Clone();
+             Expr *right = (yyvsp[0].expr)->Clone();
+            (yyval.expr) = makeOpBinary(left, BinOp::Great, right);
+        }
 
     break;
 
   case 33:
 
-    { (yyval.expr) = makeOpBinary((yyvsp[-2].expr), BinOp::Leq, (yyvsp[0].expr)); }
+    {
+             Expr *left = (yyvsp[-2].expr)->Clone();
+             Expr *right = (yyvsp[0].expr)->Clone();
+            (yyval.expr) = makeOpBinary(left, BinOp::Leq, right);
+        }
 
     break;
 
   case 34:
 
-    { (yyval.expr) = makeOpBinary((yyvsp[-2].expr), BinOp::Geq, (yyvsp[0].expr)); }
+    {
+             Expr *left = (yyvsp[-2].expr)->Clone();
+             Expr *right = (yyvsp[0].expr)->Clone();
+            (yyval.expr) = makeOpBinary(left, BinOp::Geq, right);
+        }
 
     break;
 
   case 35:
 
-    { (yyval.expr) = makeColumnRef((yyvsp[0].sval)); }
+    {
+            (yyval.expr) = makeColumnRef((yyvsp[0].sval));
+            delete (yyvsp[0].sval);
+        }
 
     break;
 
   case 36:
 
-    { (yyval.expr) = makeColumnRef((yyvsp[0].sval), (yyvsp[-2].sval)); }
+    {
+            (yyval.expr) = makeColumnRef((yyvsp[0].sval), (yyvsp[-2].sval));
+            delete (yyvsp[-2].sval);
+            delete (yyvsp[0].sval);
+        }
 
     break;
 
@@ -1985,7 +2171,10 @@ yyreduce:
 
   case 38:
 
-    { (yyval.expr) = makeStar((yyvsp[-2].sval)); }
+    {
+            (yyval.expr) = makeStar((yyvsp[-2].sval));
+            delete (yyvsp[-2].sval);
+        }
 
     break;
 
@@ -2055,6 +2244,7 @@ yyreduce:
 #ifdef __DEBUG_PARSER_MEMLEAK
          std::cout << __FILE__ << " " << __LINE__ << " PAR BASETAB NAME " << (yyvsp[0].sval) << " PTR " << (void*)(yyval.table) << std::endl;
 #endif
+            delete (yyvsp[0].sval);
          }
 
     break;
@@ -2066,6 +2256,8 @@ yyreduce:
 #ifdef __DEBUG_PARSER_MEMLEAK
          std::cout << __FILE__ << " " << __LINE__ << " PAR BASETAB NAME " << (yyvsp[-1].sval) << " ALIAS " << (yyvsp[0].sval) << " PTR " << (void*)(yyval.table) << std::endl;
 #endif
+            delete (yyvsp[-1].sval);
+            delete (yyvsp[0].sval);
 		}
 
     break;
