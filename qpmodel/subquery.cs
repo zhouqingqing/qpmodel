@@ -1049,17 +1049,22 @@ namespace qpmodel.logic
 
         public LogicNode plan_;
 
-        public void bindFrom()
-        {
-            var selectionList = exprCteProducer_.query_.selection_;
-        }
         public CteInfoEntry(CteExpr exprCteProducer, SQLStatement stmt)
         {
             Debug.Assert(exprCteProducer != null);
             exprCteProducer_ = exprCteProducer;
+            var alias = exprCteProducer_.cteName_;
+
+            // refer bindFrom
+            var from = new CTEQueryRef(exprCteProducer_, alias);
+
+            // refer bindTableRef
+            Debug.Assert(from.query_.bindContext_ is null);
+            // TODO it will be a little better bind after we exclude not used cte
+            from.query_.Bind(new BindContext(stmt, null));
             // we dont neet the tabel ref
-            exprCteProducer_.query_.BindWithContext(new BindContext(stmt, null));
-            plan_ = exprCteProducer_.query_.CreatePlan();
+
+            plan_ = from.query_.CreatePlan();
             isUsed_ = false;
             isInlined_ = false;
         }

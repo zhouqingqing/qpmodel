@@ -908,9 +908,9 @@ namespace qpmodel.logic
                     else
                         throw new SemanticAnalyzeException($@"base table '{eref.baseref_.relname_}' not exists");
                     break;
-                //case CTEQueryRef cqrf:
-                //    context.RegisterTable(cqrf);
-                //    break;
+                case CTEQueryRef cqrf:
+                    context.RegisterTable(cqrf);
+                    break;
                 case QueryRef qref:
                     if (qref.query_.bindContext_ is null)
                         qref.query_.Bind(context);
