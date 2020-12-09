@@ -112,7 +112,7 @@ namespace qpmodel.logic
             if (queryOpt_.optimize_.use_memo_)
             {
                 optimizer_ = new Optimizer(this);
-                optimizer_.ExploreRootPlan(this);
+                 optimizer_.ExploreRootPlan(this);
                 physicPlan_ = optimizer_.CopyOutOptimalPlan();
             }
 

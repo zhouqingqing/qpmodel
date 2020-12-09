@@ -3119,11 +3119,25 @@ namespace qpmodel.unittest
             // like the cte0 in cte1 
             //
             var sql = "with cte0 as (select * from a),cte1 as (select * from cte0) select * from b where b.b1 = 2";
-            //TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
+            TU.ExecuteSQL(sql, "2,3,4,5", out phyplan, option);
+            var answer = @"PhysicScanTable b (actual rows=1)
+                            Output: b.b1[0],b.b2[1],b.b3[2],b.b4[3]
+                            Filter: b.b1[0]=2";
+            TU.PlanAssertEqual(answer, phyplan);
+
+            // inline Cte only use one time
+            sql = "with cte0 as (select * from a) select * from cte0 where cte0.a1 = 2";
+            TU.ExecuteSQL(sql, "2,3,4,5", out phyplan, option);
+            answer = @"PhysicScanTable b (actual rows=1)
+                            Output: b.b1[0],b.b2[1],b.b3[2],b.b4[3]
+                            Filter: b.b1[0]=2";
+            TU.PlanAssertEqual(answer, phyplan);
+
+
             //TU.ExecuteSQL(sql, "1", out phyplan, option);
             //sql = "with cte1 as (select* from a) select * from cte1 where a1>1;"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
-            sql = "with cte0 as (select * from a),cte1 as (select * from cte0) select * from cte1 where a1 = (select cte2.a1 from cte1 cte2 where cte2.a1 = 0)";
-            TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
+            //sql = "with cte0 as (select * from a),cte1 as (select * from cte0) select * from cte1 where a1 = (select cte2.a1 from cte1 cte2 where cte2.a1 = 0)";
+            //TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
 
 
         }

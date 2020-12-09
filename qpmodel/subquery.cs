@@ -609,12 +609,36 @@ namespace qpmodel.logic
             scie = scieTemp;
         }
 
+        bool inlineCteConsumer(ref LogicNode root, int inlineCteId, LogicNode inlineCtePlan)
+        {
+            bool isInlined = false;
+            if (root is LogicCteConsumer lcc && lcc.cteId_ == inlineCteId)
+            {
+                root = inlineCtePlan;
+                isInlined = true;
+            }
+            else
+            {
+                root.VisitEach((parent, index, child) =>
+                {
+                    if (child is LogicCteConsumer lcc && lcc.cteId_ == inlineCteId)
+                    {
+                        parent.children_[index] = inlineCtePlan;
+                        isInlined = true;
+                    }
+                });
+            }
+
+            return isInlined;
+        }
+
         LogicNode cteToAnchor(LogicNode root)
         {
 
-            // find the unused cte
+            // find the cte whitch is not used
             // consider "with cte0 as (select * from a),cte1 as (select * from cte0) select * from a
             // although cte0 is used in cte1 , but cte1 is never used, so we have to delete cte1 too 
+            //
             Stack<int> scie = new Stack<int>(); // save cteId
             findCteConsumerInParent(root, ref scie);
             foreach (var subq in subQueries_)
@@ -628,21 +652,72 @@ namespace qpmodel.logic
                 findCteConsumerInParent(ctePlan, ref scie);
             }
 
-            var usedCte = ctes_;
-
-            // ignore cte whitch is unused 
-            usedCte.RemoveAll(cte => !cteInfo_.GetCteInfoEntryByCteId(cte.cteId_).IsUsed());
-
-            // cte0 is declared firstly (erlier than cte1), so cte0 should in a lower level
+            // cte whitch is used and refer more than once
+            // we inline these cte cost based
             //
-            for (int i = 0; i < ctes_.Count; i++)
+            var costBaseCtes = ctes_;
+
+            // ignore cte whitch is NOT used 
+            //
+            costBaseCtes.RemoveAll(cte => !cteInfo_.GetCteInfoEntryByCteId(cte.cteId_).IsUsed());
+
+            // we should inline all cte whitch is refered only ONE time
+            // because materialize and read data will cost more.
+            //
+            // we find the cte use only one time
+            //
+            foreach (var cteInfoEntry in cteInfo_.CteIdToCteInfoEntry_)
             {
-                CteExpr cteProducer = ctes_[i];
-                Debug.Assert(cteProducer.cteId_ == i);
+                if (cteInfoEntry.Value.refTimes <= 1 && cteInfoEntry.Value.IsUsed())
+                {
+                    var cteConsumerId = cteInfoEntry.Key;
+                    var cteProducerPlan = cteInfoEntry.Value.plan_;
+                    // try inline cte in other cte
+                    var inlinedFlag = false;
+                    foreach (var cteInfoEntryToInline in cteInfo_.CteIdToCteInfoEntry_)
+                    {
+                        if (inlinedFlag == false)
+                        {
+                            inlinedFlag = inlineCteConsumer(ref cteInfoEntryToInline.Value.plan_, cteConsumerId, cteProducerPlan);
+                        }
+                        else break;
+                    }
+                    // try inline cte in main query
+                    if (inlinedFlag == false)
+                    {
+                        inlinedFlag = inlineCteConsumer(ref root, cteConsumerId, cteProducerPlan);
+                    }
+                    // try inline cte in subquery
+                    if (inlinedFlag == false)
+                    {
+                        foreach (var subquery in this.subQueries_)
+                        {
+                            var subqueryRoot = subquery.query_.logicPlan_;
+                            inlinedFlag = inlineCteConsumer(ref subqueryRoot, cteConsumerId, cteProducerPlan);
+                        }
+                    }
+                    cteInfoEntry.Value.MarkInlined();
+                    // the cte referd only one time must be inlined
+                    Debug.Assert(inlinedFlag == true);
+                }
+            }
+            // remove inlined cte
+            //
+            costBaseCtes.RemoveAll(cte => cteInfo_.GetCteInfoEntryByCteId(cte.cteId_).IsInlined());
+
+
+            // declare anchor
+            // we only declare CteAnchor for cte whitch is used and not inlined
+            // if cte0 is declared erlier than cte1, cte0 should in a lower level
+            //
+            for (int i = 0; i < costBaseCtes.Count; i++)
+            {
+                CteExpr cteProducer = costBaseCtes[i];
                 var lca = new LogicCteAnchor(cteProducer.cteId_);
                 lca.children_.Add(root);
                 root = lca;
             }
+
             return root;
 
         }
@@ -964,6 +1039,8 @@ namespace qpmodel.logic
         //
         bool isUsed_;
 
+        bool isInlined_;
+
         // a cteProducer refer times
         //
         public int refTimes = 0;
@@ -978,8 +1055,8 @@ namespace qpmodel.logic
             // we dont neet the tabel ref
             exprCteProducer_.query_.BindWithContext(new BindContext(stmt, null));
             plan_ = exprCteProducer_.query_.CreatePlan();
-            // TODO how to set it?
             isUsed_ = false;
+            isInlined_ = false;
         }
 
         public CteInfoEntry()
@@ -992,6 +1069,10 @@ namespace qpmodel.logic
         public void MarkCTEUsed() => isUsed_ = true;
 
         public bool IsUsed() => isUsed_;
+
+        public void MarkInlined() => isInlined_ = true;
+
+        public bool IsInlined() => isInlined_;
     }
 
     public class CteInfo
