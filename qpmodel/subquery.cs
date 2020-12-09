@@ -1058,13 +1058,15 @@ namespace qpmodel.logic
             // refer bindFrom
             var from = new CTEQueryRef(exprCteProducer_, alias);
 
-            // refer bindTableRef
-            Debug.Assert(from.query_.bindContext_ is null);
-            // TODO it will be a little better bind after we exclude not used cte
-            from.query_.Bind(new BindContext(stmt, null));
-            // we dont neet the tabel ref
+            SelectStmt cteStmt = new SelectStmt(new List<Expr>() { new SelStar("") }
+            , new List<TableRef>() { from },
+            null, null, null,
+            new List<CteExpr>() { exprCteProducer },
+            null, null, null, $"select * from {alias}");
 
-            plan_ = from.query_.CreatePlan();
+            cteStmt.Bind(null);
+
+            plan_ = cteStmt.CreateCTESelectPlan(); // TODO 此处不要重复处理CTE
             isUsed_ = false;
             isInlined_ = false;
         }
