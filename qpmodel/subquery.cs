@@ -1048,6 +1048,11 @@ namespace qpmodel.logic
         public CteExpr exprCteProducer_;
 
         public LogicNode plan_;
+
+        public void bindFrom()
+        {
+            var selectionList = exprCteProducer_.query_.selection_;
+        }
         public CteInfoEntry(CteExpr exprCteProducer, SQLStatement stmt)
         {
             Debug.Assert(exprCteProducer != null);
