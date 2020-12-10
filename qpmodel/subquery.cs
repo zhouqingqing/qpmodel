@@ -634,92 +634,14 @@ namespace qpmodel.logic
 
         LogicNode cteToAnchor(LogicNode root)
         {
-
-            // find the cte whitch is not used
-            // consider "with cte0 as (select * from a),cte1 as (select * from cte0) select * from a
-            // although cte0 is used in cte1 , but cte1 is never used, so we have to delete cte1 too 
-            //
-            Stack<int> scie = new Stack<int>(); // save cteId
-            findCteConsumerInParent(root, ref scie);
-            foreach (var subq in subQueries_)
+            for (int i = 0; i < ctes_.Count; i++)
             {
-                findCteConsumerInParent(subq.query_.logicPlan_, ref scie);
-            }
-            while (scie.Count() > 0)
-            {
-                var cteId = scie.Pop();
-                var ctePlan = cteInfo_.GetCteInfoEntryByCteId(cteId).plan_;
-                findCteConsumerInParent(ctePlan, ref scie);
-            }
-
-            // cte whitch is used and refer more than once
-            // we inline these cte cost based
-            //
-            var costBaseCtes = ctes_;
-
-            // ignore cte whitch is NOT used 
-            //
-            costBaseCtes.RemoveAll(cte => !cteInfo_.GetCteInfoEntryByCteId(cte.cteId_).IsUsed());
-
-            // we should inline all cte whitch is refered only ONE time
-            // because materialize and read data will cost more.
-            //
-            // we find the cte use only one time
-            //
-            foreach (var cteInfoEntry in cteInfo_.CteIdToCteInfoEntry_)
-            {
-                if (cteInfoEntry.Value.refTimes <= 1 && cteInfoEntry.Value.IsUsed())
-                {
-                    var cteConsumerId = cteInfoEntry.Key;
-                    var cteProducerPlan = cteInfoEntry.Value.plan_;
-                    // try inline cte in other cte
-                    var inlinedFlag = false;
-                    foreach (var cteInfoEntryToInline in cteInfo_.CteIdToCteInfoEntry_)
-                    {
-                        if (inlinedFlag == false)
-                        {
-                            inlinedFlag = inlineCteConsumer(ref cteInfoEntryToInline.Value.plan_, cteConsumerId, cteProducerPlan);
-                        }
-                        else break;
-                    }
-                    // try inline cte in main query
-                    if (inlinedFlag == false)
-                    {
-                        inlinedFlag = inlineCteConsumer(ref root, cteConsumerId, cteProducerPlan);
-                    }
-                    // try inline cte in subquery
-                    if (inlinedFlag == false)
-                    {
-                        foreach (var subquery in this.subQueries_)
-                        {
-                            var subqueryRoot = subquery.query_.logicPlan_;
-                            inlinedFlag = inlineCteConsumer(ref subqueryRoot, cteConsumerId, cteProducerPlan);
-                        }
-                    }
-                    cteInfoEntry.Value.MarkInlined();
-                    // the cte referd only one time must be inlined
-                    Debug.Assert(inlinedFlag == true);
-                }
-            }
-            // remove inlined cte
-            //
-            costBaseCtes.RemoveAll(cte => cteInfo_.GetCteInfoEntryByCteId(cte.cteId_).IsInlined());
-
-
-            // declare anchor
-            // we only declare CteAnchor for cte whitch is used and not inlined
-            // if cte0 is declared erlier than cte1, cte0 should in a lower level
-            //
-            for (int i = 0; i < costBaseCtes.Count; i++)
-            {
-                CteExpr cteProducer = costBaseCtes[i];
+                CteExpr cteProducer = ctes_[i];
                 var lca = new LogicCteAnchor(cteProducer.cteId_);
                 lca.children_.Add(root);
                 root = lca;
             }
-
             return root;
-
         }
     }
 
@@ -1058,15 +980,18 @@ namespace qpmodel.logic
             // refer bindFrom
             var from = new CTEQueryRef(exprCteProducer_, alias);
 
-            SelectStmt cteStmt = new SelectStmt(new List<Expr>() { new SelStar("") }
-            , new List<TableRef>() { from },
-            null, null, null,
-            new List<CteExpr>() { exprCteProducer },
-            null, null, null, $"select * from {alias}");
+            //SelectStmt cteStmt = new SelectStmt(new List<Expr>() { new SelStar("") }
+            //, new List<TableRef>() { from }, 
+            //null, null, null,
+            //new List<CteExpr>() { exprCteProducer }, null, null, null, "select * from");
 
-            cteStmt.Bind(null);
+            //// refer bindTableRef
+            //Debug.Assert(from.query_.bindContext_ is null);
+            //// TODO it will be a little better bind after we exclude not used cte
+            //from.query_.Bind(new BindContext(stmt, null));
+            //// we dont neet the tabel ref
 
-            plan_ = cteStmt.CreateCTESelectPlan(); // TODO 此处不要重复处理CTE
+            //plan_ = from.query_.CreatePlan();
             isUsed_ = false;
             isInlined_ = false;
         }
@@ -1164,6 +1089,11 @@ namespace qpmodel.logic
             cteId_ = cteId;
         }
         public override string ExplainInlineDetails() => "CteAnchor";
+
+        public override int GetHashCode()
+        {
+            return GetType().GetHashCode() ^ children_.ListHashCode() ^ cteId_.GetHashCode();
+        }
     }
 
     public class PhysicCteProducer : PhysicNode

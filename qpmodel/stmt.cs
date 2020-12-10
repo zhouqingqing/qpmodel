@@ -105,14 +105,13 @@ namespace qpmodel.logic
             ExprSearch.Reset();
             initCteInfo();
             Bind(null);
-            // we should handel cte here
             CreatePlan();
             SubstitutionOptimize();
 
             if (queryOpt_.optimize_.use_memo_)
             {
                 optimizer_ = new Optimizer(this);
-                 optimizer_.ExploreRootPlan(this);
+                optimizer_.ExploreRootPlan(this);
                 physicPlan_ = optimizer_.CopyOutOptimalPlan();
             }
 
