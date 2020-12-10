@@ -41,6 +41,7 @@ static void processOptions(int argc, char* argv[]);
 static void processSQL(void);
 static bool setupInput();
 static bool getNextStmt();
+static void ShowResultSet(std::vector<andb::Row>& rows);
 
 using namespace andb;
 
@@ -67,7 +68,8 @@ static CrtCheckMemory memoryChecker;
 
 int main(int argc, char* argv[])
 {
-    // _crtBreakAlloc = 175;
+    // crtBreakAlloc = 175;
+
     instance_.Start();
 
     auto resource        = DefaultResource::CreateMemoryResource(currentResource_, "current query");
@@ -107,7 +109,6 @@ static void processSQL(void)
                 std::cout << "PASSED: " << query << std::endl;
 
                 SelectStatement* selStmt = (SelectStmt*)presult.getStatement(0);
-                std::cout << "EXPLAIN: " << selStmt->Explain() << "\n";
                 Binder binder (selStmt);
                 binder.Bind ();
                 if (binder.GetError ()) {
@@ -117,12 +118,15 @@ static void processSQL(void)
                 LogicNode* root = selStmt->CreatePlan();
                 if (!root)
                     continue;
-                auto physic = Optimize(root);
+                auto physic = selStmt->Optimize();
                 if (!physic)
                     continue;
-                physic->Explain();
-                ExecContext ectx{};
-                physic->Open(&ectx);
+                std::cout << "EXPLAIN: " << selStmt->Explain() << "\n";
+                if (selStmt->Open()) {
+                    std::vector<andb::Row> rset = selStmt->Exec();
+                    if (!rset.empty())
+                        ShowResultSet(rset);
+                }
             } else {
                 const char* emsg = presult.errorMsg();
                 int         el   = presult.errorLine();
@@ -131,9 +135,30 @@ static void processSQL(void)
                 std::cout << "ERROR: " << (emsg ? emsg : "unkown") << " L = " << el << " C = " << ec
                           << std::endl;
             }
-        } catch (const std::exception& e) {
-            std::cerr << "EXCEPTION: " << e.what() << "\n";
         }
+        catch (const SemanticAnalyzeException& sae) {
+            std::cerr << "EXCEPTION: " << sae.what() << std::endl;
+        }
+        catch (const SemanticExecutionException& see) {
+            std::cerr << "EXCEPTION: " << see.what() << std::endl;
+        }
+        catch (const SemanticException& sme) {
+            std::cerr << "EXCEPTION: " << sme.what() << std::endl;
+        }
+        catch (const RuntimeException& rte) {
+            std::cerr << "EXCEPTION: " << rte.what() << std::endl;
+        }
+        catch (const ParserException& pae) {
+            std::cerr << "EXCEPTION: " << pae.what() << std::endl;
+        } catch (const NotImplementedException& nyi) {
+            std::cerr << "EXCEPTION: " << nyi.what() << std::endl;
+        }
+        catch (const std::exception& e) {
+            std::cerr << "EXCEPTION: " << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "EXCEPTION: Unknown exception" << std::endl;
+        }
+
         presult.reset();
         moreInput = getNextStmt();
     }
@@ -175,7 +200,7 @@ static void processOptions(int argc, char* argv[])
 }
 
 static bool setupInput()
-{
+{    
     if (mode_batch_on) {
         querySrc = std::ifstream(inputFile);
         if (querySrc.bad() || querySrc.eof())
@@ -220,4 +245,8 @@ static bool getNextStmt()
 
         return true;
     }
+}
+
+static void ShowResultSet(std::vector<Row>& rows)
+{
 }

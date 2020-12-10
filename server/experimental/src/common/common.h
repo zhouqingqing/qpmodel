@@ -11,6 +11,7 @@
 #include <string>
 #include <cstdio>    // __VAR_ARGS__
 
+// #define __RUN_DELETES_
 /*
 * Aid to debug catalog memory leaks. There are still two blocks
 * not freed. This code may be left in and __DEBUG_CAT_MEMLEAK
@@ -19,6 +20,33 @@
 // #define __DEBUG_CAT_MEMLEAK
 // #define __DEBUG_PARSER_MEMLEAK
 // #define __ENABLE_DEBUG_MSG
+
+// debug memory mamagement
+#ifdef __DEBUG_MEMORY
+#define NEW_SYSTABLE_TYPE()  do {\
+SysTable* Catalog::systable_ = new SysTable(); \
+      std::cerr << __FILE__ << ": " << __LINE__ << " : " << __func__ \
+               << ": SysTable : " << (void *)Catalog::systable_ << " : " \
+               << sizeof(SysTable) << std::endl;
+} while (false)
+
+#define NEW_SYSSTATS_TYPE()  do {\
+SysStats* Catalog::sysstats_ = new SysStats(); \
+      std::cerr << __FILE__ << ": " << __LINE__ << " : " << __func__ \
+               << ": SysStats : " << (void *)Catalog::sysstats_ << " : " \
+               << sizeof(SysStats) << std::endl;
+} while (false)
+
+#define NEW_TABLEDEF_TYPE(ptr__, __VAR_ARGS__) do { \
+TableDef* ptr__ = new TableDef(__VAR_ARGS__); \
+      std::cerr << __FILE__ << ": " << __LINE__ << " : " << __func__ \
+               << ": TableDef : " << (void *)ptr__ << " : " \
+               << sizeof(TableDef) << std::endl;
+#else
+#define NEW_SYSTABLE_TYPE() SysTable* Catalog::systable_ = new SysTable()
+#define NEW_SYSSTATS_TYPE() SysStats* Catalog::sysstat_  = new SysStats()
+#define NEW_TABLEDEF_TYPE(ptr__, __VAR_ARGS__) TableDef* ptr__ = new TableDef(__VAR_ARGS__)
+#endif // __DEBUG_MEMORY
 
 #ifdef __DEBUG_CAT_MEMLEAK
     #define DBG_NEW new ( _NORMAL_BLOCK , __FILE__ , __LINE__ )
@@ -147,7 +175,7 @@ public:
         public:
             SemanticAnalyzeException (const std::string& msg)
             {
-                std::cerr << "ANDB ERROR[SAE]: " << msg << "\n";
+                std::cerr << "ANDB ERROR[SAE]: " << msg << std::endl;
             }
    };
 
@@ -156,11 +184,11 @@ public:
         public:
             SemanticExecutionException (const std::string& msg) : runtime_error (msg)
             {
-                std::cerr << "ANDB ERROR[SEE]: " << msg << "\n"; 
+                std::cerr << "ANDB ERROR[SEE]: " << msg << std::endl;
             }
 
             SemanticExecutionException (const char* msg) : runtime_error (msg) {
-                std::cerr << "ANDB ERROR[SEE]: " << msg << "\n";
+                std::cerr << "ANDB ERROR[SEE]: " << msg << std::endl;
             }
    };
 
@@ -169,12 +197,22 @@ public:
         public:
             SemanticException (const std::string& msg) : logic_error (msg)
             {
-                std::cerr << "ANDB ERROR[SME]: " << msg << "\n";
+                std::cerr << "ANDB ERROR[SME]: " << msg << std::endl;
             }
 
             SemanticException (const char* msg) : logic_error (msg) {
-                std::cerr << "ANDB ERROR:[SME]: " << msg << "\n";
+                std::cerr << "ANDB ERROR:[SME]: " << msg << std::endl;
             }
+   };
+
+   class RuntimeException : public std::runtime_error
+   {
+       public:
+       RuntimeException(const std::string& msg)
+         : runtime_error(msg)
+       {
+           std::cerr << "ANDB ERROR[RTE]" << msg << std::endl;
+       }
    };
 
    class ParserException : public std::logic_error {

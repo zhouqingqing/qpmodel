@@ -85,17 +85,23 @@ std::vector<SQLStatement*> SQLParserResult::releaseStatements() {
    return copy;
 }
 
-void SQLParserResult::reset() {
+void SQLParserResult::reset()
+{
+#ifdef __RUN_DELETES_
    for (SQLStatement* statement : statements_) {
       delete statement++;
    }
+#endif // __RUN_DELETES_
 
    statements_.clear();
 
    isValid_ = false;
 
+#ifdef __RUN_DELETES_
    delete errorMsg_;
    errorMsg_ = nullptr;
+#endif // __RUN_DELETES_
+
    errorLine_ = -1;
    errorColumn_ = -1;
 }

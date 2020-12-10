@@ -10,8 +10,8 @@
 
 namespace andb {
 
-SysTable* Catalog::systable_ = new SysTable();
-SysStats* Catalog::sysstat_  = new SysStats();
+NEW_SYSTABLE_TYPE();
+NEW_SYSSTATS_TYPE();
 
 static std::vector<std::string> builtinTestTableNames{ "a", "b", "c", "d" };
 
@@ -55,11 +55,13 @@ bool SysTable::CreateTable(std::string*             tabName,
 // Let tables and their columns do their own cleanup.
 void SysTable::dropAllTables()
 {
+#ifdef __RUN_DELETES_
     for (auto t : records_) {
         delete t.second;
     }
 
     records_.clear();
+#endif // __RUN_DELETES_
 }
 
 void Catalog::createOptimizerTestTables()

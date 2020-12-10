@@ -69,9 +69,11 @@ namespace andb
 
         virtual ~Expr()
         {
+#ifdef __RUN_DELETES_
            DEBUG_DEST("Expr", "@@@");
            delete alias_;
            alias_ = nullptr;
+#endif // __RUN_DELETES_
         }
 
         virtual std::string Explain(void* arg = nullptr) const { return {}; }
@@ -170,9 +172,11 @@ namespace andb
 
         virtual ~SelStar()
         {
+#ifdef __RUN_DELETES_
            DEBUG_DEST("SelStar", "@@@");
            delete tabAlias_;
            tabAlias_ = nullptr;
+#endif // __RUN_DELETES_
         }
     };
 
@@ -267,8 +271,9 @@ namespace andb
             return new ColExpr(ordinal_, colname_, tabname_, schname_, columnDef_);
         }
 
-        ~ColExpr()
+        virtual ~ColExpr()
         {
+#ifdef __RUN_DELETES_
            DEBUG_DEST("ColExpr", colname_);
             delete colname_;
             delete tabname_;
@@ -279,6 +284,7 @@ namespace andb
             tabname_ = nullptr;
             schname_ = nullptr;
             columnDef_ = nullptr;
+#endif // __RUN_DELETES_
         }
 
         void Bind(Binder* context) override;
@@ -330,14 +336,16 @@ namespace andb
         }
 
         
-        ~BinExpr()
+        virtual ~BinExpr()
         {
+#ifdef __RUN_DELETES_
            DEBUG_DEST("BinExpr", "@@@");
            delete children_[0];
            delete children_[1];
 
            children_[0] = nullptr;
            children_[1] = nullptr;
+#endif // __RUN_DELETES_
         }
 
         std::string Explain(void* arg = nullptr) const override
@@ -439,6 +447,7 @@ namespace andb
 
         virtual ~TableRef()
         {
+#ifdef __RUN_DELETES_
            DEBUG_DEST("TableRef", columnRefs_.size());
            delete alias_;
            alias_ = nullptr;
@@ -450,6 +459,7 @@ namespace andb
 
            delete tabDef_;
            tabDef_ = nullptr;
+#endif // __RUN_DELETES_
         }
 
         virtual std::string Explain(void* arg = nullptr) const
@@ -503,9 +513,11 @@ namespace andb
 
         virtual ~BaseTableRef()
         {
+#ifdef __RUN_DELETES_
            DEBUG_DEST("BaseTableRef", tabName_);
            delete tabName_;
            tabName_ = nullptr;
+#endif // __RUN_DELETES_
         }
 
         std::string Explain(void* arg = nullptr) const override

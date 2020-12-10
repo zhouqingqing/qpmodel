@@ -109,6 +109,7 @@ void ReleaseMemory(std::vector<std::string*>* str_vec)
             std::string *s = str_vec->at(i);
             delete s;
         }
+        str_vec->clear();
         delete str_vec;
     }
 }

@@ -1,5 +1,7 @@
 #include "parser/include/logicnode.h"
 #include "parser/include/stmt.h"
+#include "runtime/physicnode.h"
+#include "optimizer/optimizer.h"
 
 namespace andb {
 // from clause -
@@ -70,6 +72,46 @@ LogicNode* SelectStmt::CreatePlan ()
         }
     }
 
+    logicPlan_ = root;
+
     return root;
+}
+
+std::string SelectStmt::Explain(void* arg) const
+{
+    std::string ret = "select ";
+    for (int i = 0; i < selection_.size(); ++i) {
+        if (i > 0)
+            ret += ", ";
+        ret += selection_[i]->Explain() + " ";
+    }
+
+    ret += " FROM ";
+    for (int i = 0; i < from_.size(); ++i) {
+        if (i > 0)
+            ret += ", ";
+        ret += from_[i]->Explain();
+    }
+
+    if (where_ != nullptr) {
+        ret += " WHERE ";
+        ret += where_->Explain();
+    }
+
+    /* EXPLAIN on logic plan is not working yet */
+    ret += "\n";
+    if (physicPlan_) {
+        ret += "Physical Plan\n";
+        ret += physicPlan_->Explain(arg);
+    }
+
+    return ret;
+}
+
+PhysicNode* SelectStmt::Optimize()
+{
+    physicPlan_ = andb::Optimize(logicPlan_);
+
+    return physicPlan_;
 }
 }  // namespace andb

@@ -17,7 +17,9 @@ class SystemTable : public UseCurrentResource
 class SysTable : public SystemTable
 {
     public:
-    SysTable() {}
+    SysTable()
+    {
+    }
 
     bool CreateTable(std::string*             tabName,
                      std::vector<ColumnDef*>* columns,

@@ -266,7 +266,9 @@ COMMIT      TOKEN(COMMIT)
 
 \"[^\"\n]+\" {
 	// Crop the leading and trailing quote char
-	yylval->sval = new std::string(andb::substr(yytext, 1, strlen(yytext)-1));
+	char *str = andb::substr(yytext, 1, strlen(yytext)-1);
+	yylval->sval = new std::string(str);
+   delete str;
 #ifdef __DEBUG_PARSER_MEMLEAK
    std::cout << __FILE__ << " " << __LINE__ << " LEX ID " << yylval->sval << " PTR " << (void*)yylval->sval << std::endl;
 #endif

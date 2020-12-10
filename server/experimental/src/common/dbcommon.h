@@ -10,6 +10,8 @@ namespace andb {
     class Expr;
     class SQLStatement;
     class SelectStmt;
+    class TableDef;
+    class Row;
 
     enum ClassTag : uint8_t {
         UnInitialized_,
@@ -130,6 +132,13 @@ namespace andb {
             }
     };
 
+    class Distribution
+    {
+        public:
+        TableDef*         tableDef_;
+        std::vector<Row*> heap_;
+    };
+
     class ColumnDef : public UseCurrentResource {
         public:
             ClassTag    classTag_;
@@ -154,10 +163,13 @@ namespace andb {
                 DEBUG_CONS("ColumnDef", isCloned_);
             }
 
-            ~ColumnDef() {
+            virtual ~ColumnDef()
+            {
+#ifdef __RUN_DELETES_
                 DEBUG_DEST("ColumnDef", isCloned_);
                 delete name_;
                 name_ = nullptr;
+#endif // __RUN_DELETES_
             }
 
             ColumnDef* Clone ()
@@ -170,18 +182,39 @@ namespace andb {
 
     class TableDef : public UseCurrentResource {
         public:
+        enum TableSource
+        {
+            Table,
+            Stream
+        };
+
+        enum DistributionMethod
+        {
+            NonDistributed,
+            Distributed,
+            Replicated,
+            Roundrobin
+        };
             ClassTag    classTag_;
             std::string *name_;
             std::map<std::string*, ColumnDef*, CaselessStringPtrCmp> *columns_;
             bool        quoted_;
             int         tableId_;   // take over table lookup
             bool isCloned_;
+            TableSource source_;
+            DistributionMethod distMethod_;
 
-            TableDef(std::string *name, std::vector<ColumnDef *>& columns, bool isClone = false)
+            TableDef(std::string*             name,
+                     std::vector<ColumnDef*>& columns,
+                     bool                     isClone = false,
+                     TableSource              source = Table,
+                     DistributionMethod       distMethod = NonDistributed)
               : classTag_(TableDef_)
               , name_(DBG_NEW std::string(*name))
               , quoted_(false)
               , isCloned_(isClone)
+              , source_(source)
+              , distMethod_(distMethod)
             {
                 DEBUG_CONS("TableDef", isCloned_);
                 columns_ = DBG_NEW std::map<std::string*, ColumnDef*, CaselessStringPtrCmp>();
@@ -189,13 +222,16 @@ namespace andb {
                 for (auto c : columns) {
                     ColumnDef* cdef = c->Clone ();
                     auto [it, added] = columns_->insert (std::make_pair(c->name_, cdef));
-                    if (!added) throw SemanticAnalyzeException("Duplicate Column Definition: " + *c->name_);
+                    if (!added)
+                       throw SemanticAnalyzeException("Duplicate Column Definition: " + *c->name_);
                 }
 
                 tableId_ = -1;
             }
 
-            ~TableDef() {
+            virtual ~TableDef()
+            {
+#ifdef __RUN_DELETES_
                 DEBUG_DEST("TableDef", isCloned_);
                 if (columns_) {
                     for (auto c : *columns_) {
@@ -207,6 +243,7 @@ namespace andb {
                 }
                 delete name_;
                 name_ = nullptr;
+#endif // __RUN_DELETES_
             }
 
             ColumnDef* GetColumnDef(std::string* colName)

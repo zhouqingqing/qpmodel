@@ -154,7 +154,7 @@ class RuntimeNodeT : public UseCurrentResource {
         : ((NodeBase<T, NDynamic>*)this)->template _fn<_T1> (__VA_ARGS__)
 
     // NodeBase will callback RuntimeNodeT for runtime dispatch
-    template <class T, NChildren NC>
+    template <class T1, NChildren NC>
     friend class NodeBase;
 
     template <TraOrder Order = TraOrder::PreOrder, typename Fn>
