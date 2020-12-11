@@ -634,10 +634,31 @@ namespace qpmodel.logic
 
         LogicNode cteToAnchor(LogicNode root)
         {
+
+            // find the cte whitch is not used
+            // consider "with cte0 as (select * from a),cte1 as (select * from cte0) select * from a
+            // although cte0 is used in cte1 , but cte1 is never used, so we have to delete cte1 too 
+            //
+            Stack<int> scie = new Stack<int>(); // save cteId
+
+            findCteConsumerInParent(root, ref scie);
+            foreach (var subq in subQueries_)
+            {
+                findCteConsumerInParent(subq.query_.logicPlan_, ref scie);
+            }
+            while (scie.Count() > 0)
+            {
+                var cteId = scie.Pop();
+                var ctePlan = cteInfo_.GetCteInfoEntryByCteId(cteId).plan_;
+                findCteConsumerInParent(ctePlan, ref scie);
+            }
+            // remove not used cte
+            var cteIsUsed = ctes_;
+            cteIsUsed.RemoveAll(x => !cteInfo_.GetCteInfoEntryByCteId(x.cteId_).IsUsed());
+
             for (int i = 0; i < ctes_.Count; i++)
             {
-                CteExpr cteProducer = ctes_[i];
-                var lca = new LogicCteAnchor(cteProducer.cteId_);
+                var lca = new LogicCteAnchor(ctes_[i].cteId_);
                 lca.children_.Add(root);
                 root = lca;
             }
@@ -967,31 +988,16 @@ namespace qpmodel.logic
         //
         public int refTimes = 0;
 
-        public CteExpr exprCteProducer_;
+        public CteExpr cte_;
 
         public LogicNode plan_;
 
-        public CteInfoEntry(CteExpr exprCteProducer, SQLStatement stmt)
+        public CteInfoEntry(CteExpr exprCteProducer, LogicNode plan)
         {
             Debug.Assert(exprCteProducer != null);
-            exprCteProducer_ = exprCteProducer;
-            var alias = exprCteProducer_.cteName_;
-
-            // refer bindFrom
-            var from = new CTEQueryRef(exprCteProducer_, alias);
-
-            //SelectStmt cteStmt = new SelectStmt(new List<Expr>() { new SelStar("") }
-            //, new List<TableRef>() { from }, 
-            //null, null, null,
-            //new List<CteExpr>() { exprCteProducer }, null, null, null, "select * from");
-
-            //// refer bindTableRef
-            //Debug.Assert(from.query_.bindContext_ is null);
-            //// TODO it will be a little better bind after we exclude not used cte
-            //from.query_.Bind(new BindContext(stmt, null));
-            //// we dont neet the tabel ref
-
-            //plan_ = from.query_.CreatePlan();
+            cte_ = exprCteProducer;
+            var alias = cte_.cteName_;
+            plan_ = plan;
             isUsed_ = false;
             isInlined_ = false;
         }
@@ -1031,12 +1037,32 @@ namespace qpmodel.logic
             return cteInfoEntry;
         }
 
+        public List<CteInfoEntry> GetAllCteInfoEntries()
+        {
+            var cieList = new List<CteInfoEntry>();
+            foreach (var kv in CteIdToCteInfoEntry_)
+            {
+                cieList.Add(kv.Value);
+            }
+            return cieList;
+        }
+        public List<CteExpr> GetAllCteExprs()
+        {
+            var ceList = new List<CteExpr>();
+            foreach (var v in GetAllCteInfoEntries())
+            {
+                ceList.Add(v.cte_);
+            }
+            return ceList;
+        }
+
         public void SetCetInfoEntryByCteId(int cteId, CteInfoEntry cie) => CteIdToCteInfoEntry_[cteId] = cie;
-        public void addCteProducer(int cteId, CteExpr cteExpr, SQLStatement stmt)
+
+        public void addCteProducer(int cteId, CteInfoEntry cie)
         {
             Debug.Assert(cteId >= 0);
-            Debug.Assert(cteExpr != null);
-            CteIdToCteInfoEntry_.Add(cteId, new CteInfoEntry(cteExpr, stmt));
+            Debug.Assert(cie != null);
+            CteIdToCteInfoEntry_.Add(cteId, cie);
             cteCount_++;
         }
 
@@ -1068,11 +1094,13 @@ namespace qpmodel.logic
 
         public CteExpr cteExpr_;
 
+        public CteInfoEntry cteInfo_;
+
         // Cte Consumer has no child
-        public LogicCteConsumer(int cteId, CteExpr cteExpr)
+        public LogicCteConsumer(CteInfoEntry cteInfo)
         {
-            cteId_ = cteId;
-            cteExpr_ = cteExpr;
+            cteId_ = cteInfo.cte_.cteId_;
+            cteInfo_ = cteInfo;
         }
         public override string ExplainInlineDetails() => "LogicCTEConsumer";
     }
@@ -1081,6 +1109,7 @@ namespace qpmodel.logic
     {
         // represent the id of CTE, it should match the related CteProducer
         public int cteId_ = -1;
+
         public override string ToString() => $"CteAnchor({cteId_})";
 
         // Cte Consumer has no child
@@ -1094,6 +1123,37 @@ namespace qpmodel.logic
         {
             return GetType().GetHashCode() ^ children_.ListHashCode() ^ cteId_.GetHashCode();
         }
+    }
+
+    public class PhysicCteConsumer : PhysicNode
+    {
+
+        internal List<Row> heap_ = new List<Row>();
+
+        bool isInlined = true;
+        public PhysicCteConsumer(LogicNode logic, PhysicNode child) : base(logic)
+        {
+            children_.Add(child);
+        }
+        public override void Exec(Action<Row> callback)
+        {
+            ExecContext context = context_;
+            var logic = logic_ as LogicCteProducer;
+
+            child_().Exec(r =>
+            {
+                if (context.option_.optimize_.use_codegen_)
+                {
+                    context.code_ += $@"";
+                }
+                else
+                {
+                    // cache the results
+                    heap_.Add(r);
+                }
+            });
+        }
+
     }
 
     public class PhysicCteProducer : PhysicNode

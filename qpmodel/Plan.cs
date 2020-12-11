@@ -220,12 +220,6 @@ namespace qpmodel.logic
                 if (output != null)
                     r += Utils.Spaces(depth + 2) + output + "\n";
 
-                if (this is PhysicFromQuery pfq)
-                {
-                    if (pfq.IsCteConsumer())
-                        return r;
-                }
-
                 if (details != null)
                 {
                     // remove the last \n in case the details is a subquery
@@ -351,7 +345,25 @@ namespace qpmodel.logic
                         from = new LogicScanFile(eref);
                         break;
                     case CTEQueryRef cref:
-                        from = new LogicCteConsumer(cref.cte_.cteId_, cref.cte_);
+                        if (this is CteSelectStmt css && css.CteId() == cref.cte_.cteId_)
+                        {
+                            cref.query_.cteInfo_ = cteInfo_;
+                            var ctePlan = cref.query_.CreatePlan();
+                            string alias = null;
+                            NamedQuery key;
+
+                            alias = cref.alias_;
+                            key = new NamedQuery(cref.query_, alias, NamedQuery.QueryType.FROM);
+
+                            from = new LogicFromQuery(cref, ctePlan);
+                            subQueries_.Add(key);
+                            if (!fromQueries_.ContainsKey(key))
+                                fromQueries_.Add(key, from as LogicFromQuery);
+                        }
+                        else
+                        {
+                            from = new LogicCteConsumer(cteInfo_.GetCteInfoEntryByCteId(cref.cte_.cteId_));
+                        }
                         break;
                     case FromQueryRef qref:
                         var plan = qref.query_.CreatePlan();
@@ -620,7 +632,7 @@ namespace qpmodel.logic
                 root = new LogicLimit(root, limit_);
 
             // ctes
-            if (ctes_ != null)
+            if (ctes_ != null && !(this is CteSelectStmt))
                 root = cteToAnchor(root);
 
 
@@ -1031,4 +1043,21 @@ namespace qpmodel.logic
             return newlist;
         }
     }
+
+    public class CteSelectStmt : SelectStmt
+    {
+        private CteExpr originCte_;
+        public int CteId() => originCte_.cteId_;
+        // we have to constract a CteSelection
+        // select * from cte
+        public CteSelectStmt(CteExpr originCte, CTEQueryRef from, List<CteExpr> previousCtes) : base(
+                    new List<Expr>() { new SelStar(originCte.cteName_) },
+                    new List<TableRef>() { from },
+                    null, null, null,
+                    previousCtes, null, null, null, $"select * from {originCte.cteName_}")
+        {
+            originCte_ = originCte;
+        }
+    }
+
 }

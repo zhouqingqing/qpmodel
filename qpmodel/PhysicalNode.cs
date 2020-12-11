@@ -169,7 +169,7 @@ namespace qpmodel.physic
 
             // CTE has been cached, so there is no need to cal its cost
             //
-            if (this is PhysicFromQuery pfq && pfq.IsCteConsumer())
+            if (this is PhysicFromQuery pfq)
                 return incCost;
 
             children_.ForEach(x =>
@@ -1550,7 +1550,8 @@ namespace qpmodel.physic
     {
         List<Row> cteCache_ = null;
 
-        public bool IsCteConsumer() => (logic_ as LogicFromQuery).IsCteConsumer();
+        public bool setAsInlineCte() => IsInlineCte = true;
+        public bool IsInlineCte { get; private set; } = false;
 
         public override string ToString() => $"PFrom({(logic_ as LogicFromQuery)}: {Cost()})";
 

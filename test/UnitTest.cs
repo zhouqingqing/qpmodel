@@ -3110,27 +3110,48 @@ namespace qpmodel.unittest
             // costbase cte optimizer have to use memo
             //
             QueryOption option = new QueryOption();
-            option.optimize_.use_memo_ = true;
+            option.optimize_.use_memo_ = false;
             option.optimize_.enable_cte_plan_ = true;
-            var cte_plan = option.optimize_.enable_cte_plan_;
             var phyplan = "";
 
-            // delete all unused cte include cte referd in cte
+            var sql = "select sum(a1) from (select sum(a1), a2 from (select sum(a1), a2 from a group by a2)b(a1, a2) group by a2)c(a1, a2) group by a1;";
+            TU.ExecuteSQL(sql, "0;1;2");
+
+            // select two columns at second level
+            sql = "select sum(a1) from(select sum(a1), a2 from(select sum(a1), a2 from a group by a2)b(a1, a2) group by a2)c(a1, a2) group by a1;";
+            TU.ExecuteSQL(sql, "0;1;2");
+
+            // group by at top level on un-aggregated (not aggregate function argument) column reference
+            sql = "select sum(a1), a2 from(select sum(a1), a2 from (select sum(a1), a2 from a group by a2)b(a1, a2) group by a2)c(a1, a2) group by a1, a2;";
+            TU.ExecuteSQL(sql, "0,1;1,2;2,3");
+
+            // same as above but at top level an column expression selection and gouping only on column
+            sql = "select sum(a1), a2 + 5 from(select sum(a1), a2 from (select sum(a1), a2 from a group by a2)b(a1, a2) group by a2)c(a1, a2) group by a1, a2";
+            TU.ExecuteSQL(sql, "0,6;1,7;2,8");
+
+            sql = "select a1 from (select * from a)b";
+            TU.ExecuteSQL(sql, "0;1;2");
+
+            // delete all unused cte include a CTE refer the other CTEs
             // like the cte0 in cte1 
             //
-            var sql = "with cte0 as (select * from a),cte1 as (select * from cte0) select * from b where b.b1 = 2";
+            sql = "with cte0 as (select * from a),cte1 as (select * from cte0) select * from b where b.b1 = 2";
             TU.ExecuteSQL(sql, "2,3,4,5", out phyplan, option);
             var answer = @"PhysicScanTable b (actual rows=1)
                             Output: b.b1[0],b.b2[1],b.b3[2],b.b4[3]
                             Filter: b.b1[0]=2";
             TU.PlanAssertEqual(answer, phyplan);
 
-            // inline Cte only use one time
+            // inline cte only use one time
             sql = "with cte0 as (select * from a) select * from cte0 where cte0.a1 = 2";
             TU.ExecuteSQL(sql, "2,3,4,5", out phyplan, option);
-            answer = @"PhysicScanTable b (actual rows=1)
-                            Output: b.b1[0],b.b2[1],b.b3[2],b.b4[3]
-                            Filter: b.b1[0]=2";
+            answer = @"PhysicFilter  (actual rows=1)
+                        Output: cte0.a1[0],cte0.a2[1],cte0.a3[2],cte0.a4[3]
+                        Filter: cte0.a1[0]=2
+                        -> PhysicFromQuery <cte0> (actual rows=3)
+                            Output: cte0.a1[0],cte0.a2[1],cte0.a3[2],cte0.a4[3]                      
+                            -> PhysicScanTable a (actual rows=3)
+                                Output: a.a1[0],a.a2[1],a.a3[2],a.a4[3]";
             TU.PlanAssertEqual(answer, phyplan);
 
 

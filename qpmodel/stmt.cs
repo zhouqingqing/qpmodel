@@ -56,6 +56,7 @@ namespace qpmodel.logic
 
         public CteInfo cteInfo_ = new CteInfo();
 
+
         // mark if current plan is distirbuted: it does not include children plan
         internal bool distributed_ = false;
 
@@ -88,14 +89,43 @@ namespace qpmodel.logic
                 return new ExecContext(queryOpt_);
         }
 
+        // we have to see each cte as selection
+        // bind it and create plan for it, as we may need the plan for LogicSequence
+        //
         public void initCteInfo()
         {
             var ss = this as SelectStmt;
+            // ensure this is select instead of other SQLStatment
             if (ss != null && ss.ctes_ != null && ss.ctes_.Count() > 0)
             {
-                foreach (var cte in ss.ctes_)
+                // expand current cte and other referd cte as consumer.
+                // 
+                foreach (var curCte in ss.ctes_)
                 {
-                    cteInfo_.addCteProducer(cte.cteId_, cte, this);
+                    // refer bindFrom
+                    var from = new CTEQueryRef(curCte, curCte.cteName_);
+
+                    var selection = new SelStar(curCte.cteName_);
+
+                    // lattar cte will refer to prvious ctes
+                    // consider 
+                    // with cte0 as (select * from a),cte1 as (select * from cte0) select * from cte1
+                    List<CteExpr> previousCtes = cteInfo_.GetAllCteExprs();
+
+                    // prevoious ctes have smaller cteId
+                    Debug.Assert(previousCtes.All(x => x.cteId_ < curCte.cteId_));
+
+                    SelectStmt cieStmt = new CteSelectStmt(curCte, from, previousCtes);
+
+                    cieStmt.cteInfo_ = cteInfo_;
+
+                    // we should add previous cte to the context
+                    cieStmt.Bind(null);
+
+                    var cteSelectionPlan = cieStmt.CreateSinglePlan();
+                    CteInfoEntry cie = new CteInfoEntry(curCte, cteSelectionPlan);
+
+                    cteInfo_.addCteProducer(curCte.cteId_, cie);
                 }
             }
         }

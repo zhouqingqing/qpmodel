@@ -132,6 +132,11 @@ namespace qpmodel.logic
         {
             PhysicNode result;
             PhysicNode phyfirst = null;
+
+            // inline CTE
+            if (this is LogicCteConsumer lcc)
+                lcc.children_.Insert(0, lcc.cteInfo_.plan_);
+
             if (children_.Count != 0)
                 phyfirst = children_[0].DirectToPhysical(option);
 
@@ -233,6 +238,21 @@ namespace qpmodel.logic
                     break;
                 case LogicSampleScan ss:
                     result = new PhysicSampleScan(ss, phyfirst);
+                    break;
+                case LogicCteConsumer lcc2:
+                    if (option.profile_.enabled_)
+                        result = phyfirst.child_();
+                    else
+                        result = phyfirst;
+                    Debug.Assert(result is PhysicFromQuery);
+                    if (result is PhysicFromQuery rpfq)
+                    {
+                        rpfq.setAsInlineCte();
+                        result = rpfq;
+                    }
+                    break;
+                case LogicCteAnchor lca:
+                    result = phyfirst;
                     break;
                 default:
                     throw new NotImplementedException();
@@ -1365,9 +1385,9 @@ namespace qpmodel.logic
             else
                 str = queryRef_.alias_;
             return $"<{str}>";
-    }
+        }
 
-public bool IsCteConsumer(out CTEQueryRef qref)
+        public bool IsCteConsumer(out CTEQueryRef qref)
         {
             qref = null;
             if (queryRef_ is CTEQueryRef cq)
@@ -1378,7 +1398,7 @@ public bool IsCteConsumer(out CTEQueryRef qref)
             return false;
         }
 
-        public bool  IsCteConsumer() => queryRef_ is CTEQueryRef;
+        public bool IsCteConsumer() => queryRef_ is CTEQueryRef;
         public LogicFromQuery(QueryRef query, LogicNode child) { queryRef_ = query; children_.Add(child); }
 
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
