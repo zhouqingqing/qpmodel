@@ -102,6 +102,8 @@ namespace andb {
 
             std::string ToString()
             {
+                static std::string udt{"Unknown data type"};
+
                 switch (type_)
                 {
                     case andb::SQLType::SQL_TYPE_NONE:
@@ -129,6 +131,10 @@ namespace andb {
                     default:
                         break;
                 }
+
+                assert(!udt.size());
+
+                return udt;
             }
     };
 
@@ -212,6 +218,7 @@ namespace andb {
               : classTag_(TableDef_)
               , name_(DBG_NEW std::string(*name))
               , quoted_(false)
+              , tableId_(-1)
               , isCloned_(isClone)
               , source_(source)
               , distMethod_(distMethod)
@@ -225,8 +232,6 @@ namespace andb {
                     if (!added)
                        throw SemanticAnalyzeException("Duplicate Column Definition: " + *c->name_);
                 }
-
-                tableId_ = -1;
             }
 
             virtual ~TableDef()

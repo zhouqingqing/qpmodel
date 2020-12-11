@@ -3,7 +3,7 @@
 #include <utility>
 #include <map>
 
-#include "common/Statistics.h"
+#include "common/statistics.h"
 #include "common/common.h"
 #include "common/dbcommon.h"
 

@@ -3,7 +3,7 @@
 #include "parser/include/expr.h"
 #include "parser/include/logicnode.h"
 #include "parser/include/stmt.h"
-#include "parser/include/SQLParserResult.h"
+#include "parser/include/sqlparserresult.h"
 
 namespace andb {
 extern SQLStatement* Parse (char* query);

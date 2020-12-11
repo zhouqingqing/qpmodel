@@ -1,4 +1,3 @@
-#include "optimizer/binder.h"
 
 #include <iostream>
 #include <new>
@@ -9,11 +8,12 @@
 #include "common/common.h"
 #include "common/dbcommon.h"
 #include "optimizer/optimizer.h"
-#include "parser/include/SQLParserResult.h"
+#include "parser/include/sqlparserresult.h"
 #include "parser/include/expr.h"
 #include "parser/include/parser.h"
 #include "parser/include/stmt.h"
 #include "runtime/runtime.h"
+#include "optimizer/binder.h"
 
 namespace andb
 {

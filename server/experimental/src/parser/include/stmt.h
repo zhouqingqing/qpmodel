@@ -146,13 +146,8 @@ class SelectStmt : public SQLStatement
     LogicNode   *CreatePlan() override;
     PhysicNode  *Optimize(void) override;
     bool Open() override;
-    
     std::vector<Row> Exec() override;
-    
-    bool             Close() override
-    {
-        return true;
-    }
+    bool Close() override;
 
     void setSelections(std::vector<Expr*>* sels)
     {
