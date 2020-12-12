@@ -5,6 +5,7 @@
 #include <map>
 
 #include "common.h"
+#include "runtime/datum.h"
 
 namespace andb {
     class Expr;
@@ -142,6 +143,10 @@ namespace andb {
     {
         public:
         TableDef*         tableDef_;
+        Distribution(TableDef *td = 0)
+            : tableDef_(td)
+        {}
+
         std::vector<Row*> heap_;
     };
 
@@ -209,6 +214,7 @@ namespace andb {
             bool isCloned_;
             TableSource source_;
             DistributionMethod distMethod_;
+            std::vector<Distribution> distributions_;
 
             TableDef(std::string*             name,
                      std::vector<ColumnDef*>& columns,
@@ -232,6 +238,8 @@ namespace andb {
                     if (!added)
                        throw SemanticAnalyzeException("Duplicate Column Definition: " + *c->name_);
                 }
+
+                distributions_.emplace_back(static_cast<TableDef*>(this));
             }
 
             virtual ~TableDef()
@@ -284,5 +292,15 @@ namespace andb {
 
                 return size;
             }
+
+           void insertRows(std::vector<Row*>& rows)
+           {
+               auto &hr = distributions_[0].heap_;
+
+               for (int i = 0; i < rows.size(); ++i) {
+                   Row* nr = new Row(rows[i]);
+                   hr.emplace_back(nr);
+               }
+           }
     };
 }  // namespace andb

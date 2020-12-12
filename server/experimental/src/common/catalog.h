@@ -41,6 +41,7 @@ class Catalog : public UseCurrentResource
     {
         createOptimizerTestTables();
         createBuiltInTestTables();
+        populateOptimizerTestTables();
     }
 
     static void DeInit()
@@ -50,6 +51,11 @@ class Catalog : public UseCurrentResource
 
     static void createOptimizerTestTables();
     static void createBuiltInTestTables();
+
+    // TEMP: populate test tables "by hand" so that some tests
+    // can be run
+    static void populateOptimizerTestTables();
+	static void populateOneTable(const std :: string & tblName, const std :: vector < Row * > & rows);
     static int  Next();
 
     static RandomDevice rand_;
