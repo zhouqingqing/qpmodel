@@ -67,10 +67,10 @@ public:
         // we can simply use child(i) for all cases
         if constexpr (NC != NDynamic) {
             int n = childrenCount ();
-            for (int i = 0; i < n; i++) child (i)->deepVisit<Order> (callback);
+            for (int i = 0; i < n; i++) child (i)->template deepVisit<Order> (callback);
         } else {
             for (auto v : this->children_) {
-                v->deepVisit<Order> (callback);
+                v->template deepVisit<Order> (callback);
             }
         }
         if (Order == TraOrder::PostOrder) callback ((T*)this);
@@ -154,7 +154,7 @@ class RuntimeNodeT : public UseCurrentResource {
         : ((NodeBase<T, NDynamic>*)this)->template _fn<_T1> (__VA_ARGS__)
 
     // NodeBase will callback RuntimeNodeT for runtime dispatch
-    template <class T, NChildren NC>
+    template <class T1, NChildren NC>
     friend class NodeBase;
 
     template <TraOrder Order = TraOrder::PreOrder, typename Fn>

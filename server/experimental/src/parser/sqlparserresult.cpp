@@ -1,8 +1,9 @@
 #include  <algorithm>
 
+#include "common/platform.h"
 #include "parser/include/expr.h"
 #include "parser/include/stmt.h"
-#include "parser/include/SQLParserResult.h"
+#include "parser/include/sqlparserresult.h"
 
 namespace andb {
 
@@ -67,7 +68,7 @@ void SQLParserResult::setIsValid(bool isValid) {
 }
 
 void SQLParserResult::setErrorDetails(const char* errorMsg, int errorLine, int errorColumn) {
-   errorMsg_ = new char[strlen(errorMsg) + 1];
+   errorMsg_ = DBG_NEW char[strlen(errorMsg) + 1];
    strcpy ((char *)errorMsg_, errorMsg);
    errorLine_ = errorLine;
    errorColumn_ = errorColumn;
@@ -85,17 +86,23 @@ std::vector<SQLStatement*> SQLParserResult::releaseStatements() {
    return copy;
 }
 
-void SQLParserResult::reset() {
+void SQLParserResult::reset()
+{
+#ifdef __RUN_DELETES_
    for (SQLStatement* statement : statements_) {
-      delete statement;
+      delete statement++;
    }
+#endif // __RUN_DELETES_
 
    statements_.clear();
 
    isValid_ = false;
 
+#ifdef __RUN_DELETES_
    delete errorMsg_;
    errorMsg_ = nullptr;
+#endif // __RUN_DELETES_
+
    errorLine_ = -1;
    errorColumn_ = -1;
 }

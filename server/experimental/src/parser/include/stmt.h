@@ -8,12 +8,15 @@
 #include "common/common.h"
 #include "common/dbcommon.h"
 #include "optimizer/binder.h"
+#include "runtime/datum.h"
 
 namespace andb {
 
 class Expr;
 class LogicNode;
+class PhysicNode;
 class Binder;
+class ExecContext;
 
 class SQLStatement : public UseCurrentResource
 {
@@ -43,9 +46,38 @@ class SQLStatement : public UseCurrentResource
       : stringLength(0)
       , hints(nullptr)
       , type_(kStmtError)
-    {}
+      , context(nullptr)
+      , logicPlan_(nullptr)
+      , physicPlan_(nullptr)
+      , queryOpts_(nullptr)
+      , execContext_(nullptr)
+    {
+        DEBUG_CONS("SQLStatement", "def");
+    }
 
-    virtual ~SQLStatement() {}
+    virtual ~SQLStatement()
+    {
+#ifdef __RUN_DELETES_
+        DEBUG_DEST("SQLStatement", "@@@");
+
+        if (hints) {
+            for (auto h : *hints) {
+                delete h++;
+            }
+            hints->clear();
+            delete hints;
+            hints = 0;
+        }
+
+        delete logicPlan_;
+        delete physicPlan_;
+        delete queryOpts_;
+
+        logicPlan_  = nullptr;
+        physicPlan_ = nullptr;
+        queryOpts_  = nullptr;
+#endif // __RUN_DELETES_
+    }
 
     virtual void Bind(Binder* binder) {}
 
@@ -56,18 +88,32 @@ class SQLStatement : public UseCurrentResource
     // Shorthand for isType(type).
     bool is(StatementType type) const;
 
+    virtual bool Open() = 0;
+    // How about the traditional Prepare(), Exec(), Fetch(), Close()?
+    // Excecute the statement.
+    // If it is a SELECT, then rows will have the result set, if there is one.
+    virtual std::vector<Row> Exec() = 0;
+    virtual bool             Close() = 0;
+    virtual LogicNode  *CreatePlan(void)                   = 0;
+    virtual PhysicNode *Optimize(void)                     = 0;
+    virtual std::string Explain(void* arg = nullptr) const = 0;
+
     // Length of the string in the SQL query string
     size_t stringLength;
 
     std::vector<Expr*>* hints;
 
-    private:
+
     StatementType type_;
     // END HYRISE
 
-    public:
-    virtual LogicNode*  CreatePlan(void)                   = 0;
-    virtual std::string Explain(void* arg = nullptr) const = 0;
+        LogicNode*    logicPlan_;
+    PhysicNode*   physicPlan_;
+    QueryOptions* queryOpts_;
+    ExecContext*  execContext_;
+
+    Binder*       context;
+
 };
 
 class SelectStmt : public SQLStatement
@@ -75,10 +121,33 @@ class SelectStmt : public SQLStatement
     public:
     SelectStmt()
       : SQLStatement()
-    {}
+    {
+        DEBUG_CONS("SelectStmt", "def");
+    }
 
-    ~SelectStmt()
-    {}
+    virtual ~SelectStmt()
+    {
+#ifdef __RUN_DELETES_
+        DEBUG_DEST("SelectStmt", "def");
+
+        for (auto s : selection_) {
+            delete s++;
+        }
+        selection_.clear();
+
+        for (auto f : from_) {
+            delete f++;
+        }
+        from_.clear();
+#endif // __RUN_DELETES_
+    }
+
+    std::string Explain(void* arg = nullptr) const override;
+    LogicNode   *CreatePlan() override;
+    PhysicNode  *Optimize(void) override;
+    bool Open() override;
+    std::vector<Row> Exec() override;
+    bool Close() override;
 
     void setSelections(std::vector<Expr*>* sels)
     {
@@ -106,30 +175,6 @@ class SelectStmt : public SQLStatement
             TableRef* nt = tv[i]->Clone();
             from_.push_back(nt);
         }
-    }
-
-    std::string Explain(void* arg = nullptr) const override
-    {
-        std::string ret = "select ";
-        for (int i = 0; i < selection_.size(); ++i) {
-            if (i > 0)
-                ret += ", ";
-            ret += selection_[i]->Explain() + " ";
-        }
-
-        ret += " FROM ";
-        for (int i = 0; i < from_.size(); ++i) {
-            if (i > 0)
-                ret += ", ";
-            ret += from_[i]->Explain();
-        }
-
-        if (where_ != nullptr) {
-            ret += " WHERE ";
-            ret += where_->Explain() + ";";
-        }
-
-        return ret;
     }
 
     void Bind(Binder* binder) override
@@ -161,9 +206,6 @@ class SelectStmt : public SQLStatement
 
     private:
     LogicNode* transformFromClause();
-
-    public:
-    LogicNode* CreatePlan() override;
 };
 
 //

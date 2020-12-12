@@ -1,7 +1,7 @@
 #pragma once
 
-#include "runtime/PhysicNode.h"
-#include "parser/include/LogicNode.h"
+#include "runtime/physicnode.h"
+#include "parser/include/logicnode.h"
 
 namespace andb {
 enum OptimizeOption {
