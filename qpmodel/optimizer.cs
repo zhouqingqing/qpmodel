@@ -29,6 +29,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
+using System.Diagnostics.Contracts;
 
 using qpmodel.logic;
 using qpmodel.physic;
@@ -486,7 +487,7 @@ namespace qpmodel.optimizer
 
         public CMemoGroup(Memo memo, int groupid, LogicNode subtree)
         {
-            Debug.Assert(!(subtree is LogicMemoRef));
+            Contract.Requires(!(subtree is LogicMemoRef));
             memo_ = memo;
             memoid_ = groupid;
             explored_ = false;
@@ -527,7 +528,7 @@ namespace qpmodel.optimizer
                 logic.children_ = children;
             }
 
-            Debug.Assert(!(logic is LogicMemoRef));
+            Contract.Ensures(!(logic is LogicMemoRef));
             return logic;
         }
 
@@ -881,7 +882,7 @@ namespace qpmodel.optimizer
 
         CMemoGroup doEnquePlan(LogicNode plan)
         {
-            Debug.Assert(!(plan is LogicMemoRef));
+            Contract.Requires(!(plan is LogicMemoRef));
 
             // bottom up equeue all nodes
             if (!plan.IsLeaf())
@@ -1095,7 +1096,7 @@ namespace qpmodel.optimizer
             var select = stmt as SelectStmt;
 
             // retrieve the lowest cost plan
-            Debug.Assert(stmt.physicPlan_ is null);
+            Contract.Assume(stmt.physicPlan_ is null);
             stmt.physicPlan_ = memo.rootgroup_.CopyOutMinLogicPhysicPlan(memo.rootProperty_);
             stmt.logicPlan_ = stmt.physicPlan_.logic_;
 
