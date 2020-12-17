@@ -38,6 +38,11 @@ public:
         classTag_ = LogicScan_;
         targetcnt_ = targetcnt;
     }
+
+    BaseTableRef* getBaseTableRef()
+    {
+        return tableref_;
+    }
 };
 
 class LogicJoin : public NodeBase<LogicNode, N2> {

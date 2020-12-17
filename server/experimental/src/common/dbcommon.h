@@ -139,18 +139,8 @@ namespace andb {
             }
     };
 
-    class Distribution
+    class ColumnDef : public UseCurrentResource
     {
-        public:
-        TableDef*         tableDef_;
-        Distribution(TableDef *td = 0)
-            : tableDef_(td)
-        {}
-
-        std::vector<Row*> heap_;
-    };
-
-    class ColumnDef : public UseCurrentResource {
         public:
             ClassTag    classTag_;
             std::string *name_;
@@ -191,7 +181,19 @@ namespace andb {
             }
     };
 
-    class TableDef : public UseCurrentResource {
+    class Distribution
+    {
+        public:
+        TableDef* tableDef_;
+        Distribution(TableDef* td = 0)
+          : tableDef_(td)
+        {}
+
+        std::vector<Row*> heap_;
+    };
+
+    class TableDef : public UseCurrentResource
+    {
         public:
         enum TableSource
         {

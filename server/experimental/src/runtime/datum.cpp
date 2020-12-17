@@ -25,7 +25,7 @@ std::string Datum::ToString () const {
                     s = std::get<std::string> (d);
                 else if constexpr (std::is_same_v<T, bool>) {
                     bool bv = std::get<bool> (d);
-                    s = bv ? " TRUE " : " FALSE ";
+                    s = bv ? "true" : "false";
                 }
                 else if constexpr (std::is_same_v<T, NullFlag>)
                     s = "<null>";
