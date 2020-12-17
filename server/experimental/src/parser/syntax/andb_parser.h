@@ -1,8 +1,9 @@
-/* A Bison parser, made by GNU Bison 3.0.4.  */
+/* A Bison parser, made by GNU Bison 3.7.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2020 Free Software Foundation,
+   Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +31,10 @@
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
+/* DO NOT RELY ON FEATURES THAT ARE NOT DOCUMENTED in the manual,
+   especially those whose name start with YY_ or yy_.  They are
+   private implementation details that can be changed or removed.  */
+
 using namespace andb;
 
 
@@ -52,7 +57,6 @@ extern int andb_debug;
 #endif
 /* "%code requires" blocks.  */
 
-
 // %code requires block
 
 
@@ -73,170 +77,172 @@ extern int andb_debug;
 		}
 
 
-
-/* Token type.  */
+/* Token kinds.  */
 #ifndef ANDB_TOKENTYPE
 # define ANDB_TOKENTYPE
   enum andb_tokentype
   {
-    SQL_IDENTIFIER = 258,
-    SQL_STRING = 259,
-    SQL_FLOATVAL = 260,
-    SQL_INTVAL = 261,
-    SQL_DEALLOCATE = 262,
-    SQL_PARAMETERS = 263,
-    SQL_INTERSECT = 264,
-    SQL_TEMPORARY = 265,
-    SQL_TIMESTAMP = 266,
-    SQL_DISTINCT = 267,
-    SQL_NVARCHAR = 268,
-    SQL_RESTRICT = 269,
-    SQL_TRUNCATE = 270,
-    SQL_ANALYZE = 271,
-    SQL_BETWEEN = 272,
-    SQL_CASCADE = 273,
-    SQL_COLUMNS = 274,
-    SQL_CONTROL = 275,
-    SQL_DEFAULT = 276,
-    SQL_EXECUTE = 277,
-    SQL_EXPLAIN = 278,
-    SQL_INTEGER = 279,
-    SQL_NATURAL = 280,
-    SQL_PREPARE = 281,
-    SQL_PRIMARY = 282,
-    SQL_SCHEMAS = 283,
-    SQL_SPATIAL = 284,
-    SQL_VARCHAR = 285,
-    SQL_VIRTUAL = 286,
-    SQL_DESCRIBE = 287,
-    SQL_BEFORE = 288,
-    SQL_COLUMN = 289,
-    SQL_CREATE = 290,
-    SQL_DELETE = 291,
-    SQL_DIRECT = 292,
-    SQL_DOUBLE = 293,
-    SQL_ESCAPE = 294,
-    SQL_EXCEPT = 295,
-    SQL_EXISTS = 296,
-    SQL_EXTRACT = 297,
-    SQL_CAST = 298,
-    SQL_FORMAT = 299,
-    SQL_GLOBAL = 300,
-    SQL_HAVING = 301,
-    SQL_IMPORT = 302,
-    SQL_INSERT = 303,
-    SQL_ISNULL = 304,
-    SQL_OFFSET = 305,
-    SQL_RENAME = 306,
-    SQL_SCHEMA = 307,
-    SQL_SELECT = 308,
-    SQL_SORTED = 309,
-    SQL_TABLES = 310,
-    SQL_UNIQUE = 311,
-    SQL_UNLOAD = 312,
-    SQL_UPDATE = 313,
-    SQL_VALUES = 314,
-    SQL_AFTER = 315,
-    SQL_ALTER = 316,
-    SQL_CROSS = 317,
-    SQL_DELTA = 318,
-    SQL_FLOAT = 319,
-    SQL_GROUP = 320,
-    SQL_INDEX = 321,
-    SQL_INNER = 322,
-    SQL_LIMIT = 323,
-    SQL_LOCAL = 324,
-    SQL_MERGE = 325,
-    SQL_MINUS = 326,
-    SQL_ORDER = 327,
-    SQL_OUTER = 328,
-    SQL_RIGHT = 329,
-    SQL_TABLE = 330,
-    SQL_UNION = 331,
-    SQL_USING = 332,
-    SQL_WHERE = 333,
-    SQL_CALL = 334,
-    SQL_CASE = 335,
-    SQL_CHAR = 336,
-    SQL_COPY = 337,
-    SQL_DATE = 338,
-    SQL_DATETIME = 339,
-    SQL_DESC = 340,
-    SQL_DROP = 341,
-    SQL_ELSE = 342,
-    SQL_FILE = 343,
-    SQL_FROM = 344,
-    SQL_FULL = 345,
-    SQL_HASH = 346,
-    SQL_HINT = 347,
-    SQL_INTO = 348,
-    SQL_JOIN = 349,
-    SQL_LEFT = 350,
-    SQL_LIKE = 351,
-    SQL_LOAD = 352,
-    SQL_LONG = 353,
-    SQL_NULL = 354,
-    SQL_PLAN = 355,
-    SQL_SHOW = 356,
-    SQL_TEXT = 357,
-    SQL_THEN = 358,
-    SQL_TIME = 359,
-    SQL_VIEW = 360,
-    SQL_WHEN = 361,
-    SQL_WITH = 362,
-    SQL_ADD = 363,
-    SQL_ALL = 364,
-    SQL_AND = 365,
-    SQL_ASC = 366,
-    SQL_END = 367,
-    SQL_FOR = 368,
-    SQL_INT = 369,
-    SQL_KEY = 370,
-    SQL_NOT = 371,
-    SQL_OFF = 372,
-    SQL_SET = 373,
-    SQL_TOP = 374,
-    SQL_AS = 375,
-    SQL_BY = 376,
-    SQL_IF = 377,
-    SQL_IN = 378,
-    SQL_IS = 379,
-    SQL_OF = 380,
-    SQL_ON = 381,
-    SQL_OR = 382,
-    SQL_TO = 383,
-    SQL_ARRAY = 384,
-    SQL_CONCAT = 385,
-    SQL_ILIKE = 386,
-    SQL_SECOND = 387,
-    SQL_MINUTE = 388,
-    SQL_HOUR = 389,
-    SQL_DAY = 390,
-    SQL_MONTH = 391,
-    SQL_YEAR = 392,
-    SQL_TRUE = 393,
-    SQL_FALSE = 394,
-    SQL_TRANSACTION = 395,
-    SQL_BEGIN = 396,
-    SQL_COMMIT = 397,
-    SQL_ROLLBACK = 398,
-    SQL_EQUALS = 399,
-    SQL_NOTEQUALS = 400,
-    SQL_LESS = 401,
-    SQL_GREATER = 402,
-    SQL_LESSEQ = 403,
-    SQL_GREATEREQ = 404,
-    SQL_NOTNULL = 405,
-    SQL_UMINUS = 406
+    SQL_ANDB_EMPTY = -2,
+    SQL_YYEOF = 0,                 /* "end of file"  */
+    SQL_ANDB_error = 256,          /* error  */
+    SQL_ANDB_UNDEF = 257,          /* "invalid token"  */
+    SQL_IDENTIFIER = 258,          /* IDENTIFIER  */
+    SQL_STRING = 259,              /* STRING  */
+    SQL_FLOATVAL = 260,            /* FLOATVAL  */
+    SQL_INTVAL = 261,              /* INTVAL  */
+    SQL_DEALLOCATE = 262,          /* DEALLOCATE  */
+    SQL_PARAMETERS = 263,          /* PARAMETERS  */
+    SQL_INTERSECT = 264,           /* INTERSECT  */
+    SQL_TEMPORARY = 265,           /* TEMPORARY  */
+    SQL_TIMESTAMP = 266,           /* TIMESTAMP  */
+    SQL_DISTINCT = 267,            /* DISTINCT  */
+    SQL_NVARCHAR = 268,            /* NVARCHAR  */
+    SQL_RESTRICT = 269,            /* RESTRICT  */
+    SQL_TRUNCATE = 270,            /* TRUNCATE  */
+    SQL_ANALYZE = 271,             /* ANALYZE  */
+    SQL_BETWEEN = 272,             /* BETWEEN  */
+    SQL_CASCADE = 273,             /* CASCADE  */
+    SQL_COLUMNS = 274,             /* COLUMNS  */
+    SQL_CONTROL = 275,             /* CONTROL  */
+    SQL_DEFAULT = 276,             /* DEFAULT  */
+    SQL_EXECUTE = 277,             /* EXECUTE  */
+    SQL_EXPLAIN = 278,             /* EXPLAIN  */
+    SQL_INTEGER = 279,             /* INTEGER  */
+    SQL_NATURAL = 280,             /* NATURAL  */
+    SQL_PREPARE = 281,             /* PREPARE  */
+    SQL_PRIMARY = 282,             /* PRIMARY  */
+    SQL_SCHEMAS = 283,             /* SCHEMAS  */
+    SQL_SPATIAL = 284,             /* SPATIAL  */
+    SQL_VARCHAR = 285,             /* VARCHAR  */
+    SQL_VIRTUAL = 286,             /* VIRTUAL  */
+    SQL_DESCRIBE = 287,            /* DESCRIBE  */
+    SQL_BEFORE = 288,              /* BEFORE  */
+    SQL_COLUMN = 289,              /* COLUMN  */
+    SQL_CREATE = 290,              /* CREATE  */
+    SQL_DELETE = 291,              /* DELETE  */
+    SQL_DIRECT = 292,              /* DIRECT  */
+    SQL_DOUBLE = 293,              /* DOUBLE  */
+    SQL_ESCAPE = 294,              /* ESCAPE  */
+    SQL_EXCEPT = 295,              /* EXCEPT  */
+    SQL_EXISTS = 296,              /* EXISTS  */
+    SQL_EXTRACT = 297,             /* EXTRACT  */
+    SQL_CAST = 298,                /* CAST  */
+    SQL_FORMAT = 299,              /* FORMAT  */
+    SQL_GLOBAL = 300,              /* GLOBAL  */
+    SQL_HAVING = 301,              /* HAVING  */
+    SQL_IMPORT = 302,              /* IMPORT  */
+    SQL_INSERT = 303,              /* INSERT  */
+    SQL_ISNULL = 304,              /* ISNULL  */
+    SQL_OFFSET = 305,              /* OFFSET  */
+    SQL_RENAME = 306,              /* RENAME  */
+    SQL_SCHEMA = 307,              /* SCHEMA  */
+    SQL_SELECT = 308,              /* SELECT  */
+    SQL_SORTED = 309,              /* SORTED  */
+    SQL_TABLES = 310,              /* TABLES  */
+    SQL_UNIQUE = 311,              /* UNIQUE  */
+    SQL_UNLOAD = 312,              /* UNLOAD  */
+    SQL_UPDATE = 313,              /* UPDATE  */
+    SQL_VALUES = 314,              /* VALUES  */
+    SQL_AFTER = 315,               /* AFTER  */
+    SQL_ALTER = 316,               /* ALTER  */
+    SQL_CROSS = 317,               /* CROSS  */
+    SQL_DELTA = 318,               /* DELTA  */
+    SQL_FLOAT = 319,               /* FLOAT  */
+    SQL_GROUP = 320,               /* GROUP  */
+    SQL_INDEX = 321,               /* INDEX  */
+    SQL_INNER = 322,               /* INNER  */
+    SQL_LIMIT = 323,               /* LIMIT  */
+    SQL_LOCAL = 324,               /* LOCAL  */
+    SQL_MERGE = 325,               /* MERGE  */
+    SQL_MINUS = 326,               /* MINUS  */
+    SQL_ORDER = 327,               /* ORDER  */
+    SQL_OUTER = 328,               /* OUTER  */
+    SQL_RIGHT = 329,               /* RIGHT  */
+    SQL_TABLE = 330,               /* TABLE  */
+    SQL_UNION = 331,               /* UNION  */
+    SQL_USING = 332,               /* USING  */
+    SQL_WHERE = 333,               /* WHERE  */
+    SQL_CALL = 334,                /* CALL  */
+    SQL_CASE = 335,                /* CASE  */
+    SQL_CHAR = 336,                /* CHAR  */
+    SQL_COPY = 337,                /* COPY  */
+    SQL_DATE = 338,                /* DATE  */
+    SQL_DATETIME = 339,            /* DATETIME  */
+    SQL_DESC = 340,                /* DESC  */
+    SQL_DROP = 341,                /* DROP  */
+    SQL_ELSE = 342,                /* ELSE  */
+    SQL_FILE = 343,                /* FILE  */
+    SQL_FROM = 344,                /* FROM  */
+    SQL_FULL = 345,                /* FULL  */
+    SQL_HASH = 346,                /* HASH  */
+    SQL_HINT = 347,                /* HINT  */
+    SQL_INTO = 348,                /* INTO  */
+    SQL_JOIN = 349,                /* JOIN  */
+    SQL_LEFT = 350,                /* LEFT  */
+    SQL_LIKE = 351,                /* LIKE  */
+    SQL_LOAD = 352,                /* LOAD  */
+    SQL_LONG = 353,                /* LONG  */
+    SQL_NULL = 354,                /* NULL  */
+    SQL_PLAN = 355,                /* PLAN  */
+    SQL_SHOW = 356,                /* SHOW  */
+    SQL_TEXT = 357,                /* TEXT  */
+    SQL_THEN = 358,                /* THEN  */
+    SQL_TIME = 359,                /* TIME  */
+    SQL_VIEW = 360,                /* VIEW  */
+    SQL_WHEN = 361,                /* WHEN  */
+    SQL_WITH = 362,                /* WITH  */
+    SQL_ADD = 363,                 /* ADD  */
+    SQL_ALL = 364,                 /* ALL  */
+    SQL_AND = 365,                 /* AND  */
+    SQL_ASC = 366,                 /* ASC  */
+    SQL_END = 367,                 /* END  */
+    SQL_FOR = 368,                 /* FOR  */
+    SQL_INT = 369,                 /* INT  */
+    SQL_KEY = 370,                 /* KEY  */
+    SQL_NOT = 371,                 /* NOT  */
+    SQL_OFF = 372,                 /* OFF  */
+    SQL_SET = 373,                 /* SET  */
+    SQL_TOP = 374,                 /* TOP  */
+    SQL_AS = 375,                  /* AS  */
+    SQL_BY = 376,                  /* BY  */
+    SQL_IF = 377,                  /* IF  */
+    SQL_IN = 378,                  /* IN  */
+    SQL_IS = 379,                  /* IS  */
+    SQL_OF = 380,                  /* OF  */
+    SQL_ON = 381,                  /* ON  */
+    SQL_OR = 382,                  /* OR  */
+    SQL_TO = 383,                  /* TO  */
+    SQL_ARRAY = 384,               /* ARRAY  */
+    SQL_CONCAT = 385,              /* CONCAT  */
+    SQL_ILIKE = 386,               /* ILIKE  */
+    SQL_SECOND = 387,              /* SECOND  */
+    SQL_MINUTE = 388,              /* MINUTE  */
+    SQL_HOUR = 389,                /* HOUR  */
+    SQL_DAY = 390,                 /* DAY  */
+    SQL_MONTH = 391,               /* MONTH  */
+    SQL_YEAR = 392,                /* YEAR  */
+    SQL_TRUE = 393,                /* TRUE  */
+    SQL_FALSE = 394,               /* FALSE  */
+    SQL_TRANSACTION = 395,         /* TRANSACTION  */
+    SQL_BEGIN = 396,               /* BEGIN  */
+    SQL_COMMIT = 397,              /* COMMIT  */
+    SQL_ROLLBACK = 398,            /* ROLLBACK  */
+    SQL_EQUALS = 399,              /* EQUALS  */
+    SQL_NOTEQUALS = 400,           /* NOTEQUALS  */
+    SQL_LESS = 401,                /* LESS  */
+    SQL_GREATER = 402,             /* GREATER  */
+    SQL_LESSEQ = 403,              /* LESSEQ  */
+    SQL_GREATEREQ = 404,           /* GREATEREQ  */
+    SQL_NOTNULL = 405,             /* NOTNULL  */
+    SQL_UMINUS = 406               /* UMINUS  */
   };
+  typedef enum andb_tokentype andb_token_kind_t;
 #endif
 
 /* Value type.  */
 #if ! defined ANDB_STYPE && ! defined ANDB_STYPE_IS_DECLARED
-
 union ANDB_STYPE
 {
-
 
 	double      fval;
 	int64_t     ival;
@@ -272,7 +278,6 @@ union ANDB_STYPE
 
 
 };
-
 typedef union ANDB_STYPE ANDB_STYPE;
 # define ANDB_STYPE_IS_TRIVIAL 1
 # define ANDB_STYPE_IS_DECLARED 1

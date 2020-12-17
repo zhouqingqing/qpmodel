@@ -46,9 +46,14 @@ namespace andb
             , valueId_(0)
             , ival(0)
         {
+           DEBUG_CONS("Expr", "typed");
         }
 
-        Expr(ClassTag classTag) : type_(D_NullFlag), classTag_(classTag) {}
+        Expr(ClassTag classTag)
+           : type_(D_NullFlag), classTag_(classTag)
+        {
+           DEBUG_CONS("Expr", "default");
+        }
 
         virtual Expr* Clone()
         {
@@ -60,6 +65,15 @@ namespace andb
             e->ival = ival;
 
             return e;
+        }
+
+        virtual ~Expr()
+        {
+#ifdef __RUN_DELETES_
+           DEBUG_DEST("Expr", "@@@");
+           delete alias_;
+           alias_ = nullptr;
+#endif // __RUN_DELETES_
         }
 
         virtual std::string Explain(void* arg = nullptr) const { return {}; }
@@ -142,6 +156,7 @@ namespace andb
 
         SelStar(std::string* alias = nullptr)
         {
+           DEBUG_CONS("SelStar", "@@@");
             tabAlias_ = alias ? new std::string(*alias) : nullptr;
             classTag_ = SelStar_;
         }
@@ -154,6 +169,15 @@ namespace andb
         }
 
         void virtual Bind(Binder* context);
+
+        virtual ~SelStar()
+        {
+#ifdef __RUN_DELETES_
+           DEBUG_DEST("SelStar", "@@@");
+           delete tabAlias_;
+           tabAlias_ = nullptr;
+#endif // __RUN_DELETES_
+        }
     };
 
     class ConstExpr : public NodeBase<Expr, N0>
@@ -163,10 +187,16 @@ namespace andb
 
         explicit ConstExpr(Datum value)
         {
+           DEBUG_CONS("ConstExpr", (void*)&value);
             assert(value_ == Datum{});
             classTag_ = ConstExpr_;
             value_ = value;
             type_ = (DataType)value.index();
+        }
+
+        virtual ~ConstExpr()
+        {
+           DEBUG_DEST("ConstExpr", (void*)&value_);
         }
 
         Expr* Clone() override { return new ConstExpr(value_); }
@@ -194,6 +224,7 @@ namespace andb
 
         explicit ColExpr(uint16_t ordinal, std::string* colname = nullptr, std::string* tabname = nullptr, std::string* schname = nullptr, ColumnDef* columnDef = nullptr)
         {
+           DEBUG_CONS("ColExpr", ordinal);
             classTag_ = ColExpr_;
             ordinal_ = ordinal;
             colname_ = colname ? new std::string(*colname) : nullptr;
@@ -204,6 +235,7 @@ namespace andb
 
         explicit ColExpr(const char* colname, const char* tabname = nullptr, const char* schname = nullptr, ColumnDef* columnDef = nullptr)
         {
+           DEBUG_CONS("ColExpr(chr)", colname);
             classTag_ = ColExpr_;
             ordinal_ = UINT16_MAX;
             colname_ = new std::string(colname);
@@ -214,6 +246,7 @@ namespace andb
 
         explicit ColExpr(std::string* colname)
         {
+           DEBUG_CONS("ColExpr(str)", colname);
             classTag_ = ColExpr_;
             ordinal_ = UINT16_MAX;
             colname_ = new std::string(*colname);
@@ -224,6 +257,7 @@ namespace andb
 
         explicit ColExpr(uint16_t ordinal, const std::string& colname)
         {
+           DEBUG_CONS("ConstExpr(ord str)", colname);
             classTag_ = ColExpr_;
             ordinal_ = ordinal;
             colname_ = new std::string(colname);
@@ -235,6 +269,22 @@ namespace andb
         ColExpr* Clone() override
         {
             return new ColExpr(ordinal_, colname_, tabname_, schname_, columnDef_);
+        }
+
+        virtual ~ColExpr()
+        {
+#ifdef __RUN_DELETES_
+           DEBUG_DEST("ColExpr", colname_);
+            delete colname_;
+            delete tabname_;
+            delete schname_;
+            delete columnDef_;
+
+            colname_ = nullptr;
+            tabname_ = nullptr;
+            schname_ = nullptr;
+            columnDef_ = nullptr;
+#endif // __RUN_DELETES_
         }
 
         void Bind(Binder* context) override;
@@ -272,6 +322,7 @@ namespace andb
 
         explicit BinExpr(BinOp op, Expr* l, Expr* r)
         {
+           DEBUG_CONS("BinExpr", "@@@");
             classTag_ = BinExpr_;
             op_ = op;
             children_[0] = l;
@@ -282,6 +333,19 @@ namespace andb
         BinExpr* Clone() override
         {
             return new BinExpr(op_, children_[0], children_[1]);
+        }
+
+        
+        virtual ~BinExpr()
+        {
+#ifdef __RUN_DELETES_
+           DEBUG_DEST("BinExpr", "@@@");
+           delete children_[0];
+           delete children_[1];
+
+           children_[0] = nullptr;
+           children_[1] = nullptr;
+#endif // __RUN_DELETES_
         }
 
         std::string Explain(void* arg = nullptr) const override
@@ -322,6 +386,7 @@ namespace andb
             , alias_(alias ? new std::string(*alias) : nullptr)
             , tabDef_(nullptr)
         {
+           DEBUG_CONS("TableRef", "alias");
             SetColumnRefs();
         }
 
@@ -330,6 +395,7 @@ namespace andb
             , alias_(alias ? new std::string(*alias) : nullptr)
             , tabDef_(nullptr)
         {
+           DEBUG_CONS("TableRef", "ctag");
             SetColumnRefs();
         }
 
@@ -337,18 +403,21 @@ namespace andb
             : classTag_(classTag), alias_(alias ? new std::string(alias) : nullptr)
             , tabDef_(nullptr)
         {
+           DEBUG_CONS("TableRef", "ctag alias");
             SetColumnRefs();
         }
 
         TableRef(ClassTag classTag, const char* alias, TableDef* tdef)
             : classTag_(classTag), alias_(new std::string(alias)), tabDef_(tdef)
         {
+           DEBUG_CONS("TableRef", "chr tdef");
             SetColumnRefs();
         }
 
         TableRef(ClassTag classTag, std::string* alias, TableDef* tdef)
             : TableRef(classTag, alias->c_str(), tdef)
         {
+           DEBUG_CONS("TableRef", "str tdef");
             SetColumnRefs();
         }
 
@@ -374,6 +443,23 @@ namespace andb
             tr->tabDef_ = tabDef_;
 
             return tr;
+        }
+
+        virtual ~TableRef()
+        {
+#ifdef __RUN_DELETES_
+           DEBUG_DEST("TableRef", columnRefs_.size());
+           delete alias_;
+           alias_ = nullptr;
+
+           auto cr = columnRefs_.begin();
+           while (cr != columnRefs_.end())
+              delete (*cr++);
+           columnRefs_.clear();
+
+           delete tabDef_;
+           tabDef_ = nullptr;
+#endif // __RUN_DELETES_
         }
 
         virtual std::string Explain(void* arg = nullptr) const
@@ -403,6 +489,7 @@ namespace andb
         BaseTableRef(std::string* tabname, std::string* alias = nullptr)
             : TableRef(BaseTableRef_, alias), tabName_(new std::string(*tabname))
         {
+           DEBUG_CONS("BaseTableRef(str)", tabname);
             if (!alias) {
                 alias_ = new std::string(*tabName_);
             }
@@ -412,6 +499,7 @@ namespace andb
             : TableRef(BaseTableRef_, alias)
             , tabName_(new std::string(tabname))
         {
+           DEBUG_CONS("BaseTableRef(chr)", tabname);
             if (!alias) {
                 alias_ = new std::string(*tabName_);
             }
@@ -421,6 +509,15 @@ namespace andb
         {
             BaseTableRef* btrf = new BaseTableRef(tabName_, alias_);
             return btrf;
+        }
+
+        virtual ~BaseTableRef()
+        {
+#ifdef __RUN_DELETES_
+           DEBUG_DEST("BaseTableRef", tabName_);
+           delete tabName_;
+           tabName_ = nullptr;
+#endif // __RUN_DELETES_
         }
 
         std::string Explain(void* arg = nullptr) const override

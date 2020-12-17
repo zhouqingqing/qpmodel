@@ -9,46 +9,49 @@
 #include "parser/include/expr.h"
 
 namespace andb {
-class Binder : public UseCurrentResource {
-    public:
-        Binder (SQLStatement* stmt, Binder* parent = nullptr)
+   class Binder : public UseCurrentResource {
+      public:
+         Binder (SQLStatement* stmt, Binder* parent = nullptr)
             : stmt_ (stmt),
-              parent_ (parent),
-              globalSubqCounter_ (0),
-              globalValueIdCounre_ (1),
-              binderError_ (0) {}
+            parent_ (parent),
+            globalSubqCounter_ (0),
+            globalValueIdCounre_ (1),
+            binderError_ (0) {}
 
-        ~Binder () {}
+         ~Binder()
+         {
+             tablesInScope_.clear();
+         }
 
-        void Bind ();
-        TableDef* ResolveTable (std::string* tref);
-        ColExpr* ResolveColumn(std::string* cname, std::string* tname = nullptr);
-        int GetError () { return binderError_; }
+         void Bind ();
+         TableDef* ResolveTable (std::string* tref);
+         ColExpr* ResolveColumn(std::string* cname, std::string* tname = nullptr);
+         int GetError () { return binderError_; }
 
-        void SetError (int err) { binderError_ = err; }
+         void SetError (int err) { binderError_ = err; }
 
-        void AddTableRefToScope (TableRef* tref) {
+         void AddTableRefToScope (TableRef* tref) {
             auto it = tablesInScope_.insert (std::make_pair (tref->getAlias (), tref));
-        }
+         }
 
-        TableRef* GetTableRef (std::string* tabName) {
+         TableRef* GetTableRef (std::string* tabName) {
             auto ti = tablesInScope_.find (tabName);
             if (ti != tablesInScope_.end ()) return ti->second;
 
             return nullptr;
-        }
+         }
 
-        ColExpr* GetColumnRef (std::string* colName, std::string* tabName = nullptr);
+         ColExpr* GetColumnRef (std::string* colName, std::string* tabName = nullptr);
 
-        std::vector<ColExpr*>* GetTableColumns (std::string *tabName);
-        std::vector<ColExpr*>* GetAllTableColumns ();
+         std::vector<ColExpr*>* GetTableColumns (std::string *tabName);
+         std::vector<ColExpr*>* GetAllTableColumns ();
 
-        SQLStatement* stmt_;  // current statement
-        Binder* parent_;
-        int globalSubqCounter_;
-        int globalValueIdCounre_;
-        int binderError_;
-        std::map<std::string*, TableRef*,  CaselessStringPtrCmp> tablesInScope_;
-        std::map<std::pair<std::string*, std::string*>, int, CaselessStringPtrCmp> columnsInScope;
-};
+         SQLStatement* stmt_;  // current statement
+         Binder* parent_;
+         int globalSubqCounter_;
+         int globalValueIdCounre_;
+         int binderError_;
+         std::map<std::string*, TableRef*,  CaselessStringPtrCmp> tablesInScope_;
+         std::map<std::pair<std::string*, std::string*>, int, CaselessStringPtrCmp> columnsInScope;
+   };
 } // namespace andb

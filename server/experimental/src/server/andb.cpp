@@ -12,7 +12,7 @@
 #include "parser/include/expr.h"
 #include "parser/include/stmt.h"
 #include "optimizer/binder.h"
-#include "parser/include/SQLParserResult.h"
+#include "parser/include/sqlparserresult.h"
 
 #ifdef _MSC_VER
 #include "common/getopt.h"
@@ -20,10 +20,9 @@
 #include <getopt.h>
 #endif
 
-const char* ANDB_OPTIONS = "heif:";
-const int ANDB_LINE_SIZE = 8192;
-const char ANDB_HELP[] =
-    "\n\
+const char* ANDB_OPTIONS   = "heif:";
+const int   ANDB_LINE_SIZE = 8192;
+const char  ANDB_HELP[]    = "\n\
 andb [-h] [-i] [-e] [-f file]\n\
 -h      : Print this help and exit\n\
 -e      : EXPLAIN the input statement\n\
@@ -32,70 +31,84 @@ andb [-h] [-i] [-e] [-f file]\n\
 -f file : take the input from file\n\
 ";
 
-bool mode_interactive_on{true}, mode_batch_on{false}, mode_explain_on{false};
-std::string inputFile;
+bool                 mode_interactive_on{ true }, mode_batch_on{ false }, mode_explain_on{ false };
+std::string          inputFile;
 static std::ifstream querySrc;
-static char query[ANDB_LINE_SIZE] = {0};
-static char* bufptr = query;
+static char          query[ANDB_LINE_SIZE] = { 0 };
+static char*         bufptr                = query;
 
-static void processOptions (int argc, char* argv[]);
-static void processSQL (void);
-static bool setupInput ();
-static bool getNextStmt ();
+static void processOptions(int argc, char* argv[]);
+static void processSQL(void);
+static bool setupInput();
+static bool getNextStmt();
+static void ShowResultSet(std::vector<andb::Row>& rows);
 
 using namespace andb;
 
-class IInstance {
-public:
-    virtual ~IInstance () {}
-    virtual void Start () = 0;
-    virtual void Shutdown () = 0;
+class IInstance
+{
+    public:
+    virtual ~IInstance() {}
+    virtual void Start()    = 0;
+    virtual void Shutdown() = 0;
 };
 
 // The global singleton instance
 //  - profilers
 //
-class Instance : public IInstance {
-public:
-    void Start () override {}
-    void Shutdown () override {}
+class Instance : public IInstance
+{
+    public:
+    void Start() override {}
+    void Shutdown() override {}
 };
 
-static Instance instance_;
+static Instance       instance_;
 static CrtCheckMemory memoryChecker;
 
 int main(int argc, char* argv[])
 {
-    // _crtBreakAlloc = 175;
-    instance_.Start ();
+    // crtBreakAlloc = 175;
 
-    auto resource = DefaultResource::CreateMemoryResource (currentResource_, "current query");
-    currentResource_ = resource;
+    instance_.Start();
 
-    Catalog::Init ();
-    processOptions (argc, argv);
-    processSQL ();
+    auto resource        = DefaultResource::CreateMemoryResource(currentResource_, "current query");
+    currentResource_     = resource;
+    bool catalogInitDone = false;
+    Catalog::Init();
+    catalogInitDone = true;
 
-    DefaultResource::DeleteMemoryResource (resource);
-    instance_.Shutdown ();
+    try {
+        processOptions(argc, argv);
+        processSQL();
+    } catch (...) {
+        Catalog::DeInit();
+        catalogInitDone = false;
+    }
+
+    if (catalogInitDone)
+        Catalog::DeInit();
+
+    DefaultResource::DeleteMemoryResource(resource);
+    instance_.Shutdown();
 }
 
-static void processSQL (void) {
-    setupInput ();
+static void processSQL(void)
+{
+    setupInput();
 
-    strcpy (query, "select a1 from a");
-    bool moreInput = getNextStmt ();
+    strcpy(query, "select a1 from a");
+    bool moreInput = getNextStmt();
 
     while ((mode_interactive_on || mode_batch_on) && moreInput) {
-            SQLParserResult presult;
+        SQLParserResult presult;
         try {
-            bool ret = ParseSQL (query, &presult);
+            bool ret = ParseSQL(query, &presult);
 
             if (ret) {
                 std::cout << "PASSED: " << query << std::endl;
 
-                SelectStatement* selStmt = (SelectStmt*)presult.getStatement (0);
-                std::cout << "EXPLAIN: " << selStmt->Explain () << "\n";
+                SelectStatement* selStmt = (SelectStmt*)presult.getStatement(0);
                 Binder binder (selStmt);
                 binder.Bind ();
                 if (binder.GetError ()) {
@@ -105,43 +118,63 @@ static void processSQL (void) {
                 LogicNode* root = selStmt->CreatePlan();
                 if (!root)
                     continue;
-#ifdef __LATER
-                // not implemented
-                std::cout << "LogicPlan:\n";
-                root->Explain();
-#endif // __LATER
-
-                auto physic = Optimize(root);
+                auto physic = selStmt->Optimize();
                 if (!physic)
                     continue;
-                physic->Explain();
-                ExecContext ectx{};
-                physic->Open(&ectx);
+                std::cout << "EXPLAIN: " << selStmt->Explain() << "\n";
+                if (selStmt->Open()) {
+                    std::vector<andb::Row> rset = selStmt->Exec();
+                    if (!rset.empty())
+                        ShowResultSet(rset);
+                }
             } else {
-                const char* emsg = presult.errorMsg ();
-                int el = presult.errorLine ();
-                int ec = presult.errorColumn ();
+                const char* emsg = presult.errorMsg();
+                int         el   = presult.errorLine();
+                int         ec   = presult.errorColumn();
                 std::cout << "FAILED: " << query << std::endl;
                 std::cout << "ERROR: " << (emsg ? emsg : "unkown") << " L = " << el << " C = " << ec
                           << std::endl;
             }
-        } catch (const std::exception& e) {
-            std::cerr << "EXCEPTION: " << e.what() << "\n";
         }
-        presult.reset ();
-        moreInput = getNextStmt ();
+        catch (const SemanticAnalyzeException& sae) {
+            std::cerr << "EXCEPTION: " << sae.what() << std::endl;
+        }
+        catch (const SemanticExecutionException& see) {
+            std::cerr << "EXCEPTION: " << see.what() << std::endl;
+        }
+        catch (const SemanticException& sme) {
+            std::cerr << "EXCEPTION: " << sme.what() << std::endl;
+        }
+        catch (const RuntimeException& rte) {
+            std::cerr << "EXCEPTION: " << rte.what() << std::endl;
+        }
+        catch (const ParserException& pae) {
+            std::cerr << "EXCEPTION: " << pae.what() << std::endl;
+        } catch (const NotImplementedException& nyi) {
+            std::cerr << "EXCEPTION: " << nyi.what() << std::endl;
+        }
+        catch (const std::exception& e) {
+            std::cerr << "EXCEPTION: " << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "EXCEPTION: Unknown exception" << std::endl;
+        }
+
+        presult.reset();
+        moreInput = getNextStmt();
     }
 }
 
-static void processOptions (int argc, char* argv[]) {
-    if (argc < 2) return;
+static void processOptions(int argc, char* argv[])
+{
+    if (argc < 2)
+        return;
 
     int c;
     while ((c = getopt(argc, argv, ANDB_OPTIONS)) != EOF) {
         switch (c) {
             case 'h':
                 std::cout << ANDB_HELP;
-                exit (0);
+                exit(0);
                 break; /*NOTREACHED*/
 
             case 'e':
@@ -154,40 +187,44 @@ static void processOptions (int argc, char* argv[]) {
                 break;
 
             case 'f':
-                inputFile = optarg;
+                inputFile           = optarg;
                 mode_interactive_on = false;
-                mode_batch_on = true;
+                mode_batch_on       = true;
                 break;
 
             default:
                 std::cout << "andb: unknown option " << (char)c << " \n";
-                exit (-1);
+                exit(-1);
         }
     }
 }
 
-static bool setupInput () {
+static bool setupInput()
+{    
     if (mode_batch_on) {
-        querySrc = std::ifstream (inputFile);
-        if (querySrc.bad () || querySrc.eof()) return false;
+        querySrc = std::ifstream(inputFile);
+        if (querySrc.bad() || querySrc.eof())
+            return false;
     }
 
     return true;
 }
 
-static bool getNextStmt () {
+static bool getNextStmt()
+{
     int blen;
 
     while (true) {
         if (mode_batch_on) {
-            querySrc.getline (bufptr, ANDB_LINE_SIZE - 1, ';');
-            if (querySrc.bad () || querySrc.eof ()) return false;
+            querySrc.getline(bufptr, ANDB_LINE_SIZE - 1, ';');
+            if (querySrc.bad() || querySrc.eof())
+                return false;
         } else if (mode_interactive_on) {
             std::cout << "ASQL> ";
-            std::cin.getline (bufptr, ANDB_LINE_SIZE - 1, ';');
+            std::cin.getline(bufptr, ANDB_LINE_SIZE - 1, ';');
         }
 
-        blen = strlen (bufptr);
+        blen     = strlen(bufptr);
         char* cp = bufptr;
         for (int i = 0; i < blen; ++i) {
             if (*cp == '\r' || *cp == '\n' || isspace(*cp))
@@ -198,15 +235,18 @@ static bool getNextStmt () {
 
         if (!cp || cp[0] == 0 || *cp == '#' || (*cp == '-' && *(cp + 1) == '-')) {
             continue;
-        } else if ((blen = strlen (cp)) >= ANDB_LINE_SIZE - 1 ||
-                    !andb_strcmp_nocase (cp, "quit") || !andb_strcmp_nocase (cp, "quit;") ||
-                    !andb_strcmp_nocase (cp, "\nquit;")) {
+        } else if ((blen = strlen(cp)) >= ANDB_LINE_SIZE - 1 || !andb_strcmp_nocase(cp, "quit") ||
+                   !andb_strcmp_nocase(cp, "quit;") || !andb_strcmp_nocase(cp, "\nquit;")) {
             return false;
         }
         /* append ; and return true */
         cp[blen++] = ';';
-        cp[blen] = 0;
+        cp[blen]   = 0;
 
         return true;
     }
+}
+
+static void ShowResultSet(std::vector<Row>& rows)
+{
 }
