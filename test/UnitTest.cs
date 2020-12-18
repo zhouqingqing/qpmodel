@@ -761,6 +761,7 @@ namespace qpmodel.unittest
 
             var sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
             var result = TU.ExecuteSQL(sql, out SQLStatement stmt, out _, option);
+            var mstr1 = stmt.optimizer_.PrintMemo();
             var memo = stmt.optimizer_.memoset_[0];
             memo.CalcStats(out int tlogics, out int tphysics);
             Assert.AreEqual(11, memo.cgroups_.Count);
@@ -3160,6 +3161,28 @@ namespace qpmodel.unittest
             //sql = "with cte0 as (select * from a),cte1 as (select * from cte0) select * from cte1 where a1 = (select cte2.a1 from cte1 cte2 where cte2.a1 = 0)";
             //TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
 
+
+        }
+
+        [TestMethod]
+        public void TestCTEMemo()
+        {
+            // costbase cte optimizer have to use memo
+            //
+            QueryOption option = new QueryOption();
+            option.optimize_.use_memo_ = true;
+            option.optimize_.enable_cte_plan_ = true;
+            var phyplan = "";
+            // inline cte only use one time
+            var sql = "with cte0 as (select * from a) select * from cte0 cte1, cte0 cte2 where cte1.a1 = 2";
+            TU.ExecuteSQL(sql, "2,3,4,5", out phyplan, option);
+            var answer = @"PhysicFilter  (actual rows=1)
+                        Output: cte0.a1[0],cte0.a2[1],cte0.a3[2],cte0.a4[3]
+                        Filter: cte0.a1[0]=2
+                        -> PhysicFromQuery <cte0> (actual rows=3)
+                            Output: cte0.a1[0],cte0.a2[1],cte0.a3[2],cte0.a4[3]                      
+                            -> PhysicScanTable a (actual rows=3)
+                                Output: a.a1[0],a.a2[1],a.a3[2],a.a4[3]";
 
         }
 

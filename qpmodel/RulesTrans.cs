@@ -41,6 +41,9 @@ namespace qpmodel.optimizer
     public abstract class Rule
     {
         public static List<Rule> ruleset_ = new List<Rule>() {
+            new CteAnchor2CteAnchor(),
+            new CteConsumer2CteConsumer(),
+            new CteSelect2CteSelect(),
             new JoinAssociativeRule(),
             new JoinCommutativeRule(),
             new AggSplitRule(),
@@ -68,7 +71,7 @@ namespace qpmodel.optimizer
             new Sample2Sample(),
             new Result2Result(),
             new JoinCommutativeRule(),  // intentionally add a duplicated rule
-            //new CteAnchor2CteProd(),
+            new CteAnchor2CteProd(),
         };
 
         // TBD: besides static controls, we can examine the plan and quick trim rules impossible to apply
@@ -299,18 +302,42 @@ namespace qpmodel.optimizer
         }
     }
 
-    //public class CteAnchor2CteProd : ExplorationRule
-    //{
-    //    public override bool Appliable(CGroupMember expr)
-    //    {
-    //        return expr.logic_ is LogicCteAnchor;
-    //    }
-    //    public override CGroupMember Apply(CGroupMember expr)
-    //    {
-    //        //LogicJoin log = expr.logic_ as LogicJoin;
-    //        //// we expand the logic plan of CTE
-    //        //LogicSequence ls = 
-    //        new CGroupMember(new LogicNode(),expr.group_);
-    //    }
-    //}
+    public class CteAnchor2CteProd : ExplorationRule
+    {
+        public override bool Appliable(CGroupMember expr)
+        {
+            return expr.logic_ is LogicCteAnchor;
+        }
+        public override CGroupMember Apply(CGroupMember expr)
+        {
+            //LogicJoin log = expr.logic_ as LogicJoin;
+            //// we expand the logic plan of CTE
+            ///
+            LogicCteAnchor cteAnchor = expr.logic_ as LogicCteAnchor;
+            CteInfoEntry cteInfoEntry = cteAnchor.cteInfoEntry_;
+            LogicCteProducer cteProducer = new LogicCteProducer(cteInfoEntry);
+            // left is cteProducer and right is the child of cteAnchor
+            LogicSequence ls = new LogicSequence(cteProducer, cteAnchor.child_(), cteAnchor);
+            return new CGroupMember(ls, expr.group_);
+        }
+    }
+
+    public class CteConsumer2CteSelect : ExplorationRule
+    {
+        public override bool Appliable(CGroupMember expr)
+        {
+            return expr.logic_ is LogicCteConsumer;
+        }
+
+        public override CGroupMember Apply(CGroupMember expr)
+        {
+            // create a group member CteSelect
+            LogicCteConsumer cteConsumer = expr.logic_ as LogicCteConsumer;
+            LogicSelectCte logicSelectCte = new LogicSelectCte(cteConsumer);
+            return new CGroupMember(logicSelectCte, expr.group_);
+
+        }
+    }
+
+
 }

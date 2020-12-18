@@ -177,7 +177,16 @@ namespace qpmodel.optimizer
         }
     }
 
+    public class CteProd2CteProd : SimpleImplementationRule<LogicCteProducer, PhysicCteProducer, NumberArgs.N0> { }
+
     public class Scan2Scan : SimpleImplementationRule<LogicScanTable, PhysicScanTable, NumberArgs.N0> { }
+
+    public class CteConsumer2CteConsumer : SimpleImplementationRule<LogicCteConsumer, PhysicCteConsumer, NumberArgs.N0> { }
+
+    public class CteSelect2CteSelect : SimpleImplementationRule<LogicSelectCte, PhysicSelectCte, NumberArgs.N0> { }
+
+    public class CteAnchor2CteAnchor : SimpleImplementationRule<LogicCteAnchor, PhysicCteAnchor, NumberArgs.N1> { }
+
     public class Filter2Filter : SimpleImplementationRule<LogicFilter, PhysicFilter, NumberArgs.N1> { }
     public class Agg2HashAgg : SimpleImplementationRule<LogicAgg, PhysicHashAgg, NumberArgs.N1> { }
     public class Agg2StreamAgg : SimpleImplementationRule<LogicAgg, PhysicStreamAgg, NumberArgs.N1> { }
@@ -188,7 +197,6 @@ namespace qpmodel.optimizer
     public class Join2MarkJoin : SimpleImplementationRule<LogicMarkJoin, PhysicMarkJoin, NumberArgs.N2> { }
     public class Join2SingleJoin : SimpleImplementationRule<LogicSingleJoin, PhysicSingleJoin, NumberArgs.N2> { }
     public class Seq2Seq : SimpleImplementationRule<LogicSequence, PhysicSequence, NumberArgs.NList> { }
-    public class CteProd2CteProd : SimpleImplementationRule<LogicCteProducer, PhysicCteProducer, NumberArgs.N1> { }
     public class Gather2Gather : SimpleImplementationRule<LogicGather, PhysicGather, NumberArgs.N1> { }
     public class Bcast2Bcast : SimpleImplementationRule<LogicBroadcast, PhysicBroadcast, NumberArgs.N1> { }
     public class Redis2Redis : SimpleImplementationRule<LogicRedistribute, PhysicRedistribute, NumberArgs.N1> { }

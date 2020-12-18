@@ -135,7 +135,7 @@ namespace qpmodel.logic
 
             // inline CTE
             if (this is LogicCteConsumer lcc)
-                lcc.children_.Insert(0, lcc.cteInfo_.plan_);
+                lcc.children_.Insert(0, lcc.cteInfoEntry_.plan_);
 
             if (children_.Count != 0)
                 phyfirst = children_[0].DirectToPhysical(option);
@@ -216,13 +216,6 @@ namespace qpmodel.logic
                     break;
                 case LogicAppend append:
                     result = new PhysicAppend(append, phyfirst, rchild_().DirectToPhysical(option));
-                    break;
-                case LogicCteProducer cteproducer:
-                    result = new PhysicCteProducer(cteproducer, phyfirst);
-                    break;
-                case LogicSequence sequence:
-                    List<PhysicNode> children = sequence.children_.Select(x => x.DirectToPhysical(option)).ToList();
-                    result = new PhysicSequence(sequence, children);
                     break;
                 case LogicGather gather:
                     result = new PhysicGather(gather, phyfirst);

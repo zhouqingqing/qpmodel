@@ -52,6 +52,7 @@ using qpmodel.utils;
 // because naming reference. PostgreSQL actually puts a Result node with a 
 // name, so it is similar to FromQuery.
 //
+using LogicSignature = System.Int64;
 
 namespace qpmodel.logic
 {
@@ -565,25 +566,6 @@ namespace qpmodel.logic
             return newplan;
         }
 
-        // if there is a CteExpr referenced more than once, we can use a sequence plan
-        LogicNode tryCteToSequencePlan(LogicNode root)
-        {
-            if (!queryOpt_.optimize_.enable_cte_plan_)
-                return root;
-
-            var list = ctes_.Where(x => x.refcnt_ > 1).ToList();
-            if (list.Count == 0)
-                return root;
-
-            var seqNode = new LogicSequence();
-            seqNode.children_.AddRange(list.Select(x =>
-                    new LogicCteProducer(x.query_.logicPlan_, x)));
-            seqNode.children_.Add(root);
-
-            return seqNode;
-        }
-
-
         void findCteConsumerInParent(LogicNode parent, ref Stack<int> scie)
         {
             var scieTemp = scie;
@@ -656,9 +638,9 @@ namespace qpmodel.logic
             var cteIsUsed = ctes_;
             cteIsUsed.RemoveAll(x => !cteInfo_.GetCteInfoEntryByCteId(x.cteId_).IsUsed());
 
-            for (int i = 0; i < ctes_.Count; i++)
+            for (int i = 0; i < cteIsUsed.Count; i++)
             {
-                var lca = new LogicCteAnchor(ctes_[i].cteId_);
+                var lca = new LogicCteAnchor(cteInfo_.GetCteInfoEntryByCteId(cteIsUsed[i].cteId_));
                 lca.children_.Add(root);
                 root = lca;
             }
@@ -911,6 +893,14 @@ namespace qpmodel.logic
         // last child is the output node
         public LogicNode OutputChild() => children_[children_.Count - 1];
 
+        public LogicCteAnchor cteAnchor_;
+
+        public LogicSequence(LogicNode lchild, LogicNode rchild, LogicCteAnchor cteAnchor)
+        {
+            children_.Add(lchild); children_.Add(rchild);
+            Debug.Assert(children_.Count == 2);
+            cteAnchor_ = cteAnchor;
+        }
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             List<int> ordinals = new List<int>();
@@ -925,15 +915,24 @@ namespace qpmodel.logic
             RefreshOutputRegisteration();
             return ordinals;
         }
+
+        public override LogicSignature MemoLogicSign()
+        {
+            if (logicSign_ == -1)
+                logicSign_ = cteAnchor_.MemoLogicSign(); //anchor + cteId
+            return logicSign_;
+        }
     }
 
     public class PhysicSequence : PhysicNode
     {
         public override string ToString() => $"Sequence({string.Join(",", children_)}: {Cost()})";
 
+        public LogicCteAnchor cteAnchor_;
+
         public PhysicSequence(LogicNode logic, List<PhysicNode> children) : base(logic)
         {
-            Debug.Assert(children.Count >= 2);
+            Debug.Assert(children.Count == 2);
             children_ = children;
         }
 
@@ -1073,87 +1072,168 @@ namespace qpmodel.logic
     {
         internal CteExpr cte_;
 
+        public CteInfoEntry cteInfoEntry_;
         // represent the id of CTE, it should match the related CteProducer
         public int cteId_;
         public override string ToString() => $"CteProducer({child_()})";
 
-        public LogicCteProducer(LogicNode child, CteExpr cte)
+        public LogicCteProducer(CteInfoEntry cteInfoEntry)
         {
-            children_.Add(child);
-            cte_ = cte;
+            cteInfoEntry_ = cteInfoEntry;
         }
 
         public override string ExplainInlineDetails() => cte_.cteName_;
     }
 
+    public class LogicSelectCte : LogicNode
+    {
+        CteInfoEntry cteInfoEntry_;
+
+        LogicSignature LogicSign_ = -1;
+        public LogicSelectCte(LogicCteConsumer lcc)
+        {
+            children_.Add(lcc.cteInfoEntry_.plan_.child_());
+            Debug.Assert(children_.Count() == 1);
+            cteInfoEntry_ = lcc.cteInfoEntry_;
+        }
+
+        // LogicSelectCte has the same LogicSignature with LogciCteConsumer
+        public override LogicSignature MemoLogicSign()
+        {
+            if (logicSign_ == -1)
+                logicSign_ = cteInfoEntry_.GetType().GetHashCode() ^ cteInfoEntry_.cte_.cteId_.GetHashCode();
+            return logicSign_;
+        }
+    }
+
+    public class PhysicSelectCte : PhysicNode
+    {
+        public override string ToString() => $"SelectCte({string.Join(",", children_)}: {Cost()})";
+
+        // CteAnchor has no operatopm
+        public PhysicSelectCte(LogicNode logic, PhysicNode child) : base(logic)
+        {
+            children_.Add(child);
+            Debug.Assert(children_.Count() == 1);
+        }
+
+        public override void Exec(Action<Row> callback)
+        {
+            ExecContext context = context_;
+            child_().Exec(r =>
+            {
+                callback(r);
+            });
+        }
+        protected override double EstimateCost()
+        {
+            return 0;
+        }
+    }
+
     public class LogicCteConsumer : LogicNode
     {
+        LogicSignature LogicSign_ = -1;
+
         // represent the id of CTE, it should match the related CteProducer
         public int cteId_ = -1;
         public override string ToString() => $"LogicCteConsumer({cteId_})";
 
-        public CteExpr cteExpr_;
-
-        public CteInfoEntry cteInfo_;
+        public CteInfoEntry cteInfoEntry_;
 
         // Cte Consumer has no child
         public LogicCteConsumer(CteInfoEntry cteInfo)
         {
             cteId_ = cteInfo.cte_.cteId_;
-            cteInfo_ = cteInfo;
+            cteInfoEntry_ = cteInfo;
         }
+
+        public override LogicSignature MemoLogicSign()
+        {
+            if (logicSign_ == -1)
+                logicSign_ = cteInfoEntry_.GetType().GetHashCode() ^ cteInfoEntry_.cte_.cteId_.GetHashCode();
+            return logicSign_;
+        }
+
         public override string ExplainInlineDetails() => "LogicCTEConsumer";
     }
 
     public class LogicCteAnchor : LogicNode
     {
         // represent the id of CTE, it should match the related CteProducer
-        public int cteId_ = -1;
+        public CteInfoEntry cteInfoEntry_;
 
-        public override string ToString() => $"CteAnchor({cteId_})";
+        public override string ToString() => $"CteAnchor({cteInfoEntry_.cte_.cteId_})";
 
         // Cte Consumer has no child
-        public LogicCteAnchor(int cteId)
+        public LogicCteAnchor(CteInfoEntry cteInfoEntry)
         {
-            cteId_ = cteId;
+            cteInfoEntry_ = cteInfoEntry;
         }
+
         public override string ExplainInlineDetails() => "CteAnchor";
 
         public override int GetHashCode()
         {
-            return GetType().GetHashCode() ^ children_.ListHashCode() ^ cteId_.GetHashCode();
+            return GetType().GetHashCode() ^ cteInfoEntry_.cte_.cteId_.GetHashCode();
+        }
+    }
+
+    public class PhysicCteAnchor : PhysicNode
+    {
+        public override string ToString() => $"CteAnchor({string.Join(",", children_)}: {Cost()})";
+
+        // CteAnchor has no operatopm
+        public PhysicCteAnchor(LogicNode logic, PhysicNode child) : base(logic)
+        {
+            children_.Add(child);
+        }
+
+        public override void Exec(Action<Row> callback)
+        {
+            ExecContext context = context_;
+            child_().Exec(r =>
+            {
+                callback(r);
+            });
+        }
+        protected override double EstimateCost()
+        {
+            return 0;
         }
     }
 
     public class PhysicCteConsumer : PhysicNode
     {
+        List<Row> cteCache_ = null;
 
         internal List<Row> heap_ = new List<Row>();
 
         bool isInlined = true;
-        public PhysicCteConsumer(LogicNode logic, PhysicNode child) : base(logic)
+        public PhysicCteConsumer(LogicNode logic) : base(logic)
         {
-            children_.Add(child);
         }
+
+        public override void Open(ExecContext context)
+        {
+            base.Open(context);
+            var logic = logic_ as LogicFromQuery;
+            if (logic.IsCteConsumer(out CTEQueryRef qref))
+                cteCache_ = context.TryGetCteProducer(qref.cte_.cteName_);
+        }
+
         public override void Exec(Action<Row> callback)
         {
-            ExecContext context = context_;
-            var logic = logic_ as LogicCteProducer;
-
-            child_().Exec(r =>
+            foreach (Row l in cteCache_)
             {
-                if (context.option_.optimize_.use_codegen_)
-                {
-                    context.code_ += $@"";
-                }
-                else
-                {
-                    // cache the results
-                    heap_.Add(r);
-                }
-            });
+                var r = ExecProject(l);
+                callback(r);
+            }
         }
-
+        protected override double EstimateCost()
+        {
+            return cteCache_.Count();
+        }
     }
 
     public class PhysicCteProducer : PhysicNode
@@ -1161,9 +1241,8 @@ namespace qpmodel.logic
         internal List<Row> heap_ = new List<Row>();
 
         public override string ToString() => $"PCteProducer({child_()}: {Cost()})";
-        public PhysicCteProducer(LogicNode logic, PhysicNode child) : base(logic)
+        public PhysicCteProducer(LogicNode logic) : base(logic)
         {
-            children_.Add(child);
         }
 
         public override void Open(ExecContext context)
