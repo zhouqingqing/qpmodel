@@ -56,6 +56,11 @@ public:
     explicit Row (int n) {
         for (int i = 0; i < n; i++) values_.emplace_back (NullFlag{});
     }
+    explicit Row(const Row* src)
+    {
+        for (int i = 0; i < src->values_.size(); ++i)
+            values_.emplace_back(src->values_[i]);
+    }
     explicit Row (Row* l, Row* r) {}
 
     Datum& operator[] (int i) { return values_[i]; }

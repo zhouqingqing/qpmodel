@@ -36,7 +36,7 @@ std::vector<Row> SelectStmt::Exec()
    
    assert(execContext_ != nullptr);
    bool moreData = true;
-   while (true) {
+   while (moreData) {
       andb::ExecuteCtx(physicPlan_, [&](Row *row) {
             if (row)
                resultSet.emplace_back(*row);

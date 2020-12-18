@@ -4,7 +4,8 @@
 #include "common/nodebase.h"
 #include "parser/include/expr.h"
 
-namespace andb {
+namespace andb
+{
 
 class LogicNode : public RuntimeNodeT<LogicNode> {
 public:
@@ -37,6 +38,11 @@ public:
     explicit LogicScan (BaseTableRef* tab, int targetcnt) : LogicGet (tab) {
         classTag_ = LogicScan_;
         targetcnt_ = targetcnt;
+    }
+
+    BaseTableRef* getBaseTableRef()
+    {
+        return tableref_;
     }
 };
 

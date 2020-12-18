@@ -249,4 +249,7 @@ static bool getNextStmt()
 
 static void ShowResultSet(std::vector<Row>& rows)
 {
+    for (auto r : rows) {
+        std::cout << r.ToString() << std::endl;
+    }
 }
