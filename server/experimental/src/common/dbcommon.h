@@ -5,6 +5,7 @@
 #include <map>
 
 #include "common.h"
+#include "runtime/datum.h"
 
 namespace andb {
     class Expr;
@@ -138,14 +139,8 @@ namespace andb {
             }
     };
 
-    class Distribution
+    class ColumnDef : public UseCurrentResource
     {
-        public:
-        TableDef*         tableDef_;
-        std::vector<Row*> heap_;
-    };
-
-    class ColumnDef : public UseCurrentResource {
         public:
             ClassTag    classTag_;
             std::string *name_;
@@ -186,7 +181,19 @@ namespace andb {
             }
     };
 
-    class TableDef : public UseCurrentResource {
+    class Distribution
+    {
+        public:
+        TableDef* tableDef_;
+        Distribution(TableDef* td = 0)
+          : tableDef_(td)
+        {}
+
+        std::vector<Row*> heap_;
+    };
+
+    class TableDef : public UseCurrentResource
+    {
         public:
         enum TableSource
         {
@@ -209,6 +216,7 @@ namespace andb {
             bool isCloned_;
             TableSource source_;
             DistributionMethod distMethod_;
+            std::vector<Distribution> distributions_;
 
             TableDef(std::string*             name,
                      std::vector<ColumnDef*>& columns,
@@ -232,7 +240,9 @@ namespace andb {
                     if (!added)
                        throw SemanticAnalyzeException("Duplicate Column Definition: " + *c->name_);
                 }
-            }
+
+            distributions_.emplace_back(const_cast<TableDef*>(this));
+        }
 
             virtual ~TableDef()
             {
@@ -265,12 +275,12 @@ namespace andb {
             std::vector<ColumnDef *> ColumnsInOrder()
             {
                 std::vector<ColumnDef *> inOrder;
-                for (auto c : *columns_) inOrder.emplace_back (c.second);
+                for (auto c : *columns_)
+					inOrder.emplace_back (c.second);
 
-                std::sort(inOrder.begin(), inOrder.end(),
-                        [](auto &lc, auto &rc) {
-                        return lc->ordinal_ < rc->ordinal_;
-                        });
+            std::sort(inOrder.begin(), inOrder.end(), [](auto& lc, auto& rc) {
+                return lc->ordinal_ < rc->ordinal_;
+            });
 
                 return inOrder;
             }
@@ -284,5 +294,15 @@ namespace andb {
 
                 return size;
             }
+
+           void insertRows(std::vector<Row*>& rows)
+           {
+               auto &hr = distributions_[0].heap_;
+
+               for (int i = 0; i < rows.size(); ++i) {
+                   Row* nr = new Row(rows[i]);
+                   hr.emplace_back(nr);
+               }
+           }
     };
 }  // namespace andb

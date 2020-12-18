@@ -28,19 +28,26 @@ constexpr int serializeadd (int n) {
     return r;
 }
 
-auto MakeQuery (int nrows, Binder *binder) {
+auto MakeQuery (int& nrows, Binder *binder) {
+    const int A_ROW_COUNT = 3;
     // FIXME: I believe there is no memory leak with this test but if we don't introduce a leak here
     // then CRT gonna capture a list of fake memory leak - don't know why. To better understand it,
     // remove this line you will know.
     //
     // auto intentionally_leak = malloc (1234);
     std::string tabName{ "a" }, col1{ "a1" };
+    // ignore passed in value of nrows and set it to number of rows in
+    // the table used(a), which will pass the filter.
+    // a1 has three rows and all of them <= 22
+    nrows                  = A_ROW_COUNT;
     auto lt = new LogicScan (new BaseTableRef (&tabName), nrows);
-    binder->ResolveTable(&tabName);
+    TableDef *tdf = binder->ResolveTable(&tabName);
+    lt->tableref_->tabDef_ = tdf;
     BinExpr* filter = new BinExpr(BinOp::Leq, new ColExpr((uint16_t)0, &col1, &tabName), new ConstExpr(22));
     filter->Bind(binder);
     lt->AddFilter (filter);
-    auto logic = new LogicAgg (new LogicJoin (lt, new LogicScan (new BaseTableRef (&tabName), nrows * 2)));
+    LogicScan* lscan = new LogicScan(static_cast<BaseTableRef*>(lt->tableref_), nrows * 2);
+    auto logic = new LogicAgg(new LogicJoin (lt, lscan));
 
     return Optimize (logic);
 }
@@ -60,7 +67,7 @@ protected:
 TEST_F (DbTest, query) {
     CrtCheckMemory checker (false);
     std::srand (std::time (nullptr));
-    int nrows = std::rand () % 100 + 1;
+    int nrows = std::rand() % 100 + 1;
     SelectStmt stmt;
     Binder     binder(&stmt, nullptr);
     auto physic = MakeQuery (nrows, &binder);

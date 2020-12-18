@@ -114,6 +114,8 @@ public:
     template <typename Fn>
     void ExecT (Fn&& callback);
     void Exec (ExecCallback&& callback) override { ExecT (callback); }
+    const std::vector<Row*> *getSourceReader(int distId = 0) const;
+    std::vector<Row*> *getSourceWriter(int distId = 0);
 };
 
 class PhysicHashJoin : public NodeBase<PhysicNode, N2> {
