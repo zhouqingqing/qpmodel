@@ -108,15 +108,15 @@ void Catalog::createBuiltInTestTables()
 void Catalog::populateOptimizerTestTables()
 {
     /* std::vector<Datum> */
+    // rows of a, b, and c
     Row r1(4), r2(4), r3(4), r4(4);
     r1[0] = 0, r1[1] = 1, r1[2] = 2, r1[3] = 3;
     r2[0] = 1, r2[1] = 2, r2[2] = 3, r2[3] = 4;
     r3[0] = 2, r3[1] = 3, r3[2] = 4, r3[3] = 5;
-    r4[0] = 3, r4[1] = 4, r4[2] = 5, r4[3] = 6;
 
-    std::vector<Row*> abcRows{ &r1, &r2, &r3, &r4 };
+    std::vector<Row*> abcRows{ &r1, &r2, &r3 };
     int i = 0;
-    while (i < builtinTestTableNames.size() - 2) {
+    while (i < builtinTestTableNames.size() - 1) {
         populateOneTable(builtinTestTableNames[i], abcRows);
         ++i;
     }
@@ -129,13 +129,17 @@ void Catalog::populateOptimizerTestTables()
 
     r2[2] = NullFlag{};
 
-    r3[1] = r3[0];
+    r3[0] = r3[1] = 2;
     r3[2] = NullFlag{};
+    r3[3]         = 5;
 
-    r4[1] = r4[0];
-    r4[3] = NullFlag{};
+    r4[0] = r4[1] = 3;
+    r4[2]         = 5;
+    r4[3]         = 6;
 
-    populateOneTable(builtinTestTableNames[i], abcRows);
+    std::vector<Row*> dRows{ &r1, &r2, &r3, &r4 };
+
+    populateOneTable(builtinTestTableNames[i], dRows);
 }
 
 void Catalog::populateOneTable(const std::string& tblName, const std::vector<Row*>& rows)

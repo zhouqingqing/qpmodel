@@ -31,7 +31,8 @@ namespace andb
                 throw SemanticAnalyzeException("duplicate table " + *alias + " in same scope");
             aliasMap.insert(*alias);
             TableDef* tdef = binder->ResolveTable(tref->getAlias());
-            if (!tdef) throw SemanticAnalyzeException("table " + *tref->alias_ + " not found");
+            if (!tdef)
+                throw SemanticAnalyzeException("table " + *tref->alias_ + " not found");
             from_[i]->tabDef_ = tdef;
         }
 

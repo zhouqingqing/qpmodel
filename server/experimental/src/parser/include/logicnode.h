@@ -4,7 +4,8 @@
 #include "common/nodebase.h"
 #include "parser/include/expr.h"
 
-namespace andb {
+namespace andb
+{
 
 class LogicNode : public RuntimeNodeT<LogicNode> {
 public:

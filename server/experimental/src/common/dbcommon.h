@@ -241,8 +241,8 @@ namespace andb {
                        throw SemanticAnalyzeException("Duplicate Column Definition: " + *c->name_);
                 }
 
-                distributions_.emplace_back(static_cast<TableDef*>(this));
-            }
+            distributions_.emplace_back(const_cast<TableDef*>(this));
+        }
 
             virtual ~TableDef()
             {
@@ -275,12 +275,12 @@ namespace andb {
             std::vector<ColumnDef *> ColumnsInOrder()
             {
                 std::vector<ColumnDef *> inOrder;
-                for (auto c : *columns_) inOrder.emplace_back (c.second);
+                for (auto c : *columns_)
+					inOrder.emplace_back (c.second);
 
-                std::sort(inOrder.begin(), inOrder.end(),
-                        [](auto &lc, auto &rc) {
-                        return lc->ordinal_ < rc->ordinal_;
-                        });
+            std::sort(inOrder.begin(), inOrder.end(), [](auto& lc, auto& rc) {
+                return lc->ordinal_ < rc->ordinal_;
+            });
 
                 return inOrder;
             }

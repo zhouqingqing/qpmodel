@@ -10,7 +10,8 @@
 #include "parser/include/logicnode.h"
 #include "runtime/physicnode.h"
 
-namespace andb {
+namespace andb
+{
 
 // for readonly operations
 const std::vector<Row*>* PhysicScan::getSourceReader(int distId) const
