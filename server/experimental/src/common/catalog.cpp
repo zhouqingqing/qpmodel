@@ -80,6 +80,7 @@ void Catalog::createOptimizerTestTables()
     }
 }
 
+// Create tables a, b, c, d
 void Catalog::createBuiltInTestTables()
 {
 
