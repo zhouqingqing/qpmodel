@@ -1133,7 +1133,8 @@ namespace qpmodel.logic
 
     public class LogicCteConsumer : LogicNode
     {
-        LogicSignature LogicSign_ = -1;
+
+        public QueryRef queryRef_;
 
         // represent the id of CTE, it should match the related CteProducer
         public int cteId_ = -1;
@@ -1142,10 +1143,11 @@ namespace qpmodel.logic
         public CteInfoEntry cteInfoEntry_;
 
         // Cte Consumer has no child
-        public LogicCteConsumer(CteInfoEntry cteInfo)
+        public LogicCteConsumer(CteInfoEntry cteInfo, QueryRef queryRef)
         {
             cteId_ = cteInfo.cte_.cteId_;
             cteInfoEntry_ = cteInfo;
+            queryRef_ = queryRef;
         }
 
         public override LogicSignature MemoLogicSign()
@@ -1153,6 +1155,26 @@ namespace qpmodel.logic
             if (logicSign_ == -1)
                 logicSign_ = cteInfoEntry_.GetType().GetHashCode() ^ cteInfoEntry_.cte_.cteId_.GetHashCode();
             return logicSign_;
+        }
+
+        // it is similar to from query.
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
+        {
+            List<int> ordinals = new List<int>();
+            var query = queryRef_.query_;
+            query.logicPlan_.ResolveColumnOrdinal(query.selection_);
+            var childout = queryRef_.AllColumnsRefs();
+            child_().ResolveColumnOrdinal(childout);
+            output_ = CloneFixColumnOrdinal(reqOutput, childout, false);
+
+            // finally, consider outerref to this table: if it is not there, add it. We can't
+            // simply remove redundant because we have to respect removeRedundant flag
+            //
+            output_ = queryRef_.AddOuterRefsToOutput(output_);
+            if (removeRedundant)
+                output_ = output_.Distinct().ToList();
+            RefreshOutputRegisteration();
+            return ordinals;
         }
 
         public override string ExplainInlineDetails() => "LogicCTEConsumer";
@@ -1232,7 +1254,7 @@ namespace qpmodel.logic
         }
         protected override double EstimateCost()
         {
-            return cteCache_.Count();
+            return (double)(cteCache_?.Count() ?? 0);
         }
     }
 

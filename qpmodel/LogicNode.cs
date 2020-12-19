@@ -133,7 +133,8 @@ namespace qpmodel.logic
             PhysicNode result;
             PhysicNode phyfirst = null;
 
-            // inline CTE
+            // 
+            // inline CTE logic plan firstly
             if (this is LogicCteConsumer lcc)
                 lcc.children_.Insert(0, lcc.cteInfoEntry_.plan_);
 
@@ -233,16 +234,21 @@ namespace qpmodel.logic
                     result = new PhysicSampleScan(ss, phyfirst);
                     break;
                 case LogicCteConsumer lcc2:
+                    // inline the cte
+                    // add the subplan as the child of CTEConsumer firstly
+                    // replace CteConsumer as CteFrom
+                    result = new PhysicFromQuery(lcc2, phyfirst);
+                    // the child of CteConsumer is PhysicalFromNode, inline Cte will create a FromNode
+                    // To avoid Dumplication, remove the child of CteConsumer
+                    //
                     if (option.profile_.enabled_)
-                        result = phyfirst.child_();
+                        result.children_[0] = phyfirst.child_().child_().child_();
                     else
-                        result = phyfirst;
-                    Debug.Assert(result is PhysicFromQuery);
-                    if (result is PhysicFromQuery rpfq)
-                    {
-                        rpfq.setAsInlineCte();
-                        result = rpfq;
-                    }
+                        result.children_[0] = phyfirst.child_().child_();
+                    // set it the FromQuery as InlineCte
+                    var pfq = result as PhysicFromQuery;
+                    pfq.setAsInlineCte();
+                    result = pfq;
                     break;
                 case LogicCteAnchor lca:
                     result = phyfirst;
@@ -267,6 +273,11 @@ namespace qpmodel.logic
                 {
                     refs.Add(fx.queryRef_);
                     refs.AddRange(fx.queryRef_.query_.bindContext_.AllTableRefs());
+                }
+                else if (this is LogicCteConsumer lcc)
+                {
+                    refs.Add(lcc.queryRef_);
+                    refs.AddRange(lcc.queryRef_.query_.bindContext_.AllTableRefs());
                 }
                 else
                 {

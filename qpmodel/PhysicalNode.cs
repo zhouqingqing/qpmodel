@@ -1557,14 +1557,16 @@ namespace qpmodel.physic
 
         public PhysicFromQuery(LogicFromQuery logic, PhysicNode l) : base(logic) => children_.Add(l);
 
+        public PhysicFromQuery(LogicCteConsumer logic, PhysicNode l) : base(logic) => children_.Add(l);
+
         public bool IsCteConsumer(out CTEQueryRef qref) => (logic_ as LogicFromQuery).IsCteConsumer(out qref);
 
         public override void Open(ExecContext context)
         {
             base.Open(context);
-            var logic = logic_ as LogicFromQuery;
-            if (logic.IsCteConsumer(out CTEQueryRef qref))
-                cteCache_ = context.TryGetCteProducer(qref.cte_.cteName_);
+            //var logic = logic_ as LogicFromQuery;
+            //if (logic.IsCteConsumer(out CTEQueryRef qref))
+            //    cteCache_ = context.TryGetCteProducer(qref.cte_.cteName_);
         }
 
         public override void Exec(Action<Row> callback)
@@ -1583,7 +1585,7 @@ namespace qpmodel.physic
                 if (context.stop_)
                     return;
 
-                if (logic.queryRef_.colRefedBySubq_.Count != 0)
+                if (!(logic is null) && logic?.queryRef_.colRefedBySubq_.Count != 0)
                     context.AddParam(logic.queryRef_, l);
                 var r = ExecProject(l);
                 callback(r);

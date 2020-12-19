@@ -3149,12 +3149,28 @@ namespace qpmodel.unittest
             answer = @"PhysicFilter  (actual rows=1)
                         Output: cte0.a1[0],cte0.a2[1],cte0.a3[2],cte0.a4[3]
                         Filter: cte0.a1[0]=2
-                        -> PhysicFromQuery <cte0> (actual rows=3)
-                            Output: cte0.a1[0],cte0.a2[1],cte0.a3[2],cte0.a4[3]                      
-                            -> PhysicScanTable a (actual rows=3)
+                        -> PhysicFromQuery LogicCTEConsumer (actual rows=3)
+                            Output: cte0.a1[0],cte0.a2[1],cte0.a3[2],cte0.a4[3]
+                            -> PhysicScanTable a (actual rows=0)
                                 Output: a.a1[0],a.a2[1],a.a3[2],a.a4[3]";
             TU.PlanAssertEqual(answer, phyplan);
 
+            sql = "with cte0 as (select * from a) select * from cte0 cte1, cte0 cte2 where cte1.a1 = 2";
+            TU.ExecuteSQL(sql, "2,3,4,5,0,1,2,3;2,3,4,5,1,2,3,4;2,3,4,5,2,3,4,5", out phyplan, option);
+            answer = @"PhysicFilter  (actual rows=3)
+                        Output: cte1.a1[0],cte1.a2[1],cte1.a3[2],cte1.a4[3],cte2.a1[4],cte2.a2[5],cte2.a3[6],cte2.a4[7]
+                        Filter: cte1.a1[0]=2
+                        -> PhysicNLJoin  (actual rows=9)
+                            Output: cte1.a1[0],cte1.a2[1],cte1.a3[2],cte1.a4[3],cte2.a1[4],cte2.a2[5],cte2.a3[6],cte2.a4[7]
+                            -> PhysicFromQuery LogicCTEConsumer (actual rows=3)
+                                Output: cte1.a1[0],cte1.a2[1],cte1.a3[2],cte1.a4[3]
+                                -> PhysicScanTable a (actual rows=0)
+                                    Output: a.a1[0],a.a2[1],a.a3[2],a.a4[3]
+                            -> PhysicFromQuery LogicCTEConsumer (actual rows=3, loops=3)
+                                Output: cte2.a1[0],cte2.a2[1],cte2.a3[2],cte2.a4[3]
+                                -> PhysicScanTable a (actual rows=0)
+                                    Output: a.a1[0],a.a2[1],a.a3[2],a.a4[3]";
+            TU.PlanAssertEqual(answer, phyplan);
 
             //TU.ExecuteSQL(sql, "1", out phyplan, option);
             //sql = "with cte1 as (select* from a) select * from cte1 where a1>1;"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
@@ -3173,9 +3189,12 @@ namespace qpmodel.unittest
             option.optimize_.use_memo_ = true;
             option.optimize_.enable_cte_plan_ = true;
             var phyplan = "";
-            // inline cte only use one time
-            var sql = "with cte0 as (select * from a) select * from cte0 cte1, cte0 cte2 where cte1.a1 = 2";
+
+            var sql = "with cte0 as (select * from a) select * from cte0 where cte0.a1=2 ";
             TU.ExecuteSQL(sql, "2,3,4,5", out phyplan, option);
+            // inline cte only use one time
+            sql = "with cte0 as (select * from a) select * from cte0 cte1, cte0 cte2 where cte1.a1 = 2";
+            TU.ExecuteSQL(sql, "2,3,4,5,0,1,2,3;2,3,4,5,1,2,3,4;2,3,4,5,2,3,4,5", out phyplan, option);
             var answer = @"PhysicFilter  (actual rows=1)
                         Output: cte0.a1[0],cte0.a2[1],cte0.a3[2],cte0.a4[3]
                         Filter: cte0.a1[0]=2

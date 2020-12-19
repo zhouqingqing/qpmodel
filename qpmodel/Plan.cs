@@ -362,7 +362,7 @@ namespace qpmodel.logic
                         }
                         else
                         {
-                            from = new LogicCteConsumer(cteInfo_.GetCteInfoEntryByCteId(cref.cte_.cteId_));
+                            from = new LogicCteConsumer(cteInfo_.GetCteInfoEntryByCteId(cref.cte_.cteId_), cref);
                         }
                         break;
                     case FromQueryRef qref:
