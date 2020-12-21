@@ -26,10 +26,6 @@
  */
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Diagnostics;
 
 using qpmodel.stat;
@@ -171,7 +167,7 @@ namespace qpmodel.logic
                         var stats = Catalog.sysstat_.GetColumnStat(btr.relname_, col.colName_);
                         return stats?.EstDistinct() ?? 0;
                     }
-                    
+
                 }
                 return 0;
             }
@@ -196,7 +192,7 @@ namespace qpmodel.logic
                 }
                 mindlr = mindlr * Math.Min(dl, dr);
             }
-            
+
             if (mindlr != 0)
                 card = Math.Max(1, (cardl * cardr) / mindlr);
             else
