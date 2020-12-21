@@ -49,7 +49,7 @@ namespace qpmodel.optimizer.test
         static internal BigInteger Count_General_Bushy_CP(int n)
         {
             BigInteger r = 1;
-            for (var l = n; l <= 2 * n - 2; l++)
+            for (var l = n; l <= (2 * n) - 2; l++)
                 r *= l;
             return r;
         }
@@ -376,7 +376,7 @@ namespace qpmodel.optimizer
             BitVector oldS = S;
             while (S > 0)
             {
-                if (0 != (S & 1))
+                if ((S & 1) != 0)
                 {
                     t++;
                     yield return i;
@@ -418,7 +418,6 @@ namespace qpmodel.optimizer
             Debug.Assert(CountSetBits(X) == i + 1);
             return X;
         }
-
 
         static public void Test()
         {
@@ -530,7 +529,7 @@ namespace qpmodel.optimizer
             {
                 Debug.Assert(bit >= 0 && bit < 64);
                 var v = ((long)1) << bit;
-                return 0 != (S_ & v);
+                return (S_ & v) != 0;
             }
             set
             {

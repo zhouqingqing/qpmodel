@@ -227,7 +227,6 @@ namespace qpmodel.utils
             return hash;
         }
 
-
         // Do both the lists contain same elements regardless of odrer?
         public static bool OrderlessEqual<T>(List<T> left, List<T> right)
             => left.ContainsList(right) && right.ContainsList(left);
@@ -304,7 +303,7 @@ namespace qpmodel.utils
                     Console.WriteLine("+++ StackTrace +++");
                     Console.Error.WriteLine(e.StackTrace);
                     throw;
-                };
+                }
             }
         }
         public static string normalizeName(string name) =>
