@@ -141,7 +141,7 @@ namespace qpmodel.logic
             var andlist = nodeAFilter.FilterToAndList();
             var keeplist = andlist.Where(x => x.VisitEachExists(e => e.Equals(existExpr))).ToList();
             andlist.RemoveAll(x => exprIsNotORExprAndEqualsToExistExpr(x, existExpr) ||
-                            (x is LogicOrExpr) && !hasAnyExtraSubqueryExprInOR(x, existExpr));
+                            ((x is LogicOrExpr) && !hasAnyExtraSubqueryExprInOR(x, existExpr)));
 
             // if there is any (#marker@1 or @2), the root should be replace, 
             // i.e. the (#marker@1 or @2)  keeps at the top for farther unnesting

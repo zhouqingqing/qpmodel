@@ -550,7 +550,7 @@ namespace qpmodel.optimizer
             var S = S_;
             while (S > 0)
             {
-                if (0 != (S & 1))
+                if ( (S & 1)!=0)
                     yield return i;
                 S >>= 1;
                 i++;
