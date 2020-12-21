@@ -18,11 +18,11 @@ jobs:
       with:
         dotnet-version: 3.1.101
     - name: Clean
-      run: dotnet clean ./src/qpmodel.sln --configuration Release && dotnet nuget locals all --clear
+      run: dotnet clean ./qpmodel.sln --configuration Debug && dotnet nuget locals all --clear
     - name: Install dependencies
       run: dotnet restore
     - name: Build
-      run: dotnet build --configuration Release --no-restore
+      run: dotnet build --configuration Debug --no-restore
 
     - name: Unit Test
       run: dotnet test
