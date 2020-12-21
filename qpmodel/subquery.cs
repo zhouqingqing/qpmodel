@@ -28,14 +28,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Diagnostics;
-using Value = System.Object;
 
 using qpmodel.expr;
 using qpmodel.physic;
-using qpmodel.utils;
+
+using Value = System.Object;
 
 // To remove FromQuery, we essentially remove all references to the related 
 // FromQueryRef, which shall include selection (ColExpr, Aggs, Orders etc),

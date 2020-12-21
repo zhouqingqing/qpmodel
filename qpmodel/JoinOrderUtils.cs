@@ -28,8 +28,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Numerics;
 using System.Diagnostics;
 using qpmodel.optimizer.test;
@@ -39,7 +37,6 @@ using qpmodel.logic;
 using qpmodel.utils;
 
 using BitVector = System.Int64;
-using LogicSignature = System.Int64;
 
 namespace qpmodel.optimizer.test
 {
@@ -613,13 +610,15 @@ namespace qpmodel.optimizer
             var j1 = pred.lchild_().tableRefs_[0];
             Utils.Assumes(pred.rchild_().tableRefs_.Count == 1);
             var j2 = pred.rchild_().tableRefs_[0];
-            int i1 = vertices_.FindIndex(x => {
+            int i1 = vertices_.FindIndex(x =>
+            {
                 var refs = x.InclusiveTableRefs();
                 Utils.Assumes(refs.Count == 1);
                 return j1.alias_ == refs[0].alias_;
             });
             index[0] = i1;
-            int i2 = vertices_.FindIndex(x => {
+            int i2 = vertices_.FindIndex(x =>
+            {
                 var refs = x.InclusiveTableRefs();
                 Utils.Assumes(refs.Count == 1);
                 return j2.alias_ == refs[0].alias_;

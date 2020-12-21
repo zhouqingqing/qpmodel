@@ -25,16 +25,14 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Diagnostics;
-using Value = System.Object;
 
 using qpmodel.logic;
 using qpmodel.physic;
 using qpmodel.utils;
-using IronPython.Compiler.Ast;
+
+using Value = System.Object;
 
 namespace qpmodel.expr
 {
