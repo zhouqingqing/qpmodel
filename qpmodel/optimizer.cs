@@ -60,6 +60,8 @@ namespace qpmodel.optimizer
         // distribution: what distribution type and expressions (for some of types)
         public (DistrType disttype, List<Expr> exprs) distribution_ = (DistrType.AnyDistributed, null);
 
+        // CTESpec is a CTEProducer or CTEConsumer with cteid
+        public List<(CTEType ctetype, int cteid)> cteSpecList_ = new List<(CTEType, int)>();
         // Does testee satisfy my property requirements?
         public bool IsSuppliedBy(PhysicProperty testee) => OrderIsSuppliedBy(testee) && DistributionIsSuppliedBy(testee);
 
@@ -242,6 +244,13 @@ namespace qpmodel.optimizer
 
         AnyDistributed, // not a actualy distribution type, refer to Distributed 
                         // but does not have to provide distribution column etc
+    }
+
+    public enum CTEType
+    {
+        CTEProducer,
+        CTEConsumer,
+        Sentry
     }
 
     public class DistrProperty : PhysicProperty
@@ -537,7 +546,7 @@ namespace qpmodel.optimizer
             foreach (var v in exprList_)
             {
                 if (v.logic_ != null)
-                    clogic++; 
+                    clogic++;
                 else
                     cphysic++;
             }
@@ -645,6 +654,15 @@ namespace qpmodel.optimizer
             return output;
         }
 
+        public (CTEType, int) ComputerCTESpec(CGroupMember member)
+        {
+            if (member.logic_ is LogicCteProducer lcp)
+                return (CTEType.CTEProducer, lcp.cteId_);
+            else if (member.logic_ is LogicCteConsumer lcc)
+                return (CTEType.CTEConsumer, lcc.cteId_);
+            else return (CTEType.Sentry, -1);
+        }
+
         // For the required property, find out the cheapest group member
         public CGroupMember CalculateMinInclusiveCostMember(PhysicProperty required)
         {
@@ -656,14 +674,18 @@ namespace qpmodel.optimizer
             Debug.Assert(explored_ && exprList_.Count >= 2);
             CGroupMember optmember = null;
             double cheapestIncCost = Double.MaxValue;
-            bool isleaf = exprList_[0].Logic().children_.Count == 0 || IsSolverOptimizedGroup();
+
 
             // add less strict property into the dictionary by enforcing to required proerty, expand
             // the exprList_ and locate the optmember for the required property.
             //
             var childproperties = GenerateRelaxedProperties(required);
+
+
+
             foreach (var prop in childproperties)
             {
+
                 // assuming we disabled broadcast and prop is replicated, then we can't find the member
                 //
                 var member = CalculateMinInclusiveCostMember(prop);
@@ -694,9 +716,14 @@ namespace qpmodel.optimizer
             // if required property can be provided, update the best member
             foreach (var member in exprList_)
             {
+                bool isleaf = member.Logic().children_.Count == 0 || IsSolverOptimizedGroup();
                 var curphysic = member.physic_;
                 if (curphysic is null || member.isEnforcer_)
                     continue;
+
+                // CTESpec is a CTEProducer or CTEConsumer with cteid
+                List<(CTEType ctetype, int cteid)> cteSpecList = new List<(CTEType, int)>();
+                cteSpecList.Append(ComputerCTESpec(member));
 
                 if (curphysic.CanProvide(required, out var listChildReqs))
                 {
@@ -713,7 +740,7 @@ namespace qpmodel.optimizer
                             var childcost = curphysic.Cost();
                             for (int i = 0; i < curphysic.children_.Count; i++)
                             {
-                                var child = curphysic.children_[i];
+                                var child = curphysic.children_[i]; // TODO we have to getProperty from pre
                                 var childgroup = (child as PhysicMemoRef).Group();
                                 childgroup.CalculateMinInclusiveCostMember(childprops[i]);
 

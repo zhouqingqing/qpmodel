@@ -3106,7 +3106,7 @@ namespace qpmodel.unittest
 
 
         [TestMethod]
-        public void TestCTENew()
+        public void TestCTENoMemo()
         {
             // costbase cte optimizer have to use memo
             //
@@ -3190,18 +3190,18 @@ namespace qpmodel.unittest
             option.optimize_.enable_cte_plan_ = true;
             var phyplan = "";
 
-            var sql = "with cte0 as (select * from a) select * from cte0 where cte0.a1=2 ";
+            var sql = "with cte0 as (select * from a) select * from cte0 cte1 where cte1.a1=2 ";
             TU.ExecuteSQL(sql, "2,3,4,5", out phyplan, option);
             // inline cte only use one time
-            sql = "with cte0 as (select * from a) select * from cte0 cte1, cte0 cte2 where cte1.a1 = 2";
-            TU.ExecuteSQL(sql, "2,3,4,5,0,1,2,3;2,3,4,5,1,2,3,4;2,3,4,5,2,3,4,5", out phyplan, option);
-            var answer = @"PhysicFilter  (actual rows=1)
-                        Output: cte0.a1[0],cte0.a2[1],cte0.a3[2],cte0.a4[3]
-                        Filter: cte0.a1[0]=2
-                        -> PhysicFromQuery <cte0> (actual rows=3)
-                            Output: cte0.a1[0],cte0.a2[1],cte0.a3[2],cte0.a4[3]                      
-                            -> PhysicScanTable a (actual rows=3)
-                                Output: a.a1[0],a.a2[1],a.a3[2],a.a4[3]";
+            //sql = "with cte0 as (select * from a) select * from cte0 cte1, cte0 cte2 where cte1.a1 = 2";
+            //TU.ExecuteSQL(sql, "2,3,4,5,0,1,2,3;2,3,4,5,1,2,3,4;2,3,4,5,2,3,4,5", out phyplan, option);
+            //var answer = @"PhysicFilter  (actual rows=1)
+            //            Output: cte0.a1[0],cte0.a2[1],cte0.a3[2],cte0.a4[3]
+            //            Filter: cte0.a1[0]=2
+            //            -> PhysicFromQuery <cte0> (actual rows=3)
+            //                Output: cte0.a1[0],cte0.a2[1],cte0.a3[2],cte0.a4[3]                      
+            //                -> PhysicScanTable a (actual rows=3)
+            //                    Output: a.a1[0],a.a2[1],a.a3[2],a.a4[3]";
 
         }
 

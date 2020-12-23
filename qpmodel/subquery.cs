@@ -1080,6 +1080,9 @@ namespace qpmodel.logic
         public LogicCteProducer(CteInfoEntry cteInfoEntry)
         {
             cteInfoEntry_ = cteInfoEntry;
+            children_.Add(cteInfoEntry.plan_);
+            // CTEProducer has only one child
+            Debug.Assert(children_.Count() == 1);
         }
 
         public override string ExplainInlineDetails() => cte_.cteName_;
@@ -1087,14 +1090,15 @@ namespace qpmodel.logic
 
     public class LogicSelectCte : LogicNode
     {
-        CteInfoEntry cteInfoEntry_;
+        public CteInfoEntry cteInfoEntry_;
 
-        LogicSignature LogicSign_ = -1;
+        public LogicCteConsumer logicCteConsumer_;
         public LogicSelectCte(LogicCteConsumer lcc)
         {
-            children_.Add(lcc.cteInfoEntry_.plan_.child_());
+            children_.Add(lcc.cteInfoEntry_.plan_);
             Debug.Assert(children_.Count() == 1);
             cteInfoEntry_ = lcc.cteInfoEntry_;
+            logicCteConsumer_ = lcc;
         }
 
         // LogicSelectCte has the same LogicSignature with LogciCteConsumer
@@ -1221,6 +1225,7 @@ namespace qpmodel.logic
         }
         protected override double EstimateCost()
         {
+            // CTEAnchor has no cost
             return 0;
         }
     }
@@ -1254,7 +1259,9 @@ namespace qpmodel.logic
         }
         protected override double EstimateCost()
         {
-            return (double)(cteCache_?.Count() ?? 0);
+            //return (double)(cteCache_?.Count() ?? 0);
+            // FIXME
+            return 10000;
         }
     }
 
@@ -1263,8 +1270,9 @@ namespace qpmodel.logic
         internal List<Row> heap_ = new List<Row>();
 
         public override string ToString() => $"PCteProducer({child_()}: {Cost()})";
-        public PhysicCteProducer(LogicNode logic) : base(logic)
+        public PhysicCteProducer(LogicNode logic,PhysicNode child) : base(logic)
         {
+            this.children_.Add(child);
         }
 
         public override void Open(ExecContext context)
@@ -1295,6 +1303,7 @@ namespace qpmodel.logic
 
         protected override double EstimateCost()
         {
+            // producer will mati
             return logic_.Card() * 0.5;
         }
     }

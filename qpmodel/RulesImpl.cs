@@ -177,13 +177,30 @@ namespace qpmodel.optimizer
         }
     }
 
-    public class CteProd2CteProd : SimpleImplementationRule<LogicCteProducer, PhysicCteProducer, NumberArgs.N0> { }
+    public class CteSelect2CteSelect : ImplmentationRule
+    {
+        public override bool Appliable(CGroupMember expr)
+        {
+            var log = expr.logic_ as LogicSelectCte;
+            return log != null;
+        }
+
+        public override CGroupMember Apply(CGroupMember expr)
+        {
+            var log = expr.logic_ as LogicSelectCte;
+
+            // FIXME we need to delete double from here
+            PhysicNode pfq = new PhysicSelectCte(log, new PhysicMemoRef(log.child_()));
+
+            return new CGroupMember(pfq, expr.group_);
+        }
+    }
+
+    public class CteProd2CteProd : SimpleImplementationRule<LogicCteProducer, PhysicCteProducer, NumberArgs.N1> { }
 
     public class Scan2Scan : SimpleImplementationRule<LogicScanTable, PhysicScanTable, NumberArgs.N0> { }
 
     public class CteConsumer2CteConsumer : SimpleImplementationRule<LogicCteConsumer, PhysicCteConsumer, NumberArgs.N0> { }
-
-    public class CteSelect2CteSelect : SimpleImplementationRule<LogicSelectCte, PhysicSelectCte, NumberArgs.N0> { }
 
     public class CteAnchor2CteAnchor : SimpleImplementationRule<LogicCteAnchor, PhysicCteAnchor, NumberArgs.N1> { }
 

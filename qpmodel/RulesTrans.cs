@@ -72,6 +72,7 @@ namespace qpmodel.optimizer
             new Result2Result(),
             new JoinCommutativeRule(),  // intentionally add a duplicated rule
             new CteAnchor2CteProd(),
+            new CteConsumer2CteSelect(),
         };
 
         // TBD: besides static controls, we can examine the plan and quick trim rules impossible to apply
@@ -335,7 +336,6 @@ namespace qpmodel.optimizer
             LogicCteConsumer cteConsumer = expr.logic_ as LogicCteConsumer;
             LogicSelectCte logicSelectCte = new LogicSelectCte(cteConsumer);
             return new CGroupMember(logicSelectCte, expr.group_);
-
         }
     }
 
