@@ -25,16 +25,11 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Diagnostics;
 
 using qpmodel.logic;
 using qpmodel.expr;
-using qpmodel.utils;
 
 namespace qpmodel.optimizer
 {

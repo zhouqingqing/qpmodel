@@ -36,7 +36,6 @@ using qpmodel.logic;
 using qpmodel.physic;
 
 using Value = System.Object;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace qpmodel.stat
 {
