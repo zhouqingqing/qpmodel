@@ -57,7 +57,6 @@ class SQLStatement : public UseCurrentResource
 
     virtual ~SQLStatement()
     {
-#ifdef __RUN_DELETES_
         DEBUG_DEST("SQLStatement", "@@@");
 
         if (hints) {
@@ -76,7 +75,6 @@ class SQLStatement : public UseCurrentResource
         logicPlan_  = nullptr;
         physicPlan_ = nullptr;
         queryOpts_  = nullptr;
-#endif // __RUN_DELETES_
     }
 
     virtual void Bind(Binder* binder) {}
@@ -125,11 +123,8 @@ class SelectStmt : public SQLStatement
         DEBUG_CONS("SelectStmt", "def");
     }
 
-    virtual ~SelectStmt()
+    ~SelectStmt() override
     {
-#ifdef __RUN_DELETES_
-        DEBUG_DEST("SelectStmt", "def");
-
         for (auto s : selection_) {
             delete s++;
         }
@@ -139,7 +134,9 @@ class SelectStmt : public SQLStatement
             delete f++;
         }
         from_.clear();
-#endif // __RUN_DELETES_
+
+        delete where_;
+        where_ = nullptr;
     }
 
     std::string Explain(void* arg = nullptr) const override;

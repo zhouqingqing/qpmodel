@@ -2,12 +2,16 @@
 #include <string>
 #include <utility>
 #include <map>
+#include <vector>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "common/statistics.h"
 #include "common/common.h"
 #include "common/dbcommon.h"
 
 namespace andb {
+
 
 // NOTE: None of the operations here are Multi-Thread (MT) safe.
 // Tables are not aware of a SCHEMA, yet.
@@ -47,6 +51,10 @@ class Catalog : public UseCurrentResource
     static void DeInit()
     {
         Catalog::systable_->dropAllTables();
+        delete systable_;
+        systable_ = nullptr;
+        delete sysstat_;
+        sysstat_ = nullptr;
     }
 
     static void createOptimizerTestTables();

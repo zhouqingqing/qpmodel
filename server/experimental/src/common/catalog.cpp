@@ -42,7 +42,8 @@ bool SysTable::CreateTable(std::string*             tabName,
         std::vector<ColumnDef*>* columns,
         std::string*             distBy)
 {
-    TableDef*   tblDef = new TableDef(tabName, *columns);
+    TableDef*                          tblDef = new TableDef(tabName, *columns);
+    std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": NEW TableDef : " << (void*)tblDef << " : " << *tabName << std::endl;
     std::pair<std::string*, TableDef*> mapVal{ tblDef->name_, tblDef };
     auto [it, added] = records_.insert(mapVal);
 
@@ -51,19 +52,20 @@ bool SysTable::CreateTable(std::string*             tabName,
         return false;
     }
 
+    tblDef->SetDistributions();
+
     return true;
 }
 
 // Let tables and their columns do their own cleanup.
 void SysTable::dropAllTables()
 {
-#ifdef __RUN_DELETES_
     for (auto t : records_) {
+        t.second->DropTable();
         delete t.second;
     }
 
     records_.clear();
-#endif // __RUN_DELETES_
 }
 
 void Catalog::createOptimizerTestTables()

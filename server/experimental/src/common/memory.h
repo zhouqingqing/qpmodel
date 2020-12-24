@@ -7,7 +7,7 @@
 
 #include "debug.h"
 
-#ifdef _WIN32
+#if defined(_WIN32) && defined(__USE_CRT_MEM_DEBUG)
 // this one does not work well if is not the first object to construct so it won't be the last
 // object to de-construct. Some objects deconstruction behind it will get reported. If we can't
 // guarantee that, we can use _CrtDumpMemoryLeaks() function directly.
@@ -43,6 +43,10 @@ struct CrtCheckMemory {
 };
 #endif
 
+// Use this only to debug memory leaks
+#define __RUN_DELETES_
+#include "common/vld.h"
+
 using MemoryResource = std::pmr::memory_resource;
 
 // define a new memory resource (not polymorphic allocator)
@@ -67,7 +71,8 @@ public:
     }
     void do_deallocate (void* p, std::size_t bytes, std::size_t alignment) override {
         pointers_.erase (p);
-        free (p);
+        std::cerr << "DEBUGMEM: " << __FILE__ << ":" << __LINE__ << " FREE " << p << std::endl;
+        free(p);
         stats_.nfrees_++;
     }
     bool do_is_equal (const std::pmr::memory_resource& other) const noexcept override {

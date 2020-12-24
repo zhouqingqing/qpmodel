@@ -1,5 +1,4 @@
 ﻿{
-  // See https://go.microsoft.com/fwlink/?linkid=834763 for more information about this file.
   "configurations": [
     {
       "name": "x64-Debug",
@@ -10,7 +9,24 @@
       "installRoot": "${projectDir}\\out\\install\\${name}",
       "cmakeCommandArgs": "",
       "buildCommandArgs": "",
-      "ctestCommandArgs": ""
+      "ctestCommandArgs": "",
+      "variables": [
+        {
+          "name": "CMAKE_C_FLAGS_DEBUG",
+          "value": "/MDd /Zi /Ob0 /Od /RTC1",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_CXX_FLAGS_DEBUG",
+          "value": "/MDd /Zi /Ob0 /Od /RTC1  /I\"C:\\Program Files (x86)\\Visual Leak Detector\\include\"",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_EXE_LINKER_FLAGS_DEBUG",
+          "value": "/debug /INCREMENTAL /LIBPATH:\"C:\\Program Files (x86)\\Visual Leak Detector\\lib\\Win64\" /IMPLIB:vld.lib",
+          "type": "STRING"
+        }
+      ]
     },
     {
       "name": "x64-Release",
@@ -21,7 +37,8 @@
       "installRoot": "${projectDir}\\out\\install\\${name}",
       "cmakeCommandArgs": "",
       "buildCommandArgs": "",
-      "ctestCommandArgs": ""
-    } 
+      "ctestCommandArgs": "",
+      "variables": []
+    }
   ]
 }

@@ -102,23 +102,27 @@ static void processSQL(void)
 
     while ((mode_interactive_on || mode_batch_on) && moreInput) {
         SQLParserResult presult;
+        SelectStatement* selStmt = nullptr;
         try {
             bool ret = ParseSQL(query, &presult);
+            PhysicNode* physic = nullptr;
+            LogicNode*  root   = nullptr;
+            selStmt = nullptr;
 
             if (ret) {
                 std::cout << "PASSED: " << query << std::endl;
 
-                SelectStatement* selStmt = (SelectStmt*)presult.getStatement(0);
+                selStmt = (SelectStmt*)presult.getStatement(0);
                 Binder binder (selStmt);
                 binder.Bind ();
                 if (binder.GetError ()) {
                     std::cout << "ERROR: Binder error\n";
                     continue;
                 }
-                LogicNode* root = selStmt->CreatePlan();
+                root = selStmt->CreatePlan();
                 if (!root)
                     continue;
-                auto physic = selStmt->Optimize();
+                physic = selStmt->Optimize();
                 if (!physic)
                     continue;
                 std::cout << "EXPLAIN: " << selStmt->Explain() << "\n";
@@ -126,6 +130,7 @@ static void processSQL(void)
                     std::vector<andb::Row> rset = selStmt->Exec();
                     if (!rset.empty())
                         ShowResultSet(rset);
+                    selStmt->Close();
                 }
             } else {
                 const char* emsg = presult.errorMsg();
@@ -158,7 +163,9 @@ static void processSQL(void)
         } catch (...) {
             std::cerr << "EXCEPTION: Unknown exception" << std::endl;
         }
-
+            
+        delete selStmt;
+            
         presult.reset();
         moreInput = getNextStmt();
     }

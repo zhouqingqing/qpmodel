@@ -1,7 +1,6 @@
 #pragma once
-
-#if !defined(NDEBUG) && defined(_WIN32)
-// memory leakage detection
+// #define __USE_CRT_MEM_DEBUG
+#if !defined(NDEBUG) && defined(_WIN32) && defined(__USE_CRT_MEM_DEBUG)
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
 #include <stdlib.h>

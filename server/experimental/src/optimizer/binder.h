@@ -20,6 +20,12 @@ namespace andb {
 
          ~Binder()
          {
+
+             for (auto t : tablesInScope_) {
+                 TableRef *tref = t.second;
+                 tref->tabDef_  = nullptr;  // Binder doesn't own tabDef_
+                 delete tref;
+             }
              tablesInScope_.clear();
          }
 

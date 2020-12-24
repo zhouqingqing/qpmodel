@@ -20,28 +20,39 @@
 // #define __DEBUG_CAT_MEMLEAK
 // #define __DEBUG_PARSER_MEMLEAK
 // #define __ENABLE_DEBUG_MSG
+// #define __DEBUG_MEMORY
 
 // debug memory mamagement
 #ifdef __DEBUG_MEMORY
-#define NEW_SYSTABLE_TYPE()  do {\
-SysTable* Catalog::systable_ = new SysTable(); \
-      std::cerr << __FILE__ << ": " << __LINE__ << " : " << __func__ \
-               << ": SysTable : " << (void *)Catalog::systable_ << " : " \
-               << sizeof(SysTable) << std::endl;
-} while (false)
 
-#define NEW_SYSSTATS_TYPE()  do {\
-SysStats* Catalog::sysstats_ = new SysStats(); \
-      std::cerr << __FILE__ << ": " << __LINE__ << " : " << __func__ \
-               << ": SysStats : " << (void *)Catalog::sysstats_ << " : " \
-               << sizeof(SysStats) << std::endl;
-} while (false)
+SysTable *newSysTable(const char *file, int line)
+{
+    SysTable* tab = new SysTable();
+    std::cerr << file << ": " << line << ": SysTable : "
+        << (void *)tab << " : " << sizeof(SysTable) << std::endl;
 
-#define NEW_TABLEDEF_TYPE(ptr__, __VAR_ARGS__) do { \
+    return tab;
+}
+
+#define NEW_SYSTABLE_TYPE() newSysTable(__FILE__, __LINE__)
+
+SysStats *newSysStats(const char *file, int line)
+{
+    SysStats* tab = new SysStats();
+    std::cerr << file << ": " << line << << ": SysStats : "
+        << (void *)tab << ": " << sizeof(SysStats) << std::endl;
+
+    return tab;
+}
+
+#define NEW_SYSSTATS_TYPE() newSysStats(__FILE__, __LINE__)
+
+#define NEW_TABLEDEF_TYPE(ptr__, __VAR_ARGS__) \
 TableDef* ptr__ = new TableDef(__VAR_ARGS__); \
-      std::cerr << __FILE__ << ": " << __LINE__ << " : " << __func__ \
+      std::cerr << __FILE__ << ": " << __LINE__ << " : " \
                << ": TableDef : " << (void *)ptr__ << " : " \
-               << sizeof(TableDef) << std::endl;
+               << sizeof(TableDef) << std::endl
+
 #else
 #define NEW_SYSTABLE_TYPE() SysTable* Catalog::systable_ = new SysTable()
 #define NEW_SYSSTATS_TYPE() SysStats* Catalog::sysstat_  = new SysStats()
@@ -70,32 +81,30 @@ namespace andb {
    class AutoDebug
    {
       public:
-      AutoDebug(const char *file, int line, const char *func,
+      AutoDebug(const char *file, int line,
             int num = 0, const char *head = nullptr,
             const char *body = nullptr)
       {
          std::cout << "ENTRY { : " << file << " : " << line
-                  << " : " << func << " : num " << num
+                  << " : num " << num
                   << " : head " << (head ? head : "")
                   << " : body " << (body ? body : "") << ":" << std::endl;
          file_ = file;
-         func_ = func;
          num_ = num;
       }
 
       ~AutoDebug()
       {
-         std::cout << "EXIT  : " << file_ << " : " << func_
+         std::cout << "EXIT  : " << file_ << " : "
                << " : num " << num_ << ":}" << std::endl;
       }
 
       private:
          const char *file_;
-         const char *func_;
          int        num_;
    };
 
-#define ADBG(...) AutoDebug adbg_##__LINE__{__FILE__, __LINE__, __func__, __VA_ARGS__}
+#define ADBG(...) AutoDebug adbg_##__LINE__{__FILE__, __LINE__, __VA_ARGS__}
 
 #define DEBUG_CONS(class___, extra___) \
     std::cout << __FILE__ << ": " \
