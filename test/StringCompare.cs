@@ -32,17 +32,6 @@ using System.IO;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-using qpmodel.physic;
-using qpmodel.utils;
-using qpmodel.logic;
-using qpmodel.sqlparser;
-using qpmodel.optimizer;
-using qpmodel.test;
-using qpmodel.expr;
-using qpmodel.dml;
-using qpmodel.tools;
-using qpmodel.stat;
-
 namespace qpmodel.unittest
 {
     [TestClass]

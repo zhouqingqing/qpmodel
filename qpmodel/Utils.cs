@@ -227,7 +227,6 @@ namespace qpmodel.utils
             return hash;
         }
 
-
         // Do both the lists contain same elements regardless of odrer?
         public static bool OrderlessEqual<T>(List<T> left, List<T> right)
             => left.ContainsList(right) && right.ContainsList(left);
@@ -242,7 +241,7 @@ namespace qpmodel.utils
         // postgreSQL dont support [A-Z]
         public static bool StringLike(this string s, string pattern)
         {
-            string regpattern="";
+            string regpattern = "";
             regpattern = pattern;
             if (!pattern.Contains("%"))
             {
@@ -251,11 +250,12 @@ namespace qpmodel.utils
             if (Regex.IsMatch(pattern, "[^%]+%"))
             {
                 regpattern = "^" + regpattern;
-            }else if (Regex.IsMatch(pattern, "%[^%]+"))
+            }
+            else if (Regex.IsMatch(pattern, "%[^%]+"))
             {
                 regpattern = regpattern + "$";
             }
-            regpattern =regpattern.Replace("%", ".*");
+            regpattern = regpattern.Replace("%", ".*");
             regpattern = regpattern.Replace("_", ".{1}");
             return Regex.IsMatch(s, regpattern);
         }
@@ -303,10 +303,11 @@ namespace qpmodel.utils
                     Console.WriteLine("+++ StackTrace +++");
                     Console.Error.WriteLine(e.StackTrace);
                     throw;
-                };
+                }
             }
         }
-        public static string normalizeName(string name) => name.StartsWith('"') ? name : name.ToLower();
+        public static string normalizeName(string name) =>
+            (name != null) ? (name.StartsWith('"') ? name : name.ToLower()) : null;
         public static int mod(int a, int b) => (a % b + b) % b; // ensure positive
     }
 }

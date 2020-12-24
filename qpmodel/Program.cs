@@ -29,11 +29,9 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
-using IronPython.Hosting;
 using System.Diagnostics;
 
 using qpmodel.codegen;
-using qpmodel.expr;
 using qpmodel.logic;
 using qpmodel.physic;
 using qpmodel.test;
@@ -168,7 +166,8 @@ namespace qpmodel
                         listoutput.Add(result.ToString());
                     }
 
-                } catch (Exception e)
+                }
+                catch (Exception e)
                 {
                     Console.WriteLine("SQL: " + sql + "\nEXCEPTION: " + e + "\n");
                     continue;

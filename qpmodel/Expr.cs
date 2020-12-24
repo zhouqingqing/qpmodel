@@ -901,16 +901,8 @@ namespace qpmodel.expr
 
         public ColExpr(string dbName, string tabName, string colName, ColumnType type, int ordinal = -1) : base()
         {
-            if (dbName != null)
-            {
-                dbName_ = Utils.normalizeName(dbName);
-            }
-
-            if (tabName != null)
-            {
-                tabName_ = Utils.normalizeName(tabName);
-            }
-
+            dbName_ = Utils.normalizeName(dbName);
+            tabName_ = Utils.normalizeName(tabName);
             colName_ = Utils.normalizeName(colName);
             outputName_ = colName_;
             type_ = type;
@@ -1132,9 +1124,7 @@ namespace qpmodel.expr
             cteName_ = Utils.normalizeName(cteName);
             colNames_ = colNames;
             for (int i = 0; i < colNames_.Count; ++i)
-            {
                 colNames_[i] = Utils.normalizeName(colNames_[i]);
-            }
             refcnt_ = 0;
         }
 
@@ -1319,7 +1309,7 @@ namespace qpmodel.expr
                 return false;
 
             if ((type_ is IntType && (int)val_ == 0) || (type_ is DoubleType && (double)val_ == 0.0) || (type_ is NumericType && (Decimal)val_ is 0))
-                return true;          
+                return true;
             return false;
         }
 

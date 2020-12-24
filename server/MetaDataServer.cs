@@ -1,14 +1,38 @@
-﻿using System;
+﻿/*
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2020 Futurewei Corp.
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Net.Http.Headers;
-using System.Runtime;
 using System.Text;
 using System.Threading;
 using System.Net.Sockets;
 using System.Net;
-using System.Reflection;
 
 namespace server
 {
@@ -26,8 +50,8 @@ namespace server
 
         public string RecvMsg(NetworkStream stream)
         {
-            byte[] bytesFrom = new byte[64*1024];
-            stream.Read(bytesFrom, 0, 64*1024);
+            byte[] bytesFrom = new byte[64 * 1024];
+            stream.Read(bytesFrom, 0, 64 * 1024);
             var msg = System.Text.Encoding.Default.GetString(bytesFrom, 0, Array.FindLastIndex(bytesFrom, b => b != 0) + 1);
             Console.WriteLine($"{this.GetType().Name}: recv {msg}");
             return msg;
@@ -56,7 +80,7 @@ namespace server
     // 
     // QP will generate T1 and T2 randomly and consistency are checked.
     //
-    class MetaDataServer: BackendServer
+    class MetaDataServer : BackendServer
     {
         public const int Port_ = 8888;
         public const string Host_ = "127.0.0.1";
@@ -64,7 +88,7 @@ namespace server
 
         readonly Dictionary<string, int> columns_ = new Dictionary<string, int>();
 
-        override public void Start() 
+        override public void Start()
         {
             // populate meta data store
             columns_.Add("c0", 10);
@@ -83,7 +107,7 @@ namespace server
                 // start a thread to handle the request async
                 Thread thread = new Thread(() =>
                 {
-                    while(!Test.stopit_)
+                    while (!Test.stopit_)
                     {
                         NetworkStream stream = clientSocket.GetStream();
                         var command = RecvMsg(stream);
@@ -126,7 +150,7 @@ namespace server
                 }
             }
 
-            SendMsg(stream, success ? "COMMITTED": "ABORTED");
+            SendMsg(stream, success ? "COMMITTED" : "ABORTED");
         }
 
         // Commands:
@@ -150,13 +174,13 @@ namespace server
         }
     }
 
-    class QueryServer: BackendServer
+    class QueryServer : BackendServer
     {
         // Transaction syntax
         //    ALTER <column name> <new length>
         //    UPDATE <cloumn name> <length>
         //
-        class Heap 
+        class Heap
         {
             public List<int> valLength_ = new List<int>();
 
@@ -171,7 +195,7 @@ namespace server
             internal void VerifyLength(int len)
             {
                 foreach (var v in valLength_)
-                   Debug.Assert(v <= len);
+                    Debug.Assert(v <= len);
             }
 
             internal bool CheckLength(int len)
@@ -195,7 +219,8 @@ namespace server
         }
         Dictionary<string, Heap> tables_ = new Dictionary<string, Heap>();
 
-        class Profile {
+        class Profile
+        {
             internal ulong nAlters_ = 0;
             internal ulong nUpdates_ = 0;
 
@@ -241,7 +266,7 @@ namespace server
                 default:
                     throw new InvalidProgramException();
             }
-            
+
             return success;
         }
 
@@ -252,7 +277,7 @@ namespace server
                 return -1;
 
             // update local cache: handle MVCC
-            
+
             // release locks and leaving the transaction
             return 0;
         }
@@ -311,7 +336,7 @@ namespace server
         }
     }
 
-    class Test 
+    class Test
     {
         public static bool stopit_ { get; set; } = false;
 
@@ -331,7 +356,7 @@ namespace server
         {
             var mdserver = new Thread(new ThreadStart(MetaServerStart));
             mdserver.Start();
-            Thread.Sleep(1*1000);
+            Thread.Sleep(1 * 1000);
 
             // current there is no concurrency control
             Debug.Assert(nQPs == 1);

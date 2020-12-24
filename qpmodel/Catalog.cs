@@ -29,20 +29,16 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Collections.Generic;
-using System.IO;
 using System.Globalization;
 using System.Threading;
 
 using qpmodel.stat;
-using qpmodel.sqlparser;
 using qpmodel.utils;
 using qpmodel.expr;
 using qpmodel.logic;
 using qpmodel.physic;
 using qpmodel.index;
-using qpmodel.test;
 
-using TableColumn = System.Tuple<string, string>;
 using qpmodel.optimizer;
 
 namespace qpmodel
