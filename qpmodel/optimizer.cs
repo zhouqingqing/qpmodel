@@ -459,7 +459,7 @@ namespace qpmodel.optimizer
         public bool explored_ = false;
 
         // expression in the same group shall have the same cardinality
-        public ulong groupcard_ = LogicNode.CARD_INVALID;
+        public ulong? groupcard_;
 
         // minMember_ depends on the property: each property has a different inclusive cost min member
         //    0: <no property required>, hash join

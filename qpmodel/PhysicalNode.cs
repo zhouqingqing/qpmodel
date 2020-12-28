@@ -46,8 +46,8 @@ namespace qpmodel.physic
     public abstract class PhysicNode : PlanNode<PhysicNode>
     {
         public LogicNode logic_;
-        internal double cost_ = double.NaN;
-        internal ulong memory_ = ulong.MaxValue;
+        internal double? cost_;
+        internal ulong? memory_;
         internal PhysicProfiling profile_;
         internal ExecContext context_;
 
@@ -152,10 +152,10 @@ namespace qpmodel.physic
         public ulong Card() => logic_.Card();
         public double Cost()
         {
-            if (double.IsNaN(cost_))
+            if (!cost_.HasValue)
                 cost_ = EstimateCost();
             Debug.Assert(cost_ >= 0);
-            return cost_;
+            return cost_.Value;
         }
         protected virtual double EstimateCost() => double.NaN;
 
@@ -207,9 +207,9 @@ namespace qpmodel.physic
 
         public ulong Memory()
         {
-            if (memory_ is ulong.MaxValue)
+            if (!memory_.HasValue)
                 memory_ = EstimateMemory();
-            return memory_;
+            return memory_.Value;
         }
         protected virtual ulong EstimateMemory() => 0;
         public ulong InclusiveMemory()
