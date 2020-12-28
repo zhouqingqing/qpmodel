@@ -49,14 +49,12 @@ namespace qpmodel.logic
 
     public abstract class LogicNode : PlanNode<LogicNode>
     {
-        public const ulong CARD_INVALID = ulong.MaxValue;
-
         // TODO: we can consider normalize all node specific expressions into List<Expr> 
         // so processing can be generalized - similar to Expr.children_[]
         //
         public Expr filter_ = null;
         public List<Expr> output_ = new List<Expr>();
-        public ulong card_ = CARD_INVALID;
+        public ulong? card_;
 
         // these fields are used to avoid recompute - be careful with stale caching
         protected List<TableRef> tableRefs_ = null;
@@ -468,10 +466,9 @@ namespace qpmodel.logic
 
         public ulong Card()
         {
-            if (card_ == CARD_INVALID)
+            if (!card_.HasValue)
                 card_ = EstimateCard();
-            Debug.Assert(card_ != CARD_INVALID);
-            return card_;
+            return card_.Value;
         }
 
         public ulong EstimateCard()
