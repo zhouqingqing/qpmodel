@@ -58,6 +58,7 @@ class DefaultResource : public MemoryResource {
     };
     AllocStats stats_;
     std::unordered_set<void*> pointers_;
+    std::unordered_multiset<void*> deleted_pointers_;
 
 public:
     MemoryResource* parent_ = nullptr;
@@ -70,6 +71,9 @@ public:
         return r;
     }
     void do_deallocate (void* p, std::size_t bytes, std::size_t alignment) override {
+        if (deleted_pointers_.find(p) != deleted_pointers_.end())
+            abort();
+        deleted_pointers_.insert(p);
         pointers_.erase (p);
         std::cerr << "DEBUGMEM: " << __FILE__ << ":" << __LINE__ << " FREE " << p << std::endl;
         free(p);
@@ -95,11 +99,21 @@ public:
 
     static void DeleteMemoryResource (MemoryResource* target) { delete target; }
 
-    void release () {
-        for (auto r = pointers_.begin(); r != pointers_.end(); ) {
-            do_deallocate(*r++, 0, 0);
-        }
+    void release()
+    {
+        auto itb = pointers_.begin();
+        auto ite = pointers_.end();
+        while (itb != ite)
+            pointers_.erase(itb++);
         pointers_.clear ();
+
+        auto dtb = deleted_pointers_.begin();
+        auto dte = deleted_pointers_.end();
+        while (dtb != dte) {
+            std::cerr << "DEBUGMEM: " << __FILE__ << ":" << __LINE__ << " DELPTR " << *dtb << std::endl;
+            deleted_pointers_.erase(dtb++);
+        }
+        deleted_pointers_.clear();
     }
     ~DefaultResource () override { release (); }
 };

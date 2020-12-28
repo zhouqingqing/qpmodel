@@ -25,38 +25,67 @@
 // debug memory mamagement
 #ifdef __DEBUG_MEMORY
 
+class SysTable;
+class SysStats;
+class TableDef;
+class TableRef;
+
+static const char *nillName = "NULL";
+
+#ifdef _MSC_VER
+#define PASS_ON_VARARGS(...)    __VAR_ARGS__
+#else
+#define PASS_ON_VARARGS
+#endif
 SysTable *newSysTable(const char *file, int line)
 {
     SysTable* tab = new SysTable();
-    std::cerr << file << ": " << line << ": SysTable : "
-        << (void *)tab << " : " << sizeof(SysTable) << std::endl;
+    std::cerr << file << " " << line << " SysTable "
+        << (void *)tab << " size " << sizeof(SysTable) << std::endl;
 
     return tab;
 }
-
 #define NEW_SYSTABLE_TYPE() newSysTable(__FILE__, __LINE__)
 
 SysStats *newSysStats(const char *file, int line)
 {
     SysStats* tab = new SysStats();
-    std::cerr << file << ": " << line << << ": SysStats : "
-        << (void *)tab << ": " << sizeof(SysStats) << std::endl;
+    std::cerr << file << " " << line << << " SysStats "
+        << (void *)tab << " size " << sizeof(SysStats) << std::endl;
 
     return tab;
 }
-
 #define NEW_SYSSTATS_TYPE() newSysStats(__FILE__, __LINE__)
 
-#define NEW_TABLEDEF_TYPE(ptr__, __VAR_ARGS__) \
-TableDef* ptr__ = new TableDef(__VAR_ARGS__); \
-      std::cerr << __FILE__ << ": " << __LINE__ << " : " \
-               << ": TableDef : " << (void *)ptr__ << " : " \
-               << sizeof(TableDef) << std::endl
+TableDef *newTableDef(const char *file, int line, ...)
+{
+    va_list args;
+    va_start(args, line);
+    TableDef *ptr = new TableDef(args);
+    std::cerr << file << " " << line << " TableDef "
+        << (void *)ptr << " name " << ptr->name_ << " size "
+        << sizeof(TableDef) << std::endl;
+
+    rteturn ptr;
+}
+#define NEW_TABLEDEF_TYPE() newTableDef(__FILE__, __LINE__, ...)
+
+TableRef *newTableRef(const char *file, int line, ...)
+{
+    va_list args;
+    va_start(args, line);
+    TableRef *ptr = new TableRef(args);
+    std::cerr << file << " " << line << " TableRef "
+        << (void *)ptr << " alias " << (ptr->alias_ ? ptr->alias_->c_str() :
+                nillName) << " size " << sizeof(TableRef) << std::endl;
+
+    rteturn ptr;
+}
+#define NEW_TABLEREF_TYPE() newTableRef(__FILE__, __LINE__, ...)
 
 #else
 #define NEW_SYSTABLE_TYPE() SysTable* Catalog::systable_ = new SysTable()
-#define NEW_SYSSTATS_TYPE() SysStats* Catalog::sysstat_  = new SysStats()
-#define NEW_TABLEDEF_TYPE(ptr__, __VAR_ARGS__) TableDef* ptr__ = new TableDef(__VAR_ARGS__)
+#define NEW_SYSSTATS_TYPE() SysStats* Catalog::sysstat_ = new SysStats()
 #endif // __DEBUG_MEMORY
 
 #ifdef __DEBUG_CAT_MEMLEAK
