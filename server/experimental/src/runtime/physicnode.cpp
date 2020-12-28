@@ -25,7 +25,7 @@ LIST_OF_PHYSICNODE
 #undef X
 
 const DispatchTableEntry ExecDispatchTable_[] = {
-#define X(name) {##name##_, #name, Exec##name},
+#define X(name) {name ## _, #name, Exec##name},
     LIST_OF_PHYSICNODE
 #undef X
 };
