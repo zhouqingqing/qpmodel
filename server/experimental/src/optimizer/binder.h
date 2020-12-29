@@ -23,6 +23,7 @@ namespace andb {
 
              for (auto t : tablesInScope_) {
                  TableRef *tref = t.second;
+                std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": DEL TBLSCOPE ENTRY: TBLREF : " << (void*)tref << " : TBLDEF " << (void *)tref->tabDef_ << " " << *(tref->tabDef_->name_) << std::endl;
                  tref->tabDef_  = nullptr;  // Binder doesn't own tabDef_
                  delete tref;
              }
@@ -37,6 +38,7 @@ namespace andb {
          void SetError (int err) { binderError_ = err; }
 
          void AddTableRefToScope (TableRef* tref) {
+            std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": NEW TBLSCOPE ENTRY: TBLREF : " << (void*)tref << " : TBLDEF " << (void *)tref->tabDef_ << " " << *(tref->tabDef_->name_) << std::endl;
             auto it = tablesInScope_.insert (std::make_pair (tref->getAlias (), tref));
          }
 

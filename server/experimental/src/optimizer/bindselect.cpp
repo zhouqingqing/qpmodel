@@ -31,6 +31,8 @@ namespace andb
                 throw SemanticAnalyzeException("duplicate table " + *alias + " in same scope");
             aliasMap.insert(*alias);
             TableDef* tdef = binder->ResolveTable(tref->getAlias());
+            std::cerr << "MEMDEBUG: " << __FILE__ << " : " << __LINE__
+                << " : BINDER NEW TBLDEF " << (void *)tdef << std::endl;
             if (!tdef)
                 throw SemanticAnalyzeException("table " + *tref->alias_ + " not found");
             from_[i]->tabDef_ = tdef;

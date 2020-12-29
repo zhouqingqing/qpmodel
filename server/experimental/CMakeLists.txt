@@ -10,7 +10,7 @@ if(MSVC)
 	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
 else()
-	set(CMAKE_CXX_FLAGS "-pthread -std=c++2a")
+	set(CMAKE_CXX_FLAGS "-O0 -g -pthread -std=c++2a")
 endif()
 
 add_subdirectory(deps)

@@ -38,6 +38,7 @@ struct CrtCheckMemory {
 };
 #else
 struct CrtCheckMemory {
+    CrtCheckMemory (bool) {}
     CrtCheckMemory () {}
     ~CrtCheckMemory () {}
 };
@@ -45,7 +46,10 @@ struct CrtCheckMemory {
 
 // Use this only to debug memory leaks
 #define __RUN_DELETES_
+
+#if defined(__USE_VLD_)
 #include "common/vld.h"
+#endif
 
 using MemoryResource = std::pmr::memory_resource;
 

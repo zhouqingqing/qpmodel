@@ -63,6 +63,8 @@ namespace andb
             // found the table in local scope in the catalog, add it to local scope
             TableRef* ltref = new TableRef(BaseTableRef_, tname, tdef);
             std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": NEW TableRef : " << (void*)ltref << " : " << *tname << std::endl;
+            std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": OLD TableDef : " << (void*)tdef << " : " << *tname << std::endl;
+            std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": NEW TableDef : " << (void*)ltref->tabDef_ << " : " << *tname << std::endl;
             AddTableRefToScope(ltref);
 
             // return the new tabledef

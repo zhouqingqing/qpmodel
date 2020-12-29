@@ -223,9 +223,9 @@ namespace andb
            DEBUG_CONS("ColExpr", ordinal);
             classTag_ = ColExpr_;
             ordinal_ = ordinal;
-            colname_ = colname ? new std::string(*colname) : nullptr;
-            tabname_ = tabname ? new std::string(*tabname) : nullptr;
-            schname_ = schname ? new std::string(*schname) : nullptr;
+            colname_ = colname ? new std::string(colname->c_str()) : nullptr;
+            tabname_ = tabname ? new std::string(tabname->c_str()) : nullptr;
+            schname_ = schname ? new std::string(schname->c_str()) : nullptr;
             columnDef_ = columnDef ? columnDef->Clone() : nullptr;
         };
 
@@ -246,7 +246,7 @@ namespace andb
            DEBUG_CONS("ColExpr(str)", colname);
             classTag_ = ColExpr_;
             ordinal_ = UINT16_MAX;
-            colname_ = new std::string(*colname);
+            colname_ = new std::string(colname->c_str());
             tabname_ = nullptr;
             schname_ = nullptr;
             columnDef_ = nullptr;

@@ -66,6 +66,7 @@ protected:
 
 TEST_F (DbTest, query) {
     CrtCheckMemory checker (false);
+
     std::srand (std::time (nullptr));
     int nrows = std::rand() % 100 + 1;
     SelectStmt stmt;
@@ -134,7 +135,7 @@ TEST_F (DbTest, expr) {
 
 // setup memory break handler as early as possible
 //
-#ifndef NDEBUG
+#if !defined(NDEBUG) && defined(_WIN32) && defined(__USE_CRT_MEM_DEBUG)
 static int breakAlloc = (_crtBreakAlloc = -1);
 #endif
 int main (int argc, char** argv) {

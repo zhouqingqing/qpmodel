@@ -55,32 +55,9 @@ class SQLStatement : public UseCurrentResource
         DEBUG_CONS("SQLStatement", "def");
     }
 
-    virtual ~SQLStatement()
-    {
-        DEBUG_DEST("SQLStatement", "@@@");
-
-        if (hints) {
-            for (auto h : *hints) {
-                delete h++;
-            }
-            hints->clear();
-            delete hints;
-            hints = 0;
-        }
-
-        delete logicPlan_;
-        delete physicPlan_;
-        delete queryOpts_;
-
-        logicPlan_  = nullptr;
-        physicPlan_ = nullptr;
-        queryOpts_  = nullptr;
-    }
-
+    virtual ~SQLStatement();
     virtual void Bind(Binder* binder) {}
-
     StatementType type() const;
-
     bool isType(StatementType type) const;
 
     // Shorthand for isType(type).
@@ -131,6 +108,12 @@ class SelectStmt : public SQLStatement
         selection_.clear();
 
         for (auto f : from_) {
+            TableDef *tdef = f->tabDef_ ? f->tabDef_ : nullptr;
+            std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": DEL FROM ENTRY: TBLREF " << (void *)f;
+            if (tdef)
+                std::cerr << " " << *(tdef->name_) << std::endl;
+            else
+                std::cerr << " " << "noname" << std::endl;
             delete f++;
         }
         from_.clear();

@@ -151,17 +151,18 @@ namespace andb {
             bool         quoted_;
             bool         isCloned_;
 
-            ColumnDef(std::string* name, ColumnType type, int ordinal = -1, bool nullable = true, int columnId = -1, bool quoted = false, bool isClone = false)
+            ColumnDef(std::string *name, ColumnType type, int ordinal = -1, bool nullable = true, int columnId = -1, bool quoted = false, bool isClone = false)
                 : classTag_(ColumnDef_)
-                , name_(DBG_NEW std::string(*name))
+                , name_(nullptr)
                 , type_(type)
-              , ordinal_(ordinal)
-              , nullable_(nullable)
-              , columnId_(columnId)
-              , quoted_(quoted)
-              , isCloned_(isClone)
+                , ordinal_(ordinal)
+                , nullable_(nullable)
+                , columnId_(columnId)
+                , quoted_(quoted)
+                , isCloned_(isClone)
             {
                 DEBUG_CONS("ColumnDef", isCloned_);
+                name_ = new std::string(name->c_str());
             }
 
             virtual ~ColumnDef()
@@ -227,7 +228,7 @@ namespace andb {
                  TableSource              source     = Table,
                  DistributionMethod       distMethod = NonDistributed)
           : classTag_(TableDef_)
-          , name_(DBG_NEW std::string(*name))
+          , name_(nullptr)
           , quoted_(false)
           , tableId_(-1)
           , isCloned_(isClone)
@@ -236,6 +237,7 @@ namespace andb {
           , distributions_(nullptr) 
         {
             DEBUG_CONS("TableDef", isCloned_);
+            name_ = new std::string(name->c_str());
             columns_ = DBG_NEW std::map<std::string*, ColumnDef*, CaselessStringPtrCmp>();
 
             for (auto c : columns) {

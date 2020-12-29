@@ -23,8 +23,6 @@
 
 #pragma once
 
-#define __USE_VLD_
-
 #if defined(__USE_VLD_)
 
 #include "vld_def.h"

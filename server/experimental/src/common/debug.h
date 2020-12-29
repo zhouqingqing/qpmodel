@@ -1,7 +1,5 @@
 #pragma once
 
-#define __USE_CRT_MEM_DEBUG
-
 #if !defined(NDEBUG) && defined(_WIN32) && defined(__USE_CRT_MEM_DEBUG)
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>

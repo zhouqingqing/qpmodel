@@ -1,5 +1,3 @@
-#pragma once
-
 #include "common/common.h"
 #include "common/dbcommon.h"
 #include "parser/include/stmt.h"
@@ -26,7 +24,7 @@ bool SelectStmt::Close()
 {
     DEBUG_DEST("SelectStmt", "Close");
 
-    assert(physicPlan_);
+    // assert(physicPlan_);
     if (logicPlan_)
         logicPlan_->Close();
     if (physicPlan_)

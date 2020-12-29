@@ -64,7 +64,9 @@ class Instance : public IInstance
 };
 
 static Instance       instance_;
+#if !defined(NDEBUG) && defined(_WIN32) && defined(__USE_CRT_MEM_DEBUG)
 static CrtCheckMemory memoryChecker;
+#endif
 
 int main(int argc, char* argv[])
 {
@@ -103,11 +105,14 @@ static void processSQL(void)
     while ((mode_interactive_on || mode_batch_on) && moreInput) {
         SQLParserResult presult;
         SelectStatement* selStmt = nullptr;
+        PhysicNode* physic = nullptr;
+        LogicNode*  root   = nullptr;
         try {
-            bool ret = ParseSQL(query, &presult);
-            PhysicNode* physic = nullptr;
-            LogicNode*  root   = nullptr;
             selStmt = nullptr;
+            physic = nullptr;
+            root   = nullptr;
+
+            bool ret = ParseSQL(query, &presult);
 
             if (ret) {
                 std::cout << "PASSED: " << query << std::endl;
@@ -130,7 +135,6 @@ static void processSQL(void)
                     std::vector<andb::Row> rset = selStmt->Exec();
                     if (!rset.empty())
                         ShowResultSet(rset);
-                    selStmt->Close();
                 }
             } else {
                 const char* emsg = presult.errorMsg();
@@ -164,6 +168,8 @@ static void processSQL(void)
             std::cerr << "EXCEPTION: Unknown exception" << std::endl;
         }
             
+        if (selStmt)
+            selStmt->Close();
         delete selStmt;
             
         presult.reset();
