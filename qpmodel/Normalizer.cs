@@ -31,12 +31,6 @@ using System.Diagnostics;
 using System.Linq;
 using Value = System.Object;
 
-using qpmodel.logic;
-using qpmodel.physic;
-using qpmodel.utils;
-using qpmodel.index;
-using System.Runtime.CompilerServices;
-
 namespace qpmodel.expr
 {
     public partial class Expr

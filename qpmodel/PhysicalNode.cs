@@ -438,24 +438,14 @@ namespace qpmodel.physic
 
             var logic = logic_ as LogicScanTable;
             var tableref = logic.tabref_;
-
             switch (required.distribution_.disttype)
             {
                 case DistrType.Singleton:
-                    if (!tableref.IsDistributed())
-                        return true;
-                    else
-                        return false;
+                    return (!tableref.IsDistributed());
                 case DistrType.AnyDistributed:
-                    if (tableref.Table().distMethod_ != TableDef.DistributionMethod.Replicated)
-                        return true;
-                    else
-                        return false;
+                    return (tableref.Table().distMethod_ != TableDef.DistributionMethod.Replicated);
                 case DistrType.Replicated:
-                    if (tableref.Table().distMethod_ == TableDef.DistributionMethod.Replicated)
-                        return true;
-                    else
-                        return false;
+                    return (tableref.Table().distMethod_ == TableDef.DistributionMethod.Replicated);
             }
             // the rest case is specific distributed property
             Debug.Assert(required.distribution_.disttype == DistrType.Distributed);

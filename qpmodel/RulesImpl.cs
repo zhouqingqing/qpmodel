@@ -52,8 +52,7 @@ namespace qpmodel.optimizer
     {
         public override bool Appliable(CGroupMember expr)
         {
-            var log = expr.logic_ as T1;
-            return log != null;
+            return expr.logic_ is T1 log;
         }
 
         public override CGroupMember Apply(CGroupMember expr)
@@ -163,8 +162,7 @@ namespace qpmodel.optimizer
     {
         public override bool Appliable(CGroupMember expr)
         {
-            var log = expr.logic_ as LogicJoinBlock;
-            return log != null;
+            return expr.logic_ is LogicJoinBlock log;
         }
 
         public override CGroupMember Apply(CGroupMember expr)
@@ -180,8 +178,7 @@ namespace qpmodel.optimizer
     {
         public override bool Appliable(CGroupMember expr)
         {
-            var log = expr.logic_ as LogicScanTable;
-            return log != null;
+            return expr.logic_ is LogicScanTable log;
         }
 
         public override CGroupMember Apply(CGroupMember expr)

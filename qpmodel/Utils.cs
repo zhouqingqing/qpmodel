@@ -33,8 +33,6 @@ using System.Linq;
 using Microsoft.VisualBasic.FileIO;
 using System.Text.RegularExpressions;
 
-using qpmodel.expr;
-
 namespace qpmodel.utils
 {
     class ObjectID
