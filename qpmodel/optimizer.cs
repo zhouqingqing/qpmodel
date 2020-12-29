@@ -675,17 +675,12 @@ namespace qpmodel.optimizer
             CGroupMember optmember = null;
             double cheapestIncCost = Double.MaxValue;
 
-
-            // add less strict property into the dictionary by enforcing to required proerty, expand
+            // add less strict property into the dictionary by enforcing to required property, expand
             // the exprList_ and locate the optmember for the required property.
             //
             var childproperties = GenerateRelaxedProperties(required);
-
-
-
             foreach (var prop in childproperties)
             {
-
                 // assuming we disabled broadcast and prop is replicated, then we can't find the member
                 //
                 var member = CalculateMinInclusiveCostMember(prop);
