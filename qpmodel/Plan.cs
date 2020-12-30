@@ -184,8 +184,7 @@ namespace qpmodel.logic
                 // print line of <nodeName> : <Estimation> <Actual>
                 var id = _ + (clone_.Equals("notclone") ? "" : "_" + clone_);
                 r += $"{this.GetType().Name}{(exp_id ? " " + id : "")} {ExplainInlineDetails()}";
-                var phynode = this as PhysicNode;
-                if (phynode != null && phynode.profile_ != null)
+                if (this is PhysicNode phynode && phynode.profile_ != null)
                 {
                     if (exp_showcost)
                     {
