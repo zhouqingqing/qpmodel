@@ -154,7 +154,7 @@ namespace andb
 
         SelStar(std::string* alias = nullptr)
         {
-           DEBUG_CONS("SelStar", "@@@");
+            DEBUG_CONS("SelStar", "@@@");
             tabAlias_ = alias ? new std::string(*alias) : nullptr;
             classTag_ = SelStar_;
         }
@@ -379,10 +379,13 @@ namespace andb
             , alias_(alias ? new std::string(*alias) : nullptr)
             , tabDef_(nullptr)
         {
+           DEBUG_CONS("TableRef", "alias");
+
+#ifdef _DEBUG
             std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__
                       << ": NEW TableRef : " << (void*)this << " : "
                       << (alias_ ? alias_->c_str() : "NULL") << std::endl;
-           DEBUG_CONS("TableRef", "alias");
+#endif // _DEBUG
             SetColumnRefs();
         }
 
@@ -391,10 +394,13 @@ namespace andb
             , alias_(alias ? new std::string(*alias) : nullptr)
             , tabDef_(nullptr)
         {
+           DEBUG_CONS("TableRef", "ctag");
+
+#ifdef _DEBUG
             std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__
                       << ": NEW TableRef : " << (void*)this << " : "
                       << (alias_ ? alias_->c_str() : "NULL") << std::endl;
-           DEBUG_CONS("TableRef", "ctag");
+#endif // _DEBUG
             SetColumnRefs();
         }
 
@@ -402,20 +408,26 @@ namespace andb
             : classTag_(classTag), alias_(alias ? new std::string(alias) : nullptr)
             , tabDef_(nullptr)
         {
+           DEBUG_CONS("TableRef", "ctag alias");
+
+#ifdef _DEBUG
             std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__
                       << ": NEW TableRef : " << (void*)this << " : "
                       << (alias_ ? alias_->c_str() : "NULL") << std::endl;
-           DEBUG_CONS("TableRef", "ctag alias");
+#endif // _DEBUG
             SetColumnRefs();
         }
 
         TableRef(ClassTag classTag, const char* alias, TableDef* tdef)
             : classTag_(classTag), alias_(new std::string(alias))
         {
+            DEBUG_CONS("TableRef", "chr tdef");
+
+#ifdef _DEBUG
             std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__
                       << ": NEW TableRef : " << (void*)this << " : "
                       << (alias_ ? alias_->c_str() : "NULL") << std::endl;
-            DEBUG_CONS("TableRef", "chr tdef");
+#endif // _DEBUG
             tabDef_ = tdef->Clone();
             SetColumnRefs();
         }
@@ -423,10 +435,13 @@ namespace andb
         TableRef(ClassTag classTag, std::string* alias, TableDef* tdef)
             : TableRef(classTag, alias->c_str(), tdef)
         {
+           DEBUG_CONS("TableRef", "str tdef");
+
+#ifdef _DEBUG
             std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__
                       << ": NEW TableRef : " << (void*)this << " : "
                       << (alias_ ? alias_->c_str() : "NULL") << std::endl;
-           DEBUG_CONS("TableRef", "str tdef");
+#endif // _DEBUG
            SetColumnRefs();
         }
 
@@ -449,9 +464,15 @@ namespace andb
         virtual TableRef* Clone()
         {
             TableRef* tr = new TableRef(alias_);
+#ifdef _DEBUG
             std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": NEW TableRef : " << (void*)tr << " : " << (tr->alias_ ? tr->alias_->c_str() : "NULL") << std::endl;
+#endif // _DEBUG
+
             tr->tabDef_  = new TableDef(*tabDef_);
+
+#ifdef _DEBUG
             std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": NEW TableDef : " << (void*)tr->tabDef_ << " : " << *(tr->tabDef_->name_) << std::endl;
+#endif // _DEBUG
 
             return tr;
         }
@@ -459,7 +480,11 @@ namespace andb
         virtual ~TableRef()
         {
             DEBUG_DEST("TableRef", columnRefs_.size());
+
+#ifdef _DEBUG
             std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": DEL TableRef : " << (void*)this << " : " << (alias_ ? alias_->c_str() : "NULL") << std::endl;
+#endif // _DEBUG
+
             delete alias_;
             alias_ = nullptr;
 
@@ -468,7 +493,10 @@ namespace andb
 
             columnRefs_.clear();
 
+#ifdef _DEBUG
             std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": DEL TableDef : " << (void*)tabDef_ << " : " << (tabDef_ ? tabDef_->name_->c_str() : "NULL") << std::endl;
+#endif // _DEBUG
+
             delete tabDef_;
             tabDef_ = nullptr;
         }
@@ -563,6 +591,17 @@ namespace andb
 
         public:
         std::pmr::deque<Expr*> queue_{currentResource_};
+        ExprEval()
+        {
+            expr_ = nullptr;
+            pointer_ = nullptr;
+            board_ = nullptr;
+        }
+
+        ~ExprEval()
+        {
+            // do nothing, we don't own anything!
+        }
 
         public:
             // given an expression, enqueue all ops

@@ -43,7 +43,11 @@ bool SysTable::CreateTable(std::string*             tabName,
         std::string*             distBy)
 {
     TableDef*                          tblDef = new TableDef(tabName, *columns);
+
+#ifdef _DEBUG
     std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": NEW TableDef : " << (void*)tblDef << " : " << *tabName << std::endl;
+#endif // _DEBUG
+
     std::pair<std::string*, TableDef*> mapVal{ tblDef->name_, tblDef };
     auto [it, added] = records_.insert(mapVal);
 

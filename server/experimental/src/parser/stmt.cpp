@@ -18,12 +18,7 @@ SQLStatement::~SQLStatement()
         hints = 0;
     }
 
-    delete logicPlan_;
-    delete physicPlan_;
     delete queryOpts_;
-
-    logicPlan_  = nullptr;
-    physicPlan_ = nullptr;
     queryOpts_  = nullptr;
 }
 

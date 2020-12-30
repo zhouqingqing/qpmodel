@@ -252,7 +252,9 @@ namespace andb {
         {
             std::vector<ColumnDef*> columns{}; // dummy
             TableDef* clone = new TableDef(name_, columns, true, source_, distMethod_);
+#ifdef _DEBUG
             std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": NEW TableDef : " << (void*)clone << " : " << *name_ << std::endl;
+#endif // _DEBUG
 
             clone->columns_ = DBG_NEW std::map<std::string*, ColumnDef*, CaselessStringPtrCmp>();
 
@@ -270,7 +272,11 @@ namespace andb {
         virtual ~TableDef()
         {
             DEBUG_DEST("TableDef", isCloned_);
+
+#ifdef _DEBUG
             std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": DEL TableDef : " << (void*)this << " : " << *name_ << std::endl;
+#endif // _DEBUG
+
             if (columns_) {
                 auto itb = columns_->begin(), ite = columns_->end(), itn = itb;
                 while (itb != ite) {
@@ -292,6 +298,7 @@ namespace andb {
         void DropTable()
         {
             DEBUG_DEST("DropTable", isCloned_);
+
             for (auto &d : *distributions_) {
                 for (auto r : d.heap_) {
                     delete r;

@@ -217,6 +217,9 @@ namespace andb
             delete[] pointer_;
             queue_.clear();
         }
+
+        board_ = nullptr;
+        pointer_ = nullptr;
     }
 
 

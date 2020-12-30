@@ -30,8 +30,12 @@ struct CrtCheckMemory {
             _CrtDumpMemoryLeaks ();
             _CrtMemDumpStatistics (&state3_);
 #if !defined( __DEBUG_CAT_MEMLEAK) && !defined(__DEBUG_PARSER_MEMLEAK)
-            // if (asserit_)
-            //   assert (false);
+#ifdef __LATER
+            // We now there are leaks and will get rid of them soon,
+            // mean while, lets not crash.
+            if (asserit_)
+                assert (false);
+#endif // __LATER
 #endif
         }
     }
@@ -43,9 +47,6 @@ struct CrtCheckMemory {
     ~CrtCheckMemory () {}
 };
 #endif
-
-// Use this only to debug memory leaks
-#define __RUN_DELETES_
 
 #if defined(__USE_VLD_)
 #include "common/vld.h"
@@ -62,7 +63,6 @@ class DefaultResource : public MemoryResource {
     };
     AllocStats stats_;
     std::unordered_set<void*> pointers_;
-    std::unordered_multiset<void*> deleted_pointers_;
 
 public:
     MemoryResource* parent_ = nullptr;
@@ -70,18 +70,11 @@ public:
     void* do_allocate (std::size_t bytes, std::size_t alignment) override {
         auto r = malloc (bytes);
         pointers_.insert (r);
-
         stats_.nallocs_++;
         return r;
     }
     void do_deallocate (void* p, std::size_t bytes, std::size_t alignment) override {
-#ifndef _MSC_VER
-        if (deleted_pointers_.find(p) != deleted_pointers_.end())
-            abort();
-#endif
-        deleted_pointers_.insert(p);
         pointers_.erase (p);
-        std::cerr << "DEBUGMEM: " << __FILE__ << ":" << __LINE__ << " FREE " << p << std::endl;
         free(p);
         stats_.nfrees_++;
     }
@@ -112,14 +105,6 @@ public:
         while (itb != ite)
             pointers_.erase(itb++);
         pointers_.clear ();
-
-        auto dtb = deleted_pointers_.begin();
-        auto dte = deleted_pointers_.end();
-        while (dtb != dte) {
-            std::cerr << "DEBUGMEM: " << __FILE__ << ":" << __LINE__ << " DELPTR " << *dtb << std::endl;
-            deleted_pointers_.erase(dtb++);
-        }
-        deleted_pointers_.clear();
     }
     ~DefaultResource () override { release (); }
 };

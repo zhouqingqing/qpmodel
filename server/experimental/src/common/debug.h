@@ -10,13 +10,10 @@
 // #define __ENABLE_DEBUG_MSG
 // #define __DEBUG_MEMORY
 
-// #define __RUN_DELETES_
-
 #if !defined(NDEBUG) && defined(_WIN32)
 #define __USE_CRT_MEM_DEBUG
 #define __USE_VLD_
 #endif
-// #define __ENABLE_DEBUG_MSG
 
 #if !defined(NDEBUG) && defined(_WIN32) && defined(__USE_CRT_MEM_DEBUG)
 #define _CRTDBG_MAP_ALLOC

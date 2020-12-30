@@ -21,12 +21,19 @@ namespace andb {
          ~Binder()
          {
 
+#ifdef __LATER
+             // Possible double free and leak!
+             // How do you explain these contradictions?
              for (auto t : tablesInScope_) {
                  TableRef *tref = t.second;
+#ifdef _DEBUG
                 std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": DEL TBLSCOPE ENTRY: TBLREF : " << (void*)tref << " : TBLDEF " << (void *)tref->tabDef_ << " " << *(tref->tabDef_->name_) << std::endl;
+#endif // _DEBUG
+
                  tref->tabDef_  = nullptr;  // Binder doesn't own tabDef_
                  delete tref;
              }
+#endif
              tablesInScope_.clear();
          }
 
@@ -38,7 +45,10 @@ namespace andb {
          void SetError (int err) { binderError_ = err; }
 
          void AddTableRefToScope (TableRef* tref) {
+#ifdef _DEBUG
             std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": NEW TBLSCOPE ENTRY: TBLREF : " << (void*)tref << " : TBLDEF " << (void *)tref->tabDef_ << " " << *(tref->tabDef_->name_) << std::endl;
+#endif // _DEBUG
+
             auto it = tablesInScope_.insert (std::make_pair (tref->getAlias (), tref));
          }
 

@@ -100,7 +100,7 @@ void SQLParserResult::reset()
 
    isValid_ = false;
 
-   delete errorMsg_;
+   delete [] errorMsg_;
    errorMsg_ = nullptr;
 
    errorLine_ = -1;
