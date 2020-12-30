@@ -60,9 +60,22 @@ bool SysTable::CreateTable(std::string*             tabName,
 // Let tables and their columns do their own cleanup.
 void SysTable::dropAllTables()
 {
-    for (auto t : records_) {
-        t.second->DropTable();
-        delete t.second;
+    // Why not range based?
+    // It looks like MSVC has some problems with deleting from containers
+    // using iterator++ idiom.
+    // It is not clear but while free()'in pointers_ in memory.h,
+    // an attempt to double free was found.
+    // See memory.h, where a deleted_pointers_ is used to detect any
+    // double free. This problem does not happen in gcc (10.2.x).
+    // Not all delete are handled this way, though, some are still
+    // range loops.
+    auto itb = records_.begin(), ite = records_.end(), itn = itb;
+    while (itb != ite) {
+        ++itn;
+        auto tdef = itb->second;
+        tdef->DropTable();
+        delete tdef;
+        itb = itn;
     }
 
     records_.clear();
@@ -107,7 +120,9 @@ void Catalog::createBuiltInTestTables()
 }
 
 
-void Catalog::populateOptimizerTestTables()
+void Catalog::populateOptimizerTestTables() {}
+
+void Catalog::populateBuiltInTestTables()
 {
     /* std::vector<Datum> */
     // rows of a, b, and c

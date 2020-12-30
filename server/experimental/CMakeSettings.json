@@ -23,7 +23,7 @@
         },
         {
           "name": "CMAKE_EXE_LINKER_FLAGS_DEBUG",
-          "value": "/debug /INCREMENTAL /LIBPATH:\"C:\\Program Files (x86)\\Visual Leak Detector\\lib\\Win64\" /IMPLIB:vld.lib",
+          "value": "/debug:FULL /INCREMENTAL /LIBPATH:\"C:\\Program Files (x86)\\Visual Leak Detector\\lib\\Win64\" /IMPLIB:vld.lib",
           "type": "STRING"
         }
       ]

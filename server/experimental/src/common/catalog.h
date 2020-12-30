@@ -43,9 +43,12 @@ class Catalog : public UseCurrentResource
     public:
     static void Init()
     {
+#ifdef __LATER
+        // We are not there yet, so make debugging easy.
         createOptimizerTestTables();
+#endif // __LATER
         createBuiltInTestTables();
-        populateOptimizerTestTables();
+        populateBuiltInTestTables();
     }
 
     static void DeInit()
@@ -58,11 +61,12 @@ class Catalog : public UseCurrentResource
     }
 
     static void createOptimizerTestTables();
+    static void populateOptimizerTestTables();
     static void createBuiltInTestTables();
+    static void populateBuiltInTestTables();
 
     // TEMP: populate test tables "by hand" so that some tests
     // can be run
-    static void populateOptimizerTestTables();
 	static void populateOneTable(const std :: string & tblName, const std :: vector < Row * > & rows);
     static int  Next();
 

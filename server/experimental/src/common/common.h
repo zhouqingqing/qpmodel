@@ -11,16 +11,10 @@
 #include <string>
 #include <cstdio>    // __VAR_ARGS__
 
-// #define __RUN_DELETES_
-/*
-* Aid to debug catalog memory leaks. There are still two blocks
-* not freed. This code may be left in and __DEBUG_CAT_MEMLEAK
-* turned into a runtime debug level options.
-*/
-// #define __DEBUG_CAT_MEMLEAK
-// #define __DEBUG_PARSER_MEMLEAK
-// #define __ENABLE_DEBUG_MSG
-// #define __DEBUG_MEMORY
+
+#include "common/platform.h"
+#include "debug.h"
+#include "memory.h"
 
 // debug memory mamagement
 #ifdef __DEBUG_MEMORY
@@ -96,9 +90,6 @@ TableRef *newTableRef(const char *file, int line, ...)
     #define DBG_NEW new
 #endif
 
-#include "common/platform.h"
-#include "debug.h"
-#include "memory.h"
 
 namespace andb {
 #ifdef __ENABLE_DEBUG_MSG

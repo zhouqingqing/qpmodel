@@ -463,9 +463,9 @@ namespace andb
             delete alias_;
             alias_ = nullptr;
 
-            auto cr = columnRefs_.begin();
-            while (cr != columnRefs_.end())
-                delete (*cr++);
+            for (int i = 0; i < columnRefs_.size(); ++i)
+                delete columnRefs_[i];
+
             columnRefs_.clear();
 
             std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": DEL TableDef : " << (void*)tabDef_ << " : " << (tabDef_ ? tabDef_->name_->c_str() : "NULL") << std::endl;

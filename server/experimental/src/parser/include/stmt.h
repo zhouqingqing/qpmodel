@@ -109,11 +109,12 @@ class SelectStmt : public SQLStatement
 
         for (auto f : from_) {
             TableDef *tdef = f->tabDef_ ? f->tabDef_ : nullptr;
-            std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": DEL FROM ENTRY: TBLREF " << (void *)f;
-            if (tdef)
-                std::cerr << " " << *(tdef->name_) << std::endl;
-            else
-                std::cerr << " " << "noname" << std::endl;
+            if (tdef) {
+                std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": DEL FROM ENTRY: TBLREF " << (void *)f << " " << *(tdef->name_) << std::endl;
+            }
+            else {
+                std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": DEL FROM ENTRY: TBLREF " << (void *)f << " noname" << std::endl;
+            }
             delete f++;
         }
         from_.clear();

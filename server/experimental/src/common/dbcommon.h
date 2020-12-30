@@ -256,7 +256,7 @@ namespace andb {
 
             clone->columns_ = DBG_NEW std::map<std::string*, ColumnDef*, CaselessStringPtrCmp>();
 
-            for (auto cdr : *columns_) {
+            for (auto &cdr : *columns_) {
                 ColumnDef* cdef  = cdr.second->Clone();
                 auto [it, added] = clone->columns_->insert(std::make_pair(cdef->name_, cdef));
                 if (!added)
@@ -272,9 +272,13 @@ namespace andb {
             DEBUG_DEST("TableDef", isCloned_);
             std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": DEL TableDef : " << (void*)this << " : " << *name_ << std::endl;
             if (columns_) {
-                for (auto c : *columns_) {
-                    delete c.second;
-                    c.second = nullptr;
+                auto itb = columns_->begin(), ite = columns_->end(), itn = itb;
+                while (itb != ite) {
+                    ++itn;
+                    auto cdef = itb->second;
+                    itb->second = nullptr;
+                    delete cdef;
+                    itb = itn;
                 }
                 columns_->clear();
                 delete columns_;

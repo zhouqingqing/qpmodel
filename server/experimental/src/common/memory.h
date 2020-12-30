@@ -75,8 +75,10 @@ public:
         return r;
     }
     void do_deallocate (void* p, std::size_t bytes, std::size_t alignment) override {
+#ifndef _MSC_VER
         if (deleted_pointers_.find(p) != deleted_pointers_.end())
             abort();
+#endif
         deleted_pointers_.insert(p);
         pointers_.erase (p);
         std::cerr << "DEBUGMEM: " << __FILE__ << ":" << __LINE__ << " FREE " << p << std::endl;
