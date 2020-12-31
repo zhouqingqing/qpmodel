@@ -16,64 +16,63 @@
 #include "optimizer/binder.h"
 #include "runtime/runtime.h"
 
-namespace andb
-{
+namespace andb {
 
-    void SelectStmt::bindFrom(Binder* binder)
-    {
-        std::unordered_set<std::string> aliasMap;
-        for (int i = 0; i < from_.size(); ++i) {
-            TableRef* tref = from_[i];
-            std::string* alias = tref->getAlias();
-            auto itb = aliasMap.find(*alias);
-            auto ite = aliasMap.end();
-            if (itb != ite)
-                throw SemanticAnalyzeException("duplicate table " + *alias + " in same scope");
-            aliasMap.insert(*alias);
-            TableDef* tdef = binder->ResolveTable(tref->getAlias());
+void SelectStmt::bindFrom(Binder* binder)
+{
+    std::unordered_set<std::string> aliasMap;
+    for (int i = 0; i < from_.size(); ++i) {
+        TableRef*    tref  = from_[i];
+        std::string* alias = tref->getAlias();
+        auto         itb   = aliasMap.find(*alias);
+        auto         ite   = aliasMap.end();
+        if (itb != ite)
+            throw SemanticAnalyzeException("duplicate table " + *alias + " in same scope");
+        aliasMap.insert(*alias);
+        TableDef* tdef = binder->ResolveTable(tref->getAlias());
 
 #ifdef _DEBUG
-            std::cerr << "MEMDEBUG: " << __FILE__ << " : " << __LINE__
-                << " : BINDER NEW TBLDEF " << (void *)tdef << std::endl;
+        std::cerr << "MEMDEBUG: " << __FILE__ << " : " << __LINE__ << " : BINDER NEW TBLDEF "
+                  << (void*)tdef << std::endl;
 #endif // _DEBUG
 
-            if (!tdef)
-                throw SemanticAnalyzeException("table " + *tref->alias_ + " not found");
-            from_[i]->tabDef_ = tdef;
-        }
-
-        if (from_.size() > 1) {
-            binder->SetError(-1);
-            throw SemanticAnalyzeException("ANDB: JOIN not supported");
-            return;
-        }
+        if (!tdef)
+            throw SemanticAnalyzeException("table " + *tref->alias_ + " not found");
+        from_[i]->tabDef_ = tdef;
     }
 
-    void SelectStmt::BindSelStar(Binder* binder, SelStar& ssref)
-    {
-        std::vector<ColExpr*>* colExprVec = nullptr;
-
-        if (ssref.tabAlias_)
-            colExprVec = binder->GetTableColumns(ssref.tabAlias_);
-        else
-            colExprVec = binder->GetAllTableColumns();
-        // selections_ memory leak here??
-        setSelections(colExprVec);
+    if (from_.size() > 1) {
+        binder->SetError(-1);
+        throw SemanticAnalyzeException("ANDB: JOIN not supported");
+        return;
     }
+}
 
-    void SelectStmt::bindSelections(Binder* binder)
-    {
-        auto seCopy = std::move(selection_);
-        selection_.clear();
-        for (auto e : seCopy) {
-            e->Bind(binder);
-            selection_.emplace_back(e);
-        }
-    }
+void SelectStmt::BindSelStar(Binder* binder, SelStar& ssref)
+{
+    std::vector<ColExpr*>* colExprVec = nullptr;
 
-    void SelectStmt::bindWhere(Binder* binder)
-    {
-        where_->Bind(binder);
-        where_->type_ = DataType::Bool;
+    if (ssref.tabAlias_)
+        colExprVec = binder->GetTableColumns(ssref.tabAlias_);
+    else
+        colExprVec = binder->GetAllTableColumns();
+    // selections_ memory leak here??
+    setSelections(colExprVec);
+}
+
+void SelectStmt::bindSelections(Binder* binder)
+{
+    auto seCopy = std::move(selection_);
+    selection_.clear();
+    for (auto e : seCopy) {
+        e->Bind(binder);
+        selection_.emplace_back(e);
     }
-}  // namespace andb
+}
+
+void SelectStmt::bindWhere(Binder* binder)
+{
+    where_->Bind(binder);
+    where_->type_ = DataType::Bool;
+}
+} // namespace andb

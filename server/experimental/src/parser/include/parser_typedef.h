@@ -8,25 +8,24 @@
 typedef void* yyscan_t;
 #endif
 
-
 #define YYSTYPE ANDB_STYPE
 #define YYLTYPE ANDB_LTYPE
 
+struct ANDB_CUST_LTYPE
+{
+    int first_line;
+    int first_column;
+    int last_line;
+    int last_column;
 
-struct ANDB_CUST_LTYPE {
-  int first_line;
-  int first_column;
-  int last_line;
-  int last_column;
+    int total_column;
 
-  int total_column;
+    // Length of the string in the SQL query string
+    int string_length;
 
-  // Length of the string in the SQL query string
-  int string_length;
-
-  // Parameters.
-  // int param_id;
-  std::vector<void*> param_list;
+    // Parameters.
+    // int param_id;
+    std::vector<void*> param_list;
 };
 
 #define ANDB_LTYPE ANDB_CUST_LTYPE

@@ -13,12 +13,12 @@
       "variables": [
         {
           "name": "CMAKE_C_FLAGS_DEBUG",
-          "value": "/MDd /Zi /Ob0 /Od /RTC1",
+          "value": "/MTd /Zi /Ob0 /Od /RTC1",
           "type": "STRING"
         },
         {
           "name": "CMAKE_CXX_FLAGS_DEBUG",
-          "value": "/MDd /Zi /Ob0 /Od /RTC1  /I\"C:\\Program Files (x86)\\Visual Leak Detector\\include\"",
+          "value": "/MTd /Zi /Ob0 /Od /RTC1  /I\"C:\\Program Files (x86)\\Visual Leak Detector\\include\"",
           "type": "STRING"
         },
         {

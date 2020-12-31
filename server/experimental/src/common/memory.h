@@ -12,39 +12,43 @@
 // object to de-construct. Some objects deconstruction behind it will get reported. If we can't
 // guarantee that, we can use _CrtDumpMemoryLeaks() function directly.
 //
-struct CrtCheckMemory {
-    _CrtMemState state1_;
-    _CrtMemState state2_;
-    _CrtMemState state3_;
-    bool asserit_;
+struct CrtCheckMemory
+{
+    _CrtMemState state1_{};
+    _CrtMemState state2_{};
+    _CrtMemState state3_{};
+    bool         asserit_;
 
-    CrtCheckMemory (bool asserit = true) {
+    CrtCheckMemory(bool asserit = true)
+    {
         _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
-        _CrtMemCheckpoint (&state1_);
+        _CrtMemCheckpoint(&state1_);
         asserit_ = asserit;
     }
 
-    ~CrtCheckMemory () {
-        _CrtMemCheckpoint (&state2_);
-        if (_CrtMemDifference (&state3_, &state1_, &state2_)) {
-            _CrtDumpMemoryLeaks ();
-            _CrtMemDumpStatistics (&state3_);
-#if !defined( __DEBUG_CAT_MEMLEAK) && !defined(__DEBUG_PARSER_MEMLEAK)
+    ~CrtCheckMemory()
+    {
+        _CrtMemCheckpoint(&state2_);
+        if (_CrtMemDifference(&state3_, &state1_, &state2_)) {
+            _CrtDumpMemoryLeaks();
+            _CrtMemDumpStatistics(&state3_);
+#if !defined(__DEBUG_CAT_MEMLEAK) && !defined(__DEBUG_PARSER_MEMLEAK)
 #ifdef __LATER
             // We now there are leaks and will get rid of them soon,
             // mean while, lets not crash.
             if (asserit_)
-                assert (false);
+                assert(false);
 #endif // __LATER
 #endif
         }
     }
 };
 #else
-struct CrtCheckMemory {
-    CrtCheckMemory (bool) {}
-    CrtCheckMemory () {}
-    ~CrtCheckMemory () {}
+struct CrtCheckMemory
+{
+    CrtCheckMemory(bool) {}
+    CrtCheckMemory() {}
+    ~CrtCheckMemory() {}
 };
 #endif
 
@@ -55,48 +59,55 @@ struct CrtCheckMemory {
 using MemoryResource = std::pmr::memory_resource;
 
 // define a new memory resource (not polymorphic allocator)
-class DefaultResource : public MemoryResource {
-    class AllocStats {
-    public:
+class DefaultResource : public MemoryResource
+{
+    class AllocStats
+    {
+        public:
         uint32_t nallocs_ = 0;
-        uint32_t nfrees_ = 0;
+        uint32_t nfrees_  = 0;
     };
-    AllocStats stats_;
+    AllocStats                stats_;
     std::unordered_set<void*> pointers_;
 
-public:
+    public:
     MemoryResource* parent_ = nullptr;
 
-    void* do_allocate (std::size_t bytes, std::size_t alignment) override {
-        auto r = malloc (bytes);
-        pointers_.insert (r);
+    void* do_allocate(std::size_t bytes, std::size_t alignment) override
+    {
+        auto r = malloc(bytes);
+        pointers_.insert(r);
         stats_.nallocs_++;
         return r;
     }
-    void do_deallocate (void* p, std::size_t bytes, std::size_t alignment) override {
-        pointers_.erase (p);
+    void do_deallocate(void* p, std::size_t bytes, std::size_t alignment) override
+    {
+        pointers_.erase(p);
         free(p);
         stats_.nfrees_++;
     }
-    bool do_is_equal (const std::pmr::memory_resource& other) const noexcept override {
-        throw NotImplementedException ();
+    bool do_is_equal(const std::pmr::memory_resource& other) const noexcept override
+    {
+        return false;
     };
 
-public:
-    std::string ToString () {
+    public:
+    std::string ToString()
+    {
         std::string str;
-        str += "Resource: " + std::to_string ((uintptr_t)this) + "\n";
-        str += "\t" + std::to_string (pointers_.size ());
+        str += "Resource: " + std::to_string((uintptr_t)this) + "\n";
+        str += "\t" + std::to_string(pointers_.size());
         return str;
     }
 
-    static MemoryResource* CreateMemoryResource (MemoryResource* parent, const char* name) {
-        auto resource = new DefaultResource ();
+    static MemoryResource* CreateMemoryResource(MemoryResource* parent, const char* name)
+    {
+        auto resource     = new DefaultResource();
         resource->parent_ = parent;
         return resource;
     }
 
-    static void DeleteMemoryResource (MemoryResource* target) { delete target; }
+    static void DeleteMemoryResource(MemoryResource* target) { delete target; }
 
     void release()
     {
@@ -104,14 +115,15 @@ public:
         auto ite = pointers_.end();
         while (itb != ite)
             pointers_.erase(itb++);
-        pointers_.clear ();
+        pointers_.clear();
     }
-    ~DefaultResource () override { release (); }
+    ~DefaultResource() override { release(); }
 };
 
-class StackResource : public std::pmr::monotonic_buffer_resource {};
+class StackResource : public std::pmr::monotonic_buffer_resource
+{};
 
-extern thread_local StackResource stackResource_;
+extern thread_local StackResource   stackResource_;
 extern thread_local DefaultResource defaultResource_;
 extern thread_local MemoryResource* currentResource_;
 
@@ -135,18 +147,20 @@ extern thread_local MemoryResource* currentResource_;
 //   is possible. However, smart pointers are lack of profiling, so they shall not be used as the
 //   major method.
 //
-class UseCurrentResource {
-public:
+class UseCurrentResource
+{
+    public:
     // this has to be coroutine-safe
-    static MemoryResource* SetCurrentResource (MemoryResource* pmr) {
-        auto old = currentResource_;
+    static MemoryResource* SetCurrentResource(MemoryResource* pmr)
+    {
+        auto old         = currentResource_;
         currentResource_ = pmr;
         return old;
     }
 
-    void* operator new (size_t size) { return currentResource_->allocate (size); }
-    void* operator new (size_t size, MemoryResource* pmr) { return pmr->allocate (size); }
-    void* operator new[] (size_t size) { return currentResource_->allocate (size); }
-    void operator delete (void* p) { currentResource_->deallocate (p, 0); }
-    void operator delete[] (void* p) { currentResource_->deallocate (p, 0); }
+    void* operator new(size_t size) { return currentResource_->allocate(size); }
+    void* operator new(size_t size, MemoryResource* pmr) { return pmr->allocate(size); }
+    void* operator new[](size_t size) { return currentResource_->allocate(size); }
+    void  operator delete(void* p) { currentResource_->deallocate(p, 0); }
+    void  operator delete[](void* p) { currentResource_->deallocate(p, 0); }
 };

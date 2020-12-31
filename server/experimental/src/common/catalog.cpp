@@ -7,7 +7,6 @@
 #include "common/catalog.h"
 #include "runtime/datum.h"
 
-
 // NOTE: None of the operations here are Multi-Thread (MT) safe.
 
 namespace andb {
@@ -39,13 +38,14 @@ ColumnDef* SysTable::Column(std::string* colName, std::string* tblName)
 }
 
 bool SysTable::CreateTable(std::string*             tabName,
-        std::vector<ColumnDef*>* columns,
-        std::string*             distBy)
+                           std::vector<ColumnDef*>* columns,
+                           std::string*             distBy)
 {
-    TableDef*                          tblDef = new TableDef(tabName, *columns);
+    TableDef* tblDef = new TableDef(tabName, *columns);
 
 #ifdef _DEBUG
-    std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": NEW TableDef : " << (void*)tblDef << " : " << *tabName << std::endl;
+    std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": NEW TableDef : " << (void*)tblDef
+              << " : " << *tabName << std::endl;
 #endif // _DEBUG
 
     std::pair<std::string*, TableDef*> mapVal{ tblDef->name_, tblDef };
@@ -88,12 +88,12 @@ void SysTable::dropAllTables()
 void Catalog::createOptimizerTestTables()
 {
     std::string colName{ "i" };
-    ColumnType   colType{ SQLType::SQL_TYPE_INTEGER,
-        TypeLenghts::lens_[(int)SQLType::SQL_TYPE_INTEGER] };
+    ColumnType  colType{ SQLType::SQL_TYPE_INTEGER,
+                        TypeLenghts::lens_[(int)SQLType::SQL_TYPE_INTEGER] };
 
     for (int i = 0; i < 30; ++i) {
         std::string             tname{ "t" };
-        ColumnDef    cd{&colName, colType, 0 };
+        ColumnDef               cd{ &colName, colType, 0 };
         std::vector<ColumnDef*> cols{ &cd };
         tname += std::to_string(i);
         Catalog::systable_->CreateTable(static_cast<std::string*>(&tname), &cols);
@@ -104,25 +104,21 @@ void Catalog::createOptimizerTestTables()
 void Catalog::createBuiltInTestTables()
 {
 
-    std::vector<std::string> colNames{
-        "a1", "a2", "a3", "a4"
-        , "b1", "b2", "b3", "b4"
-        , "c1", "c2", "c3", "c4"
-        , "d1", "d2", "d3", "d4" };
+    std::vector<std::string> colNames{ "a1", "a2", "a3", "a4", "b1", "b2", "b3", "b4",
+                                       "c1", "c2", "c3", "c4", "d1", "d2", "d3", "d4" };
     ColumnType               colType{ SQLType::SQL_TYPE_INTEGER,
-        TypeLenghts::lens_[(int)SQLType::SQL_TYPE_INTEGER] };
+                        TypeLenghts::lens_[(int)SQLType::SQL_TYPE_INTEGER] };
     for (int i = 0, j = 0; i < builtinTestTableNames.size(); ++i) {
-        ColumnDef   cd1(static_cast<std::string*>(&colNames[j++]), colType, 0);
-        ColumnDef   cd2(static_cast<std::string*>(&colNames[j++]), colType, 1);
-        ColumnDef   cd3(static_cast<std::string*>(&colNames[j++]), colType, 2);
-        ColumnDef   cd4(static_cast<std::string*>(&colNames[j++]), colType, 3);
+        ColumnDef               cd1(static_cast<std::string*>(&colNames[j++]), colType, 0);
+        ColumnDef               cd2(static_cast<std::string*>(&colNames[j++]), colType, 1);
+        ColumnDef               cd3(static_cast<std::string*>(&colNames[j++]), colType, 2);
+        ColumnDef               cd4(static_cast<std::string*>(&colNames[j++]), colType, 3);
         std::vector<ColumnDef*> cols{ &cd1, &cd2, &cd3, &cd4 };
         Catalog::systable_->CreateTable(static_cast<std::string*>(&builtinTestTableNames[i]),
-                &cols);
+                                        &cols);
         cd1.name_ = cd2.name_ = cd3.name_ = cd4.name_ = nullptr;
     }
 }
-
 
 void Catalog::populateOptimizerTestTables() {}
 
@@ -136,7 +132,7 @@ void Catalog::populateBuiltInTestTables()
     r3[0] = 2, r3[1] = 3, r3[2] = 4, r3[3] = 5;
 
     std::vector<Row*> abcRows{ &r1, &r2, &r3 };
-    int i = 0;
+    int               i = 0;
     while (i < builtinTestTableNames.size() - 1) {
         populateOneTable(builtinTestTableNames[i], abcRows);
         ++i;
@@ -151,7 +147,7 @@ void Catalog::populateBuiltInTestTables()
     r2[2] = NullFlag{};
 
     r3[0] = r3[1] = 2;
-    r3[2] = NullFlag{};
+    r3[2]         = NullFlag{};
     r3[3]         = 5;
 
     r4[0] = r4[1] = 3;
@@ -165,7 +161,7 @@ void Catalog::populateBuiltInTestTables()
 
 void Catalog::populateOneTable(const std::string& tblName, const std::vector<Row*>& rows)
 {
-    TableDef *td = systable_->TryTable(const_cast<std::string*>(&tblName));
+    TableDef* td = systable_->TryTable(const_cast<std::string*>(&tblName));
 
     if (!td)
         return;

@@ -12,7 +12,6 @@
 
 namespace andb {
 
-
 // NOTE: None of the operations here are Multi-Thread (MT) safe.
 // Tables are not aware of a SCHEMA, yet.
 class SystemTable : public UseCurrentResource
@@ -21,9 +20,7 @@ class SystemTable : public UseCurrentResource
 class SysTable : public SystemTable
 {
     public:
-    SysTable()
-    {
-    }
+    SysTable() {}
 
     bool CreateTable(std::string*             tabName,
                      std::vector<ColumnDef*>* columns,
@@ -67,7 +64,7 @@ class Catalog : public UseCurrentResource
 
     // TEMP: populate test tables "by hand" so that some tests
     // can be run
-	static void populateOneTable(const std :: string & tblName, const std :: vector < Row * > & rows);
+    static void populateOneTable(const std ::string& tblName, const std ::vector<Row*>& rows);
     static int  Next();
 
     static RandomDevice rand_;
