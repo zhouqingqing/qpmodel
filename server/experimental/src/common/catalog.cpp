@@ -42,7 +42,12 @@ bool SysTable::CreateTable(std::string*             tabName,
         std::vector<ColumnDef*>* columns,
         std::string*             distBy)
 {
-    TableDef*   tblDef = new TableDef(tabName, *columns);
+    TableDef*                          tblDef = new TableDef(tabName, *columns);
+
+#ifdef _DEBUG
+    std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": NEW TableDef : " << (void*)tblDef << " : " << *tabName << std::endl;
+#endif // _DEBUG
+
     std::pair<std::string*, TableDef*> mapVal{ tblDef->name_, tblDef };
     auto [it, added] = records_.insert(mapVal);
 
@@ -51,19 +56,33 @@ bool SysTable::CreateTable(std::string*             tabName,
         return false;
     }
 
+    tblDef->SetDistributions();
+
     return true;
 }
 
 // Let tables and their columns do their own cleanup.
 void SysTable::dropAllTables()
 {
-#ifdef __RUN_DELETES_
-    for (auto t : records_) {
-        delete t.second;
+    // Why not range based?
+    // It looks like MSVC has some problems with deleting from containers
+    // using iterator++ idiom.
+    // It is not clear but while free()'in pointers_ in memory.h,
+    // an attempt to double free was found.
+    // See memory.h, where a deleted_pointers_ is used to detect any
+    // double free. This problem does not happen in gcc (10.2.x).
+    // Not all delete are handled this way, though, some are still
+    // range loops.
+    auto itb = records_.begin(), ite = records_.end(), itn = itb;
+    while (itb != ite) {
+        ++itn;
+        auto tdef = itb->second;
+        tdef->DropTable();
+        delete tdef;
+        itb = itn;
     }
 
     records_.clear();
-#endif // __RUN_DELETES_
 }
 
 void Catalog::createOptimizerTestTables()
@@ -105,7 +124,9 @@ void Catalog::createBuiltInTestTables()
 }
 
 
-void Catalog::populateOptimizerTestTables()
+void Catalog::populateOptimizerTestTables() {}
+
+void Catalog::populateBuiltInTestTables()
 {
     /* std::vector<Datum> */
     // rows of a, b, and c

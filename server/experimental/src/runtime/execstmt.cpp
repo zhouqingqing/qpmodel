@@ -1,5 +1,3 @@
-#pragma once
-
 #include "common/common.h"
 #include "common/dbcommon.h"
 #include "parser/include/stmt.h"
@@ -22,10 +20,18 @@ bool SelectStmt::Open()
     return true;
 }
 
-bool             SelectStmt::Close()
+bool SelectStmt::Close()
 {
-    assert(physicPlan_);
-    physicPlan_->Close();
+    DEBUG_DEST("SelectStmt", "Close");
+
+    // assert(physicPlan_);
+    if (logicPlan_)
+        logicPlan_->Close();
+    if (physicPlan_)
+        physicPlan_->Close();
+
+    delete execContext_;
+    execContext_ = nullptr;
 
     return true;
 }

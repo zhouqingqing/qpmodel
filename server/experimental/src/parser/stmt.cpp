@@ -4,6 +4,24 @@
 #include "optimizer/optimizer.h"
 
 namespace andb {
+
+SQLStatement::~SQLStatement()
+{
+    DEBUG_DEST("SQLStatement", "@@@");
+
+    if (hints) {
+        for (auto h : *hints) {
+            delete h++;
+        }
+        hints->clear();
+        delete hints;
+        hints = 0;
+    }
+
+    delete queryOpts_;
+    queryOpts_  = nullptr;
+}
+
 // from clause -
 //  pair each from item with cross join, their join conditions will be handled
 //  with where clause processing.

@@ -26,7 +26,7 @@ void PhysicHashJoin::ExecT(Fn&& callback)
 
     // build stage
     children_[0]->Exec([&](Row* l) {
-        if (l != nullptr) {
+        if (l != nullptr && !l->Empty()) {
             auto key    = std::get<int>((*l)[0]);
             auto search = map.find(key);
             if (search != map.end()) {
@@ -43,7 +43,7 @@ void PhysicHashJoin::ExecT(Fn&& callback)
 
     // probe stage
     children_[1]->Exec([&](Row* l) {
-        if (l != nullptr) {
+        if (l != nullptr && !l->Empty()) {
             bool owned  = false;
             auto key    = std::get<int>((*l)[0]);
             auto search = map.find(key);
@@ -57,6 +57,11 @@ void PhysicHashJoin::ExecT(Fn&& callback)
         }
     });
 
+#if defined(__USE_ROWCOPY_)
+    // At the moment only the tableDef owns the rows and at the top level
+    // rows are copied into user space, so this should not be done.
+    // if and when the need arises to modify the rows, make a copy
+    // and delete here.
     // release source
     for (auto& a : map) {
         auto& list = a.second;
@@ -64,6 +69,7 @@ void PhysicHashJoin::ExecT(Fn&& callback)
             delete b;
         }
     }
+#endif // defined(__USE_ROWCOPY_)
     map.clear();
 }
 
@@ -72,7 +78,7 @@ void PhysicAgg::ExecT(Fn&& callback)
 {
     int sum = 0;
     children_[0]->Exec([&](Row* l) {
-        if (l != nullptr) {
+        if (l != nullptr && !l->Empty()) {
             sum += std::get<int>((*l)[0]);
             return false;
         }

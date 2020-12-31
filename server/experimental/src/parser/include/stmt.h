@@ -55,34 +55,9 @@ class SQLStatement : public UseCurrentResource
         DEBUG_CONS("SQLStatement", "def");
     }
 
-    virtual ~SQLStatement()
-    {
-#ifdef __RUN_DELETES_
-        DEBUG_DEST("SQLStatement", "@@@");
-
-        if (hints) {
-            for (auto h : *hints) {
-                delete h++;
-            }
-            hints->clear();
-            delete hints;
-            hints = 0;
-        }
-
-        delete logicPlan_;
-        delete physicPlan_;
-        delete queryOpts_;
-
-        logicPlan_  = nullptr;
-        physicPlan_ = nullptr;
-        queryOpts_  = nullptr;
-#endif // __RUN_DELETES_
-    }
-
+    virtual ~SQLStatement();
     virtual void Bind(Binder* binder) {}
-
     StatementType type() const;
-
     bool isType(StatementType type) const;
 
     // Shorthand for isType(type).
@@ -125,21 +100,34 @@ class SelectStmt : public SQLStatement
         DEBUG_CONS("SelectStmt", "def");
     }
 
-    virtual ~SelectStmt()
+    ~SelectStmt() override
     {
-#ifdef __RUN_DELETES_
-        DEBUG_DEST("SelectStmt", "def");
-
         for (auto s : selection_) {
             delete s++;
         }
         selection_.clear();
 
-        for (auto f : from_) {
-            delete f++;
+        auto rit = from_.begin(), rie = from_.end(), rin = rit;
+        while (rit != rie) {
+            TableRef *tref = *rit;
+            TableDef *tdef = tref->tabDef_ ? tref->tabDef_ : nullptr;
+#ifdef _DEBUG
+            if (tdef) {
+                std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": DEL FROM ENTRY: TBLREF " << (void *)tref << " " << *(tdef->name_) << std::endl;
+            }
+            else {
+                std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": DEL FROM ENTRY: TBLREF " << (void *)tref << " noname" << std::endl;
+            }
+#endif // _DEBUG
+
+            ++rin;
+            delete *rit;
+            rit = rin;
         }
         from_.clear();
-#endif // __RUN_DELETES_
+
+        delete where_;
+        where_ = nullptr;
     }
 
     std::string Explain(void* arg = nullptr) const override;

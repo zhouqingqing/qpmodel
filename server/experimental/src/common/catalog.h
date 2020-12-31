@@ -2,12 +2,16 @@
 #include <string>
 #include <utility>
 #include <map>
+#include <vector>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "common/statistics.h"
 #include "common/common.h"
 #include "common/dbcommon.h"
 
 namespace andb {
+
 
 // NOTE: None of the operations here are Multi-Thread (MT) safe.
 // Tables are not aware of a SCHEMA, yet.
@@ -39,22 +43,30 @@ class Catalog : public UseCurrentResource
     public:
     static void Init()
     {
+#ifdef __LATER
+        // We are not there yet, so make debugging easy.
         createOptimizerTestTables();
+#endif // __LATER
         createBuiltInTestTables();
-        populateOptimizerTestTables();
+        populateBuiltInTestTables();
     }
 
     static void DeInit()
     {
         Catalog::systable_->dropAllTables();
+        delete systable_;
+        systable_ = nullptr;
+        delete sysstat_;
+        sysstat_ = nullptr;
     }
 
     static void createOptimizerTestTables();
+    static void populateOptimizerTestTables();
     static void createBuiltInTestTables();
+    static void populateBuiltInTestTables();
 
     // TEMP: populate test tables "by hand" so that some tests
     // can be run
-    static void populateOptimizerTestTables();
 	static void populateOneTable(const std :: string & tblName, const std :: vector < Row * > & rows);
     static int  Next();
 

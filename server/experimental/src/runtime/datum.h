@@ -70,6 +70,7 @@ public:
                            r->values_.end ());
     }
 
+    bool        Empty() { return values_.size() == 0; }
     std::string ToString () {
         std::string s;
         auto size = values_.size ();

@@ -19,7 +19,7 @@ const std::vector<Row*>* PhysicScan::getSourceReader(int distId) const
     const std::vector<Row*>* result = nullptr;
     LogicScan*               lscan  = static_cast<LogicScan*>(logic_);
     TableRef*               tref   = lscan->getBaseTableRef();
-    result         = &(tref->tabDef_->distributions_[distId].heap_);
+    result         = &(tref->tabDef_->distributions_->at(0).heap_);
 
     return result;
 }

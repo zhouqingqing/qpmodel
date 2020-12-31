@@ -64,7 +64,9 @@ class Instance : public IInstance
 };
 
 static Instance       instance_;
+#if !defined(NDEBUG) && defined(_WIN32) && defined(__USE_CRT_MEM_DEBUG)
 static CrtCheckMemory memoryChecker;
+#endif
 
 int main(int argc, char* argv[])
 {
@@ -102,23 +104,30 @@ static void processSQL(void)
 
     while ((mode_interactive_on || mode_batch_on) && moreInput) {
         SQLParserResult presult;
+        SelectStatement* selStmt = nullptr;
+        PhysicNode* physic = nullptr;
+        LogicNode*  root   = nullptr;
         try {
+            selStmt = nullptr;
+            physic = nullptr;
+            root   = nullptr;
+
             bool ret = ParseSQL(query, &presult);
 
             if (ret) {
                 std::cout << "PASSED: " << query << std::endl;
 
-                SelectStatement* selStmt = (SelectStmt*)presult.getStatement(0);
+                selStmt = (SelectStmt*)presult.getStatement(0);
                 Binder binder (selStmt);
                 binder.Bind ();
                 if (binder.GetError ()) {
                     std::cout << "ERROR: Binder error\n";
                     continue;
                 }
-                LogicNode* root = selStmt->CreatePlan();
+                root = selStmt->CreatePlan();
                 if (!root)
                     continue;
-                auto physic = selStmt->Optimize();
+                physic = selStmt->Optimize();
                 if (!physic)
                     continue;
                 std::cout << "EXPLAIN: " << selStmt->Explain() << "\n";
@@ -158,7 +167,11 @@ static void processSQL(void)
         } catch (...) {
             std::cerr << "EXCEPTION: Unknown exception" << std::endl;
         }
-
+            
+        if (selStmt)
+            selStmt->Close();
+        delete selStmt;
+            
         presult.reset();
         moreInput = getNextStmt();
     }

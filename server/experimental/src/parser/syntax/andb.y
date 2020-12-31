@@ -401,6 +401,7 @@ select_statement:
     * Something is not right here, all of these objects were cloned
     * into respective places in the SQLStatement but somehow
     * these deletes are deleting the clones too.
+    */
          ReleaseMemory($2);
          ReleaseMemory($3);
          ReleaseMemory($4);
@@ -408,7 +409,6 @@ select_statement:
          $2 = nullptr;
          $3 = nullptr;
          $4 = nullptr;
-    */
 		}
 	;
 

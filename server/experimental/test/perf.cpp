@@ -49,7 +49,7 @@ void AggJoinFn (benchmark::State& state, int ln, int rn) {
     int result = 0;
     for (auto _ : state) {
         Execute (physic, [&] (Row* l) {
-            if (l != nullptr) {
+            if (l != nullptr && !l->Empty()) {
                 result = std::get<int> ((*l)[0]);
                 return false;
             }
@@ -82,6 +82,7 @@ void AggFn(benchmark::State& state, int nrows, bool filter = false)
     int result = 0;
     for (auto _ : state) {
         Execute(physic, [&](Row* l) {
+            if (l != nullptr && !l->Empty())
             result += std::get<int>((*l)[0]);
             return false;
         });
@@ -130,14 +131,14 @@ void ExprAddRow (benchmark::State& state) {
     eval.Close ();
 }
 
-// BENCHMARK (InitCatalog);
 BENCHMARK (ExprAddConst);
 BENCHMARK (ExprAddRow);
+BENCHMARK(AggJoin1_10);
 BENCHMARK (Agg1);
 BENCHMARK (Agg1K);
 BENCHMARK (Agg1M);
 BENCHMARK (Agg1MFilter);
-BENCHMARK (AggJoin1_10);
+// BENCHMARK (AggJoin1_10);
 BENCHMARK (AggJoin1K_1M);
 BENCHMARK (AggJoin1M_1M);
 

@@ -10,6 +10,8 @@ namespace andb
 class LogicNode : public RuntimeNodeT<LogicNode> {
 public:
     ClassTag classTag_;
+    virtual void     Close() {}
+
 };
 
 class LogicAgg : public NodeBase<LogicNode, N1> {

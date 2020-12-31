@@ -151,26 +151,25 @@ namespace andb {
             bool         quoted_;
             bool         isCloned_;
 
-            ColumnDef(std::string* name, ColumnType type, int ordinal = -1, bool nullable = true, int columnId = -1, bool quoted = false, bool isClone = false)
+            ColumnDef(std::string *name, ColumnType type, int ordinal = -1, bool nullable = true, int columnId = -1, bool quoted = false, bool isClone = false)
                 : classTag_(ColumnDef_)
-                , name_(DBG_NEW std::string(*name))
+                , name_(nullptr)
                 , type_(type)
-              , ordinal_(ordinal)
-              , nullable_(nullable)
-              , columnId_(columnId)
-              , quoted_(quoted)
-              , isCloned_(isClone)
+                , ordinal_(ordinal)
+                , nullable_(nullable)
+                , columnId_(columnId)
+                , quoted_(quoted)
+                , isCloned_(isClone)
             {
                 DEBUG_CONS("ColumnDef", isCloned_);
+                name_ = new std::string(name->c_str());
             }
 
             virtual ~ColumnDef()
             {
-#ifdef __RUN_DELETES_
                 DEBUG_DEST("ColumnDef", isCloned_);
                 delete name_;
                 name_ = nullptr;
-#endif // __RUN_DELETES_
             }
 
             ColumnDef* Clone ()
@@ -192,9 +191,13 @@ namespace andb {
         std::vector<Row*> heap_;
     };
 
+
+    // TODO: Move distributions_ out of TableDef to avoid heavy copying of all rows
+    // when TableDef is cloned, and it gets cloned enough times.
     class TableDef : public UseCurrentResource
     {
         public:
+        
         enum TableSource
         {
             Table,
@@ -208,101 +211,153 @@ namespace andb {
             Replicated,
             Roundrobin
         };
-            ClassTag    classTag_;
-            std::string *name_;
-            std::map<std::string*, ColumnDef*, CaselessStringPtrCmp> *columns_;
-            bool        quoted_;
-            int         tableId_;   // take over table lookup
-            bool isCloned_;
-            TableSource source_;
-            DistributionMethod distMethod_;
-            std::vector<Distribution> distributions_;
 
-            TableDef(std::string*             name,
-                     std::vector<ColumnDef*>& columns,
-                     bool                     isClone = false,
-                     TableSource              source = Table,
-                     DistributionMethod       distMethod = NonDistributed)
-              : classTag_(TableDef_)
-              , name_(DBG_NEW std::string(*name))
-              , quoted_(false)
-              , tableId_(-1)
-              , isCloned_(isClone)
-              , source_(source)
-              , distMethod_(distMethod)
-            {
-                DEBUG_CONS("TableDef", isCloned_);
-                columns_ = DBG_NEW std::map<std::string*, ColumnDef*, CaselessStringPtrCmp>();
+        ClassTag                                                  classTag_;
+        std::string*                                              name_;
+        std::map<std::string*, ColumnDef*, CaselessStringPtrCmp>* columns_;
+        bool                                                      quoted_;
+        int                         tableId_; // take over table lookup
+        bool                        isCloned_;
+        TableSource        source_;
+        DistributionMethod distMethod_;
+        std::vector<Distribution>*                                distributions_;
 
-                for (auto c : columns) {
-                    ColumnDef* cdef = c->Clone ();
-                    auto [it, added] = columns_->insert (std::make_pair(c->name_, cdef));
-                    if (!added)
-                       throw SemanticAnalyzeException("Duplicate Column Definition: " + *c->name_);
-                }
+        TableDef(std::string*             name,
+                 std::vector<ColumnDef*>& columns,
+                 bool                     isClone    = false,
+                 TableSource              source     = Table,
+                 DistributionMethod       distMethod = NonDistributed)
+          : classTag_(TableDef_)
+          , name_(nullptr)
+          , quoted_(false)
+          , tableId_(-1)
+          , isCloned_(isClone)
+          , source_(source)
+          , distMethod_(distMethod)
+          , distributions_(nullptr) 
+        {
+            DEBUG_CONS("TableDef", isCloned_);
+            name_ = new std::string(name->c_str());
+            columns_ = DBG_NEW std::map<std::string*, ColumnDef*, CaselessStringPtrCmp>();
 
-            distributions_.emplace_back(const_cast<TableDef*>(this));
+            for (auto c : columns) {
+                ColumnDef* cdef  = c->Clone();
+                auto [it, added] = columns_->insert(std::make_pair(cdef->name_, cdef));
+                if (!added)
+                    throw SemanticAnalyzeException("Duplicate Column Definition: " + *c->name_);
+            }
         }
 
-            virtual ~TableDef()
-            {
-#ifdef __RUN_DELETES_
-                DEBUG_DEST("TableDef", isCloned_);
-                if (columns_) {
-                    for (auto c : *columns_) {
-                        delete c.second;
-                    }
-                    columns_->clear();
-                    delete columns_;
-                    columns_ = nullptr;
+        TableDef* Clone()
+        {
+            std::vector<ColumnDef*> columns{}; // dummy
+            TableDef* clone = new TableDef(name_, columns, true, source_, distMethod_);
+#ifdef _DEBUG
+            std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": NEW TableDef : " << (void*)clone << " : " << *name_ << std::endl;
+#endif // _DEBUG
+
+            clone->columns_ = DBG_NEW std::map<std::string*, ColumnDef*, CaselessStringPtrCmp>();
+
+            for (auto &cdr : *columns_) {
+                ColumnDef* cdef  = cdr.second->Clone();
+                auto [it, added] = clone->columns_->insert(std::make_pair(cdef->name_, cdef));
+                if (!added)
+                    throw SemanticAnalyzeException("Duplicate Column Definition: " + *cdef->name_);
+            }
+
+            clone->distributions_ = distributions_;
+            return clone;
+        }
+
+        virtual ~TableDef()
+        {
+            DEBUG_DEST("TableDef", isCloned_);
+
+#ifdef _DEBUG
+            std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": DEL TableDef : " << (void*)this << " : " << *name_ << std::endl;
+#endif // _DEBUG
+
+            if (columns_) {
+                auto itb = columns_->begin(), ite = columns_->end(), itn = itb;
+                while (itb != ite) {
+                    ++itn;
+                    auto cdef = itb->second;
+                    itb->second = nullptr;
+                    delete cdef;
+                    itb = itn;
                 }
-                delete name_;
-                name_ = nullptr;
-#endif // __RUN_DELETES_
+                columns_->clear();
+                delete columns_;
+                columns_ = nullptr;
             }
 
-            ColumnDef* GetColumnDef(std::string* colName)
-            {
-                ColumnDef* cdef = nullptr;
-                auto it = columns_->find(colName);
-                if (it != columns_->end())
-                    cdef = it->second;
+            delete name_;
+            name_ = nullptr;
+        }
 
-                return cdef;
+        void DropTable()
+        {
+            DEBUG_DEST("DropTable", isCloned_);
+
+            for (auto &d : *distributions_) {
+                for (auto r : d.heap_) {
+                    delete r;
+                }
+
+                delete distributions_;
+                distributions_ = nullptr;
             }
+        }
 
-            // Let there be RVO
-            std::vector<ColumnDef *> ColumnsInOrder()
-            {
-                std::vector<ColumnDef *> inOrder;
-                for (auto c : *columns_)
-					inOrder.emplace_back (c.second);
+        ColumnDef* GetColumnDef(std::string* colName)
+        {
+            ColumnDef* cdef = nullptr;
+            auto       it   = columns_->find(colName);
+            if (it != columns_->end())
+                cdef = it->second;
+
+            return cdef;
+        }
+
+        // Let there be RVO
+        std::vector<ColumnDef*> ColumnsInOrder()
+        {
+            std::vector<ColumnDef*> inOrder;
+            for (auto c : *columns_)
+                inOrder.emplace_back(c.second);
 
             std::sort(inOrder.begin(), inOrder.end(), [](auto& lc, auto& rc) {
                 return lc->ordinal_ < rc->ordinal_;
             });
 
-                return inOrder;
+            return inOrder;
+        }
+
+        int EstRowSize()
+        {
+            int size = 0, cs;
+
+            for (auto c : *columns_)
+                size += ((cs = (c.second->type_).len_) > 0 ? cs : 0);
+
+            return size;
+        }
+
+        void SetDistributions()
+        {
+            auto dist = new std::vector<Distribution>();
+            dist->emplace_back(Distribution(const_cast<TableDef*>(this)));
+            distributions_ = dist;
+        }
+
+        void insertRows(std::vector<Row*>& rows)
+        {
+            auto& hr = distributions_->at(0).heap_;
+
+            for (int i = 0; i < rows.size(); ++i) {
+                Row* nr = new Row(rows[i]);
+                hr.emplace_back(nr);
             }
-
-            int EstRowSize()
-            {
-                int size = 0, cs;
-
-                for (auto c : *columns_)
-                    size += ((cs = (c.second->type_).len_) > 0 ? cs : 0);
-
-                return size;
-            }
-
-           void insertRows(std::vector<Row*>& rows)
-           {
-               auto &hr = distributions_[0].heap_;
-
-               for (int i = 0; i < rows.size(); ++i) {
-                   Row* nr = new Row(rows[i]);
-                   hr.emplace_back(nr);
-               }
-           }
+        }
     };
-}  // namespace andb
+    }  // namespace andb

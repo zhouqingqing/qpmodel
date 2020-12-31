@@ -69,11 +69,9 @@ namespace andb
 
         virtual ~Expr()
         {
-#ifdef __RUN_DELETES_
            DEBUG_DEST("Expr", "@@@");
            delete alias_;
            alias_ = nullptr;
-#endif // __RUN_DELETES_
         }
 
         virtual std::string Explain(void* arg = nullptr) const { return {}; }
@@ -156,7 +154,7 @@ namespace andb
 
         SelStar(std::string* alias = nullptr)
         {
-           DEBUG_CONS("SelStar", "@@@");
+            DEBUG_CONS("SelStar", "@@@");
             tabAlias_ = alias ? new std::string(*alias) : nullptr;
             classTag_ = SelStar_;
         }
@@ -172,11 +170,9 @@ namespace andb
 
         virtual ~SelStar()
         {
-#ifdef __RUN_DELETES_
            DEBUG_DEST("SelStar", "@@@");
            delete tabAlias_;
            tabAlias_ = nullptr;
-#endif // __RUN_DELETES_
         }
     };
 
@@ -227,10 +223,10 @@ namespace andb
            DEBUG_CONS("ColExpr", ordinal);
             classTag_ = ColExpr_;
             ordinal_ = ordinal;
-            colname_ = colname ? new std::string(*colname) : nullptr;
-            tabname_ = tabname ? new std::string(*tabname) : nullptr;
-            schname_ = schname ? new std::string(*schname) : nullptr;
-            columnDef_ = columnDef;
+            colname_ = colname ? new std::string(colname->c_str()) : nullptr;
+            tabname_ = tabname ? new std::string(tabname->c_str()) : nullptr;
+            schname_ = schname ? new std::string(schname->c_str()) : nullptr;
+            columnDef_ = columnDef ? columnDef->Clone() : nullptr;
         };
 
         explicit ColExpr(const char* colname, const char* tabname = nullptr, const char* schname = nullptr, ColumnDef* columnDef = nullptr)
@@ -241,7 +237,8 @@ namespace andb
             colname_ = new std::string(colname);
             tabname_ = tabname ? new std::string(tabname) : nullptr;
             schname_ = schname ? new std::string(schname) : nullptr;
-            columnDef_ = columnDef;
+            columnDef_ = columnDef ? columnDef->Clone() : nullptr;
+            ;
         }
 
         explicit ColExpr(std::string* colname)
@@ -249,7 +246,7 @@ namespace andb
            DEBUG_CONS("ColExpr(str)", colname);
             classTag_ = ColExpr_;
             ordinal_ = UINT16_MAX;
-            colname_ = new std::string(*colname);
+            colname_ = new std::string(colname->c_str());
             tabname_ = nullptr;
             schname_ = nullptr;
             columnDef_ = nullptr;
@@ -273,7 +270,6 @@ namespace andb
 
         virtual ~ColExpr()
         {
-#ifdef __RUN_DELETES_
            DEBUG_DEST("ColExpr", colname_);
             delete colname_;
             delete tabname_;
@@ -284,7 +280,6 @@ namespace andb
             tabname_ = nullptr;
             schname_ = nullptr;
             columnDef_ = nullptr;
-#endif // __RUN_DELETES_
         }
 
         void Bind(Binder* context) override;
@@ -338,14 +333,12 @@ namespace andb
         
         virtual ~BinExpr()
         {
-#ifdef __RUN_DELETES_
            DEBUG_DEST("BinExpr", "@@@");
            delete children_[0];
            delete children_[1];
 
            children_[0] = nullptr;
            children_[1] = nullptr;
-#endif // __RUN_DELETES_
         }
 
         std::string Explain(void* arg = nullptr) const override
@@ -387,6 +380,12 @@ namespace andb
             , tabDef_(nullptr)
         {
            DEBUG_CONS("TableRef", "alias");
+
+#ifdef _DEBUG
+            std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__
+                      << ": NEW TableRef : " << (void*)this << " : "
+                      << (alias_ ? alias_->c_str() : "NULL") << std::endl;
+#endif // _DEBUG
             SetColumnRefs();
         }
 
@@ -396,6 +395,12 @@ namespace andb
             , tabDef_(nullptr)
         {
            DEBUG_CONS("TableRef", "ctag");
+
+#ifdef _DEBUG
+            std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__
+                      << ": NEW TableRef : " << (void*)this << " : "
+                      << (alias_ ? alias_->c_str() : "NULL") << std::endl;
+#endif // _DEBUG
             SetColumnRefs();
         }
 
@@ -404,13 +409,26 @@ namespace andb
             , tabDef_(nullptr)
         {
            DEBUG_CONS("TableRef", "ctag alias");
+
+#ifdef _DEBUG
+            std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__
+                      << ": NEW TableRef : " << (void*)this << " : "
+                      << (alias_ ? alias_->c_str() : "NULL") << std::endl;
+#endif // _DEBUG
             SetColumnRefs();
         }
 
         TableRef(ClassTag classTag, const char* alias, TableDef* tdef)
-            : classTag_(classTag), alias_(new std::string(alias)), tabDef_(tdef)
+            : classTag_(classTag), alias_(new std::string(alias))
         {
-           DEBUG_CONS("TableRef", "chr tdef");
+            DEBUG_CONS("TableRef", "chr tdef");
+
+#ifdef _DEBUG
+            std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__
+                      << ": NEW TableRef : " << (void*)this << " : "
+                      << (alias_ ? alias_->c_str() : "NULL") << std::endl;
+#endif // _DEBUG
+            tabDef_ = tdef->Clone();
             SetColumnRefs();
         }
 
@@ -418,7 +436,13 @@ namespace andb
             : TableRef(classTag, alias->c_str(), tdef)
         {
            DEBUG_CONS("TableRef", "str tdef");
-            SetColumnRefs();
+
+#ifdef _DEBUG
+            std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__
+                      << ": NEW TableRef : " << (void*)this << " : "
+                      << (alias_ ? alias_->c_str() : "NULL") << std::endl;
+#endif // _DEBUG
+           SetColumnRefs();
         }
 
         std::string* getAlias() const
@@ -440,26 +464,41 @@ namespace andb
         virtual TableRef* Clone()
         {
             TableRef* tr = new TableRef(alias_);
-            tr->tabDef_ = tabDef_;
+#ifdef _DEBUG
+            std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": NEW TableRef : " << (void*)tr << " : " << (tr->alias_ ? tr->alias_->c_str() : "NULL") << std::endl;
+#endif // _DEBUG
+
+            tr->tabDef_  = new TableDef(*tabDef_);
+
+#ifdef _DEBUG
+            std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": NEW TableDef : " << (void*)tr->tabDef_ << " : " << *(tr->tabDef_->name_) << std::endl;
+#endif // _DEBUG
 
             return tr;
         }
 
         virtual ~TableRef()
         {
-#ifdef __RUN_DELETES_
-           DEBUG_DEST("TableRef", columnRefs_.size());
-           delete alias_;
-           alias_ = nullptr;
+            DEBUG_DEST("TableRef", columnRefs_.size());
 
-           auto cr = columnRefs_.begin();
-           while (cr != columnRefs_.end())
-              delete (*cr++);
-           columnRefs_.clear();
+#ifdef _DEBUG
+            std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": DEL TableRef : " << (void*)this << " : " << (alias_ ? alias_->c_str() : "NULL") << std::endl;
+#endif // _DEBUG
 
-           delete tabDef_;
-           tabDef_ = nullptr;
-#endif // __RUN_DELETES_
+            delete alias_;
+            alias_ = nullptr;
+
+            for (int i = 0; i < columnRefs_.size(); ++i)
+                delete columnRefs_[i];
+
+            columnRefs_.clear();
+
+#ifdef _DEBUG
+            std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": DEL TableDef : " << (void*)tabDef_ << " : " << (tabDef_ ? tabDef_->name_->c_str() : "NULL") << std::endl;
+#endif // _DEBUG
+
+            delete tabDef_;
+            tabDef_ = nullptr;
         }
 
         virtual std::string Explain(void* arg = nullptr) const
@@ -513,11 +552,9 @@ namespace andb
 
         virtual ~BaseTableRef()
         {
-#ifdef __RUN_DELETES_
            DEBUG_DEST("BaseTableRef", tabName_);
            delete tabName_;
            tabName_ = nullptr;
-#endif // __RUN_DELETES_
         }
 
         std::string Explain(void* arg = nullptr) const override
@@ -554,6 +591,17 @@ namespace andb
 
         public:
         std::pmr::deque<Expr*> queue_{currentResource_};
+        ExprEval()
+        {
+            expr_ = nullptr;
+            pointer_ = nullptr;
+            board_ = nullptr;
+        }
+
+        ~ExprEval()
+        {
+            // do nothing, we don't own anything!
+        }
 
         public:
             // given an expression, enqueue all ops

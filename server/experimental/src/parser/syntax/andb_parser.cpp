@@ -1996,14 +1996,14 @@ yyreduce:
     * Something is not right here, all of these objects were cloned
     * into respective places in the SQLStatement but somehow
     * these deletes are deleting the clones too.
-         ReleaseMemory($2);
-         ReleaseMemory($3);
-         ReleaseMemory($4);
-
-         $2 = nullptr;
-         $3 = nullptr;
-         $4 = nullptr;
     */
+         ReleaseMemory(yyvsp[-2].expr_vec);
+         ReleaseMemory(yyvsp[-1].table_vec);
+         ReleaseMemory(yyvsp[0].expr);
+
+         yyvsp[-2].expr_vec  = nullptr;
+         yyvsp[-1].table_vec = nullptr;
+         yyvsp[0].expr = nullptr;
 		}
     break;
 

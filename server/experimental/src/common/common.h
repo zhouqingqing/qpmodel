@@ -11,41 +11,75 @@
 #include <string>
 #include <cstdio>    // __VAR_ARGS__
 
-// #define __RUN_DELETES_
-/*
-* Aid to debug catalog memory leaks. There are still two blocks
-* not freed. This code may be left in and __DEBUG_CAT_MEMLEAK
-* turned into a runtime debug level options.
-*/
-// #define __DEBUG_CAT_MEMLEAK
-// #define __DEBUG_PARSER_MEMLEAK
-// #define __ENABLE_DEBUG_MSG
+
+#include "common/platform.h"
+#include "debug.h"
+#include "memory.h"
 
 // debug memory mamagement
 #ifdef __DEBUG_MEMORY
-#define NEW_SYSTABLE_TYPE()  do {\
-SysTable* Catalog::systable_ = new SysTable(); \
-      std::cerr << __FILE__ << ": " << __LINE__ << " : " << __func__ \
-               << ": SysTable : " << (void *)Catalog::systable_ << " : " \
-               << sizeof(SysTable) << std::endl;
-} while (false)
 
-#define NEW_SYSSTATS_TYPE()  do {\
-SysStats* Catalog::sysstats_ = new SysStats(); \
-      std::cerr << __FILE__ << ": " << __LINE__ << " : " << __func__ \
-               << ": SysStats : " << (void *)Catalog::sysstats_ << " : " \
-               << sizeof(SysStats) << std::endl;
-} while (false)
+class SysTable;
+class SysStats;
+class TableDef;
+class TableRef;
 
-#define NEW_TABLEDEF_TYPE(ptr__, __VAR_ARGS__) do { \
-TableDef* ptr__ = new TableDef(__VAR_ARGS__); \
-      std::cerr << __FILE__ << ": " << __LINE__ << " : " << __func__ \
-               << ": TableDef : " << (void *)ptr__ << " : " \
-               << sizeof(TableDef) << std::endl;
+static const char *nillName = "NULL";
+
+#ifdef _MSC_VER
+#define PASS_ON_VARARGS(...)    __VAR_ARGS__
+#else
+#define PASS_ON_VARARGS
+#endif
+SysTable *newSysTable(const char *file, int line)
+{
+    SysTable* tab = new SysTable();
+    std::cerr << file << " " << line << " SysTable "
+        << (void *)tab << " size " << sizeof(SysTable) << std::endl;
+
+    return tab;
+}
+#define NEW_SYSTABLE_TYPE() newSysTable(__FILE__, __LINE__)
+
+SysStats *newSysStats(const char *file, int line)
+{
+    SysStats* tab = new SysStats();
+    std::cerr << file << " " << line << << " SysStats "
+        << (void *)tab << " size " << sizeof(SysStats) << std::endl;
+
+    return tab;
+}
+#define NEW_SYSSTATS_TYPE() newSysStats(__FILE__, __LINE__)
+
+TableDef *newTableDef(const char *file, int line, ...)
+{
+    va_list args;
+    va_start(args, line);
+    TableDef *ptr = new TableDef(args);
+    std::cerr << file << " " << line << " TableDef "
+        << (void *)ptr << " name " << ptr->name_ << " size "
+        << sizeof(TableDef) << std::endl;
+
+    rteturn ptr;
+}
+#define NEW_TABLEDEF_TYPE() newTableDef(__FILE__, __LINE__, ...)
+
+TableRef *newTableRef(const char *file, int line, ...)
+{
+    va_list args;
+    va_start(args, line);
+    TableRef *ptr = new TableRef(args);
+    std::cerr << file << " " << line << " TableRef "
+        << (void *)ptr << " alias " << (ptr->alias_ ? ptr->alias_->c_str() :
+                nillName) << " size " << sizeof(TableRef) << std::endl;
+
+    rteturn ptr;
+}
+#define NEW_TABLEREF_TYPE() newTableRef(__FILE__, __LINE__, ...)
+
 #else
 #define NEW_SYSTABLE_TYPE() SysTable* Catalog::systable_ = new SysTable()
-#define NEW_SYSSTATS_TYPE() SysStats* Catalog::sysstat_  = new SysStats()
-#define NEW_TABLEDEF_TYPE(ptr__, __VAR_ARGS__) TableDef* ptr__ = new TableDef(__VAR_ARGS__)
+#define NEW_SYSSTATS_TYPE() SysStats* Catalog::sysstat_ = new SysStats()
 #endif // __DEBUG_MEMORY
 
 #ifdef __DEBUG_CAT_MEMLEAK
@@ -56,9 +90,6 @@ TableDef* ptr__ = new TableDef(__VAR_ARGS__); \
     #define DBG_NEW new
 #endif
 
-#include "common/platform.h"
-#include "debug.h"
-#include "memory.h"
 
 namespace andb {
 #ifdef __ENABLE_DEBUG_MSG
@@ -70,32 +101,30 @@ namespace andb {
    class AutoDebug
    {
       public:
-      AutoDebug(const char *file, int line, const char *func,
+      AutoDebug(const char *file, int line,
             int num = 0, const char *head = nullptr,
             const char *body = nullptr)
       {
          std::cout << "ENTRY { : " << file << " : " << line
-                  << " : " << func << " : num " << num
+                  << " : num " << num
                   << " : head " << (head ? head : "")
                   << " : body " << (body ? body : "") << ":" << std::endl;
          file_ = file;
-         func_ = func;
          num_ = num;
       }
 
       ~AutoDebug()
       {
-         std::cout << "EXIT  : " << file_ << " : " << func_
+         std::cout << "EXIT  : " << file_ << " : "
                << " : num " << num_ << ":}" << std::endl;
       }
 
       private:
          const char *file_;
-         const char *func_;
          int        num_;
    };
 
-#define ADBG(...) AutoDebug adbg_##__LINE__{__FILE__, __LINE__, __func__, __VA_ARGS__}
+#define ADBG(...) AutoDebug adbg_##__LINE__{__FILE__, __LINE__, __VA_ARGS__}
 
 #define DEBUG_CONS(class___, extra___) \
     std::cout << __FILE__ << ": " \
