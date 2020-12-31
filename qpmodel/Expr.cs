@@ -1192,15 +1192,15 @@ namespace qpmodel.expr
                         else
                             throw new SemanticAnalyzeException("wrong datetime format");
                         break;
-                    case CharType ct:
-                    case VarCharType vt:
+                    case CharType _:
+                    case VarCharType _:
                         str_ = str_.RemoveStringQuotes();
                         val_ = str_;
                         break;
-                    case BoolType bt:
+                    case BoolType _:
                         val_ = bool.Parse(str);
                         break;
-                    case AnyType at:
+                    case AnyType _:
                         val_ = null;
                         break;
                     default:
@@ -1214,8 +1214,8 @@ namespace qpmodel.expr
 
         public ConstExpr(string interval, string unit)
         {
-            int day = 0;
             interval = interval.RemoveStringQuotes();
+            int day;
             if (int.TryParse(interval, out int value))
                 day = value;
             else
@@ -1289,7 +1289,7 @@ namespace qpmodel.expr
         //
         public static ConstExpr MakeConst(Value val, ColumnType type, string outputName = null)
         {
-            ConstExpr ret = null;
+            ConstExpr ret;
             if (type is CharType || type is VarCharType || type is DateTimeType)
                 ret = new ConstExpr($"'{val}'", type);
             else
@@ -1365,7 +1365,7 @@ namespace qpmodel.expr
             if (obj is ExprRef or)
                 return expr_().Equals(or.expr_());
             else
-                return (obj is Expr oe) ? expr_().Equals(oe) : false;
+                return (obj is Expr oe) && expr_().Equals(oe);
         }
 
         public override void Bind(BindContext context) => throw new SemanticExecutionException("ExprRef inherits its expr's bounded_ status");

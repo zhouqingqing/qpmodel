@@ -31,7 +31,7 @@ namespace server
 {
     class Program
     {
-        static void Main(string[] args)
+        static void Main()
         {
             Test.Run(1);
         }

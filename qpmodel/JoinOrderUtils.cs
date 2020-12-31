@@ -451,7 +451,7 @@ namespace qpmodel.optimizer
     public class VancePartition
     {
         // it does not make sense to make S_ wider because it generates 2^S_ numbers
-        long S_;
+        readonly long S_;
         internal VancePartition(BitVector S)
         {
             Debug.Assert(S != SetOp.EmptySet);
@@ -489,8 +489,6 @@ namespace qpmodel.optimizer
         {
             VancePartition p;
             ulong c1 = 0;
-
-            c1 = 0;
             p = new VancePartition(0b1000);
             foreach (long l in p.Next(true)) { c1++; }
             Debug.Assert(c1 == 1);
@@ -514,7 +512,7 @@ namespace qpmodel.optimizer
 
     class JoinContain
     {
-        int nvertices_;
+        readonly int nvertices_;
         internal BitVector S_;
 
         internal JoinContain(int nvertices)
@@ -559,8 +557,7 @@ namespace qpmodel.optimizer
 
         public override string ToString()
         {
-            string result = "";
-            result = Convert.ToString(S_, 2).PadLeft(nvertices_, '0');
+            string result = Convert.ToString(S_, 2).PadLeft(nvertices_, '0');
             Debug.Assert(result.Length == nvertices_);
             return result;
         }

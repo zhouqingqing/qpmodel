@@ -1620,7 +1620,7 @@ namespace qpmodel.unittest
             /*
              * Rule1: Constant move. Bring all possible constants together so that later
              *        transformations can simplify or even remove some of the constants.
-             *        Some of them will change when other rules are implmented.
+             *        Some of them will change when other rules are implemented.
              */
             string sql = "select 1 + a1 + 2 + a2 + 3 + 4 + a4 + 5 + 6 from a";
 
@@ -1667,13 +1667,14 @@ namespace qpmodel.unittest
             sql = "select c1, c2 from (select sum(abs(a1 * -10.3)) c1, sum(round(10.7 * a2, 2)) c2 from a) x where 10 + c1 < c2";
             TU.ExecuteSQL(sql, "30.9,64.2", out phyplan);
             answer = @"PhysicHashAgg  (actual rows=1)
-                           Output: {sum(abs(a.a1*-10.3))}[0],{sum(abs(a.a1*-10.3))}[0]
-                           Aggregates: sum(abs(a.a1[1]*-10.3)), sum(round(a.a2[3]*10.7,2))
-                           Filter: ({sum(abs(a.a1*-10.3))}[0]+10)<{sum(round(a.a2*10.7,2))}[1]
-                           -> PhysicScanTable a (actual rows=3)
-                               Output: a.a1[0]*-10.3,a.a1[0],-10.3,a.a2[1]";
+                            Output: {sum(abs(a.a1*-10.3))}[0],{sum(round(a.a2*10.7,2))}[1]
+                            Aggregates: sum(abs(a.a1[1]*-10.3)), sum(round(a.a2[4]*10.7,2))
+                            Filter: ({sum(abs(a.a1*-10.3))}[0]+10)<{sum(round(a.a2*10.7,2))}[1]
+                            -> PhysicScanTable a (actual rows=3)
+                                Output: a.a1[0]*-10.3,a.a1[0],-10.3,a.a2[1]*10.7,a.a2[1],10.7,2";
+            TU.PlanAssertEqual(answer, phyplan);
 
-            // In Comparision. This is happening without any of the new ruls.
+            // In Comparison. This is happening without any of the new rules.
             sql = "select a1, a2 from a where 100 > a1 + a2;";
             result = ExecuteSQL(sql, out phyplan);
             Assert.IsTrue(phyplan.Contains("Filter: (a.a1[0]+a.a2[1])<100"));
@@ -3157,6 +3158,7 @@ namespace qpmodel.unittest
                             Output: c.c1[0],c.c2[1]
                             -> PhysicScanTable c (actual rows=3, loops=3)
                                 Output: c.c1[0],c.c2[1]";
+            TU.PlanAssertEqual(answer, phyplan);
             // enable remove_from, default.
             stmt = RawParser.ParseSingleSqlStatement(sql);
             SQLStatement.ExecSQL(sql, out phyplan, out _);

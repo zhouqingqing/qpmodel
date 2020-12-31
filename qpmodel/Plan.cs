@@ -161,7 +161,7 @@ namespace qpmodel.logic
             string r = null;
             bool exp_output = option?.show_output_ ?? true;
             bool exp_showcost = option?.show_estCost_ ?? false;
-            bool exp_showactual = option is null ? false : option.mode_ >= ExplainMode.analyze;
+            bool exp_showactual = !(option is null) && option.mode_ >= ExplainMode.analyze;
             bool exp_id = option?.show_id_ ?? false;
 
             if (!(this is PhysicProfiling) && !(this is PhysicCollect))

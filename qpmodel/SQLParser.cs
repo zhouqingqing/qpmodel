@@ -239,19 +239,16 @@ namespace qpmodel.sqlparser
         public override object VisitInSubqueryExpr([NotNull] SQLiteParser.InSubqueryExprContext context)
         {
             Debug.Assert(context.K_IN() != null);
-
-            SelectStmt select = null;
-            List<Expr> inlist = null;
-            bool hasNot = (context.K_NOT() != null) ? true : false;
+            bool hasNot = (context.K_NOT() != null);
             if (context.select_stmt() != null)
             {
                 Debug.Assert(context.arith_expr().Count() == 1);
-                select = Visit(context.select_stmt()) as SelectStmt;
+                SelectStmt select = Visit(context.select_stmt()) as SelectStmt;
                 return new InSubqueryExpr(Visit(context.arith_expr(0)) as Expr, select, hasNot);
             }
             else
             {
-                inlist = new List<Expr>();
+                List<Expr> inlist = new List<Expr>();
                 foreach (var v in context.arith_expr())
                     inlist.Add(Visit(v) as Expr);
                 Expr expr = inlist[0];
@@ -581,7 +578,7 @@ namespace qpmodel.sqlparser
 
         public override object VisitCreate_index_stmt([NotNull] SQLiteParser.Create_index_stmtContext context)
         {
-            bool unique = context.K_UNIQUE() is null ? false : true;
+            bool unique = !(context.K_UNIQUE() is null);
             string indexname = context.index_name().GetText();
             var tableref = new BaseTableRef(context.table_name().GetText());
             var where = context.K_WHERE() is null ? null : (Expr)Visit(context.expr());

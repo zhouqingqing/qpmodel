@@ -79,7 +79,7 @@ namespace qpmodel.dml
 
     public class CreateStreamStmt : CreateTableStmt
     {
-        string streamName_;
+        readonly string streamName_;
 
         public CreateStreamStmt(string tabName, List<ColumnDef> cols, List<TableConstraint> cons,
             string distributedBy, string text) : base(tabName, cols, cons, distributedBy, text)
@@ -224,7 +224,7 @@ namespace qpmodel.dml
             logicPlan_ = select_ is null ?
                 new LogicInsert(targetref_, new LogicResult(vals_)) :
                 new LogicInsert(targetref_, select_.CreatePlan());
-            distributed_ = select_ is null ? false : select_.distributed_;
+            distributed_ = !(select_ is null) && select_.distributed_;
             if (distributed_) Debug.Assert(targetref_.IsDopMatch(queryOpt_));
             return logicPlan_;
         }

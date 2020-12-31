@@ -432,9 +432,9 @@ namespace qpmodel.physic
     //
     public class ExchangeChannel
     {
-        BlockingCollection<Row> dataBuffer_ = new BlockingCollection<Row>();
+        readonly BlockingCollection<Row> dataBuffer_ = new BlockingCollection<Row>();
         int cntDoneProducers_ = 0;
-        int cntProducers_;
+        readonly int cntProducers_;
 
         public ExchangeChannel(int dop)
         {
@@ -529,12 +529,10 @@ namespace qpmodel.physic
 
         public void WaitForAllThreads()
         {
-            Thread thread = null;
-            bool succ = false;
-
             while (!threads_.IsEmpty)
             {
-                succ = threads_.TryDequeue(out thread);
+                Thread thread;
+                bool succ = threads_.TryDequeue(out thread);
                 if (succ)
                     thread.Join();
             }
@@ -678,7 +676,6 @@ namespace qpmodel.physic
         protected void execBroadCast(Action<Row> callback)
         {
             Row r;
-            ExecContext context = context_;
             while ((r = channel_.Recv()) != null)
                 callback(r);
         }
@@ -778,8 +775,6 @@ namespace qpmodel.physic
 
         public override void ExecConsumer(Action<Row> callback)
         {
-            ExecContext context = context_;
-
             if (cache_ != null)
             {
                 foreach (var row in cache_)

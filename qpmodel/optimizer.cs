@@ -154,8 +154,8 @@ namespace qpmodel.optimizer
             var havedist = nodehave.distribution_.disttype;
             if (mytype == DistrType.Singleton)
             {
-                LogicGather logicnode = null;
                 Debug.Assert(havedist == DistrType.AnyDistributed || havedist == DistrType.Replicated);
+                LogicGather logicnode;
                 if (nodehave.distribution_.disttype == DistrType.AnyDistributed)
                     logicnode = new LogicGather(node.logic_);
                 else

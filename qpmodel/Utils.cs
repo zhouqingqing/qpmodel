@@ -232,15 +232,14 @@ namespace qpmodel.utils
         public static string RemoveStringQuotes(this string str)
         {
             Debug.Assert(str[0] == '\'' && str[str.Length - 1] == '\'');
-            var dequote = str.Substring(1, str.Length - 2);
+            var dequote = str[1..^1];
             return dequote;
         }
 
-        // postgreSQL dont support [A-Z]
+        // postgreSQL don't support [A-Z]
         public static bool StringLike(this string s, string pattern)
         {
-            string regpattern = "";
-            regpattern = pattern;
+            string regpattern = pattern;
             if (!pattern.Contains("%"))
             {
                 regpattern = "^" + pattern + "$";

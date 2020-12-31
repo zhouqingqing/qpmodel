@@ -238,8 +238,10 @@ namespace qpmodel.physic
         //
         public virtual bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs)
         {
-            listChildReqs = new List<ChildrenRequirement>();
-            listChildReqs.Add(new ChildrenRequirement());
+            listChildReqs = new List<ChildrenRequirement>
+            {
+                new ChildrenRequirement()
+            };
             // the default is singleton with no order requirement
             // assume all the physic nodes can process singleton
             if (required.IsSuppliedBy(DistrProperty.Singleton_))
@@ -804,7 +806,6 @@ namespace qpmodel.physic
             // recreate the left side and right side key list - can't reuse old values 
             // because earlier optimization time keylist may have wrong bindings
             //
-            var logic = logic_ as LogicJoin;
             if (context.option_.optimize_.use_codegen_)
             {
                 context.code_ += $@"var hm{_} = new Dictionary<KeyList, List<TaggedRow>>();";
@@ -851,8 +852,10 @@ namespace qpmodel.physic
                     }
                     else
                     {
-                        var rows = new List<TaggedRow>();
-                        rows.Add(new TaggedRow(l));
+                        var rows = new List<TaggedRow>
+                        {
+                            new TaggedRow(l)
+                        };
                         hm.Add(keys, rows);
                     }
                 }
@@ -1847,7 +1850,6 @@ namespace qpmodel.physic
 
         void RowCntSampling(Row l)
         {
-            var logic = logic_ as LogicSampleScan;
 
             // Reservior sampling
             Debug.Assert(l != null);

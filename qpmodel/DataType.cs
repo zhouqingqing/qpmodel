@@ -426,7 +426,7 @@ namespace qpmodel.expr
     //
     public class FromQueryRef : QueryRef
     {
-        List<string> colOutputNames_;
+        readonly List<string> colOutputNames_;
 
         // select b1+b1 from (select b1*2 from b) a (b1)
         //    mapping_: (b1, b.b1*2)

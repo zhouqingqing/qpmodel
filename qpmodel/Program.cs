@@ -137,10 +137,9 @@ namespace qpmodel
             string[] listquery = allquery.Split(';');
 
             List<string> listoutput = new List<string>();
-            int linenum = 0;
             for (int i = 0; i < listquery.Length; ++i)
             {
-                linenum = i + 1;
+                int linenum = i + 1;
                 string sql = listquery[i].Trim();
                 if (sql.Length <= 0)
                     continue;
@@ -297,7 +296,7 @@ namespace qpmodel
                 Console.WriteLine(rawplan.Explain());
 
                 // -- optimize the plan
-                PhysicNode phyplan = null;
+                PhysicNode phyplan;
                 if (a.queryOpt_.optimize_.use_memo_)
                 {
                     Console.WriteLine("***************** optimized plan *************");

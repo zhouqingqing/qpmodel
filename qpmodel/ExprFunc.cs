@@ -51,8 +51,7 @@ namespace qpmodel.expr
 
         static ColumnType externalType2ColumnType(Type type)
         {
-            ColumnType ctype = null;
-
+            ColumnType ctype;
             if (type == typeof(double))
                 ctype = new DoubleType();
             else if (type == typeof(int))
@@ -111,9 +110,9 @@ namespace qpmodel.expr
 
         static public FuncExpr BuildFuncExpr(string funcName, List<Expr> args)
         {
-            FuncExpr r = null;
             var func = funcName.Trim().ToLower();
 
+            FuncExpr r;
             switch (func)
             {
                 case "sum": r = new AggSum(args); break;
@@ -1092,7 +1091,7 @@ namespace qpmodel.expr
             string lv = "(dynamic)" + lchild_().ExecCode(context, input);
             string rv = "(dynamic)" + rchild_().ExecCode(context, input);
 
-            string code = null;
+            string code;
             switch (op_)
             {
                 case "+": code = $"({lv} + {rv})"; break;

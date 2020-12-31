@@ -323,7 +323,7 @@ namespace qpmodel.logic
                     {
                         int t_ordinal = source.FindIndex(xS =>
                               //find the #marker by subqueryid_ in children's output
-                              xS is ExprRef xSE && xSE.child_() is MarkerExpr xSEM ? xEM.subqueryid_ == xSEM.subqueryid_ : false);
+                              xS is ExprRef xSE && xSE.child_() is MarkerExpr xSEM && xEM.subqueryid_ == xSEM.subqueryid_);
                         Debug.Assert(t_ordinal > 0); // there must be a marker produced by child
                         clone = clone.SearchAndReplace<ExprRef>(xE, new ExprRef(xEM, t_ordinal));
                     }
@@ -692,7 +692,7 @@ namespace qpmodel.logic
             }
         }
 
-        public bool isSubSet(List<TableRef> small, List<TableRef> big) => small.All(t => big.Any(b => b == t)) ? true : false;
+        public bool isSubSet(List<TableRef> small, List<TableRef> big) => small.All(t => big.Any(b => b == t));
 
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {

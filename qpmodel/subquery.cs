@@ -145,7 +145,7 @@ namespace qpmodel.logic
 
             // if there is any (#marker@1 or @2), the root should be replace, 
             // i.e. the (#marker@1 or @2)  keeps at the top for farther unnesting
-            canReplace = andlist.Find(x => (x is LogicOrExpr) && hasAnyExtraSubqueryExprInOR(x, existExpr)) == null ? false : true;
+            canReplace = andlist.Find(x => (x is LogicOrExpr) && hasAnyExtraSubqueryExprInOR(x, existExpr)) != null;
 
             if (andlist.Count == 0 || canReplace)
                 // nodeA is root, a ref parameter. (why it is a ref parameter without "ref" or "out" )
@@ -720,7 +720,7 @@ namespace qpmodel.logic
                         fixMarkerValue(n, false);
                     else
                     {
-                        bool boolMarker = marker is true ? true : false;
+                        bool boolMarker = marker is true;
                         fixMarkerValue(n, semi ? boolMarker : !boolMarker);
                     }
 
@@ -731,7 +731,7 @@ namespace qpmodel.logic
                     Row r = new Row(rchild_().logic_.output_.Count);
                     Row n = new Row(l, r);
                     n = ExecProject(n);
-                    fixMarkerValue(n, semi ? false : true);
+                    fixMarkerValue(n, !semi);
                     callback(n);
                 }
             });
