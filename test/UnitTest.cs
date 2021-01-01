@@ -53,32 +53,32 @@ namespace qpmodel.unittest
 
         static internal List<Row> ExecuteSQL(string sql, out string physicplan, QueryOption option = null)
         {
-            var results = SQLStatement.ExecSQL(sql, out physicplan, out error_, option);
+            List<Row> results = SQLStatement.ExecSQL(sql, out physicplan, out error_, option);
             Console.WriteLine(physicplan);
             return results;
         }
         static internal List<Row> ExecuteSQL(string sql, out SQLStatement stmt, out string physicplan, QueryOption option = null)
         {
-            var results = SQLStatement.ExecSQL(sql, out stmt, out physicplan, out error_, option);
+            List<Row> results = SQLStatement.ExecSQL(sql, out stmt, out physicplan, out error_, option);
             Console.WriteLine(physicplan);
             return results;
         }
         static internal void ExecuteSQL(string sql, string expectedResults)
         {
-            var result = ExecuteSQL(sql);
+            List<Row> result = ExecuteSQL(sql);
             Assert.AreEqual(expectedResults, string.Join(";", result));
         }
         static internal void ExecuteSQL(string sql, string expectedResults, out string physicplan, QueryOption option = null)
         {
-            var result = SQLStatement.ExecSQL(sql, out physicplan, out error_, option);
+            List<Row> result = SQLStatement.ExecSQL(sql, out physicplan, out error_, option);
             Assert.AreEqual(expectedResults, string.Join(";", result));
         }
 
         static public void PlanAssertEqual(string l, string r)
         {
             char[] splitters = { ' ', '\t', '\r', '\n' };
-            var lw = l.Split(splitters, StringSplitOptions.RemoveEmptyEntries);
-            var rw = r.Split(splitters, StringSplitOptions.RemoveEmptyEntries);
+            string[] lw = l.Split(splitters, StringSplitOptions.RemoveEmptyEntries);
+            string[] rw = r.Split(splitters, StringSplitOptions.RemoveEmptyEntries);
 
             Assert.AreEqual(lw.Length, rw.Length);
             for (int i = 0; i < lw.Length; i++)
@@ -89,8 +89,8 @@ namespace qpmodel.unittest
         static public void ResultAreEqualNoOrder(string l, string r)
         {
             char[] splitters = { ';' };
-            var lw = l.Split(splitters, StringSplitOptions.RemoveEmptyEntries);
-            var rw = r.Split(splitters, StringSplitOptions.RemoveEmptyEntries);
+            string[] lw = l.Split(splitters, StringSplitOptions.RemoveEmptyEntries);
+            string[] rw = r.Split(splitters, StringSplitOptions.RemoveEmptyEntries);
             Assert.AreEqual(lw.Length, rw.Length);
             Assert.IsTrue(lw.OrderBy(x => x).SequenceEqual(rw.OrderBy(x => x)));
         }
@@ -114,11 +114,11 @@ namespace qpmodel.unittest
 
         public static bool CheckPlanOrder(PhysicNode physic, List<string> patternlist)
         {
-            bool FindInLevel(List<PhysicNode> curlevel, string pattern, out List<PhysicNode> nextlevel)
+            static bool FindInLevel(List<PhysicNode> curlevel, string pattern, out List<PhysicNode> nextlevel)
             {
                 nextlevel = new List<PhysicNode>();
                 bool output = false;
-                foreach (var node in curlevel)
+                foreach (PhysicNode node in curlevel)
                 {
                     if (node.GetType().ToString() == "qpmodel.physic." + pattern) output = true;
                     nextlevel.AddRange(node.children_);
@@ -128,10 +128,9 @@ namespace qpmodel.unittest
 
             Assert.IsNotNull(physic);
             List<PhysicNode> curlevel = new List<PhysicNode> { physic };
-            foreach (var pattern in patternlist)
+            foreach (string pattern in patternlist)
             {
-                List<PhysicNode> nextlevel;
-                while (!FindInLevel(curlevel, pattern, out nextlevel))
+                while (!FindInLevel(curlevel, pattern, out List<PhysicNode> nextlevel))
                 {
                     curlevel = nextlevel;
                     if (nextlevel.Count == 0) return false;
@@ -140,7 +139,7 @@ namespace qpmodel.unittest
             return true;
         }
 
-        // for unit test consistancy
+        // for unit test consistency
         // it should be call if the unitest reuse some table 
         // especially you expect get the same "rows" in physicplans 
         public static void ClearTableStatsInCatalog(List<String> tabNameList)
@@ -158,7 +157,7 @@ namespace qpmodel.unittest
 
         public static void restoreTable(string table)
         {
-            var sql = String.Format(@" drop table {0};
+            string sql = String.Format(@" drop table {0};
                             create table {0} ({0}1 int, {0}2 int, {0}3 int, {0}4 int);
                             copy {0} from '../../../../data/{0}.tbl'", table);
             SQLStatement.ExecSQLList(sql);
@@ -221,24 +220,24 @@ namespace qpmodel.unittest
             option.optimize_.use_codegen_ = true;
 
             option.optimize_.enable_streamagg_ = true;
-            TU.ExecuteSQL(sql, "4,1;6,4", out string phyplan, option);
+            TU.ExecuteSQL(sql, "4,1;6,4", out string _, option);
 
             option.optimize_.enable_streamagg_ = false;
             sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2 order by a2 desc;";
-            TU.ExecuteSQL(sql, "6,4;4,1", out phyplan, option);
+            TU.ExecuteSQL(sql, "6,4;4,1", out _, option);
 
             sql = "select a2*2, count(a1) from a, b, c where a1=b1 and a2=c2 group by a2 limit 2;";
-            TU.ExecuteSQL(sql, "2,1;4,1", out phyplan, option);
+            TU.ExecuteSQL(sql, "2,1;4,1", out _, option);
 
             sql = "select a1, b1 from a left join b on a1>b1;";
-            TU.ExecuteSQL(sql, "0,;1,0;2,0;2,1", out phyplan, option);
+            TU.ExecuteSQL(sql, "0,;1,0;2,0;2,1", out _, option);
             sql = "select a1 from a except select b3 from b;";
-            TU.ExecuteSQL(sql, "0;1", out phyplan, option);
-            TU.ExecuteSQL("select count(1) from a;", "3", out phyplan, option);
+            TU.ExecuteSQL(sql, "0;1", out _, option);
+            TU.ExecuteSQL("select count(1) from a;", "3", out _, option);
 
-            // demonstrate we can fallback to any non-codegen execution
+            // demonstrate we can fall back to any non-codegen execution
             sql = "select a2*a1, repeat('a', a2) from a where a1>= (select b1 from b where a2=b2);";
-            TU.ExecuteSQL(sql, "0,a;2,aa;6,aaa", out phyplan, option);
+            TU.ExecuteSQL(sql, "0,a;2,aa;6,aaa", out _, option);
         }
     }
 
@@ -248,10 +247,10 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestTable()
         {
-            var sql = "create table a (a1 int, a2 char(10), a3 datetime, a4 numeric(9,2), a4 numeric(9));";
+            string sql = "create table a (a1 int, a2 char(10), a3 datetime, a4 numeric(9,2), a4 numeric(9));";
             try
             {
-                var l = RawParser.ParseSqlStatements(sql);
+                StatementList l = RawParser.ParseSqlStatements(sql);
             }
             catch (Exception e)
             {
@@ -259,7 +258,7 @@ namespace qpmodel.unittest
             }
             sql = "create table a (a1 int, a2 char(10), a3 datetime, a4 numeric(9,2), " +
                 "a5 numeric(9), a6 double, a7 date, a8 varchar(100), primary key (a1));";
-            var stmt = RawParser.ParseSingleSqlStatement(sql) as CreateTableStmt;
+            CreateTableStmt stmt = RawParser.ParseSingleSqlStatement(sql) as CreateTableStmt;
             Assert.AreEqual(8, stmt.cols_.Count);
             Assert.AreEqual(1, stmt.cons_.Count);
         }
@@ -267,8 +266,8 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestIndex()
         {
-            var sql = "create index tt2 on test(t2);";
-            var result = TU.ExecuteSQL(sql); Assert.IsNotNull(result);
+            string sql = "create index tt2 on test(t2);";
+            List<Row> result = TU.ExecuteSQL(sql); Assert.IsNotNull(result);
             sql = "create unique index tt2 on test(t2);";
             result = TU.ExecuteSQL(sql); Assert.IsNull(result); Assert.IsTrue(TU.error_.Contains("name"));
             sql = "create unique index u_tt2 on test(t2);";
@@ -282,7 +281,7 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestAnalyze()
         {
-            var sql = "analyze a;";
+            string sql = "analyze a;";
             SQLStatement.ExecSQL(sql, out _, out _);
 
             sql = "analyze a tablesample row (15)";
@@ -310,7 +309,7 @@ namespace qpmodel.unittest
                 return true;
             }
 
-            public string SQLQueryVerify(string sql_dir_fn, string write_dir_fn, string expect_dir_fn, string[] badQueries, bool explainOnly, bool lengthOnly = false)
+            public string SQLQueryVerify(string sql_dir_fn, string write_dir_fn, string expect_dir_fn, string[] badQueries, bool explainOnly)
             {
                 string result = null;
                 QueryOption option = new QueryOption();
@@ -333,8 +332,8 @@ namespace qpmodel.unittest
                         continue;
 
                     // execute query
-                    var sql = File.ReadAllText(sqlFn);
-                    var test_result = SQLStatement.ExecSQLList(sql, option);
+                    string sql = File.ReadAllText(sqlFn);
+                    string test_result = SQLStatement.ExecSQLList(sql, option);
 
                     // construct file name for result file and write result
                     string f_name = Path.GetFileNameWithoutExtension(sqlFn);
@@ -358,7 +357,7 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestJobench()
         {
-            var stats_fn = "../../../../jobench/statistics/jobench_stats";
+            string stats_fn = "../../../../jobench/statistics/jobench_stats";
 
             JOBench.CreateTables();
 
@@ -400,7 +399,7 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestTpcdsWithDataAndResult()
         {
-            var files = Directory.GetFiles(@"../../../../tpcds", "*.sql");
+            string[] files = Directory.GetFiles(@"../../../../tpcds", "*.sql");
             string stats_dir = "../../../../tpcds/statistics/presto/sf1";
 
             Tpcds.CreateTables();
@@ -437,15 +436,15 @@ namespace qpmodel.unittest
             //};
             List<string> BadQueries = new List<string>();
 
-            foreach (var v in files)
+            foreach (string v in files)
             {
-                var q = Path.GetFileNameWithoutExtension(v);
+                string q = Path.GetFileNameWithoutExtension(v);
                 if (!runnable.Contains(q))
                 {
                     BadQueries.Add(q);
                 }
             }
-            var badqueries = BadQueries.ToArray();
+            string[] badqueries = BadQueries.ToArray();
             // use for debugging single sql
             runnable.Clear();
             runnable.Add("q1");
@@ -462,7 +461,7 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestTpchDistributed()
         {
-            var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
+            string[] files = Directory.GetFiles(@"../../../../tpch", "*.sql");
             string scale = "0001";
 
             Tpch.CreateTables(true);
@@ -476,7 +475,7 @@ namespace qpmodel.unittest
             string expect_dir_fn = $"../../../../test/regress/expect/tpch{scale}_d";
 
             ExplainOption.show_tablename_ = false;
-            var badQueries = new string[] { "q13", "q15" };
+            string[] badQueries = new string[] { "q13", "q15" };
 
             try
             {
@@ -496,7 +495,7 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestSelectionSubqueryUsingTpch0001Data()
         {
-            var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
+            string[] files = Directory.GetFiles(@"../../../../tpch", "*.sql");
             string scale = "0001";
 
             Tpch.CreateTables(true);
@@ -514,7 +513,7 @@ namespace qpmodel.unittest
             // sql07 is a subquery in FROM and has some bugs
             try
             {
-                var badQueries = new string[] { "sql06", "sql07" };
+                string[] badQueries = new string[] { "sql06", "sql07" };
                 ExplainOption.show_tablename_ = false;
                 RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries);
             }
@@ -528,7 +527,7 @@ namespace qpmodel.unittest
             try
             {   // test PhysicPlanOnly
                 // sql06 does not have ORDER, so the toppest physice node is physicGather
-                var haveAlreadyTestedQueries = new string[] { "sql01", "sql02", "sql03", "sql04", "sql05", "sql07", "sql08" };
+                string[] haveAlreadyTestedQueries = new string[] { "sql01", "sql02", "sql03", "sql04", "sql05", "sql07", "sql08" };
                 ExplainOption.show_tablename_ = false;
                 RunFolderAndVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, haveAlreadyTestedQueries, true);
             }
@@ -540,57 +539,13 @@ namespace qpmodel.unittest
             TU.ClearTableStatsInCatalog(tabNameList);
         }
 
-        void TestTpcdsWithData()
-        {
-            // table already created
-            Tpcds.LoadTables("tiny");
-            Tpcds.AnalyzeTables();
-
-            var files = Directory.GetFiles(@"../../../../tpcds", "*.sql");
-            // long time: 4 bad plan
-            // 6: distinct not supported, causing wrong result
-            // 10: subquery memo not copy out
-            // q000: jigzag memory allocation pattern but they are runnable with qpmodel Program.Main()
-            //
-            string[] runnable = {
-                "q1", "q2", "q3", "q7", "q15", "q17", "q19", "q21", "q24", "q25",
-                "q26", "q28", "q30", "q32", "q34", "q35", "q37", "q39", "q42", "q43",
-                "q45", "q46", "q50", "q52", "q55", "q58", "q59", "q61", "q62", "q65",
-                "q68", "q69", "q71", "q73", "q79", "q81", "q82", "q83", "q00084",
-                "q00085",
-                "q88", "q90", "q91", "q92", "q94", "q95", "q96", "q99"
-            };
-
-            // make sure all queries can generate phase one opt plan
-            QueryOption option = new QueryOption();
-            option.optimize_.enable_subquery_unnest_ = true;
-            option.optimize_.remove_from_ = false;
-            option.optimize_.use_memo_ = true;
-            foreach (var v in files)
-            {
-                char[] splits = { '.', '/', '\\' };
-                var tokens = v.Split(splits, StringSplitOptions.RemoveEmptyEntries);
-
-                Debug.Assert(tokens[1][0] == 'q');
-                if (!runnable.Contains(tokens[1]))
-                    continue;
-
-                Debug.Assert(option.optimize_.enable_subquery_unnest_);
-                Debug.Assert(option.optimize_.use_memo_);
-                var sql = File.ReadAllText(v);
-
-                var result = SQLStatement.ExecSQL(sql, out string phyplan, out _, option);
-                Assert.IsNotNull(result);
-            }
-        }
-
         void TestTpchAndComparePlan(string scale, string[] badQueries, bool testIndexes = false)
         {
-            var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
+            string[] files = Directory.GetFiles(@"../../../../tpch", "*.sql");
             if (scale == "1")
             {
                 // for 1g scale, we can't do real run, but we'd like to see the plan
-                var stats_fn = "../../../../tpch/statistics/sf1";
+                string stats_fn = "../../../../tpch/statistics/sf1";
                 Catalog.sysstat_.read_serialized_stats(stats_fn);
             }
             else
@@ -621,7 +576,7 @@ namespace qpmodel.unittest
 
         void TestTpcdsPlanOnly()
         {
-            var files = Directory.GetFiles(@"../../../../tpcds", "*.sql");
+            string[] files = Directory.GetFiles(@"../../../../tpcds", "*.sql");
             string stats_dir = "../../../../tpcds/statistics/presto/sf1";
 
             Tpcds.CreateTables();
@@ -633,10 +588,10 @@ namespace qpmodel.unittest
             option.optimize_.enable_subquery_unnest_ = true;
             option.optimize_.remove_from_ = false;
             option.optimize_.use_memo_ = false;
-            foreach (var v in files)
+            foreach (string v in files)
             {
-                var sql = File.ReadAllText(v);
-                var result = TU.ExecuteSQL(sql, out string phyplan, option);
+                string sql = File.ReadAllText(v);
+                List<Row> result = TU.ExecuteSQL(sql, out string phyplan, option);
                 Assert.IsNotNull(phyplan); Assert.IsNotNull(result);
             }
         }
@@ -645,7 +600,7 @@ namespace qpmodel.unittest
         public static void RunFolderAndVerify(string sql_dir_fn, string write_dir_fn, string expect_dir_fn, string[] badQueries, bool explainOnly = false)
         {
             QueryVerify qv = new QueryVerify();
-            var result = qv.SQLQueryVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries, explainOnly);
+            string result = qv.SQLQueryVerify(sql_dir_fn, write_dir_fn, expect_dir_fn, badQueries, explainOnly);
             if (result != null) Debug.WriteLine(result);
             Assert.IsNull(result);
         }
@@ -653,21 +608,21 @@ namespace qpmodel.unittest
         void TestTpchWithData()
         {
             // make sure all queries parsed
-            var files = Directory.GetFiles(@"../../../../tpch", "*.sql");
+            string[] files = Directory.GetFiles(@"../../../../tpch", "*.sql");
             Array.Sort(files);
 
-            foreach (var v in files)
+            foreach (string v in files)
             {
-                var sql = File.ReadAllText(v);
-                var stmt = RawParser.ParseSingleSqlStatement(sql);
+                string sql = File.ReadAllText(v);
+                SQLStatement stmt = RawParser.ParseSingleSqlStatement(sql);
                 stmt.Bind(null);
                 Console.WriteLine(stmt.CreatePlan().Explain());
             }
             Assert.AreEqual(22, files.Length);
 
             // data already loaded by previous test, execute queries
-            string phyplan = "";
-            var option = new QueryOption();
+            string phyplan;
+            QueryOption option = new QueryOption();
 
             for (int i = 0; i < 2; i++)
             {
@@ -675,7 +630,7 @@ namespace qpmodel.unittest
                 Assert.IsTrue(option.optimize_.enable_subquery_unnest_);
                 option.optimize_.remove_from_ = true;
 
-                var result = TU.ExecuteSQL(File.ReadAllText(files[0]), out _, option);  // FIXME: projection too deep
+                List<Row> result = TU.ExecuteSQL(File.ReadAllText(files[0]), out _, option);  // FIXME: projection too deep
                 Assert.AreEqual(4, result.Count);
                 TU.ExecuteSQL(File.ReadAllText(files[1]), "", out _, option);
                 result = TU.ExecuteSQL(File.ReadAllText(files[2]), out phyplan, option);
@@ -758,24 +713,23 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestMemo()
         {
-            string phyplan = "";
             QueryOption option = new QueryOption();
             option.optimize_.use_memo_ = true;
             option.optimize_.enable_subquery_unnest_ = true;
 
-            var sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
-            var result = TU.ExecuteSQL(sql, out SQLStatement stmt, out _, option);
-            var memo = stmt.optimizer_.memoset_[0];
+            string sql = "select b1 from a,b,c,c c1 where b.b2 = a.a2 and b.b3=c.c3 and c1.c1 = a.a1";
+            List<Row> result = TU.ExecuteSQL(sql, out SQLStatement stmt, out _, option);
+            Memo memo = stmt.optimizer_.memoset_[0];
             memo.CalcStats(out int tlogics, out int tphysics);
             Assert.AreEqual(11, memo.cgroups_.Count);
             Assert.AreEqual(26, tlogics); Assert.AreEqual(42, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
 
             sql = "select * from b join a on a1=b1 where a1 < (select a2 from a where a2=b2);";
-            result = TU.ExecuteSQL(sql, out stmt, out _, option);
+            result = TU.ExecuteSQL(sql, out _, out _, option);
             Assert.AreEqual("0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5", string.Join(";", result));
             sql = "select * from b , a where a1=b1 and a1 < (select a2 from a a_1 where a2=b2);";
-            result = TU.ExecuteSQL(sql, out stmt, out _, option);
+            result = TU.ExecuteSQL(sql, out _, out _, option);
             Assert.AreEqual("0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5", string.Join(";", result));
 
             sql = "select b1 from a,b,c where b.b2 = a.a2 and b.b3=c.c3 and c.c1 = a.a1";
@@ -817,7 +771,7 @@ namespace qpmodel.unittest
             Assert.AreEqual(11, memo.cgroups_.Count);
             Assert.AreEqual(26, tlogics); Assert.AreEqual(42, tphysics);
             Assert.AreEqual("0;1;2", string.Join(";", result));
-            var mstr = stmt.optimizer_.PrintMemo();
+            string mstr = stmt.optimizer_.PrintMemo();
             Assert.IsTrue(mstr.Contains("Summary: 26,42"));
 
             // test join resolver
@@ -837,14 +791,14 @@ namespace qpmodel.unittest
             Assert.AreEqual("3", string.Join(";", result));
 
             sql = "select count(*) from a where a1 in (select b2 from b where b1 > 0) and a2 in (select b3 from b where b1 > 0);";
-            TU.ExecuteSQL(sql, "1", out phyplan, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFilter"));
+            TU.ExecuteSQL(sql, "1", out string phyplan, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFilter"));
 
             sql = "select count(*) from (select b1 from a,b,c,d where b.b2 = a.a2 and b.b3=c.c3 and d.d1 = a.a1 and a1>0) v;";
             TU.ExecuteSQL(sql, "2", out phyplan, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicFilter"));
 
             sql = "select a2 from a where a.a3 > (select min(b1*2) from b where b.b2 >= (select c2-1 from c where c.c2=b2) and b.b3 > ((select c2 from c where c.c2=b2)));";
             TU.ExecuteSQL(sql, "1;2;3", out phyplan, option);
-            var answer = @"PhysicScanTable a (actual rows=3)
+            string answer = @"PhysicScanTable a (actual rows=3)
                             Output: a.a2[1]
                             Filter: a.a3[2]>@1
                             <ScalarSubqueryExpr> cached 1
@@ -916,17 +870,17 @@ namespace qpmodel.unittest
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicStreamAgg"));
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicOrder"));
 
-            var result = TU.ExecuteSQL(sql, out SQLStatement stmt, out _, option);
-            var memo = stmt.optimizer_.memoset_[0];
+            List<Row> result = TU.ExecuteSQL(sql, out SQLStatement stmt, out _, option);
+            Memo memo = stmt.optimizer_.memoset_[0];
             memo.CalcStats(out int tlogics, out int tphysics);
             Assert.AreEqual(8, memo.cgroups_.Count);
             Assert.AreEqual(16, tlogics); Assert.AreEqual(20, tphysics);
             Assert.AreEqual("4,1;6,4", string.Join(";", result));
-            var mstr = stmt.optimizer_.PrintMemo();
+            string mstr = stmt.optimizer_.PrintMemo();
             Assert.IsTrue(mstr.Contains("Summary: 16,20"));
 
             sql = "select a1 from a, b where a1 <= b1 and a2 = 2 group by a1 order by a1";
-            result = TU.ExecuteSQL(sql, out stmt, out phyplan, option);
+            result = TU.ExecuteSQL(sql, out stmt, out _, option);
             memo = stmt.optimizer_.memoset_[0];
             memo.CalcStats(out tlogics, out tphysics);
             Assert.AreEqual(4, memo.cgroups_.Count);
@@ -942,8 +896,8 @@ namespace qpmodel.unittest
         public void TestSysteMemoViews()
         {
             // run the target query
-            var sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2 order by a2;";
-            var result = TU.ExecuteSQL(sql, out var stmt, out _);
+            string sql = "select a2*2, count(a1) from a, b, c where a1>b1 and a2>c2 group by a2 order by a2;";
+            List<Row> result = TU.ExecuteSQL(sql, out SQLStatement stmt, out _);
             stmt.optimizer_.RegisterMemos();
 
             // query its memo
@@ -971,9 +925,8 @@ namespace qpmodel.unittest
                 bool unnest = option.optimize_.enable_subquery_unnest_;
 
                 // exist-subquery
-                var phyplan = "";
-                var sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1);";
-                TU.ExecuteSQL(sql, "1;2", out phyplan, option);
+                string sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1);";
+                TU.ExecuteSQL(sql, "1;2", out string phyplan, option);
                 Assert.AreEqual(unnest ? 1 : 0, TU.CountStr(phyplan, "PhysicMarkJoin"));
                 sql = "select a2 from a where exists (select * from a);";
                 TU.ExecuteSQL(sql, "1;2;3", out phyplan, option);
@@ -982,7 +935,7 @@ namespace qpmodel.unittest
                 TU.ExecuteSQL(sql, "3", out phyplan, option);
                 Assert.AreEqual(unnest ? 1 : 0, TU.CountStr(phyplan, "PhysicMarkJoin"));
                 sql = "select a2 from a where not not not not exists (select * from a b where b.a3>=a.a1+b.a1+1) and a2>2;";
-                var result = TU.ExecuteSQL(sql, out phyplan);
+                List<Row> result = TU.ExecuteSQL(sql, out _);
                 Assert.AreEqual(0, result.Count);
                 sql = "select a2 from a where exists (select * from a b where b.a3>=a.a1+b.a1+1) or a2>2;";
                 TU.ExecuteSQL(sql, "1;2;3", out phyplan, option);
@@ -1017,11 +970,10 @@ namespace qpmodel.unittest
                 option.optimize_.use_memo_ = i == 0;
                 option.optimize_.enable_subquery_unnest_ = i == 0;
                 bool unnest = option.optimize_.enable_subquery_unnest_;
-                var phyplan = "";
 
                 // many NOT test, there are only IN and NOT IN supported in SQL. 
-                var sql = "select a1 from a where a2 not not in (1,2)";
-                var result = ExecuteSQL(sql); Assert.IsNull(result);
+                string sql = "select a1 from a where a2 not not in (1,2)";
+                List<Row> result = ExecuteSQL(sql); Assert.IsNull(result);
                 Assert.IsTrue(TU.error_.Contains(@"no viable alternative at input 'a2 not not'"));
 
                 sql = "select a1 from a where a2 not not not in (1,2)";
@@ -1030,7 +982,7 @@ namespace qpmodel.unittest
 
                 // List InSubquery
                 sql = "select a1 from a where a2 not in (1,2)";
-                TU.ExecuteSQL(sql, "2", out phyplan, option);
+                TU.ExecuteSQL(sql, "2", out string phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "not in"));
                 sql = "select a1 from a where a2 in (1,2)";
                 TU.ExecuteSQL(sql, "0;1", out phyplan, option);
@@ -1049,7 +1001,7 @@ namespace qpmodel.unittest
                 TU.ExecuteSQL(sql, "0;1", out phyplan, option);
                 Assert.AreEqual(0, TU.CountStr(phyplan, "#marker"));
 
-                // corelated InSubquery
+                // correlated InSubquery
                 sql = "select a1 from a where a2 in (select b2 from b where b2 = a1)";
                 TU.ExecuteSQL(sql, "", out phyplan, option);
                 Assert.AreEqual(unnest ? 2 : 0, TU.CountStr(phyplan, "#marker"));
@@ -1059,7 +1011,7 @@ namespace qpmodel.unittest
                 Assert.AreEqual(unnest ? 2 : 0, TU.CountStr(phyplan, "#marker"));
 
                 sql = "select a1 from a where a2 in (select b2 from b where b1 = a1 and b3 > 2 ) and a1 > 0";
-                TU.ExecuteSQL(sql, "1;2", out phyplan, option);
+                TU.ExecuteSQL(sql, "1;2", out _, option);
             }
         }
 
@@ -1074,9 +1026,8 @@ namespace qpmodel.unittest
                 option.optimize_.enable_subquery_unnest_ = i == 0;
                 bool unnest = option.optimize_.enable_subquery_unnest_;
 
-                var phyplan = "";
-                var sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2);";
-                TU.ExecuteSQL(sql, "0,2;1,3;2,4", out phyplan, option); Assert.AreEqual(unnest ? 1 : 0, TU.CountStr(phyplan, "PhysicSingleJoin"));
+                string sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2);";
+                TU.ExecuteSQL(sql, "0,2;1,3;2,4", out string phyplan, option); Assert.AreEqual(unnest ? 1 : 0, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 sql = "select a1, a3  from a where a.a2 = (select b1*2 from b where b2 = a2);";
                 TU.ExecuteSQL(sql, "1,3", out phyplan, option); Assert.AreEqual(unnest ? 1 : 0, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<3);";
@@ -1116,8 +1067,8 @@ namespace qpmodel.unittest
             // Is this comment still valid, with remove_from
             // set to true by default?
             #region regular w/o FromQuery removal
-            var sql = "select * from a, (select * from b) c";
-            var result = ExecuteSQL(sql);
+            string sql = "select * from a, (select * from b) c";
+            List<Row> result = ExecuteSQL(sql);
             Assert.AreEqual(9, result.Count);
             Assert.AreEqual("0,1,2,3,0,1,2,3", result[0].ToString());
             Assert.AreEqual("2,3,4,5,2,3,4,5", result[8].ToString());
@@ -1139,7 +1090,7 @@ namespace qpmodel.unittest
             QueryOption option = new QueryOption();
             option.optimize_.remove_from_ = false;
             result = SQLStatement.ExecSQL(sql, out string phyplan, out _, option);
-            var answer = @"PhysicHashAgg  (actual rows=1)
+            string answer = @"PhysicHashAgg  (actual rows=1)
                             Output: {count(*)(0)}[0]
                             Aggregates: count(*)(0)
                             -> PhysicFromQuery <b> (actual rows=1)
@@ -1184,7 +1135,7 @@ namespace qpmodel.unittest
             sql = "select a1, sum(a12) as a2 from (select a1, a1*a2 a12 from a) b where a1 >= (select c1 from c where c1=a12) group by a1;";
             TU.ExecuteSQL(sql, "0,0");
             sql = "select c1, c2 from (select max(a1 + b1), sum(a2 + b3) from a,  b) x(c1, c2) where c1 > 1 and c2 > 1;";
-            TU.ExecuteSQL(sql, "4,45", out phyplan);
+            TU.ExecuteSQL(sql, "4,45", out _);
 
             // This query can't run with remove_from optimization
             // due to binding issues, so turn it off.
@@ -1357,8 +1308,8 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestExecSubquery()
         {
-            var sql = "select a1, a3  from a where a.a1 = (select b1,b2 from b)";
-            var result = ExecuteSQL(sql); Assert.IsNull(result);
+            string sql = "select a1, a3  from a where a.a1 = (select b1,b2 from b)";
+            List<Row> result = ExecuteSQL(sql); Assert.IsNull(result);
             Assert.IsTrue(TU.error_.Contains("one"));
             sql = "select a1, a2  from a where a.a1 = (select b1 from b)";
             result = ExecuteSQL(sql); Assert.IsNull(result);
@@ -1434,9 +1385,8 @@ namespace qpmodel.unittest
             {
                 option.optimize_.use_memo_ = i == 0;
 
-                var phyplan = "";
-                var sql = "select a1, 5+(select b2 from b where b1=a1) from a group by 1;";
-                TU.ExecuteSQL(sql, "0,6;1,7;2,8", out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
+                string sql = "select a1, 5+(select b2 from b where b1=a1) from a group by 1;";
+                TU.ExecuteSQL(sql, "0,6;1,7;2,8", out string phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2)";
                 TU.ExecuteSQL(sql, "0,2;1,3;2,4", out phyplan, option); Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) and a2>1;";
@@ -1448,7 +1398,7 @@ namespace qpmodel.unittest
 
                 // runtime error: more than one row inside
                 sql = "select a1 from a where a2 > (select b1 from b where b3>=a3);";
-                var result = TU.ExecuteSQL(sql, out phyplan, option); Assert.IsTrue(TU.error_.Contains("one row"));
+                List<Row> result = TU.ExecuteSQL(sql, out _, option); Assert.IsTrue(TU.error_.Contains("one row"));
             }
         }
     }
@@ -1459,11 +1409,11 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestInsert()
         {
-            var sql = "insert into a values(1+2*3, 'something' ,'2019-09-01', 50.2, 50);";
-            var stmt = RawParser.ParseSingleSqlStatement(sql) as InsertStmt;
+            string sql = "insert into a values(1+2*3, 'something' ,'2019-09-01', 50.2, 50);";
+            InsertStmt stmt = RawParser.ParseSingleSqlStatement(sql) as InsertStmt;
             Assert.AreEqual(5, stmt.vals_.Count);
             sql = "insert into test values(1+2,2*3,3,4);";
-            var result = TU.ExecuteSQL(sql);
+            List<Row> result = TU.ExecuteSQL(sql);
             sql = "insert into test select * from a where a1>1;";
             result = TU.ExecuteSQL(sql);
             sql = "insert into test select * from b where b1>1;";
@@ -1474,11 +1424,11 @@ namespace qpmodel.unittest
         public void TestCopy()
         {
             string filename = @"'../../../../data/test.tbl'";
-            var sql = $"copy test from {filename};";
-            var stmt = RawParser.ParseSingleSqlStatement(sql) as CopyStmt;
+            string sql = $"copy test from {filename};";
+            CopyStmt stmt = RawParser.ParseSingleSqlStatement(sql) as CopyStmt;
             Assert.AreEqual(filename, stmt.fileName_);
             sql = $"copy test from {filename} where t1 >1;";
-            var result = TU.ExecuteSQL(sql);
+            List<Row> result = TU.ExecuteSQL(sql);
         }
     }
 
@@ -1500,7 +1450,7 @@ namespace qpmodel.unittest
         {
             string createTable = "create table Case_Sensitive_01(Col1 int, COL2 int, \"Col3\" int, \"COL4\" int, \"GROUP BY\" int);";
             // INSERT shoud work
-            var stmtResult = TU.ExecuteSQL(createTable);
+            List<Row> stmtResult = TU.ExecuteSQL(createTable);
             Assert.IsNull(stmtResult);
             Assert.AreEqual("", TU.error_);
 
@@ -1565,10 +1515,10 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestSelectStmt()
         {
-            var sql = "with cte1 as (select * from a), cte2 as (select * from b) select a1,a1+a2 from cte1 where a1<6 group by a1, a1+a2 " +
+            string sql = "with cte1 as (select * from a), cte2 as (select * from b) select a1,a1+a2 from cte1 where a1<6 group by a1, a1+a2 " +
                                 "union select b2, b3 from cte2 where b2 > 3 group by b1, b1+b2 " +
                                 "order by 2, 1 desc";
-            var stmt = RawParser.ParseSingleSqlStatement(sql) as SelectStmt;
+            SelectStmt stmt = RawParser.ParseSingleSqlStatement(sql) as SelectStmt;
             Assert.AreEqual(2, stmt.ctes_.Count);
             Assert.IsFalse(stmt.setops_.IsLeaf());
             Assert.AreEqual(2, stmt.orders_.Count);
@@ -1577,10 +1527,10 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestOutputName()
         {
-            var sql = "select a1 from(select b1 as a1 from b) c;";
+            string sql = "select a1 from(select b1 as a1 from b) c;";
             TU.ExecuteSQL(sql, "0;1;2");
             sql = "select b1 from(select b1 as a1 from b) c;";
-            var result = TU.ExecuteSQL(sql); Assert.IsNull(result); Assert.IsTrue(TU.error_.Contains("b1"));
+            List<Row> result = TU.ExecuteSQL(sql); Assert.IsNull(result); Assert.IsTrue(TU.error_.Contains("b1"));
             sql = "select b1 from(select b1 as a1 from b) c(b1);"; TU.ExecuteSQL(sql, "0;1;2");
             sql = "select b1+c100 from (select count(*) as b1 from b) a, (select c1 c100 from c) c where c100>1"; TU.ExecuteSQL(sql, "5");
             sql = "select 5 as a6 from a where a6 > 2;";    // a6 is an output name
@@ -1614,7 +1564,7 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestCanonical()
         {
-            var option = new QueryOption();
+            QueryOption option = new QueryOption();
             option.optimize_.TurnOnAllOptimizations();
             /*
              * Rule1: Constant move. Bring all possible constants together so that later
@@ -1623,7 +1573,7 @@ namespace qpmodel.unittest
              */
             string sql = "select 1 + a1 + 2 + a2 + 3 + 4 + a4 + 5 + 6 from a";
 
-            var result = ExecuteSQL(sql, out string phyplan);
+            List<Row> result = ExecuteSQL(sql, out string phyplan);
             Assert.IsTrue(phyplan.Contains("Output: (((((a.a1[0]+3)+a.a2[1])+7)+a.a4[3])+11)"));
 
             sql = "select 10 + a1 + 2 + abs(-10) + round(101.78, 0) + a2 from a";
@@ -1655,7 +1605,7 @@ namespace qpmodel.unittest
             // The subquery does prodcue the correct result on its own.
             sql = "select c1, c2 from (select sum(abs(-10.3 * a1)) c1, sum(round(10.7 * a2, 2)) c2 from a) x;";
             result = ExecuteSQL(sql, out phyplan);
-            var answer = @"PhysicHashAgg  (actual rows=1)
+            string answer = @"PhysicHashAgg  (actual rows=1)
                                Output: {sum(abs(a.a1*-10.3))}[0],{sum(round(a.a2*10.7,2))}[1]
                                Aggregates: sum(abs(a.a1[1]*-10.3)), sum(round(a.a2[4]*10.7,2))
                                -> PhysicScanTable a (actual rows=3)
@@ -1919,7 +1869,7 @@ namespace qpmodel.unittest
             Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0]<>a.a1[0] or b.b1[4]<>b.b1[4]) or True)"));
             // more tests, by code path and functionality.
             sql = "select sum(1), avg(2), min(3), max(4), count(5), count(distinct 6), stddev_samp(7.38) from a";
-            TU.ExecuteSQL(sql, "3,2,3,4,3,3,0", out phyplan, option);
+            TU.ExecuteSQL(sql, "3,2,3,4,3,3,0", out _, option);
 
             sql = "select min(1), max(6) from a";
             result = ExecuteSQL(sql, out phyplan);
@@ -2070,22 +2020,22 @@ namespace qpmodel.unittest
             Assert.IsTrue(phyplan.Contains("Output: a.a1[0],(a.a1[0]*10+5),a.a2[1],(a.a2[1]-1)*10,a.a3[2],((a.a3[2]+10)-20)*20"));
 
             sql = "select a1, (a1 - null) + 10 from a";
-            TU.ExecuteSQL(sql, "0,;1,;2,", out phyplan, option);
+            TU.ExecuteSQL(sql, "0,;1,;2,", out _, option);
 
             sql = "select a1, (a1 + null) * 10 from a";
-            TU.ExecuteSQL(sql, "0,;1,;2,", out phyplan, option);
+            TU.ExecuteSQL(sql, "0,;1,;2,", out _, option);
 
             sql = "select a1, (a1 - null) * 10 from a";
-            TU.ExecuteSQL(sql, "0,;1,;2,", out phyplan, option);
+            TU.ExecuteSQL(sql, "0,;1,;2,", out _, option);
 
             sql = "select a1, (a1 * null) + 10 from a";
-            TU.ExecuteSQL(sql, "0,;1,;2,", out phyplan, option);
+            TU.ExecuteSQL(sql, "0,;1,;2,", out _, option);
 
             sql = "select a1, (a1 * null) * 10 from a";
-            TU.ExecuteSQL(sql, "0,;1,;2,", out phyplan, option);
+            TU.ExecuteSQL(sql, "0,;1,;2,", out _, option);
 
             sql = "select a1, (a1 * null) + 10 from a";
-            TU.ExecuteSQL(sql, "0,;1,;2,", out phyplan, option);
+            TU.ExecuteSQL(sql, "0,;1,;2,", out _, option);
 
             // BUG: no output in master and canonical
             sql = "select * from a where 'qwerty' like 'qwer%'";
@@ -2104,7 +2054,7 @@ namespace qpmodel.unittest
             // BUG: in master and canonical:
             // Postgres: 3 | 2.0000000000000000 |   3 |   4 |     3 |     1 |           0
             sql = "select sum(1), avg(2), min(3), max(4), count(5), count(distinct 6), stddev_samp(7.38) from a";
-            TU.ExecuteSQL(sql, "3,2,3,4,3,3,0", out phyplan, option);
+            TU.ExecuteSQL(sql, "3,2,3,4,3,3,0", out _, option);
 
             sql = "select substring('The North Rim', 5, 9) from a";
             result = ExecuteSQL(sql, out phyplan);
@@ -2209,9 +2159,8 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestConst()
         {
-            var phyplan = "";
-            var sql = "select repeat('ab', 2) from a;";
-            TU.ExecuteSQL(sql, "abab;abab;abab", out phyplan);
+            string sql = "select repeat('ab', 2) from a;";
+            TU.ExecuteSQL(sql, "abab;abab;abab", out string phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "abab"));
             sql = "select 1+2*3, 1+2+a1 from a where a1+2+(1*5+1)>2*3 and 1+2=2+1;";
             TU.ExecuteSQL(sql, "7,3;7,4;7,5", out phyplan);
@@ -2227,16 +2176,15 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestExpr()
         {
-            string phyplan;
-            var sql = "select a2 from a where a1 between 1  and 2;";
+            string sql = "select a2 from a where a1 between 1  and 2;";
             TU.ExecuteSQL(sql, "2;3");
             sql = "select count(a1) from a where 3>2 or 2<5";
-            var answer = @"PhysicHashAgg   (actual rows=1)
+            string answer = @"PhysicHashAgg   (actual rows=1)
                             Output: {count(a.a1)}[0]
                                Aggregates: count(a.a1[0])
                             -> PhysicScanTable a  (actual rows=3)
                                 Output: a.a1[0]";
-            TU.ExecuteSQL(sql, "3", out phyplan);
+            TU.ExecuteSQL(sql, "3", out string phyplan);
             TU.PlanAssertEqual(answer, phyplan);
 
             // type coerce
@@ -2267,7 +2215,7 @@ namespace qpmodel.unittest
             // issue #16
             // outputName shall not be allowed in WHERE/HAVING but in GROUP BY/ORDER BY
             sql = "select a.a1 aa1, b.b2 bb2 from a join b on(a.a3 = b.b4) where aa1 = bb2 group by aa1, bb2 order by aa1 desc";
-            var result = TU.ExecuteSQL(sql);
+            List<Row> result = TU.ExecuteSQL(sql);
             Assert.IsNull(result);
             Assert.IsTrue(TU.error_.Contains("bind column"));
 
@@ -2289,7 +2237,7 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestCaseWhen()
         {
-            var sql = "select case a1 when 0 then 'a' when 1 then 'b' when 2 then 'c' else 'd' end from a;";
+            string sql = "select case a1 when 0 then 'a' when 1 then 'b' when 2 then 'c' else 'd' end from a;";
             TU.ExecuteSQL(sql, "a;b;c");
 
             // FIXME 
@@ -2307,13 +2255,12 @@ namespace qpmodel.unittest
             TU.ExecuteSQL("INSERT INTO a VALUES(4,5,6,7)");
             TU.ExecuteSQL("INSERT INTO a VALUES(5,6,7,8)");
 
-            var phyplan = "";
 
             // lowcase reprensent binaryExpr such as a1<2
             // @1 reprensent nested subquery
 
             // a or (b and c)
-            TU.ExecuteSQL("select a1 from a where a1 = 1 or a1 = 2 and a1 =3;", "1", out phyplan);
+            TU.ExecuteSQL("select a1 from a where a1 = 1 or a1 = 2 and a1 =3;", "1", out string phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, " Filter: (a.a1[0]=1 or (a.a1[0]=2 and a.a1[0]=3))"));
 
             // a or b or c
@@ -2365,7 +2312,6 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestINExprAndINSubquery()
         {
-            var phyplan = "";
             // In Postgre SQL,  null != null. 
             // And null is any value
             // so 2 not in (1,null) = false
@@ -2373,7 +2319,7 @@ namespace qpmodel.unittest
             TU.ExecuteSQL("SELECT a1,a2 FROM a", "0,1;1,2;2,3;3,");
 
             // NULL in inList
-            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 IN (1,2)", "0;1", out phyplan);
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 IN (1,2)", "0;1", out string phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "    Filter: a.a2[1] in (1,2)"));
 
             TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 IN (1,2,NULL)", "0;1", out phyplan);
@@ -2468,8 +2414,8 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestCast()
         {
-            var expected = new DateTime(2001, 2, 2).ToString();
-            var sql = "select cast('2001-01-3' as date) + interval '30' day;"; TU.ExecuteSQL(sql, expected);
+            string expected = new DateTime(2001, 2, 2).ToString();
+            string sql = "select cast('2001-01-3' as date) + interval '30' day;"; TU.ExecuteSQL(sql, expected);
             QueryOption option = new QueryOption();
             option.optimize_.use_memo_ = true;
             sql = "select cast('2001-01-3' as date) + 30 days;"; TU.ExecuteSQL(sql, expected, out _, option);
@@ -2478,30 +2424,29 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestNull()
         {
-            var phyplan = "";
-            var sql = "select count(*) from r;";
-            TU.ExecuteSQL(sql, "3", out phyplan);
+            string sql = "select count(*) from r;";
+            TU.ExecuteSQL(sql, "3", out string _);
             sql = "select count(r1) from r;";
-            TU.ExecuteSQL(sql, "1", out phyplan);
+            TU.ExecuteSQL(sql, "1", out _);
             sql = "select " +
               "'|r3: null,null,3|', sum(r1), avg(r1), min(r1), max(r1), count(*), count(r1), " +
               "'|r3: 2,null,4|', sum(r3), avg(r3), min(r3), max(r3), count(r3) from r;";
-            TU.ExecuteSQL(sql, "|r3: null,null,3|,3,3,3,3,3,1,|r3: 2,null,4|,6,3,2,4,2", out phyplan);
+            TU.ExecuteSQL(sql, "|r3: null,null,3|,3,3,3,3,3,1,|r3: 2,null,4|,6,3,2,4,2", out _);
             sql = "select a1, a2, r1 from r join a on a1=r1 or a2=r1;";
-            TU.ExecuteSQL(sql, "2,3,3", out phyplan);
+            TU.ExecuteSQL(sql, "2,3,3", out _);
             sql = "select a1, a2, r1 from r join a on a2=r1;";
-            TU.ExecuteSQL(sql, "2,3,3", out phyplan);
+            TU.ExecuteSQL(sql, "2,3,3", out _);
             sql = "select null=null, null<>null, null>null, null<null, null>=null, null<=null, " +
                 "null+null, null-null, null*null, null/null, " +
                 "null+8, null-8, null*8, null/8, null/8 is null;";
-            TU.ExecuteSQL(sql, ",,,,,,,,,,,,,,True", out phyplan);
+            TU.ExecuteSQL(sql, ",,,,,,,,,,,,,,True", out _);
         }
 
         [TestMethod]
         public void TestMisc()
         {
             // number section
-            var sql = "select round(a1, 10), count(*) from a group by round(a1, 10)"; TU.ExecuteSQL(sql, "0,1;1,1;2,1");
+            string sql = "select round(a1, 10), count(*) from a group by round(a1, 10)"; TU.ExecuteSQL(sql, "0,1;1,1;2,1");
             sql = "select abs(-a1), count(*) from a group by abs(-a1);"; TU.ExecuteSQL(sql, "0,1;1,1;2,1");
 
             // string section
@@ -2563,8 +2508,8 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestExecSelectFilter()
         {
-            var sql = "select a1+a2,a1-a2,a1*a2 from a;";
-            var result = ExecuteSQL(sql);
+            string sql = "select a1+a2,a1-a2,a1*a2 from a;";
+            List<Row> result = ExecuteSQL(sql);
             sql = "select a1 from a where a2>1;";
             TU.ExecuteSQL(sql, "1;2");
             sql = "select a.a1 from a where a2 > 1 and a3> 3;";
@@ -2587,7 +2532,7 @@ namespace qpmodel.unittest
         public void TestExecResult()
         {
             string sql = "select 2+6*3+2*6";
-            var result = ExecuteSQL(sql);
+            List<Row> result = ExecuteSQL(sql);
             Assert.AreEqual(1, result.Count);
             Assert.AreEqual(32, result[0][0]);
             sql = "select substring('abc', 1, 2);";
@@ -2598,7 +2543,7 @@ namespace qpmodel.unittest
         public void TestExecProject()
         {
             string sql = "select b.a1 + a2 from (select a1,a2 from a, c) b";
-            var result = ExecuteSQL(sql);
+            List<Row> result = ExecuteSQL(sql);
             Assert.AreEqual(9, result.Count);
             int i; Assert.AreEqual(1, result[0].ColCount());
             for (i = 0; i < 3; i++) Assert.AreEqual(1, result[i][0]);
@@ -2620,8 +2565,8 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestExecNLJ()
         {
-            var sql = "select a.a1 from a, b where a2 > 1";
-            var result = ExecuteSQL(sql);
+            string sql = "select a.a1 from a, b where a2 > 1";
+            List<Row> result = ExecuteSQL(sql);
             Assert.AreEqual(2 * 3, result.Count);
             sql = "select a.a1 from a, b where a2>2";
             result = ExecuteSQL(sql);
@@ -2635,13 +2580,13 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestSort()
         {
-            var sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1 order by a3";
-            var result = ExecuteSQL(sql); Assert.IsNull(result);
+            string sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1 order by a3";
+            List<Row> result = ExecuteSQL(sql); Assert.IsNull(result);
             Assert.IsTrue(TU.error_.Contains("appear"));
 
             sql = "select(4-a3)/2,(4-a3)/2*2 + 1 + min(a1), avg(a4)+count(a1), max(a1) + sum(a1 + a2) * 2 from a group by 1 order by 1";
             result = ExecuteSQL(sql, out string phyplan);
-            var answer = @"PhysicOrder  (actual rows=2)
+            string answer = @"PhysicOrder  (actual rows=2)
                             Output: {(4-a.a3)/2}[0],{(((4-a.a3)/2*2+1)+min(a.a1))}[1],{(avg(a.a4)+count(a.a1))}[2],{(max(a.a1)+sum((a.a1+a.a2))*2)}[3]
                             Order by: {(4-a.a3)/2}[0]
                             -> PhysicHashAgg  (actual rows=2)
@@ -2665,11 +2610,11 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestSetOps()
         {
-            var option = new QueryOption();
+            QueryOption option = new QueryOption();
             option.optimize_.TurnOnAllOptimizations();
 
-            var sql = "select a2,a3 from a union all select b1,b4 from b group by b1;";
-            var result = ExecuteSQL(sql); Assert.IsNull(result);
+            string sql = "select a2,a3 from a union all select b1,b4 from b group by b1;";
+            List<Row> result = ExecuteSQL(sql); Assert.IsNull(result);
             Assert.IsTrue(TU.error_.Contains("appear"));
             sql = "select a2,a3 from a union all select b1,b2 from b order by b1;"; // we allow a2
             result = ExecuteSQL(sql); Assert.IsNull(result);
@@ -2728,9 +2673,9 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestJoin()
         {
-            var sql = "select a.a1, b.b1 from a join b on a.a1=b.b1;";
-            var result = ExecuteSQL(sql, out string phyplan);
-            var answer = @"PhysicHashJoin  (actual rows=3)
+            string sql = "select a.a1, b.b1 from a join b on a.a1=b.b1;";
+            List<Row> result = ExecuteSQL(sql, out string phyplan);
+            string answer = @"PhysicHashJoin  (actual rows=3)
                             Output: a.a1[0],b.b1[1]
                             Filter: a.a1[0]=b.b1[1]
                             -> PhysicScanTable a (actual rows=3)
@@ -2797,7 +2742,7 @@ namespace qpmodel.unittest
             Assert.AreEqual(3, result.Count);
 
             // Before MEMO, becuase join order prevents push down - comparing below 2 cases. MEMO can resolve their difference.
-            var option = new QueryOption();
+            QueryOption option = new QueryOption();
             sql = "select * from a, b, c where a1 = b1 and b2 = c2;";
             TU.ExecuteSQL(sql, "0,1,2,3,0,1,2,3,0,1,2,3;1,2,3,4,1,2,3,4,1,2,3,4;2,3,4,5,2,3,4,5,2,3,4,5", out phyplan);
             Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicHashJoin"));
@@ -2860,18 +2805,17 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestLimit()
         {
-            var sql = "select a1,a1 from a limit 2;";
+            string sql = "select a1,a1 from a limit 2;";
             TU.ExecuteSQL(sql, "0,0;1,1");
         }
 
         [TestMethod]
         public void TestIndex()
         {
-            string phyplan;
-            var option = new QueryOption();
+            QueryOption option = new QueryOption();
 
-            var sql = "select * from d where 1*3-1=d1;";
-            var result = SQLStatement.ExecSQL(sql, out phyplan, out _, option);
+            string sql = "select * from d where 1*3-1=d1;";
+            List<Row> result = SQLStatement.ExecSQL(sql, out string phyplan, out _, option);
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicIndexSeek"));
             Assert.AreEqual("2,2,,5", string.Join(";", result));
             sql = "select * from d where 2<d1;";
@@ -2896,8 +2840,8 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestAggregation()
         {
-            var sql = "select a1, sum(a1) from a group by a2";
-            var result = TU.ExecuteSQL(sql); Assert.IsNull(result);
+            string sql = "select a1, sum(a1) from a group by a2";
+            List<Row> result = TU.ExecuteSQL(sql); Assert.IsNull(result);
             Assert.IsTrue(TU.error_.Contains("appear"));
             sql = "select max(sum(a)+1) from a;";
             result = TU.ExecuteSQL(sql); Assert.IsNull(result);
@@ -2916,7 +2860,7 @@ namespace qpmodel.unittest
 
             sql = "select 7, (4-a3)/2*2+1+sum(a1), sum(a1)+sum(a1+a2)*2 from a group by (4-a3)/2;";
             TU.ExecuteSQL(sql, "7,3,2;7,4,19", out string phyplan);
-            var answer = @"PhysicHashAgg  (actual rows=2)
+            string answer = @"PhysicHashAgg  (actual rows=2)
                                Output: 7,(({(4-a.a3)/2}[0]*2+1)+{sum(a.a1)}[1]),({sum(a.a1)}[1]+{sum((a.a1+a.a2))}[2]*2)
                                Aggregates: sum(a.a1[0]), sum((a.a1[0]+a.a2[2]))
                                Group by: (4-a.a3[3])/2
@@ -3036,7 +2980,7 @@ namespace qpmodel.unittest
             QueryOption option = new QueryOption();
             option.optimize_.remove_from_ = false;
 
-            var sql = "select count(*) from lineitem, partsupp where l_partkey=ps_suppkey group by ps_availqty>100";
+            string sql = "select count(*) from lineitem, partsupp where l_partkey=ps_suppkey group by ps_availqty>100";
             TU.ExecuteSQL(sql, "23294;226", out string phyplan, option);
             Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicHashAgg"));
             sql = "select sum(c) from lineitem, (select ps_suppkey, ps_availqty>100, count(*) from partsupp group by ps_suppkey, ps_availqty>100) ps(ps_suppkey, ps_availqty100, c)"
@@ -3063,7 +3007,7 @@ namespace qpmodel.unittest
                 {
                     option.optimize_.enable_cte_plan_ = j == 0;
 
-                    var sql = "with cte1 as (select* from a) select * from a where a1>1;"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
+                    string sql = "with cte1 as (select* from a) select * from a where a1>1;"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
                     sql = "with cte1 as (select* from a) select * from cte1 where a1>1;"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
                     sql = "with cte1 as (select * from a),cte3 as (select * from cte1) select * from cte3 where a1>1"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
                     sql = @"with cte1 as (select b3, max(b2) maxb2 from b where b1<1 group by b3)
@@ -3095,10 +3039,10 @@ namespace qpmodel.unittest
             QueryOption option = new QueryOption();
             // disable remove_from
             option.optimize_.remove_from_ = false;
-            var sql = "select b1+b1 from (select b1 from b) a";
-            var stmt = RawParser.ParseSingleSqlStatement(sql);
+            string sql = "select b1+b1 from (select b1 from b) a";
+            SQLStatement stmt = RawParser.ParseSingleSqlStatement(sql);
             SQLStatement.ExecSQL(sql, out string phyplan, out _, option);
-            var answer = @"PhysicFromQuery <a>  (actual rows=3)
+            string answer = @"PhysicFromQuery <a>  (actual rows=3)
                             Output: (a.b1[0]+a.b1[0])
                             -> PhysicScanTable b  (actual rows=3)
                                 Output: b.b1[0]";
@@ -3126,6 +3070,7 @@ namespace qpmodel.unittest
                                 Output: c.c1[0]
                                 -> PhysicScanTable c (actual rows=3, loops=3)
                                     Output: c.c1[0]";
+            TU.PlanAssertEqual(answer, phyplan);
             // enable remove_from, default.
             stmt = RawParser.ParseSingleSqlStatement(sql);
             SQLStatement.ExecSQL(sql, out phyplan, out _); // FIXME: filter is still there
@@ -3137,7 +3082,7 @@ namespace qpmodel.unittest
                                Output: c.c1[0]
                                Filter: c.c1[0]>1";
             TU.PlanAssertEqual(answer, phyplan);
-            var result = ExecuteSQL(sql);
+            List<Row> result = ExecuteSQL(sql);
             Assert.AreEqual(3, result.Count);
             Assert.AreEqual("2", result[0].ToString());
             Assert.AreEqual("3", result[1].ToString());
@@ -3199,22 +3144,22 @@ namespace qpmodel.unittest
             string sqroot(double d) => Math.Sqrt(d).ToString("#.###");
             SQLContext.Register<double, string>("sqroot", sqroot);
 
-            var sql = "SELECT a1, sqroot(b1*a1+2) from a join b on b2=a2 where a1>1";
+            string sql = "SELECT a1, sqroot(b1*a1+2) from a join b on b2=a2 where a1>1";
             TU.ExecuteSQL(sql, "2,2.449");
 
             // above query in DataSet form
-            var a = sqlContext.Read("a");
-            var b = sqlContext.Read("b");
-            var rows = a.filter("a1>1").join(b, "b2=a2").select("a1", "sqroot(b1*a1+2)").show();
+            DataSet a = sqlContext.Read("a");
+            DataSet b = sqlContext.Read("b");
+            List<Row> rows = a.filter("a1>1").join(b, "b2=a2").select("a1", "sqroot(b1*a1+2)").show();
             Assert.AreEqual(string.Join(",", rows), "2,2.449");
 
             // Pi Monte-carlo evaluation 
             Random rand = Catalog.rand_;
             int inside(int d)
             {
-                var x = rand.NextDouble();
-                var y = rand.NextDouble();
-                var ret = ((x * x) + (y * y)) <= 1 ? 1 : 0;
+                double x = rand.NextDouble();
+                double y = rand.NextDouble();
+                int ret = ((x * x) + (y * y)) <= 1 ? 1 : 0;
                 return ret;
             }
 
@@ -3227,10 +3172,10 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestPushdown()
         {
-            var option = new QueryOption();
-            var sql = "select a.a2,a3,a.a1+b2 from a,b where a.a1 > 1 and a1+b3>2";
-            var result = ExecuteSQL(sql, out string phyplan);
-            var answer = @"PhysicNLJoin   (actual rows=3)
+            QueryOption option = new QueryOption();
+            string sql = "select a.a2,a3,a.a1+b2 from a,b where a.a1 > 1 and a1+b3>2";
+            List<Row> result = ExecuteSQL(sql, out string phyplan);
+            string answer = @"PhysicNLJoin   (actual rows=3)
                         Output: a.a2[0],a.a3[1],(a.a1[2]+b.b2[3])
                         Filter: (a.a1[2]+b.b3[4])>2
                         -> PhysicScanTable a  (actual rows=1)
@@ -3302,37 +3247,37 @@ namespace qpmodel.unittest
                                         Output: c.c2[1]";
             TU.PlanAssertEqual(answer, phyplan);
             sql = "select 1 from a where a.a1 >= (select b1 from b where b.b2 >= (select c2 from c where c.c2=b2) and b.b1*2 = ((select c2 from c where c.c2=b2)))";
-            TU.ExecuteSQL(sql, "1;1", out phyplan);
+            TU.ExecuteSQL(sql, "1;1", out _);
 
             // b3+c2 as a whole push to the outer join side
             sql = "select b3+c2 from a,b,c where a1>= (select b1 from b where b1=a1) and a2 >= (select c2 from c where c1=a1);";
             result = ExecuteSQL(sql, out phyplan);
             answer = @"PhysicFilter  (actual rows=27)
-    Output: {(b.b3+c.c2)}[0]
-    Filter: a.a1[1]>=b__1.b1[2]
-    -> PhysicSingleJoin Left (actual rows=27)
-        Output: {(b.b3+c.c2)}[0],a.a1[1],b__1.b1[2]
-        Filter: b__1.b1[2]=a.a1[1]
-        -> PhysicFilter  (actual rows=27)
-            Output: {(b.b3+c.c2)}[0],a.a1[1]
-            Filter: a.a2[2]>=c__2.c2[3]
-            -> PhysicSingleJoin Left (actual rows=27)
-                Output: {(b.b3+c.c2)}[0],a.a1[1],a.a2[2],c__2.c2[3]
-                Filter: c__2.c1[4]=a.a1[1]
-                -> PhysicNLJoin  (actual rows=27)
-                    Output: {(b.b3+c.c2)}[2],a.a1[0],a.a2[1]
-                    -> PhysicScanTable a (actual rows=3)
-                        Output: a.a1[0],a.a2[1]
-                    -> PhysicNLJoin  (actual rows=9, loops=3)
-                        Output: (b.b3[1]+c.c2[0])
-                        -> PhysicScanTable c (actual rows=3, loops=3)
-                            Output: c.c2[1]
-                        -> PhysicScanTable b (actual rows=3, loops=9)
-                            Output: b.b3[2]
-                -> PhysicScanTable c as c__2 (actual rows=3, loops=27)
-                    Output: c__2.c2[1],c__2.c1[0]
-        -> PhysicScanTable b as b__1 (actual rows=3, loops=27)
-            Output: b__1.b1[0]";
+                        Output: {(b.b3+c.c2)}[0]
+                        Filter: a.a1[1]>=b__1.b1[2]
+                        -> PhysicSingleJoin Left (actual rows=27)
+                            Output: {(b.b3+c.c2)}[0],a.a1[1],b__1.b1[2]
+                            Filter: b__1.b1[2]=a.a1[1]
+                            -> PhysicFilter  (actual rows=27)
+                                Output: {(b.b3+c.c2)}[0],a.a1[1]
+                                Filter: a.a2[2]>=c__2.c2[3]
+                                -> PhysicSingleJoin Left (actual rows=27)
+                                    Output: {(b.b3+c.c2)}[0],a.a1[1],a.a2[2],c__2.c2[3]
+                                    Filter: c__2.c1[4]=a.a1[1]
+                                    -> PhysicNLJoin  (actual rows=27)
+                                        Output: {(b.b3+c.c2)}[2],a.a1[0],a.a2[1]
+                                        -> PhysicScanTable a (actual rows=3)
+                                            Output: a.a1[0],a.a2[1]
+                                        -> PhysicNLJoin  (actual rows=9, loops=3)
+                                            Output: (b.b3[1]+c.c2[0])
+                                            -> PhysicScanTable c (actual rows=3, loops=3)
+                                                Output: c.c2[1]
+                                            -> PhysicScanTable b (actual rows=3, loops=9)
+                                                Output: b.b3[2]
+                                    -> PhysicScanTable c as c__2 (actual rows=3, loops=27)
+                                        Output: c__2.c2[1],c__2.c1[0]
+                            -> PhysicScanTable b as b__1 (actual rows=3, loops=27)
+                                Output: b__1.b1[0]";
             TU.PlanAssertEqual(answer, phyplan);
 
             // key here is bo.b3=a3 show up in 3rd subquery
@@ -3341,39 +3286,37 @@ namespace qpmodel.unittest
             option.optimize_.enable_subquery_unnest_ = false;
             TU.ExecuteSQL(sql, "0;1", out phyplan, option);
             answer = @"PhysicScanTable a (actual rows=2)
-    Output: a.a1[0],#a.a2[1],#a.a3[2]
-    Filter: a.a1[0]=@1
-    <ScalarSubqueryExpr> 1
-        -> PhysicScanTable b as bo (actual rows=0, loops=3)
-            Output: bo.b1[0],#bo.b3[2]
-            Filter: ((bo.b2[1]=?a.a2[1] and bo.b1[0]=@2) and bo.b2[1]<3)
-            <ScalarSubqueryExpr> 2
-                -> PhysicScanTable b (actual rows=0, loops=9)
-                    Output: b.b1[0]
-                    Filter: ((b.b3[2]=?a.a3[2] and ?bo.b3[2]=?a.a3[2]) and b.b3[2]>1)
-";
+                            Output: a.a1[0],#a.a2[1],#a.a3[2]
+                            Filter: a.a1[0]=@1
+                            <ScalarSubqueryExpr> 1
+                                -> PhysicScanTable b as bo (actual rows=0, loops=3)
+                                    Output: bo.b1[0],#bo.b3[2]
+                                    Filter: ((bo.b2[1]=?a.a2[1] and bo.b1[0]=@2) and bo.b2[1]<3)
+                                    <ScalarSubqueryExpr> 2
+                                        -> PhysicScanTable b (actual rows=0, loops=9)
+                                            Output: b.b1[0]
+                                            Filter: ((b.b3[2]=?a.a3[2] and ?bo.b3[2]=?a.a3[2]) and b.b3[2]>1)";
             TU.PlanAssertEqual(answer, phyplan);
             TU.ExecuteSQL(sql, "0;1", out phyplan);
             answer = @"PhysicFilter  (actual rows=2)
-    Output: a.a1[0]
-    Filter: a.a1[0]=bo.b1[1]
-    -> PhysicSingleJoin Left (actual rows=3)
-        Output: a.a1[0],bo.b1[3]
-        Filter: ((b.b3[4]=a.a3[1] and bo.b3[5]=a.a3[1]) and bo.b2[6]=a.a2[2])
-        -> PhysicScanTable a (actual rows=3)
-            Output: a.a1[0],a.a3[2],a.a2[1]
-        -> PhysicFilter  (actual rows=2, loops=3)
-            Output: bo.b1[0],b.b3[1],bo.b3[2],bo.b2[3]
-            Filter: bo.b1[0]=b.b1[4]
-            -> PhysicSingleJoin Left (actual rows=6, loops=3)
-                Output: bo.b1[0],b.b3[3],bo.b3[1],bo.b2[2],b.b1[4]
-                -> PhysicScanTable b as bo (actual rows=2, loops=3)
-                    Output: bo.b1[0],bo.b3[2],bo.b2[1]
-                    Filter: bo.b2[1]<3
-                -> PhysicScanTable b (actual rows=3, loops=6)
-                    Output: b.b3[2],b.b1[0]
-                    Filter: b.b3[2]>1
-";
+                        Output: a.a1[0]
+                        Filter: a.a1[0]=bo.b1[1]
+                        -> PhysicSingleJoin Left (actual rows=3)
+                            Output: a.a1[0],bo.b1[3]
+                            Filter: ((b.b3[4]=a.a3[1] and bo.b3[5]=a.a3[1]) and bo.b2[6]=a.a2[2])
+                            -> PhysicScanTable a (actual rows=3)
+                                Output: a.a1[0],a.a3[2],a.a2[1]
+                            -> PhysicFilter  (actual rows=2, loops=3)
+                                Output: bo.b1[0],b.b3[1],bo.b3[2],bo.b2[3]
+                                Filter: bo.b1[0]=b.b1[4]
+                                -> PhysicSingleJoin Left (actual rows=6, loops=3)
+                                    Output: bo.b1[0],b.b3[3],bo.b3[1],bo.b2[2],b.b1[4]
+                                    -> PhysicScanTable b as bo (actual rows=2, loops=3)
+                                        Output: bo.b1[0],bo.b3[2],bo.b2[1]
+                                        Filter: bo.b2[1]<3
+                                    -> PhysicScanTable b (actual rows=3, loops=6)
+                                        Output: b.b3[2],b.b1[0]
+                                        Filter: b.b3[2]>1";
             TU.PlanAssertEqual(answer, phyplan);
             sql = @"select a1 from c,a, b where a1=b1 and b2=c2 and a.a1 = (select b1 from(select b_2.b1, b_1.b2, b_1.b3 from b b_1, b b_2) bo where b2 = a2 
                 and b1 = (select b1 from b where b3 = a3 and bo.b3 = c3 and b3> 1) and b2<5)
@@ -3382,118 +3325,118 @@ namespace qpmodel.unittest
             option.optimize_.remove_from_ = false;
             TU.ExecuteSQL(sql, "0;1;2", out phyplan, option);
             answer = @"PhysicNLJoin  (actual rows=3)
-    Output: a.a1[2]
-    Filter: b.b2[3]=c.c2[0]
-    -> PhysicScanTable c (actual rows=3)
-        Output: c.c2[1],#c.c3[2]
-    -> PhysicHashJoin  (actual rows=1, loops=3)
-        Output: a.a1[2],b.b2[0]
-        Filter: a.a1[2]=b.b1[1]
-        -> PhysicScanTable b (actual rows=3, loops=3)
-            Output: b.b2[1],b.b1[0]
-        -> PhysicScanTable a (actual rows=1, loops=3)
-            Output: a.a1[0],#a.a2[1],#a.a3[2]
-            Filter: (a.a1[0]=@1 and a.a2[1]=@3)
-            <ScalarSubqueryExpr> 1
-                -> PhysicFilter  (actual rows=0, loops=9)
-                    Output: bo.b1[0]
-                    Filter: ((bo.b2[1]=?a.a2[1] and bo.b2[1]<5) and bo.b1[0]=@2)
-                    <ScalarSubqueryExpr> 2
-                        -> PhysicScanTable b as b__2 (actual rows=0, loops=81)
-                            Output: b__2.b1[0]
-                            Filter: ((b__2.b3[2]=?a.a3[2] and ?bo.b3[2]=?c.c3[2]) and b__2.b3[2]>1)
-                    -> PhysicFromQuery <bo> (actual rows=9, loops=9)
-                        Output: bo.b1[0],bo.b2[1],#bo.b3[2]
-                        -> PhysicNLJoin  (actual rows=9, loops=9)
-                            Output: b_2.b1[2],b_1.b2[0],b_1.b3[1]
-                            -> PhysicScanTable b as b_1 (actual rows=3, loops=9)
-                                Output: b_1.b2[1],b_1.b3[2]
-                            -> PhysicScanTable b as b_2 (actual rows=3, loops=27)
-                                Output: b_2.b1[0]
-            <ScalarSubqueryExpr> 3
-                -> PhysicScanTable b as bo (actual rows=1, loops=9)
-                    Output: bo.b2[1],#bo.b3[2]
-                    Filter: ((bo.b1[0]=?a.a1[0] and bo.b2[1]=@4) and ?c.c3[2]<5)
-                    <ScalarSubqueryExpr> 4
-                        -> PhysicScanTable b as b__4 (actual rows=0, loops=27)
-                            Output: b__4.b2[1]
-                            Filter: ((b__4.b4[3]=(?a.a3[2]+1) and ?bo.b3[2]=?a.a3[2]) and b__4.b3[2]>0)";
+                        Output: a.a1[2]
+                        Filter: b.b2[3]=c.c2[0]
+                        -> PhysicScanTable c (actual rows=3)
+                            Output: c.c2[1],#c.c3[2]
+                        -> PhysicHashJoin  (actual rows=1, loops=3)
+                            Output: a.a1[2],b.b2[0]
+                            Filter: a.a1[2]=b.b1[1]
+                            -> PhysicScanTable b (actual rows=3, loops=3)
+                                Output: b.b2[1],b.b1[0]
+                            -> PhysicScanTable a (actual rows=1, loops=3)
+                                Output: a.a1[0],#a.a2[1],#a.a3[2]
+                                Filter: (a.a1[0]=@1 and a.a2[1]=@3)
+                                <ScalarSubqueryExpr> 1
+                                    -> PhysicFilter  (actual rows=0, loops=9)
+                                        Output: bo.b1[0]
+                                        Filter: ((bo.b2[1]=?a.a2[1] and bo.b2[1]<5) and bo.b1[0]=@2)
+                                        <ScalarSubqueryExpr> 2
+                                            -> PhysicScanTable b as b__2 (actual rows=0, loops=81)
+                                                Output: b__2.b1[0]
+                                                Filter: ((b__2.b3[2]=?a.a3[2] and ?bo.b3[2]=?c.c3[2]) and b__2.b3[2]>1)
+                                        -> PhysicFromQuery <bo> (actual rows=9, loops=9)
+                                            Output: bo.b1[0],bo.b2[1],#bo.b3[2]
+                                            -> PhysicNLJoin  (actual rows=9, loops=9)
+                                                Output: b_2.b1[2],b_1.b2[0],b_1.b3[1]
+                                                -> PhysicScanTable b as b_1 (actual rows=3, loops=9)
+                                                    Output: b_1.b2[1],b_1.b3[2]
+                                                -> PhysicScanTable b as b_2 (actual rows=3, loops=27)
+                                                    Output: b_2.b1[0]
+                                <ScalarSubqueryExpr> 3
+                                    -> PhysicScanTable b as bo (actual rows=1, loops=9)
+                                        Output: bo.b2[1],#bo.b3[2]
+                                        Filter: ((bo.b1[0]=?a.a1[0] and bo.b2[1]=@4) and ?c.c3[2]<5)
+                                        <ScalarSubqueryExpr> 4
+                                            -> PhysicScanTable b as b__4 (actual rows=0, loops=27)
+                                                Output: b__4.b2[1]
+                                                Filter: ((b__4.b4[3]=(?a.a3[2]+1) and ?bo.b3[2]=?a.a3[2]) and b__4.b3[2]>0)";
             TU.PlanAssertEqual(answer, phyplan);
 
             // run again with subquery expansion enabled
             // FIXME: b2<5 is not push down due to FromQuery barrier
             TU.ExecuteSQL(sql, "0;1;2", out phyplan);
             answer = @"PhysicFilter  (actual rows=3)
-    Output: a.a1[0]
-    Filter: a.a1[0]=b_2.b1[1]
-    -> PhysicSingleJoin Left (actual rows=3)
-        Output: a.a1[0],b_2.b1[4]
-        Filter: ((b__2.b3[5]=a.a3[1] and b_1.b3[6]=c.c3[2]) and b_1.b2[7]=a.a2[3])
-        -> PhysicFilter  (actual rows=3)
-            Output: a.a1[0],a.a3[1],c.c3[2],a.a2[3]
-            Filter: a.a2[3]=bo.b2[4]
-            -> PhysicSingleJoin Left (actual rows=3)
-                Output: a.a1[0],a.a3[1],c.c3[2],a.a2[3],bo.b2[4]
-                Filter: ((b__4.b4[5]=(a.a3[1]+1) and bo.b3[6]=a.a3[1]) and bo.b1[7]=a.a1[0])
-                -> PhysicHashJoin  (actual rows=3)
-                    Output: a.a1[2],a.a3[3],c.c3[0],a.a2[4]
-                    Filter: b.b2[5]=c.c2[1]
-                    -> PhysicScanTable c (actual rows=3)
-                        Output: c.c3[2],c.c2[1]
-                        Filter: c.c3[2]<5
-                    -> PhysicHashJoin  (actual rows=3)
-                        Output: a.a1[2],a.a3[3],a.a2[4],b.b2[0]
-                        Filter: a.a1[2]=b.b1[1]
-                        -> PhysicScanTable b (actual rows=3)
-                            Output: b.b2[1],b.b1[0]
-                        -> PhysicScanTable a (actual rows=3)
-                            Output: a.a1[0],a.a3[2],a.a2[1]
-                -> PhysicFilter  (actual rows=3, loops=3)
-                    Output: bo.b2[0],b__4.b4[1],bo.b3[2],bo.b1[3]
-                    Filter: bo.b2[0]=b__4.b2[4]
-                    -> PhysicSingleJoin Left (actual rows=9, loops=3)
-                        Output: bo.b2[0],b__4.b4[3],bo.b3[1],bo.b1[2],b__4.b2[4]
-                        -> PhysicScanTable b as bo (actual rows=3, loops=3)
-                            Output: bo.b2[1],bo.b3[2],bo.b1[0]
-                        -> PhysicScanTable b as b__4 (actual rows=3, loops=9)
-                            Output: b__4.b4[3],b__4.b2[1]
-                            Filter: b__4.b3[2]>0
-        -> PhysicFilter  (actual rows=9, loops=3)
-            Output: b_2.b1[0],b__2.b3[1],b_1.b3[2],b_1.b2[3]
-            Filter: b_2.b1[0]=b__2.b1[4]
-            -> PhysicSingleJoin Left (actual rows=27, loops=3)
-                Output: b_2.b1[0],b__2.b3[3],b_1.b3[1],b_1.b2[2],b__2.b1[4]
-                -> PhysicNLJoin  (actual rows=9, loops=3)
-                    Output: b_2.b1[2],b_1.b3[0],b_1.b2[1]
-                    -> PhysicScanTable b as b_1 (actual rows=3, loops=3)
-                        Output: b_1.b3[2],b_1.b2[1]
-                        Filter: b_1.b2[1]<5
-                    -> PhysicScanTable b as b_2 (actual rows=3, loops=9)
-                        Output: b_2.b1[0]
-                -> PhysicScanTable b as b__2 (actual rows=3, loops=27)
-                    Output: b__2.b3[2],b__2.b1[0]
-                    Filter: b__2.b3[2]>1";
+                        Output: a.a1[0]
+                        Filter: a.a1[0]=b_2.b1[1]
+                        -> PhysicSingleJoin Left (actual rows=3)
+                            Output: a.a1[0],b_2.b1[4]
+                            Filter: ((b__2.b3[5]=a.a3[1] and b_1.b3[6]=c.c3[2]) and b_1.b2[7]=a.a2[3])
+                            -> PhysicFilter  (actual rows=3)
+                                Output: a.a1[0],a.a3[1],c.c3[2],a.a2[3]
+                                Filter: a.a2[3]=bo.b2[4]
+                                -> PhysicSingleJoin Left (actual rows=3)
+                                    Output: a.a1[0],a.a3[1],c.c3[2],a.a2[3],bo.b2[4]
+                                    Filter: ((b__4.b4[5]=(a.a3[1]+1) and bo.b3[6]=a.a3[1]) and bo.b1[7]=a.a1[0])
+                                    -> PhysicHashJoin  (actual rows=3)
+                                        Output: a.a1[2],a.a3[3],c.c3[0],a.a2[4]
+                                        Filter: b.b2[5]=c.c2[1]
+                                        -> PhysicScanTable c (actual rows=3)
+                                            Output: c.c3[2],c.c2[1]
+                                            Filter: c.c3[2]<5
+                                        -> PhysicHashJoin  (actual rows=3)
+                                            Output: a.a1[2],a.a3[3],a.a2[4],b.b2[0]
+                                            Filter: a.a1[2]=b.b1[1]
+                                            -> PhysicScanTable b (actual rows=3)
+                                                Output: b.b2[1],b.b1[0]
+                                            -> PhysicScanTable a (actual rows=3)
+                                                Output: a.a1[0],a.a3[2],a.a2[1]
+                                    -> PhysicFilter  (actual rows=3, loops=3)
+                                        Output: bo.b2[0],b__4.b4[1],bo.b3[2],bo.b1[3]
+                                        Filter: bo.b2[0]=b__4.b2[4]
+                                        -> PhysicSingleJoin Left (actual rows=9, loops=3)
+                                            Output: bo.b2[0],b__4.b4[3],bo.b3[1],bo.b1[2],b__4.b2[4]
+                                            -> PhysicScanTable b as bo (actual rows=3, loops=3)
+                                                Output: bo.b2[1],bo.b3[2],bo.b1[0]
+                                            -> PhysicScanTable b as b__4 (actual rows=3, loops=9)
+                                                Output: b__4.b4[3],b__4.b2[1]
+                                                Filter: b__4.b3[2]>0
+                            -> PhysicFilter  (actual rows=9, loops=3)
+                                Output: b_2.b1[0],b__2.b3[1],b_1.b3[2],b_1.b2[3]
+                                Filter: b_2.b1[0]=b__2.b1[4]
+                                -> PhysicSingleJoin Left (actual rows=27, loops=3)
+                                    Output: b_2.b1[0],b__2.b3[3],b_1.b3[1],b_1.b2[2],b__2.b1[4]
+                                    -> PhysicNLJoin  (actual rows=9, loops=3)
+                                        Output: b_2.b1[2],b_1.b3[0],b_1.b2[1]
+                                        -> PhysicScanTable b as b_1 (actual rows=3, loops=3)
+                                            Output: b_1.b3[2],b_1.b2[1]
+                                            Filter: b_1.b2[1]<5
+                                        -> PhysicScanTable b as b_2 (actual rows=3, loops=9)
+                                            Output: b_2.b1[0]
+                                    -> PhysicScanTable b as b__2 (actual rows=3, loops=27)
+                                        Output: b__2.b3[2],b__2.b1[0]
+                                        Filter: b__2.b3[2]>1";
             TU.PlanAssertEqual(answer, phyplan);
         }
 
         [TestMethod]
         public void TestSubstrGroupBy()
         {
-            var sql = "create table city_zip(area int, zip char(5));";
-            var res = TU.ExecuteSQL(sql);
+            string sql = "create table city_zip(area int, zip char(5));";
+            List<Row> result = TU.ExecuteSQL(sql);
 
             sql = "insert into city_zip values(100, '94087');";
-            res = TU.ExecuteSQL(sql);
+            result = TU.ExecuteSQL(sql);
             sql = "insert into city_zip values(100, '95119');";
-            res = TU.ExecuteSQL(sql);
+            result = TU.ExecuteSQL(sql);
             sql = "insert into city_zip values(200, '94129');";
-            res = TU.ExecuteSQL(sql);
+            result = TU.ExecuteSQL(sql);
             sql = "insert into city_zip values(300, '95051');";
-            res = TU.ExecuteSQL(sql);
+            result = TU.ExecuteSQL(sql);
             sql = "insert into city_zip values(240, '95050');";
-            res = TU.ExecuteSQL(sql);
+            result = TU.ExecuteSQL(sql);
             sql = "select substring(zip, 2, 4), sum(area) from city_zip group by substring(zip, 2, 4);";
-            res = TU.ExecuteSQL(sql);
+            result = TU.ExecuteSQL(sql);
             sql = "select * from(select substring(zip, 2, 4), sum(area) from city_zip group by substring(zip, 2, 4)) x(z, n);";
             TU.ExecuteSQL(sql, "408,100;511,100;412,200;505,540", out _);
 
@@ -3509,9 +3452,8 @@ namespace qpmodel.unittest
         [TestMethod]
         public void Gather()
         {
-            var phyplan = "";
-            var sql = "select a1,a2 from ad order by a1;";
-            TU.ExecuteSQL(sql, "0,1;1,2;2,3", out phyplan);
+            string sql = "select a1,a2 from ad order by a1;";
+            TU.ExecuteSQL(sql, "0,1;1,2;2,3", out string phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
             sql = "select a1,a2 from ar;";
             TU.ExecuteSQL(sql, "0,1;1,2;2,3", out phyplan);
@@ -3526,18 +3468,17 @@ namespace qpmodel.unittest
         [TestMethod]
         public void Redistribute()
         {
-            var option = new QueryOption();
+            QueryOption option = new QueryOption();
 
             for (int i = 0; i < 3; i++)
             {
                 // use broadcast for the last round
                 bool enable_bc = i == 2;
                 option.optimize_.enable_broadcast_ = enable_bc;
-                var phyplan = "";
 
                 // needs order by to force result order
-                var sql = "select a1,b1 from ad, b where a1=b1 order by a1;";
-                TU.ExecuteSQL(sql, "0,0;1,1;2,2", out phyplan, option);
+                string sql = "select a1,b1 from ad, b where a1=b1 order by a1;";
+                TU.ExecuteSQL(sql, "0,0;1,1;2,2", out string phyplan, option);
                 Assert.AreEqual(1, TU.CountStr(phyplan, "Gather"));
                 Assert.AreEqual(0, TU.CountStr(phyplan, "Redistribute"));
                 sql = "select a1,b1 from ad, bd where a1=b1 order by a1;";
@@ -3619,31 +3560,28 @@ namespace qpmodel.unittest
         [TestMethod]
         public void GeneralStreaming()
         {
-            var phyplan = "";
-            var sql = "select * from ainf";
-            TU.ExecuteSQL(sql, "", out phyplan);
+            string sql = "select * from ainf";
+            TU.ExecuteSQL(sql, "", out string phyplan);
             Assert.IsTrue(phyplan.Contains("PhysicScanStream"));
         }
 
         [TestMethod]
         public void TumbleWindow()
         {
-            var phyplan = "";
-            var sql = "select count(*) from ast group by tumble(a0, interval '10' second)";
-            TU.ExecuteSQL(sql, "2;2;1", out phyplan);
+            string sql = "select count(*) from ast group by tumble(a0, interval '10' second)";
+            TU.ExecuteSQL(sql, "2;2;1", out string _);
             sql = "select tumble_start(a0, interval '10' second), tumble_end(a0, interval '10' second), " +
                 "count(*) from ast group by tumble(a0, interval '10' second)";
             TU.ExecuteSQL(sql, $"{new DateTime(2020, 5, 12, 7, 22, 10)},{new DateTime(2020, 5, 12, 7, 22, 20)},2;" +
                 $"{new DateTime(2020, 5, 12, 7, 22, 20)},{new DateTime(2020, 5, 12, 7, 22, 30)},2;" +
-                $"{new DateTime(2020, 5, 12, 7, 22, 50)},{new DateTime(2020, 5, 12, 7, 23, 0)},1", out phyplan);
+                $"{new DateTime(2020, 5, 12, 7, 22, 50)},{new DateTime(2020, 5, 12, 7, 23, 0)},1", out _);
         }
 
         [TestMethod]
         public void HopWindow()
         {
-            var phyplan = "";
-            var sql = "select count(*) from ast group by hop(a0, interval '5' second, interval '10' second)";
-            TU.ExecuteSQL(sql, "2;4;2;1;1", out phyplan);
+            string sql = "select count(*) from ast group by hop(a0, interval '5' second, interval '10' second)";
+            TU.ExecuteSQL(sql, "2;4;2;1;1", out string phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "ProjectSet"));
         }
     }
@@ -3663,7 +3601,7 @@ namespace qpmodel.unittest
         {
             CheckTableLoad();
 
-            var option = new QueryOption();
+            QueryOption option = new QueryOption();
             option.explain_.mode_ = ExplainMode.analyze;
             option.explain_.show_estCost_ = true;
 
@@ -3677,7 +3615,7 @@ namespace qpmodel.unittest
                 string sql = listquery[i].Trim();
                 if (sql.Length <= 0) continue;
 
-                var result = SQLStatement.ExecSQL(sql, out string physicplan, out string error_, option);
+                List<Row> result = SQLStatement.ExecSQL(sql, out string physicplan, out _, option);
                 Assert.IsNotNull(physicplan);
 
                 listoutput.Add(physicplan);
@@ -3692,7 +3630,7 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestStat()
         {
-            var hist = Historgram.ConstructFromMinMax(0, 10, 1000);
+            Historgram hist = Historgram.ConstructFromMinMax(0, 10, 1000);
             Assert.AreEqual(0, hist.buckets_[0]);
             Assert.AreEqual(10, hist.buckets_[10]);
             Assert.AreEqual(11, hist.nbuckets_);

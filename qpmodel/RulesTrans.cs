@@ -133,8 +133,7 @@ namespace qpmodel.optimizer
     {
         public override bool Appliable(CGroupMember expr)
         {
-            LogicJoin a_bc = expr.logic_ as LogicJoin;
-            if (a_bc is null || !a_bc.IsInnerJoin())
+            if (!(expr.logic_ is LogicJoin a_bc) || !a_bc.IsInnerJoin())
                 return false;
 
             var bc = (a_bc.rchild_() as LogicMemoRef).Deref();
@@ -199,10 +198,8 @@ namespace qpmodel.optimizer
     {
         public override bool Appliable(CGroupMember expr)
         {
-            LogicAgg agg = expr.logic_ as LogicAgg;
-            if (agg is null || agg.isLocal_ || agg.isDerived_)
+            if (!(expr.logic_ is LogicAgg agg) || agg.isLocal_ || agg.isDerived_)
                 return false;
-
             return true;
         }
 
