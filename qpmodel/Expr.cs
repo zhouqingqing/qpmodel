@@ -44,7 +44,7 @@ namespace qpmodel.expr
     // 
     public class BindContext
     {
-        // number of subqueries in the whole query, only useable for top context
+        // number of subqueries in the whole query, only usable for top context
         internal int globalSubqCounter_;
 
         // bounded tables/subqueries: <seq#, tableref>
@@ -80,7 +80,7 @@ namespace qpmodel.expr
                 var top = parent_;
                 while (top != null)
                 {
-                    // it is ok to have same alias in the virtical (different levels) but not on the same level
+                    // it is ok to have same alias in the vertical (different levels) but not on the same level
                     if (top.boundFrom_.Values.Any(x => x.alias_.Equals(tab.alias_)))
                     {
                         Debug.Assert(top.boundFrom_.Values.Count(x => x.alias_.Equals(tab.alias_)) == 1);
@@ -114,7 +114,7 @@ namespace qpmodel.expr
             {
                 var result = AllTableRefs().FirstOrDefault(x => x.LocateColumn(colName) != null);
                 if (result != AllTableRefs().LastOrDefault(x => x.LocateColumn(colName) != null))
-                    throw new SemanticAnalyzeException($"ambigous column name: {colName}");
+                    throw new SemanticAnalyzeException($"ambiguous column name: {colName}");
                 return result;
             }
             if (tabName is null)
@@ -206,8 +206,8 @@ namespace qpmodel.expr
         }
 
         // TODO: what about expr.tableRefs_?
-        //  They shall be equal but our implmentation sometimes get them inconsistent
-        //  for example, xc.tabRef_ can contain outerrefs but tableRefs_ does not.
+        //  They shall be equal but our implementation sometimes get them inconsistent
+        //  for example, xc.tabRef_ can contain outer refs but tableRefs_ does not.
         //
         // When remove_from is in effect (removed) the following query fails because
         // the count(*) gets pushed to scan node.
@@ -284,7 +284,7 @@ namespace qpmodel.expr
 
         public static Expr MakeFullComparator(List<Expr> left, List<Expr> right)
         {
-            // a rough check here - caller's responsiblity to do a full check
+            // a rough check here - caller's responsibility to do a full check
             Debug.Assert(left.Count == right.Count);
 
             Expr result = BinExpr.MakeBooleanExpr(left[0], right[0], "=");
@@ -303,7 +303,7 @@ namespace qpmodel.expr
             //   A X (B X C on f3) on f1 AND f2
             // is equal to commutative transformation
             //   (A X B on f1) X C on f3 AND f2
-            // The filter signature generation has to be able to accomomdate this difference.
+            // The filter signature generation has to be able to accommodate this difference.
             //
             if (filter is null)
                 return 0;
@@ -418,7 +418,7 @@ namespace qpmodel.expr
             });
         }
 
-        // suppport forms
+        // support forms
         //   a.i =|>|< 5
         public static IndexDef FilterCanUseIndex(this Expr filter, BaseTableRef table)
         {
@@ -564,15 +564,15 @@ namespace qpmodel.expr
         //    3. If output name is not given: if column is a simple column, use column's name. 
         //       Otherwise, we will generate one for print purpose or parent query can't refer
         //       it except for select * case.
-        //    4. Output name can be refered by ORDER BY|GROUP BY but not WHERE|HAVING.
+        //    4. Output name can be referred by ORDER BY|GROUP BY but not WHERE|HAVING.
         //
         internal string outputName_;
 
         // we require some columns for query processing but user may not want 
         // them in the final output, so they are marked as invisible.
         // This includes:
-        // 1. subquery's outerref 
-        // 2. system generated syscolumns (say sysrid_ for indexing)
+        // 1. subquery's outer ref 
+        // 2. system generated sys columns (say sysrid_ for indexing)
         //
         public bool isVisible_ = true;
 
@@ -627,7 +627,7 @@ namespace qpmodel.expr
             return true;
         }
 
-        // APIs children may implment
+        // APIs children may implement
         //  Sometimes we have to copy out expressions, consider the following query
         // select a2 from(select a3, a1, a2 from a) b
         // PhysicSubquery <b>
@@ -817,12 +817,12 @@ namespace qpmodel.expr
             return expr;
         }
 
-        // Similar to physic operators, an expression shall implments an Exec interface. The
+        // Similar to physic operators, an expression shall implements an Exec interface. The
         // difference is operator's Exec() is designed to return the code "string", while
         // expression split into two interfaces Exec() and ExecCode() for easier usage.
         //
         public virtual Value Exec(ExecContext context, Row input)
-            => throw new NotImplementedException($"{this} subclass shall implment Exec()");
+            => throw new NotImplementedException($"{this} subclass shall implement Exec()");
         public virtual string ExecCode(ExecContext context, string input)
         {
             return $@"ExprSearch.Locate(""{_}"").Exec(context, {input}) /*{ToString()}*/";
@@ -830,7 +830,7 @@ namespace qpmodel.expr
     }
 
     // Represents "*" or "table.*" - it is not in the tree after Bind(). 
-    // To avoid confusion, we implment Expand() instead of Bind().
+    // To avoid confusion, we implement Expand() instead of Bind().
     //
     public class SelStar : Expr
     {
@@ -855,8 +855,8 @@ namespace qpmodel.expr
             var exprs = new List<Expr>();
             targetrefs.ForEach(x =>
             {
-                // subquery's shall be bounded already, and only * from basetable 
-                // are not bounded. We don't have to differentitate them, but I 
+                // subquery's shall be bounded already, and only * from base table 
+                // are not bounded. We don't have to differentiate them, but I 
                 // just try to be strict to not binding multiple times. Expanding
                 // order is also important.
                 //
@@ -1009,7 +1009,7 @@ namespace qpmodel.expr
                 Debug.Assert(tableRefs_.Count == 0);
                 tableRefs_.Add(tabRef_);
             }
-            // FIXME: we shall not decide ordinal_ so early but if not, hard to handle outerref
+            // FIXME: we shall not decide ordinal_ so early but if not, hard to handle outer ref
             ordinal_ = context.ColumnOrdinal(tabRef_.alias_, colName_, out ColumnType type);
             type_ = type;
             markBounded();
@@ -1104,7 +1104,7 @@ namespace qpmodel.expr
     //  WITH cte(a4, a3, a2) from select * from a where a4 > 0 will rename 
     //  (* = a1,a2,a3,a4) to (a4,a3,a2,a4) with a4 show up twice. But notice
     //  this won't change output content but only output names. Say WHERE a4>0
-    //  shall give you an error of "ambigous column 'a4'". 
+    //  shall give you an error of "ambiguous column 'a4'". 
     // 
     public class CteExpr : Expr
     {
@@ -1327,7 +1327,7 @@ namespace qpmodel.expr
         public bool IsFalse() => (type_ is BoolType && val_ is false);
     }
 
-    // Runtime only used to reference an expr as a whole without recomputation
+    // Runtime only used to reference an expr as a whole without re computation
     // the tricky part of this class is that it is a wrapper, but Equal() shall be taken care
     // so we invent ExprHelper.Equal() for the purpose
     //

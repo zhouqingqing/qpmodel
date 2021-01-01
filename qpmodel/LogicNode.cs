@@ -97,7 +97,7 @@ namespace qpmodel.logic
             return bytes;
         }
 
-        // MarkExchange is implmented in a conservative way, meaning it may adds unnessary shuffle node 
+        // MarkExchange is implemented in a conservative way, meaning it may adds unnecessary shuffle node 
         // to the plan. The right plan shall be in the memo optimization with property enforcement.
         //
         public LogicNode MarkExchange(QueryOption option)
@@ -169,7 +169,7 @@ namespace qpmodel.logic
                             break;
                         default:
                             // one restriction of HJ is that if build side has columns used by probe side
-                            // subquries, we need to use NLJ to pass variables. It is can be fixed by changing
+                            // subqueries, we need to use NLJ to pass variables. It is can be fixed by changing
                             // the way runtime pass parameters though.
                             //
                             bool lhasSubqCol = TableRef.HasColsUsedBySubquries(lchild_().InclusiveTableRefs());
@@ -278,7 +278,7 @@ namespace qpmodel.logic
             var clone = toclone.Clone();
 
             // first try to match the whole expression - don't do this for ColExpr
-            // because it has no practial benefits.
+            // because it has no practical benefits.
             // 
             if (!(clone is ColExpr) && !(clone is MarkerExpr))
             {
@@ -291,9 +291,9 @@ namespace qpmodel.logic
                     return new ExprRef(clone, ordinal);
             }
 
-            // the marker's ordinal should equal to a2, i.e. the frontest index in disapeard colExpr
+            // the marker's ordinal should equal to a2, i.e. the frontest index in disappear colExpr
             // a1 a2 b2 
-            // a1 marker (a2,b2 disapeared )
+            // a1 marker (a2,b2 disappeared )
             if (clone is MarkerExpr)
             {
                 var findExpr = source.Find(x => x._ == clone._);
@@ -338,8 +338,8 @@ namespace qpmodel.logic
              * going into sum, and trying to resolve b1 will fail and the assert
              * source.FindAll(roughNameTest).Count >= 1 will be false. if this assert is ignored, and
              * aggregates are resolved at the end or elsewhere, nothing bad happens but
-             * ignoring the assertion means legtimate problems will also go uncaught here and
-             * may cause servere problem elsewhere.
+             * ignoring the assertion means legitimate problems will also go uncaught here and
+             * may cause severe problem elsewhere.
              */
             clone = FixAggregateOrdinals(clone, source);
 
@@ -354,7 +354,7 @@ namespace qpmodel.logic
                 roughNameTest = z => target.Equals(z) || target.colName_.Equals(z.outputName_);
 
                 // using source's matching index for ordinal
-                // fix colexpr's ordinal - leave the outerref as it is already decided in ColExpr.Bind()
+                // fix colexpr's ordinal - leave the outer ref as it is already decided in ColExpr.Bind()
                 // During execution, the bottom node will be responsible to fill the value via AddParam().
                 //
                 if (!target.isParameter_)
@@ -384,7 +384,7 @@ namespace qpmodel.logic
 
         internal Expr FixAggregateOrdinals(Expr clone, List<Expr> source)
         {
-            // let's first fix Aggregation as a whole epxression - there could be some combinations
+            // let's first fix Aggregation as a whole expression - there could be some combinations
             // of AggrRef with aggregation keys (ColExpr), so we have to go thorough after it
             //
             clone.VisitEachT<AggrRef>(target =>
@@ -444,11 +444,11 @@ namespace qpmodel.logic
         }
 
         // resolve mapping from children output
-        // 1. you shall first compute the reqOutput by accouting parent's reqOutput and your filter etc
+        // 1. you shall first compute the reqOutput by accounting parent's reqOutput and your filter etc
         // 2. compute children's output by requesting reqOutput from them
         // 3. find mapping from children's output
         //
-        // this parent class implments a default one for using first child output without any change. You can
+        // this parent class implements a default one for using first child output without any change. You can
         // also piggy back in this method to "finalize" your logic node.
         //
         public virtual List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
@@ -586,7 +586,7 @@ namespace qpmodel.logic
     {
         public JoinType type_ { get; set; } = JoinType.Inner;
 
-        // dervided information from join condition
+        // dervied information from join condition
         // ab join cd on c1+d1=a1-b1 and a1+b1=c2+d2;
         //    leftKey_:  a1-b1, a1+b1
         //    rightKey_: c1+d1, c2+d2
@@ -889,7 +889,7 @@ namespace qpmodel.logic
             List<Expr> reqFromChild = new List<Expr>();
             reqFromChild.AddRange(reqOutput.CloneList());
 
-            // filter may carray ordinary columns and aggregations - aggregation won't show up
+            // filter may carry ordinary columns and aggregations - aggregation won't show up
             // by SQL syntax, but subquery transformation may introduce them. We want to all 
             // aggfuncs, all columns except those inside aggfuncs.
             //
@@ -1137,7 +1137,7 @@ namespace qpmodel.logic
             {
                 x.VisitEachIgnoreRef<AggFunc>(y =>
                 {
-                    // remove the duplicates immediatley to avoid wrong ordinal in ExprRef
+                    // remove the duplicates immediately to avoid wrong ordinal in ExprRef
                     if (!aggrFns_.Contains(y))
                         aggrFns_.Add(y);
                     x = x.SearchAndReplace(y, new ExprRef(y, nkeys + aggrFns_.IndexOf(y)));
@@ -1148,7 +1148,7 @@ namespace qpmodel.logic
                 having_ = sourceListSearchReplaceWithGroupBy(new List<Expr>() { having_ })[0];
             having_?.VisitEachIgnoreRef<AggFunc>(y =>
             {
-                // remove the duplicates immediatley to avoid wrong ordinal in ExprRef
+                // remove the duplicates immediately to avoid wrong ordinal in ExprRef
                 if (!aggrFns_.Contains(y))
                     aggrFns_.Add(y);
                 having_ = having_.SearchAndReplace(y, new ExprRef(y, nkeys + aggrFns_.IndexOf(y)));
@@ -1172,7 +1172,7 @@ namespace qpmodel.logic
             // make this list as required from child. Save the original
             // group by and null it out.
             // After getting the output from the child, restore the original
-            // group by and resolve everthing as usual.
+            // group by and resolve everything as usual.
             List<Expr> newGrpBy = null;
             List<Expr> savedGrpBy = null;
 
@@ -1216,8 +1216,8 @@ namespace qpmodel.logic
                 reqFromChild.AddRange(removeAggFuncAndKeyExprsFromOutput(reqList, groupby_));
 
             // Issue exposed by removing remove_from.
-            // Remeber the last position of output required by the parent, it is not an error
-            // if the offending occures after this position.
+            // Remember the last position of output required by the parent, it is not an error
+            // if the offending occurs after this position.
             // The query that fails is
             // select d1, sum(d2) from (select c1/2, sum(c1) from (select b1, count(*) as a1 from b group by b1)c(c1, c2)
             // group by c1/2) d(d1, d2) group by d1;
@@ -1266,7 +1266,7 @@ namespace qpmodel.logic
 
             var newoutput = GenerateAggrFns();
 
-            // Say invvalid expression means contains colexpr (replaced with ref), then the output shall
+            // Say invalid expression means contains colexpr (replaced with ref), then the output shall
             // contains no expression consists invalid expression
             // TODO: This check on offending, and offendingFirstPos are not as good as they
             // should be and therefore some queries will fail to compile or run if remove_from
@@ -1328,7 +1328,7 @@ namespace qpmodel.logic
             reqFromChild.AddRange(reqOutput.CloneList());
 
             // do not decompose order_ into ColRefs: the reason is that say GROUP BY 1 ORDER BY 1 where 1 
-            // is actully a3+a4, if we decompose it, then Aggregation will see a3 and a4 thus require them
+            // is actually a3+a4, if we decompose it, then Aggregation will see a3 and a4 thus require them
             // in the GROUP BY clause.
             //
             reqFromChild.AddRange(orders_);
@@ -1457,7 +1457,7 @@ namespace qpmodel.logic
             List<int> ordinals = new List<int>();
             List<Expr> columns = tabref_.AllColumnsRefs();
 
-            // Verify it can be an litral, or only uses my tableref
+            // Verify it can be an literal, or only uses my tableref
             validateReqOutput(reqOutput);
 
             if (filter_ != null)
@@ -1522,7 +1522,7 @@ namespace qpmodel.logic
     // the SetOp tree it is part of. This is done by passing the SetOp tree
     // whose left and right selects correspond to the left and right nodes of this
     // logicAppend node in the constructor.
-    // Visit each branch of the SetOp tree and locate the select which corrresponds to
+    // Visit each branch of the SetOp tree and locate the select which corresponds to
     // left and right node and record those select lists as leftExprs_ and rightExprs_.
     //
     // Override ResolveColumnOrdinal in LogicAppend and using the saved

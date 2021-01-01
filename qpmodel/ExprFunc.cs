@@ -510,7 +510,7 @@ namespace qpmodel.expr
             type_ = new IntType();
 
             // Add the first table in the scope as tableref of count(*)
-            // because adding all of them would make the containg expression
+            // because adding all of them would make the contain expression
             // to appear to require more than one table when that is really
             // not the case and may lead to attempts create a join or push
             // count(*) to both sides of an existing join.
@@ -688,7 +688,7 @@ namespace qpmodel.expr
         {
             var child = child_();
 
-            // child of tsum/tcount will be replace to bypass aggfunc child during aggfunc intialization
+            // child of tsum/tcount will be replace to bypass aggfunc child during aggfunc initialization
             var tsum = new AggSum(new List<Expr> { child }); tsum.dummyBind();
             var sumchild = new AggSum(new List<Expr> { child.Clone() }); sumchild.dummyBind();
             var sumchildref = new AggrRef(sumchild, -1);
@@ -1038,14 +1038,14 @@ namespace qpmodel.expr
 
             switch (op_)
             {
-                // we can do a compile type type coerse for addition/multiply etc to align
+                // we can do a compile type type coerce for addition/multiply etc to align
                 // data types, say double+decimal will require both side become decimal.
-                // However, for comparison, we cam't do that, because that depends the actual
+                // However, for comparison, we can't do that, because that depends the actual
                 // value: decimal has better precision and double has better range, if double
                 // if out of decimal's range, we shall convert both to double; otherwise they
                 // shall be converted to decimals.
                 //
-                // We do a simplification here by forcing type coerse for any op at Bind().
+                // We do a simplification here by forcing type coerce for any op at Bind().
                 //
                 case "+": return lv + rv;
                 case "-": return lv - rv;

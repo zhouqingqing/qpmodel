@@ -76,7 +76,7 @@ namespace qpmodel.physic
                 {
                     var log = phy.logic_;
 
-                    // we may want to check log.output_.Count != 0 but special cases inclue:
+                    // we may want to check log.output_.Count != 0 but special cases include:
                     // 1) cross join may have one side output empty row
                     // 2) select 'a' from a, which does not require any columns
                     // 3) intersect op may not require output from one side
@@ -122,7 +122,7 @@ namespace qpmodel.physic
             children_.ForEach(x => x.Close());
             context_ = null;
         }
-        // @context is to carray parameters etc, @callback.Row is current row for processing
+        // @context is to carry parameters etc, @callback.Row is current row for processing
         public abstract void Exec(Action<Row> callback);
 
         public string ExecProjectCode(string input)
@@ -160,7 +160,7 @@ namespace qpmodel.physic
         protected virtual double EstimateCost() => double.NaN;
 
         // inclusive cost summarize its own cost and its children cost. During 
-        // optimiztaion it is a dynamic measurement, we do so by summarize its
+        // optimization it is a dynamic measurement, we do so by summarize its
         // best children's.
         public double InclusiveCost()
         {
@@ -261,7 +261,7 @@ namespace qpmodel.physic
         public BitVector tableContained_ { get => logic_.tableContained_; }
 
         #region codegen support
-        // local varialbes are named locally by append the local hmid. Record r passing
+        // local variables are named locally by append the local hmid. Record r passing
         // across callback boundaries are special: they have to be uniquely named and
         // use consistently.
         //
@@ -1852,7 +1852,7 @@ namespace qpmodel.physic
         void RowCntSampling(Row l)
         {
 
-            // Reservior sampling
+            // Reservoir sampling
             Debug.Assert(l != null);
             curSample_++;
             if (curCnt_ < target_)
