@@ -652,8 +652,10 @@ namespace qpmodel.expr
 
         public override Value Init(ExecContext context, Row input)
         {
-            pair_ = new AvgPair();
-            pair_.sum_ = arg_().Exec(context, input);
+            pair_ = new AvgPair
+            {
+                sum_ = arg_().Exec(context, input)
+            };
             pair_.count_ = pair_.sum_ is null ? 0 : 1;
             return pair_;
         }
@@ -1178,10 +1180,10 @@ namespace qpmodel.expr
             dynamic from = child_().Exec(context, input);
             switch (from)
             {
-                case string vs:
+                case string _:
                     switch (type_)
                     {
-                        case DateTimeType td:
+                        case DateTimeType _:
                             to = DateTime.Parse(from);
                             break;
                         default:

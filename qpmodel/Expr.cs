@@ -1168,24 +1168,24 @@ namespace qpmodel.expr
             {
                 switch (type)
                 {
-                    case IntType it:
+                    case IntType _:
                         if (int.TryParse(str, out var value))
                             val_ = value;
                         else
                             throw new SemanticAnalyzeException("wrong integer format");
                         break;
-                    case DoubleType dt:
+                    case DoubleType _:
                         if (double.TryParse(str, out var valued))
                             val_ = valued;
                         else
                             throw new SemanticAnalyzeException("wrong double precision format");
                         break;
 
-                    case NumericType nt:
+                    case NumericType _:
                         val_ = Convert.ToDecimal(str);
                         break;
 
-                    case DateTimeType dtt:
+                    case DateTimeType _:
                         var datestr = str.RemoveStringQuotes();
                         if (DateTime.TryParse(datestr, out var valuedt))
                             val_ = valuedt;

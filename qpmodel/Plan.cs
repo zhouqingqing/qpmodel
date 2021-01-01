@@ -102,10 +102,12 @@ namespace qpmodel.logic
 
         public QueryOption Clone()
         {
-            var newoption = new QueryOption();
-            newoption.optimize_ = optimize_.Clone();
-            newoption.explain_ = explain_.Clone();
-            newoption.profile_ = profile_.Clone();
+            var newoption = new QueryOption
+            {
+                optimize_ = optimize_.Clone(),
+                explain_ = explain_.Clone(),
+                profile_ = profile_.Clone()
+            };
             return newoption;
         }
 

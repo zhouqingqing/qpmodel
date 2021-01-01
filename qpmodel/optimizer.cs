@@ -115,22 +115,22 @@ namespace qpmodel.optimizer
         // enforce my property to the @node where @node already have property @nodehave
         internal PhysicNode EnforceProperty(PhysicNode node, PhysicProperty nodehave)
         {
-            // since the property tranformation process is
+            // since the property transformation process is
             // one enforcement node, either the order is supplied
             // or the distribution is supplied
             if (OrderIsSuppliedBy(nodehave))
                 return EnforceDistribution(node, nodehave);
             if (DistributionIsSuppliedBy(nodehave))
-                return EnforceOrder(node, nodehave);
+                return EnforceOrder(node);
             Debug.Assert(false);
             return null;
         }
 
         // Not need to process @nodehave because say @nodehave = 'order by a' and my property is
         // is 'order by a, b', I still have to do add both 'a' and 'b' to the PhysicOrder unless
-        // we support partial sort functionality (caching 'a''s nth value each time, sorting 'b').
+        // we support partial sort functionality (caching a's nth value each time, sorting 'b').
         //
-        internal PhysicNode EnforceOrder(PhysicNode node, PhysicProperty nodehave)
+        internal PhysicNode EnforceOrder(PhysicNode node)
         {
             List<Expr> order = new List<Expr>();
             List<bool> desc = new List<bool>();
@@ -556,7 +556,7 @@ namespace qpmodel.optimizer
                 List<string> l = new List<string>();
                 foreach (var pair in minMember_)
                 {
-                    var s = $"property:{pair.Key}, member:{pair.Value.member}, cost:{pair.Value.cost.ToString("0.##")}";
+                    var s = $"property:{pair.Key}, member:{pair.Value.member}, cost:{pair.Value.cost:0.##}";
                     foreach (var childpair in pair.Value.member.propertyPairs_)
                         s += $"\n\t\treq:{childpair.Key}, child:({string.Join(",", childpair.Value ?? new ChildrenRequirement())})";
                     l.Add(s);
@@ -626,8 +626,10 @@ namespace qpmodel.optimizer
             {
                 if (reqdistr == DistrType.Singleton)
                 {
-                    var nonorder = new PhysicProperty();
-                    nonorder.distribution_ = required.distribution_;
+                    var nonorder = new PhysicProperty
+                    {
+                        distribution_ = required.distribution_
+                    };
                     output.Add(nonorder);
                 }
             }
@@ -674,8 +676,10 @@ namespace qpmodel.optimizer
                 var enforcerNode = required.EnforceProperty(member.physic_, prop);
                 Debug.Assert(enforcerNode.children_.Count == 1);
                 enforcerNode.children_ = new List<PhysicNode> { new PhysicMemoRef(new LogicMemoRef(this)) };
-                var newmember = new CGroupMember(enforcerNode, this);
-                newmember.isEnforcer_ = true;
+                var newmember = new CGroupMember(enforcerNode, this)
+                {
+                    isEnforcer_ = true
+                };
                 newmember.propertyPairs_.Add(required, new ChildrenRequirement { prop });
                 exprList_.Add(newmember);
 
@@ -921,7 +925,7 @@ namespace qpmodel.optimizer
                 graph = JoinResolver.ExtractJoinGraph(plan,
                                         out filterNodeParent, out index, out filterNode);
 
-                // if join solver can't handle it, fallback
+                // if join solver can't handle it, fall back
                 if (graph != null)
                 {
                     graph.memo_ = this;
@@ -963,9 +967,9 @@ namespace qpmodel.optimizer
 
         // Expressions in the same group logically shall have the same cardinality. This is not
         // possible however if we compute CE for both AxBxC and AxCxB because the formula does 
-        // guarantee associative. So we compoute the first expression in the group and align
+        // guarantee associative. So we compute the first expression in the group and align
         // all others to it. This is not perfect though, as the order of expression in the group
-        // actually decides the cardinalty. 
+        // actually decides the cardinality. 
         // 
         public void FixGroupCardinality()
         {
@@ -1067,7 +1071,7 @@ namespace qpmodel.optimizer
                 memo.rootgroup_ = memo.EnquePlan(ConvertOrder(logicroot, memo));
             }
 
-            // enqueue the subqueries: fromquery are excluded because different from 
+            // enqueue the subqueries: from-query are excluded because different from 
             // other subqueries (IN, EXISTS etc), the subtree of it is actually connected 
             // in the same memo.
             //

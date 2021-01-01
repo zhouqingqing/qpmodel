@@ -743,8 +743,10 @@ namespace qpmodel.physic
                     var logic = logic_ as LogicJoin;
                     if (IsExprMatch(required, logic.leftKeys_))
                     {
-                        var outerreq = new DistrProperty();
-                        outerreq.ordering_ = required.ordering_;
+                        var outerreq = new DistrProperty
+                        {
+                            ordering_ = required.ordering_
+                        };
                         listChildReqs.Add(new ChildrenRequirement { outerreq, DistrProperty.Singleton_ });
                         return true;
                     }

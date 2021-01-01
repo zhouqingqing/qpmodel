@@ -504,7 +504,6 @@ namespace qpmodel.logic
     {
         public static bool LeftReferencesRight(this LogicNode l, LogicNode r)
         {
-            var ltables = l.InclusiveTableRefs();
             var rtables = r.InclusiveTableRefs();
 
             // if right does not even referenced by any subqueries, surely left does not reference right
@@ -692,7 +691,7 @@ namespace qpmodel.logic
             }
         }
 
-        public bool isSubSet(List<TableRef> small, List<TableRef> big) => small.All(t => big.Any(b => b == t));
+        public bool IsSubSet(List<TableRef> small, List<TableRef> big) => small.All(t => big.Any(b => b == t));
 
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
@@ -707,7 +706,7 @@ namespace qpmodel.logic
             var rtables = rchild_().InclusiveTableRefs();
             var lreq = new HashSet<Expr>();
             var rreq = new HashSet<Expr>();
-            // seperate the output to related child respectively
+            // separate the output to related child respectively
             Debug.Assert((this.lchild_() != null) && (this.rchild_() != null));
             if (this is LogicMarkJoin LMJ)
             {
@@ -726,7 +725,7 @@ namespace qpmodel.logic
                 // if this is the markjoin@1, the marker@1 is produce by this MarkJoin
                 // we should keep marker@1, meanwhile, delete it in reqFromChild
                 // and should figure out which side has produced marker@2
-                // infact, we always use LeftMarkJoin, so the marker@2 may always drop into left.
+                // in fact, we always use LeftMarkJoin, so the marker@2 may always drop into left.
                 // so the rchild check may be unnecessary
                 lchild.VisitEach(x =>
                 {
@@ -737,7 +736,7 @@ namespace qpmodel.logic
                             if (v is MarkerExpr vM)
                             {
                                 var xTableRef = x.GetTableRef();
-                                if (isSubSet(vM.tableRefs_, xTableRef) && !(LMJ.subquery_id_ == vM.subqueryid_))
+                                if (IsSubSet(vM.tableRefs_, xTableRef) && !(LMJ.subquery_id_ == vM.subqueryid_))
                                 {
                                     lreq.Add(v);
                                     reqFromChildRemove.Add(v);
@@ -756,7 +755,7 @@ namespace qpmodel.logic
                             if (v is MarkerExpr vM)
                             {
                                 var xTableRef = x.GetTableRef();
-                                if (isSubSet(v.tableRefs_, xTableRef) && !(LMJ.subquery_id_ == vM.subqueryid_))
+                                if (IsSubSet(v.tableRefs_, xTableRef) && !(LMJ.subquery_id_ == vM.subqueryid_))
                                 {
                                     rreq.Add(v);
                                     reqFromChildRemove.Add(v);
@@ -771,7 +770,7 @@ namespace qpmodel.logic
                     reqFromChild.Remove(x);
                 });
             }
-            Expr thisReq = null; // markjoin will produce a Marker Expr
+            Expr thisReq = null; // mark-join will produce a Marker Expr
             foreach (var v in reqFromChild)
             {
                 if (!(v is MarkerExpr vM) || !(this is LogicMarkJoin lmj))
@@ -783,7 +782,7 @@ namespace qpmodel.logic
                         rreq.Add(v);
                     else
                     {
-                        // the whole list can't push to the children (Eg. a.a1 + b.b1)
+                        // the whole list can't push to the children (eg. a.a1 + b.b1)
                         // decompose to singleton and push down
                         var colref = v.RetrieveAllColExpr();
                         colref.ForEach(x =>
@@ -820,7 +819,7 @@ namespace qpmodel.logic
                 else
                 {
                     if (lmj.subquery_id_ == vM.subqueryid_)
-                        thisReq = v;// the lefted markjoin is requested by this
+                        thisReq = v;// the left mark-join is requested by this
                 }
             }
             // get left and right child to resolve columns

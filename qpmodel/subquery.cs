@@ -360,8 +360,10 @@ namespace qpmodel.logic
             LogicJoin newjoin = singJoinNode;
             if (!singJoinNode.max1rowCheck_)
             {
-                newjoin = new LogicJoin(singJoinNode.lchild_(), singJoinNode.rchild_(), singJoinNode.filter_);
-                newjoin.type_ = JoinType.Left;
+                newjoin = new LogicJoin(singJoinNode.lchild_(), singJoinNode.rchild_(), singJoinNode.filter_)
+                {
+                    type_ = JoinType.Left
+                };
             }
 
             return newjoin;
@@ -410,8 +412,10 @@ namespace qpmodel.logic
             {
                 // a1 > @1 => a1 > c1
                 var decExpr = nodeLeftFilter.SearchAndReplace(scalarExpr, singleValueExpr);
-                nonMovableFilter = new LogicFilter(singleJoinNode, decExpr);
-                nonMovableFilter.movable_ = false;
+                nonMovableFilter = new LogicFilter(singleJoinNode, decExpr)
+                {
+                    movable_ = false
+                };
             }
 
             // b1 = ?outsideRef => b1 = outsideRef

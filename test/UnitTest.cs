@@ -26,22 +26,21 @@
  */
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using qpmodel.dml;
+using qpmodel.expr;
+using qpmodel.logic;
+using qpmodel.optimizer;
+using qpmodel.physic;
+using qpmodel.sqlparser;
+using qpmodel.stat;
+using qpmodel.test;
+using qpmodel.tools;
+using qpmodel.utils;
 using System;
-using System.Linq;
-using System.IO;
 using System.Collections.Generic;
 using System.Diagnostics;
-
-using qpmodel.physic;
-using qpmodel.utils;
-using qpmodel.logic;
-using qpmodel.sqlparser;
-using qpmodel.optimizer;
-using qpmodel.test;
-using qpmodel.expr;
-using qpmodel.dml;
-using qpmodel.tools;
-using qpmodel.stat;
+using System.IO;
+using System.Linq;
 
 namespace qpmodel.unittest
 {
@@ -3634,9 +3633,9 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "2;2;1", out phyplan);
             sql = "select tumble_start(a0, interval '10' second), tumble_end(a0, interval '10' second), " +
                 "count(*) from ast group by tumble(a0, interval '10' second)";
-            TU.ExecuteSQL(sql, $"{new DateTime(2020, 5, 12, 7, 22, 10).ToString()},{new DateTime(2020, 5, 12, 7, 22, 20).ToString()},2;" +
-                $"{new DateTime(2020, 5, 12, 7, 22, 20).ToString()},{new DateTime(2020, 5, 12, 7, 22, 30).ToString()},2;" +
-                $"{new DateTime(2020, 5, 12, 7, 22, 50).ToString()},{new DateTime(2020, 5, 12, 7, 23, 0).ToString()},1", out phyplan);
+            TU.ExecuteSQL(sql, $"{new DateTime(2020, 5, 12, 7, 22, 10)},{new DateTime(2020, 5, 12, 7, 22, 20)},2;" +
+                $"{new DateTime(2020, 5, 12, 7, 22, 20)},{new DateTime(2020, 5, 12, 7, 22, 30)},2;" +
+                $"{new DateTime(2020, 5, 12, 7, 22, 50)},{new DateTime(2020, 5, 12, 7, 23, 0)},1", out phyplan);
         }
 
         [TestMethod]

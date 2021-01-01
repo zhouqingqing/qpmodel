@@ -565,9 +565,11 @@ namespace qpmodel.physic
 
         public void EntryPoint()
         {
-            var context = new DistributedContext(queryOpt_);
-            context.machineId_ = machineId_;
-            context.machines_ = machines_;
+            var context = new DistributedContext(queryOpt_)
+            {
+                machineId_ = machineId_,
+                machines_ = machines_
+            };
 
             // TBD: open subqueries
 
@@ -628,8 +630,10 @@ namespace qpmodel.physic
                                     planId,
                                     EmulateSerialization(this),
                                     context.option_);
-            var thread = new Thread(new ThreadStart(wo.EntryPoint));
-            thread.Name = $"Redis_{planId}@{machineId}";
+            var thread = new Thread(new ThreadStart(wo.EntryPoint))
+            {
+                Name = $"Redis_{planId}@{machineId}"
+            };
             context.machines_.RegisterThread(thread);
             thread.Start();
 
@@ -757,8 +761,10 @@ namespace qpmodel.physic
                                         planId,
                                         EmulateSerialization(this),
                                         context.option_);
-                var thread = new Thread(new ThreadStart(wo.EntryPoint));
-                thread.Name = $"Gather_{planId}@{machineId}";
+                var thread = new Thread(new ThreadStart(wo.EntryPoint))
+                {
+                    Name = $"Gather_{planId}@{machineId}"
+                };
                 workers.Add(thread);
                 context.machines_.RegisterThread(thread);
             }
