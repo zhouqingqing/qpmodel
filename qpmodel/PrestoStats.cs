@@ -69,13 +69,14 @@ namespace qpmodel.tools
     {
         static ColumnStat PrestoFormatConvert(PrestoColumnStats stat_in, int nRows)
         {
-            ColumnStat stat = new ColumnStat();
-
-            stat.nullfrac_ = (double)stat_in.nullsCount_ / (double)nRows;
-            stat.n_rows_ = (ulong)nRows;
-            stat.n_distinct_ = (ulong)stat_in.distinctValuesCount_;
-            stat.mcv_ = null;
-            stat.hist_ = null;
+            ColumnStat stat = new ColumnStat
+            {
+                nullfrac_ = (double)stat_in.nullsCount_ / (double)nRows,
+                n_rows_ = (ulong)nRows,
+                n_distinct_ = (ulong)stat_in.distinctValuesCount_,
+                mcv_ = null,
+                hist_ = null
+            };
 
             return stat;
         }
@@ -86,8 +87,10 @@ namespace qpmodel.tools
 
             foreach (string statFn in statFiles)
             {
-                PrestoTable currentTable = new PrestoTable(statFn);
-                currentTable.name = Path.GetFileNameWithoutExtension(statFn);
+                PrestoTable currentTable = new PrestoTable(statFn)
+                {
+                    name = Path.GetFileNameWithoutExtension(statFn)
+                };
 
                 string jsonStr = File.ReadAllText(statFn);
                 string trimmedJsonStr = Regex.Replace(jsonStr, "\\n", "");

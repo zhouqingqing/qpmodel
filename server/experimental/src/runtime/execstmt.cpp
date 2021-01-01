@@ -8,8 +8,7 @@
 // Entry points into execution of DDL, DML, DCL statements.
 // They do whatever setup they have to and hand over control to PhysicNode
 //
-namespace andb
-{
+namespace andb {
 
 bool SelectStmt::Open()
 {
@@ -38,16 +37,16 @@ bool SelectStmt::Close()
 
 std::vector<Row> SelectStmt::Exec()
 {
-   std::vector<Row> resultSet;
-   
-   assert(execContext_ != nullptr);
-   bool moreData = true;
-   while (moreData) {
-      andb::ExecuteCtx(physicPlan_, [&](Row *row) {
+    std::vector<Row> resultSet;
+
+    assert(execContext_ != nullptr);
+    bool moreData = true;
+    while (moreData) {
+        andb::ExecuteCtx(physicPlan_, [&](Row* row) {
             if (row)
-               resultSet.emplace_back(*row);
+                resultSet.emplace_back(*row);
             else
-               moreData = false;
+                moreData = false;
 
             //
             // This is tricky, at least to me.
@@ -66,9 +65,9 @@ std::vector<Row> SelectStmt::Exec()
             // Since the row gets copied here, we return false and Executor
             // can delete it or reuse it.
             return false;
-       });
-   }
+        });
+    }
 
-   return resultSet;
+    return resultSet;
 }
 } // namespace andb

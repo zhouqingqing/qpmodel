@@ -275,8 +275,8 @@ namespace qpmodel.expr
             if (isCacheable_ && cachedValSet_)
             {
                 var hset = cachedVal_ as HashSet<Value>;
-                hasNull_ = hset.Contains(null) ? true : false;
-                var in_cache_flag = expr is null ? false : hset.Contains(expr); // null in (1,null)  false
+                hasNull_ = hset.Contains(null);
+                var in_cache_flag = !(expr is null) && hset.Contains(expr); // null in (1,null)  false
                 // not in [.. null ..] = false
                 return hasNot_ ? (!hasNull_ && !in_cache_flag) : in_cache_flag;
             }
@@ -288,7 +288,7 @@ namespace qpmodel.expr
                 set.Add(l[0]);
             });
 
-            hasNull_ = set.Contains(null) ? true : false;
+            hasNull_ = set.Contains(null);
             cachedVal_ = set;
             cachedValSet_ = true;
             bool in_flag = set.Contains(expr);

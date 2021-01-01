@@ -10,16 +10,15 @@
 #include "parser/include/logicnode.h"
 #include "runtime/physicnode.h"
 
-namespace andb
-{
+namespace andb {
 
 // for readonly operations
 const std::vector<Row*>* PhysicScan::getSourceReader(int distId) const
 {
     const std::vector<Row*>* result = nullptr;
     LogicScan*               lscan  = static_cast<LogicScan*>(logic_);
-    TableRef*               tref   = lscan->getBaseTableRef();
-    result         = &(tref->tabDef_->distributions_->at(0).heap_);
+    TableRef*                tref   = lscan->getBaseTableRef();
+    result                          = &(tref->tabDef_->distributions_->at(0).heap_);
 
     return result;
 }
@@ -32,4 +31,3 @@ std::vector<Row*>* PhysicScan::getSourceWriter(int distId)
     return result;
 }
 } // namespace andb
-

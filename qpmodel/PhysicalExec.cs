@@ -432,9 +432,9 @@ namespace qpmodel.physic
     //
     public class ExchangeChannel
     {
-        BlockingCollection<Row> dataBuffer_ = new BlockingCollection<Row>();
+        readonly BlockingCollection<Row> dataBuffer_ = new BlockingCollection<Row>();
         int cntDoneProducers_ = 0;
-        int cntProducers_;
+        readonly int cntProducers_;
 
         public ExchangeChannel(int dop)
         {
@@ -529,12 +529,10 @@ namespace qpmodel.physic
 
         public void WaitForAllThreads()
         {
-            Thread thread = null;
-            bool succ = false;
-
             while (!threads_.IsEmpty)
             {
-                succ = threads_.TryDequeue(out thread);
+                Thread thread;
+                bool succ = threads_.TryDequeue(out thread);
                 if (succ)
                     thread.Join();
             }
@@ -567,9 +565,11 @@ namespace qpmodel.physic
 
         public void EntryPoint()
         {
-            var context = new DistributedContext(queryOpt_);
-            context.machineId_ = machineId_;
-            context.machines_ = machines_;
+            var context = new DistributedContext(queryOpt_)
+            {
+                machineId_ = machineId_,
+                machines_ = machines_
+            };
 
             // TBD: open subqueries
 
@@ -630,8 +630,10 @@ namespace qpmodel.physic
                                     planId,
                                     EmulateSerialization(this),
                                     context.option_);
-            var thread = new Thread(new ThreadStart(wo.EntryPoint));
-            thread.Name = $"Redis_{planId}@{machineId}";
+            var thread = new Thread(new ThreadStart(wo.EntryPoint))
+            {
+                Name = $"Redis_{planId}@{machineId}"
+            };
             context.machines_.RegisterThread(thread);
             thread.Start();
 
@@ -678,7 +680,6 @@ namespace qpmodel.physic
         protected void execBroadCast(Action<Row> callback)
         {
             Row r;
-            ExecContext context = context_;
             while ((r = channel_.Recv()) != null)
                 callback(r);
         }
@@ -760,8 +761,10 @@ namespace qpmodel.physic
                                         planId,
                                         EmulateSerialization(this),
                                         context.option_);
-                var thread = new Thread(new ThreadStart(wo.EntryPoint));
-                thread.Name = $"Gather_{planId}@{machineId}";
+                var thread = new Thread(new ThreadStart(wo.EntryPoint))
+                {
+                    Name = $"Gather_{planId}@{machineId}"
+                };
                 workers.Add(thread);
                 context.machines_.RegisterThread(thread);
             }
@@ -778,8 +781,6 @@ namespace qpmodel.physic
 
         public override void ExecConsumer(Action<Row> callback)
         {
-            ExecContext context = context_;
-
             if (cache_ != null)
             {
                 foreach (var row in cache_)

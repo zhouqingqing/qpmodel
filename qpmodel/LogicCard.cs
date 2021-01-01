@@ -119,7 +119,7 @@ namespace qpmodel.logic
         }
         public override ulong LogicAggCE(LogicAgg node)
         {
-            ulong card = 1;
+            ulong card;
             if (node.groupby_ is null)
                 card = 1;
             else
@@ -176,15 +176,13 @@ namespace qpmodel.logic
             node.CreateKeyList();
             var cardl = node.lchild_().Card();
             var cardr = node.rchild_().Card();
-
-            ulong dl = 0, dr = 0, mindlr = 1;
+            ulong mindlr = 1;
             for (int i = 0; i < node.leftKeys_.Count; i++)
             {
                 var lv = node.leftKeys_[i];
-                dl = getDistinct(lv);
+                ulong dl = getDistinct(lv);
                 var rv = node.rightKeys_[i];
-                dr = getDistinct(rv);
-
+                ulong dr = getDistinct(rv);
                 if (node.ops_[i] != "=")
                 {
                     mindlr = 0;

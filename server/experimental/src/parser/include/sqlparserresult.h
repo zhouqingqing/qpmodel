@@ -7,10 +7,11 @@ namespace andb {
 class SQLStatement;
 class Expr;
 
-  // Represents the result of the SQLParser.
-  // If parsing was successful it contains a list of SQLStatement.
-  class SQLParserResult {
-   public:
+// Represents the result of the SQLParser.
+// If parsing was successful it contains a list of SQLStatement.
+class SQLParserResult
+{
+    public:
     // Initialize with empty statement list.
     SQLParserResult();
 
@@ -71,7 +72,7 @@ class Expr;
 
     const std::vector<Expr*>& parameters();
 
-   private:
+    private:
     // List of statements within the result.
     std::vector<SQLStatement*> statements_;
 
@@ -89,7 +90,7 @@ class Expr;
 
     // Does NOT have ownership.
     std::vector<Expr*> parameters_;
-  };
+};
 
 }
 #endif // __SQLPARSERRESULT_H_

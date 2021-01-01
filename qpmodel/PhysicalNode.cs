@@ -76,7 +76,7 @@ namespace qpmodel.physic
                 {
                     var log = phy.logic_;
 
-                    // we may want to check log.output_.Count != 0 but special cases inclue:
+                    // we may want to check log.output_.Count != 0 but special cases include:
                     // 1) cross join may have one side output empty row
                     // 2) select 'a' from a, which does not require any columns
                     // 3) intersect op may not require output from one side
@@ -122,7 +122,7 @@ namespace qpmodel.physic
             children_.ForEach(x => x.Close());
             context_ = null;
         }
-        // @context is to carray parameters etc, @callback.Row is current row for processing
+        // @context is to carry parameters etc, @callback.Row is current row for processing
         public abstract void Exec(Action<Row> callback);
 
         public string ExecProjectCode(string input)
@@ -160,7 +160,7 @@ namespace qpmodel.physic
         protected virtual double EstimateCost() => double.NaN;
 
         // inclusive cost summarize its own cost and its children cost. During 
-        // optimiztaion it is a dynamic measurement, we do so by summarize its
+        // optimization it is a dynamic measurement, we do so by summarize its
         // best children's.
         public double InclusiveCost()
         {
@@ -238,8 +238,10 @@ namespace qpmodel.physic
         //
         public virtual bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs)
         {
-            listChildReqs = new List<ChildrenRequirement>();
-            listChildReqs.Add(new ChildrenRequirement());
+            listChildReqs = new List<ChildrenRequirement>
+            {
+                new ChildrenRequirement()
+            };
             // the default is singleton with no order requirement
             // assume all the physic nodes can process singleton
             if (required.IsSuppliedBy(DistrProperty.Singleton_))
@@ -259,7 +261,7 @@ namespace qpmodel.physic
         public BitVector tableContained_ { get => logic_.tableContained_; }
 
         #region codegen support
-        // local varialbes are named locally by append the local hmid. Record r passing
+        // local variables are named locally by append the local hmid. Record r passing
         // across callback boundaries are special: they have to be uniquely named and
         // use consistently.
         //
@@ -741,8 +743,10 @@ namespace qpmodel.physic
                     var logic = logic_ as LogicJoin;
                     if (IsExprMatch(required, logic.leftKeys_))
                     {
-                        var outerreq = new DistrProperty();
-                        outerreq.ordering_ = required.ordering_;
+                        var outerreq = new DistrProperty
+                        {
+                            ordering_ = required.ordering_
+                        };
                         listChildReqs.Add(new ChildrenRequirement { outerreq, DistrProperty.Singleton_ });
                         return true;
                     }
@@ -804,7 +808,6 @@ namespace qpmodel.physic
             // recreate the left side and right side key list - can't reuse old values 
             // because earlier optimization time keylist may have wrong bindings
             //
-            var logic = logic_ as LogicJoin;
             if (context.option_.optimize_.use_codegen_)
             {
                 context.code_ += $@"var hm{_} = new Dictionary<KeyList, List<TaggedRow>>();";
@@ -851,8 +854,10 @@ namespace qpmodel.physic
                     }
                     else
                     {
-                        var rows = new List<TaggedRow>();
-                        rows.Add(new TaggedRow(l));
+                        var rows = new List<TaggedRow>
+                        {
+                            new TaggedRow(l)
+                        };
                         hm.Add(keys, rows);
                     }
                 }
@@ -1844,12 +1849,9 @@ namespace qpmodel.physic
         {
             return logic_.Card() * 0.5;
         }
-
         void RowCntSampling(Row l)
         {
-            var logic = logic_ as LogicSampleScan;
-
-            // Reservior sampling
+            // Reservoir sampling
             Debug.Assert(l != null);
             curSample_++;
             if (curCnt_ < target_)

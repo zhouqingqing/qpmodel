@@ -56,9 +56,9 @@ class SQLStatement : public UseCurrentResource
     }
 
     virtual ~SQLStatement();
-    virtual void Bind(Binder* binder) {}
+    virtual void  Bind(Binder* binder) {}
     StatementType type() const;
-    bool isType(StatementType type) const;
+    bool          isType(StatementType type) const;
 
     // Shorthand for isType(type).
     bool is(StatementType type) const;
@@ -67,28 +67,26 @@ class SQLStatement : public UseCurrentResource
     // How about the traditional Prepare(), Exec(), Fetch(), Close()?
     // Excecute the statement.
     // If it is a SELECT, then rows will have the result set, if there is one.
-    virtual std::vector<Row> Exec() = 0;
-    virtual bool             Close() = 0;
-    virtual LogicNode  *CreatePlan(void)                   = 0;
-    virtual PhysicNode *Optimize(void)                     = 0;
-    virtual std::string Explain(void* arg = nullptr) const = 0;
+    virtual std::vector<Row> Exec()                             = 0;
+    virtual bool             Close()                            = 0;
+    virtual LogicNode*       CreatePlan(void)                   = 0;
+    virtual PhysicNode*      Optimize(void)                     = 0;
+    virtual std::string      Explain(void* arg = nullptr) const = 0;
 
     // Length of the string in the SQL query string
     size_t stringLength;
 
     std::vector<Expr*>* hints;
 
-
     StatementType type_;
     // END HYRISE
 
-        LogicNode*    logicPlan_;
+    LogicNode*    logicPlan_;
     PhysicNode*   physicPlan_;
     QueryOptions* queryOpts_;
     ExecContext*  execContext_;
 
-    Binder*       context;
-
+    Binder* context;
 };
 
 class SelectStmt : public SQLStatement
@@ -109,14 +107,16 @@ class SelectStmt : public SQLStatement
 
         auto rit = from_.begin(), rie = from_.end(), rin = rit;
         while (rit != rie) {
-            TableRef *tref = *rit;
-            TableDef *tdef = tref->tabDef_ ? tref->tabDef_ : nullptr;
+            TableRef* tref = *rit;
+            TableDef* tdef = tref->tabDef_ ? tref->tabDef_ : nullptr;
 #ifdef _DEBUG
             if (tdef) {
-                std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": DEL FROM ENTRY: TBLREF " << (void *)tref << " " << *(tdef->name_) << std::endl;
-            }
-            else {
-                std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__ << ": DEL FROM ENTRY: TBLREF " << (void *)tref << " noname" << std::endl;
+                std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__
+                          << ": DEL FROM ENTRY: TBLREF " << (void*)tref << " " << *(tdef->name_)
+                          << std::endl;
+            } else {
+                std::cerr << "MEMDEBUG: " << __FILE__ << ":" << __LINE__
+                          << ": DEL FROM ENTRY: TBLREF " << (void*)tref << " noname" << std::endl;
             }
 #endif // _DEBUG
 
@@ -130,12 +130,12 @@ class SelectStmt : public SQLStatement
         where_ = nullptr;
     }
 
-    std::string Explain(void* arg = nullptr) const override;
-    LogicNode   *CreatePlan() override;
-    PhysicNode  *Optimize(void) override;
-    bool Open() override;
+    std::string      Explain(void* arg = nullptr) const override;
+    LogicNode*       CreatePlan() override;
+    PhysicNode*      Optimize(void) override;
+    bool             Open() override;
     std::vector<Row> Exec() override;
-    bool Close() override;
+    bool             Close() override;
 
     void setSelections(std::vector<Expr*>* sels)
     {

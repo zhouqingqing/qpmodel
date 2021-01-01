@@ -63,7 +63,7 @@ class Instance : public IInstance
     void Shutdown() override {}
 };
 
-static Instance       instance_;
+static Instance instance_;
 #if !defined(NDEBUG) && defined(_WIN32) && defined(__USE_CRT_MEM_DEBUG)
 static CrtCheckMemory memoryChecker;
 #endif
@@ -103,14 +103,14 @@ static void processSQL(void)
     bool moreInput = getNextStmt();
 
     while ((mode_interactive_on || mode_batch_on) && moreInput) {
-        SQLParserResult presult;
+        SQLParserResult  presult;
         SelectStatement* selStmt = nullptr;
-        PhysicNode* physic = nullptr;
-        LogicNode*  root   = nullptr;
+        PhysicNode*      physic  = nullptr;
+        LogicNode*       root    = nullptr;
         try {
             selStmt = nullptr;
-            physic = nullptr;
-            root   = nullptr;
+            physic  = nullptr;
+            root    = nullptr;
 
             bool ret = ParseSQL(query, &presult);
 
@@ -118,9 +118,9 @@ static void processSQL(void)
                 std::cout << "PASSED: " << query << std::endl;
 
                 selStmt = (SelectStmt*)presult.getStatement(0);
-                Binder binder (selStmt);
-                binder.Bind ();
-                if (binder.GetError ()) {
+                Binder binder(selStmt);
+                binder.Bind();
+                if (binder.GetError()) {
                     std::cout << "ERROR: Binder error\n";
                     continue;
                 }
@@ -144,34 +144,28 @@ static void processSQL(void)
                 std::cout << "ERROR: " << (emsg ? emsg : "unkown") << " L = " << el << " C = " << ec
                           << std::endl;
             }
-        }
-        catch (const SemanticAnalyzeException& sae) {
+        } catch (const SemanticAnalyzeException& sae) {
             std::cerr << "EXCEPTION: " << sae.what() << std::endl;
-        }
-        catch (const SemanticExecutionException& see) {
+        } catch (const SemanticExecutionException& see) {
             std::cerr << "EXCEPTION: " << see.what() << std::endl;
-        }
-        catch (const SemanticException& sme) {
+        } catch (const SemanticException& sme) {
             std::cerr << "EXCEPTION: " << sme.what() << std::endl;
-        }
-        catch (const RuntimeException& rte) {
+        } catch (const RuntimeException& rte) {
             std::cerr << "EXCEPTION: " << rte.what() << std::endl;
-        }
-        catch (const ParserException& pae) {
+        } catch (const ParserException& pae) {
             std::cerr << "EXCEPTION: " << pae.what() << std::endl;
         } catch (const NotImplementedException& nyi) {
             std::cerr << "EXCEPTION: " << nyi.what() << std::endl;
-        }
-        catch (const std::exception& e) {
+        } catch (const std::exception& e) {
             std::cerr << "EXCEPTION: " << e.what() << std::endl;
         } catch (...) {
             std::cerr << "EXCEPTION: Unknown exception" << std::endl;
         }
-            
+
         if (selStmt)
             selStmt->Close();
         delete selStmt;
-            
+
         presult.reset();
         moreInput = getNextStmt();
     }
@@ -213,7 +207,7 @@ static void processOptions(int argc, char* argv[])
 }
 
 static bool setupInput()
-{    
+{
     if (mode_batch_on) {
         querySrc = std::ifstream(inputFile);
         if (querySrc.bad() || querySrc.eof())
