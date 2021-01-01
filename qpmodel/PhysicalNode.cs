@@ -1851,7 +1851,6 @@ namespace qpmodel.physic
         }
         void RowCntSampling(Row l)
         {
-
             // Reservoir sampling
             Debug.Assert(l != null);
             curSample_++;
