@@ -165,7 +165,7 @@ namespace qpmodel.utils
         // search any with type @T1 and replace with replacefn(T1)
         public T SearchAndReplace<T1>(Func<T1, T> replacefn) where T1 : T
         {
-            bool checkfn(T e) => e is T1;
+            static bool checkfn(T e) => e is T1;
             return SearchAndReplace<T1>(checkfn, replacefn);
         }
 
@@ -231,7 +231,7 @@ namespace qpmodel.utils
 
         public static string RemoveStringQuotes(this string str)
         {
-            Debug.Assert(str[0] == '\'' && str[str.Length - 1] == '\'');
+            Debug.Assert(str[0] == '\'' && str[^1] == '\'');
             var dequote = str[1..^1];
             return dequote;
         }
@@ -250,7 +250,7 @@ namespace qpmodel.utils
             }
             else if (Regex.IsMatch(pattern, "%[^%]+"))
             {
-                regpattern = regpattern + "$";
+                regpattern += "$";
             }
             regpattern = regpattern.Replace("%", ".*");
             regpattern = regpattern.Replace("_", ".{1}");
@@ -268,7 +268,7 @@ namespace qpmodel.utils
                 int end = r.IndexOf(']');
                 Debug.Assert(end != -1);
                 var middle = r.Substring(start + 1, end - start - 1);
-                Debug.Assert(int.TryParse(middle, out int result));
+                Debug.Assert(int.TryParse(middle, out _));
                 r = r.Replace($"[{middle}]", "");
             } while (r.Length > 0);
             return r;
@@ -288,7 +288,7 @@ namespace qpmodel.utils
 
                     // Processing row
                     string[] fields = parser.ReadFields();
-                    if (fields[fields.Length - 1].Equals(""))
+                    if (fields[^1].Equals(""))
                         Array.Resize(ref fields, fields.Length - 1);
                     action(fields);
                 }

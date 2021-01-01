@@ -199,14 +199,13 @@ namespace qpmodel.expr
             List<dynamic> args = new List<dynamic>();
             for (int i = 0; i < argcnt_; i++)
                 args.Add(args_()[i].Exec(context, input));
-            switch (argcnt_)
+            return argcnt_ switch
             {
-                case 0: return fncode();
-                case 1: return fncode(args[0]);
-                case 2: return fncode(args[0], args[1]);
-                default:
-                    throw new NotImplementedException();
-            }
+                0 => fncode(),
+                1 => fncode(args[0]),
+                2 => fncode(args[0], args[1]),
+                _ => throw new NotImplementedException(),
+            };
         }
     }
 
@@ -451,7 +450,6 @@ namespace qpmodel.expr
         public override Value Accum(ExecContext context, Value old, Row input)
         {
             var arg = arg_().Exec(context, input);
-            Type ltype, rtype; ltype = typeof(int); rtype = typeof(int);
             if (old is null)
                 sum_ = arg;
             else
@@ -561,7 +559,6 @@ namespace qpmodel.expr
         {
             var arg = arg_().Exec(context, input);
 
-            Type ltype, rtype; ltype = typeof(int); rtype = typeof(int);
             if (old is null)
                 min_ = arg;
             else
@@ -600,7 +597,6 @@ namespace qpmodel.expr
         {
             var arg = arg_().Exec(context, input);
 
-            Type ltype, rtype; ltype = typeof(int); rtype = typeof(int); // FIXME
             if (old is null)
                 max_ = arg;
             else
@@ -662,7 +658,6 @@ namespace qpmodel.expr
         public override Value Accum(ExecContext context, Value old, Row input)
         {
             var arg = arg_().Exec(context, input);
-            Type ltype, rtype; ltype = typeof(int); rtype = typeof(int);
 
             Debug.Assert(old != null);
             AvgPair oldpair = old as AvgPair;
@@ -883,15 +878,12 @@ namespace qpmodel.expr
         public override object Exec(ExecContext context, Row input)
         {
             Value arg = arg_().Exec(context, input);
-            switch (op_)
+            return op_ switch
             {
-                case "-":
-                    return -(dynamic)arg;
-                case "!":
-                    return !(bool)arg;
-                default:
-                    return arg;
-            }
+                "-" => -(dynamic)arg,
+                "!" => !(bool)arg,
+                _ => arg,
+            };
         }
     }
 
@@ -982,17 +974,15 @@ namespace qpmodel.expr
 
         public static string SwapSideOp(string op)
         {
-            switch (op)
+            return op switch
             {
-                case ">": return "<";
-                case ">=": return "<=";
-                case "<": return ">";
-                case "<=": return ">=";
-                case "in":
-                    throw new InvalidProgramException("not switchable");
-                default:
-                    return op;
-            }
+                ">" => "<",
+                ">=" => "<=",
+                "<" => ">",
+                "<=" => ">=",
+                "in" => throw new InvalidProgramException("not switchable"),
+                _ => op,
+            };
         }
 
         public void SwapSide()
@@ -1092,23 +1082,20 @@ namespace qpmodel.expr
         {
             string lv = "(dynamic)" + lchild_().ExecCode(context, input);
             string rv = "(dynamic)" + rchild_().ExecCode(context, input);
-
-            string code;
-            switch (op_)
+            string code = op_ switch
             {
-                case "+": code = $"({lv} + {rv})"; break;
-                case "-": code = $"({lv} - {rv})"; break;
-                case "*": code = $"({lv} * {rv})"; break;
-                case "/": code = $"({lv} / {rv})"; break;
-                case ">": code = $"({lv} > {rv})"; break;
-                case ">=": code = $"({lv} >= {rv})"; break;
-                case "<": code = $"({lv} < {rv})"; break;
-                case "<=": code = $"({lv} <= {rv})"; break;
-                case "=": code = $"({lv} == {rv})"; break;
-                case " and ": code = $"((bool){lv} && (bool){rv})"; break;
-                default:
-                    throw new NotImplementedException();
-            }
+                "+" => $"({lv} + {rv})",
+                "-" => $"({lv} - {rv})",
+                "*" => $"({lv} * {rv})",
+                "/" => $"({lv} / {rv})",
+                ">" => $"({lv} > {rv})",
+                ">=" => $"({lv} >= {rv})",
+                "<" => $"({lv} < {rv})",
+                "<=" => $"({lv} <= {rv})",
+                "=" => $"({lv} == {rv})",
+                " and " => $"((bool){lv} && (bool){rv})",
+                _ => throw new NotImplementedException(),
+            };
             return code;
         }
     }

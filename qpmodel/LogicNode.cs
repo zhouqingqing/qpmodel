@@ -870,7 +870,7 @@ namespace qpmodel.logic
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             // a1 = max(b1) => a1, max(b1)
-            void addColumnAndAggFuncs(Expr expr, HashSet<Expr> list)
+            static void addColumnAndAggFuncs(Expr expr, HashSet<Expr> list)
             {
                 if (!(expr is AggFunc))
                 {
@@ -971,11 +971,6 @@ namespace qpmodel.logic
                     e => e.IsLeaf() && !(e is ConstExpr) && !e.Equals(constTrue)))
                 return true;
             return false;
-        }
-
-        bool ExprIsAggFnOnAggrRef(Expr expr)
-        {
-            return expr is AggFunc ea && ea.HasAggrRef();
         }
 
         List<AggFunc> reqlistGetAggrRefs(List<Expr> reqList)

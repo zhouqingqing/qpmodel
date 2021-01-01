@@ -920,10 +920,9 @@ namespace qpmodel.optimizer
                 // both power of join solver and memo.
                 //
                 JoinGraph graph = null;
-                LogicFilter filterNode = null;
-                LogicNode filterNodeParent = null; int index = -1;
+                int index = -1;
                 graph = JoinResolver.ExtractJoinGraph(plan,
-                                        out filterNodeParent, out index, out filterNode);
+                                        out LogicNode filterNodeParent, out index, out LogicFilter filterNode);
 
                 // if join solver can't handle it, fall back
                 if (graph != null)

@@ -467,7 +467,7 @@ namespace qpmodel.expr
         //
         public static bool FilterHashable(this Expr filter)
         {
-            bool OneFilterHashable(Expr filter)
+            static bool OneFilterHashable(Expr filter)
             {
                 if (filter is BinExpr bf && bf.op_.Equals("="))
                 {
