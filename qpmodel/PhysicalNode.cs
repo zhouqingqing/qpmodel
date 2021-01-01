@@ -1849,7 +1849,6 @@ namespace qpmodel.physic
         {
             return logic_.Card() * 0.5;
         }
-
         void RowCntSampling(Row l)
         {
 

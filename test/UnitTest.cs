@@ -2255,7 +2255,6 @@ namespace qpmodel.unittest
             TU.ExecuteSQL("INSERT INTO a VALUES(4,5,6,7)");
             TU.ExecuteSQL("INSERT INTO a VALUES(5,6,7,8)");
 
-
             // lowcase reprensent binaryExpr such as a1<2
             // @1 reprensent nested subquery
 
