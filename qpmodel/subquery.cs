@@ -145,7 +145,7 @@ namespace qpmodel.logic
 
             // if there is any (#marker@1 or @2), the root should be replace, 
             // i.e. the (#marker@1 or @2)  keeps at the top for farther unnesting
-            canReplace = andlist.Find(x => (x is LogicOrExpr) && hasAnyExtraSubqueryExprInOR(x, existExpr)) == null ? false : true;
+            canReplace = andlist.Find(x => (x is LogicOrExpr) && hasAnyExtraSubqueryExprInOR(x, existExpr)) != null;
 
             if (andlist.Count == 0 || canReplace)
                 // nodeA is root, a ref parameter. (why it is a ref parameter without "ref" or "out" )
@@ -360,8 +360,10 @@ namespace qpmodel.logic
             LogicJoin newjoin = singJoinNode;
             if (!singJoinNode.max1rowCheck_)
             {
-                newjoin = new LogicJoin(singJoinNode.lchild_(), singJoinNode.rchild_(), singJoinNode.filter_);
-                newjoin.type_ = JoinType.Left;
+                newjoin = new LogicJoin(singJoinNode.lchild_(), singJoinNode.rchild_(), singJoinNode.filter_)
+                {
+                    type_ = JoinType.Left
+                };
             }
 
             return newjoin;
@@ -410,8 +412,10 @@ namespace qpmodel.logic
             {
                 // a1 > @1 => a1 > c1
                 var decExpr = nodeLeftFilter.SearchAndReplace(scalarExpr, singleValueExpr);
-                nonMovableFilter = new LogicFilter(singleJoinNode, decExpr);
-                nonMovableFilter.movable_ = false;
+                nonMovableFilter = new LogicFilter(singleJoinNode, decExpr)
+                {
+                    movable_ = false
+                };
             }
 
             // b1 = ?outsideRef => b1 = outsideRef
@@ -720,7 +724,7 @@ namespace qpmodel.logic
                         fixMarkerValue(n, false);
                     else
                     {
-                        bool boolMarker = marker is true ? true : false;
+                        bool boolMarker = marker is true;
                         fixMarkerValue(n, semi ? boolMarker : !boolMarker);
                     }
 
@@ -731,7 +735,7 @@ namespace qpmodel.logic
                     Row r = new Row(rchild_().logic_.output_.Count);
                     Row n = new Row(l, r);
                     n = ExecProject(n);
-                    fixMarkerValue(n, semi ? false : true);
+                    fixMarkerValue(n, !semi);
                     callback(n);
                 }
             });

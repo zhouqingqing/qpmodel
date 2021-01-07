@@ -89,8 +89,10 @@ namespace qpmodel.expr
         {
             if (op == " and ")
             {
-                LogicAndExpr newe = new LogicAndExpr(l, r);
-                newe.bounded_ = true;
+                LogicAndExpr newe = new LogicAndExpr(l, r)
+                {
+                    bounded_ = true
+                };
                 newe.FixNewExprTableRefs(l);
                 if (r.tableRefs_.Count > 0 && !newe.TableRefsContainedBy(r.tableRefs_))
                     newe.FixNewExprTableRefs(r);
@@ -551,9 +553,11 @@ namespace qpmodel.expr
                 if (lbe.op_ == "+" || lbe.op_ == "-")
                 {
                     string nop = (lbe.op_ == "+") ? "-" : "+";
-                    BinExpr newe = new BinExpr(rce, lrc, nop);
-                    newe.type_ = ColumnType.CoerseType(nop, lrc, rce);
-                    newe.bounded_ = true;
+                    BinExpr newe = new BinExpr(rce, lrc, nop)
+                    {
+                        type_ = ColumnType.CoerseType(nop, lrc, rce),
+                        bounded_ = true
+                    };
 
                     Value val = newe.Exec(null, null);
                     ConstExpr newc = ConstExpr.MakeConst(val, newe.type_);

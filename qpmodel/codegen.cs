@@ -66,14 +66,13 @@ namespace qpmodel.codegen
 {
     class CodeWriter
     {
-        static string path_ = "gen.cs";
+        static readonly string path_ = "gen.cs";
 
         static internal void Reset(string header)
         {
-            using (StreamWriter file = new StreamWriter(path_))
-            {
-                file.WriteLine(header);
-                file.WriteLine(@"
+            using StreamWriter file = new StreamWriter(path_);
+            file.WriteLine(header);
+            file.WriteLine(@"
                 using System;
 				using System.Collections.Generic;
 				using System.Diagnostics;
@@ -86,20 +85,17 @@ namespace qpmodel.codegen
                 using qpmodel.expr;
                 using qpmodel.dml;");
 
-                file.WriteLine(@"
+            file.WriteLine(@"
                 // entrance of query execution
                 public class QueryCode
                 {
                     public static void Run(SQLStatement stmt, ExecContext context)
                     {");
-            }
         }
         static internal void WriteLine(string str)
         {
-            using (StreamWriter file = File.AppendText(path_))
-            {
-                file.WriteLine(str);
-            }
+            using StreamWriter file = File.AppendText(path_);
+            file.WriteLine(str);
         }
     }
 

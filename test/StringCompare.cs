@@ -26,11 +26,6 @@
  */
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
-using System.Linq;
-using System.IO;
-using System.Collections.Generic;
-using System.Diagnostics;
 
 namespace qpmodel.unittest
 {
@@ -40,8 +35,8 @@ namespace qpmodel.unittest
         [TestMethod]
         public void TestStringCompare()
         {
-            var sql = "create table str1(col1 char(20), col2 varchar(25), col3 int);";
-            var stmtResult = TU.ExecuteSQL(sql);
+            string sql = "create table str1(col1 char(20), col2 varchar(25), col3 int);";
+            System.Collections.Generic.List<physic.Row> stmtResult = TU.ExecuteSQL(sql);
             Assert.AreEqual("", TU.error_);
 
             sql = "create table str2(col1 char(25), col2 varchar(35), col3 int);";

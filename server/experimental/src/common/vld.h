@@ -27,15 +27,16 @@
 
 #include "vld_def.h"
 
-typedef int            VLD_BOOL;
-typedef unsigned int   VLD_UINT;
-typedef size_t         VLD_SIZET;
-typedef void*          VLD_HMODULE;
+typedef int          VLD_BOOL;
+typedef unsigned int VLD_UINT;
+typedef size_t       VLD_SIZET;
+typedef void*        VLD_HMODULE;
 
 #if defined _DEBUG || defined VLD_FORCE_ENABLE
 
 #ifdef __AFXWIN_H__
-#error[VLD COMPILE ERROR] '#include <vld.h>' should appear before '#include <afxwin.h>' in file stdafx.h
+#error \
+  [VLD COMPILE ERROR] '#include <vld.h>' should appear before '#include <afxwin.h>' in file stdafx.h
 #endif
 
 #pragma comment(lib, "vld.lib")
@@ -51,274 +52,275 @@ typedef void*          VLD_HMODULE;
 //
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif // __cplusplus
 
-// VLDDisable - Disables Visual Leak Detector's memory leak detection at
-//   runtime. If memory leak detection is already disabled, then calling this
-//   function has no effect.
-//
-//  Note: In multithreaded programs, this function operates on a per-thread
-//    basis. In other words, if you call this function from one thread, then
-//    memory leak detection is only disabled for that thread. If memory leak
-//    detection is enabled for other threads, then it will remain enabled for
-//    those other threads. It was designed to work this way to insulate you,
-//    the programmer, from having to ensure thread synchronization when calling
-//    VLDEnable() and VLDDisable(). Without this, calling these two functions
-//    unsynchronized could result in unpredictable and unintended behavior.
-//    But this also means that if you want to disable memory leak detection
-//    process-wide, then you need to call this function from every thread in
-//    the process.
-//
-//  Return Value:
-//
-//    None.
-//
-__declspec(dllimport) void VLDDisable ();
+    // VLDDisable - Disables Visual Leak Detector's memory leak detection at
+    //   runtime. If memory leak detection is already disabled, then calling this
+    //   function has no effect.
+    //
+    //  Note: In multithreaded programs, this function operates on a per-thread
+    //    basis. In other words, if you call this function from one thread, then
+    //    memory leak detection is only disabled for that thread. If memory leak
+    //    detection is enabled for other threads, then it will remain enabled for
+    //    those other threads. It was designed to work this way to insulate you,
+    //    the programmer, from having to ensure thread synchronization when calling
+    //    VLDEnable() and VLDDisable(). Without this, calling these two functions
+    //    unsynchronized could result in unpredictable and unintended behavior.
+    //    But this also means that if you want to disable memory leak detection
+    //    process-wide, then you need to call this function from every thread in
+    //    the process.
+    //
+    //  Return Value:
+    //
+    //    None.
+    //
+    __declspec(dllimport) void VLDDisable();
 
-// VLDEnable - Enables Visual Leak Detector's memory leak detection at runtime.
-//   If memory leak detection is already enabled, which it is by default, then
-//   calling this function has no effect.
-//
-//  Note: In multithreaded programs, this function operates on a per-thread
-//    basis. In other words, if you call this function from one thread, then
-//    memory leak detection is only enabled for that thread. If memory leak
-//    detection is disabled for other threads, then it will remain disabled for
-//    those other threads. It was designed to work this way to insulate you,
-//    the programmer, from having to ensure thread synchronization when calling
-//    VLDEnable() and VLDDisable(). Without this, calling these two functions
-//    unsynchronized could result in unpredictable and unintended behavior.
-//    But this also means that if you want to enable memory leak detection
-//    process-wide, then you need to call this function from every thread in
-//    the process.
-//
-//  Return Value:
-//
-//    None.
-//
-__declspec(dllimport) void VLDEnable ();
+    // VLDEnable - Enables Visual Leak Detector's memory leak detection at runtime.
+    //   If memory leak detection is already enabled, which it is by default, then
+    //   calling this function has no effect.
+    //
+    //  Note: In multithreaded programs, this function operates on a per-thread
+    //    basis. In other words, if you call this function from one thread, then
+    //    memory leak detection is only enabled for that thread. If memory leak
+    //    detection is disabled for other threads, then it will remain disabled for
+    //    those other threads. It was designed to work this way to insulate you,
+    //    the programmer, from having to ensure thread synchronization when calling
+    //    VLDEnable() and VLDDisable(). Without this, calling these two functions
+    //    unsynchronized could result in unpredictable and unintended behavior.
+    //    But this also means that if you want to enable memory leak detection
+    //    process-wide, then you need to call this function from every thread in
+    //    the process.
+    //
+    //  Return Value:
+    //
+    //    None.
+    //
+    __declspec(dllimport) void VLDEnable();
 
-// VLDRestore - Restore Visual Leak Detector's previous state.
-//
-//  Return Value:
-//
-//    None.
-//
-__declspec(dllimport) void VLDRestore ();
+    // VLDRestore - Restore Visual Leak Detector's previous state.
+    //
+    //  Return Value:
+    //
+    //    None.
+    //
+    __declspec(dllimport) void VLDRestore();
 
-// VLDGlobalDisable - Disables Visual Leak Detector's memory leak detection at
-//   runtime in all threads. If memory leak detection is already disabled,
-//   then calling this function has no effect.
-//
-//  Return Value:
-//
-//    None.
-//
-__declspec(dllimport) void VLDGlobalDisable ();
+    // VLDGlobalDisable - Disables Visual Leak Detector's memory leak detection at
+    //   runtime in all threads. If memory leak detection is already disabled,
+    //   then calling this function has no effect.
+    //
+    //  Return Value:
+    //
+    //    None.
+    //
+    __declspec(dllimport) void VLDGlobalDisable();
 
-// VLDGlobalEnable - Enables Visual Leak Detector's memory leak detection
-//   at runtime in all threads. If memory leak detection is already enabled,
-//   which it is by default, then calling this function has no effect.
-//
-//  Return Value:
-//
-//    None.
-//
-__declspec(dllimport) void VLDGlobalEnable ();
+    // VLDGlobalEnable - Enables Visual Leak Detector's memory leak detection
+    //   at runtime in all threads. If memory leak detection is already enabled,
+    //   which it is by default, then calling this function has no effect.
+    //
+    //  Return Value:
+    //
+    //    None.
+    //
+    __declspec(dllimport) void VLDGlobalEnable();
 
-// VLDReportLeaks - Report leaks up to the execution point.
-//
-//  Return Value:
-//
-//    None.
-//
-__declspec(dllimport) VLD_UINT VLDReportLeaks ();
+    // VLDReportLeaks - Report leaks up to the execution point.
+    //
+    //  Return Value:
+    //
+    //    None.
+    //
+    __declspec(dllimport) VLD_UINT VLDReportLeaks();
 
-// VLDReportThreadLeaks - Report thread leaks up to the execution point.
-//
-// threadId: thread Id.
-//
-//  Return Value:
-//
-//    None.
-//
-__declspec(dllimport) VLD_UINT VLDReportThreadLeaks (VLD_UINT threadId);
+    // VLDReportThreadLeaks - Report thread leaks up to the execution point.
+    //
+    // threadId: thread Id.
+    //
+    //  Return Value:
+    //
+    //    None.
+    //
+    __declspec(dllimport) VLD_UINT VLDReportThreadLeaks(VLD_UINT threadId);
 
-// VLDGetLeaksCount - Return memory leaks count to the execution point.
-//
-//  Return Value:
-//
-//    None.
-//
-__declspec(dllimport) VLD_UINT VLDGetLeaksCount ();
+    // VLDGetLeaksCount - Return memory leaks count to the execution point.
+    //
+    //  Return Value:
+    //
+    //    None.
+    //
+    __declspec(dllimport) VLD_UINT VLDGetLeaksCount();
 
-// VLDGetThreadLeaksCount - Return thread memory leaks count to the execution point.
-//
-// threadId: thread Id.
-//
-//  Return Value:
-//
-//    None.
-//
-__declspec(dllimport) VLD_UINT VLDGetThreadLeaksCount (VLD_UINT threadId);
+    // VLDGetThreadLeaksCount - Return thread memory leaks count to the execution point.
+    //
+    // threadId: thread Id.
+    //
+    //  Return Value:
+    //
+    //    None.
+    //
+    __declspec(dllimport) VLD_UINT VLDGetThreadLeaksCount(VLD_UINT threadId);
 
-// VLDMarkAllLeaksAsReported - Mark all leaks as reported.
-//
-//  Return Value:
-//
-//    None.
-//
-__declspec(dllimport) void VLDMarkAllLeaksAsReported ();
+    // VLDMarkAllLeaksAsReported - Mark all leaks as reported.
+    //
+    //  Return Value:
+    //
+    //    None.
+    //
+    __declspec(dllimport) void VLDMarkAllLeaksAsReported();
 
-// VLDMarkThreadLeaksAsReported - Mark thread leaks as reported.
-//
-// threadId: thread Id.
-//
-//  Return Value:
-//
-//    None.
-//
-__declspec(dllimport) void VLDMarkThreadLeaksAsReported (VLD_UINT threadId);
+    // VLDMarkThreadLeaksAsReported - Mark thread leaks as reported.
+    //
+    // threadId: thread Id.
+    //
+    //  Return Value:
+    //
+    //    None.
+    //
+    __declspec(dllimport) void VLDMarkThreadLeaksAsReported(VLD_UINT threadId);
 
+    // VLDRefreshModules - Look for recently loaded DLLs and patch them if necessary.
+    //
+    //  Return Value:
+    //
+    //    None.
+    //
+    __declspec(dllimport) void VLDRefreshModules();
 
-// VLDRefreshModules - Look for recently loaded DLLs and patch them if necessary.
-//
-//  Return Value:
-//
-//    None.
-//
-__declspec(dllimport) void VLDRefreshModules();
+    // VLDEnableModule - Enable Memory leak checking on the specified module.
+    //
+    // module: module handle.
+    //
+    //  Return Value:
+    //
+    //    None.
+    //
 
+    __declspec(dllimport) void VLDEnableModule(VLD_HMODULE module);
 
-// VLDEnableModule - Enable Memory leak checking on the specified module.
-//
-// module: module handle.
-//
-//  Return Value:
-//
-//    None.
-//
+    // VLDDisableModule - Disable Memory leak checking on the specified module.
+    //
+    // module: module handle.
+    //
+    //  Return Value:
+    //
+    //    None.
+    //
+    __declspec(dllimport) void VLDDisableModule(VLD_HMODULE module);
 
-__declspec(dllimport) void VLDEnableModule(VLD_HMODULE module);
+    // VLDGetOptions - Return all current options.
+    //
+    //  Return Value:
+    //
+    //    Mask of current options.
+    //
+    __declspec(dllimport) VLD_UINT VLDGetOptions();
 
+    // VLDGetReportFilename - Return current report filename.
+    //
+    // filename: current report filename (max characters - MAX_PATH).
+    //
+    //  Return Value:
+    //
+    //    None.
+    //
+    __declspec(dllimport) void VLDGetReportFilename(wchar_t* filename);
 
-// VLDDisableModule - Disable Memory leak checking on the specified module.
-//
-// module: module handle.
-//
-//  Return Value:
-//
-//    None.
-//
-__declspec(dllimport) void VLDDisableModule(VLD_HMODULE module);
+    // VLDSetOptions - Update the report options via function call rather than INI file.
+    //
+    // option_mask: Only the following flags are checked
+    // VLD_OPT_AGGREGATE_DUPLICATES
+    // VLD_OPT_MODULE_LIST_INCLUDE
+    // VLD_OPT_SAFE_STACK_WALK
+    // VLD_OPT_SLOW_DEBUGGER_DUMP
+    // VLD_OPT_TRACE_INTERNAL_FRAMES
+    // VLD_OPT_START_DISABLED
+    // VLD_OPT_SKIP_HEAPFREE_LEAKS
+    // VLD_OPT_VALIDATE_HEAPFREE
+    //
+    // maxDataDump: maximum number of user-data bytes to dump for each leaked block.
+    //
+    // maxTraceFrames: maximum number of frames per stack trace for each leaked block.
+    //
+    //  Return Value:
+    //
+    //    None.
+    //
+    __declspec(dllimport) void VLDSetOptions(VLD_UINT  option_mask,
+                                             VLD_SIZET maxDataDump,
+                                             VLD_UINT  maxTraceFrames);
 
-// VLDGetOptions - Return all current options.
-//
-//  Return Value:
-//
-//    Mask of current options.
-//
-__declspec(dllimport) VLD_UINT VLDGetOptions();
+    // VLDSetModulesList - Set list of modules included/excluded in leak detection
+    // depending on parameter "includeModules".
+    //
+    // modules: list of modules to be forcefully included/excluded in leak detection.
+    //
+    // includeModules: include or exclude that modules.
+    //
+    //  Return Value:
+    //
+    //    None.
+    //
+    __declspec(dllimport) void VLDSetModulesList(const wchar_t* modules, VLD_BOOL includeModules);
 
-// VLDGetReportFilename - Return current report filename.
-//
-// filename: current report filename (max characters - MAX_PATH).
-//
-//  Return Value:
-//
-//    None.
-//
-__declspec(dllimport) void VLDGetReportFilename(wchar_t *filename);
+    // VLDGetModulesList - Return current list of included/excluded modules
+    // depending on flag VLD_OPT_TRACE_INTERNAL_FRAMES.
+    //
+    // modules: destination string for list of included/excluded modules (maximum length 512
+    // characters).
+    //
+    // size: maximum string size.
+    //
+    //  Return Value:
+    //
+    //    VLD_BOOL: TRUE if include modules, otherwise FALSE.
+    //
+    __declspec(dllimport) VLD_BOOL VLDGetModulesList(wchar_t* modules, VLD_UINT size);
 
-// VLDSetOptions - Update the report options via function call rather than INI file.
-//
-// option_mask: Only the following flags are checked
-// VLD_OPT_AGGREGATE_DUPLICATES
-// VLD_OPT_MODULE_LIST_INCLUDE
-// VLD_OPT_SAFE_STACK_WALK
-// VLD_OPT_SLOW_DEBUGGER_DUMP
-// VLD_OPT_TRACE_INTERNAL_FRAMES
-// VLD_OPT_START_DISABLED
-// VLD_OPT_SKIP_HEAPFREE_LEAKS
-// VLD_OPT_VALIDATE_HEAPFREE
-//
-// maxDataDump: maximum number of user-data bytes to dump for each leaked block.
-//
-// maxTraceFrames: maximum number of frames per stack trace for each leaked block.
-//
-//  Return Value:
-//
-//    None.
-//
-__declspec(dllimport) void VLDSetOptions(VLD_UINT option_mask, VLD_SIZET maxDataDump, VLD_UINT maxTraceFrames);
+    // VLDSetReportOptions - Update the report options via function call rather than INI file.
+    //
+    // Only the following flags are checked
+    // VLD_OPT_REPORT_TO_DEBUGGER
+    // VLD_OPT_REPORT_TO_FILE
+    // VLD_OPT_REPORT_TO_STDOUT
+    // VLD_OPT_UNICODE_REPORT
+    //
+    // filename is optional and can be NULL.
+    //
+    //  Return Value:
+    //
+    //    None.
+    //
+    __declspec(dllimport) void VLDSetReportOptions(VLD_UINT option_mask, const wchar_t* filename);
 
-// VLDSetModulesList - Set list of modules included/excluded in leak detection
-// depending on parameter "includeModules".
-//
-// modules: list of modules to be forcefully included/excluded in leak detection.
-//
-// includeModules: include or exclude that modules.
-//
-//  Return Value:
-//
-//    None.
-//
-__declspec(dllimport) void VLDSetModulesList(const wchar_t *modules, VLD_BOOL includeModules);
+    // VLDSetReportHook - Installs or uninstalls a client-defined reporting function by hooking it
+    //  into the C run-time debug reporting process (debug version only).
+    //
+    // mode: The action to take: VLD_RPTHOOK_INSTALL or VLD_RPTHOOK_REMOVE.
+    //
+    // pfnNewHook: Report hook to install or remove.
+    //
+    //  Return Value:
+    //
+    //    int: 0 if success.
+    //
+    __declspec(dllimport) int VLDSetReportHook(int mode, VLD_REPORT_HOOK pfnNewHook);
 
-// VLDGetModulesList - Return current list of included/excluded modules
-// depending on flag VLD_OPT_TRACE_INTERNAL_FRAMES.
-//
-// modules: destination string for list of included/excluded modules (maximum length 512 characters).
-//
-// size: maximum string size.
-//
-//  Return Value:
-//
-//    VLD_BOOL: TRUE if include modules, otherwise FALSE.
-//
-__declspec(dllimport) VLD_BOOL VLDGetModulesList(wchar_t *modules, VLD_UINT size);
-
-// VLDSetReportOptions - Update the report options via function call rather than INI file.
-//
-// Only the following flags are checked
-// VLD_OPT_REPORT_TO_DEBUGGER
-// VLD_OPT_REPORT_TO_FILE
-// VLD_OPT_REPORT_TO_STDOUT
-// VLD_OPT_UNICODE_REPORT
-//
-// filename is optional and can be NULL.
-//
-//  Return Value:
-//
-//    None.
-//
-__declspec(dllimport) void VLDSetReportOptions(VLD_UINT option_mask, const wchar_t *filename);
-
-// VLDSetReportHook - Installs or uninstalls a client-defined reporting function by hooking it
-//  into the C run-time debug reporting process (debug version only).
-//
-// mode: The action to take: VLD_RPTHOOK_INSTALL or VLD_RPTHOOK_REMOVE.
-//
-// pfnNewHook: Report hook to install or remove.
-//
-//  Return Value:
-//
-//    int: 0 if success.
-//
-__declspec(dllimport) int VLDSetReportHook(int mode,  VLD_REPORT_HOOK pfnNewHook);
-
-// VLDResolveCallstacks - Performs symbol resolution for all saved extent CallStack's that have
-// been tracked by Visual Leak Detector. This function is necessary for applications that
-// dynamically load and unload modules, and through which memory leaks might be included.
-// If this is NOT called, stack traces may have stack frames with no symbol information. This
-// happens because the symbol API's cannot look up symbols for a binary / module that has been unloaded
-// from the process.
-//
-//  Return Value:
-//
-//    int: 0 if successfully resolved all callstacks.
-//
-__declspec(dllexport) int VLDResolveCallstacks();
+    // VLDResolveCallstacks - Performs symbol resolution for all saved extent CallStack's that have
+    // been tracked by Visual Leak Detector. This function is necessary for applications that
+    // dynamically load and unload modules, and through which memory leaks might be included.
+    // If this is NOT called, stack traces may have stack frames with no symbol information. This
+    // happens because the symbol API's cannot look up symbols for a binary / module that has been
+    // unloaded from the process.
+    //
+    //  Return Value:
+    //
+    //    int: 0 if successfully resolved all callstacks.
+    //
+    __declspec(dllexport) int VLDResolveCallstacks();
 
 #ifdef __cplusplus
 }

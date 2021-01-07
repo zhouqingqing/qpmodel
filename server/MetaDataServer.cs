@@ -26,13 +26,12 @@
  */
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using System.Net.Sockets;
-using System.Net;
 
 namespace server
 {
@@ -84,7 +83,7 @@ namespace server
     {
         public const int Port_ = 8888;
         public const string Host_ = "127.0.0.1";
-        TcpListener serverSocket_ = new TcpListener(IPAddress.Parse(Host_), Port_);
+        readonly TcpListener serverSocket_ = new TcpListener(IPAddress.Parse(Host_), Port_);
 
         readonly Dictionary<string, int> columns_ = new Dictionary<string, int>();
 
@@ -217,7 +216,8 @@ namespace server
                 VerifyLength(len);
             }
         }
-        Dictionary<string, Heap> tables_ = new Dictionary<string, Heap>();
+
+        readonly Dictionary<string, Heap> tables_ = new Dictionary<string, Heap>();
 
         class Profile
         {
@@ -229,14 +229,9 @@ namespace server
                 return $"ALTER: {nAlters_}, UPDATE: {nUpdates_}";
             }
         }
-        Profile profile_ = new Profile();
-        TcpClient socket_ = new TcpClient();
 
-        void VerifyLengthComplaince(string column, int len)
-        {
-            var heap = tables_[column];
-            heap.VerifyLength(len);
-        }
+        readonly Profile profile_ = new Profile();
+        readonly TcpClient socket_ = new TcpClient();
 
         bool RequestMDToAlterColumn(string column, int newlen)
         {
@@ -319,7 +314,7 @@ namespace server
                 {
                     case 0:
                         var newlen = rand.Next() % 50;
-                        var ret = TransactionAlterLength($"c{col}", newlen);
+                        TransactionAlterLength($"c{col}", newlen);
                         profile_.nAlters_++;
                         break;
                     case 1:

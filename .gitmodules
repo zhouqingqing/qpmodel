@@ -1,0 +1,9 @@
+[submodule "server/experimental/deps/fmtlib"]
+	path = server/experimental/deps/fmtlib
+	url = https://github.com/fmtlib/fmt.git
+[submodule "server/experimental/deps/benchmark"]
+	path = server/experimental/deps/benchmark
+	url = https://github.com/google/benchmark.git
+[submodule "server/experimental/deps/googletest"]
+	path = server/experimental/deps/googletest
+	url = https://github.com/google/googletest.git

@@ -338,10 +338,10 @@ namespace qpmodel.logic
                 return stmt_.CreatePlan();
             else
             {
-                LogicNode plan = null;
                 var lplan = left_.CreateSetOpPlan(false);
                 var rplan = right_.CreateSetOpPlan(false);
 
+                LogicNode plan;
                 // try to reuse existing operators to implment because users may write 
                 // SQL code like this and this helps reduce optimizer search space
                 //
@@ -558,8 +558,10 @@ namespace qpmodel.logic
 
         internal List<SelectStmt> InclusiveAllSubquries()
         {
-            List<SelectStmt> allsubs = new List<SelectStmt>();
-            allsubs.Add(this);
+            List<SelectStmt> allsubs = new List<SelectStmt>
+            {
+                this
+            };
             Subqueries(true).ForEach(x =>
             {
                 allsubs.AddRange(x.query_.InclusiveAllSubquries());
@@ -613,8 +615,8 @@ namespace qpmodel.logic
                     {
                         // when remove_from is true (or removed entirely) it is possible to have an
                         // aggregate in the filter, which should not be pushed to table scan.
-                        // By defintion, if the node n is an aggregate node, and the filter has an
-                        // the aggregate which refers exactly to the same and sinlge tableref which is
+                        // By definition, if the node n is an aggregate node, and the filter has an
+                        // the aggregate which refers exactly to the same and single tableref which is
                         // the child of the aggregate in the filter, then the filter belongs to the
                         // node n.
                         if (filter.HasAggFunc() && n is LogicAgg lag)

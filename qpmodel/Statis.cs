@@ -119,16 +119,16 @@ namespace qpmodel.stat
                     Debug.Assert(max is long);
                     constructDomain<long>(true, hist, min, max, nrows);
                     break;
-                case DateTime datemin:
+                case DateTime _:
                     Debug.Assert(max is DateTime);
                     // Notes: Planck disagrees DateTime not discrete
                     constructDomain<DateTime>(false, hist, min, max, nrows);
                     break;
-                case float floatmin:
+                case float _:
                     Debug.Assert(max is float);
                     constructDomain<float>(false, hist, min, max, nrows);
                     break;
-                case double doublemin:
+                case double _:
                     Debug.Assert(max is double);
                     constructDomain<double>(false, hist, min, max, nrows);
                     break;
@@ -421,7 +421,7 @@ namespace qpmodel.stat
 
         public double EstSelectivity(string op, Value val)
         {
-            var selectivity = StatConst.one_;
+            double selectivity;
             if (op == "like")
                 selectivity = EstLikeSelectivity(val);
             else if (!new List<String>() { "=", ">", ">=", "<", "<=" }.Contains(op))
@@ -523,7 +523,7 @@ namespace qpmodel.stat
         static ColExpr ExtractColumn(Expr filter)
         {
             if (filter is BinExpr pred)
-                if (pred.lchild_() is ColExpr pl && pl.tabRef_ is BaseTableRef bpl)
+                if (pred.lchild_() is ColExpr pl && pl.tabRef_ is BaseTableRef)
                     if (pred.rchild_() is ConstExpr pr && new List<String>() { "=", ">", ">=", "<", "<=" }.Contains(pred.op_))
                         return pl;
             return null;

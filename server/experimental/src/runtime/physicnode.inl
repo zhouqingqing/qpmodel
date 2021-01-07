@@ -39,6 +39,7 @@ void PhysicHashJoin::ExecT(Fn&& callback)
             // this row is owned by hash join now
             return true;
         }
+        return false;
     });
 
     // probe stage
@@ -55,6 +56,8 @@ void PhysicHashJoin::ExecT(Fn&& callback)
             }
             return owned;
         }
+
+        return false;
     });
 
 #if defined(__USE_ROWCOPY_)
@@ -80,8 +83,8 @@ void PhysicAgg::ExecT(Fn&& callback)
     children_[0]->Exec([&](Row* l) {
         if (l != nullptr && !l->Empty()) {
             sum += std::get<int>((*l)[0]);
-            return false;
         }
+        return false;
     });
 
     Row* r  = new Row(1);

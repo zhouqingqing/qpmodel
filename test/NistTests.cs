@@ -27,21 +27,6 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Linq;
-using System.IO;
-using System.Collections.Generic;
-using System.Diagnostics;
-
-using qpmodel.physic;
-using qpmodel.utils;
-using qpmodel.logic;
-using qpmodel.sqlparser;
-using qpmodel.optimizer;
-using qpmodel.test;
-using qpmodel.expr;
-using qpmodel.dml;
-using qpmodel.tools;
-using qpmodel.stat;
 
 namespace qpmodel.unittest
 {
@@ -51,7 +36,7 @@ namespace qpmodel.unittest
         public void CreateBaseTables()
         {
             string sql = "CREATE TABLE STAFF (EMPNUM   CHAR(3) NOT NULL UNIQUE, EMPNAME  CHAR(20), GRADE    DECIMAL(4), CITY     CHAR(15));";
-            var stmtResult = TU.ExecuteSQL(sql);
+            System.Collections.Generic.List<physic.Row> stmtResult = TU.ExecuteSQL(sql);
             Assert.IsNull(stmtResult);
             Assert.AreEqual("", TU.error_);
 
@@ -166,8 +151,8 @@ namespace qpmodel.unittest
 
         public void CreateVTABLE()
         {
-            var sql = "CREATE TABLE VTABLE (COL1   INTEGER, COL2   INTEGER, COL3   INTEGER, COL4   INTEGER, COL5   DECIMAL(7,2));";
-            var stmtResult = TU.ExecuteSQL(sql);
+            string sql = "CREATE TABLE VTABLE (COL1   INTEGER, COL2   INTEGER, COL3   INTEGER, COL4   INTEGER, COL5   DECIMAL(7,2));";
+            System.Collections.Generic.List<physic.Row> stmtResult = TU.ExecuteSQL(sql);
             Assert.IsNull(stmtResult);
             Assert.AreEqual("", TU.error_);
 
@@ -204,11 +189,11 @@ namespace qpmodel.unittest
 
         public void dml001()
         {
-            var sql = @"SELECT EMPNUM,HOURS
+            string sql = @"SELECT EMPNUM,HOURS
                      FROM WORKS
                      WHERE PNUM='P2'
                      ORDER BY EMPNUM DESC;";
-            var stmtResult = TU.ExecuteSQL(sql);
+            System.Collections.Generic.List<physic.Row> stmtResult = TU.ExecuteSQL(sql);
             Assert.AreEqual(4, stmtResult.Count);
             Assert.AreEqual(stmtResult[3][0].ToString(), "E1");
 
@@ -233,11 +218,11 @@ namespace qpmodel.unittest
 
         public void dml013()
         {
-            var sql = @"
+            string sql = @"
      SELECT SUM(HOURS)
           FROM WORKS
           WHERE PNUM = 'P2';";
-            var stmtResult = TU.ExecuteSQL(sql);
+            System.Collections.Generic.List<physic.Row> stmtResult = TU.ExecuteSQL(sql);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0].ToString(), "140");
 
@@ -261,11 +246,11 @@ namespace qpmodel.unittest
 
         public void dml014()
         {
-            var sql = @"
+            string sql = @"
      SELECT PNUM
           FROM PROJ
           WHERE BUDGET BETWEEN 40000 AND 60000;";
-            var stmtResult = TU.ExecuteSQL(sql);
+            System.Collections.Generic.List<physic.Row> stmtResult = TU.ExecuteSQL(sql);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "P6");
 
@@ -380,7 +365,7 @@ namespace qpmodel.unittest
 
         public void dml018()
         {
-            var sql = @"
+            string sql = @"
      SELECT PNUM
           FROM WORKS
           WHERE PNUM > 'P1'
@@ -393,7 +378,7 @@ namespace qpmodel.unittest
           FROM WORKS
           GROUP BY PNUM
           HAVING COUNT(*) > 2;";
-            var stmtResult = TU.ExecuteSQL(sql);
+            System.Collections.Generic.List<physic.Row> stmtResult = TU.ExecuteSQL(sql);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "P2");
 
@@ -441,7 +426,7 @@ namespace qpmodel.unittest
 
         public void dml022()
         {
-            var sql = @"
+            string sql = @"
      SELECT EMPNUM
           FROM STAFF
           WHERE GRADE <
@@ -455,7 +440,7 @@ namespace qpmodel.unittest
           WHERE GRADE <=
              (SELECT AVG(GRADE)-1
               FROM STAFF);";
-            var stmtResult = TU.ExecuteSQL(sql);
+            System.Collections.Generic.List<physic.Row> stmtResult = TU.ExecuteSQL(sql);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "E2");
             Assert.AreEqual(stmtResult[0][1].ToString(), "Betty");
@@ -533,7 +518,7 @@ namespace qpmodel.unittest
 
         public void dml023()
         {
-            var sql = @"
+            string sql = @"
      SELECT PNUM
           FROM PROJ
           WHERE PROJ.CITY =
@@ -545,7 +530,7 @@ namespace qpmodel.unittest
 
         public void dml059()
         {
-            var sql = "INSERT INTO VTABLE VALUES(10,11,12,13,15);";
+            string sql = "INSERT INTO VTABLE VALUES(10,11,12,13,15);";
             TU.ExecuteSQL(sql);
             Assert.AreEqual("", TU.error_);
 
@@ -606,7 +591,7 @@ namespace qpmodel.unittest
                                WHERE EMPNUM = 'E1')
                                AND MAX(COL2) BETWEEN 10 AND 90
           ORDER BY COL1;";
-            var stmtResult = TU.ExecuteSQL(sql);
+            System.Collections.Generic.List<physic.Row> stmtResult = TU.ExecuteSQL(sql);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "10");
             Assert.AreEqual(stmtResult[0][1].ToString(), "20");
@@ -638,12 +623,12 @@ namespace qpmodel.unittest
 
         public void dml073()
         {
-            var sql = @"
+            string sql = @"
      SELECT AVG(HOURS), MIN(HOURS)
            FROM  STAFF, WORKS
            WHERE STAFF.EMPNUM = 'E2'
                  AND STAFF.EMPNUM = WORKS.EMPNUM;";
-            var stmtResult = TU.ExecuteSQL(sql);
+            System.Collections.Generic.List<physic.Row> stmtResult = TU.ExecuteSQL(sql);
             Assert.AreEqual(1, stmtResult.Count);
             Assert.AreEqual(stmtResult[0][0].ToString(), "60");
             Assert.AreEqual(stmtResult[0][1].ToString(), "40");

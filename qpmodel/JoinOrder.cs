@@ -63,7 +63,7 @@ namespace qpmodel.optimizer
         Dictionary<BitVector, PhysicNode> memo_ { get; set; } = new Dictionary<BitVector, PhysicNode>();
 
         // debug info
-        Dictionary<BitVector, List<PhysicNode>> dbg_candidates_ = new Dictionary<BitVector, List<PhysicNode>>();
+        readonly Dictionary<BitVector, List<PhysicNode>> dbg_candidates_ = new Dictionary<BitVector, List<PhysicNode>>();
 
         internal PhysicNode this[BitVector key]
         {

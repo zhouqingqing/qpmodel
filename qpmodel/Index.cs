@@ -47,11 +47,13 @@ namespace qpmodel.index
             BaseTableRef target, bool unique, List<string> columns, Expr where, string text) : base(text)
         {
             targetref_ = target;
-            def_ = new IndexDef();
-            def_.name_ = indexname;
-            def_.unique_ = unique;
-            def_.columns_ = columns;
-            def_.table_ = target;
+            def_ = new IndexDef
+            {
+                name_ = indexname,
+                unique_ = unique,
+                columns_ = columns,
+                table_ = target
+            };
             select_ = RawParser.ParseSingleSqlStatement
                 ($"select sysrid_, {string.Join(",", columns)} from {def_.table_.relname_}") as SelectStmt;
             // select_ is a different statement, binding their options

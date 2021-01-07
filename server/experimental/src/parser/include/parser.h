@@ -6,8 +6,8 @@
 #include "parser/include/sqlparserresult.h"
 
 namespace andb {
-extern SQLStatement* Parse (char* query);
-extern LogicNode* ParseAndAnalyze (char* query);
-extern Expr* ParseExpr (char* expr);
-bool ParseSQL (char* query, SQLParserResult* result);
-}  // namespace andb
+extern SQLStatement* Parse(char* query);
+extern LogicNode*    ParseAndAnalyze(char* query);
+extern Expr*         ParseExpr(char* expr);
+bool                 ParseSQL(char* query, SQLParserResult* result);
+} // namespace andb

@@ -51,8 +51,9 @@ void AggJoinFn (benchmark::State& state, int ln, int rn) {
         Execute (physic, [&] (Row* l) {
             if (l != nullptr && !l->Empty()) {
                 result = std::get<int> ((*l)[0]);
-                return false;
+                return true;
             }
+            return false;
         });
     }
 

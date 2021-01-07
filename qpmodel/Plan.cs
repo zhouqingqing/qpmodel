@@ -102,10 +102,12 @@ namespace qpmodel.logic
 
         public QueryOption Clone()
         {
-            var newoption = new QueryOption();
-            newoption.optimize_ = optimize_.Clone();
-            newoption.explain_ = explain_.Clone();
-            newoption.profile_ = profile_.Clone();
+            var newoption = new QueryOption
+            {
+                optimize_ = optimize_.Clone(),
+                explain_ = explain_.Clone(),
+                profile_ = profile_.Clone()
+            };
             return newoption;
         }
 
@@ -161,7 +163,7 @@ namespace qpmodel.logic
             string r = null;
             bool exp_output = option?.show_output_ ?? true;
             bool exp_showcost = option?.show_estCost_ ?? false;
-            bool exp_showactual = option is null ? false : option.mode_ >= ExplainMode.analyze;
+            bool exp_showactual = !(option is null) && option.mode_ >= ExplainMode.analyze;
             bool exp_id = option?.show_id_ ?? false;
 
             if (!(this is PhysicProfiling) && !(this is PhysicCollect))

@@ -127,18 +127,16 @@ namespace qpmodel.optimizer
     // 3. Join filter shall be is handled by first pull up all join filters 
     //    then push them back to the new join plan.
     //  
-    //  we do not generate catersian join unless input is catersian.
+    //  we do not generate Cartesian join unless input is Cartesian.
     //
     public class JoinAssociativeRule : ExplorationRule
     {
         public override bool Appliable(CGroupMember expr)
         {
-            LogicJoin a_bc = expr.logic_ as LogicJoin;
-            if (a_bc is null || !a_bc.IsInnerJoin())
+            if (!(expr.logic_ is LogicJoin a_bc) || !a_bc.IsInnerJoin())
                 return false;
 
             var bc = (a_bc.rchild_() as LogicMemoRef).Deref();
-            var bcfilter = bc.filter_;
             if (bc is LogicJoin bcj)
             {
                 if (!bcj.IsInnerJoin())
@@ -146,7 +144,7 @@ namespace qpmodel.optimizer
 
                 // we only reject cases that logically impossible to apply
                 // association rule, but leave anything may generate worse
-                // plan (say catersisan joins) to apply stage.
+                // plan (say Cartesian joins) to apply stage.
                 return true;
             }
             return false;
@@ -200,10 +198,8 @@ namespace qpmodel.optimizer
     {
         public override bool Appliable(CGroupMember expr)
         {
-            LogicAgg agg = expr.logic_ as LogicAgg;
-            if (agg is null || agg.isLocal_ || agg.isDerived_)
+            if (!(expr.logic_ is LogicAgg agg) || agg.isLocal_ || agg.isDerived_)
                 return false;
-
             return true;
         }
 
@@ -216,7 +212,7 @@ namespace qpmodel.optimizer
                 e.type_ = new BoolType();
             }
 
-            // for transformaing original having according to the new agg func
+            // for transforming original having according to the new agg func
             BinExpr processhaving(Expr e, Dictionary<Expr, Expr> dict)
             {
                 var be = e as BinExpr;
@@ -271,8 +267,10 @@ namespace qpmodel.optimizer
                 derivedAggFuncDict.Add(func, processed);
             }
 
-            var local = new LogicAgg(childNode, groupby, localfns, null);
-            local.isLocal_ = true;
+            var local = new LogicAgg(childNode, groupby, localfns, null)
+            {
+                isLocal_ = true
+            };
 
             // having is placed on the global agg and the agg func need to be processed
             var newhaving = having;
@@ -284,8 +282,10 @@ namespace qpmodel.optimizer
 
             // assuming having is an expression involving agg func,
             // it is only placed on the global agg
-            var global = new LogicAgg(local, groupby, globalfns, newhaving);
-            global.isDerived_ = true;
+            var global = new LogicAgg(local, groupby, globalfns, newhaving)
+            {
+                isDerived_ = true
+            };
             global.Overridesign(origAggNode);
             global.deriveddict_ = derivedAggFuncDict;
 
