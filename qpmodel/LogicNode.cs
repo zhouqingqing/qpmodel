@@ -157,7 +157,8 @@ namespace qpmodel.logic
             {
                 int h = x.GetHashCode();
                 ValueId vid = new ValueId(x, i++);
-                fixedChildren.Add(h, vid);
+                if (!fixedChildren.ContainsKey(h))
+                    fixedChildren.Add(h, vid);
             });
         }
         public void FixGroupby(List<Expr> groupby)
