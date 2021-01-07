@@ -47,6 +47,243 @@ namespace qpmodel.logic
         public SemanticAnalyzeException(string msg) : base(msg) => Console.WriteLine($"ERROR[Optimizer]: {msg }");
     }
 
+    // A New framework for ordinal resolution.
+    // A per statement global counter of expressions may be needed.
+    // At first, only simple column expressions and subquries are going to be experimented with, no joins and no aggregations.
+    // The current outputs_ is *** not really *** about where the output of the given expression goes to,
+    // it is actually about where the input for that expression comes from. Another way to look at it
+    // is to say that where in the children's output is the value for this expression located?
+    // A simple query such as:
+    //      SELECT * FROM a
+    // presents no issues,
+    // The child is table scan and creates [a1][a2][a3][a4] and outputs the same, so the
+    // parent's outputs_ will is a.a1{0}, a.a2{1}, a.a3{2}, a.a4{3}, meaning, parent has to
+    // look at positions 0, 1, 2, and 3 in its input row for values of a1, a2, a3, and a4
+    // respectivley.
+    //
+    // The new framework uses two helper data structures to simplify the ordinal resolution.
+    // Every plan node may endup containing these two as members, or just use them locally.
+    // (1) ValueIdList keeps distinct expression which the outputs of the node in the order they
+    // occur in its required outputs (for top level select, it is simply the selections).
+    // initially, the ordinals their ordinal positions.
+    // (2) ValueIdSet is for efficient lookup and also for making sure ValueIdList doesn't have
+    // duplicates. ValueIdSet keeps references to the actual expressions by mapping their exprid/hash
+    // to expressions.
+    //
+    // select b.b2, sum(c.c3), a.a2, count(*) from c, a, b where a.a4 = b.b4 and a.a4 > 1 and b.b4 < 5 and c2 <> b3 group by a.a2, b.b2;
+    internal class ValueId
+    {
+        Expr expRef_ = null;
+        int ordinal_ = -1;
+
+        public ValueId()
+        {
+            expRef_ = null;
+            ordinal_ = -1;
+        }
+        public ValueId(Expr e, int o)
+        {
+            expRef_ = e;
+            ordinal_ = o;
+        }
+        public void SetExpr(Expr e) { expRef_ = e; }
+        public void SetOrdinal(int o) { ordinal_ = o; }
+        public void SetExprOrdinal(Expr e, int o) { expRef_ = e; ordinal_ = o; }
+        public Expr GetExpr() { return expRef_; }
+        public int GetOrdinal() { return ordinal_; }
+    }
+
+    // Encapsulate all the details of ordinal resolution.
+    // Keep ValueIdSet, ValuIdList and other artifacts here and offer
+    // simple interface.
+    internal class OrdinalResolver
+    {
+        Dictionary<int, ValueId> valueSet;
+        List<ValueId> valueList;
+
+        Dictionary<int, ValueId> columnSet;
+        List<ValueId> columnList;           // column references in the order of their appearence.
+
+        Dictionary<int, ValueId> fixedChildren = null;
+        Expr fixedFilter = null;
+        Expr fixedHaving = null;
+        List<Expr> fixedGroupby = null;
+        List<Expr> fixedOrderby = null;
+        List<Expr> fixedOutput = null;
+
+        public OrdinalResolver(List<Expr> requiredOutputs = null)
+        {
+            valueSet = new Dictionary<int, ValueId>();
+            valueList = new List<ValueId>();
+            columnSet = new Dictionary<int, ValueId>();
+            columnList = new List<ValueId>();
+
+            if (requiredOutputs != null)
+                AddRequired(requiredOutputs);
+        }
+
+        // Add inputs required by the parent.
+        public void AddRequired(List<Expr> exprList)
+        {
+            int colOrd = 0;
+            foreach (var e in exprList)
+            {
+                int h = e.GetHashCode();
+                if (!valueSet.ContainsKey(h))
+                {
+                    int ord = valueList.Count;
+                    ValueId vid = new ValueId(e, ord);
+                    valueList.Add(vid);
+                    valueSet.Add(h, vid);
+
+                    if (e is ColExpr ce)
+                    {
+                        AddRequiredColumn(ce);
+                    }
+                    else e.VisitEach(x =>
+                    {
+                        if (x is ColExpr cx)
+                            AddRequiredColumn(cx);
+                    });
+                }
+            }
+        }
+
+        public void SetFixedChildren(List<Expr> childout)
+        {
+            int i = 0;
+            fixedChildren = new Dictionary<int, ValueId>();
+            childout.ForEach(x =>
+            {
+                int h = x.GetHashCode();
+                ValueId vid = new ValueId(x, i++);
+                fixedChildren.Add(h, vid);
+            });
+        }
+        public void FixGroupby(List<Expr> groupby)
+        {
+            if (groupby == null)
+                return;
+        }
+
+        public void FixHaving(Expr having)
+        {
+            if (having == null)
+                return;
+        }
+
+        public void FixOrderby(List<Expr> orderby)
+        {
+            if (orderby == null)
+                return;
+        }
+        public void FixOutput()
+        {
+            return;
+        }
+
+        public void FixFilter(Expr filter)
+        {
+            if (filter == null)
+                return;
+        }
+
+        // Debug
+        public void AssertOrdinals(List<Expr> reqOutput, List<Expr> actOutput)
+        {
+            // DEBUG stuff {
+            Console.WriteLine("SEL:");
+            for (int i = 0; i < reqOutput.Count; ++i)
+            {
+                string str = getExprString(reqOutput[i]);
+                Console.Write(str + " : ");
+            }
+
+            Console.WriteLine("\n\nACT:");
+            for (int i = 0; i < actOutput.Count; ++i)
+            {
+                string str = getExprString(actOutput[i]);
+                Console.Write(str + " : ");
+            }
+
+            Console.WriteLine("\n\nEXP:");
+            for (int i = 0; i < valueList.Count; ++i)
+            {
+                string str = getExprString(valueList[i].GetExpr());
+                Console.Write("{" + str + ", " + valueList[i].GetOrdinal() + "}, ");
+            }
+            Console.WriteLine("\n\n");
+            foreach (var expr in actOutput)
+            {
+                bool foundIt = true;
+                int h1 = expr.GetHashCode();
+                int o1 = -1;
+                foundIt = FindExprByHash(h1, out o1);
+                Debug.Assert(foundIt == true);
+
+                ValueId vid = valueSet.GetValueOrDefault(h1);
+                int h2 = vid.GetExpr().GetHashCode();
+                int o2 = vid.GetOrdinal();
+
+                Debug.Assert((o1 < 0 || o1 == o2) && h1 == h2);
+            }
+        }
+
+        internal void AddRequiredColumn(ColExpr ce)
+        {
+            int ch = ce.GetHashCode();
+            if (!columnSet.ContainsKey(ch))
+            {
+                ValueId vid = new ValueId(ce, columnList.Count);
+                columnSet.Add(ch, vid);
+                columnList.Add(vid);
+            }
+        }
+
+        // Fix one expression. Clone it and fix the ordinals
+        // in the whole subexpression tree rooted at expr.
+        internal Expr FixExpr(Expr expr)
+        {
+            Expr clone = expr.Clone();
+
+            // fix it
+            return clone;
+        }
+
+        internal string getExprString(Expr e)
+        {
+            string str;
+            if (e is AggrRef ar)
+                str = ar.aggr_().ToString();
+            else if (e is ExprRef er)
+                str = er.expr_().ToString();
+            else
+                str = e.ToString();
+
+            return str;
+        }
+
+        internal ValueId FindValueId(int h)
+        {
+            ValueId vidItem = valueSet.GetValueOrDefault(h);
+            return vidItem != null ? vidItem : null;
+        }
+        internal bool FindExprByHash(int h, out int ord)
+        {
+            for (int i = 0; i < valueList.Count; ++i)
+            {
+                if (h == valueList[i].GetExpr().GetHashCode())
+                {
+                    ord = i;
+                    return true;
+                }
+            }
+
+            ord = -1;
+            return false;
+        }
+    }
+
     public abstract class LogicNode : PlanNode<LogicNode>
     {
         // TODO: we can consider normalize all node specific expressions into List<Expr> 
@@ -460,6 +697,11 @@ namespace qpmodel.logic
             children_[0].ResolveColumnOrdinal(reqFromChild);
             var childout = new List<Expr>(child_().output_);
             output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
+
+            OrdinalResolver ordRes = new OrdinalResolver(reqOutput);
+            ordRes.SetFixedChildren(childout);
+            ordRes.FixOutput();
+
             RefreshOutputRegisteration();
             return ordinals;
         }
@@ -829,7 +1071,6 @@ namespace qpmodel.logic
             rchild_().ResolveColumnOrdinal(rreq.ToList());
             var rout = rchild_().output_;
             Debug.Assert(lout.Intersect(rout).Count() == 0);
-
             // assuming left output first followed with right output
             var childrenout = lout.ToList(); childrenout.AddRange(rout.ToList());
             if (filter_ != null)
@@ -840,6 +1081,11 @@ namespace qpmodel.logic
                 childrenout.Add(thisReq);
             }
             output_ = CloneFixColumnOrdinal(reqOutput, childrenout, removeRedundant);
+
+            OrdinalResolver ordRes = new OrdinalResolver(reqOutput);
+            ordRes.SetFixedChildren(childrenout);
+            ordRes.FixFilter(filter_);
+            ordRes.FixOutput();
 
             RefreshOutputRegisteration();
             CreateKeyList();
@@ -903,6 +1149,12 @@ namespace qpmodel.logic
 
             filter_ = CloneFixColumnOrdinal(filter_, childout);
             output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
+
+            OrdinalResolver ordRes = new OrdinalResolver(reqOutput);
+            ordRes.SetFixedChildren(childout);
+            ordRes.FixFilter(filter_);
+            ordRes.FixOutput();
+
             RefreshOutputRegisteration();
             return ordinals;
         }
@@ -1258,6 +1510,7 @@ namespace qpmodel.logic
                 }
                 else reqFromChild.AddRange(having_.RetrieveAllColExpr());
             }
+
             child_().ResolveColumnOrdinal(reqFromChild);
             var childout = child_().output_;
 
@@ -1269,6 +1522,12 @@ namespace qpmodel.logic
                 having_ = CloneFixColumnOrdinal(having_, childout);
 
             output_ = CloneFixColumnOrdinal(processedOutput, childout, removeRedundant);
+
+            OrdinalResolver ordRes = new OrdinalResolver(reqList);
+            ordRes.SetFixedChildren(childout);
+            ordRes.FixGroupby(groupby_);
+            ordRes.FixHaving(having_);
+            ordRes.FixOutput();
 
             var newoutput = GenerateAggrFns();
 
@@ -1346,6 +1605,11 @@ namespace qpmodel.logic
 
             orders_ = CloneFixColumnOrdinal(orders_, childout, false);
             output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
+
+            OrdinalResolver ordRes = new OrdinalResolver(reqOutput);
+            ordRes.SetFixedChildren(childout);
+            ordRes.FixOrderby(orders_);
+            ordRes.FixOutput();
             RefreshOutputRegisteration();
             return ordinals;
         }
@@ -1398,6 +1662,12 @@ namespace qpmodel.logic
             output_ = queryRef_.AddOuterRefsToOutput(output_);
             if (removeRedundant)
                 output_ = output_.Distinct().ToList();
+
+            OrdinalResolver ordRes = new OrdinalResolver(query.selection_);
+            // TODO: Need to add outerrefs to fixed output
+            ordRes.SetFixedChildren(childout);
+            ordRes.FixOutput();
+
             RefreshOutputRegisteration();
             return ordinals;
         }
@@ -1474,6 +1744,16 @@ namespace qpmodel.logic
             output_ = tabref_.AddOuterRefsToOutput(output_);
             if (removeRedundant)
                 output_ = output_.Distinct().ToList();
+#if false
+            // base table does not need this, at least for now.
+            // When all expr are replaced by a new version of ExpRef (ValueId)
+            // then we need to resolve the ordinals of those valueids.
+            OrdinalResolver ordRes = new OrdinalResolver(reqOutput);
+            ordRes.SetFixedChildren(columns);
+            ordRes.FixFilter(filter_);
+            ordRes.FixOutput();
+#endif
+
             RefreshOutputRegisteration();
             return ordinals;
         }
@@ -1571,6 +1851,10 @@ namespace qpmodel.logic
             for (int i = 0; i < minReq; ++i)
                 childReq.Add(rightExprs_[i]);
             child.ResolveColumnOrdinal(childReq, removeRedundant);
+
+            OrdinalResolver ordRes = new OrdinalResolver(childReq);
+            ordRes.SetFixedChildren(child.output_);
+            ordRes.FixOutput();
         }
 
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
@@ -1625,6 +1909,11 @@ namespace qpmodel.logic
             var childout = new List<Expr>(child_().output_);
             // limit is the top node and don't remove redundant
             output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
+
+            OrdinalResolver ordRes = new OrdinalResolver(reqFromChild); // Should it be reqOutput?
+            ordRes.SetFixedChildren(childout);
+            ordRes.FixOutput();
+
             RefreshOutputRegisteration();
             return ordinals;
         }
@@ -1746,6 +2035,11 @@ namespace qpmodel.logic
             child_().ResolveColumnOrdinal(reqFromChild);
             var childout = child_().output_;
             output_ = CloneFixColumnOrdinal(reqOutput, childout, removeRedundant);
+
+            OrdinalResolver ordRes = new OrdinalResolver(reqOutput);
+            ordRes.SetFixedChildren(childout);
+            ordRes.FixOutput();
+
             RefreshOutputRegisteration();
             return ordinals;
         }
