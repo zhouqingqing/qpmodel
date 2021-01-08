@@ -186,17 +186,17 @@ namespace qpmodel.logic
             {
                 Expr e = o.GetExpr();
                 int eh = e.GetHashCode();
-                ValueId vid;
-                if ((vid = FindValueId(eh)) != null)
+                ValueId vid = FindValueId(eh);
+                Debug.Assert(vid != null);
+                ValueId cid = FindChild(eh);
+                if (cid != null)
                 {
-                    ValueId cid = FindChild(eh);
                     vid.SetOrdinal(cid.GetOrdinal());
                 }
                 else
                 {
-                    // it is an expression?
-                    // deal with it.
-                    Expr ne = FixExpr(e, eh);
+                    Expr ne = FixExpr(vid, eh);
+                    vid.SetExpr(ne);
                 }
             }
         }
@@ -275,13 +275,19 @@ namespace qpmodel.logic
             }
         }
 
-        // Fix one expression. Clone it and fix the ordinals
-        // in the whole subexpression tree rooted at expr.
-        internal Expr FixExpr(Expr expr, int eh)
+        // Replace each column expression by a cloning it and settting the ordinal
+        // to point to the correct child expression.
+        // Cloning the expression and descending the tree will be unneccessary
+        // when all expressions have been replaced by ValueId.
+        internal Expr FixExpr(ValueId vid, int ehash)
         {
-            Expr clone = expr.Clone();
-
-            // fix it
+            Expr clone = vid.GetExpr().Clone();
+            clone.VisitEachT<ColExpr>(ce =>
+            {
+                int cehash = ce.GetHashCode();
+                ValueId cid = FindChild(cehash);
+                ce.ordinal_ = cid.GetOrdinal();
+            });
             return clone;
         }
 
