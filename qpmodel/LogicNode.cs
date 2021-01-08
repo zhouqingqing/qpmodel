@@ -71,6 +71,8 @@ namespace qpmodel.logic
     // to expressions.
     //
     // select b.b2, sum(c.c3), a.a2, count(*) from c, a, b where a.a4 = b.b4 and a.a4 > 1 and b.b4 < 5 and c2 <> b3 group by a.a2, b.b2;
+    // ValueId should also contain the hash or whatever uniqueid of the expression so that
+    // it doesn't have to be recomputed everytime.
     internal class ValueId
     {
         Expr expRef_ = null;
@@ -180,7 +182,23 @@ namespace qpmodel.logic
         }
         public void FixOutput()
         {
-            return;
+            foreach (var o in valueList)
+            {
+                Expr e = o.GetExpr();
+                int eh = e.GetHashCode();
+                ValueId vid;
+                if ((vid = FindValueId(eh)) != null)
+                {
+                    ValueId cid = FindChild(eh);
+                    vid.SetOrdinal(cid.GetOrdinal());
+                }
+                else
+                {
+                    // it is an expression?
+                    // deal with it.
+                    Expr ne = FixExpr(e, eh);
+                }
+            }
         }
 
         public void FixFilter(Expr filter)
@@ -190,6 +208,22 @@ namespace qpmodel.logic
         }
 
         // Debug
+        public void PrintOrdinals(List<Expr> currOut)
+        {
+            Console.Write("CUR: ");
+            foreach (var c in currOut)
+            {
+                Console.Write(getExprString(c) + " : ");
+            }
+            Console.Write("\nNEW: ");
+
+            foreach (var v in valueList)
+            {
+                Console.Write(getExprString(v.GetExpr()) + "{" + v.GetOrdinal() + "} : ");
+            }
+            Console.WriteLine("\n");
+        }
+
         public void AssertOrdinals(List<Expr> reqOutput, List<Expr> actOutput)
         {
             // DEBUG stuff {
@@ -243,7 +277,7 @@ namespace qpmodel.logic
 
         // Fix one expression. Clone it and fix the ordinals
         // in the whole subexpression tree rooted at expr.
-        internal Expr FixExpr(Expr expr)
+        internal Expr FixExpr(Expr expr, int eh)
         {
             Expr clone = expr.Clone();
 
@@ -266,8 +300,14 @@ namespace qpmodel.logic
 
         internal ValueId FindValueId(int h)
         {
-            ValueId vidItem = valueSet.GetValueOrDefault(h);
-            return vidItem != null ? vidItem : null;
+            ValueId vid = valueSet.GetValueOrDefault(h);
+            return vid != null ? vid : null;
+        }
+
+        internal ValueId FindChild(int h)
+        {
+            ValueId vid = fixedChildren.GetValueOrDefault(h);
+            return vid != null ? vid : null;
         }
         internal bool FindExprByHash(int h, out int ord)
         {
@@ -1086,7 +1126,7 @@ namespace qpmodel.logic
             ordRes.SetFixedChildren(childrenout);
             ordRes.FixFilter(filter_);
             ordRes.FixOutput();
-
+            ordRes.PrintOrdinals(output_);
             RefreshOutputRegisteration();
             CreateKeyList();
             return ordinals;
