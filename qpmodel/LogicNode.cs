@@ -182,6 +182,9 @@ namespace qpmodel.logic
         }
         public void FixOutput()
         {
+#if false
+            // disable until after fixing the exception
+            // in FindChild when remove_from is false
             foreach (var o in valueList)
             {
                 Expr e = o.GetExpr();
@@ -199,6 +202,8 @@ namespace qpmodel.logic
                     vid.SetExpr(ne);
                 }
             }
+#endif
+            return;
         }
 
         public void FixFilter(Expr filter)
