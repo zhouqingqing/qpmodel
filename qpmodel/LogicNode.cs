@@ -1137,7 +1137,9 @@ namespace qpmodel.logic
             ordRes.SetFixedChildren(childrenout);
             ordRes.FixFilter(filter_);
             ordRes.FixOutput();
+#if false
             ordRes.PrintOrdinals(output_);
+#endif
             RefreshOutputRegisteration();
             CreateKeyList();
             return ordinals;
