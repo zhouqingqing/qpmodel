@@ -177,6 +177,34 @@ namespace qpmodel
             File.WriteAllText(outfile, alloutput);
         }
 
+        static string QSQLOptions = @"
+QSQL help
+-h      : help
+-d [num]: debug level. Default 1.
+-i      : interactive
+-f file : input from file
+-Q+     : turn on all optimizations
+-Q-     : turn off all optimizations
+-Q#     : turn on or off individual options as follows
+          where # stands for or more of the following
+    u       : unnest query. Default true.       u- false
+    r       : remove from. Default true.        r- false
+    c       : cte plan. Default true.           c- false
+    h       : hash join. Default true.          h- false
+    l       : nested loop. Default true.        l- false
+    s       : streamingagg. Default false.      s+ true
+    i       : indexseek. Default true.          i- false
+    b       : broadcast. Default true.          b- false
+    m       : use memo. Default true.           m- false
+    x       : cross join. Default true.         x- false
+    X       : remote exchange. Default false.   X+ true
+    j       : join order solver. Default false. j+ true
+    d num   : dop #machines. Default 10.
+    g       : codegen. Default false.           g+ true
+
+Optimization options can be combined or specfied seperately
+except -Qd, if speficed, it has to be seperated from all others
+";
         static void Main(string[] args)
         {
             Catalog.Init();
@@ -186,6 +214,15 @@ namespace qpmodel
             if (args.Length != 0)
             {
                 sql = args[0];
+            }
+            int ac = 0;
+            foreach (var a in args)
+            {
+                if (a.Equals("-h"))
+                {
+                    Console.Write(QSQLOptions);
+                    return;
+                }
             }
 
 #pragma warning disable CS0162 // Unreachable code detected
