@@ -259,6 +259,16 @@ namespace qpmodel.physic
 
         public override void Exec(Action<Row> callback)
         {
+            bool allColumnsVisible(List<Expr> output)
+            {
+                for (int i = 0; i < output.Count; i++)
+                {
+                    if (!output[i].isVisible_)
+                        return false;
+                }
+                return true;
+            }
+
             ExecContext context = context_;
             var child = (child_() is PhysicProfiling) ?
                     child_().child_() : child_();
@@ -280,13 +290,20 @@ namespace qpmodel.physic
             {
                 if (context.option_.optimize_.use_codegen_)
                 {
-                    context.code_ += $@"
-                        Row newr = new Row({ncolumns});";
-                    for (int i = 0; i < output.Count; i++)
+                    if (allColumnsVisible(output))
                     {
-                        if (output[i].isVisible_)
+                        context.code_ += $"Row newr = r{child_()._};";
+                    }
+                    else
+                    {
+                        context.code_ += $@"
+                        Row newr = new Row({ncolumns});";
+                        for (int i = 0; i < output.Count; i++)
                         {
-                            context.code_ += $"newr[{i}] = r{child_()._}[{i}];";
+                            if (output[i].isVisible_)
+                            {
+                                context.code_ += $"newr[{i}] = r{child_()._}[{i}];";
+                            }
                         }
                     }
                     context.code_ += $"{_physic_}.rows_.Add(newr);";
@@ -294,11 +311,15 @@ namespace qpmodel.physic
                 }
                 else
                 {
-                    Row newr = new Row(ncolumns);
-                    for (int i = 0; i < output.Count; i++)
+                    Row newr = r;
+                    if (!allColumnsVisible(output))
                     {
-                        if (output[i].isVisible_)
-                            newr[i] = r[i];
+                        newr = new Row(ncolumns);
+                        for (int i = 0; i < output.Count; i++)
+                        {
+                            if (output[i].isVisible_)
+                                newr[i] = r[i];
+                        }
                     }
                     rows_.Add(newr);
                     if (context.option_.explain_.mode_ >= ExplainMode.full)
