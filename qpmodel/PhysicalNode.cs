@@ -166,15 +166,21 @@ namespace qpmodel.physic
         {
             var incCost = 0.0;
             incCost += Cost();
+
             children_.ForEach(x =>
             {
                 if (x is PhysicMemoRef xp)
                     incCost += xp.Group().nullPropertyMinIncCost;
                 else
+                {
+                    if (x is PhysicProfiling) x = x.child_();
                     incCost += x.InclusiveCost();
+                }
             });
 
             // add subquery cost of Subquery in WHERE clause to inclusive cost
+            // CTE may show in here, we should also ignore it
+            //
             if (this.logic_.filter_ != null)
             {
                 Expr expr = this.logic_.filter_;
@@ -187,6 +193,7 @@ namespace qpmodel.physic
             }
 
             // account subquery cost of scalarSubquery in SELECT clause to inclusive cost
+            //
             if (this.logic_.output_ != null)
             {
                 List<Expr> output = this.logic_.output_;
@@ -200,8 +207,9 @@ namespace qpmodel.physic
                     }
                 });
             }
-
-            Debug.Assert(incCost > Cost() || children_.Count == 0);
+            // FIXME Anchor and CTESelect cost zero, they should be removed
+            //
+            Debug.Assert(incCost >= Cost() || children_.Count == 0);
             return incCost;
         }
 
@@ -236,7 +244,7 @@ namespace qpmodel.physic
         //   1) (<null, distributed>, <null, distributed>)
         //   2) (<null, distributed>, <null, replicated>)
         //
-        public virtual bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs)
+        public virtual bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs, bool isLastNode)
         {
             listChildReqs = new List<ChildrenRequirement>
             {
@@ -244,10 +252,10 @@ namespace qpmodel.physic
             };
             // the default is singleton with no order requirement
             // assume all the physic nodes can process singleton
-            if (required.IsSuppliedBy(DistrProperty.Singleton_))
+            if (required.IsSuppliedBy(DistrProperty.Singleton_(required.cteSpecList_)))
             {
                 for (int i = 0; i < children_.Count; i++)
-                    listChildReqs[0].Add(DistrProperty.Singleton_);
+                    listChildReqs[0].Add(DistrProperty.Singleton_(required.cteSpecList_));
                 return true;
             }
             else
@@ -429,7 +437,7 @@ namespace qpmodel.physic
                         Catalog.sysstat_.EstCardinality(logic.tabref_.relname_));
             return tablerows * 1.0;
         }
-        public override bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs)
+        public override bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs, bool isLastNode)
         {
             // leaf node, no child
             listChildReqs = null;
@@ -726,11 +734,11 @@ namespace qpmodel.physic
             return cost;
         }
 
-        public override bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs)
+        public override bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs, bool isLastNode)
         {
             // TODO: distribution determination, no distribution supplied
             // for NLJoin, consider only singleton situation
-            if (!required.DistributionIsSuppliedBy(DistrProperty.Singleton_))
+            if (!required.DistributionIsSuppliedBy(DistrProperty.Singleton_(required.cteSpecList_)))
             {
                 listChildReqs = null;
                 return false;
@@ -745,15 +753,21 @@ namespace qpmodel.physic
                     {
                         var outerreq = new DistrProperty
                         {
-                            ordering_ = required.ordering_
+                            ordering_ = required.ordering_,
+                            cteSpecList_ = required.cteSpecList_,
                         };
-                        listChildReqs.Add(new ChildrenRequirement { outerreq, DistrProperty.Singleton_ });
+                        var rightreq = new DistrProperty
+                        {
+                            cteSpecList_ = required.cteSpecList_
+                        };
+                        listChildReqs.Add(new ChildrenRequirement { outerreq, rightreq });
                         return true;
                     }
                     listChildReqs = null;
                     return false;
                 }
-                listChildReqs.Add(new ChildrenRequirement { DistrProperty.Singleton_, DistrProperty.Singleton_ });
+
+                listChildReqs.Add(new ChildrenRequirement { DistrProperty.Singleton_(required.cteSpecList_), DistrProperty.Singleton_(required.cteSpecList_)});
                 return true;
             }
         }
@@ -1009,7 +1023,7 @@ namespace qpmodel.physic
             var outputcost = logic_.Card() * 1.0;
             return buildcost + probecost + outputcost;
         }
-        public override bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs)
+        public override bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs, bool isLastNode)
         {
             // cannot handle order property
             if (required.ordering_.Count > 0)
@@ -1026,24 +1040,24 @@ namespace qpmodel.physic
             switch (requiredType)
             {
                 case DistrType.Singleton:
-                    listChildReqs.Add(new ChildrenRequirement { DistrProperty.Singleton_, DistrProperty.Singleton_ });
+                    listChildReqs.Add(new ChildrenRequirement { DistrProperty.Singleton_(required.cteSpecList_), DistrProperty.Singleton_(required.cteSpecList_) });
                     return true;
                 case DistrType.Replicated:
-                    listChildReqs.Add(new ChildrenRequirement { DistrProperty.Replicated_, DistrProperty.Replicated_ });
+                    listChildReqs.Add(new ChildrenRequirement { DistrProperty.Replicated_(required.cteSpecList_), DistrProperty.Replicated_(required.cteSpecList_) });
                     return true;
             }
             Debug.Assert(requiredType == DistrType.Distributed || requiredType == DistrType.AnyDistributed);
             if (required.DistributionIsSuppliedBy(new DistrProperty(logic.leftKeys_))
                 || required.DistributionIsSuppliedBy(new DistrProperty(logic.rightKeys_)))
             {
-                listChildReqs.Add(new ChildrenRequirement { new DistrProperty(logic.leftKeys_), new DistrProperty(logic.rightKeys_) });
-                listChildReqs.Add(new ChildrenRequirement { DistrProperty.Singleton_, new DistrProperty(logic.rightKeys_) });
-                listChildReqs.Add(new ChildrenRequirement { new DistrProperty(logic.leftKeys_), DistrProperty.Singleton_ });
+                listChildReqs.Add(new ChildrenRequirement { new DistrProperty(logic.leftKeys_) { cteSpecList_=required.cteSpecList_}, new DistrProperty(logic.rightKeys_) { cteSpecList_=required.cteSpecList_} });
+                listChildReqs.Add(new ChildrenRequirement { DistrProperty.Singleton_(required.cteSpecList_), new DistrProperty(logic.rightKeys_) { cteSpecList_=required.cteSpecList_} });
+                listChildReqs.Add(new ChildrenRequirement { new DistrProperty(logic.leftKeys_), DistrProperty.Singleton_(required.cteSpecList_)});
                 if (requiredType == DistrType.AnyDistributed)
                 {
-                    listChildReqs.Add(new ChildrenRequirement { DistrProperty.Replicated_, PhysicProperty.NullProperty_ });
-                    listChildReqs.Add(new ChildrenRequirement { DistrProperty.Singleton_, new DistrProperty(logic.rightKeys_) });
-                    listChildReqs.Add(new ChildrenRequirement { new DistrProperty(logic.leftKeys_), DistrProperty.Singleton_ });
+                    listChildReqs.Add(new ChildrenRequirement { DistrProperty.Replicated_(required.cteSpecList_), PhysicProperty.NullProperty_ });
+                    listChildReqs.Add(new ChildrenRequirement { DistrProperty.Singleton_(required.cteSpecList_), new DistrProperty(logic.rightKeys_) { cteSpecList_=required.cteSpecList_} });
+                    listChildReqs.Add(new ChildrenRequirement { new DistrProperty(logic.leftKeys_), DistrProperty.Singleton_(required.cteSpecList_) });
                 }
                 return true;
             }
@@ -1144,17 +1158,17 @@ namespace qpmodel.physic
             return (child_().Card() * 1.0) + (logic_.Card() * 2.0);
         }
 
-        public override bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs)
+        public override bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs, bool isLastNode)
         {
             listChildReqs = new List<ChildrenRequirement>();
             // hash agg can only support singleton with no order requirement by default
-            if (required.Equals(DistrProperty.Singleton_))
+            if (required.Equals(DistrProperty.Singleton_(required.cteSpecList_)))
             {
-                listChildReqs.Add(new ChildrenRequirement { DistrProperty.Singleton_ });
+                listChildReqs.Add(new ChildrenRequirement { DistrProperty.Singleton_(required.cteSpecList_) });
                 return true;
             }
             // is the aggregation is local, it can be for any distribution
-            if (DistrProperty.AnyDistributed_.IsSuppliedBy(required))
+            if (DistrProperty.AnyDistributed_(required.cteSpecList_).IsSuppliedBy(required))
             {
                 if ((logic_ as LogicAgg).isLocal_)
                 {
@@ -1286,7 +1300,7 @@ namespace qpmodel.physic
     {
         public PhysicStreamAgg(LogicAgg logic, PhysicNode l) : base(logic, l) { }
         public override string ToString() => $"PStreamAgg({child_()}: {Cost()})";
-        public override bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs)
+        public override bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs, bool isLastNode)
         {
             listChildReqs = new List<ChildrenRequirement>();
 
@@ -1529,20 +1543,23 @@ namespace qpmodel.physic
 
     public class PhysicFromQuery : PhysicNode
     {
-        List<Row> cteCache_ = null;
+        public bool setAsInlineCte() => IsInlineCte = true;
+        public bool IsInlineCte { get; private set; } = false;
 
         public override string ToString() => $"PFrom({(logic_ as LogicFromQuery)}: {Cost()})";
 
         public PhysicFromQuery(LogicFromQuery logic, PhysicNode l) : base(logic) => children_.Add(l);
+
+        public PhysicFromQuery(LogicCteConsumer logic, PhysicNode l) : base(logic) => children_.Add(l);
 
         public bool IsCteConsumer(out CTEQueryRef qref) => (logic_ as LogicFromQuery).IsCteConsumer(out qref);
 
         public override void Open(ExecContext context)
         {
             base.Open(context);
-            var logic = logic_ as LogicFromQuery;
-            if (logic.IsCteConsumer(out CTEQueryRef qref))
-                cteCache_ = context.TryGetCteProducer(qref.cte_.cteName_);
+            //var logic = logic_ as LogicFromQuery;
+            //if (logic.IsCteConsumer(out CTEQueryRef qref))
+            //    cteCache_ = context.TryGetCteProducer(qref.cte_.cteName_);
         }
 
         public override void Exec(Action<Row> callback)
@@ -1550,40 +1567,18 @@ namespace qpmodel.physic
             ExecContext context = context_;
             var logic = logic_ as LogicFromQuery;
 
-            if (cteCache_ != null)
-            {
-                ExecAsCteConsumer(callback);
-                return;
-            }
-
             child_().Exec(l =>
             {
                 if (context.stop_)
                     return;
 
-                if (logic.queryRef_.colRefedBySubq_.Count != 0)
+                if (!(logic is null) && logic?.queryRef_.colRefedBySubq_.Count != 0)
                     context.AddParam(logic.queryRef_, l);
                 var r = ExecProject(l);
                 callback(r);
             });
         }
 
-        public void ExecAsCteConsumer(Action<Row> callback)
-        {
-            ExecContext context = context_;
-            var logic = logic_ as LogicFromQuery;
-
-            foreach (Row l in cteCache_)
-            {
-                if (context.stop_)
-                    break;
-
-                if (logic.queryRef_.colRefedBySubq_.Count != 0)
-                    context.AddParam(logic.queryRef_, l);
-                var r = ExecProject(l);
-                callback(r);
-            }
-        }
 
         protected override double EstimateCost()
         {

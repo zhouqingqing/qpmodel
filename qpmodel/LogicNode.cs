@@ -56,6 +56,10 @@ namespace qpmodel.logic
         public List<Expr> output_ = new List<Expr>();
         public ulong? card_;
 
+        // From may belong to one CTEProducer
+        public int logicNodeCteId_ = -1;
+        public string logicNodeCteRefId_ = "";
+
         // these fields are used to avoid recompute - be careful with stale caching
         protected List<TableRef> tableRefs_ = null;
         // tables it contained (children recursively inclusive)
@@ -70,6 +74,21 @@ namespace qpmodel.logic
         public List<TableRef> GetTableRef()
         {
             return tableRefs_;
+        }
+
+        public LogicNode deRefMemoRef()
+        {
+            int childCount = children_.Count;
+            for (int i = 0; i < childCount; i++)
+            {
+                if (children_[i] is LogicMemoRef lmr)
+                {
+                    LogicNode ln = lmr.Deref();
+                    children_[i] = ln;
+                    ln.deRefMemoRef();
+                }
+            }
+            return this;
         }
 
         public override string ExplainMoreDetails(int depth, ExplainOption option) => ExplainFilter(filter_, depth, option);
@@ -131,6 +150,12 @@ namespace qpmodel.logic
         {
             PhysicNode result;
             PhysicNode phyfirst = null;
+
+            // 
+            // inline CTE logic plan firstly
+            if (this is LogicCteConsumer lcc)
+                lcc.children_.Insert(0, lcc.cteInfoEntry_.plan_);
+
             if (children_.Count != 0)
                 phyfirst = children_[0].DirectToPhysical(option);
 
@@ -216,13 +241,6 @@ namespace qpmodel.logic
                 case LogicAppend append:
                     result = new PhysicAppend(append, phyfirst, rchild_().DirectToPhysical(option));
                     break;
-                case LogicCteProducer cteproducer:
-                    result = new PhysicCteProducer(cteproducer, phyfirst);
-                    break;
-                case LogicSequence sequence:
-                    List<PhysicNode> children = sequence.children_.Select(x => x.DirectToPhysical(option)).ToList();
-                    result = new PhysicSequence(sequence, children);
-                    break;
                 case LogicGather gather:
                     result = new PhysicGather(gather, phyfirst);
                     break;
@@ -237,6 +255,26 @@ namespace qpmodel.logic
                     break;
                 case LogicSampleScan ss:
                     result = new PhysicSampleScan(ss, phyfirst);
+                    break;
+                case LogicCteConsumer lcc2:
+                    // inline the cte
+                    // add the subplan as the child of CTEConsumer firstly
+                    // replace CteConsumer as CteFrom
+                    result = new PhysicFromQuery(lcc2, phyfirst);
+                    // the child of CteConsumer is PhysicalFromNode, inline Cte will create a FromNode
+                    // To avoid Dumplication, remove the child of CteConsumer
+                    //
+                    if (option.profile_.enabled_)
+                        result.children_[0] = phyfirst.child_().child_().child_();
+                    else
+                        result.children_[0] = phyfirst.child_().child_();
+                    // set it the FromQuery as InlineCte
+                    var pfq = result as PhysicFromQuery;
+                    pfq.setAsInlineCte();
+                    result = pfq;
+                    break;
+                case LogicCteAnchor lca:
+                    result = phyfirst;
                     break;
                 default:
                     throw new NotImplementedException();
@@ -258,6 +296,16 @@ namespace qpmodel.logic
                 {
                     refs.Add(fx.queryRef_);
                     refs.AddRange(fx.queryRef_.query_.bindContext_.AllTableRefs());
+                }
+                else if (this is LogicCteConsumer lcc)
+                {
+                    refs.Add(lcc.queryRef_);
+                    refs.AddRange(lcc.queryRef_.query_.bindContext_.AllTableRefs());
+                }
+                else if (this is LogicSelectCte lsc)
+                {
+                    refs.Add(lsc.logicCteConsumer_.queryRef_);
+                    refs.AddRange(lsc.logicCteConsumer_.queryRef_.query_.bindContext_.AllTableRefs());
                 }
                 else
                 {
@@ -360,11 +408,25 @@ namespace qpmodel.logic
                 if (!target.isParameter_)
                 {
                     target.ordinal_ = source.FindIndex(roughNameTest);
+                    List<Expr> source_t = new List<Expr>();
+                    foreach (var s in source)
+                    {
+                        if (s is ExprRef serf)
+                        {
+                            source_t.Add(serf.expr_());
+                        }
+                        else
+                        {
+                            source_t.Add(s);
+                        }
+                    }
+                    source = source_t;
 
                     // we may hit more than one target, say t2.col1 matching {t1.col1, t2.col1}
                     // in this case, we shall redo the mapping with table name
                     //
                     Debug.Assert(source.FindAll(roughNameTest).Count >= 1);
+                    target.ordinal_ = source.FindIndex(roughNameTest);
                     if (source.FindAll(roughNameTest).Count > 1)
                     {
                         Predicate<ColExpr> nameAndTableMatch = z =>
@@ -439,8 +501,20 @@ namespace qpmodel.logic
         public virtual LogicSignature MemoLogicSign()
         {
             if (logicSign_ == -1)
-                logicSign_ = GetHashCode();
+                if (logicNodeCteId_ == -1)
+                    logicSign_ = GetHashCode();
+                else // derive from cte Producer
+                {
+                    Debug.Assert(logicNodeCteId_ != -1);
+                    logicSign_ = GetHashCode() ^ logicNodeCteId_.GetHashCode() ^ logicNodeCteRefId_.GetHashCode();
+                }
             return logicSign_;
+        }
+
+        public virtual LogicSignature ResetLogicSign()
+        {
+            logicSign_ = -1;
+            return MemoLogicSign();
         }
 
         // resolve mapping from children output
@@ -1375,6 +1449,7 @@ namespace qpmodel.logic
             return false;
         }
 
+        public bool IsCteConsumer() => queryRef_ is CTEQueryRef;
         public LogicFromQuery(QueryRef query, LogicNode child) { queryRef_ = query; children_.Add(child); }
 
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
@@ -1382,6 +1457,11 @@ namespace qpmodel.logic
             List<int> ordinals = new List<int>();
             var query = queryRef_.query_;
             query.logicPlan_.ResolveColumnOrdinal(query.selection_);
+
+            if (children_.Count > 0)
+            {
+                children_[0].ResolveColumnOrdinal(query.selection_);
+            }
 
             var childout = queryRef_.AllColumnsRefs();
             output_ = CloneFixColumnOrdinal(reqOutput, childout, false);

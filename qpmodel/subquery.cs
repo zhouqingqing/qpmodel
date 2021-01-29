@@ -50,6 +50,9 @@ using Value = System.Object;
 // because naming reference. PostgreSQL actually puts a Result node with a 
 // name, so it is similar to FromQuery.
 //
+using LogicSignature = System.Int64;
+using qpmodel.optimizer;
+using qpmodel.logic;
 
 namespace qpmodel.logic
 {
@@ -563,25 +566,90 @@ namespace qpmodel.logic
                     break;
             }
             if (oldplan != newplan)
-                decorrelatedSubs_.Add(new NamedQuery(subexpr.query_, null));
+                decorrelatedSubs_.Add(new NamedQuery(subexpr.query_, null, NamedQuery.QueryType.UNSURE));
             return newplan;
         }
 
-        // if there is a CteExpr referenced more than once, we can use a sequence plan
-        LogicNode tryCteToSequencePlan(LogicNode root)
+        void findCteConsumerInParent(LogicNode parent, ref Stack<int> scie)
         {
-            if (!queryOpt_.optimize_.enable_cte_plan_)
-                return root;
+            var scieTemp = scie;
+            parent.VisitEach(logicNode =>
+            {
+                if (logicNode is LogicCteConsumer lcc)
+                {
+                    var cteId = lcc.cteId_;
+                    var cteInfoEntry = cteInfo_.GetCteInfoEntryByCteId(cteId);
+                    if (scieTemp.Contains(cteId))
+                    {
+                        cteInfoEntry.refTimes++;
+                    }
+                    else
+                    {
+                        cteInfoEntry.refTimes = 1;
+                        cteInfoEntry.MarkCTEUsed();
+                        scieTemp.Push(cteId);
+                    };
+                    lcc.refId_ = cteInfoEntry.refTimes;
+                    cteInfo_.SetCetInfoEntryByCteId(cteId, cteInfoEntry);
+                }
+            });
+            scie = scieTemp;
+        }
 
-            var list = ctes_.Where(x => x.refcnt_ > 1).ToList();
-            if (list.Count == 0)
-                return root;
+        bool inlineCteConsumer(ref LogicNode root, int inlineCteId, LogicNode inlineCtePlan)
+        {
+            bool isInlined = false;
+            if (root is LogicCteConsumer lcc && lcc.cteId_ == inlineCteId)
+            {
+                root = inlineCtePlan;
+                isInlined = true;
+            }
+            else
+            {
+                root.VisitEach((parent, index, child) =>
+                {
+                    if (child is LogicCteConsumer lcc && lcc.cteId_ == inlineCteId)
+                    {
+                        parent.children_[index] = inlineCtePlan;
+                        isInlined = true;
+                    }
+                });
+            }
 
-            var seqNode = new LogicSequence();
-            seqNode.children_.AddRange(list.Select(x =>
-                    new LogicCteProducer(x.query_.logicPlan_, x)));
-            seqNode.children_.Add(root);
-            return seqNode;
+            return isInlined;
+        }
+
+        LogicNode cteToAnchor(LogicNode root)
+        {
+
+            // find the cte whitch is not used
+            // consider "with cte0 as (select * from a),cte1 as (select * from cte0) select * from a
+            // although cte0 is used in cte1 , but cte1 is never used, so we have to delete cte1 too 
+            //
+            Stack<int> scie = new Stack<int>(); // save cteId
+
+            findCteConsumerInParent(root, ref scie);
+            foreach (var subq in subQueries_)
+            {
+                findCteConsumerInParent(subq.query_.logicPlan_, ref scie);
+            }
+            while (scie.Count() > 0)
+            {
+                var cteId = scie.Pop();
+                var ctePlan = cteInfo_.GetCteInfoEntryByCteId(cteId).plan_;
+                findCteConsumerInParent(ctePlan, ref scie);
+            }
+            // remove not used cte
+            var cteIsUsed = ctes_;
+            cteIsUsed.RemoveAll(x => !cteInfo_.GetCteInfoEntryByCteId(x.cteId_).IsUsed());
+
+            for (int i = 0; i < cteIsUsed.Count; i++)
+            {
+                var lca = new LogicCteAnchor(cteInfo_.GetCteInfoEntryByCteId(cteIsUsed[i].cteId_));
+                lca.children_.Add(root);
+                root = lca;
+            }
+            return root;
         }
     }
 
@@ -612,6 +680,416 @@ namespace qpmodel.logic
         public override string ToString() => $"{lchild_()} markAntisemiX {rchild_()}";
         public LogicMarkAntiSemiJoin(LogicNode l, LogicNode r, int subquery_id = 0) : base(l, r, subquery_id) { }
         public LogicMarkAntiSemiJoin(LogicNode l, LogicNode r, Expr f) : base(l, r, f) { }
+    }
+
+
+
+    public class LogicSingleJoin : LogicJoin
+    {
+        // if we can prove at most one row return, it is essentially an ordinary LOJ
+        internal bool max1rowCheck_ = true;
+
+        public override string ToString() => $"{lchild_()} singleX {rchild_()}";
+        public LogicSingleJoin(LogicNode l, LogicNode r) : base(l, r) { type_ = JoinType.Left; }
+        public LogicSingleJoin(LogicNode l, LogicNode r, Expr f) : base(l, r, f) { type_ = JoinType.Left; }
+    }
+
+    public class PhysicSingleJoin : PhysicNode
+    {
+        public PhysicSingleJoin(LogicSingleJoin logic, PhysicNode l, PhysicNode r) : base(logic)
+        {
+            children_.Add(l); children_.Add(r);
+
+            // we can't assert logic filter is not null because in some cases we can't adjust join order
+            // then we have to bear with it.
+            // Example:
+            //     select a1  from a where a.a1 = (
+            //            select c1 from c where c2 = a2 and c1 = (select b1 from b where b3=a3));
+            //
+        }
+        public override string ToString() => $"PSingleJOIN({lchild_()},{rchild_()}: {Cost()})";
+
+        // always the first column
+        public override void Exec(Action<Row> callback)
+        {
+            ExecContext context = context_;
+            var logic = logic_ as LogicSingleJoin;
+            var filter = logic.filter_;
+            Debug.Assert(logic is LogicSingleJoin);
+            bool outerJoin = logic.type_ == JoinType.Left;
+
+            // if max1row is gauranteed, it is converted to regular LOJ
+            Debug.Assert(logic.max1rowCheck_);
+
+            lchild_().Exec(l =>
+            {
+                bool foundOneMatch = false;
+                rchild_().Exec(r =>
+                {
+                    Row n = new Row(l, r);
+                    if (filter is null || filter.Exec(context, n) is true)
+                    {
+                        bool foundDups = foundOneMatch && filter != null;
+
+                        if (foundDups)
+                            throw new SemanticExecutionException("subquery must return only one row");
+                        foundOneMatch = true;
+
+                        // there is at least one match, mark true
+                        n = ExecProject(n);
+                        callback(n);
+                    }
+                });
+
+                // if there is no match, output it if outer join
+                if (!foundOneMatch && outerJoin)
+                {
+                    var nNulls = rchild_().logic_.output_.Count;
+                    Row n = new Row(l, new Row(nNulls));
+                    n = ExecProject(n);
+                    callback(n);
+                }
+            });
+        }
+
+        protected override double EstimateCost()
+        {
+            double cost = lchild_().Card() * rchild_().Card();
+            return cost;
+        }
+    }
+
+    public class LogicSequence : LogicNode
+    {
+        public override string ToString() => $"Sequence({children_.Count - 1},{OutputChild()})";
+
+        // last child is the output node
+        public LogicNode OutputChild() => children_[children_.Count - 1];
+
+        public LogicCteAnchor cteAnchor_;
+
+        public LogicSequence(LogicNode lchild, LogicNode rchild, LogicCteAnchor cteAnchor)
+        {
+            children_.Add(lchild); children_.Add(rchild);
+            Debug.Assert(children_.Count == 2);
+            cteAnchor_ = cteAnchor;
+        }
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
+        {
+            List<int> ordinals = new List<int>();
+
+            // Sequence not only handle CTEProducer
+            for (int i = 0; i < children_.Count - 1; i++)
+            {
+                var child = children_[i] as LogicCteProducer;
+                //             Sequence
+                //            /
+                //        Producer
+                //         /
+                //     From
+                var from = child.child_() as LogicFromQuery;
+                child.ResolveColumnOrdinal(from.queryRef_.query_.selection_, false);
+            }
+            OutputChild().ResolveColumnOrdinal(reqOutput, removeRedundant);
+            output_ = OutputChild().output_;
+            RefreshOutputRegisteration();
+            return ordinals;
+        }
+
+        public override LogicSignature MemoLogicSign()
+        {
+            if (logicSign_ == -1)
+                logicSign_ = cteAnchor_.MemoLogicSign(); //anchor + cteId
+            return logicSign_;
+        }
+    }
+
+
+    // a entry of CTE info
+    public class CteInfoEntry
+    {
+        // if this Cte is Used
+        // when a cte1 is used in cte2, but cte2 is never used 
+        // we should mark both cte1 and cte2 isUsed = False.
+        //
+        bool isUsed_;
+
+        bool isInlined_;
+
+        // a cteProducer refer times
+        //
+        public int refTimes = 0;
+
+        public CteExpr cte_;
+
+        public LogicNode plan_;
+
+        public CteInfoEntry(CteExpr exprCteProducer, LogicNode plan)
+        {
+            Debug.Assert(exprCteProducer != null);
+            cte_ = exprCteProducer;
+            var alias = cte_.cteName_;
+            plan_ = plan;
+            isUsed_ = false;
+            isInlined_ = false;
+        }
+
+        public CteInfoEntry()
+        {
+
+        }
+
+        // something to save cte producer
+        //
+        public void MarkCTEUsed() => isUsed_ = true;
+
+        public bool IsUsed() => isUsed_;
+
+        public void MarkInlined() => isInlined_ = true;
+
+        public bool IsInlined() => isInlined_;
+    }
+
+    public class CteInfo
+    {
+        public int cteCount_;
+        // map cteId to Cteinfo
+        public Dictionary<int, CteInfoEntry> CteIdToCteInfoEntry_;
+
+        public CteInfo()
+        {
+            CteIdToCteInfoEntry_ = new Dictionary<int, CteInfoEntry>();
+        }
+
+        public CteInfoEntry GetCteInfoEntryByCteId(int cteId)
+        {
+            var cteInfoEntry = new CteInfoEntry();
+            bool isGet = CteIdToCteInfoEntry_.TryGetValue(cteId, out cteInfoEntry);
+            Debug.Assert(isGet);
+            return cteInfoEntry;
+        }
+
+        public List<CteInfoEntry> GetAllCteInfoEntries()
+        {
+            var cieList = new List<CteInfoEntry>();
+            foreach (var kv in CteIdToCteInfoEntry_)
+            {
+                cieList.Add(kv.Value);
+            }
+            return cieList;
+        }
+        public List<CteExpr> GetAllCteExprs()
+        {
+            var ceList = new List<CteExpr>();
+            foreach (var v in GetAllCteInfoEntries())
+            {
+                ceList.Add(v.cte_);
+            }
+            return ceList;
+        }
+
+        public void SetCetInfoEntryByCteId(int cteId, CteInfoEntry cie) => CteIdToCteInfoEntry_[cteId] = cie;
+
+        public void addCteProducer(int cteId, CteInfoEntry cie)
+        {
+            Debug.Assert(cteId >= 0);
+            Debug.Assert(cie != null);
+            CteIdToCteInfoEntry_.Add(cteId, cie);
+            cteCount_++;
+        }
+
+        // find all CTE Consumer In Parent and push it into stack
+    }
+
+    public class LogicCteProducer : LogicNode
+    {
+        internal CteExpr cte_;
+
+        public CteInfoEntry cteInfoEntry_;
+        // represent the id of CTE, it should match the related CteProducer
+        public int cteId_;
+        public override string ToString() => $"CteProducer({child_()})";
+
+        public LogicCteProducer(CteInfoEntry cteInfoEntry)
+        {
+            cteInfoEntry_ = cteInfoEntry;
+            children_.Add(cteInfoEntry.plan_);
+            // CTEProducer has only one child
+            Debug.Assert(children_.Count() == 1);
+        }
+
+        public override string ExplainInlineDetails() => cteInfoEntry_.cte_.cteName_;
+    }
+
+    public class LogicSelectCte : LogicNode
+    {
+        public CteInfoEntry cteInfoEntry_;
+
+        public LogicCteConsumer logicCteConsumer_;
+
+
+        public LogicSelectCte(LogicCteConsumer lcc, Memo memo)
+        {
+            // we have to derive the subplans and add cte id
+            //
+            LogicNode ctePlanRoot = lcc.cteInfoEntry_.plan_.Clone();
+            var cteId = lcc.cteInfoEntry_.cte_.cteId_;
+            var cteRefId = lcc.refId_;
+            // extract from memoRef
+            ctePlanRoot = ctePlanRoot.deRefMemoRef();
+            // reset Signature
+            ctePlanRoot.VisitEach(x =>
+            {
+                x.logicNodeCteId_ = cteId;
+                x.logicNodeCteRefId_ = String.Format(@"refId_{0}", cteRefId);
+                // because they have inlined to a cte consumer, so their signature have to change
+            });
+            ctePlanRoot.VisitEach(x =>
+            {
+                x.ResetLogicSign();
+            });
+
+            // then add them into the plan
+            children_.Add(ctePlanRoot);
+            memo.EnquePlan(ctePlanRoot);
+            Debug.Assert(children_.Count() == 1);
+            cteInfoEntry_ = lcc.cteInfoEntry_;
+            logicCteConsumer_ = lcc;
+            output_ = lcc.output_;
+        }
+
+        // LogicSelectCte has the same LogicSignature with LogciCteConsumer
+        public override LogicSignature MemoLogicSign()
+        {
+            if (logicSign_ == -1)
+                return logicCteConsumer_.MemoLogicSign();
+            return logicSign_;
+        }
+
+
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
+        {
+            List<int> ordinals = new List<int>();
+            List<Expr> reqFromChild = new List<Expr>();
+            reqFromChild.AddRange(reqOutput.CloneList());
+            reqFromChild.RemoveAll(x => x is SubqueryExpr);
+            children_[0].ResolveColumnOrdinal(reqFromChild);
+            logicCteConsumer_.ResolveColumnOrdinal(reqOutput, removeRedundant);
+            output_ = logicCteConsumer_.output_;
+            RefreshOutputRegisteration();
+            return ordinals;
+        }
+
+
+    }
+
+
+
+    public class LogicCteConsumer : LogicNode
+    {
+
+        public QueryRef queryRef_;
+
+        // if there is 2 consumer, then the first on is refId_ = 1 and the secont is refId_ = 2
+        public int refId_ = -1;
+
+        // represent the id of CTE, it should match the related CteProducer
+        public int cteId_ = -1;
+        public override string ToString() => $"LogicCteConsumer({cteId_})";
+
+        public CteInfoEntry cteInfoEntry_;
+
+        // Cte Consumer has no child
+        public LogicCteConsumer(CteInfoEntry cteInfo, QueryRef queryRef)
+        {
+            cteId_ = cteInfo.cte_.cteId_;
+            cteInfoEntry_ = cteInfo;
+            queryRef_ = queryRef;
+        }
+
+        public override LogicSignature MemoLogicSign()
+        {
+            if (logicSign_ == -1)
+                logicSign_ = cteInfoEntry_.GetType().GetHashCode() ^ refId_.ToString().GetHashCode() ^ cteInfoEntry_.cte_.cteId_.GetHashCode();
+            return logicSign_;
+        }
+
+        // it is similar to from query.
+        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
+        {
+            List<int> ordinals = new List<int>();
+            var query = queryRef_.query_;
+
+            // a plan  From Query
+            var ctePlan = query.cteInfo_.GetCteInfoEntryByCteId(cteId_).plan_;
+
+            List<Expr> cteProdOut = ctePlan.output_;
+            if (cteProdOut.Count == 0)
+            {
+                ctePlan.ResolveColumnOrdinal(query.selection_);
+            }
+            var childout = ctePlan.output_;
+            output_ = CloneFixColumnOrdinal(reqOutput, childout, false);
+            if (removeRedundant)
+                output_ = output_.Distinct().ToList();
+            RefreshOutputRegisteration();
+            return ordinals;
+        }
+
+        public override string ExplainInlineDetails() => "LogicCTEConsumer";
+    }
+
+    public class LogicCteAnchor : LogicNode
+    {
+        // represent the id of CTE, it should match the related CteProducer
+        public CteInfoEntry cteInfoEntry_;
+
+        public override string ToString() => $"CteAnchor({cteInfoEntry_.cte_.cteId_})";
+
+        // Cte Consumer has no child
+        public LogicCteAnchor(CteInfoEntry cteInfoEntry)
+        {
+            cteInfoEntry_ = cteInfoEntry;
+        }
+
+        public override string ExplainInlineDetails() => "CteAnchor";
+
+        public override int GetHashCode()
+        {
+            return GetType().GetHashCode() ^ cteInfoEntry_.cte_.cteId_.GetHashCode();
+        }
+    }
+}
+
+namespace qpmodel.physic
+{
+    using ChildrenRequirement = System.Collections.Generic.List<PhysicProperty>;
+    public class PhysicSelectCte : PhysicNode
+    {
+        public override string ToString() => $"SelectCte({string.Join(",", children_)}: {Cost()})";
+
+        // CteAnchor has no operatopm
+        public PhysicSelectCte(LogicNode logic, PhysicNode child) : base(logic)
+        {
+            children_.Add(child);
+            Debug.Assert(children_.Count() == 1);
+        }
+
+        // FIXME we should remove this
+        public override void Exec(Action<Row> callback)
+        {
+            ExecContext context = context_;
+            child_().Exec(r =>
+            {
+                callback(r);
+            });
+        }
+        protected override double EstimateCost()
+        {
+            // select do no thing 
+            // 
+            return 0;
+        }
     }
 
     public class PhysicMarkJoin : PhysicNode
@@ -748,111 +1226,19 @@ namespace qpmodel.logic
         }
     }
 
-    public class LogicSingleJoin : LogicJoin
-    {
-        // if we can prove at most one row return, it is essentially an ordinary LOJ
-        internal bool max1rowCheck_ = true;
-
-        public override string ToString() => $"{lchild_()} singleX {rchild_()}";
-        public LogicSingleJoin(LogicNode l, LogicNode r) : base(l, r) { type_ = JoinType.Left; }
-        public LogicSingleJoin(LogicNode l, LogicNode r, Expr f) : base(l, r, f) { type_ = JoinType.Left; }
-    }
-
-    public class PhysicSingleJoin : PhysicNode
-    {
-        public PhysicSingleJoin(LogicSingleJoin logic, PhysicNode l, PhysicNode r) : base(logic)
-        {
-            children_.Add(l); children_.Add(r);
-
-            // we can't assert logic filter is not null because in some cases we can't adjust join order
-            // then we have to bear with it.
-            // Example:
-            //     select a1  from a where a.a1 = (
-            //            select c1 from c where c2 = a2 and c1 = (select b1 from b where b3=a3));
-            //
-        }
-        public override string ToString() => $"PSingleJOIN({lchild_()},{rchild_()}: {Cost()})";
-
-        // always the first column
-        public override void Exec(Action<Row> callback)
-        {
-            ExecContext context = context_;
-            var logic = logic_ as LogicSingleJoin;
-            var filter = logic.filter_;
-            Debug.Assert(logic is LogicSingleJoin);
-            bool outerJoin = logic.type_ == JoinType.Left;
-
-            // if max1row is gauranteed, it is converted to regular LOJ
-            Debug.Assert(logic.max1rowCheck_);
-
-            lchild_().Exec(l =>
-            {
-                bool foundOneMatch = false;
-                rchild_().Exec(r =>
-                {
-                    Row n = new Row(l, r);
-                    if (filter is null || filter.Exec(context, n) is true)
-                    {
-                        bool foundDups = foundOneMatch && filter != null;
-
-                        if (foundDups)
-                            throw new SemanticExecutionException("subquery must return only one row");
-                        foundOneMatch = true;
-
-                        // there is at least one match, mark true
-                        n = ExecProject(n);
-                        callback(n);
-                    }
-                });
-
-                // if there is no match, output it if outer join
-                if (!foundOneMatch && outerJoin)
-                {
-                    var nNulls = rchild_().logic_.output_.Count;
-                    Row n = new Row(l, new Row(nNulls));
-                    n = ExecProject(n);
-                    callback(n);
-                }
-            });
-        }
-
-        protected override double EstimateCost()
-        {
-            double cost = lchild_().Card() * rchild_().Card();
-            return cost;
-        }
-    }
-
-    public class LogicSequence : LogicNode
-    {
-        public override string ToString() => $"Sequence({children_.Count - 1},{OutputChild()})";
-
-        // last child is the output node
-        public LogicNode OutputChild() => children_[children_.Count - 1];
-
-        public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
-        {
-            List<int> ordinals = new List<int>();
-
-            for (int i = 0; i < children_.Count - 1; i++)
-            {
-                var child = children_[i] as LogicCteProducer;
-                child.ResolveColumnOrdinal(child.cte_.query_.selection_, false);
-            }
-            OutputChild().ResolveColumnOrdinal(reqOutput, removeRedundant);
-            output_ = OutputChild().output_;
-            RefreshOutputRegisteration();
-            return ordinals;
-        }
-    }
-
+    // This is a binary operator that executes its children in 
+    // order(left to right), and returns the results of the right child.
+    // 
     public class PhysicSequence : PhysicNode
     {
         public override string ToString() => $"Sequence({string.Join(",", children_)}: {Cost()})";
 
+        public int cteId_ = -1;
+
         public PhysicSequence(LogicNode logic, List<PhysicNode> children) : base(logic)
         {
-            Debug.Assert(children.Count >= 2);
+            cteId_ = (logic as LogicSequence).cteAnchor_.cteInfoEntry_.cte_.cteId_;
+            Debug.Assert(children.Count == 2);
             children_ = children;
         }
 
@@ -888,22 +1274,117 @@ namespace qpmodel.logic
         }
         protected override double EstimateCost()
         {
-            return logic_.Card() * 0.5;
+            return 0;
+        }
+
+        public override bool CanProvide(PhysicProperty required, out List<List<PhysicProperty>> listChildReqs, bool isLastNode)
+        {
+            if (!required.DistributionIsSuppliedBy(DistrProperty.Singleton_(required.cteSpecList_)))
+            {
+                listChildReqs = null;
+                return false;
+            }
+            else
+            {
+                listChildReqs = new List<ChildrenRequirement>();
+                var leftreq = new DistrProperty();
+                leftreq.cteSpecList_.Add((CTEType.CTEProducer, cteId_, true));
+                var rightreq = new DistrProperty();
+                // order property transfer to right child only, as left child will return no
+                // 
+                if (required.ordering_.Count > 0)
+                {
+                    rightreq.ordering_ = required.ordering_;
+                }
+                rightreq.cteSpecList_.Add((CTEType.CTEConsumer, cteId_, false));
+                listChildReqs.Add(new ChildrenRequirement { leftreq, rightreq });
+                return true;
+            }
         }
     }
 
-    public class LogicCteProducer : LogicNode
+    public class PhysicCteAnchor : PhysicNode
     {
-        internal CteExpr cte_;
-        public override string ToString() => $"CteProducer({child_()})";
+        public override string ToString() => $"CteAnchor({string.Join(",", children_)}: {Cost()})";
 
-        public LogicCteProducer(LogicNode child, CteExpr cte)
+        // CteAnchor has no operatopm
+        public PhysicCteAnchor(LogicNode logic, PhysicNode child) : base(logic)
         {
             children_.Add(child);
-            cte_ = cte;
         }
 
-        public override string ExplainInlineDetails() => cte_.cteName_;
+        // Anchor has no opration
+        // we should remove this
+        public override void Exec(Action<Row> callback)
+        {
+            ExecContext context = context_;
+            child_().Exec(r =>
+            {
+                callback(r);
+            });
+        }
+        protected override double EstimateCost()
+        {
+            // CTEAnchor has no cost
+            // FIXME 
+            return 0;
+        }
+    }
+
+    public class PhysicCteConsumer : PhysicNode
+    {
+        List<Row> cteCache_ = null;
+
+        internal List<Row> heap_ = new List<Row>();
+
+        public PhysicCteConsumer(LogicNode logic) : base(logic)
+        {
+            // not inlined CteConsumer has no child 
+        }
+
+        public override void Open(ExecContext context)
+        {
+            base.Open(context);
+            var logic = logic_ as LogicCteConsumer;
+            cteCache_ = context.TryGetCteProducer(logic.cteInfoEntry_.cte_.cteName_);
+        }
+
+        public override void Exec(Action<Row> callback)
+        {
+            foreach (Row l in cteCache_)
+            {
+                var r = ExecProject(l);
+                callback(r);
+            }
+        }
+        protected override double EstimateCost()
+        {
+            return (double)(cteCache_?.Count() ?? 0);
+        }
+
+        public override bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs, bool isLastNode)
+        {
+            // TODO to check if this is a bad plan 
+            // it need to get pre-children proper
+
+            var logic = logic_ as LogicCteConsumer;
+            var curCteSpec = (CTEType.CTEConsumer, logic.cteId_, true);
+
+            var curProperty = new DistrProperty();
+            curProperty.cteSpecList_ = new List<(CTEType ctetype, int cteid, bool optional)>();
+            curProperty.cteSpecList_.Add(curCteSpec);
+
+            if (!required.CTEIsSuppliedBy(curProperty))
+            {
+                listChildReqs = null;
+                return false;
+            };
+
+            listChildReqs = new List<ChildrenRequirement>();
+            listChildReqs.Add(new ChildrenRequirement());
+            listChildReqs[0].Add(required);
+            return true;
+        }
     }
 
     public class PhysicCteProducer : PhysicNode
@@ -913,14 +1394,14 @@ namespace qpmodel.logic
         public override string ToString() => $"PCteProducer({child_()}: {Cost()})";
         public PhysicCteProducer(LogicNode logic, PhysicNode child) : base(logic)
         {
-            children_.Add(child);
+            this.children_.Add(child);
         }
 
         public override void Open(ExecContext context)
         {
             base.Open(context);
             var logic = logic_ as LogicCteProducer;
-            context.RegisterCteProducer(logic.cte_.cteName_, heap_);
+            context.RegisterCteProducer(logic.cteInfoEntry_.cte_.cteName_, heap_);
         }
 
         public override void Exec(Action<Row> callback)
@@ -944,7 +1425,30 @@ namespace qpmodel.logic
 
         protected override double EstimateCost()
         {
+            // producer will materialize the rows
+            //
             return logic_.Card() * 0.5;
+        }
+
+        public override bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs, bool isLastNode)
+        {
+            var logic = logic_ as LogicCteProducer;
+
+            var curCteSpec = (CTEType.CTEProducer, logic.cteId_, true);
+            var curProperty = new DistrProperty();
+            curProperty.cteSpecList_ = new List<(CTEType ctetype, int cteid, bool optional)>();
+            curProperty.cteSpecList_.Add(curCteSpec);
+
+            if (!required.CTEIsSuppliedBy(curProperty))
+            {
+                listChildReqs = null;
+                return false;
+            };
+
+            listChildReqs = new List<ChildrenRequirement>();
+            listChildReqs.Add(new ChildrenRequirement());
+            listChildReqs[0].Add(required);
+            return true;
         }
     }
 }

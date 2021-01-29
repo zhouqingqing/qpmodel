@@ -228,6 +228,15 @@ namespace qpmodel.expr
         //
         public string alias_;
 
+        // consider TPC-DS SQL95
+        // there are two tabel have the same alias
+        // 
+        public bool isSameAlias_ = false;
+
+        public string aliasWithoutSuffix = "";
+
+        public int sameAliasId_;
+
         // if it is a table sample
         public SelectStmt.TableSample tableSample_;
 
@@ -390,7 +399,6 @@ namespace qpmodel.expr
                 // make a coopy of selection list and replace their tabref as this
                 var r = new List<Expr>();
 
-                Debug.Assert(query_.bounded_);
                 query_.selection_.ForEach(x =>
                 {
                     var y = x.Clone();
@@ -537,6 +545,37 @@ namespace qpmodel.expr
             cte.refcnt_++;
             cte_ = cte;
         }
+
+        public override List<Expr> AllColumnsRefs(bool refresh = false)
+        {
+            if (allColumnsRefs_ is null || refresh)
+            {
+                // make a coopy of selection list and replace their tabref as this
+                var r = new List<Expr>();
+
+                query_.selection_.ForEach(x =>
+                {
+                    var y = x.Clone();
+                    y.VisitEach(z =>
+                    {
+                        if (z is ColExpr cz)
+                        {
+                            cz.tabRef_ = this;
+                        }
+                    });
+                    r.Add(y);
+                });
+
+                // it is actually a waste to return as many as selection: if selection item is 
+                // without an alias, there is no way outer layer can references it, thus no need
+                // to output them.
+                //
+                Debug.Assert(r.Count() == query_.selection_.Count());
+                allColumnsRefs_ = r;
+            }
+            return allColumnsRefs_;
+        }
+
     }
 
     public class JoinQueryRef : TableRef
