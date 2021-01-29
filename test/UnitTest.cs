@@ -433,7 +433,7 @@ namespace qpmodel.unittest
 
             //For Debuging
             //if only run one sql, 
-            
+
             //runnable = new List<string>{
             //    "q58"
             //};
@@ -3135,15 +3135,24 @@ namespace qpmodel.unittest
             //inline cte only use one time
             sql = "with cte0 as (select * from a) select * from cte0 cte1, cte0 cte2 where cte1.a1 = 2";
             TU.ExecuteSQL(sql, "2,3,4,5,0,1,2,3;2,3,4,5,1,2,3,4;2,3,4,5,2,3,4,5", out phyplan, option);
-            Console.WriteLine("");
-            //var answer = @"PhysicFilter  (actual rows=1)
-            //            Output: cte0.a1[0],cte0.a2[1],cte0.a3[2],cte0.a4[3]
-            //            Filter: cte0.a1[0]=2
-            //            -> PhysicFromQuery <cte0> (actual rows=3)
-            //                Output: cte0.a1[0],cte0.a2[1],cte0.a3[2],cte0.a4[3]                      
-            //                -> PhysicScanTable a (actual rows=3)
-            //                    Output: a.a1[0],a.a2[1],a.a3[2],a.a4[3]";
-
+            var answer = @"PhysicSequence  (actual rows=3)
+                                Output: cte1.a1[0],cte1.a2[1],cte1.a3[2],cte1.a4[3],cte2.a1[4],cte2.a2[5],cte2.a3[6],cte2.a4[7]
+                                -> PhysicCteProducer cte0 (actual rows=0)
+                                    Output: a.a1[0],a.a2[1],a.a3[2],a.a4[3]
+                                    -> PhysicFromQuery <cte0> (actual rows=3)
+                                        Output: a.a1[0],a.a2[1],a.a3[2],a.a4[3]
+                                        -> PhysicScanTable a (actual rows=3)
+                                            Output: a.a1[0],a.a2[1],a.a3[2],a.a4[3]
+                                -> PhysicFilter  (actual rows=3)
+                                    Output: cte1.a1[0],cte1.a2[1],cte1.a3[2],cte1.a4[3],cte2.a1[4],cte2.a2[5],cte2.a3[6],cte2.a4[7]
+                                    Filter: cte1.a1[0]=2
+                                    -> PhysicNLJoin  (actual rows=9)
+                                        Output: cte1.a1[0],cte1.a2[1],cte1.a3[2],cte1.a4[3],cte2.a1[4],cte2.a2[5],cte2.a3[6],cte2.a4[7]
+                                        -> PhysicCteConsumer LogicCTEConsumer (actual rows=3)
+                                            Output: cte1.a1[0],cte1.a2[1],cte1.a3[2],cte1.a4[3]
+                                        -> PhysicCteConsumer LogicCTEConsumer (actual rows=3, loops=3)
+                                            Output: cte2.a1[0],cte2.a2[1],cte2.a3[2],cte2.a4[3]";
+            TU.PlanAssertEqual(answer, phyplan);
         }
 
         [TestMethod]
