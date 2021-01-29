@@ -3039,7 +3039,6 @@ namespace qpmodel.unittest
                     sql = "with cte as ( select a1,b1 from (select a1,a2,b1 from a,b where a1 = b1)ab where a1 < 3 )  " +
                         "select cte1.a1,cte2.a1,c.c1 from cte cte1, cte cte2, c where cte1.a1 = 1 and c.c1 = 1";
                     TU.ExecuteSQL(sql, "1,0,1;1,1,1;1,2,1", out _, option);
-
                 }
             }
         }

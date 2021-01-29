@@ -685,7 +685,6 @@ namespace qpmodel.logic
     {
         // if we can prove at most one row return, it is essentially an ordinary LOJ
         internal bool max1rowCheck_ = true;
-
         public override string ToString() => $"{lchild_()} singleX {rchild_()}";
         public LogicSingleJoin(LogicNode l, LogicNode r) : base(l, r) { type_ = JoinType.Left; }
         public LogicSingleJoin(LogicNode l, LogicNode r, Expr f) : base(l, r, f) { type_ = JoinType.Left; }
@@ -920,8 +919,6 @@ namespace qpmodel.logic
         public CteInfoEntry cteInfoEntry_;
 
         public LogicCteConsumer logicCteConsumer_;
-
-
         public LogicSelectCte(LogicCteConsumer lcc, Memo memo)
         {
             // we have to derive the subplans and add cte id

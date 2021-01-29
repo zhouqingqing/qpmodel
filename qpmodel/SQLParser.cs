@@ -71,7 +71,6 @@ namespace qpmodel.sqlparser
 
             // obtain syntax errors by adding error listener
             sqlParser_.AddErrorListener(new SyntaxErrorListener());
-
         }
 
         // sqlbatch can also be a single sql statement - however, it won't allow you to 

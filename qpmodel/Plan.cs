@@ -1062,5 +1062,4 @@ namespace qpmodel.logic
             originCte_ = originCte;
         }
     }
-
 }
