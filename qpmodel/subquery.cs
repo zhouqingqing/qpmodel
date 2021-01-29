@@ -1308,7 +1308,7 @@ namespace qpmodel.physic
         {
             base.Open(context);
             var logic = logic_ as LogicCteConsumer;
-            cteCache_ = context.TryGetCteProducer(logic.cteInfoEntry_.cte_.cteName_);
+            cteCache_ = context.GetCteProducer(logic.cteInfoEntry_.cte_.cteName_);
         }
 
         public override void Exec(Action<Row> callback)

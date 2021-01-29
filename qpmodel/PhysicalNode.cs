@@ -767,7 +767,7 @@ namespace qpmodel.physic
                     return false;
                 }
 
-                listChildReqs.Add(new ChildrenRequirement { DistrProperty.Singleton_(required.cteSpecList_), DistrProperty.Singleton_(required.cteSpecList_)});
+                listChildReqs.Add(new ChildrenRequirement { DistrProperty.Singleton_(required.cteSpecList_), DistrProperty.Singleton_(required.cteSpecList_) });
                 return true;
             }
         }
@@ -1050,13 +1050,13 @@ namespace qpmodel.physic
             if (required.DistributionIsSuppliedBy(new DistrProperty(logic.leftKeys_))
                 || required.DistributionIsSuppliedBy(new DistrProperty(logic.rightKeys_)))
             {
-                listChildReqs.Add(new ChildrenRequirement { new DistrProperty(logic.leftKeys_) { cteSpecList_=required.cteSpecList_}, new DistrProperty(logic.rightKeys_) { cteSpecList_=required.cteSpecList_} });
-                listChildReqs.Add(new ChildrenRequirement { DistrProperty.Singleton_(required.cteSpecList_), new DistrProperty(logic.rightKeys_) { cteSpecList_=required.cteSpecList_} });
-                listChildReqs.Add(new ChildrenRequirement { new DistrProperty(logic.leftKeys_), DistrProperty.Singleton_(required.cteSpecList_)});
+                listChildReqs.Add(new ChildrenRequirement { new DistrProperty(logic.leftKeys_) { cteSpecList_ = required.cteSpecList_ }, new DistrProperty(logic.rightKeys_) { cteSpecList_ = required.cteSpecList_ } });
+                listChildReqs.Add(new ChildrenRequirement { DistrProperty.Singleton_(required.cteSpecList_), new DistrProperty(logic.rightKeys_) { cteSpecList_ = required.cteSpecList_ } });
+                listChildReqs.Add(new ChildrenRequirement { new DistrProperty(logic.leftKeys_), DistrProperty.Singleton_(required.cteSpecList_) });
                 if (requiredType == DistrType.AnyDistributed)
                 {
                     listChildReqs.Add(new ChildrenRequirement { DistrProperty.Replicated_(required.cteSpecList_), PhysicProperty.NullProperty_ });
-                    listChildReqs.Add(new ChildrenRequirement { DistrProperty.Singleton_(required.cteSpecList_), new DistrProperty(logic.rightKeys_) { cteSpecList_=required.cteSpecList_} });
+                    listChildReqs.Add(new ChildrenRequirement { DistrProperty.Singleton_(required.cteSpecList_), new DistrProperty(logic.rightKeys_) { cteSpecList_ = required.cteSpecList_ } });
                     listChildReqs.Add(new ChildrenRequirement { new DistrProperty(logic.leftKeys_), DistrProperty.Singleton_(required.cteSpecList_) });
                 }
                 return true;
@@ -1555,9 +1555,6 @@ namespace qpmodel.physic
         public override void Open(ExecContext context)
         {
             base.Open(context);
-            //var logic = logic_ as LogicFromQuery;
-            //if (logic.IsCteConsumer(out CTEQueryRef qref))
-            //    cteCache_ = context.TryGetCteProducer(qref.cte_.cteName_);
         }
 
         public override void Exec(Action<Row> callback)
