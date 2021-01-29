@@ -192,16 +192,12 @@ namespace qpmodel.logic
 
         public static List<Row> ExecSQL(string sql, out SQLStatement stmt, out string physicplan, out string error, QueryOption option = null)
         {
-            stmt = RawParser.ParseSingleSqlStatement(sql);
-            var results = ExecSQL(stmt, out physicplan, option);
-            error = "";
-            return results;
             try
             {
-                //stmt = RawParser.ParseSingleSqlStatement(sql);
-                //var results = ExecSQL(stmt, out physicplan, option);
-                //error = "";
-                //return results;
+                stmt = RawParser.ParseSingleSqlStatement(sql);
+                var results = ExecSQL(stmt, out physicplan, option);
+                error = "";
+                return results;
             }
             catch (Exception e)
             {

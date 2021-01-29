@@ -615,6 +615,7 @@ namespace qpmodel.unittest
                 string sql = File.ReadAllText(v);
                 SQLStatement stmt = RawParser.ParseSingleSqlStatement(sql);
                 stmt.Bind(null);
+                stmt.initCteInfo();
                 Console.WriteLine(stmt.CreatePlan().Explain());
             }
             Assert.AreEqual(22, files.Length);
