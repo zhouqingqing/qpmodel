@@ -56,7 +56,6 @@ namespace qpmodel.logic
 
         public CteInfo cteInfo_ = new CteInfo();
 
-
         // mark if current plan is distirbuted: it does not include children plan
         internal bool distributed_ = false;
 
@@ -719,9 +718,7 @@ namespace qpmodel.logic
 
             List<Type> skip = skip_from ? new List<Type> { typeof(LogicFromQuery) } : new List<Type> { };
 
-            var cntFilter = plan.FindNodeTypeMatch(parents,
-                                    indexes, filters, skipParentType: skip);
-
+            var cntFilter = plan.FindNodeTypeMatch(parents, indexes, filters, skipParentType: skip);
             for (int i = 0; i < cntFilter; i++)
             {
                 var parent = parents[i];
@@ -769,14 +766,10 @@ namespace qpmodel.logic
                     if (andlist.Count == 0)
                     {
                         if (parent is null)
-                        {
                             // take it out from the tree
                             plan = plan.child_();
-                        }
                         else
-                        {
                             parent.children_[index] = filter.child_();
-                        }
                     }
                     else
                         filter.filter_ = andlist.AndListToExpr();
@@ -908,11 +901,8 @@ namespace qpmodel.logic
                     var fqr_query_plan = FilterPushDown(fqr.queryRef_.query_.logicPlan_, pushJoinFilter, false);
                     fqr.queryRef_.query_.logicPlan_ = fqr_query_plan;
                     cteInfo_.CteIdToCteInfoEntry_[key].plan_ = fqr;
-
-
                 }
             }
-
 
             // optimize for subqueries 
             //  fromquery needs some special handling to link the new plan

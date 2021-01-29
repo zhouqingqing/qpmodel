@@ -190,9 +190,6 @@ namespace qpmodel.optimizer
             return new CGroupMember(phy, expr.group_);
         }
     }
-
-
-
     public class CteSelect2CteSelect : ImplmentationRule
     {
         public override bool Appliable(CGroupMember expr)

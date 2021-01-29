@@ -639,7 +639,6 @@ namespace qpmodel.logic
             if (ctes_ != null && !(this is CteSelectStmt))
                 root = cteToAnchor(root);
 
-
             // let's make sure the plan is in good shape
             //  - there is no filter except filter node (ok to be multiple)
             root.VisitEach(x =>

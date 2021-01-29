@@ -334,6 +334,4 @@ namespace qpmodel.optimizer
             return new CGroupMember(logicSelectCte, expr.group_);
         }
     }
-
-
 }

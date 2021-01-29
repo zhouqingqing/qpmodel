@@ -621,7 +621,6 @@ namespace qpmodel.logic
 
         LogicNode cteToAnchor(LogicNode root)
         {
-
             // find the cte whitch is not used
             // consider "with cte0 as (select * from a),cte1 as (select * from cte0) select * from a
             // although cte0 is used in cte1 , but cte1 is never used, so we have to delete cte1 too 
@@ -681,8 +680,6 @@ namespace qpmodel.logic
         public LogicMarkAntiSemiJoin(LogicNode l, LogicNode r, int subquery_id = 0) : base(l, r, subquery_id) { }
         public LogicMarkAntiSemiJoin(LogicNode l, LogicNode r, Expr f) : base(l, r, f) { }
     }
-
-
 
     public class LogicSingleJoin : LogicJoin
     {
@@ -834,10 +831,7 @@ namespace qpmodel.logic
             isInlined_ = false;
         }
 
-        public CteInfoEntry()
-        {
-
-        }
+        public CteInfoEntry() { }
 
         // something to save cte producer
         //
@@ -966,7 +960,6 @@ namespace qpmodel.logic
             return logicSign_;
         }
 
-
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             List<int> ordinals = new List<int>();
@@ -979,15 +972,10 @@ namespace qpmodel.logic
             RefreshOutputRegisteration();
             return ordinals;
         }
-
-
     }
-
-
 
     public class LogicCteConsumer : LogicNode
     {
-
         public QueryRef queryRef_;
 
         // if there is 2 consumer, then the first on is refId_ = 1 and the secont is refId_ = 2
@@ -1361,7 +1349,6 @@ namespace qpmodel.physic
         {
             return (double)(cteCache_?.Count() ?? 0);
         }
-
         public override bool CanProvide(PhysicProperty required, out List<ChildrenRequirement> listChildReqs, bool isLastNode)
         {
             // TODO to check if this is a bad plan 
@@ -1378,7 +1365,7 @@ namespace qpmodel.physic
             {
                 listChildReqs = null;
                 return false;
-            };
+            }
 
             listChildReqs = new List<ChildrenRequirement>();
             listChildReqs.Add(new ChildrenRequirement());
@@ -1443,7 +1430,7 @@ namespace qpmodel.physic
             {
                 listChildReqs = null;
                 return false;
-            };
+            }
 
             listChildReqs = new List<ChildrenRequirement>();
             listChildReqs.Add(new ChildrenRequirement());

@@ -3044,7 +3044,6 @@ namespace qpmodel.unittest
             }
         }
 
-
         [TestMethod]
         public void TestCTENoMemo()
         {
@@ -3111,13 +3110,6 @@ namespace qpmodel.unittest
                                 -> PhysicScanTable a (actual rows=0)
                                     Output: a.a1[0],a.a2[1],a.a3[2],a.a4[3]";
             TU.PlanAssertEqual(answer, phyplan);
-
-            //TU.ExecuteSQL(sql, "1", out phyplan, option);
-            //sql = "with cte1 as (select* from a) select * from cte1 where a1>1;"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
-            //sql = "with cte0 as (select * from a),cte1 as (select * from cte0) select * from cte1 where a1 = (select cte2.a1 from cte1 cte2 where cte2.a1 = 0)";
-            //TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
-
-
         }
 
         [TestMethod]
@@ -3153,6 +3145,9 @@ namespace qpmodel.unittest
                                         -> PhysicCteConsumer LogicCTEConsumer (actual rows=3, loops=3)
                                             Output: cte2.a1[0],cte2.a2[1],cte2.a3[2],cte2.a4[3]";
             TU.PlanAssertEqual(answer, phyplan);
+            sql = "with cte1 as (select* from a) select * from cte1 where a1>1;"; TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
+            sql = "with cte0 as (select * from a),cte1 as (select * from cte0) select * from cte1 where a1 = (select cte2.a1 from cte1 cte2 where cte2.a1 = 2)";
+            TU.ExecuteSQL(sql, "2,3,4,5", out _, option);
         }
 
         [TestMethod]

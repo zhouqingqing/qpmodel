@@ -575,7 +575,6 @@ namespace qpmodel.expr
             }
             return allColumnsRefs_;
         }
-
     }
 
     public class JoinQueryRef : TableRef
