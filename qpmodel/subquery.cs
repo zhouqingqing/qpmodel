@@ -596,29 +596,6 @@ namespace qpmodel.logic
             scie = scieTemp;
         }
 
-        bool inlineCteConsumer(ref LogicNode root, int inlineCteId, LogicNode inlineCtePlan)
-        {
-            bool isInlined = false;
-            if (root is LogicCteConsumer lcc && lcc.cteId_ == inlineCteId)
-            {
-                root = inlineCtePlan;
-                isInlined = true;
-            }
-            else
-            {
-                root.VisitEach((parent, index, child) =>
-                {
-                    if (child is LogicCteConsumer lcc && lcc.cteId_ == inlineCteId)
-                    {
-                        parent.children_[index] = inlineCtePlan;
-                        isInlined = true;
-                    }
-                });
-            }
-
-            return isInlined;
-        }
-
         LogicNode cteToAnchor(LogicNode root)
         {
             // find the cte whitch is not used

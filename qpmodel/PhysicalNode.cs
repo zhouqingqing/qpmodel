@@ -1552,8 +1552,6 @@ namespace qpmodel.physic
 
         public PhysicFromQuery(LogicCteConsumer logic, PhysicNode l) : base(logic) => children_.Add(l);
 
-        public bool IsCteConsumer(out CTEQueryRef qref) => (logic_ as LogicFromQuery).IsCteConsumer(out qref);
-
         public override void Open(ExecContext context)
         {
             base.Open(context);

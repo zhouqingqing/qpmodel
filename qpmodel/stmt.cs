@@ -478,7 +478,6 @@ namespace qpmodel.logic
                 CET,
                 FROM
             }
-            public bool IsCteNamedQuery() => queryType_ == QueryType.CET;
             internal NamedQuery(SelectStmt query, string alias, QueryType queryType)
             {
                 Debug.Assert(query != null);
@@ -804,16 +803,6 @@ namespace qpmodel.logic
             return ret;
         }
 
-        bool stmtIsInCTEChain()
-        {
-            if ((bindContext_.stmt_ as SelectStmt).isCteDefinition_)
-                return true;
-            if (bindContext_.parent_ is null)
-                return false;
-            else
-                return (bindContext_.parent_.stmt_ as SelectStmt).stmtIsInCTEChain();
-        }
-
         // a1,5+@1 (select b2 ...) => a1, 5+b2
         List<Expr> selectionRemoveSubquery(List<Expr> selection)
         {
@@ -932,7 +921,7 @@ namespace qpmodel.logic
             // to waste time for memo as it will generate physical plan anyway. 
             // CTEQueries share the same physical plan, so we exclude it from assertion. 
             //
-            Debug.Assert(physicPlan_ is null || stmtIsInCTEChain());
+            Debug.Assert(physicPlan_ is null);
             physicPlan_ = null;
             if (!queryOpt_.optimize_.use_memo_)
             {

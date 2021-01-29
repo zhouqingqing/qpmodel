@@ -656,33 +656,6 @@ namespace qpmodel.logic
             return root;
         }
 
-        public LogicNode CreateCTESelectPlan()
-        {
-            Debug.Assert(from_.Count() == 1);
-
-            Debug.Assert(from_[0] is CTEQueryRef);
-
-            var ctrf = from_[0] as CTEQueryRef;
-            var plan = ctrf.query_.CreatePlan();
-
-            string alias = null;
-            NamedQuery key;
-
-            alias = ctrf.alias_;
-            key = new NamedQuery(ctrf.query_, alias, NamedQuery.QueryType.FROM);
-
-            var from = new LogicFromQuery(ctrf, plan);
-            // CTE query is optimised in LogicSequece
-            // 
-            subQueries_.Add(key);
-
-            // if from CTE, then it could be duplicates
-            if (!fromQueries_.ContainsKey(key))
-                fromQueries_.Add(key, from as LogicFromQuery);
-
-            return from;
-        }
-
         public override BindContext Bind(BindContext parent)
         {
             BindContext context = new BindContext(this, parent);
