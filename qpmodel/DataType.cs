@@ -398,7 +398,7 @@ namespace qpmodel.expr
             {
                 // make a coopy of selection list and replace their tabref as this
                 var r = new List<Expr>();
-
+                Debug.Assert(query_.bounded_);
                 query_.selection_.ForEach(x =>
                 {
                     var y = x.Clone();

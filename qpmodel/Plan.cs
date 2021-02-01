@@ -655,7 +655,6 @@ namespace qpmodel.logic
             logicPlan_ = root;
             return root;
         }
-
         public override BindContext Bind(BindContext parent)
         {
             BindContext context = new BindContext(this, parent);

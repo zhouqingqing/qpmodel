@@ -239,8 +239,7 @@ namespace qpmodel.utils
         // postgreSQL don't support [A-Z]
         public static bool StringLike(this string s, string pattern)
         {
-            string regpattern = "";
-            regpattern = pattern;
+            string regpattern = pattern;
             if (!pattern.Contains("%"))
             {
                 regpattern = "^" + pattern + "$";

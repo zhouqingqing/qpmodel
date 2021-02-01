@@ -35,23 +35,23 @@ group by
 	cntrycode
 order by
 	cntrycode
-Total cost: 250205.1, memory=81
-PhysicOrder  (inccost=250205.1, cost=0.1, rows=1, memory=27) (actual rows=7)
+Total cost: 250508.1, memory=81
+PhysicOrder  (inccost=250508.1, cost=0.1, rows=1, memory=27) (actual rows=7)
     Output: cntrycode[0],{count(*)(0)}[1],{sum(c_acctbal)}[2]
     Order by: cntrycode[0]
-    -> PhysicHashAgg  (inccost=250205, cost=2252, rows=1, memory=54) (actual rows=7)
+    -> PhysicHashAgg  (inccost=250508, cost=2252, rows=1, memory=54) (actual rows=7)
         Output: {cntrycode}[0],{count(*)(0)}[1],{sum(c_acctbal)}[2]
         Aggregates: count(*)(0), sum(c_acctbal[1])
         Group by: cntrycode[0]
-        -> PhysicFromQuery <custsale> (inccost=247953, cost=2250, rows=2250) (actual rows=9)
+        -> PhysicFromQuery <custsale> (inccost=248256, cost=2250, rows=2250) (actual rows=9)
             Output: cntrycode[0],c_acctbal[1]
-            -> PhysicFilter  (inccost=245703, cost=2250, rows=2250) (actual rows=9)
+            -> PhysicFilter  (inccost=246006, cost=2250, rows=2250) (actual rows=9)
                 Output: {substring(c_phone,1,2)}[0],c_acctbal[1]
                 Filter: {#marker@2}[2]
-                -> PhysicMarkJoin Left (inccost=243453, cost=225000, rows=2250) (actual rows=17)
+                -> PhysicMarkJoin Left (inccost=243756, cost=225000, rows=2250) (actual rows=17)
                     Output: {substring(c_phone,1,2)}[0],c_acctbal[1],{#marker@2}[2]
                     Filter: o_custkey[3]=c_custkey[2]
-                    -> PhysicGather Threads: 10 (inccost=1953, cost=1500, rows=150) (actual rows=17)
+                    -> PhysicGather Threads: 10 (inccost=2256, cost=1500, rows=150) (actual rows=17)
                         Output: {substring(c_phone,1,2)}[0],c_acctbal[1],c_custkey[2]
                         -> PhysicScanTable customer (inccost=453, cost=150, rows=150) (actual rows=1, loops=10)
                             Output: substring(c_phone[4],1,2),c_acctbal[5],c_custkey[0]

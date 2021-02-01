@@ -638,7 +638,6 @@ namespace qpmodel.logic
         public override string ToString() => $"{lchild_()} markX {rchild_()}";
         public LogicMarkJoin(LogicNode l, LogicNode r, int subquery_id) : base(l, r) { type_ = JoinType.Left; subquery_id_ = subquery_id; }
         public LogicMarkJoin(LogicNode l, LogicNode r, Expr f) : base(l, r, f) { type_ = JoinType.Left; }
-
         public override List<int> ResolveColumnOrdinal(in List<Expr> reqOutput, bool removeRedundant = true)
         {
             var list = base.ResolveColumnOrdinal(reqOutput, removeRedundant);
@@ -672,7 +671,6 @@ namespace qpmodel.logic
         public PhysicSingleJoin(LogicSingleJoin logic, PhysicNode l, PhysicNode r) : base(logic)
         {
             children_.Add(l); children_.Add(r);
-
             // we can't assert logic filter is not null because in some cases we can't adjust join order
             // then we have to bear with it.
             // Example:
@@ -724,7 +722,6 @@ namespace qpmodel.logic
                 }
             });
         }
-
         protected override double EstimateCost()
         {
             double cost = lchild_().Card() * rchild_().Card();

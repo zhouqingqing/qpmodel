@@ -166,16 +166,12 @@ namespace qpmodel.physic
         {
             var incCost = 0.0;
             incCost += Cost();
-
             children_.ForEach(x =>
             {
                 if (x is PhysicMemoRef xp)
                     incCost += xp.Group().nullPropertyMinIncCost;
-                else
-                {
-                    if (x is PhysicProfiling) x = x.child_();
+                else 
                     incCost += x.InclusiveCost();
-                }
             });
 
             // add subquery cost of Subquery in WHERE clause to inclusive cost

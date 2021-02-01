@@ -123,7 +123,6 @@ namespace qpmodel.optimizer
                 return false;
             return true;
         }
-
         public override CGroupMember Apply(CGroupMember expr)
         {
             LogicJoin log = expr.logic_ as LogicJoin;
@@ -190,6 +189,7 @@ namespace qpmodel.optimizer
             return new CGroupMember(phy, expr.group_);
         }
     }
+
     public class CteSelect2CteSelect : ImplmentationRule
     {
         public override bool Appliable(CGroupMember expr)
@@ -201,20 +201,15 @@ namespace qpmodel.optimizer
         public override CGroupMember Apply(CGroupMember expr)
         {
             var log = expr.logic_ as LogicSelectCte;
-
-            // FIXME we need to delete FROM here
+            // TODO we need to delete FROM here
             PhysicNode pfq = new PhysicSelectCte(log, new PhysicMemoRef(log.child_()));
-
             return new CGroupMember(pfq, expr.group_);
         }
     }
 
     public class CteProd2CteProd : SimpleImplementationRule<LogicCteProducer, PhysicCteProducer, NumberArgs.N1> { }
-
     public class CteConsumer2CteConsumer : SimpleImplementationRule<LogicCteConsumer, PhysicCteConsumer, NumberArgs.N0> { }
-
     public class CteAnchor2CteAnchor : SimpleImplementationRule<LogicCteAnchor, PhysicCteAnchor, NumberArgs.N1> { }
-
     public class Filter2Filter : SimpleImplementationRule<LogicFilter, PhysicFilter, NumberArgs.N1> { }
     public class Agg2HashAgg : SimpleImplementationRule<LogicAgg, PhysicHashAgg, NumberArgs.N1> { }
     public class Agg2StreamAgg : SimpleImplementationRule<LogicAgg, PhysicStreamAgg, NumberArgs.N1> { }

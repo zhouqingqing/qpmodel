@@ -27,30 +27,30 @@ and ws1.ws_order_number in (select wr_order_number
                             where wr_order_number = ws_wh.ws_order_number)
 order by count(distinct ws_order_number)
 limit 100
-Total cost: 282672362.1, memory=918
-PhysicCteAnchor CteAnchor (inccost=282672362.1, cost=0, rows=100) (actual rows=1)
+Total cost: 565301068.1, memory=918
+PhysicCteAnchor CteAnchor (inccost=565301068.1, cost=0, rows=100) (actual rows=1)
     Output: {count(ws1.ws_order_number)}[0],{sum(ws1.ws_ext_ship_cost)}[1],{sum(ws1.ws_net_profit)}[2]
-    -> PhysicLimit (100) (inccost=282672362.1, cost=100, rows=100) (actual rows=1)
+    -> PhysicLimit (100) (inccost=565301068.1, cost=100, rows=100) (actual rows=1)
         Output: {count(ws1.ws_order_number)}[0],{sum(ws1.ws_ext_ship_cost)}[1],{sum(ws1.ws_net_profit)}[2]
-        -> PhysicOrder  (inccost=282672262.1, cost=0.1, rows=1, memory=18) (actual rows=1)
+        -> PhysicOrder  (inccost=565300968.1, cost=0.1, rows=1, memory=18) (actual rows=1)
             Output: {count(ws1.ws_order_number)}[0],{sum(ws1.ws_ext_ship_cost)}[1],{sum(ws1.ws_net_profit)}[2]
             Order by: {count(ws1.ws_order_number)}[0]
-            -> PhysicHashAgg  (inccost=282672262, cost=16, rows=1, memory=36) (actual rows=1)
+            -> PhysicHashAgg  (inccost=565300968, cost=16, rows=1, memory=36) (actual rows=1)
                 Output: {count(ws1.ws_order_number)}[0],{sum(ws1.ws_ext_ship_cost)}[1],{sum(ws1.ws_net_profit)}[2]
                 Aggregates: count(ws1.ws_order_number[0]), sum(ws1.ws_ext_ship_cost[1]), sum(ws1.ws_net_profit[2])
-                -> PhysicHashJoin  (inccost=282672246, cost=44, rows=14, memory=8) (actual rows=0)
+                -> PhysicHashJoin  (inccost=565300952, cost=44, rows=14, memory=8) (actual rows=0)
                     Output: ws1.ws_order_number[1],ws1.ws_ext_ship_cost[2],ws1.ws_net_profit[3]
                     Filter: ws1.ws_web_site_sk[4]=web_site.web_site_sk[0]
                     -> PhysicScanTable web_site (inccost=2, cost=2, rows=1) (actual rows=0)
                         Output: web_site.web_site_sk[0]
                         Filter: web_site.web_company_name[14]='pri'
-                    -> PhysicHashJoin  (inccost=282672200, cost=497, rows=28, memory=376) (actual rows=0)
+                    -> PhysicHashJoin  (inccost=565300906, cost=497, rows=28, memory=376) (actual rows=0)
                         Output: ws1.ws_order_number[1],ws1.ws_ext_ship_cost[2],ws1.ws_net_profit[3],ws1.ws_web_site_sk[4]
                         Filter: ws1.ws_ship_addr_sk[5]=customer_address.ca_address_sk[0]
                         -> PhysicScanTable customer_address (inccost=1000, cost=1000, rows=47) (actual rows=0)
                             Output: customer_address.ca_address_sk[0]
                             Filter: customer_address.ca_state[8]='VA'
-                        -> PhysicHashJoin  (inccost=282670703, cost=12371, rows=375, memory=480) (actual rows=0)
+                        -> PhysicHashJoin  (inccost=565299409, cost=12371, rows=375, memory=480) (actual rows=0)
                             Output: ws1.ws_order_number[1],ws1.ws_ext_ship_cost[2],ws1.ws_net_profit[3],ws1.ws_web_site_sk[4],ws1.ws_ship_addr_sk[5]
                             Filter: ws1.ws_ship_date_sk[6]=date_dim.d_date_sk[0]
                             -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=60) (actual rows=0)

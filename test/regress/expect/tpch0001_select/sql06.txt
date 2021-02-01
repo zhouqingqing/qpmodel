@@ -18,8 +18,8 @@ where exists
 			and R.r_regionkey<2
 		)
 	)
-Total cost: 1702
-PhysicGather Threads: 10 (inccost=1702, cost=1500, rows=150)
+Total cost: 1726
+PhysicGather Threads: 10 (inccost=1726, cost=1500, rows=150)
     Output: @1,c_name[0],@2
     <ScalarSubqueryExpr> cached 1
         -> PhysicHashAgg  (inccost=14, cost=3, rows=1, memory=8)

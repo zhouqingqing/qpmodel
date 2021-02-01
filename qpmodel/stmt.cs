@@ -803,6 +803,7 @@ namespace qpmodel.logic
             return ret;
         }
 
+
         // a1,5+@1 (select b2 ...) => a1, 5+b2
         List<Expr> selectionRemoveSubquery(List<Expr> selection)
         {

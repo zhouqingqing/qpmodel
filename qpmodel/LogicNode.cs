@@ -1438,17 +1438,6 @@ namespace qpmodel.logic
             return $"<{str}>";
         }
 
-        public bool IsCteConsumer(out CTEQueryRef qref)
-        {
-            qref = null;
-            if (queryRef_ is CTEQueryRef cq)
-            {
-                qref = cq;
-                return true;
-            }
-            return false;
-        }
-
         public bool IsCteConsumer() => queryRef_ is CTEQueryRef;
         public LogicFromQuery(QueryRef query, LogicNode child) { queryRef_ = query; children_.Add(child); }
 

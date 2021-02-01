@@ -35,31 +35,31 @@ where
 	and n_name = 'CANADA'
 order by
 	s_name
-Total cost: 27543.1, memory=73
-PhysicOrder  (inccost=27543.1, cost=0.1, rows=1, memory=65) (actual rows=0)
+Total cost: 55448.1, memory=73
+PhysicOrder  (inccost=55448.1, cost=0.1, rows=1, memory=65) (actual rows=0)
     Output: s_name[0],s_address[1]
     Order by: s_name[0]
-    -> PhysicGather Threads: 10 (inccost=27543, cost=10, rows=1) (actual rows=0)
+    -> PhysicGather Threads: 10 (inccost=55448, cost=10, rows=1) (actual rows=0)
         Output: s_name[0],s_address[1]
-        -> PhysicHashJoin  (inccost=27533, cost=13, rows=1, memory=8) (actual rows=0, loops=10)
+        -> PhysicHashJoin  (inccost=55438, cost=13, rows=1, memory=8) (actual rows=0, loops=10)
             Output: s_name[1],s_address[2]
             Filter: s_nationkey[3]=n_nationkey[0]
             -> PhysicScanTable nation (inccost=25, cost=25, rows=1) (actual rows=1, loops=10)
                 Output: n_nationkey[0]
                 Filter: n_name[1]='CANADA'
-            -> PhysicScanTable supplier (inccost=27495, cost=10, rows=10) (actual rows=0, loops=10)
+            -> PhysicScanTable supplier (inccost=27705, cost=10, rows=10) (actual rows=0, loops=10)
                 Output: s_name[1],s_address[2],s_nationkey[3]
                 Filter: s_suppkey[0] in @1
                 <InSubqueryExpr> cached 1
-                    -> PhysicFilter  (inccost=27485, cost=367, rows=367) (actual rows=3)
+                    -> PhysicFilter  (inccost=27695, cost=367, rows=367) (actual rows=3)
                         Output: ps_suppkey[0]
                         Filter: ps_availqty[1]>{sum(l_quantity)}[2]*0.5
-                        -> PhysicGather Threads: 20 (inccost=27118, cost=3670, rows=367) (actual rows=4)
+                        -> PhysicGather Threads: 20 (inccost=27328, cost=3670, rows=367) (actual rows=4)
                             Output: ps_suppkey[0],ps_availqty[1],{sum(l_quantity)}[2]
-                            -> PhysicHashJoin Left (inccost=23448, cost=2886, rows=367, memory=19200) (actual rows=0, loops=10)
+                            -> PhysicHashJoin Left (inccost=23658, cost=2886, rows=367, memory=19200) (actual rows=0, loops=10)
                                 Output: ps_suppkey[0],ps_availqty[1],{sum(l_quantity)}[3]
                                 Filter: (l_partkey[4]=ps_partkey[2] and l_suppkey[5]=ps_suppkey[0])
-                                -> PhysicRedistribute  (inccost=2610, cost=1600, rows=800) (actual rows=0, loops=10)
+                                -> PhysicRedistribute  (inccost=2820, cost=1600, rows=800) (actual rows=0, loops=10)
                                     Output: ps_suppkey[0],ps_availqty[1],ps_partkey[2]
                                     -> PhysicScanTable partsupp (inccost=1010, cost=800, rows=800) (actual rows=0, loops=10)
                                         Output: ps_suppkey[1],ps_availqty[2],ps_partkey[0]
