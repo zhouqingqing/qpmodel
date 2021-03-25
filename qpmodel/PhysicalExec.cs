@@ -222,11 +222,10 @@ namespace qpmodel.physic
         {
             results_.Add(ctename, heap);
         }
-        public List<Row> TryGetCteProducer(string ctename)
+        public List<Row> GetCteProducer(string ctename)
         {
-            if (results_.ContainsKey(ctename))
-                return results_[ctename];
-            return null;
+            Debug.Assert(results_.ContainsKey(ctename));
+            return results_[ctename];
         }
     }
 

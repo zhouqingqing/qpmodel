@@ -27,57 +27,66 @@ and ws1.ws_order_number in (select wr_order_number
                             where wr_order_number = ws_wh.ws_order_number)
 order by count(distinct ws_order_number)
 limit 100
-Total cost: 141395364.1, memory=918
-PhysicSequence  (inccost=141395364.1, cost=5938, rows=11876) (actual rows=1)
+Total cost: 565301068.1, memory=918
+PhysicCteAnchor CteAnchor (inccost=565301068.1, cost=0, rows=100) (actual rows=1)
     Output: {count(ws1.ws_order_number)}[0],{sum(ws1.ws_ext_ship_cost)}[1],{sum(ws1.ws_net_profit)}[2]
-    -> PhysicCteProducer ws_wh (inccost=141306686, cost=5938, rows=11876) (actual rows=0)
-        Output: ws1__1.ws_order_number[0],ws1__1.ws_warehouse_sk (as wh1)[1],ws2.ws_warehouse_sk (as wh2)[2]
-        -> PhysicNLJoin  (inccost=141300748, cost=141276996, rows=11876) (actual rows=0)
-            Output: ws1__1.ws_order_number[0],ws1__1.ws_warehouse_sk (as wh1)[1],ws2.ws_warehouse_sk (as wh2)[2]
-            Filter: (((ws1__1.ws_order_number[0]=ws2.ws_order_number[3] and ws1__1.ws_warehouse_sk[1]<>ws2.ws_warehouse_sk[2]) and ws1__1.ws_order_number[0]=ws2.ws_order_number[3]) and ws1__1.ws_warehouse_sk[1]<>ws2.ws_warehouse_sk[2])
-            -> PhysicScanTable web_sales as ws1__1 (inccost=11876, cost=11876, rows=11876) (actual rows=11876)
-                Output: ws1__1.ws_order_number[17],ws1__1.ws_warehouse_sk (as wh1)[15]
-            -> PhysicScanTable web_sales as ws2 (inccost=11876, cost=11876, rows=11876) (actual rows=11876, loops=11876)
-                Output: ws2.ws_warehouse_sk (as wh2)[15],ws2.ws_order_number[17]
-    -> PhysicLimit (100) (inccost=82740.1, cost=100, rows=100) (actual rows=1)
+    -> PhysicLimit (100) (inccost=565301068.1, cost=100, rows=100) (actual rows=1)
         Output: {count(ws1.ws_order_number)}[0],{sum(ws1.ws_ext_ship_cost)}[1],{sum(ws1.ws_net_profit)}[2]
-        -> PhysicOrder  (inccost=82640.1, cost=0.1, rows=1, memory=18) (actual rows=1)
+        -> PhysicOrder  (inccost=565300968.1, cost=0.1, rows=1, memory=18) (actual rows=1)
             Output: {count(ws1.ws_order_number)}[0],{sum(ws1.ws_ext_ship_cost)}[1],{sum(ws1.ws_net_profit)}[2]
             Order by: {count(ws1.ws_order_number)}[0]
-            -> PhysicHashAgg  (inccost=82640, cost=16, rows=1, memory=36) (actual rows=1)
+            -> PhysicHashAgg  (inccost=565300968, cost=16, rows=1, memory=36) (actual rows=1)
                 Output: {count(ws1.ws_order_number)}[0],{sum(ws1.ws_ext_ship_cost)}[1],{sum(ws1.ws_net_profit)}[2]
                 Aggregates: count(ws1.ws_order_number[0]), sum(ws1.ws_ext_ship_cost[1]), sum(ws1.ws_net_profit[2])
-                -> PhysicHashJoin  (inccost=82624, cost=44, rows=14, memory=8) (actual rows=0)
+                -> PhysicHashJoin  (inccost=565300952, cost=44, rows=14, memory=8) (actual rows=0)
                     Output: ws1.ws_order_number[1],ws1.ws_ext_ship_cost[2],ws1.ws_net_profit[3]
                     Filter: ws1.ws_web_site_sk[4]=web_site.web_site_sk[0]
                     -> PhysicScanTable web_site (inccost=2, cost=2, rows=1) (actual rows=0)
                         Output: web_site.web_site_sk[0]
                         Filter: web_site.web_company_name[14]='pri'
-                    -> PhysicHashJoin  (inccost=82578, cost=497, rows=28, memory=376) (actual rows=0)
+                    -> PhysicHashJoin  (inccost=565300906, cost=497, rows=28, memory=376) (actual rows=0)
                         Output: ws1.ws_order_number[1],ws1.ws_ext_ship_cost[2],ws1.ws_net_profit[3],ws1.ws_web_site_sk[4]
                         Filter: ws1.ws_ship_addr_sk[5]=customer_address.ca_address_sk[0]
                         -> PhysicScanTable customer_address (inccost=1000, cost=1000, rows=47) (actual rows=0)
                             Output: customer_address.ca_address_sk[0]
                             Filter: customer_address.ca_state[8]='VA'
-                        -> PhysicHashJoin  (inccost=81081, cost=12371, rows=375, memory=480) (actual rows=0)
+                        -> PhysicHashJoin  (inccost=565299409, cost=12371, rows=375, memory=480) (actual rows=0)
                             Output: ws1.ws_order_number[1],ws1.ws_ext_ship_cost[2],ws1.ws_net_profit[3],ws1.ws_web_site_sk[4],ws1.ws_ship_addr_sk[5]
                             Filter: ws1.ws_ship_date_sk[6]=date_dim.d_date_sk[0]
                             -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=60) (actual rows=0)
                                 Output: date_dim.d_date_sk[0]
                                 Filter: (date_dim.d_date[2]>='2001-4-01' and date_dim.d_date[2]<='5/31/2001 12:00:00 AM')
-                            -> PhysicScanTable web_sales as ws1 (inccost=50960, cost=11876, rows=11876) (actual rows=0)
+                            -> PhysicScanTable web_sales as ws1 (inccost=282640582, cost=11876, rows=11876) (actual rows=0)
                                 Output: ws1.ws_order_number[17],ws1.ws_ext_ship_cost[28],ws1.ws_net_profit[33],ws1.ws_web_site_sk[13],ws1.ws_ship_addr_sk[11],ws1.ws_ship_date_sk[2]
                                 Filter: (ws1.ws_order_number[17] in @1 and ws1.ws_order_number[17] in @2)
                                 <InSubqueryExpr> cached 1
-                                    -> PhysicFromQuery <ws_wh> (inccost=11876, cost=11876, rows=11876) (actual rows=0)
+                                    -> PhysicSelectCte  (inccost=141312624, cost=0, rows=1) (actual rows=0)
                                         Output: ws_wh.ws_order_number[0]
+                                        -> PhysicFromQuery <ws_wh> (inccost=141312624, cost=11876, rows=11876) (actual rows=0)
+                                            Output: ws_wh.ws_order_number[0]
+                                            -> PhysicNLJoin  (inccost=141300748, cost=141276996, rows=11876) (actual rows=0)
+                                                Output: ws1.ws_order_number[0],ws1.ws_warehouse_sk (as wh1)[1],ws2.ws_warehouse_sk (as wh2)[2]
+                                                Filter: (((ws1.ws_order_number[0]=ws2.ws_order_number[3] and ws1.ws_warehouse_sk[1]<>ws2.ws_warehouse_sk[2]) and ws1.ws_order_number[0]=ws2.ws_order_number[3]) and ws1.ws_warehouse_sk[1]<>ws2.ws_warehouse_sk[2])
+                                                -> PhysicScanTable web_sales as ws1 (inccost=11876, cost=11876, rows=11876) (actual rows=0)
+                                                    Output: ws1.ws_order_number[17],ws1.ws_warehouse_sk (as wh1)[15]
+                                                -> PhysicScanTable web_sales as ws2 (inccost=11876, cost=11876, rows=11876) (actual rows=0)
+                                                    Output: ws2.ws_warehouse_sk (as wh2)[15],ws2.ws_order_number[17]
                                 <InSubqueryExpr> cached 2
-                                    -> PhysicHashJoin  (inccost=39084, cost=26056, rows=11876, memory=9216) (actual rows=0)
-                                        Output: web_returns.wr_order_number[0]
-                                        Filter: web_returns.wr_order_number[0]=ws_wh.ws_order_number[1]
+                                    -> PhysicHashJoin  (inccost=141316082, cost=2306, rows=1152, memory=8) (actual rows=0)
+                                        Output: web_returns.wr_order_number[1]
+                                        Filter: web_returns.wr_order_number[1]=ws_wh.ws_order_number[0]
+                                        -> PhysicSelectCte  (inccost=141312624, cost=0, rows=1) (actual rows=0)
+                                            Output: ws_wh.ws_order_number[0]
+                                            -> PhysicFromQuery <ws_wh> (inccost=141312624, cost=11876, rows=11876) (actual rows=0)
+                                                Output: ws_wh.ws_order_number[0]
+                                                -> PhysicNLJoin  (inccost=141300748, cost=141276996, rows=11876) (actual rows=0)
+                                                    Output: ws1.ws_order_number[0],ws1.ws_warehouse_sk (as wh1)[1],ws2.ws_warehouse_sk (as wh2)[2]
+                                                    Filter: (((ws1.ws_order_number[0]=ws2.ws_order_number[3] and ws1.ws_warehouse_sk[1]<>ws2.ws_warehouse_sk[2]) and ws1.ws_order_number[0]=ws2.ws_order_number[3]) and ws1.ws_warehouse_sk[1]<>ws2.ws_warehouse_sk[2])
+                                                    -> PhysicScanTable web_sales as ws1 (inccost=11876, cost=11876, rows=11876) (actual rows=0)
+                                                        Output: ws1.ws_order_number[17],ws1.ws_warehouse_sk (as wh1)[15]
+                                                    -> PhysicScanTable web_sales as ws2 (inccost=11876, cost=11876, rows=11876) (actual rows=0)
+                                                        Output: ws2.ws_warehouse_sk (as wh2)[15],ws2.ws_order_number[17]
                                         -> PhysicScanTable web_returns (inccost=1152, cost=1152, rows=1152) (actual rows=0)
                                             Output: web_returns.wr_order_number[13]
-                                        -> PhysicFromQuery <ws_wh> (inccost=11876, cost=11876, rows=11876) (actual rows=0)
-                                            Output: ws_wh.ws_order_number[0]
 0,,
 

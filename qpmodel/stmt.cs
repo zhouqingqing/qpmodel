@@ -54,6 +54,8 @@ namespace qpmodel.logic
         public Optimizer optimizer_;
         public QueryOption queryOpt_ = new QueryOption();
 
+        public CteInfo cteInfo_ = new CteInfo();
+
         // mark if current plan is distirbuted: it does not include children plan
         internal bool distributed_ = false;
 
@@ -86,9 +88,50 @@ namespace qpmodel.logic
                 return new ExecContext(queryOpt_);
         }
 
+        // we have to see each cte as a selection
+        // bind it and create plan for it, as we may need the plan for LogicSequence
+        //
+        public void initCteInfo()
+        {
+            var ss = this as SelectStmt;
+            // ensure this is select instead of other kind of SQLStatment
+            if (ss != null && ss.ctes_ != null && ss.ctes_.Count() > 0)
+            {
+                foreach (var curCte in ss.ctes_)
+                {
+                    // refer bindFrom
+                    var from = new CTEQueryRef(curCte, curCte.cteName_);
+
+                    var selection = new SelStar(curCte.cteName_);
+
+                    // latter cte will refer to prvious ctes
+                    // consider with cte0 as (select * from a),cte1 as (select * from cte0) select * from cte1
+                    // cte1 is refering to cte0
+                    //
+                    List<CteExpr> previousCtes = cteInfo_.GetAllCteExprs();
+
+                    // prevoious ctes have smaller cteId
+                    Debug.Assert(previousCtes.All(x => x.cteId_ < curCte.cteId_));
+
+                    SelectStmt cieStmt = new CteSelectStmt(curCte, from, previousCtes);
+
+                    cieStmt.cteInfo_ = cteInfo_;
+
+                    // we should add previous cte to the context
+                    cieStmt.Bind(null);
+
+                    var cteSelectionPlan = cieStmt.CreatePlan();
+                    CteInfoEntry cie = new CteInfoEntry(curCte, cteSelectionPlan);
+
+                    cteInfo_.addCteProducer(curCte.cteId_, cie);
+                }
+            }
+        }
+
         public virtual List<Row> Exec()
         {
             ExprSearch.Reset();
+            initCteInfo();
             Bind(null);
             CreatePlan();
             SubstitutionOptimize();
@@ -325,7 +368,7 @@ namespace qpmodel.logic
             }
         }
 
-        public LogicNode CreateSetOpPlan(bool top = true)
+        public LogicNode CreateSetOpPlan(CteInfo cteInfo, bool top = true)
         {
             if (top)
             {
@@ -335,11 +378,14 @@ namespace qpmodel.logic
             }
 
             if (IsLeaf())
+            {
+                stmt_.cteInfo_ = cteInfo;
                 return stmt_.CreatePlan();
+            }
             else
             {
-                var lplan = left_.CreateSetOpPlan(false);
-                var rplan = right_.CreateSetOpPlan(false);
+                var lplan = left_.CreateSetOpPlan(cteInfo, false);
+                var rplan = right_.CreateSetOpPlan(cteInfo, false);
 
                 LogicNode plan;
                 // try to reuse existing operators to implment because users may write 
@@ -425,12 +471,19 @@ namespace qpmodel.logic
         {
             internal SelectStmt query_;
             internal string alias_;
-
-            internal NamedQuery(SelectStmt query, string alias)
+            internal QueryType queryType_;
+            public enum QueryType
+            {
+                UNSURE,
+                CET,
+                FROM
+            }
+            internal NamedQuery(SelectStmt query, string alias, QueryType queryType)
             {
                 Debug.Assert(query != null);
                 query_ = query;
                 alias_ = alias;
+                queryType_ = queryType;
             }
 
             public override bool Equals(object obj)
@@ -478,6 +531,7 @@ namespace qpmodel.logic
         internal List<NamedQuery> subQueries_ = new List<NamedQuery>();
         internal List<NamedQuery> decorrelatedSubs_ = new List<NamedQuery>();
         internal Dictionary<NamedQuery, LogicFromQuery> fromQueries_ = new Dictionary<NamedQuery, LogicFromQuery>();
+        internal Dictionary<NamedQuery, LogicCteProducer> cteQueries_ = new Dictionary<NamedQuery, LogicCteProducer>();
         internal bool hasAgg_ = false;
         internal bool bounded_ = false;
 
@@ -650,25 +704,27 @@ namespace qpmodel.logic
             }
         }
 
-        LogicNode FilterPushDown(LogicNode plan, bool pushJoinFilter)
+        LogicNode FilterPushDown(LogicNode plan, bool pushJoinFilter, bool skip_from = true)
         {
             // locate the all filters ingoring any within FromQuery as it will 
             // be optimized by subquery optimization and this will cause double 
             // predicate push down (e.g., a1>1 && a1>1)
             //
+
             var parents = new List<LogicNode>();
             var indexes = new List<int>();
             var filters = new List<LogicFilter>();
-            var cntFilter = plan.FindNodeTypeMatch(parents,
-                                    indexes, filters, skipParentType: typeof(LogicFromQuery));
 
+            List<Type> skip = skip_from ? new List<Type> { typeof(LogicFromQuery) } : new List<Type> { };
+
+            var cntFilter = plan.FindNodeTypeMatch(parents, indexes, filters, skipParentType: skip);
             for (int i = 0; i < cntFilter; i++)
             {
                 var parent = parents[i];
                 var filter = filters[i];
                 var index = indexes[i];
 
-                Debug.Assert(!(parent is LogicFromQuery));
+                Debug.Assert(!(skip_from && parent is LogicFromQuery));
                 if (filter?.filter_ != null && filter?.movable_ is true)
                 {
                     List<Expr> andlist = new List<Expr>();
@@ -712,15 +768,7 @@ namespace qpmodel.logic
                             // take it out from the tree
                             plan = plan.child_();
                         else
-                        {
-                            // find current parent;
-                            // consider if the parent in parents = new List<LogicNode>() is deleted
-                            plan.VisitEach((parent_cur, index, child) =>
-                            {
-                                if (child == filter) parent = parent_cur;
-                            });
                             parent.children_[index] = filter.child_();
-                        }
                     }
                     else
                         filter.filter_ = andlist.AndListToExpr();
@@ -753,16 +801,6 @@ namespace qpmodel.logic
                 ret = subQueries_;
 
             return ret;
-        }
-
-        bool stmtIsInCTEChain()
-        {
-            if ((bindContext_.stmt_ as SelectStmt).isCteDefinition_)
-                return true;
-            if (bindContext_.parent_ is null)
-                return false;
-            else
-                return (bindContext_.parent_.stmt_ as SelectStmt).stmtIsInCTEChain();
         }
 
         // a1,5+@1 (select b2 ...) => a1, 5+b2
@@ -839,6 +877,22 @@ namespace qpmodel.logic
             if (pushJoinFilter)
                 logic = outerJoinSimplication(logic);
 
+            // optimize for ctes
+            if (cteInfo_.cteCount_ > 0)
+            {
+                for (int i = 0; i < cteInfo_.cteCount_; i++)
+                {
+                    var key = cteInfo_.CteIdToCteInfoEntry_.Keys.ToList()[i];
+                    var plan = cteInfo_.CteIdToCteInfoEntry_[key].plan_;
+                    //the subplan of cteproducer is from query
+                    var fqr = FilterPushDown(plan, pushJoinFilter, false) as LogicFromQuery;
+                    // FIXME producer should include jobs from FROM
+                    var fqr_query_plan = FilterPushDown(fqr.queryRef_.query_.logicPlan_, pushJoinFilter, false);
+                    fqr.queryRef_.query_.logicPlan_ = fqr_query_plan;
+                    cteInfo_.CteIdToCteInfoEntry_[key].plan_ = fqr;
+                }
+            }
+
             // optimize for subqueries 
             //  fromquery needs some special handling to link the new plan
             subQueries_.ForEach(x =>
@@ -847,6 +901,7 @@ namespace qpmodel.logic
                 if (!decorrelatedSubs_.Contains(x))
                     x.query_.SubstitutionOptimize();
             });
+
             foreach (var x in fromQueries_)
             {
                 var fromQuery = x.Value as LogicFromQuery;
@@ -854,7 +909,6 @@ namespace qpmodel.logic
                 if (newplan != null)
                     fromQuery.children_[0] = newplan.query_.logicPlan_;
             }
-
             // now we can adjust join order
             logic.VisitEach(x =>
             {
@@ -867,7 +921,7 @@ namespace qpmodel.logic
             // to waste time for memo as it will generate physical plan anyway. 
             // CTEQueries share the same physical plan, so we exclude it from assertion. 
             //
-            Debug.Assert(physicPlan_ is null || stmtIsInCTEChain());
+            Debug.Assert(physicPlan_ is null);
             physicPlan_ = null;
             if (!queryOpt_.optimize_.use_memo_)
             {

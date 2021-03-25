@@ -80,12 +80,12 @@ namespace qpmodel.utils
         // FOR EACH with parent-child relationship
         //   can also skip certain parent type and its children recursively
         //
-        public void VisitEach(Action<T, int, T> callback, Type skipParentType = null)
+        public void VisitEach(Action<T, int, T> callback, List<Type> skipParentType = null)
         {
             void visitParentAndChildren(T parent,
-                        Action<T, int, T> callback, Type skipParentType = null)
+                        Action<T, int, T> callback, List<Type> skipParentType = null)
             {
-                if (parent.GetType() == skipParentType)
+                if (!(skipParentType is null) && skipParentType.Contains(parent.GetType()))
                     return;
 
                 if (parent == this)
@@ -133,7 +133,7 @@ namespace qpmodel.utils
 
         // lookup all T1 types in the tree and return the parent-target relationship
         public int FindNodeTypeMatch<T1>(List<T> parents,
-            List<int> childIndex, List<T1> targets, Type skipParentType = null) where T1 : TreeNode<T>
+            List<int> childIndex, List<T1> targets, List<Type> skipParentType = null) where T1 : TreeNode<T>
         {
             VisitEach((parent, index, child) =>
             {

@@ -60,6 +60,8 @@ namespace qpmodel.optimizer
         // distribution: what distribution type and expressions (for some of types)
         public (DistrType disttype, List<Expr> exprs) distribution_ = (DistrType.AnyDistributed, null);
 
+        // CTESpec is a CTEProducer or CTEConsumer with cteid
+        public List<(CTEType ctetype, int cteid, bool optional)> cteSpecList_ = new List<(CTEType, int, bool)>();
         // Does testee satisfy my property requirements?
         public bool IsSuppliedBy(PhysicProperty testee) => OrderIsSuppliedBy(testee) && DistributionIsSuppliedBy(testee);
 
@@ -110,6 +112,31 @@ namespace qpmodel.optimizer
                     Debug.Assert(false);
                     return false;
             }
+        }
+
+        public bool CTEIsSuppliedBy(PhysicProperty testee)
+        {
+            // when current node is a subset of testee, it can provide
+            if (cteSpecList_.Count >= testee.cteSpecList_.Count)
+            {
+                for (int i = 0; i < cteSpecList_.Count; i++)
+                {
+                    var t_csl = this.cteSpecList_[i];
+                    // not subset
+                    if (testee.cteSpecList_.Exists(x => x.cteid == t_csl.cteid &&
+                                                    x.ctetype == t_csl.ctetype) == false)
+                    {
+                        return false;
+                    }
+                    else
+                    {
+                        // set the cte as optional
+                        this.cteSpecList_[i] = (t_csl.ctetype, t_csl.cteid, true);
+                    }
+                }
+                return true;
+            }
+            else return false;
         }
 
         // enforce my property to the @node where @node already have property @nodehave
@@ -200,6 +227,20 @@ namespace qpmodel.optimizer
                         return false;
                 }
             }
+
+            if (cteSpecList_.Count != other.cteSpecList_.Count)
+                return false;
+
+            for (int i = 0; i < cteSpecList_.Count; i++)
+            {
+                var t_csl = this.cteSpecList_[i];
+                // not subset
+                if (other.cteSpecList_.Exists(x => x.cteid == t_csl.cteid &&
+                                                x.ctetype == t_csl.ctetype) == false)
+                {
+                    return false;
+                }
+            }
             return true;
         }
         public override bool Equals(object obj)
@@ -244,16 +285,24 @@ namespace qpmodel.optimizer
                         // but does not have to provide distribution column etc
     }
 
+    public enum CTEType
+    {
+        CTEProducer,
+        CTEConsumer,
+        Sentry
+    }
+
     public class DistrProperty : PhysicProperty
     {
-        public static PhysicProperty Singleton_ = newProperty(DistrType.Singleton);
-        public static PhysicProperty Replicated_ = newProperty(DistrType.Replicated);
-        public static PhysicProperty AnyDistributed_ = newProperty(DistrType.AnyDistributed);
+        public static Func<List<(CTEType ctetype, int cteid, bool optional)>, PhysicProperty> Singleton_ = (cteSpecList) => newProperty(DistrType.Singleton, cteSpecList);
+        public static Func<List<(CTEType ctetype, int cteid, bool optional)>, PhysicProperty> Replicated_ = (cteSpecList) => newProperty(DistrType.Replicated, cteSpecList);
+        public static Func<List<(CTEType ctetype, int cteid, bool optional)>, PhysicProperty> AnyDistributed_ = (cteSpecList) => newProperty(DistrType.AnyDistributed, cteSpecList);
 
-        static DistrProperty newProperty(DistrType type)
+        static DistrProperty newProperty(DistrType type, List<(CTEType ctetype, int cteid, bool optional)> cteSpecList)
         {
             var rep = new DistrProperty();
             rep.distribution_.disttype = type;
+            rep.cteSpecList_ = cteSpecList;
             return rep;
         }
 
@@ -382,7 +431,7 @@ namespace qpmodel.optimizer
         // Apply rule to current members and generate a set of new members for each
         // of the new members, find/add itself or its children in the group
         //
-        internal List<CGroupMember> ExploreMember(Memo memo)
+        internal void ExploreMember(Memo memo)
         {
             var list = group_.exprList_;
             foreach (var rule in group_.memo_.optimizer_.ruleset_)
@@ -403,7 +452,6 @@ namespace qpmodel.optimizer
                         memo.EnquePlan(newlogic);
                     if (!list.Contains(newmember))
                         list.Add(newmember);
-
                     // do some verification: new member shall have the same signature as old ones
                     if (newlogic.MemoLogicSign() != list[0].MemoSignature())
                     {
@@ -415,8 +463,6 @@ namespace qpmodel.optimizer
                     Debug.Assert(newlogic.MemoLogicSign() == list[0].MemoSignature());
                 }
             }
-
-            return list;
         }
     }
 
@@ -448,6 +494,12 @@ namespace qpmodel.optimizer
         // insertion order in memo
         public int memoid_;
 
+        // if this group is the last child of it's parent group
+        private bool isLastChild_;
+
+        public bool IsLastChild() => isLastChild_;
+        public void SetAsLastChild() => isLastChild_ = true;
+
         // signature represents a cgroup, all expression in the cgroup shall compute the
         // same signature though different cgroup ok to compute the same as well
         //
@@ -474,8 +526,6 @@ namespace qpmodel.optimizer
             {
                 if (minMember_.ContainsKey(PhysicProperty.NullProperty_))
                     return minMember_[PhysicProperty.NullProperty_].cost;
-                else if (minMember_.ContainsKey(PhysicProperty.NullProperty_))
-                    return minMember_[DistrProperty.Singleton_].cost;
                 else
                     return minMember_[minMember_.Keys.ToList()[0]].cost;
             }
@@ -628,7 +678,8 @@ namespace qpmodel.optimizer
                 {
                     var nonorder = new PhysicProperty
                     {
-                        distribution_ = required.distribution_
+                        distribution_ = required.distribution_,
+                        cteSpecList_ = required.cteSpecList_
                     };
                     output.Add(nonorder);
                 }
@@ -640,11 +691,20 @@ namespace qpmodel.optimizer
                 if (reqdistr == DistrType.Distributed ||
                     reqdistr == DistrType.Singleton ||
                     (queryOpt.optimize_.enable_broadcast_ && reqdistr == DistrType.Replicated))
-                    output.Add(DistrProperty.AnyDistributed_);
+                    output.Add(DistrProperty.AnyDistributed_(required.cteSpecList_));
                 if (reqdistr == DistrType.Singleton)
-                    output.Add(DistrProperty.Replicated_);
+                    output.Add(DistrProperty.Replicated_(required.cteSpecList_));
             }
             return output;
+        }
+
+        public (CTEType, int) ComputerCTESpec(CGroupMember member)
+        {
+            if (member.logic_ is LogicCteProducer lcp)
+                return (CTEType.CTEProducer, lcp.cteId_);
+            else if (member.logic_ is LogicCteConsumer lcc)
+                return (CTEType.CTEConsumer, lcc.cteId_);
+            else return (CTEType.Sentry, -1);
         }
 
         // For the required property, find out the cheapest group member
@@ -658,12 +718,12 @@ namespace qpmodel.optimizer
             Debug.Assert(explored_ && exprList_.Count >= 2);
             CGroupMember optmember = null;
             double cheapestIncCost = Double.MaxValue;
-            bool isleaf = exprList_[0].Logic().children_.Count == 0 || IsSolverOptimizedGroup();
 
             // add less strict property into the dictionary by enforcing to required property, expand
             // the exprList_ and locate the optmember for the required property.
             //
             var childproperties = GenerateRelaxedProperties(required);
+
             foreach (var prop in childproperties)
             {
                 // assuming we disabled broadcast and prop is replicated, then we can't find the member
@@ -698,11 +758,20 @@ namespace qpmodel.optimizer
             // if required property can be provided, update the best member
             foreach (var member in exprList_)
             {
+                bool isleaf = member.Logic().children_.Count == 0 || IsSolverOptimizedGroup();
+
                 var curphysic = member.physic_;
                 if (curphysic is null || member.isEnforcer_)
                     continue;
 
-                if (curphysic.CanProvide(required, out var listChildReqs))
+                // CTESpec is a CTEProducer or CTEConsumer with cteid
+                List<(CTEType ctetype, int cteid)> cteSpecList = new List<(CTEType, int)>();
+                cteSpecList.Add(ComputerCTESpec(member));
+
+                // the last member in Memo
+                // check if the total satisfy some attribute
+                bool isLastNode = this.IsLastChild() && isleaf;
+                if (curphysic.CanProvide(required, out var listChildReqs, isLastNode))
                 {
                     double cost = curphysic.Cost();
                     if (!isleaf)
@@ -717,8 +786,10 @@ namespace qpmodel.optimizer
                             var childcost = curphysic.Cost();
                             for (int i = 0; i < curphysic.children_.Count; i++)
                             {
-                                var child = curphysic.children_[i];
+                                var child = curphysic.children_[i]; // TODO we have to getProperty from pre
                                 var childgroup = (child as PhysicMemoRef).Group();
+                                if (i == curphysic.children_.Count - 1 && this.IsLastChild())
+                                    childgroup.SetAsLastChild();
                                 childgroup.CalculateMinInclusiveCostMember(childprops[i]);
 
                                 // it is possible that the child group cannot satisfy the property
@@ -766,6 +837,7 @@ namespace qpmodel.optimizer
             CGroupMember minmember = null;
             if (knownMinPhysic is null)
             {
+                this.SetAsLastChild();
                 minmember = CalculateMinInclusiveCostMember(property);
                 knownMinPhysic = minmember.physic_;
             }

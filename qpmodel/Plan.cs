@@ -218,6 +218,7 @@ namespace qpmodel.logic
                 var output = exp_output ? ExplainOutput(depth, option) : null;
                 if (output != null)
                     r += Utils.Spaces(depth + 2) + output + "\n";
+
                 if (details != null)
                 {
                     // remove the last \n in case the details is a subquery
@@ -278,8 +279,9 @@ namespace qpmodel.logic
                 if (e is SubqueryExpr x)
                 {
                     Debug.Assert(expr.HasSubQuery());
+                    x.query_.cteInfo_ = this.cteInfo_;
                     x.query_.CreatePlan();
-                    subplans.Add(new NamedQuery(x.query_, null));
+                    subplans.Add(new NamedQuery(x.query_, null, NamedQuery.QueryType.UNSURE));
 
                     // functionally we don't have to do rewrite since above
                     // plan is already runnable
@@ -345,19 +347,44 @@ namespace qpmodel.logic
                     case ExternalTableRef eref:
                         from = new LogicScanFile(eref);
                         break;
-                    case QueryRef qref:
+                    case CTEQueryRef cref:
+                        if (this is CteSelectStmt css && css.CteId() == cref.cte_.cteId_)
+                        {
+                            cref.query_.cteInfo_ = cteInfo_;
+                            var ctePlan = cref.query_.CreatePlan();
+                            string alias = null;
+                            NamedQuery key;
+
+                            alias = cref.alias_;
+                            key = new NamedQuery(cref.query_, alias, NamedQuery.QueryType.FROM);
+
+                            from = new LogicFromQuery(cref, ctePlan);
+                            subQueries_.Add(key);
+                            if (!fromQueries_.ContainsKey(key))
+                                fromQueries_.Add(key, from as LogicFromQuery);
+                        }
+                        else
+                        {
+                            from = new LogicCteConsumer(cteInfo_.GetCteInfoEntryByCteId(cref.cte_.cteId_), cref);
+                        }
+                        break;
+                    case FromQueryRef qref:
+                        qref.query_.cteInfo_ = cteInfo_;
                         var plan = qref.query_.CreatePlan();
                         if (qref is FromQueryRef && queryOpt_.optimize_.remove_from_)
                             from = plan;
                         else
                         {
                             string alias = null;
-                            if (qref is CTEQueryRef cq)
-                                alias = cq.alias_;
-                            else if (qref is FromQueryRef fq)
-                                alias = fq.alias_;
-                            var key = new NamedQuery(qref.query_, alias);
+                            NamedQuery key;
+
+                            var fq = qref as FromQueryRef;
+                            alias = fq.alias_;
+                            key = new NamedQuery(qref.query_, alias, NamedQuery.QueryType.FROM);
+
                             from = new LogicFromQuery(qref, plan);
+                            // CTE query is optimised in LogicSequece
+                            // 
                             subQueries_.Add(key);
 
                             // if from CTE, then it could be duplicates
@@ -512,7 +539,7 @@ namespace qpmodel.logic
                 root = CreateSinglePlan();
             else
             {
-                root = setops_.CreateSetOpPlan();
+                root = setops_.CreateSetOpPlan(cteInfo_);
 
                 // setops plan can also have CTEs, LIMIT and ORDER support
                 // Notes: GROUPBY is with the individual clause
@@ -609,8 +636,8 @@ namespace qpmodel.logic
                 root = new LogicLimit(root, limit_);
 
             // ctes
-            if (ctes_ != null)
-                root = tryCteToSequencePlan(root);
+            if (ctes_ != null && !(this is CteSelectStmt))
+                root = cteToAnchor(root);
 
             // let's make sure the plan is in good shape
             //  - there is no filter except filter node (ok to be multiple)
@@ -628,7 +655,6 @@ namespace qpmodel.logic
             logicPlan_ = root;
             return root;
         }
-
         public override BindContext Bind(BindContext parent)
         {
             BindContext context = new BindContext(this, parent);
@@ -990,6 +1016,22 @@ namespace qpmodel.logic
 
             Debug.Assert(newlist.Count == list.Count);
             return newlist;
+        }
+    }
+
+    public class CteSelectStmt : SelectStmt
+    {
+        private CteExpr originCte_;
+        public int CteId() => originCte_.cteId_;
+        // we have to constract a CteSelection
+        // select * from cte
+        public CteSelectStmt(CteExpr originCte, CTEQueryRef from, List<CteExpr> previousCtes) : base(
+                    new List<Expr>() { new SelStar(originCte.cteName_) },
+                    new List<TableRef>() { from },
+                    null, null, null,
+                    previousCtes, null, null, null, $"select * from {originCte.cteName_}")
+        {
+            originCte_ = originCte;
         }
     }
 }

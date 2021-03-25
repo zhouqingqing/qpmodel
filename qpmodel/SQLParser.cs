@@ -101,6 +101,8 @@ namespace qpmodel.sqlparser
     // antlr visitor pattern parser
     class SQLiteVisitor : SQLiteBaseVisitor<object>
     {
+        // CTE should has a id
+        int cteId_ = 0;
         string GetRawText(ParserRuleContext context)
         {
             int a = context.Start.StartIndex;
@@ -427,7 +429,7 @@ namespace qpmodel.sqlparser
                 colNames = new List<string>();
                 Array.ForEach(context.column_name(), x => colNames.Add(x.GetText()));
             }
-            return new CteExpr(context.table_name().GetText(), colNames, Visit(context.select_stmt()) as SQLStatement);
+            return new CteExpr(context.table_name().GetText(), colNames, Visit(context.select_stmt()) as SQLStatement, cteId_++);
         }
 
         public override object VisitSelect_stmt([NotNull] SQLiteParser.Select_stmtContext context)
