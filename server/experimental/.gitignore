@@ -1,6 +1,0 @@
-# visual studio compiler
-.vs/
-out/
-
-# Linux output folders
-build/

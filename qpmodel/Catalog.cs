@@ -286,7 +286,7 @@ namespace qpmodel
             // load tables
             var appbin_dir = AppContext.BaseDirectory.Substring(0, AppContext.BaseDirectory.LastIndexOf("bin"));
             var folder = $@"{appbin_dir}/../data";
-            var tables = new List<string>() { "test", "a", "b", "c", "d", "r", "ad", "bd", "cd", "dd", "ar", "br", "arb", "brb", "ast"};
+            var tables = new List<string>() { "test", "a", "b", "c", "d", "r", "ad", "bd", "cd", "dd", "ar", "br", "arb", "brb", "ast" };
             foreach (var v in tables)
             {
                 string filename = $@"'{folder}/{v}.tbl'";

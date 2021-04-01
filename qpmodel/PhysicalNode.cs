@@ -170,7 +170,7 @@ namespace qpmodel.physic
             {
                 if (x is PhysicMemoRef xp)
                     incCost += xp.Group().nullPropertyMinIncCost;
-                else 
+                else
                     incCost += x.InclusiveCost();
             });
 
