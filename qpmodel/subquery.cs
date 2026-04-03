@@ -551,7 +551,7 @@ namespace qpmodel.logic
             // post-order: decorrelate children first, then current node
             for (int i = 0; i < root.children_.Count; i++)
             {
-                root.children_[i] = DecorrelatePass(root.children_[i] as LogicNode);
+                root.children_[i] = DecorrelatePass((LogicNode)root.children_[i]);
             }
 
             if (root is LogicDependentJoin dj)
@@ -767,6 +767,9 @@ namespace qpmodel.logic
 
             lchild_().Exec(l =>
             {
+                if (context.stop_)
+                    return;
+
                 // bind left row as parameters so the right subtree's correlated ColExprs
                 // can resolve via ExecContext.GetParam(tabref, ordinal).
                 // Group correlated columns by their TableRef and register each tabref's row.
@@ -776,6 +779,8 @@ namespace qpmodel.logic
 
                 rchild_().Exec(r =>
                 {
+                    if (context.stop_)
+                        return;
                     Row n = new Row(l, r);
                     if (filter is null || filter.Exec(context, n) is true)
                     {
