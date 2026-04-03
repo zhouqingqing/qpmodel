@@ -11,12 +11,12 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
-    - name: Setup .NET Core
-      uses: actions/setup-dotnet@v1
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 3.1.101
+        dotnet-version: 8.0.x
     - name: Clean
       run: dotnet clean ./qpmodel.sln --configuration Debug && dotnet nuget locals all --clear
     - name: Install dependencies
