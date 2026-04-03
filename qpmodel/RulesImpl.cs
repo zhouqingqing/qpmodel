@@ -90,7 +90,7 @@ namespace qpmodel.optimizer
         public override bool Appliable(CGroupMember expr)
         {
             LogicJoin join = expr.logic_ as LogicJoin;
-            if (join is null || join is LogicMarkJoin || join is LogicSingleJoin)
+            if (join is null || join is LogicMarkJoin || join is LogicSingleJoin || join is LogicDependentJoin)
                 return false;
 
             if (join.filter_.FilterHashable())
@@ -119,7 +119,7 @@ namespace qpmodel.optimizer
         public override bool Appliable(CGroupMember expr)
         {
             LogicJoin log = expr.logic_ as LogicJoin;
-            if (log is null || log is LogicMarkJoin || log is LogicSingleJoin)
+            if (log is null || log is LogicMarkJoin || log is LogicSingleJoin || log is LogicDependentJoin)
                 return false;
             return true;
         }
@@ -219,6 +219,7 @@ namespace qpmodel.optimizer
     public class Limit2Limit : SimpleImplementationRule<LogicLimit, PhysicLimit, NumberArgs.N1> { }
     public class Join2MarkJoin : SimpleImplementationRule<LogicMarkJoin, PhysicMarkJoin, NumberArgs.N2> { }
     public class Join2SingleJoin : SimpleImplementationRule<LogicSingleJoin, PhysicSingleJoin, NumberArgs.N2> { }
+    public class Join2DependentJoin : SimpleImplementationRule<LogicDependentJoin, PhysicDependentJoin, NumberArgs.N2> { }
     public class Seq2Seq : SimpleImplementationRule<LogicSequence, PhysicSequence, NumberArgs.NList> { }
     public class Gather2Gather : SimpleImplementationRule<LogicGather, PhysicGather, NumberArgs.N1> { }
     public class Bcast2Bcast : SimpleImplementationRule<LogicBroadcast, PhysicBroadcast, NumberArgs.N1> { }

@@ -654,6 +654,9 @@ namespace qpmodel.logic
         // these are used by subquery expansion or optimizations (say PK/FK join)
         Semi,
         AntiSemi,
+
+        // dependent join: right side is parameterized by left side (correlated subquery)
+        Dependent,
     };
 
     public partial class LogicJoin : LogicNode

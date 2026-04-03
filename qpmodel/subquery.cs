@@ -666,6 +666,89 @@ namespace qpmodel.logic
         public LogicSingleJoin(LogicNode l, LogicNode r, Expr f) : base(l, r, f) { type_ = JoinType.Left; }
     }
 
+    // Dependent join (D-join): the right side is parameterized by each row from the left side.
+    //   T1 ⋈_D T2 := { t1 ◦ t2 | t1 ∈ T1 ∧ t2 ∈ T2(t1) ∧ p(t1 ◦ t2) }
+    //
+    // This is an explicit intermediate node created during plan building for correlated subqueries.
+    // Decorrelation (Step 2) will push the dependent join down through the right subtree until
+    // the correlation is eliminated, converting it into a regular join (mark/single/semi/anti).
+    //
+    // References:
+    //   - Neumann, BTW 2015: "Unnesting Arbitrary Queries"
+    //   - Neumann, BTW 2025: "Improving Unnesting of Complex Queries"
+    //
+    public class LogicDependentJoin : LogicJoin
+    {
+        // which columns from the left side are referenced by the right side
+        public List<ColExpr> correlatedCols_ = new List<ColExpr>();
+
+        // the original subquery expression this dependent join was created from
+        public SubqueryExpr subqueryExpr_;
+
+        public override string ToString() => $"{lchild_()} dependX {rchild_()}";
+        public override string ExplainInlineDetails() => "Dependent";
+
+        public LogicDependentJoin(LogicNode l, LogicNode r, SubqueryExpr subexpr)
+            : base(l, r)
+        {
+            type_ = JoinType.Dependent;
+            subqueryExpr_ = subexpr;
+        }
+        public LogicDependentJoin(LogicNode l, LogicNode r, Expr f, SubqueryExpr subexpr)
+            : base(l, r, f)
+        {
+            type_ = JoinType.Dependent;
+            subqueryExpr_ = subexpr;
+        }
+    }
+
+    // Fallback physical operator for dependent join: nested-loop with parameter binding.
+    // This is used when decorrelation fails or is disabled — it executes the right subtree
+    // once per left row, binding correlated column values as parameters.
+    //
+    public class PhysicDependentJoin : PhysicNode
+    {
+        public PhysicDependentJoin(LogicDependentJoin logic, PhysicNode l, PhysicNode r) : base(logic)
+        {
+            children_.Add(l); children_.Add(r);
+        }
+        public override string ToString() => $"PDepJOIN({lchild_()},{rchild_()}: {Cost()})";
+
+        public override void Exec(Action<Row> callback)
+        {
+            ExecContext context = context_;
+            var logic = logic_ as LogicDependentJoin;
+            var filter = logic.filter_;
+
+            lchild_().Exec(l =>
+            {
+                // bind left row as parameters so the right subtree's correlated ColExprs
+                // can resolve via ExecContext.GetParam(tabref, ordinal).
+                // Group correlated columns by their TableRef and register each tabref's row.
+                var tabrefGroups = logic.correlatedCols_.GroupBy(c => c.tabRef_);
+                foreach (var group in tabrefGroups)
+                    context.AddParam(group.Key, l);
+
+                rchild_().Exec(r =>
+                {
+                    Row n = new Row(l, r);
+                    if (filter is null || filter.Exec(context, n) is true)
+                    {
+                        n = ExecProject(n);
+                        callback(n);
+                    }
+                });
+            });
+        }
+
+        protected override double EstimateCost()
+        {
+            // very expensive: nested loop per left row
+            double cost = lchild_().Card() * rchild_().Card() * 2.0;
+            return cost;
+        }
+    }
+
     public class PhysicSingleJoin : PhysicNode
     {
         public PhysicSingleJoin(LogicSingleJoin logic, PhysicNode l, PhysicNode r) : base(logic)
