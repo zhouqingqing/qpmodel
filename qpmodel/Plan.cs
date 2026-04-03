@@ -287,14 +287,17 @@ namespace qpmodel.logic
                     // plan is already runnable
                     if (queryOpt_.optimize_.enable_subquery_unnest_)
                     {
-                        // use the plan 'root' containing the subexpr 'x'
-                        bool canReplaceRoot = false;
-                        var replacement = oneSubqueryToJoin(root, x, ref canReplaceRoot);
-                        newroot = (LogicNode)newroot.SearchAndReplace(root,
-                                                                replacement);
-                        // consider  mark@1 or @2 , @2 is not unnested yet, 
-                        // so it can't be push down i.e. it keep as a root
-                        if (canReplaceRoot) root = newroot;
+                        if (x.IsCorrelated())
+                        {
+                            // Step 2: create an explicit LogicDependentJoin as intermediate
+                            // representation. Decorrelation happens in a separate pass after
+                            // the full logical plan is built (see DecorrelatePass).
+                            var djoin = new LogicDependentJoin(root, x.query_.logicPlan_, x);
+                            djoin.correlatedCols_ = collectCorrelatedCols(x);
+                            newroot = (LogicNode)newroot.SearchAndReplace(root, djoin);
+                            root = djoin;
+                        }
+                        // non-correlated subqueries stay as-is (executed independently)
                     }
                 }
                 else if (e is FuncExpr f && f.isSRF_)
@@ -306,6 +309,23 @@ namespace qpmodel.logic
 
             subQueries_.AddRange(subplans);
             return newroot;
+        }
+
+        // collect all correlated column references (parameter columns) from a subquery
+        List<ColExpr> collectCorrelatedCols(SubqueryExpr subexpr)
+        {
+            var cols = new List<ColExpr>();
+            subexpr.query_.logicPlan_.VisitEach(n =>
+            {
+                var node = n as LogicNode;
+                if (node?.filter_ != null)
+                    node.filter_.VisitEachT<ColExpr>(c =>
+                    {
+                        if (c.isParameter_)
+                            cols.Add(c);
+                    });
+            });
+            return cols;
         }
 
         // select i, min(i/2), 2+min(i)+max(i) from A group by i
@@ -634,6 +654,12 @@ namespace qpmodel.logic
             // limit
             if (limit_ != null)
                 root = new LogicLimit(root, limit_);
+
+            // decorrelation pass: convert LogicDependentJoin → mark/single joins
+            // This runs after the complete logical plan is built, following
+            // Neumann's approach of separating translation from unnesting.
+            if (queryOpt_.optimize_.enable_subquery_unnest_)
+                root = DecorrelatePass(root);
 
             // ctes
             if (ctes_ != null && !(this is CteSelectStmt))

@@ -540,9 +540,34 @@ namespace qpmodel.logic
             return join;
         }
 
+        // Decorrelation pass: walk the plan tree bottom-up and convert each
+        // LogicDependentJoin into the appropriate join type (mark/single/regular).
+        //
+        // This is the "Phase 2" of Neumann's pipeline — a separate pass that runs
+        // after the complete logical plan is built, rather than during binding.
+        //
+        LogicNode DecorrelatePass(LogicNode root)
+        {
+            // post-order: decorrelate children first, then current node
+            for (int i = 0; i < root.children_.Count; i++)
+            {
+                root.children_[i] = DecorrelatePass(root.children_[i] as LogicNode);
+            }
+
+            if (root is LogicDependentJoin dj)
+            {
+                var outer = dj.lchild_();
+                var subexpr = dj.subqueryExpr_;
+                bool canReplace = false;
+                var result = oneSubqueryToJoin(outer, subexpr, ref canReplace);
+                return result;
+            }
+            return root;
+        }
+
         // exists|quantified subquery => mark join
         // scalar subquery => single join or LOJ if max1row output is assured
-        // 
+        //
         LogicNode oneSubqueryToJoin(LogicNode planWithSubExpr, SubqueryExpr subexpr, ref bool canRepalce)
         {
             LogicNode oldplan = planWithSubExpr;
