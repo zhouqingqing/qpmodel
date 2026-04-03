@@ -274,6 +274,8 @@ namespace qpmodel.logic
         {
             var newroot = root;
             var subplans = new List<NamedQuery>();
+            var correlatedSubs = new List<SubqueryExpr>();
+
             expr.VisitEachT<Expr>(e =>
             {
                 if (e is SubqueryExpr x)
@@ -283,22 +285,9 @@ namespace qpmodel.logic
                     x.query_.CreatePlan();
                     subplans.Add(new NamedQuery(x.query_, null, NamedQuery.QueryType.UNSURE));
 
-                    // functionally we don't have to do rewrite since above
-                    // plan is already runnable
-                    if (queryOpt_.optimize_.enable_subquery_unnest_)
-                    {
-                        if (x.IsCorrelated())
-                        {
-                            // Step 2: create an explicit LogicDependentJoin as intermediate
-                            // representation. Decorrelation happens in a separate pass after
-                            // the full logical plan is built (see DecorrelatePass).
-                            var djoin = new LogicDependentJoin(root, x.query_.logicPlan_, x);
-                            djoin.correlatedCols_ = collectCorrelatedCols(x);
-                            newroot = (LogicNode)newroot.SearchAndReplace(root, djoin);
-                            root = djoin;
-                        }
-                        // non-correlated subqueries stay as-is (executed independently)
-                    }
+                    // collect correlated subqueries for deferred decorrelation
+                    if (queryOpt_.optimize_.enable_subquery_unnest_ && x.IsCorrelated())
+                        correlatedSubs.Add(x);
                 }
                 else if (e is FuncExpr f && f.isSRF_)
                 {
@@ -306,6 +295,21 @@ namespace qpmodel.logic
                     root.children_[0] = newchild;
                 }
             });
+
+            // Step 2: wrap all correlated subqueries from this expression in a single
+            // LogicDependentJoin. DecorrelatePass will process them sequentially.
+            // We use a single DependentJoin per expression to preserve the filter structure
+            // that existsToMarkJoin/scalarToSingleJoin/inToMarkJoin expect.
+            if (correlatedSubs.Count > 0)
+            {
+                var allCorrelatedCols = new List<ColExpr>();
+                correlatedSubs.ForEach(x => allCorrelatedCols.AddRange(collectCorrelatedCols(x)));
+
+                var djoin = new LogicDependentJoin(root, correlatedSubs[0].query_.logicPlan_, correlatedSubs[0]);
+                djoin.correlatedCols_ = allCorrelatedCols;
+                djoin.pendingSubqueries_ = correlatedSubs;
+                newroot = (LogicNode)newroot.SearchAndReplace(root, djoin);
+            }
 
             subQueries_.AddRange(subplans);
             return newroot;

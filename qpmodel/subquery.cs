@@ -556,11 +556,22 @@ namespace qpmodel.logic
 
             if (root is LogicDependentJoin dj)
             {
-                var outer = dj.lchild_();
-                var subexpr = dj.subqueryExpr_;
-                bool canReplace = false;
-                var result = oneSubqueryToJoin(outer, subexpr, ref canReplace);
-                return result;
+                // Start with the outer plan (lchild), then decorrelate each pending
+                // subquery sequentially. This preserves the filter structure that
+                // existsToMarkJoin/scalarToSingleJoin/inToMarkJoin expect — each
+                // conversion updates the plan in place so the next one can find its
+                // SubqueryExpr in the filter.
+                LogicNode plan = dj.lchild_();
+                foreach (var subexpr in dj.pendingSubqueries_)
+                {
+                    bool canReplace = false;
+                    var newplan = oneSubqueryToJoin(plan, subexpr, ref canReplace);
+                    if (canReplace)
+                        plan = newplan;
+                    else
+                        plan = newplan;
+                }
+                return plan;
             }
             return root;
         }
@@ -709,6 +720,11 @@ namespace qpmodel.logic
 
         // the original subquery expression this dependent join was created from
         public SubqueryExpr subqueryExpr_;
+
+        // when multiple correlated subqueries appear in the same expression (e.g.,
+        // EXISTS(...) AND EXISTS(...)), they are all recorded here so DecorrelatePass
+        // can process them sequentially while preserving the filter structure.
+        public List<SubqueryExpr> pendingSubqueries_ = new List<SubqueryExpr>();
 
         public override string ToString() => $"{lchild_()} dependX {rchild_()}";
         public override string ExplainInlineDetails() => "Dependent";
