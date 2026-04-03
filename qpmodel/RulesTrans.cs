@@ -46,6 +46,7 @@ namespace qpmodel.optimizer
             new Join2HashJoin(),
             new Join2MarkJoin(),
             new Join2SingleJoin(),
+            new Join2DependentJoin(),
             new Scan2Scan(),
             new Scan2IndexSeek(),
             new ScanFile2ScanFile(),
