@@ -556,22 +556,26 @@ namespace qpmodel.logic
 
             if (root is LogicDependentJoin dj)
             {
-                // Start with the outer plan (lchild), then decorrelate each pending
-                // subquery sequentially. This preserves the filter structure that
-                // existsToMarkJoin/scalarToSingleJoin/inToMarkJoin expect — each
-                // conversion updates the plan in place so the next one can find its
-                // SubqueryExpr in the filter.
-                LogicNode plan = dj.lchild_();
+                // Mirror the original inline decorrelation logic: keep 'innerNode'
+                // pointing at the same plan node so existsToMarkJoin can find
+                // remaining SubqueryExprs in its (in-place modified) filter.
+                // 'result' tracks the growing outermost plan.
+                LogicNode innerNode = dj.lchild_();
+                LogicNode result = innerNode;
                 foreach (var subexpr in dj.pendingSubqueries_)
                 {
                     bool canReplace = false;
-                    var newplan = oneSubqueryToJoin(plan, subexpr, ref canReplace);
-                    if (canReplace)
-                        plan = newplan;
+                    var replacement = oneSubqueryToJoin(innerNode, subexpr, ref canReplace);
+                    // graft replacement into the result tree (same as original
+                    // newroot.SearchAndReplace(root, replacement))
+                    if (result == innerNode)
+                        result = replacement;
                     else
-                        plan = newplan;
+                        result = (LogicNode)result.SearchAndReplace(innerNode, replacement);
+                    // only advance innerNode when canReplace (OR with extra subqueries)
+                    if (canReplace) innerNode = result;
                 }
-                return plan;
+                return result;
             }
             return root;
         }
