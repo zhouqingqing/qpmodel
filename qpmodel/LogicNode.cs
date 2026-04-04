@@ -197,9 +197,17 @@ namespace qpmodel.logic
                             // subqueries, we need to use NLJ to pass variables. It is can be fixed by changing
                             // the way runtime pass parameters though.
                             //
-                            bool lhasSubqCol = TableRef.HasColsUsedBySubquries(lchild_().InclusiveTableRefs());
+                            // Semi joins from Neumann decorrelation have no parameter
+                            // references, so skip the subquery-column check for them.
+                            // AntiSemi stays on NLJ: HashJoin's anti-semi outputs
+                            // unmatched probe rows, but NOT EXISTS needs unmatched
+                            // build rows — different semantics.
+                            bool isSemi = lc.type_ == JoinType.Semi;
+                            bool lhasSubqCol = !isSemi &&
+                                TableRef.HasColsUsedBySubquries(lchild_().InclusiveTableRefs());
                             if (lc.filter_.FilterHashable() && !lhasSubqCol
-                                && (lc.type_ == JoinType.Inner || lc.type_ == JoinType.Left))
+                                && (lc.type_ == JoinType.Inner || lc.type_ == JoinType.Left
+                                    || isSemi))
                                 result = new PhysicHashJoin(lc, phyleft, phyright);
                             else
                                 result = new PhysicNLJoin(lc, phyleft, phyright);

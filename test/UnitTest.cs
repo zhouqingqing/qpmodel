@@ -1544,10 +1544,11 @@ namespace qpmodel.unittest
             string out_dir = "../../../../test/regress/output";
             string exp_dir = "../../../../test/regress/expect";
 
-            // Each SQL file has its own SET statements to configure options
-            string[] names = { "subqueryd_unnest", "subqueryd_pushdown", "subqueryd_nounnest" };
+            // Auto-discover all subqueryd_*.sql files — add new SQL files without touching C#
+            string[] files = Directory.GetFiles(sql_dir, "subqueryd_*.sql");
+            Array.Sort(files);
 
-            foreach (string name in names)
+            foreach (string sqlFile in files)
             {
                 QueryOption option = new QueryOption();
                 option.optimize_.TurnOnAllOptimizations();
@@ -1557,7 +1558,8 @@ namespace qpmodel.unittest
                 option.explain_.show_estCost_ = false;
                 option.explain_.mode_ = ExplainMode.full;
 
-                string sql = File.ReadAllText($"{sql_dir}/{name}.sql");
+                string name = Path.GetFileNameWithoutExtension(sqlFile);
+                string sql = File.ReadAllText(sqlFile);
                 string test_result = SQLStatement.ExecSQLList(sql, option);
                 string write_fn  = $"{out_dir}/{name}.txt";
                 string expect_fn = $"{exp_dir}/{name}.txt";
