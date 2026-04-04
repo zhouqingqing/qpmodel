@@ -1,0 +1,129 @@
+select a1 from a where exists (select 1 from b where b1=a1 and b2>1)
+PhysicFilter  (actual rows=2)
+    Output: a.a1[0]
+    Filter: {#marker@1}[1]
+    -> PhysicMarkJoin Left (actual rows=3)
+        Output: a.a1[0],{#marker@1}[1]
+        Filter: b.b1[1]=a.a1[0]
+        -> PhysicScanTable a (actual rows=3)
+            Output: a.a1[0]
+        -> PhysicFilter  (actual rows=2, loops=3)
+            Output: b.b1[0]
+            Filter: b.b2[1]>1
+            -> PhysicScanTable b (actual rows=2, loops=3)
+                Output: b.b1[0],b.b2[1]
+                Filter: b.b2[1]>1
+1
+2
+
+select a1 from a where exists (select 1 from b join c on b2=c2 and c1=a1)
+PhysicFilter  (actual rows=3)
+    Output: a.a1[0]
+    Filter: {#marker@1}[1]
+    -> PhysicMarkJoin Left (actual rows=3)
+        Output: a.a1[0],{#marker@1}[1]
+        Filter: c.c1[1]=a.a1[0]
+        -> PhysicScanTable a (actual rows=3)
+            Output: a.a1[0]
+        -> PhysicFilter  (actual rows=3, loops=3)
+            Output: c.c1[0]
+            Filter: b.b2[1]=c.c2[2]
+            -> PhysicHashJoin  (actual rows=3, loops=3)
+                Output: c.c1[1],b.b2[0],c.c2[2]
+                Filter: b.b2[0]=c.c2[2]
+                -> PhysicScanTable b (actual rows=3, loops=3)
+                    Output: b.b2[1]
+                -> PhysicScanTable c (actual rows=3, loops=3)
+                    Output: c.c1[0],c.c2[1]
+0
+1
+2
+
+select a1 from a where exists (select 1 from b join c on b2=c2 where b1=a1 and c3>3)
+PhysicFilter  (actual rows=1)
+    Output: a.a1[0]
+    Filter: {#marker@1}[1]
+    -> PhysicMarkJoin Left (actual rows=3)
+        Output: a.a1[0],{#marker@1}[1]
+        Filter: b.b1[1]=a.a1[0]
+        -> PhysicScanTable a (actual rows=3)
+            Output: a.a1[0]
+        -> PhysicFilter  (actual rows=1, loops=3)
+            Output: b.b1[0]
+            Filter: (b.b2[1]=c.c2[2] and c.c3[3]>3)
+            -> PhysicHashJoin  (actual rows=1, loops=3)
+                Output: b.b1[0],b.b2[1],c.c2[2],c.c3[3]
+                Filter: b.b2[1]=c.c2[2]
+                -> PhysicScanTable b (actual rows=3, loops=3)
+                    Output: b.b1[0],b.b2[1]
+                -> PhysicScanTable c (actual rows=1, loops=3)
+                    Output: c.c2[1],c.c3[2]
+                    Filter: c.c3[2]>3
+2
+
+select a1 from a where a1 < (select count(*) from b where b1=a1)
+PhysicFilter  (actual rows=1)
+    Output: a.a1[0]
+    Filter: a.a1[0]<{count(*)(0)}[1]
+    -> PhysicNLJoin Left (actual rows=3)
+        Output: a.a1[0],{count(*)(0)}[1]
+        Filter: b.b1[2]=a.a1[0]
+        -> PhysicScanTable a (actual rows=3)
+            Output: a.a1[0]
+        -> PhysicHashAgg  (actual rows=3, loops=3)
+            Output: {count(*)(0)}[1],{b.b1}[0]
+            Aggregates: count(*)(0)
+            Group by: b.b1[0]
+            -> PhysicScanTable b (actual rows=3, loops=3)
+                Output: b.b1[0]
+0
+
+select a1 from a where not exists (select 1 from b join c on b1=c1 and c2=a2)
+PhysicFilter  (actual rows=0)
+    Output: a.a1[0]
+    Filter: {#marker@1}[1]
+    -> PhysicMarkJoin Left (actual rows=3)
+        Output: a.a1[0],{#marker@1}[1]
+        Filter: c.c2[2]=a.a2[1]
+        -> PhysicScanTable a (actual rows=3)
+            Output: a.a1[0],a.a2[1]
+        -> PhysicFilter  (actual rows=3, loops=3)
+            Output: c.c2[0]
+            Filter: b.b1[1]=c.c1[2]
+            -> PhysicHashJoin  (actual rows=3, loops=3)
+                Output: c.c2[1],b.b1[0],c.c1[2]
+                Filter: b.b1[0]=c.c1[2]
+                -> PhysicScanTable b (actual rows=3, loops=3)
+                    Output: b.b1[0]
+                -> PhysicScanTable c (actual rows=3, loops=3)
+                    Output: c.c2[1],c.c1[0]
+
+
+select a1 from a where exists (
+    select 1 from b where b1=a1 and exists (
+        select 1 from c where c1=b1 and c2>1))
+PhysicFilter  (actual rows=2)
+    Output: a.a1[0]
+    Filter: {#marker@1}[1]
+    -> PhysicMarkJoin Left (actual rows=3)
+        Output: a.a1[0],{#marker@1}[1]
+        Filter: b.b1[1]=a.a1[0]
+        -> PhysicScanTable a (actual rows=3)
+            Output: a.a1[0]
+        -> PhysicFilter  (actual rows=2, loops=3)
+            Output: b.b1[0]
+            Filter: {#marker@2}[1]
+            -> PhysicMarkJoin Left (actual rows=3, loops=3)
+                Output: b.b1[0],{#marker@2}[1]
+                Filter: c.c1[1]=b.b1[0]
+                -> PhysicScanTable b (actual rows=3, loops=3)
+                    Output: b.b1[0]
+                -> PhysicFilter  (actual rows=2, loops=9)
+                    Output: c.c1[0]
+                    Filter: c.c2[1]>1
+                    -> PhysicScanTable c (actual rows=2, loops=9)
+                        Output: c.c1[0],c.c2[1]
+                        Filter: c.c2[1]>1
+1
+2
+
