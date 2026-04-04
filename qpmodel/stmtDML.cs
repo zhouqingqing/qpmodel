@@ -114,6 +114,61 @@ namespace qpmodel.dml
         }
     }
 
+    // SET pragma_name = value;
+    // Modifies queryOpt_ flags at runtime so SQL files can toggle options.
+    public class SetStmt : SQLStatement
+    {
+        public readonly string name_;
+        public readonly string value_;
+
+        public SetStmt(string name, string value, string text) : base(text)
+        {
+            name_ = name.ToLower();
+            value_ = value?.ToLower();
+        }
+
+        bool ParseBool()
+        {
+            if (value_ == "true" || value_ == "on" || value_ == "1")
+                return true;
+            if (value_ == "false" || value_ == "off" || value_ == "0")
+                return false;
+            throw new SemanticAnalyzeException($"SET {name_}: expected bool, got '{value_}'");
+        }
+
+        // Apply the setting to the given option object.
+        public void Apply(QueryOption option)
+        {
+            switch (name_)
+            {
+                case "enable_subquery_unnest":
+                    option.optimize_.enable_subquery_unnest_ = ParseBool(); break;
+                case "enable_dependent_join_pushdown":
+                    option.optimize_.enable_dependent_join_pushdown_ = ParseBool(); break;
+                case "use_memo":
+                    option.optimize_.use_memo_ = ParseBool(); break;
+                case "remove_from":
+                    option.optimize_.remove_from_ = ParseBool(); break;
+                case "enable_cte_plan":
+                    option.optimize_.enable_cte_plan_ = ParseBool(); break;
+                case "enable_hashjoin":
+                    option.optimize_.enable_hashjoin_ = ParseBool(); break;
+                case "enable_nljoin":
+                    option.optimize_.enable_nljoin_ = ParseBool(); break;
+                case "enable_indexseek":
+                    option.optimize_.enable_indexseek_ = ParseBool(); break;
+                default:
+                    throw new SemanticAnalyzeException($"SET: unknown option '{name_}'");
+            }
+        }
+
+        public override List<Row> Exec()
+        {
+            Apply(queryOpt_);
+            return null;
+        }
+    }
+
     public class AnalyzeStmt : SQLStatement
     {
         public readonly BaseTableRef targetref_;

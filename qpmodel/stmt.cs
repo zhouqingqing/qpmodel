@@ -35,6 +35,7 @@ using qpmodel.expr;
 using qpmodel.physic;
 using qpmodel.codegen;
 using qpmodel.optimizer;
+using qpmodel.dml;
 
 // Parser is the only place shall deal with antlr 
 // do NOT use any antlr structure here
@@ -258,6 +259,13 @@ namespace qpmodel.logic
             string result = "";
             foreach (var v in list_)
             {
+                // SET statements modify the shared queryOpt_ directly
+                if (v is dml.SetStmt setStmt)
+                {
+                    setStmt.Apply(queryOpt_);
+                    continue;
+                }
+
                 var rows = ExecSQL(v, out string plan, queryOpt_);
 
                 // format: <sql> <plan> <result>

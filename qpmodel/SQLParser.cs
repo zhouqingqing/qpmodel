@@ -650,6 +650,8 @@ namespace qpmodel.sqlparser
                 r = Visit(context.create_index_stmt()) as SQLStatement;
             else if (context.drop_index_stmt() != null)
                 r = Visit(context.drop_index_stmt()) as SQLStatement;
+            else if (context.set_stmt() != null)
+                r = Visit(context.set_stmt()) as SQLStatement;
 
             if (r is null)
                 throw new NotImplementedException();
@@ -663,6 +665,13 @@ namespace qpmodel.sqlparser
                     r.queryOpt_.explain_.mode_ = ExplainMode.full;
             }
             return r;
+        }
+
+        public override object VisitSet_stmt([NotNull] SQLiteParser.Set_stmtContext context)
+        {
+            string name = context.pragma_name().GetText();
+            string value = context.config_value()?.GetText();
+            return new SetStmt(name, value, GetRawText(context));
         }
 
         public override object VisitSql_stmt_list([NotNull] SQLiteParser.Sql_stmt_listContext context)
