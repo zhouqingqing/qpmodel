@@ -199,9 +199,9 @@ namespace qpmodel.logic
                             //
                             // Semi joins from Neumann decorrelation have no parameter
                             // references, so skip the subquery-column check for them.
-                            // NOTE: AntiSemi excluded — PhysicHashJoin's anti-semi
-                            // outputs unmatched RIGHT rows, but NOT EXISTS needs
-                            // unmatched LEFT rows. NLJ handles this correctly.
+                            // AntiSemi stays on NLJ: HashJoin's anti-semi outputs
+                            // unmatched probe rows, but NOT EXISTS needs unmatched
+                            // build rows — different semantics.
                             bool isSemi = lc.type_ == JoinType.Semi;
                             bool lhasSubqCol = !isSemi &&
                                 TableRef.HasColsUsedBySubquries(lchild_().InclusiveTableRefs());

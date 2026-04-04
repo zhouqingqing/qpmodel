@@ -905,6 +905,8 @@ namespace qpmodel.physic
                         foundOneMatch{_} = true;
                         foreach (var v{_} in exist{_})
                         {{
+                            {codegen_if(left,
+                                        $"v{_}.matched_ = true;")}
                             r{_} = new Row(v{_}.row_, {rname});
                             {ExecProjectCode($"r{_}")}";
 
