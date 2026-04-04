@@ -294,11 +294,18 @@ namespace qpmodel.unittest
     {
         public class QueryVerify
         {
+            static string NormalizeWhitespace(string s)
+            {
+                // .NET 8+ on Linux uses U+202F (narrow no-break space) before AM/PM
+                // in date formatting; normalize to regular space for cross-platform comparison.
+                return s.Replace("\r\n", "\n").Replace('\u202f', ' ');
+            }
+
             static bool resultVerify(string resultFn, string expectFn)
             {
                 // read  strings from result file and expected file
-                string expectText = File.ReadAllText(expectFn).Replace("\r\n", "\n");
-                string resultText = File.ReadAllText(resultFn).Replace("\r\n", "\n");
+                string expectText = NormalizeWhitespace(File.ReadAllText(expectFn));
+                string resultText = NormalizeWhitespace(File.ReadAllText(resultFn));
 
                 // compare the test result with the expected result
                 if (string.Compare(resultText, expectText) != 0)
