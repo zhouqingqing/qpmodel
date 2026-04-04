@@ -49,6 +49,7 @@ namespace qpmodel.logic
         {
             // rewrite controls
             public bool enable_subquery_unnest_ { get; set; } = true;
+            public bool enable_dependent_join_pushdown_ { get; set; } = false;
             public bool remove_from_ { get; set; } = true;
             public bool enable_cte_plan_ { get; set; } = false; // make it true by default
 
