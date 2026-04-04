@@ -23,20 +23,11 @@ jobs:
       run: dotnet build --configuration Release --no-restore
     - name: Test
       run: dotnet test --no-restore --verbosity normal
-      continue-on-error: true
-
-    - name: Upload test output for debugging
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: regress-output
-        path: test/regress/output/
 
     - name: Unit Test Cover
       run: dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
         /p:CoverletOutput='/home/runner/work/qpmodel/qpmodel/test/lcov.info'
         /p:ExcludeByFile=\"**/qpmodel/program.cs,**/psql/**/*.cs,**/psql/*.cs,**/qpmodel/obj/**/*.cs\"
-      continue-on-error: true
     - name: Coveralls
       uses: coverallsapp/github-action@v2
       continue-on-error: true
