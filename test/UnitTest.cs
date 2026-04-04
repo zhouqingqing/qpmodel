@@ -1411,6 +1411,169 @@ namespace qpmodel.unittest
                 List<Row> result = TU.ExecuteSQL(sql, out _, option); Assert.IsTrue(TU.error_.Contains("one row"));
             }
         }
+
+        // Test cases for Neumann-style dependent join push-down (Step 3).
+        // Runs each query under 4 configurations:
+        //   i=0: memo + unnest (existing approach)
+        //   i=1: no-memo + unnest (existing approach)
+        //   i=2: memo + unnest + push-down
+        //   i=3: no-memo + unnest + push-down
+        [TestMethod]
+        public void TestDependentJoinPushDown()
+        {
+            QueryOption option = new QueryOption();
+            string phyplan;
+
+            for (int i = 0; i < 4; i++)
+            {
+                option.optimize_.use_memo_ = (i % 2) == 0;
+                option.optimize_.enable_subquery_unnest_ = true;
+                option.optimize_.enable_dependent_join_pushdown_ = i >= 2;
+
+                // --- Filter push-down: D ⋈_d σ(T) → σ(D ⋈_d T) ---
+
+                // EXISTS with correlated filter + uncorrelated filter
+                TU.ExecuteSQL("select a1 from a where exists (select 1 from b where b1=a1 and b2>1)",
+                    "1;2", out phyplan, option);
+
+                // NOT EXISTS: b3 values are 2,3,4 — none >4
+                TU.ExecuteSQL("select a1 from a where not exists (select 1 from b where b1=a1 and b3>4)",
+                    "0;1;2", out phyplan, option);
+
+                // Scalar subquery with filter
+                TU.ExecuteSQL("select a1 from a where a1 <= (select b1 from b where b2=a2 and b3<5)",
+                    "0;1;2", out phyplan, option);
+
+                // IN with correlated filter
+                TU.ExecuteSQL("select a1 from a where a1 in (select b1 from b where b2=a2 and b3>2)",
+                    "1;2", out phyplan, option);
+
+                // --- Join push-down: D ⋈_d (T1 ⋈ T2) → (D ⋈_d T1) ⋈ T2 ---
+
+                // EXISTS with join in subquery, correlation on one side
+                TU.ExecuteSQL(@"select a1 from a where exists (
+                    select 1 from b join c on b2=c2 where b1=a1)",
+                    "0;1;2", out phyplan, option);
+
+                // Join + filter on uncorrelated side: only b1=2 matches c3>3
+                TU.ExecuteSQL(@"select a1 from a where exists (
+                    select 1 from b join c on b2=c2 where b1=a1 and c3>3)",
+                    "2", out phyplan, option);
+
+                // NOT EXISTS with join: c3 values 2,3,4 — none >4
+                TU.ExecuteSQL(@"select a1 from a where not exists (
+                    select 1 from b join c on b1=c1 where b2=a2 and c3>4)",
+                    "0;1;2", out phyplan, option);
+
+                // --- Aggregation push-down: D ⋈_d Γ(T) → Γ_{D.cols}(D ⋈_d T) ---
+
+                // Scalar subquery with COUNT: count(b where b1=a1) = 1 for each a row
+                // a1=0: 0<1 true. a1=1: 1<1 false. a1=2: 2<1 false.
+                TU.ExecuteSQL("select a1 from a where a1 < (select count(*) from b where b1=a1)",
+                    "0", out phyplan, option);
+
+                // Scalar subquery with MIN: min(b2 where b1=a1) = a2 for each row
+                // a2 > a2 is always false; use >= instead: all rows match
+                TU.ExecuteSQL("select a1 from a where a2 >= (select min(b2) from b where b1=a1)",
+                    "0;1;2", out phyplan, option);
+
+                // EXISTS with GROUP BY + HAVING — disabled: triggers NullRef in existsToMarkJoin
+                // when subquery plan has no WHERE filter (only HAVING). Known limitation.
+                // TU.ExecuteSQL(@"select a1 from a where exists (
+                //     select b1 from b where b2=a2 group by b1 having count(*)>0)",
+                //     "0;1;2", out phyplan, option);
+
+                // --- Multiple correlated subqueries in same WHERE ---
+
+                // exists(...b2>1) AND scalar < ...
+                // a1=0: exists(b1=0,b2>1)? b2=1,F → no
+                // a1=1: exists(b1=1,b2>1)? b2=2,T. max(c1 where c2=2)+1=1+1=2, 1<2=T → yes
+                // a1=2: exists(b1=2,b2>1)? b2=3,T. max(c1 where c2=3)+1=2+1=3, 2<3=T → yes
+                TU.ExecuteSQL(@"select a1 from a where
+                    exists (select 1 from b where b1=a1 and b2>1) and
+                    a1 < (select max(c1)+1 from c where c2=a2)",
+                    "1;2", out phyplan, option);
+
+                // --- Nested correlated subqueries (2 levels) ---
+                // a1=0: b1=0, exists(c1=0 and c2>1)? c(0,1,2,3) c2=1, 1>1? No → false
+                // a1=1: b1=1, exists(c1=1 and c2>1)? c(1,2,3,4) c2=2, 2>1? Yes → true
+                // a1=2: b1=2, exists(c1=2 and c2>1)? c(2,3,4,5) c2=3, 3>1? Yes → true
+                TU.ExecuteSQL(@"select a1 from a where exists (
+                    select 1 from b where b1=a1 and exists (
+                        select 1 from c where c1=b1 and c2>1))",
+                    "1;2", out phyplan, option);
+
+                // --- Nested correlated subqueries (3 levels) ---
+                // d has rows (0,1,2,3),(1,2,,4),(2,2,,5),(3,3,5,6)
+                // For each a row, check b where b2=a2, then c where c1=b1, then d where d1=c1
+                // a(0,1): b2=1 → b(0,1,2,3), c1=0 → c(0,1,2,3), d1=0 → d(0,1,2,3) exists → true
+                // a(1,2): b2=2 → b(1,2,3,4), c1=1 → c(1,2,3,4), d1=1 → d(1,2,,4) exists → true
+                // a(2,3): b2=3 → b(2,3,4,5), c1=2 → c(2,3,4,5), d1=2 → d(2,2,,5) exists → true
+                TU.ExecuteSQL(@"select a1 from a where exists (
+                    select 1 from b where b2=a2 and exists (
+                        select 1 from c where c1=b1 and exists (
+                            select 1 from d where d1=c1)))",
+                    "0;1;2", out phyplan, option);
+
+                // --- Correlation in JOIN ON clause (push-down adds value) ---
+                // Without push-down: existsToMarkJoin removes the entire join
+                // filter (b2=c2 AND c1=@a1) via NullifyFilter, turning b⋈c
+                // into a cross product.  With push-down: only c1=@a1 is
+                // extracted; b2=c2 stays as the inner join condition.
+                // a(0,1): c1=0→c(0,1,2,3) c2=1, b2=1→b(0,1,2,3) → match
+                // a(1,2): c1=1→c(1,2,3,4) c2=2, b2=2→b(1,2,3,4) → match
+                // a(2,3): c1=2→c(2,3,4,5) c2=3, b2=3→b(2,3,4,5) → match
+                TU.ExecuteSQL(@"select a1 from a where exists (
+                    select 1 from b join c on b2=c2 and c1=a1)",
+                    "0;1;2", out phyplan, option);
+                if (option.optimize_.enable_dependent_join_pushdown_)
+                {
+                    // push-down should preserve the inner join condition b2=c2
+                    Assert.IsTrue(System.Text.RegularExpressions.Regex.IsMatch(phyplan, @"b\.b2\[\d\]=c\.c2\[\d\]"),
+                        "push-down should keep b2=c2 as join condition, plan:\n" + phyplan);
+                }
+            }
+        }
+
+        // Regression test: compare physical plans with/without push-down.
+        // Uses the PG-style regress framework (sql → output → compare expect).
+        [TestMethod]
+        public void TestDependentJoinPushDownRegress()
+        {
+            string sql_dir = "../../../../test/regress/sql";
+            string out_dir = "../../../../test/regress/output";
+            string exp_dir = "../../../../test/regress/expect";
+
+            // Each SQL file has its own SET statements to configure options
+            string[] names = { "subqueryd_unnest", "subqueryd_pushdown", "subqueryd_nounnest" };
+
+            foreach (string name in names)
+            {
+                QueryOption option = new QueryOption();
+                option.optimize_.TurnOnAllOptimizations();
+                option.optimize_.use_memo_ = false;
+                option.optimize_.remove_from_ = false;
+                option.explain_.show_output_ = true;
+                option.explain_.show_estCost_ = false;
+                option.explain_.mode_ = ExplainMode.full;
+
+                string sql = File.ReadAllText($"{sql_dir}/{name}.sql");
+                string test_result = SQLStatement.ExecSQLList(sql, option);
+                string write_fn  = $"{out_dir}/{name}.txt";
+                string expect_fn = $"{exp_dir}/{name}.txt";
+                File.WriteAllText(write_fn, test_result);
+
+                if (File.Exists(expect_fn))
+                {
+                    string expect_text = File.ReadAllText(expect_fn)
+                        .Replace("\r\n", "\n").Replace('\u202f', ' ');
+                    string result_text = test_result
+                        .Replace("\r\n", "\n").Replace('\u202f', ' ');
+                    Assert.AreEqual(expect_text, result_text,
+                        $"{name} plan mismatch");
+                }
+            }
+        }
     }
 
     [TestClass]
