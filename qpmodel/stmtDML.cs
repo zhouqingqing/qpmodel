@@ -145,6 +145,8 @@ namespace qpmodel.dml
                     option.optimize_.enable_subquery_unnest_ = ParseBool(); break;
                 case "enable_dependent_join_pushdown":
                     option.optimize_.enable_dependent_join_pushdown_ = ParseBool(); break;
+                case "enable_neumann_full_decorrelation":
+                    option.optimize_.enable_neumann_full_decorrelation_ = ParseBool(); break;
                 case "use_memo":
                     option.optimize_.use_memo_ = ParseBool(); break;
                 case "remove_from":

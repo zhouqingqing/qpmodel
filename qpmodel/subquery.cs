@@ -556,6 +556,40 @@ namespace qpmodel.logic
 
             if (root is LogicDependentJoin dj)
             {
+                LogicNode D = dj.lchild_();
+
+                // Full Neumann path: push D into each subquery plan directly
+                if (queryOpt_.optimize_.enable_neumann_full_decorrelation_)
+                {
+                    LogicNode result = D;
+                    foreach (var subexpr in dj.pendingSubqueries_)
+                    {
+                        if (!subexpr.IsCorrelated())
+                            continue;
+
+                        var converted = neumannDecorrelate(result, subexpr);
+                        if (converted != null)
+                        {
+                            // Replace the SubqueryExpr on the original outer node that
+                            // owns the filter. After the first successful conversion,
+                            // 'result' may become a join tree whose filter_ is null.
+                            replaceSubqueryInFilter(D, subexpr);
+                            decorrelatedSubs_.Add(new NamedQuery(subexpr.query_, null,
+                                NamedQuery.QueryType.UNSURE));
+                            result = converted;
+                        }
+                        else
+                        {
+                            // Fallback to existing path for this subquery
+                            if (queryOpt_.optimize_.enable_dependent_join_pushdown_)
+                                djPushDownPreprocess(subexpr);
+                            bool canReplace = false;
+                            result = oneSubqueryToJoin(result, subexpr, ref canReplace);
+                        }
+                    }
+                    return result;
+                }
+
                 // Step 3 push-down: restructure each subquery plan so that all
                 // correlated predicates are at the top-level filter.  This makes
                 // the plans easier for the existing oneSubqueryToJoin to handle
@@ -570,22 +604,22 @@ namespace qpmodel.logic
                 // pointing at the same plan node so existsToMarkJoin can find
                 // remaining SubqueryExprs in its (in-place modified) filter.
                 // 'result' tracks the growing outermost plan.
-                LogicNode innerNode = dj.lchild_();
-                LogicNode result = innerNode;
+                LogicNode innerNode = D;
+                LogicNode result2 = innerNode;
                 foreach (var subexpr in dj.pendingSubqueries_)
                 {
                     bool canReplace = false;
                     var replacement = oneSubqueryToJoin(innerNode, subexpr, ref canReplace);
                     // graft replacement into the result tree (same as original
                     // newroot.SearchAndReplace(root, replacement))
-                    if (result == innerNode)
-                        result = replacement;
+                    if (result2 == innerNode)
+                        result2 = replacement;
                     else
-                        result = (LogicNode)result.SearchAndReplace(innerNode, replacement);
+                        result2 = (LogicNode)result2.SearchAndReplace(innerNode, replacement);
                     // only advance innerNode when canReplace (OR with extra subqueries)
-                    if (canReplace) innerNode = result;
+                    if (canReplace) innerNode = result2;
                 }
-                return result;
+                return result2;
             }
             return root;
         }
@@ -746,6 +780,216 @@ namespace qpmodel.logic
             {
                 subexpr.query_.logicPlan_ = newT;
             }
+        }
+
+        // ---------------------------------------------------------------
+        // Full Neumann decorrelation: push D (outer relation) down through
+        // T (subquery plan) operators until reaching a leaf, then convert
+        // D⋈_p R → D ⋈_j R (regular join with deparametrized predicates).
+        //
+        // Returns the decorrelated join tree, or null if push-down failed.
+        // The leaf join node is returned via leafJoin so the caller can
+        // set its join type (Semi/AntiSemi/Left) based on subquery semantics.
+        // ---------------------------------------------------------------
+
+        // Recursively push D through T, collecting correlated predicates.
+        // Returns a regular join tree with no parameter references.
+        LogicNode neumannPushDDown(LogicNode D, LogicNode T, Expr joinPred,
+                                   out LogicJoin leafJoin)
+        {
+            leafJoin = null;
+
+            // Leaf rule: T has no correlation → D ⋈_j T
+            // The predicate is placed on a LogicFilter wrapper (not join.filter_)
+            // to satisfy the plan invariant that only LogicFilter nodes carry
+            // filters after CreatePlan. SubstitutionOptimize's FilterPushDown
+            // will later push it into join.filter_, enabling hash-join key
+            // extraction via CreateKeyList().
+            if (!subtreeHasCorrelation(T))
+            {
+                // deparametrize the join predicate
+                Expr djoinPred = joinPred;
+                if (djoinPred != null)
+                    djoinPred.DeParameter(D.InclusiveTableRefs());
+
+                var join = new LogicJoin(D, T);
+                join.type_ = JoinType.Inner; // caller will override for semi/anti
+                leafJoin = join;
+                if (djoinPred != null)
+                    return new LogicFilter(join, djoinPred);
+                return join;
+            }
+
+            // Filter rule: D ⋈_p σ_q(T')
+            //   Split q into correlated (q_c) and uncorrelated (q_u).
+            //   → σ_{q_u}( neumannPushDDown(D, T', p ∧ q_c) )
+            if (T is LogicFilter lf)
+            {
+                var andlist = lf.filter_.FilterToAndList();
+                var corrParts = andlist.Where(p => exprHasCorrelation(p)).ToList();
+                var uncorrParts = andlist.Where(p => !exprHasCorrelation(p)).ToList();
+
+                // Merge correlated parts into the join predicate.
+                // Clone them to avoid mutating expressions still used in the original plan.
+                Expr newJoinPred = joinPred;
+                foreach (var cp in corrParts)
+                {
+                    var cloned = cp.Clone();
+                    newJoinPred = newJoinPred == null ? cloned : newJoinPred.AddAndFilter(cloned);
+                }
+
+                var child = neumannPushDDown(D, lf.child_(), newJoinPred, out leafJoin);
+                if (child == null) return null;
+
+                // Keep uncorrelated predicates as a filter on top
+                if (uncorrParts.Count > 0)
+                {
+                    var uncorrFilter = uncorrParts.AndListToExpr();
+                    return new LogicFilter(child, uncorrFilter);
+                }
+                return child;
+            }
+
+            // Join rule: D ⋈_p (T1 ⋈_q T2) — push D into the correlated side
+            if (T is LogicJoin lj
+                && !(lj is LogicDependentJoin)
+                && !(lj is LogicMarkJoin)
+                && !(lj is LogicSingleJoin))
+            {
+                // Extract correlated predicates from join filter
+                Expr newJoinPred = joinPred;
+                Expr keepJoinFilter = lj.filter_;
+                if (lj.filter_ != null)
+                {
+                    var andlist = lj.filter_.FilterToAndList();
+                    var corrParts = andlist.Where(p => exprHasCorrelation(p)).ToList();
+                    if (corrParts.Count > 0)
+                    {
+                        var uncorrParts = andlist.Where(p => !exprHasCorrelation(p)).ToList();
+                        foreach (var cp in corrParts)
+                        {
+                            var cloned = cp.Clone();
+                            newJoinPred = newJoinPred == null ? cloned : newJoinPred.AddAndFilter(cloned);
+                        }
+                        keepJoinFilter = uncorrParts.Count > 0 ? uncorrParts.AndListToExpr() : null;
+                    }
+                }
+
+                bool leftCorr = subtreeHasCorrelation((LogicNode)lj.lchild_());
+                bool rightCorr = subtreeHasCorrelation((LogicNode)lj.rchild_());
+
+                if (!leftCorr && !rightCorr)
+                {
+                    // After extracting correlated preds from join filter,
+                    // no side has correlation → treat as leaf
+                    if (newJoinPred != null)
+                        newJoinPred.DeParameter(D.InclusiveTableRefs());
+                    var join = new LogicJoin(D, T);
+                    lj.filter_ = keepJoinFilter;
+                    leafJoin = join;
+                    if (newJoinPred != null)
+                        return new LogicFilter(join, newJoinPred);
+                    return join;
+                }
+                else if (!leftCorr && rightCorr)
+                {
+                    // Push D into right side: T1 ⋈_{q_u} (D ⋈_{p∧q_c} T2)
+                    var newRight = neumannPushDDown(D, (LogicNode)lj.rchild_(),
+                                                    newJoinPred, out leafJoin);
+                    if (newRight == null) return null;
+                    lj.children_[1] = newRight;
+                    lj.filter_ = keepJoinFilter;
+                    // Rebuild tableContained_ since children changed
+                    lj.tableContained_ = SetOp.Union(
+                        ((LogicNode)lj.lchild_()).tableContained_,
+                        ((LogicNode)lj.rchild_()).tableContained_);
+                    return lj;
+                }
+                else if (leftCorr && !rightCorr)
+                {
+                    // Push D into left side
+                    var newLeft = neumannPushDDown(D, (LogicNode)lj.lchild_(),
+                                                   newJoinPred, out leafJoin);
+                    if (newLeft == null) return null;
+                    lj.children_[0] = newLeft;
+                    lj.filter_ = keepJoinFilter;
+                    lj.tableContained_ = SetOp.Union(
+                        ((LogicNode)lj.lchild_()).tableContained_,
+                        ((LogicNode)lj.rchild_()).tableContained_);
+                    return lj;
+                }
+                // Both sides correlated: not supported yet
+                return null;
+            }
+
+            // Unsupported node type — can't push D through
+            return null;
+        }
+
+        // Full Neumann decorrelation entry point for a single subquery.
+        // Returns the decorrelated join tree replacing LogicDependentJoin, or null.
+        LogicNode neumannDecorrelate(LogicNode D, SubqueryExpr subexpr)
+        {
+            var T = subexpr.query_.logicPlan_;
+
+            // Determine join type from subquery semantics
+            JoinType leafType;
+            switch (subexpr)
+            {
+                case ExistSubqueryExpr ee:
+                    leafType = ee.hasNot_ ? JoinType.AntiSemi : JoinType.Semi;
+                    break;
+                case InSubqueryExpr _:
+                    // NOT IN with NULLs requires 3-valued logic (mark-join).
+                    // Fall back to existing inToMarkJoin path for correctness.
+                    return null;
+                case ScalarSubqueryExpr _:
+                    // Scalar subqueries need special handling (aggregation push-down,
+                    // outer filter referencing subquery output). Fall back for now.
+                    return null;
+                default:
+                    return null;
+            }
+
+            var result = neumannPushDDown(D, T, null, out LogicJoin leafJoin);
+            if (result == null || leafJoin == null)
+                return null;
+
+            // Set the leaf join type according to subquery semantics
+            leafJoin.type_ = leafType;
+
+            Debug.WriteLine($"Neumann: subquery#{subexpr.subqueryid_} " +
+                            $"→ {leafType} join, plan root={result.GetType().Name}");
+
+            return result;
+        }
+
+        // Replace SubqueryExpr in the outer node's filter after full decorrelation.
+        // EXISTS/NOT EXISTS/IN → replaced with true (join semantics handle filtering).
+        // Scalar subquery → replaced with the subquery's selection column reference.
+        static void replaceSubqueryInFilter(LogicNode outerNode, SubqueryExpr subexpr)
+        {
+            if (outerNode.filter_ == null) return;
+
+            Expr replacement;
+            if (subexpr is ScalarSubqueryExpr)
+            {
+                // Replace scalar subquery with its selection expression
+                replacement = subexpr.query_.selection_[0];
+            }
+            else
+            {
+                // EXISTS/NOT EXISTS/IN: semi/anti join handles it, replace with true
+                replacement = ConstExpr.MakeConstBool(true);
+            }
+
+            outerNode.filter_ = outerNode.filter_.SearchAndReplace<Expr>(
+                e => object.ReferenceEquals(e, subexpr),
+                e => replacement);
+
+            // Simplify: if filter became just "true", remove it
+            if (outerNode.filter_ is ConstExpr ce && ce.IsTrue())
+                outerNode.NullifyFilter();
         }
 
         // exists|quantified subquery => mark join
