@@ -556,6 +556,16 @@ namespace qpmodel.logic
 
             if (root is LogicDependentJoin dj)
             {
+                // Step 3 push-down: restructure each subquery plan so that all
+                // correlated predicates are at the top-level filter.  This makes
+                // the plans easier for the existing oneSubqueryToJoin to handle
+                // and also handles cases where correlation is buried inside joins.
+                if (queryOpt_.optimize_.enable_dependent_join_pushdown_)
+                {
+                    foreach (var sub in dj.pendingSubqueries_)
+                        djPushDownPreprocess(sub);
+                }
+
                 // Mirror the original inline decorrelation logic: keep 'innerNode'
                 // pointing at the same plan node so existsToMarkJoin can find
                 // remaining SubqueryExprs in its (in-place modified) filter.
@@ -578,6 +588,164 @@ namespace qpmodel.logic
                 return result;
             }
             return root;
+        }
+
+        // ---------------------------------------------------------------
+        // Step 3: Neumann-style dependent join push-down rules.
+        //
+        // The push-down restructures the subquery plan by pulling correlated
+        // predicates up to the top-level filter.  This makes them visible to
+        // oneSubqueryToJoin (existsToMarkJoin / scalarToSingleJoin / inToMarkJoin)
+        // which expects them there.
+        //
+        // Three rules are implemented:
+        //   Filter:  D ⋈_d σ_p(T)       → σ_p(D ⋈_d T)       (pull filter up)
+        //   Join:    D ⋈_d (T1 ⋈_p T2)  → push into corr side (extract corr from join filter)
+        //   Leaf:    no correlation left  → done (base case)
+        // ---------------------------------------------------------------
+
+        // Check whether any node in the subtree rooted at @node has a filter
+        // containing parameter column references (isParameter_ == true).
+        static bool subtreeHasCorrelation(LogicNode node)
+        {
+            bool found = false;
+            node.VisitEach(n =>
+            {
+                if (found) return;
+                var ln = n as LogicNode;
+                if (ln?.filter_ != null)
+                    ln.filter_.VisitEachT<ColExpr>(c =>
+                    {
+                        if (c.isParameter_) found = true;
+                    });
+            });
+            return found;
+        }
+
+        // Check whether an expression contains any parameter column reference.
+        static bool exprHasCorrelation(Expr e)
+        {
+            bool found = false;
+            e.VisitEachT<ColExpr>(c =>
+            {
+                if (c.isParameter_) found = true;
+            });
+            return found;
+        }
+
+        // Recursively restructure the subquery plan T by extracting all
+        // correlated predicates into @collectedPreds.  Returns the
+        // simplified plan root, or null if restructuring failed.
+        //
+        // The rules mirror Neumann's dependent-join push-down but operate
+        // solely on the subquery side — the outer plan (D) is unchanged.
+        //
+        LogicNode djPushDownRestructure(LogicNode T, List<Expr> collectedPreds)
+        {
+            // Leaf rule: no correlation left → base case, done
+            if (!subtreeHasCorrelation(T))
+                return T;
+
+            // Filter rule: split filter into correlated / uncorrelated parts.
+            // Collect only correlated parts; keep uncorrelated as a filter.
+            if (T is LogicFilter lf)
+            {
+                var andlist = lf.filter_.FilterToAndList();
+                var corrParts = andlist.Where(p => exprHasCorrelation(p)).ToList();
+                var uncorrParts = andlist.Where(p => !exprHasCorrelation(p)).ToList();
+
+                collectedPreds.AddRange(corrParts);
+
+                var child = djPushDownRestructure(lf.child_(), collectedPreds);
+                if (child == null) return null;
+
+                if (uncorrParts.Count > 0)
+                {
+                    // keep uncorrelated predicates as a filter
+                    lf.filter_ = uncorrParts.AndListToExpr();
+                    lf.children_[0] = child;
+                    return lf;
+                }
+                return child;
+            }
+
+            // Join rule: extract correlated predicates from join filter,
+            // then push into the correlated child
+            if (T is LogicJoin lj
+                && !(lj is LogicDependentJoin)
+                && !(lj is LogicMarkJoin)
+                && !(lj is LogicSingleJoin))
+            {
+                // Extract correlated predicates from the join's own filter
+                if (lj.filter_ != null)
+                {
+                    var andlist = lj.filter_.FilterToAndList();
+                    var corrParts = andlist.Where(p => exprHasCorrelation(p)).ToList();
+                    if (corrParts.Count > 0)
+                    {
+                        andlist.RemoveAll(p => exprHasCorrelation(p));
+                        collectedPreds.AddRange(corrParts);
+                        lj.filter_ = andlist.Count > 0 ? andlist.AndListToExpr() : null;
+                    }
+                }
+
+                bool leftCorr = subtreeHasCorrelation((LogicNode)lj.lchild_());
+                bool rightCorr = subtreeHasCorrelation((LogicNode)lj.rchild_());
+
+                if (!leftCorr && !rightCorr)
+                {
+                    // After extracting correlated predicates from the join
+                    // filter, neither side has correlation → leaf case
+                    return T;
+                }
+                else if (leftCorr && !rightCorr)
+                {
+                    var newLeft = djPushDownRestructure((LogicNode)lj.lchild_(), collectedPreds);
+                    if (newLeft == null) return null;
+                    lj.children_[0] = newLeft;
+                    return lj;
+                }
+                else if (!leftCorr && rightCorr)
+                {
+                    var newRight = djPushDownRestructure((LogicNode)lj.rchild_(), collectedPreds);
+                    if (newRight == null) return null;
+                    lj.children_[1] = newRight;
+                    return lj;
+                }
+                // Both sides correlated: can't push down with basic rules
+                return null;
+            }
+
+            // Unsupported node type — can't push down
+            return null;
+        }
+
+        // Preprocess a single subquery's plan using push-down rules.
+        // Restructures the plan so that all correlated predicates are at
+        // the top-level filter, then updates subexpr.query_.logicPlan_.
+        void djPushDownPreprocess(SubqueryExpr subexpr)
+        {
+            var T = subexpr.query_.logicPlan_;
+            var collectedPreds = new List<Expr>();
+
+            var newT = djPushDownRestructure(T, collectedPreds);
+            if (newT == null)
+                return; // push-down failed — keep original plan
+
+            if (collectedPreds.Count > 0)
+            {
+                var combinedPred = collectedPreds.AndListToExpr();
+                subexpr.query_.logicPlan_ = new LogicFilter(newT, combinedPred);
+
+                // diagnostic: show what push-down extracted
+                Console.WriteLine($"DJ-PushDown: extracted [{combinedPred}] " +
+                                  $"from subquery#{subexpr.subqueryid_}, " +
+                                  $"remaining root={newT.GetType().Name}");
+            }
+            else
+            {
+                subexpr.query_.logicPlan_ = newT;
+            }
         }
 
         // exists|quantified subquery => mark join
