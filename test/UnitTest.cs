@@ -644,7 +644,8 @@ namespace qpmodel.unittest
                 Assert.AreEqual(2, TU.CountStr(phyplan, "PhysicHashJoin"));
                 Assert.AreEqual(8, result.Count);
                 result = TU.ExecuteSQL(File.ReadAllText(files[3]), out phyplan, option);
-                Assert.AreEqual(1, TU.CountStr(phyplan, "PhysicMarkJoin")); Assert.AreEqual(0, TU.CountStr(phyplan, "Subquery"));
+                // Neumann decorrelation converts EXISTS to Semi join, no more MarkJoin
+                Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicMarkJoin")); Assert.AreEqual(0, TU.CountStr(phyplan, "Subquery"));
                 Assert.AreEqual(5, result.Count);
                 Assert.AreEqual("1-URGENT,9;2-HIGH,7;3-MEDIUM,9;4-NOT SPECIFIED,7;5-LOW,12", string.Join(";", result));
                 TU.ExecuteSQL(File.ReadAllText(files[4]), "", out phyplan, option);

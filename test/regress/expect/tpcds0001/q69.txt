@@ -42,34 +42,34 @@ select
           cd_purchase_estimate,
           cd_credit_rating
  limit 100
-Total cost: 548563638.92, memory=678048
-PhysicLimit (100) (inccost=548563638.92, cost=100, rows=100) (actual rows=0)
+Total cost: 417692374.92, memory=2289088
+PhysicLimit (100) (inccost=417692374.92, cost=100, rows=100) (actual rows=0)
     Output: customer_demographics.cd_gender[0],customer_demographics.cd_marital_status[1],customer_demographics.cd_education_status[2],{count(*)(0)}[3],customer_demographics.cd_purchase_estimate[4],{count(*)(0)}[3],customer_demographics.cd_credit_rating[5],{count(*)(0)}[3]
-    -> PhysicOrder  (inccost=548563538.92, cost=48890.92, rows=5600, memory=224000) (actual rows=0)
+    -> PhysicOrder  (inccost=417692274.92, cost=48890.92, rows=5600, memory=224000) (actual rows=0)
         Output: customer_demographics.cd_gender[0],customer_demographics.cd_marital_status[1],customer_demographics.cd_education_status[2],{count(*)(0)}[3],customer_demographics.cd_purchase_estimate[4],customer_demographics.cd_credit_rating[5]
         Order by: customer_demographics.cd_gender[0], customer_demographics.cd_marital_status[1], customer_demographics.cd_education_status[2], customer_demographics.cd_purchase_estimate[4], customer_demographics.cd_credit_rating[5]
-        -> PhysicHashAgg  (inccost=548514648, cost=538539, rows=5600, memory=448000) (actual rows=0)
+        -> PhysicHashAgg  (inccost=417643384, cost=538543, rows=5600, memory=448000) (actual rows=0)
             Output: {customer_demographics.cd_gender}[0],{customer_demographics.cd_marital_status}[1],{customer_demographics.cd_education_status}[2],{count(*)(0)}[5],{customer_demographics.cd_purchase_estimate}[3],{customer_demographics.cd_credit_rating}[4]
             Aggregates: count(*)(0)
             Group by: customer_demographics.cd_gender[0], customer_demographics.cd_marital_status[1], customer_demographics.cd_education_status[2], customer_demographics.cd_purchase_estimate[3], customer_demographics.cd_credit_rating[4]
-            -> PhysicFilter  (inccost=547976109, cost=527339, rows=527339) (actual rows=0)
+            -> PhysicFilter  (inccost=417104841, cost=527343, rows=527343) (actual rows=0)
                 Output: customer_demographics.cd_gender[0],customer_demographics.cd_marital_status[1],customer_demographics.cd_education_status[2],customer_demographics.cd_purchase_estimate[3],customer_demographics.cd_credit_rating[4]
-                Filter: {#marker@1}[5]
-                -> PhysicMarkJoin Left (inccost=547448770, cost=341716138, rows=527339) (actual rows=5)
-                    Output: customer_demographics.cd_gender[0],customer_demographics.cd_marital_status[1],customer_demographics.cd_education_status[2],customer_demographics.cd_purchase_estimate[3],customer_demographics.cd_credit_rating[4],{#marker@1}[5]
-                    Filter: c.c_customer_sk[5]=store_sales.ss_customer_sk[6]
-                    -> PhysicFilter  (inccost=205687709, cost=223198, rows=223198) (actual rows=5)
+                Filter: c.c_customer_sk[5]=catalog_sales.cs_ship_customer_sk[6]
+                -> PhysicNLJoin AntiSemi (inccost=416577498, cost=344964130, rows=527343) (actual rows=0)
+                    Output: customer_demographics.cd_gender[0],customer_demographics.cd_marital_status[1],customer_demographics.cd_education_status[2],customer_demographics.cd_purchase_estimate[3],customer_demographics.cd_credit_rating[4],c.c_customer_sk[5],catalog_sales.cs_ship_customer_sk[6]
+                    Filter: c.c_customer_sk[5]=catalog_sales.cs_ship_customer_sk[6]
+                    -> PhysicFilter  (inccost=71573315, cost=110520, rows=110520) (actual rows=0)
                         Output: customer_demographics.cd_gender[0],customer_demographics.cd_marital_status[1],customer_demographics.cd_education_status[2],customer_demographics.cd_purchase_estimate[3],customer_demographics.cd_credit_rating[4],c.c_customer_sk[5]
-                        Filter: {#marker@2}[6]
-                        -> PhysicMarkJoin Left (inccost=205464511, cost=142400934, rows=223198) (actual rows=5)
-                            Output: customer_demographics.cd_gender[0],customer_demographics.cd_marital_status[1],customer_demographics.cd_education_status[2],customer_demographics.cd_purchase_estimate[3],customer_demographics.cd_credit_rating[4],c.c_customer_sk[5],{#marker@2}[6]
+                        Filter: c.c_customer_sk[5]=web_sales.ws_bill_customer_sk[6]
+                        -> PhysicNLJoin AntiSemi (inccost=71462795, cost=71002788, rows=110520) (actual rows=0)
+                            Output: customer_demographics.cd_gender[0],customer_demographics.cd_marital_status[1],customer_demographics.cd_education_status[2],customer_demographics.cd_purchase_estimate[3],customer_demographics.cd_credit_rating[4],c.c_customer_sk[5],web_sales.ws_bill_customer_sk[6]
                             Filter: c.c_customer_sk[5]=web_sales.ws_bill_customer_sk[6]
-                            -> PhysicFilter  (inccost=63020413, cost=96087, rows=96087) (actual rows=5)
+                            -> PhysicFilter  (inccost=416843, cost=47579, rows=47579) (actual rows=0)
                                 Output: customer_demographics.cd_gender[0],customer_demographics.cd_marital_status[1],customer_demographics.cd_education_status[2],customer_demographics.cd_purchase_estimate[3],customer_demographics.cd_credit_rating[4],c.c_customer_sk[5]
-                                Filter: {#marker@3}[6]
-                                -> PhysicMarkJoin Left (inccost=62924326, cost=62649318, rows=96087) (actual rows=5)
-                                    Output: customer_demographics.cd_gender[0],customer_demographics.cd_marital_status[1],customer_demographics.cd_education_status[2],customer_demographics.cd_purchase_estimate[3],customer_demographics.cd_credit_rating[4],c.c_customer_sk[5],{#marker@3}[6]
-                                    Filter: c.c_customer_sk[5]=catalog_sales.cs_ship_customer_sk[6]
+                                Filter: c.c_customer_sk[5]=store_sales.ss_customer_sk[6]
+                                -> PhysicHashJoin Semi (inccost=369264, cost=89386, rows=47579, memory=1611040) (actual rows=0)
+                                    Output: customer_demographics.cd_gender[0],customer_demographics.cd_marital_status[1],customer_demographics.cd_education_status[2],customer_demographics.cd_purchase_estimate[3],customer_demographics.cd_credit_rating[4],c.c_customer_sk[5],store_sales.ss_customer_sk[6]
+                                    Filter: c.c_customer_sk[5]=store_sales.ss_customer_sk[6]
                                     -> PhysicHashJoin  (inccost=234955, cost=126023, rows=20138, memory=2960) (actual rows=5)
                                         Output: customer_demographics.cd_gender[2],customer_demographics.cd_marital_status[3],customer_demographics.cd_education_status[4],customer_demographics.cd_purchase_estimate[5],customer_demographics.cd_credit_rating[6],c.c_customer_sk[0]
                                         Filter: customer_demographics.cd_demo_sk[7]=c.c_current_cdemo_sk[1]
@@ -83,29 +83,29 @@ PhysicLimit (100) (inccost=548563638.92, cost=100, rows=100) (actual rows=0)
                                                 Output: c.c_customer_sk[0],c.c_current_cdemo_sk[2],c.c_current_addr_sk[4]
                                         -> PhysicScanTable customer_demographics (inccost=105515, cost=105515, rows=105515) (actual rows=105515)
                                             Output: customer_demographics.cd_gender[1],customer_demographics.cd_marital_status[2],customer_demographics.cd_education_status[3],customer_demographics.cd_purchase_estimate[4],customer_demographics.cd_credit_rating[5],customer_demographics.cd_demo_sk[0]
-                                    -> PhysicHashJoin  (inccost=40053, cost=12797, rows=3111, memory=720) (actual rows=0, loops=5)
-                                        Output: catalog_sales.cs_ship_customer_sk[1]
-                                        Filter: catalog_sales.cs_sold_date_sk[2]=date_dim.d_date_sk[0]
-                                        -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=90) (actual rows=90, loops=5)
+                                    -> PhysicHashJoin  (inccost=44923, cost=14442, rows=1531, memory=720) (actual rows=427)
+                                        Output: store_sales.ss_customer_sk[1]
+                                        Filter: store_sales.ss_sold_date_sk[2]=date_dim.d_date_sk[0]
+                                        -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=90) (actual rows=90)
                                             Output: date_dim.d_date_sk[0]
-                                            Filter: ((date_dim.d_year[6]=2002 and date_dim.d_moy[8]>=1) and date_dim.d_moy[8]<=3)
-                                        -> PhysicScanTable catalog_sales (inccost=9506, cost=9506, rows=9506) (actual rows=9506, loops=5)
-                                            Output: catalog_sales.cs_ship_customer_sk[7],catalog_sales.cs_sold_date_sk[0]
-                            -> PhysicHashJoin  (inccost=43164, cost=13538, rows=1482, memory=720) (actual rows=383, loops=5)
+                                            Filter: ((date_dim.d_moy[8]>=1 and date_dim.d_moy[8]<=3) and date_dim.d_year[6]=2002)
+                                        -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=12731)
+                                            Output: store_sales.ss_customer_sk[3],store_sales.ss_sold_date_sk[0]
+                            -> PhysicHashJoin  (inccost=43164, cost=13538, rows=1482, memory=720) (actual rows=0)
                                 Output: web_sales.ws_bill_customer_sk[1]
                                 Filter: web_sales.ws_sold_date_sk[2]=date_dim.d_date_sk[0]
-                                -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=90) (actual rows=90, loops=5)
+                                -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=90) (actual rows=0)
                                     Output: date_dim.d_date_sk[0]
-                                    Filter: ((date_dim.d_year[6]=2002 and date_dim.d_moy[8]>=1) and date_dim.d_moy[8]<=3)
-                                -> PhysicScanTable web_sales (inccost=11876, cost=11876, rows=11876) (actual rows=11876, loops=5)
+                                    Filter: ((date_dim.d_moy[8]>=1 and date_dim.d_moy[8]<=3) and date_dim.d_year[6]=2002)
+                                -> PhysicScanTable web_sales (inccost=11876, cost=11876, rows=11876) (actual rows=0)
                                     Output: web_sales.ws_bill_customer_sk[4],web_sales.ws_sold_date_sk[0]
-                    -> PhysicHashJoin  (inccost=44923, cost=14442, rows=1531, memory=720) (actual rows=427, loops=5)
-                        Output: store_sales.ss_customer_sk[1]
-                        Filter: store_sales.ss_sold_date_sk[2]=date_dim.d_date_sk[0]
-                        -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=90) (actual rows=90, loops=5)
+                    -> PhysicHashJoin  (inccost=40053, cost=12797, rows=3111, memory=720) (actual rows=0)
+                        Output: catalog_sales.cs_ship_customer_sk[1]
+                        Filter: catalog_sales.cs_sold_date_sk[2]=date_dim.d_date_sk[0]
+                        -> PhysicScanTable date_dim (inccost=17750, cost=17750, rows=90) (actual rows=0)
                             Output: date_dim.d_date_sk[0]
-                            Filter: ((date_dim.d_year[6]=2002 and date_dim.d_moy[8]>=1) and date_dim.d_moy[8]<=3)
-                        -> PhysicScanTable store_sales (inccost=12731, cost=12731, rows=12731) (actual rows=12731, loops=5)
-                            Output: store_sales.ss_customer_sk[3],store_sales.ss_sold_date_sk[0]
+                            Filter: ((date_dim.d_moy[8]>=1 and date_dim.d_moy[8]<=3) and date_dim.d_year[6]=2002)
+                        -> PhysicScanTable catalog_sales (inccost=9506, cost=9506, rows=9506) (actual rows=0)
+                            Output: catalog_sales.cs_ship_customer_sk[7],catalog_sales.cs_sold_date_sk[0]
 
 

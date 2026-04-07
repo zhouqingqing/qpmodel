@@ -19,24 +19,24 @@ group by
 	o_orderpriority
 order by
 	o_orderpriority
-Total cost: 302160.54, memory=285
-PhysicOrder  (inccost=302160.54, cost=8.54, rows=5, memory=95) (actual rows=5)
+Total cost: 14214.54, memory=2147
+PhysicOrder  (inccost=14214.54, cost=8.54, rows=5, memory=95) (actual rows=5)
     Output: o_orderpriority[0],{count(*)(0)}[1]
     Order by: o_orderpriority[0]
-    -> PhysicHashAgg  (inccost=302152, cost=206, rows=5, memory=190) (actual rows=5)
+    -> PhysicHashAgg  (inccost=14206, cost=206, rows=5, memory=190) (actual rows=5)
         Output: {o_orderpriority}[0],{count(*)(0)}[1]
         Aggregates: count(*)(0)
         Group by: o_orderpriority[0]
-        -> PhysicFilter  (inccost=301946, cost=196, rows=196) (actual rows=44)
+        -> PhysicFilter  (inccost=14000, cost=196, rows=196) (actual rows=44)
             Output: o_orderpriority[0]
-            Filter: {#marker@1}[1]
-            -> PhysicMarkJoin Left (inccost=301750, cost=294245, rows=196) (actual rows=48)
-                Output: o_orderpriority[0],{#marker@1}[1]
+            Filter: l_orderkey[1]=o_orderkey[2]
+            -> PhysicHashJoin Semi (inccost=13804, cost=6299, rows=196, memory=1862) (actual rows=44)
+                Output: o_orderpriority[0],l_orderkey[2],o_orderkey[1]
                 Filter: l_orderkey[2]=o_orderkey[1]
                 -> PhysicScanTable orders (inccost=1500, cost=1500, rows=49) (actual rows=48)
                     Output: o_orderpriority[5],o_orderkey[0]
                     Filter: (o_orderdate[4]>='1993-07-01' and o_orderdate[4]<'9/29/1993 12:00:00 AM')
-                -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=6005) (actual rows=3752, loops=48)
+                -> PhysicScanTable lineitem (inccost=6005, cost=6005, rows=6005) (actual rows=3752)
                     Output: l_orderkey[0]
                     Filter: l_commitdate[11]<l_receiptdate[12]
 1-URGENT,9
