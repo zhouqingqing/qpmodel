@@ -2080,6 +2080,20 @@ namespace qpmodel.unittest
             result = ExecuteSQL(sql, out phyplan);
             Assert.IsFalse(phyplan.Contains("Filter:"));
 
+            // NOT BETWEEN: X NOT BETWEEN low AND high => X < low OR X > high
+            sql = "select * from a where 10 not between 1 and 20;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+            Assert.AreEqual(0, result.Count);
+
+            sql = "select * from a where 10 not between 20 and 30;";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+            Assert.AreEqual(3, result.Count);
+
+            sql = "select a2 from a where a1 not between 0 and 1;";
+            TU.ExecuteSQL(sql, "3");
+
             // IS NOT NULL / IS NULL with OR — returns all rows (all a1 values are non-null)
             sql = "select * from a where a1 is not null or a2 is not null or a3 is null;";
             result = ExecuteSQL(sql, out phyplan);

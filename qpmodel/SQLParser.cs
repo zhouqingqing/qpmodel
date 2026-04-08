@@ -163,9 +163,20 @@ namespace qpmodel.sqlparser
 
         public override object VisitBetweenExpr([NotNull] SQLiteParser.BetweenExprContext context)
         {
-            var left = new BinExpr((Expr)Visit(context.arith_expr(0)), (Expr)Visit(context.arith_expr(1)), ">=");
-            var right = new BinExpr((Expr)Visit(context.arith_expr(0)), (Expr)Visit(context.arith_expr(2)), "<=");
-            return new LogicAndExpr(left, right);
+            if (context.K_NOT() != null)
+            {
+                // NOT BETWEEN: X < low OR X > high
+                var left = new BinExpr((Expr)Visit(context.arith_expr(0)), (Expr)Visit(context.arith_expr(1)), "<");
+                var right = new BinExpr((Expr)Visit(context.arith_expr(0)), (Expr)Visit(context.arith_expr(2)), ">");
+                return new LogicOrExpr(left, right);
+            }
+            else
+            {
+                // BETWEEN: X >= low AND X <= high
+                var left = new BinExpr((Expr)Visit(context.arith_expr(0)), (Expr)Visit(context.arith_expr(1)), ">=");
+                var right = new BinExpr((Expr)Visit(context.arith_expr(0)), (Expr)Visit(context.arith_expr(2)), "<=");
+                return new LogicAndExpr(left, right);
+            }
         }
         public override object VisitFuncExpr([NotNull] SQLiteParser.FuncExprContext context)
         {
