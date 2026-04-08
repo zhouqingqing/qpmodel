@@ -108,7 +108,7 @@ namespace qpmodel.expr
             return r;
         }
 
-        static public FuncExpr BuildFuncExpr(string funcName, List<Expr> args)
+        static public FuncExpr BuildFuncExpr(string funcName, List<Expr> args, bool isDistinct = false)
         {
             var func = funcName.Trim().ToLower();
 
@@ -151,6 +151,10 @@ namespace qpmodel.expr
             // verify arguments count
             if (args.Count != r.argcnt_)
                 throw new SemanticAnalyzeException($"{r.argcnt_} argument is expected");
+
+            if (isDistinct && r is AggFunc af)
+                af.isDistinct_ = true;
+
             return r;
         }
 
@@ -402,6 +406,8 @@ namespace qpmodel.expr
 
     public abstract class AggFunc : FuncExpr
     {
+        public bool isDistinct_;
+
         public AggFunc(string func, List<Expr> args) : base(func, args)
         {
             argcnt_ = 1;
@@ -470,7 +476,11 @@ namespace qpmodel.expr
     {
         // Exec info
         internal long count_;
+        internal HashSet<Value> distinctSet_;
         public AggCount(List<Expr> args) : base("count", args) { }
+
+        // Distributed count(distinct) can't be split into local+global
+        public override Expr SplitAgg() => isDistinct_ ? null : base.SplitAgg();
 
         public override void Bind(BindContext context)
         {
@@ -481,6 +491,8 @@ namespace qpmodel.expr
         public override Value Init(ExecContext context, Row input)
         {
             count_ = 0;
+            if (isDistinct_)
+                distinctSet_ = new HashSet<Value>();
             Accum(context, null, input);
             return count_;
         }
@@ -489,7 +501,19 @@ namespace qpmodel.expr
         {
             var arg = arg_().Exec(context, input);
             if (arg != null)
-                count_ = old is null ? 1 : (long)old + 1;
+            {
+                if (isDistinct_)
+                {
+                    if (distinctSet_.Add(arg))
+                        count_ = old is null ? 1 : (long)old + 1;
+                    else
+                        count_ = old is null ? 0 : (long)old;
+                }
+                else
+                {
+                    count_ = old is null ? 1 : (long)old + 1;
+                }
+            }
             return count_;
         }
     }
