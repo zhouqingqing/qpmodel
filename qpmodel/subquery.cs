@@ -110,6 +110,36 @@ namespace qpmodel.logic
                 return x.VisitEachExists(y => exprIsNotEqualToCurrentExistsExpr(y, exsitsExpr));
         }
 
+        // Check whether a SubqueryExpr sits inside an OR expression in D's filter.
+        // E.g., for "EXISTS(A) AND (EXISTS(B) OR EXISTS(C))", both B and C return
+        // true but A returns false.  Subqueries under OR cannot be individually
+        // converted to Semi/AntiSemi joins (that would impose AND semantics).
+        //
+        // Walks the full expression tree tracking whether we're under any
+        // LogicOrExpr ancestor, so nested patterns like !(EXISTS OR EXISTS)
+        // are also caught.
+        static bool subqueryIsInOrExpr(LogicNode D, SubqueryExpr target)
+        {
+            if (D.filter_ == null) return false;
+
+            bool walk(Expr e, bool inOr)
+            {
+                if (e == null) return false;
+                if (object.ReferenceEquals(e, target))
+                    return inOr;
+
+                bool nextInOr = inOr || e is LogicOrExpr;
+                foreach (var child in e.children_)
+                {
+                    if (child != null && walk(child, nextInOr))
+                        return true;
+                }
+                return false;
+            }
+
+            return walk(D.filter_, false);
+        }
+
         // If there is OR in the predicate, can't turn into a filter
         //
         LogicNode existsToMarkJoin(LogicNode nodeA, ExistSubqueryExpr existExpr, ref bool canReplace)
@@ -558,36 +588,71 @@ namespace qpmodel.logic
             {
                 LogicNode D = dj.lchild_();
 
-                // Full Neumann path: push D into each subquery plan directly
-                if (queryOpt_.optimize_.enable_neumann_full_decorrelation_)
+                // Full Neumann path: convert correlated EXISTS subqueries to
+                // Semi/AntiSemi joins by pushing D into the subquery plan.
+                //
+                // Preconditions for using Neumann on a DependentJoin:
+                //  - ALL correlated subqueries must be Neumann-convertible
+                //    (EXISTS only, not IN/scalar, and not inside OR expressions).
+                // When any subquery needs fallback (MarkJoin), the MarkJoin path
+                // mutates D's filter in-place, which conflicts with the Neumann
+                // tree structure that already references D.  So we fall through
+                // to the non-Neumann path for the whole DependentJoin.
+                if (queryOpt_.optimize_.enable_neumann_full_decorrelation_
+                    && !distributed_)
                 {
-                    LogicNode result = D;
+                    bool allEligible = true;
                     foreach (var subexpr in dj.pendingSubqueries_)
                     {
                         if (!subexpr.IsCorrelated())
                             continue;
-
-                        var converted = neumannDecorrelate(result, subexpr);
-                        if (converted != null)
-                        {
-                            // Replace the SubqueryExpr on the original outer node that
-                            // owns the filter. After the first successful conversion,
-                            // 'result' may become a join tree whose filter_ is null.
-                            replaceSubqueryInFilter(D, subexpr);
-                            decorrelatedSubs_.Add(new NamedQuery(subexpr.query_, null,
-                                NamedQuery.QueryType.UNSURE));
-                            result = converted;
-                        }
-                        else
-                        {
-                            // Fallback to existing path for this subquery
-                            if (queryOpt_.optimize_.enable_dependent_join_pushdown_)
-                                djPushDownPreprocess(subexpr);
-                            bool canReplace = false;
-                            result = oneSubqueryToJoin(result, subexpr, ref canReplace);
-                        }
+                        // Only EXISTS (not IN/scalar) and not inside OR
+                        if (!(subexpr is ExistSubqueryExpr)
+                            || subqueryIsInOrExpr(D, subexpr))
+                        { allEligible = false; break; }
                     }
-                    return result;
+
+                    if (allEligible)
+                    {
+                        // Two-phase conversion: first build all join trees
+                        // without mutating D.filter_, so partial failure is safe.
+                        var conversions = new List<(SubqueryExpr sub, LogicNode tree)>();
+                        LogicNode result = D;
+                        bool anyFailed = false;
+                        foreach (var subexpr in dj.pendingSubqueries_)
+                        {
+                            if (!subexpr.IsCorrelated())
+                                continue;
+
+                            var converted = neumannDecorrelate(result, subexpr);
+                            if (converted != null)
+                            {
+                                conversions.Add((subexpr, converted));
+                                result = converted;
+                            }
+                            else
+                            {
+                                anyFailed = true;
+                                break;
+                            }
+                        }
+
+                        if (!anyFailed)
+                        {
+                            // All conversions succeeded — now apply filter
+                            // replacements and register decorrelated subs.
+                            foreach (var (sub, _) in conversions)
+                            {
+                                replaceSubqueryInFilter(D, sub);
+                                decorrelatedSubs_.Add(new NamedQuery(sub.query_, null,
+                                    NamedQuery.QueryType.UNSURE));
+                            }
+                            return result;
+                        }
+                        // Conversion failed mid-loop but D.filter_ is untouched,
+                        // so the non-Neumann MarkJoin path below can safely proceed.
+                    }
+                    // Fall through to non-Neumann MarkJoin path
                 }
 
                 // Step 3 push-down: restructure each subquery plan so that all
@@ -841,10 +906,18 @@ namespace qpmodel.logic
                 var child = neumannPushDDown(D, lf.child_(), newJoinPred, out leafJoin);
                 if (child == null) return null;
 
-                // Keep uncorrelated predicates as a filter on top
+                // Keep uncorrelated predicates as a filter on top.
+                // Merge into existing LogicFilter if child already is one,
+                // to avoid nested LogicFilters that trigger a stale-parent
+                // bug in FilterPushDown when the outer filter is removed first.
                 if (uncorrParts.Count > 0)
                 {
                     var uncorrFilter = uncorrParts.AndListToExpr();
+                    if (child is LogicFilter cf)
+                    {
+                        cf.filter_ = cf.filter_.AddAndFilter(uncorrFilter);
+                        return cf;
+                    }
                     return new LogicFilter(child, uncorrFilter);
                 }
                 return child;
