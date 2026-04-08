@@ -1985,7 +1985,7 @@ namespace qpmodel.unittest
 
             sql = "select * from a where not (a1 = 1 or a3 = 4);";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.IsTrue(phyplan.Contains("Filter: (!a.a1[0]=1 and !a.a3[2]=4)"));
+            Assert.IsTrue(phyplan.Contains("Filter: (a.a1[0]<>1 and a.a3[2]<>4)"));
 
             // TRUE and FALSE
             sql = "select * from a where a1 + a2 <> a4 AND 1 = 0";
@@ -2118,49 +2118,51 @@ namespace qpmodel.unittest
             result = ExecuteSQL(sql, out phyplan);
             Assert.IsFalse(phyplan.Contains("Aggregates:"));
 
+            // NOT (relop) pushed into comparison operator
             sql = "select * from a where not (0 + a1 = 1)";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]=1"));
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]<>1"));
 
             sql = "select * from a where not (a1 - 0 <> 1)";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]<>1"));
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]=1"));
 
             sql = "select * from a where not (1 * a1 > 1)";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]>1"));
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]<=1"));
 
             sql = "select * from a where not (a1 / 1 >= 1)";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]>=1"));
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]<1"));
 
             sql = "select * from a where not (a1 < 1 - 0)";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]<1"));
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]>=1"));
 
             sql = "select * from a where not (a1 = 1 * 1)";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]=1"));
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]<>1"));
 
             sql = "select * from a where not (a1 <> 1 / 1)";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]<>1"));
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]=1"));
 
             sql = "select * from a where not (a1 > 1 + 0)";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]>1"));
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]<=1"));
 
             sql = "select * from a where not ((10 - 20 + 5 + 5) > a1)";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]<0"));
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]>=0"));
 
             sql = "select * from a where not ((10 + 20 + 6 + 1) * a1 < 1)";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.IsTrue(phyplan.Contains("Filter: !a.a1[0]*37<1"));
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]*37>=1"));
 
+            // De Morgan + NOT relop: NOT (a1=1 OR a2=2) => a1<>1 AND a2<>2
             sql = "select not (a1 = 1 or a2 = 2) from a";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.IsTrue(phyplan.Contains("Output: (!a.a1[0]=1 and !a.a2[1]=2)"));
+            Assert.IsTrue(phyplan.Contains("Output: (a.a1[0]<>1 and a.a2[1]<>2)"));
 
             sql = "select * from a where 10 between 1 and 20";
             result = ExecuteSQL(sql, out phyplan);
