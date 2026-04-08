@@ -905,7 +905,9 @@ namespace qpmodel.physic
                         foundOneMatch{_} = true;
                         foreach (var v{_} in exist{_})
                         {{
-                            {codegen_if(left,
+                            {codegen_if(semi,
+                                        $"if (v{_}.matched_) continue;")}
+                            {codegen_if(left || semi,
                                         $"v{_}.matched_ = true;")}
                             r{_} = new Row(v{_}.row_, {rname});
                             {ExecProjectCode($"r{_}")}";
@@ -971,7 +973,11 @@ namespace qpmodel.physic
                         foundOneMatch = true;
                         foreach (var v in exist)
                         {
-                            if (left)
+                            // Semi: skip already-output build rows to avoid
+                            // duplicates when multiple probe rows match the same key.
+                            if (semi && v.matched_)
+                                continue;
+                            if (left || semi)
                                 v.matched_ = true;
                             n = ExecProject(new Row(v.row_, r));
                             callback(n);
