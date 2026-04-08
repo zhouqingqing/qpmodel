@@ -447,6 +447,9 @@ namespace qpmodel.expr
             if ((op_ == "+" || op_ == "-") && ve.IsZero())
                 return true;
 
+            if (op_ == "*" && ve.IsZero())
+                return true;
+
             if ((op_ == "*" || op_ == "/") && ve.IsOne())
                 return true;
 
@@ -465,6 +468,10 @@ namespace qpmodel.expr
             // Col + 0, or Col - 0 => return col
             if ((op_ == "+" || op_ == "-") && ve.IsZero())
                 return ce;
+
+            // Col * 0 => return 0
+            if (op_ == "*" && ve.IsZero())
+                return ve;
 
             if ((op_ == "*" || op_ == "/") && ve.IsOne())
                 return ce;

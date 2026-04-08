@@ -1889,10 +1889,10 @@ namespace qpmodel.unittest
 
             // Rule 3: The Arithmetic Simplification. Eliminate unneeded computations.
             // expr + 0, expr - 0, expr * 0
-            // BUG: a.a1 * 0 should be reduced to zero.
+            // expr * 0 reduced to zero
             sql = "select a1 * 0, a2 + 0, a3 - 0 from a";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.IsTrue(phyplan.Contains("Output: a.a1[0]*0,a.a2[1],a.a3[2]"));
+            Assert.IsTrue(phyplan.Contains("Output: 0,a.a2[1],a.a3[2]"));
 
             // expr * 1, expr / 1
             sql = "select a1 * (14 + 17 - 30), a2 / (14 + 17 - 30) from a";
@@ -2086,11 +2086,11 @@ namespace qpmodel.unittest
             result = ExecuteSQL(sql, out phyplan);
             Assert.IsFalse(phyplan.Contains("Filter:"));
 
-            // BUG: both master and canonical branch produce no results
-            // but the query is equivalent to select * from a.
+            // IS NOT NULL / IS NULL with OR — returns all rows (all a1 values are non-null)
             sql = "select * from a where a1 is not null or a2 is not null or a3 is null;";
             result = ExecuteSQL(sql, out phyplan);
             Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0] is not null or a.a2[1] is not null) or a.a3[2] is null)"));
+            Assert.AreEqual(3, result.Count);
 
             sql = "select * from a join b on (a1 <> a1 or b1 <> b1 or 1 <> -10);";
             result = ExecuteSQL(sql, out phyplan);
