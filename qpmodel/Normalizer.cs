@@ -306,6 +306,10 @@ namespace qpmodel.expr
                     if (lce != null && rce == null && isPlainSwappableConstOp())
                         SwapSide();
 
+                    // Division by zero: expr / 0 => compile-time error
+                    if (op_ == "/" && rce != null && rce.IsZero())
+                        throw new logic.SemanticAnalyzeException("division by zero");
+
                     if ((lce != null || rce != null) && (IsArithIdentity(lce, rce)))
                         return SimplifyArithmetic(lce, rce);
 
@@ -436,12 +440,14 @@ namespace qpmodel.expr
         internal bool IsArithIdentity(ConstExpr lce, ConstExpr rce)
         {
             ConstExpr ve = lce != null ? lce : rce;
-            ColExpr ce = (children_[0] is ColExpr) ? (ColExpr)children_[0] : (children_[1] is ColExpr ? (ColExpr)children_[1] : null);
+            // After SwapSide, lce/rce may not match children_ positions.
+            // Use the actual current children to find the non-const operand.
+            Expr other = children_[0] is ConstExpr ? children_[1] : children_[0];
 
-            if (ce == null)
+            if (other == null || other is ConstExpr)
                 return false;
 
-            if (!(TypeBase.IsNumberType(ve.type_) && TypeBase.IsNumberType(ce.type_)))
+            if (!(TypeBase.IsNumberType(ve.type_) && TypeBase.IsNumberType(other.type_)))
                 return false;
 
             if ((op_ == "+" || op_ == "-") && ve.IsZero())
@@ -460,21 +466,21 @@ namespace qpmodel.expr
         {
             // we know we have a BinExpr with numeric children
             ConstExpr ve = lve != null ? lve : rve;
-            ColExpr ce = (children_[0] is ColExpr) ? (ColExpr)children_[0] : (children_[1] is ColExpr ? (ColExpr)children_[1] : null);
+            Expr other = children_[0] is ConstExpr ? children_[1] : children_[0];
 
-            if (ce is null || ve is null)
+            if (other is null || ve is null)
                 return this;
 
-            // Col + 0, or Col - 0 => return col
+            // expr + 0, or expr - 0 => return expr
             if ((op_ == "+" || op_ == "-") && ve.IsZero())
-                return ce;
+                return other;
 
-            // Col * 0 => return 0
+            // expr * 0 => return 0
             if (op_ == "*" && ve.IsZero())
                 return ve;
 
             if ((op_ == "*" || op_ == "/") && ve.IsOne())
-                return ce;
+                return other;
 
             return this;
         }
