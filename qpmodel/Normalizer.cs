@@ -450,13 +450,24 @@ namespace qpmodel.expr
             if (!(TypeBase.IsNumberType(ve.type_) && TypeBase.IsNumberType(other.type_)))
                 return false;
 
-            if ((op_ == "+" || op_ == "-") && ve.IsZero())
+            // expr + 0 => expr, 0 + expr => expr
+            if (op_ == "+" && ve.IsZero())
                 return true;
 
+            // expr - 0 => expr (but NOT 0 - expr)
+            if (op_ == "-" && ve.IsZero() && rce != null)
+                return true;
+
+            // expr * 0 => 0, 0 * expr => 0
             if (op_ == "*" && ve.IsZero())
                 return true;
 
-            if ((op_ == "*" || op_ == "/") && ve.IsOne())
+            // expr * 1 => expr, 1 * expr => expr
+            if (op_ == "*" && ve.IsOne())
+                return true;
+
+            // expr / 1 => expr (but NOT 1 / expr)
+            if (op_ == "/" && ve.IsOne() && rce != null)
                 return true;
 
             return false;
@@ -471,15 +482,24 @@ namespace qpmodel.expr
             if (other is null || ve is null)
                 return this;
 
-            // expr + 0, or expr - 0 => return expr
-            if ((op_ == "+" || op_ == "-") && ve.IsZero())
+            // expr + 0 => expr, 0 + expr => expr
+            if (op_ == "+" && ve.IsZero())
                 return other;
 
-            // expr * 0 => return 0
+            // expr - 0 => expr (but NOT 0 - expr)
+            if (op_ == "-" && ve.IsZero() && rve != null)
+                return other;
+
+            // expr * 0 => 0, 0 * expr => 0
             if (op_ == "*" && ve.IsZero())
                 return ve;
 
-            if ((op_ == "*" || op_ == "/") && ve.IsOne())
+            // expr * 1 => expr, 1 * expr => expr
+            if (op_ == "*" && ve.IsOne())
+                return other;
+
+            // expr / 1 => expr (but NOT 1 / expr)
+            if (op_ == "/" && ve.IsOne() && rve != null)
                 return other;
 
             return this;
