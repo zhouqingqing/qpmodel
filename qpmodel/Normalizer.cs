@@ -277,6 +277,8 @@ namespace qpmodel.expr
                 case " or ":
                 case "is":
                 case "is not":
+                case "like":
+                case "not like":
                     if ((lce != null && lce.val_ is null) || (rce != null && rce.val_ is null))
                     {
                         if (IsRelOp())
