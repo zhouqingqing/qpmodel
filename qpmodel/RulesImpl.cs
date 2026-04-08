@@ -93,6 +93,11 @@ namespace qpmodel.optimizer
             if (join is null || join is LogicMarkJoin || join is LogicSingleJoin || join is LogicDependentJoin)
                 return false;
 
+            // AntiSemi excluded: HashJoin's anti-semi outputs unmatched probe
+            // rows, but NOT EXISTS needs unmatched build rows.
+            if (join.type_ == JoinType.AntiSemi)
+                return false;
+
             if (join.filter_.FilterHashable())
             {
                 var stmt = expr.Stmt() as SelectStmt;
