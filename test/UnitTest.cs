@@ -2265,15 +2265,28 @@ namespace qpmodel.unittest
             sql = "select a1, (a1 * null) + 10 from a";
             TU.ExecuteSQL(sql, "0,;1,;2,", out _, option);
 
-            // BUG: no output in master and canonical
+            // LIKE constant folding: 'qwerty' like 'qwer%' => true => filter eliminated
             sql = "select * from a where 'qwerty' like 'qwer%'";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.IsTrue(phyplan.Contains("Filter: false"));
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+            Assert.AreEqual(3, result.Count);
 
-            // BUG: no output in master and canonical
             sql = "select * from a where 'qwerty' like '%rty'";
             result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+            Assert.AreEqual(3, result.Count);
+
+            // LIKE constant folding: false case
+            sql = "select * from a where 'qwerty' like 'xyz%'";
+            result = ExecuteSQL(sql, out phyplan);
             Assert.IsTrue(phyplan.Contains("Filter: false"));
+            Assert.AreEqual(0, result.Count);
+
+            // NOT LIKE constant folding
+            sql = "select * from a where 'qwerty' not like 'qwer%'";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+            Assert.AreEqual(0, result.Count);
 
             sql = "select avg(2), min(3), max(4) from a";
             result = ExecuteSQL(sql, out phyplan);
