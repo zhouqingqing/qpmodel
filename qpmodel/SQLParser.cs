@@ -183,7 +183,8 @@ namespace qpmodel.sqlparser
             List<Expr> args = new List<Expr>();
             foreach (var v in context.arith_expr())
                 args.Add(Visit(v) as Expr);
-            return FuncExpr.BuildFuncExpr(context.function_name().GetText(), args);
+            bool isDistinct = context.K_DISTINCT() != null;
+            return FuncExpr.BuildFuncExpr(context.function_name().GetText(), args, isDistinct);
         }
 
         public override object VisitColExpr([NotNull] SQLiteParser.ColExprContext context)
