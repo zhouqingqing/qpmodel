@@ -1899,11 +1899,10 @@ namespace qpmodel.unittest
             result = ExecuteSQL(sql, out phyplan);
             Assert.IsTrue(phyplan.Contains("a.a1[0],a.a2[1]"));
 
-            // expr / 0 => ERROR
-            // sql = "select * from a where a1 / 0 = a2 / 0";
-            // Assert.IsTrue(error_.Contains("DivideByZeroException:D"));
-            // Currently plan contains: "Filter: a1[0]/0=a2[1]/0";
-            // Exception is thrown at runtime.
+            // expr / 0 => compile-time ERROR
+            sql = "select * from a where a1 / 0 = a2 / 0";
+            TU.ExecuteSQL(sql);
+            Assert.IsTrue(TU.error_.Contains("division by zero"));
 
             // Rule 4: Comparison Simplification. Eliminate unneeded comparisons.
             // CONST relop CONST
