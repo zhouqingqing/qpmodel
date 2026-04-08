@@ -4,21 +4,21 @@
 [![Coverage Status](https://coveralls.io/repos/github/zhouqingqing/qpmodel/badge.svg?branch=master)](https://coveralls.io/github/zhouqingqing/qpmodel?branch=master)
 
 # An Experimental Relational Optimizer and Executor
-This project implements a relational optimizer and executor in c#. It is called "experimental" because it does not have all the details carved. The main target is the optimizer, and the purpose is to prepare for a more serious production implementation later. The executor part is needed for plan correctness verification with TPCH/DS end to end runnable. 
+This project implements a relational optimizer and executor in C#. It is called "experimental" because it does not have all the details carved out. The main target is the optimizer, and the purpose is to prepare for a more serious production implementation later. The executor part is needed for plan correctness verification with TPCH/DS end-to-end runnability.
 
-It is built on top of many database research results, and it has been open-sourced in the hope that others may find it useful and database community can provide feedback and ways to improve it.
+It is built on top of many database research results and has been open-sourced in the hope that others may find it useful and the database community can provide feedback and ways to improve it.
 
 ## Why C#
-Optimizer is logic centric, so a high-level language is preferred. After experiments, production may want to turn it into some C/C++ code, so the language must be a close relative of them. C# (.net core) provides some great features like cross-platform, LINQ, dynamic types to make modeling easy, and it is close enough to C++ (and that's why not python). 
+Optimizer is logic-centric, so a high-level language is preferred. After experiments, production may want to turn it into C/C++ code, so the language must be a close relative. C# (.NET Core) provides some great features like cross-platform support, LINQ, and dynamic types to make modeling easy, and it is close enough to C++ (and that's why not Python).
 
 ## Optimizer
 The optimizer exercises the following constructs:
-- Top down/bottom up structure: the optimizer does utilize a top down cascades style optimizer structure but optionally you can choose to use bottom up join order resolver.  It currently use DPccp (["Analysis of Two Existing and One New Dynamic Programming Algorithm"](http://www.vldb.org/conf/2006/p930-moerkotte.pdf)) by G. Moerkotte, et al. It also implements some other join order resolver like DPBushy (TDBasic, GOO), mainly for the purpose of correctness verification.  
-- Subquery decorrelation: it follows the ["Unnesting Arbitrary Queries"](https://pdfs.semanticscholar.org/1596/d282b7b6e8723a9780a511c87481df070f7d.pdf) by T. Neumann et al. 
-- CTE inline/non-inline: it follows the [Optimization of Common Table Expressions in MPP Database Systems](http://www.vldb.org/pvldb/vol8/p1704-elhelw.pdf) by A. El-Helw et al.
-- Cardinality estimation, costing: currently this follows "as-is" textbook implementation. We did not spend much time here because it is a local issue, meaning later improvements shall not impact the architecture. CE also demonstrate upgrade or version management.
-- Distributed plan: follows the remote exchange model (gather, redistributed etc). A naive in-machine parallelism can be modeled with the same scheme.
-- The optimizer also exposes a DataSet like interface which demonstrates language integration. Another example calculating Pi with Monte-Carlo can be found in Unittest/TestDataSet.
+- Top-down/bottom-up structure: the optimizer utilizes a top-down Cascades-style optimizer structure, but optionally you can choose to use a bottom-up join order resolver. It currently uses DPccp (["Analysis of Two Existing and One New Dynamic Programming Algorithm"](http://www.vldb.org/conf/2006/p930-moerkotte.pdf)) by G. Moerkotte, et al. It also implements some other join order resolvers like DPBushy (TDBasic, GOO), mainly for the purpose of correctness verification.
+- Subquery decorrelation: it follows ["Unnesting Arbitrary Queries"](https://pdfs.semanticscholar.org/1596/d282b7b6e8723a9780a511c87481df070f7d.pdf) by T. Neumann et al.
+- CTE inline/non-inline: it follows [Optimization of Common Table Expressions in MPP Database Systems](http://www.vldb.org/pvldb/vol8/p1704-elhelw.pdf) by A. El-Helw et al.
+- Cardinality estimation, costing: currently this follows an "as-is" textbook implementation. We did not spend much time here because it is a local issue, meaning later improvements shall not impact the architecture. CE also demonstrates upgrade or version management.
+- Distributed plan: follows the remote exchange model (gather, redistribute, etc.). A naive in-machine parallelism can be modeled with the same scheme.
+- The optimizer also exposes a DataSet-like interface which demonstrates language integration. Another example calculating Pi with Monte Carlo can be found in Unittest/TestDataSet.
 ```c#
 	// leverage c#'s sqrt so no reinventing wheels
 	double sqroot(double d) => Math.Sqrt(d);
@@ -32,13 +32,13 @@ The optimizer exercises the following constructs:
 	var b = sqlContext.Read("b");
 	var rows = a.filter("a1>1").join(b, "b2=a2").select("a1", "sqroot(b1*a1+2)").show();
 ```
-- Verify the optimizer by some unittests and TPCH/DS. All TPCH queries are runnable. TPCDS we do not support window function and rolling groups. You can find TPCH plan [here](https://github.com/zhouqingqing/adb/tree/master/test/regress/expect/tpch0001).
+- Verify the optimizer by some unit tests and TPCH/DS. All TPCH queries are runnable. For TPCDS, we do not support window functions and rolling groups. You can find TPCH plans [here](https://github.com/zhouqingqing/adb/tree/master/test/regress/expect/tpch0001).
 
 ## Executor
-The executor is implemented for two purpose: (1) verify plan correctness; (2) test codeGen engineering readiness following paper ["How to Architect a query compiler, Revisited"](https://www.cs.purdue.edu/homes/rompf/papers/tahboub-sigmod18.pdf) by R.Y.Tahboub et al. Executor is not intended to demonstrate implementing specific operator efficiently.
-- It does not use a LMS underneath, but thanks for c#'s interpolated string support, the template is easy to read and construct side by side with interpreted code.
-- To support incremental codeGen improvement, meaning we can ship partial codeGen implementation, it supports a generic expression evaluation function which can fallback to the interpreted implementation if that specific expression is not codeGen ready.
-- It emulates a cross machine execution using parallel threads using remote exchange model. Current setting is 10 machines, so a plan with 1 Gather and 6 redistribution utilizes 70 threads for emulation.
+The executor is implemented for two purposes: (1) verify plan correctness; (2) test codeGen engineering readiness following the paper ["How to Architect a Query Compiler, Revisited"](https://www.cs.purdue.edu/homes/rompf/papers/tahboub-sigmod18.pdf) by R.Y. Tahboub et al. The executor is not intended to demonstrate implementing specific operators efficiently.
+- It does not use LMS underneath, but thanks to C#'s interpolated string support, the template is easy to read and construct side by side with interpreted code.
+- To support incremental codeGen improvement, meaning we can ship partial codeGen implementation, it supports a generic expression evaluation function which can fall back to the interpreted implementation if that specific expression is not codeGen-ready.
+- It emulates cross-machine execution using parallel threads with the remote exchange model. The current setting is 10 machines, so a plan with 1 Gather and 6 redistributions utilizes 70 threads for emulation.
 - The executor utilizes Object and dynamic types to simplify implementation. To port it to C/C++, you can follow the traditional "dispatch" mechanism like a + b => {int4pl(a,b), int2pl(a,b), doublepl(a,b), ...}.
 
 You can see an example generated code for this query [here](https://github.com/zhouqingqing/adb/tree/master/test/gen_example.cs) with generic expression evaluation is in this code snippet:
@@ -53,9 +53,9 @@ You can see an example generated code for this query [here](https://github.com/z
 ```
 
 ## How to Play
-The program is based on .net core, so it runs on both Windows and Linux. Load the project with Visual Studio 2019 free community edition or visual studio code. Program.Main() mainly for debugging purpose. There are several builtin tables like 'a', 'b', 'c', 'd' for testing purpose, and you can find their definition in Catalog.createBuildInTestTables(). If you come up with a PR, make sure you have unittest passed.
+The program is based on .NET Core, so it runs on both Windows and Linux. Load the project with Visual Studio 2019+ free community edition or Visual Studio Code. Program.Main() is mainly for debugging purposes. There are several built-in tables like 'a', 'b', 'c', 'd' for testing purposes, and you can find their definitions in Catalog.createBuildInTestTables(). If you submit a PR, make sure the unit tests pass.
 
-Unittest comes up with multiple tests covering major functionalities:
-- TPCH end to end power run with small data set
-- TPCDS, JoBench only exercise the optimizer
-- Other grouped unittest stressing different aspects
+Unit tests cover major functionalities:
+- TPCH end-to-end power run with a small data set
+- TPCDS and JoBench only exercise the optimizer
+- Other grouped unit tests stressing different aspects
