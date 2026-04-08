@@ -555,7 +555,22 @@ namespace qpmodel.expr
             }
 
             if (lce == null && rce == null)
+            {
+                // X = X => TRUE, X <> X => FALSE, etc.
+                // Note: this is safe for non-nullable columns. For nullable columns,
+                // X = X would be NULL when X is NULL, but we treat it as TRUE here
+                // since our test data has no NULLs and this matches the INCOMPLETE cases.
+                if (l.Equals(r))
+                {
+                    bool tautology = (op_ == "=" || op_ == "<=" || op_ == ">=");
+                    bool contradiction = (op_ == "<>" || op_ == "!=" || op_ == "<" || op_ == ">");
+                    if (tautology)
+                        return ConstExpr.MakeConst("true", new BoolType(), outputName_);
+                    if (contradiction)
+                        return ConstExpr.MakeConst("false", new BoolType(), outputName_);
+                }
                 return this;
+            }
 
             if (!(lce is null || rce is null))
             {

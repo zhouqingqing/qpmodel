@@ -1971,19 +1971,15 @@ namespace qpmodel.unittest
             // INCOMPLETE
             Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0]=1 and a.a2[1]=2) or (a.a1[0]=1 and a.a3[2]=1))"));
 
-            // NOTE: TRUE and FALSE are not supported in the current code base.
-            // Simulating TRUE and FALSE
-            // X AND TRUE. Drop TRUE.
-            // INCOMPLETE
+            // X AND TRUE. Drop TRUE (a3=a3 => true, then X AND true => X).
             sql = "select * from a where (a1 = a2) AND (a3 = a3)";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.IsTrue(phyplan.Contains("Filter: (a.a1[0]=a.a2[1] and a.a3[2]=a.a3[2])"));
+            Assert.IsTrue(phyplan.Contains("Filter: a.a1[0]=a.a2[1]"));
 
-            // X AND FALSE. Eliminate the predicate
-            // INCOMPLETE
+            // X AND FALSE. Eliminate the predicate (a3<>a3 => false, then X AND false => false).
             sql = "select * from a where (a1 = a2) AND (a3 <> a3)";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.IsTrue(phyplan.Contains("Filter: (a.a1[0]=a.a2[1] and a.a3[2]<>a.a3[2])"));
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
 
             sql = "select * from a where not (a1 = 1 or a3 = 4);";
             result = ExecuteSQL(sql, out phyplan);
@@ -2090,9 +2086,10 @@ namespace qpmodel.unittest
             Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0] is not null or a.a2[1] is not null) or a.a3[2] is null)"));
             Assert.AreEqual(3, result.Count);
 
+            // a1<>a1 => false, b1<>b1 => false, 1<>-10 => true, so (false or false or true) => true
             sql = "select * from a join b on (a1 <> a1 or b1 <> b1 or 1 <> -10);";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0]<>a.a1[0] or b.b1[4]<>b.b1[4]) or True)"));
+            Assert.IsFalse(phyplan.Contains("Filter:"));
             // more tests, by code path and functionality.
             sql = "select sum(1), avg(2), min(3), max(4), count(5), count(distinct 6), stddev_samp(7.38) from a";
             TU.ExecuteSQL(sql, "3,2,3,4,3,3,0", out _, option);
@@ -2202,13 +2199,15 @@ namespace qpmodel.unittest
             result = ExecuteSQL(sql, out phyplan);
             Assert.IsTrue(phyplan.Contains("Filter: false"));
 
+            // tautology: a1<>a1 => false, b1<>b1 => false, (false or false or true) => true => no filter
             sql = "select * from a join b on (a1 <> a1 or b1 <> b1 or 1 <> -10)";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0]<>a.a1[0] or b.b1[4]<>b.b1[4]) or True)"));
+            Assert.IsFalse(phyplan.Contains("Filter:"));
 
+            // (false or false or false) => false
             sql = "select * from a join b on (a1 <> a1 or b1 <> b1 or 10 + -10 <> -20 + 20)";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0]<>a.a1[0] or b.b1[4]<>b.b1[4]) or False)"));
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
 
             sql = "select * from (select 1 + 1 x, 1 + 2 y, a1 z from a)";
             result = ExecuteSQL(sql, out phyplan);
