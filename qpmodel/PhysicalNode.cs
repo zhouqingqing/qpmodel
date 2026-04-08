@@ -916,8 +916,6 @@ namespace qpmodel.physic
                     callback(null);
 
                     context.code_ += $@"
-                    {codegen_if(semi,
-                                "break;")}
                         }}
                     }}
                     else
@@ -981,8 +979,6 @@ namespace qpmodel.physic
                                 v.matched_ = true;
                             n = ExecProject(new Row(v.row_, r));
                             callback(n);
-                            if (semi)
-                                break;
                         }
                     }
                     else
