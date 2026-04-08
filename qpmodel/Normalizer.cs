@@ -209,6 +209,8 @@ namespace qpmodel.expr
                         ">=" => "<",
                         ">" => "<=",
                         "<=" => ">",
+                        "is" => "is not",
+                        "is not" => "is",
                         _ => null
                     };
                     if (negated != null)
