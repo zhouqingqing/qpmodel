@@ -197,6 +197,27 @@ namespace qpmodel.expr
                  *         X      Y             X      Y
                  */
 
+                // NOT (X relop Y) => X negated_relop Y
+                if (child_() is BinExpr be && be.IsRelOp())
+                {
+                    string negated = be.op_ switch
+                    {
+                        "=" => "<>",
+                        "<>" => "=",
+                        "!=" => "=",
+                        "<" => ">=",
+                        ">=" => "<",
+                        ">" => "<=",
+                        "<=" => ">",
+                        _ => null
+                    };
+                    if (negated != null)
+                    {
+                        be.op_ = negated;
+                        return be;
+                    }
+                }
+
                 if (child_() is LogicAndOrExpr le)
                 {
                     // Make two Unary expressions for NOT X and NOT Y
@@ -212,11 +233,12 @@ namespace qpmodel.expr
                     Expr ore = le.rchild_();
 
                     // New Unary nodes point to old left and right
-                    // logical expressions.
+                    // logical expressions. Normalize them so NOT relop
+                    // push-in can happen on the new NOT nodes.
                     nlu.children_[0] = ole;
                     nru.children_[0] = ore;
 
-                    return makeAnyLogicalExpr(nlu, nru, nop);
+                    return makeAnyLogicalExpr(nlu.Normalize(), nru.Normalize(), nop);
                 }
             }
 
