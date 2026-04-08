@@ -49,8 +49,8 @@ namespace qpmodel.logic
         {
             // rewrite controls
             public bool enable_subquery_unnest_ { get; set; } = true;
-            public bool enable_dependent_join_pushdown_ { get; set; } = false;
-            public bool enable_neumann_full_decorrelation_ { get; set; } = false;
+            public bool enable_dependent_join_pushdown_ { get; set; } = true;
+            public bool enable_neumann_full_decorrelation_ { get; set; } = true;
             public bool remove_from_ { get; set; } = true;
             public bool enable_cte_plan_ { get; set; } = false; // make it true by default
 
@@ -74,6 +74,8 @@ namespace qpmodel.logic
             public void TurnOnAllOptimizations()
             {
                 enable_subquery_unnest_ = true;
+                enable_dependent_join_pushdown_ = true;
+                enable_neumann_full_decorrelation_ = true;
                 remove_from_ = true;
                 enable_cte_plan_ = true;
 

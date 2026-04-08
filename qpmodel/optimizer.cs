@@ -1142,8 +1142,8 @@ namespace qpmodel.optimizer
                 memo.rootgroup_ = memo.EnquePlan(ConvertOrder(logicroot, memo));
             }
 
-            // enqueue the subqueries: from-query are excluded because different from 
-            // other subqueries (IN, EXISTS etc), the subtree of it is actually connected 
+            // enqueue the subqueries: from-query are excluded because different from
+            // other subqueries (IN, EXISTS etc), the subtree of it is actually connected
             // in the same memo.
             //
             var subqueries = select.Subqueries();

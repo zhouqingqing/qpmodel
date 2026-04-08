@@ -16,3 +16,25 @@ select a1 from a where not exists (select 1 from b join c on b1=c1 and c2=a2);
 select a1 from a where exists (
     select 1 from b where b1=a1 and exists (
         select 1 from c where c1=b1 and c2>1));
+-- q7: OR-ed EXISTS → must fall back to MarkJoin (OR semantics)
+-- b.b1>a.a1 matches a1∈{0,1}; c.c1<a.a1 matches a1∈{1,2}; OR → {0,1,2}
+select a1 from a where
+    exists (select 1 from b where b1>a1) or
+    exists (select 1 from c where c1<a1);
+-- q8: AND of two EXISTS → Neumann Semi joins
+select a1 from a where
+    exists (select 1 from b where b1>a1) and
+    exists (select 1 from c where c1<a1);
+-- q9: mixed AND + OR: EXISTS(B) AND (EXISTS(C) OR EXISTS(D))
+-- Falls back entirely to MarkJoin because of OR
+select a1 from a where
+    exists (select 1 from b where b1=a1) and
+    (exists (select 1 from b b2 where b2.b1>a1) or exists (select 1 from c where c1<a1));
+-- q10: NOT EXISTS + OR
+select a1 from a where
+    not exists (select 1 from b where b1=a1 and b1<1) and
+    (exists (select 1 from b b2 where b2.b1>a1) or exists (select 1 from c where c1<a1));
+-- q11: nested uncorrelated EXISTS (sql06 pattern)
+select a1 from a where exists (
+    select b1 from b where b2>0 and exists (
+        select c1 from c where c1=b1));
