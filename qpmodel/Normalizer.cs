@@ -514,44 +514,23 @@ namespace qpmodel.expr
 
             if (op_ == "is" || op_ == "is not")
             {
-                if ((lce == null && rce != null) || (lce != null && rce == null))
+                // IS/IS NOT: one side is typically NULL.
+                // If one side is non-const, we can't simplify (e.g., expr IS NULL).
+                if ((lce == null) != (rce == null))
                     return this;
 
-                if (((lce == null && rce == null)) || ((lce != null && lce.IsNull()) && (rce != null && rce.IsNull())))
+                // Both sides are constants: determine result based on nullity.
+                if (lce != null && rce != null)
                 {
-                    if (op_ == "is" || op_ == "is not")
-                    {
-                        string val = op_ == "is" ? "true" : "false";
-                        return ConstExpr.MakeConst(val, new BoolType(), outputName_);
-                    }
+                    bool bothNull = lce.IsNull() && rce.IsNull();
+                    bool eitherNull = lce.IsNull() || rce.IsNull();
+                    // IS: true if both null or both non-null with same value
+                    // IS NOT: opposite
+                    bool isMatch = bothNull || (!eitherNull && lce.val_.Equals(rce.val_));
+                    string val = (op_ == "is") == isMatch ? "true" : "false";
+                    return ConstExpr.MakeConst(val, new BoolType(), outputName_);
                 }
-
-                if (((lce is null && rce is null)) || ((lce != null && !lce.IsNull()) && (rce != null && !rce.IsNull())))
-                {
-                    if (op_ == "is" || op_ == "is not")
-                    {
-                        string val = op_ == "is" ? "false" : "true";
-                        return ConstExpr.MakeConst(val, new BoolType(), outputName_);
-                    }
-                }
-
-                if (lce != null && !lce.IsNull() && rce != null && rce.IsNull())
-                {
-                    if (op_ == "is" || op_ == "is not")
-                    {
-                        string val = op_ == "is" ? "false" : "true";
-                        return ConstExpr.MakeConst(val, new BoolType(), outputName_);
-                    }
-                }
-
-                if (((lce != null && lce.IsNull()) || (rce != null && rce.IsNull())))
-                {
-                    if (op_ == "is" || op_ == "is not")
-                    {
-                        string val = op_ == "is" ? "true" : "false";
-                        return ConstExpr.MakeConst(val, new BoolType(), outputName_);
-                    }
-                }
+                // Both non-const: fall through to tautology check below.
             }
 
             if (lce == null && rce == null)
