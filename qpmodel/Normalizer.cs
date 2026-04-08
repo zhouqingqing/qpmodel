@@ -589,13 +589,31 @@ namespace qpmodel.expr
             Expr l = lchild_();
             Expr r = rchild_();
 
-            // simplify X relop CONST
+            // both constants
             if (l is ConstExpr lce && r is ConstExpr rce)
             {
                 if ((lce.IsTrue() && rce.IsTrue()) || (lce.IsFalse() && rce.IsFalse()))
                     return lce;
 
                 return lce.IsFalse() ? lce : rce;
+            }
+
+            // one side is constant: X AND FALSE => FALSE, X AND TRUE => X,
+            // X OR TRUE => TRUE, X OR FALSE => X
+            bool isAnd = op_ == " and ";
+            if (l is ConstExpr lc)
+            {
+                if (isAnd)
+                    return lc.IsFalse() ? lc : r;
+                else
+                    return lc.IsTrue() ? lc : r;
+            }
+            if (r is ConstExpr rc)
+            {
+                if (isAnd)
+                    return rc.IsFalse() ? rc : l;
+                else
+                    return rc.IsTrue() ? rc : l;
             }
 
             return this;

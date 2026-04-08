@@ -1993,9 +1993,8 @@ namespace qpmodel.unittest
             // TRUE and FALSE
             sql = "select * from a where a1 + a2 <> a4 AND 1 = 0";
             result = ExecuteSQL(sql, out phyplan);
-            // BUG: WHERE should be FALSE but we don't accept WHERE FALSE
-            // which is an and FALSE is added.
-            Assert.IsTrue(phyplan.Contains("Filter: ((a.a1[0]+a.a2[1])<>a.a4[3] and False)"));
+            // X AND FALSE => FALSE, filter simplified away
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
 
             /*
             // Rule 7: IN clause simplification. This may not be needed as it is already happenning.
