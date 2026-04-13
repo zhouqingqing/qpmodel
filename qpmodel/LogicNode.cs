@@ -671,6 +671,10 @@ namespace qpmodel.logic
     {
         public JoinType type_ { get; set; } = JoinType.Inner;
 
+        // true when this join comes from the original SQL query (e.g., LEFT JOIN),
+        // false for joins created by subquery decorrelation.
+        public bool fromUserQuery_ { get; set; } = false;
+
         // dervied information from join condition
         // ab join cd on c1+d1=a1-b1 and a1+b1=c2+d2;
         //    leftKey_:  a1-b1, a1+b1
@@ -1375,6 +1379,23 @@ namespace qpmodel.logic
             });
             if (offending != null && offendingFirstPos < grpbyColumnAddPosition)
                 throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");
+
+            // Detect stale ExprRef from CloneFixColumnOrdinal wrapping non-key
+            // expressions that read wrong aggregation row positions.
+            if (groupby_ != null)
+            {
+                var nkeys = groupby_.Count;
+                for (int i = 0; i < newoutput.Count && i < grpbyColumnAddPosition; i++)
+                {
+                    if (newoutput[i] is ExprRef er && !(er.expr_() is AggFunc))
+                    {
+                        bool isKey = groupby_.Any(g => g.Equals(er.expr_()));
+                        if (!isKey && er.expr_().VisitEachExists(y => y is ColExpr, new List<Type> { typeof(ExprRef) }))
+                            throw new SemanticAnalyzeException($"column {er.expr_()} must appear in group by clause");
+                    }
+                }
+            }
+
             output_ = newoutput;
             if (having_?.VisitEachExists(y => y is ColExpr, new List<Type> { typeof(ExprRef) }) ?? false)
                 throw new SemanticAnalyzeException($"column {offending} must appear in group by clause");

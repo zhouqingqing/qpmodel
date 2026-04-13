@@ -656,6 +656,48 @@ namespace qpmodel.logic
             return false; // what now! We will say we can't do this.
         }
 
+        // Check if a filter predicate is null-rejecting, i.e., evaluates to
+        // false or null when the referenced columns are all NULL.
+        // IS NULL is the primary non-null-rejecting predicate.
+        static bool isNullRejectingPredicate(Expr pred)
+        {
+            if (pred is BinExpr be && be.op_ == "is")
+                return false;  // IS NULL / IS NOT NULL: not null-rejecting
+            return true;  // most predicates (=, <, >, like, etc.) are null-rejecting
+        }
+
+        // Recursively push a single-table filter down, respecting outer join boundaries.
+        // For a user-written LEFT JOIN, only push into the null-supplying (right) side
+        // if the filter is null-rejecting.
+        bool pushdownSingleTableFilter(LogicNode node, Expr filter)
+        {
+            if (filter.HasAggFunc() && node is LogicAgg lag)
+                return TryPushingToLogicAgg(lag, filter);
+            if (node is LogicScanTable nodeGet && filter.EqualTableRef(nodeGet.tabref_))
+                return nodeGet.AddFilter(filter);
+
+            // At a user-written LEFT JOIN, only recurse into the right (null-supplying)
+            // side if the filter is null-rejecting.
+            if (node is LogicJoin lj && lj.type_ == JoinType.Left && lj.fromUserQuery_)
+            {
+                // Always try the left (preserved) side
+                if (pushdownSingleTableFilter(lj.lchild_(), filter))
+                    return true;
+                // Only try the right side if filter is null-rejecting
+                if (isNullRejectingPredicate(filter))
+                    return pushdownSingleTableFilter(lj.rchild_(), filter);
+                return false;
+            }
+
+            // For all other node types, recurse into children
+            foreach (var c in node.children_)
+            {
+                if (c != null && pushdownSingleTableFilter(c, filter))
+                    return true;
+            }
+            return false;
+        }
+
         bool pushdownFilter(LogicNode plan, Expr filter, bool pushJoinFilter)
         {
             // don't push down special expressions
@@ -673,21 +715,7 @@ namespace qpmodel.logic
                         return false;
                     });
                 case 1:
-                    return plan.VisitEachExists(n =>
-                    {
-                        // when remove_from is true (or removed entirely) it is possible to have an
-                        // aggregate in the filter, which should not be pushed to table scan.
-                        // By definition, if the node n is an aggregate node, and the filter has an
-                        // the aggregate which refers exactly to the same and single tableref which is
-                        // the child of the aggregate in the filter, then the filter belongs to the
-                        // node n.
-                        if (filter.HasAggFunc() && n is LogicAgg lag)
-                            return TryPushingToLogicAgg(lag, filter);
-                        if (n is LogicScanTable nodeGet &&
-                            filter.EqualTableRef(nodeGet.tabref_))
-                            return nodeGet.AddFilter(filter);
-                        return false;
-                    });
+                    return pushdownSingleTableFilter(plan, filter);
                 default:
                     // even when there are more tables in the filter,
                     // first try to find a LogicAgg which can provide
