@@ -1318,6 +1318,8 @@ namespace qpmodel.expr
             ConstExpr ret;
             if (type is CharType || type is VarCharType || type is DateTimeType)
                 ret = new ConstExpr($"'{val}'", type);
+            else if (type is IntType && val != null)
+                ret = new ConstExpr($"{Convert.ToInt32(val)}", type);
             else
                 ret = new ConstExpr($"{val}", type);
             ret.outputName_ = outputName;

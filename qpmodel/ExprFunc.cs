@@ -80,6 +80,9 @@ namespace qpmodel.expr
         internal string funcName_;
         internal int argcnt_;
         internal bool isSRF_ = false; // set returning function
+        // If true, NULL in any argument causes the function to return NULL.
+        // Functions like COALESCE override this to false.
+        internal bool propagateNull_ = true;
 
         internal Expr arg_() { Debug.Assert(argcnt_ == 1); return args_()[0]; }
         internal List<Expr> args_() => children_;
@@ -795,7 +798,7 @@ namespace qpmodel.expr
     //      when <when1> then <then1>
     //      else <else>
     //  end;
-    public class CaseExpr : Expr
+    public partial class CaseExpr : Expr
     {
         internal int nEval_ = 0;
         internal int nWhen_;
