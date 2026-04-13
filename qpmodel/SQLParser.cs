@@ -139,15 +139,7 @@ namespace qpmodel.sqlparser
         }
 
         public override object VisitCurrentTimeLiteral([NotNull] SQLiteParser.CurrentTimeLiteralContext context)
-        {
-            string text = context.GetText().ToUpper();
-            if (text.Contains("CURRENT_DATE"))
-                return new ConstExpr("'" + DateTime.Now.Date.ToString("yyyy-MM-dd") + "'", new DateTimeType());
-            if (text.Contains("CURRENT_TIMESTAMP"))
-                return new ConstExpr("'" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "'", new DateTimeType());
-            // CURRENT_TIME: return time as string
-            return new ConstExpr("'" + DateTime.Now.ToString("HH:mm:ss") + "'", new VarCharType(8));
-        }
+           => throw new NotImplementedException();
         public override object VisitStringLiteral([NotNull] SQLiteParser.StringLiteralContext context)
             => new ConstExpr(context.GetText(), new CharType(context.GetText().Length));
         public override object VisitNullLiteral([NotNull] SQLiteParser.NullLiteralContext context)
@@ -280,24 +272,27 @@ namespace qpmodel.sqlparser
         }
         public override object VisitCaseExpr([NotNull] SQLiteParser.CaseExprContext context)
         {
-            // Optional simple-case expression: CASE <expr> WHEN ...
-            Expr simpleBranch = context.arith_expr() != null ? Visit(context.arith_expr()) as Expr : null;
-
-            // WHEN conditions (logical_expr)
+            var arithExprs = new List<Expr>();
             var logicalExprs = new List<Expr>();
-            for (var i = 0; i < context.logical_expr().Length; i++)
+
+            var arithExprCount = context.arith_expr().Length;
+            var logicalExprCount = context.logical_expr().Length;
+
+            for (var i = 0; i < arithExprCount; i++)
+                arithExprs.Add(Visit(context.arith_expr(i)) as Expr);
+
+            for (var i = 0; i < logicalExprCount; i++)
                 logicalExprs.Add(Visit(context.logical_expr(i)) as Expr);
 
-            // THEN/ELSE results (case_result) - now supports both arith_expr and logical_expr
-            var caseResults = context.case_result();
-            int thenCount = logicalExprs.Count;
-            var thenExprs = new List<Expr>();
-            for (var i = 0; i < thenCount; i++)
-                thenExprs.Add(Visit(caseResults[i]) as Expr);
+            var elseBranchCount = context.K_ELSE() != null ? 1 : 0;
+            var simpleBranchCount = arithExprCount - logicalExprCount - elseBranchCount;
 
-            Expr elseBranch = context.K_ELSE() != null ? Visit(caseResults[thenCount]) as Expr : null;
+            Expr simpleBranch = simpleBranchCount == 1 ? arithExprs[0] : null;
+            Expr elseBranch = elseBranchCount == 1 ? arithExprs[arithExprCount - 1] : null;
+            int firstThenBranch = simpleBranchCount == 1 ? 1 : 0;
+            int thenBranchCount = arithExprCount - simpleBranchCount - elseBranchCount;
 
-            return new CaseExpr(simpleBranch, logicalExprs, thenExprs, elseBranch);
+            return new CaseExpr(simpleBranch, logicalExprs, arithExprs.GetRange(firstThenBranch, thenBranchCount), elseBranch);
         }
         public override object VisitTable_or_subquery([NotNull] SQLiteParser.Table_or_subqueryContext context)
             => Visit(context);

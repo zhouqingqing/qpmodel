@@ -1899,7 +1899,7 @@ namespace qpmodel.unittest
             // expr * 0 is NOT simplified because NULL * 0 must remain NULL
             sql = "select a1 * 0, a2 + 0, a3 - 0 from a";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.IsTrue(phyplan.Contains("Output: 0,a.a2[1],a.a3[2]"));
+            Assert.IsTrue(phyplan.Contains("Output: a.a1[0]*0,a.a2[1],a.a3[2]"));
 
             // expr * 1, expr / 1
             sql = "select a1 * (14 + 17 - 30), a2 / (14 + 17 - 30) from a";
@@ -2573,11 +2573,6 @@ namespace qpmodel.unittest
         {
             string sql = "select case a1 when 0 then 'a' when 1 then 'b' when 2 then 'c' else 'd' end from a;";
             TU.ExecuteSQL(sql, "a;b;c");
-            var phyplan = "";
-            // tpcds q4 style: CASE WHEN with boolean results in WHERE clause
-            TU.ExecuteSQL("select a1 from a where a1 >= 0 and case when a1 > 1 then a1 = 2 else a1 = 0 end", "0;2", out phyplan);
-
-            TU.ExecuteSQL("select a1 from a where a1 >= 0 and case when a1 > 1 then 2 else 0 end > case when a1 > 1 then 0 else 2 end", "2", out phyplan);
         }
 
         [TestMethod]

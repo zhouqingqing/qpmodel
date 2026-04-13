@@ -606,7 +606,10 @@ namespace qpmodel.expr
                 {
                     case "join": type = JoinType.Inner; break;
                     case "leftjoin": case "leftouterjoin": type = JoinType.Left; break;
-                    case "crossjoin":
+                    case "crossjoin": type = JoinType.Inner; break;
+                    case "naturaljoin": type = JoinType.Inner; break;
+                    case "naturalleftjoin":
+                    case "naturalleftouterjoin": type = JoinType.Left; break;
                     case "rightjoin":
                     case "rightouterjoin":
                     case "fulljoin":

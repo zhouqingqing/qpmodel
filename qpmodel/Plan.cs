@@ -427,7 +427,7 @@ namespace qpmodel.logic
                         //      from a join b on a1=b1 or a3=b3 join c on a2=c2;
                         //   => from a , b, c where  (a1=b1 or a3=b3) and a2=c2;
                         //
-                        LogicJoin subjoin = new LogicJoin(null, null);
+                        LogicJoin subjoin = new LogicJoin(null, null) { fromUserQuery_ = true };
                         Expr filterexpr = null;
                         for (int i = 0; i < jref.tables_.Count; i++)
                         {
@@ -440,13 +440,17 @@ namespace qpmodel.logic
                                 if (children[1] is null)
                                     children[1] = t;
                                 else
-                                    subjoin = new LogicJoin(t, subjoin);
+                                    subjoin = new LogicJoin(t, subjoin) { fromUserQuery_ = true };
                                 subjoin.type_ = jref.joinops_[i - 1];
-                                filterexpr = filterexpr.AddAndFilter(jref.constraints_[i - 1]);
+                                var constraint = jref.constraints_[i - 1];
+                                if (constraint != null)
+                                    filterexpr = filterexpr.AddAndFilter(constraint);
                             }
                         }
-                        Debug.Assert(filterexpr != null);
-                        from = new LogicFilter(subjoin, filterexpr);
+                        if (filterexpr != null)
+                            from = new LogicFilter(subjoin, filterexpr);
+                        else
+                            from = subjoin;
                         break;
                     default:
                         throw new InvalidProgramException();
@@ -539,8 +543,11 @@ namespace qpmodel.logic
         {
             // first find out the aggregation node shall take the filter
             List<LogicAgg> aggNodes = new List<LogicAgg>();
-            if (root.FindNodeTypeMatch<LogicAgg>(aggNodes) > 1)
+            int aggCount = root.FindNodeTypeMatch<LogicAgg>(aggNodes);
+            if (aggCount > 1)
                 throw new NotImplementedException("can handle one aggregation now");
+            if (aggCount == 0)
+                return filter;
             var aggNode = aggNodes[0];
 
             // make the filter and add to the node
@@ -970,6 +977,7 @@ namespace qpmodel.logic
                     jref.tables_.ForEach(x => bindTableRef(context, x));
                     jref.constraints_.ForEach(x =>
                     {
+                        if (x is null) return;
                         x = x.BindAndNormalize(context);
                         // join constraints may contain FROM(x) when
                         // remove_from is true. If FROM(x) is not DeQueryRef'd

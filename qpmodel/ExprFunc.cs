@@ -251,7 +251,9 @@ namespace qpmodel.expr
             // SQL allows substr() function go beyond length, guard it
             if (start < 0) start = 0;
             if (start >= str.Length) return "";
-            return str.Substring(start, Math.Min(end - start + 1, str.Length - start));
+            int length = Math.Min(end - start + 1, str.Length - start);
+            if (length <= 0) return "";
+            return str.Substring(start, length);
         }
     }
 
