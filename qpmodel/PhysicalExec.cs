@@ -112,6 +112,9 @@ namespace qpmodel.physic
             {
                 dynamic l = this[i];
                 dynamic r = rrow[i];
+                if (l is null && r is null) continue;
+                if (l is null) return -1;
+                if (r is null) return 1;
                 var c = l.CompareTo(r);
                 if (c < 0)
                     return -1;
@@ -136,8 +139,15 @@ namespace qpmodel.physic
                 bool flip = descends[i];
                 if (l is null)
                 {
+                    if (r is null)
+                        continue;
                     // null first
                     return flip ? +1 : -1;
+                }
+                else if (r is null)
+                {
+                    // null first: non-null > null
+                    return flip ? -1 : +1;
                 }
                 else
                 {
@@ -297,11 +307,12 @@ namespace qpmodel.physic
                     {
                         context.code_ += $@"
                         Row newr = new Row({ncolumns});";
+                        int visIdx = 0;
                         for (int i = 0; i < output.Count; i++)
                         {
                             if (output[i].isVisible_)
                             {
-                                context.code_ += $"newr[{i}] = r{child_()._}[{i}];";
+                                context.code_ += $"newr[{visIdx++}] = r{child_()._}[{i}];";
                             }
                         }
                     }
@@ -314,10 +325,11 @@ namespace qpmodel.physic
                     if (!allColumnsVisible(output))
                     {
                         newr = new Row(ncolumns);
+                        int visIdx = 0;
                         for (int i = 0; i < output.Count; i++)
                         {
                             if (output[i].isVisible_)
-                                newr[i] = r[i];
+                                newr[visIdx++] = r[i];
                         }
                     }
                     rows_.Add(newr);
@@ -360,6 +372,18 @@ namespace qpmodel.physic
         public override void Exec(Action<Row> callback)
         {
             ExecContext context = context_;
+
+            // Subquery plans may not have their context initialized when
+            // unnesting is disabled (issue #268). Skip profiling in that case.
+            if (context is null)
+            {
+                child_().Exec(l =>
+                {
+                    Interlocked.Increment(ref nrows_);
+                    callback(l);
+                });
+                return;
+            }
 
             if (context.option_.optimize_.use_codegen_)
             {

@@ -900,7 +900,7 @@ namespace qpmodel.physic
                     var keys{_} = KeyList.ComputeKeys(context, {_logic_}.rightKeys_, r{_});
                     bool foundOneMatch{_} = false;
 
-                    if (hm{_}.TryGetValue(keys{_}, out List<TaggedRow> exist{_}))
+                    if (!keys{_}.ColsHasNull() && hm{_}.TryGetValue(keys{_}, out List<TaggedRow> exist{_}))
                     {{
                         foundOneMatch{_} = true;
                         foreach (var v{_} in exist{_})
@@ -942,7 +942,7 @@ namespace qpmodel.physic
                         context.code_ += $@"
                         if (!foundOneMatch{_})
                         {{
-                            r{_} = new Row(new Row{lchild_().logic_.output_.Count}, r{_});
+                            r{_} = new Row(new Row({lchild_().logic_.output_.Count}), r{_});
                             {ExecProjectCode($"r{_}")}";
 
                         // generate code to @context_code_ in callback
@@ -966,7 +966,8 @@ namespace qpmodel.physic
                     var keys = KeyList.ComputeKeys(context, logic.rightKeys_, n);
                     bool foundOneMatch = false;
 
-                    if (hm.TryGetValue(keys, out List<TaggedRow> exist))
+                    // null keys never match in SQL (null = null is unknown)
+                    if (!keys.ColsHasNull() && hm.TryGetValue(keys, out List<TaggedRow> exist))
                     {
                         foundOneMatch = true;
                         foreach (var v in exist)

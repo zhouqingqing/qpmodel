@@ -30,11 +30,11 @@ group by
 order by
 	nation,
 	o_year desc
-Total cost: 52026.1, memory=63341
-PhysicOrder  (inccost=52026.1, cost=0.1, rows=1, memory=41) (actual rows=60)
+Total cost: 52026.1, memory=51329
+PhysicOrder  (inccost=52026.1, cost=0.1, rows=1, memory=37) (actual rows=60)
     Output: nation[0],o_year[1],{sum(amount)}[2]
     Order by: nation[0], o_year[1]
-    -> PhysicHashAgg  (inccost=52026, cost=35, rows=1, memory=82) (actual rows=60)
+    -> PhysicHashAgg  (inccost=52026, cost=35, rows=1, memory=74) (actual rows=60)
         Output: {nation}[0],{o_year}[1],{sum(amount)}[2]
         Aggregates: sum(amount[2])
         Group by: nation[0], o_year[1]
@@ -55,7 +55,7 @@ PhysicOrder  (inccost=52026.1, cost=0.1, rows=1, memory=41) (actual rows=60)
                         Filter: s_nationkey[5]=n_nationkey[1]
                         -> PhysicScanTable nation (inccost=25, cost=25, rows=25) (actual rows=25, loops=10)
                             Output: n_name (as nation)[1],n_nationkey[0]
-                        -> PhysicHashJoin  (inccost=35570, cost=7804, rows=2402, memory=36000) (actual rows=844, loops=10)
+                        -> PhysicHashJoin  (inccost=35570, cost=7804, rows=2402, memory=24000) (actual rows=844, loops=10)
                             Output: {year(o_orderdate)}[0],{(l_extendedprice*(1-l_discount)-ps_supplycost*l_quantity(as amount))}[2],l_partkey[3],s_nationkey[4]
                             Filter: o_orderkey[1]=l_orderkey[5]
                             -> PhysicBroadcast  (inccost=4500, cost=3000, rows=1500) (actual rows=1500, loops=10)
