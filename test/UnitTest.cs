@@ -1084,6 +1084,19 @@ namespace qpmodel.unittest
 
                 sql = "select a1 from a where a2 in (select b2 from b where b1 = a1 and b3 > 2 ) and a1 > 0";
                 TU.ExecuteSQL(sql, "1;2", out _, option);
+
+                // OR condition with correlated IN subquery (issue #271)
+                // a2 in (select b2 ...) matches a1=0(a2=1,b2=1 where b2=a1=0→no),
+                // actually b2=a1: a1=0→b2=0→no match, a1=1→b2=1→a2=2≠1→no, a1=2→b2=2→a2=3≠2→no
+                // so IN matches nothing; a2>2 matches a1=2(a2=3)
+                sql = "select a1 from a where a2 in (select b2 from b where b2 = a1) or a2 > 2";
+                TU.ExecuteSQL(sql, "2", out phyplan, option);
+                Assert.AreEqual(unnest ? 1 : 0, TU.CountStr(phyplan, "PhysicMarkJoin"));
+
+                // NOT IN with OR
+                sql = "select a1 from a where a2 not in (select b2 from b where b2 = a1) or a2 > 2";
+                TU.ExecuteSQL(sql, "0;1;2", out phyplan, option);
+                Assert.AreEqual(unnest ? 1 : 0, TU.CountStr(phyplan, "PhysicMarkJoin"));
             }
         }
 
@@ -1120,15 +1133,22 @@ namespace qpmodel.unittest
                 sql = "select a1,a2,b2 from b join a on a1=b1 where a1-1 < (select a2/2 from a where a2=b2);";
                 TU.ExecuteSQL(sql, "0,1,1;1,2,2", out phyplan, option); Assert.AreEqual(unnest ? 1 : 0, TU.CountStr(phyplan, "PhysicSingleJoin"));
 
-                // OR condition
+                // OR condition (issue #271: scalar subquery in OR)
                 sql = "select a1, a3  from a where a.a1 = (select b1 from b where b2 = a2 and b3<4) or a2>1;";
                 TU.ExecuteSQL(sql, "0,2;1,3;2,4", out phyplan, option); Assert.AreEqual(unnest ? 1 : 0, TU.CountStr(phyplan, "PhysicSingleJoin"));
+
+                // scalar subquery in OR with another scalar subquery (canReplace path)
+                sql = "select a1 from a where a.a1 = (select b1 from b where b2 = a2) or a.a2 = (select b2 from b where b1 = a1);";
+                TU.ExecuteSQL(sql, "0;1;2", out phyplan, option); Assert.AreEqual(unnest ? 2 : 0, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 sql = "select a1 from a where a.a1 = (select b1 from b bo where b2 = a2 or b1 = (select b1 from b where b2 = 2*a1 and b3>1) and b2<3);";
 
-                // FIXME: if unnest, answer is wrong.
+                // issue #271: nested scalar subquery with OR *inside* the subquery filter
+                // containing another correlated subquery. This case requires more complex
+                // decorrelation (dependent join push-down through OR) which is not yet
+                // implemented. Skip when unnesting.
                 if (!unnest)
                 {
-                    TU.ExecuteSQL(sql, "0;1;2", out phyplan, option); Assert.AreEqual(unnest ? 2 : 0, TU.CountStr(phyplan, "PhysicSingleJoin"));
+                    TU.ExecuteSQL(sql, "0;1;2", out phyplan, option); Assert.AreEqual(0, TU.CountStr(phyplan, "PhysicSingleJoin"));
                 }
             }
         }

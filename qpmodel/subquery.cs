@@ -275,7 +275,7 @@ namespace qpmodel.logic
         //          LogicNode_A
         //          LogicNode_B
         //
-        LogicNode scalarToSingleJoin(LogicNode planWithSubExpr, ScalarSubqueryExpr scalarExpr)
+        LogicNode scalarToSingleJoin(LogicNode planWithSubExpr, ScalarSubqueryExpr scalarExpr, ref bool canReplace)
         {
             var newplan = planWithSubExpr;
 
@@ -283,8 +283,8 @@ namespace qpmodel.logic
             var nodeSubquery = scalarExpr.query_.logicPlan_;
 
             // make a single join
-            //    nodeA 
-            //      <Subquery> 
+            //    nodeA
+            //      <Subquery>
             //            nodeSubquery
             // =>
             //    SingleJoin
@@ -304,7 +304,7 @@ namespace qpmodel.logic
                     newplan = djoinOnRightAggregation(singleJoinNode, scalarExpr);
                     break;
                 case LogicFilter lf:
-                    newplan = djoinOnRightFilter(singleJoinNode, scalarExpr);
+                    newplan = djoinOnRightFilter(singleJoinNode, scalarExpr, ref canReplace);
                     break;
                 default:
                     break;
@@ -322,20 +322,26 @@ namespace qpmodel.logic
             return newplan;
         }
 
-        Expr extractCurINExprFromNodeAFilter(LogicNode nodeA, InSubqueryExpr curInExpr, ExprRef markerFilter)
+        Expr extractCurINExprFromNodeAFilter(LogicNode nodeA, InSubqueryExpr curInExpr, ExprRef markerFilter, ref bool canReplace)
         {
             var nodeAFilter = nodeA.filter_;
             if (nodeAFilter != null)
             {
-                // a1 > @1 and a2 > @2 and a3 > 2, scalarExpr = @1
-                //   keeplist: a1 > @1 and a3 > 2
-                //   andlist after removal: a2 > @2
-                //   nodeAFilter = a1 > @1 and a3 > 2
+                // OR-aware logic (same principle as existsToMarkJoin):
+                // For IN subqueries, the InSubqueryExpr appears as a direct conjunct
+                // (e.g., WHERE a1 IN (select ...)), so Equals works for non-OR.
+                // For OR conjuncts, only remove if no extra subqueries in the OR.
                 //
                 var andlist = nodeAFilter.FilterToAndList();
                 var keeplist = andlist.Where(x => x.VisitEachExists(e => e.Equals(curInExpr))).ToList();
-                andlist.RemoveAll(x => x.VisitEachExists(e => e.Equals(curInExpr)));
-                if (andlist.Count == 0)
+                andlist.RemoveAll(x =>
+                    (!(x is LogicOrExpr) && x.VisitEachExists(e => e.Equals(curInExpr))) ||
+                    ((x is LogicOrExpr) && !hasAnyExtraSubqueryExprInOR(x, curInExpr)));
+
+                // if there is any (#marker@1 or @2), the root should be replaced
+                canReplace = andlist.Find(x => (x is LogicOrExpr) && hasAnyExtraSubqueryExprInOR(x, curInExpr)) != null;
+
+                if (andlist.Count == 0 || canReplace)
                     nodeA.NullifyFilter();
                 else
                 {
@@ -349,7 +355,7 @@ namespace qpmodel.logic
             return nodeAFilter;
         }
 
-        LogicNode inToMarkJoin(LogicNode planWithSubExpr, InSubqueryExpr inExpr)
+        LogicNode inToMarkJoin(LogicNode planWithSubExpr, InSubqueryExpr inExpr, ref bool canReplace)
         {
             LogicNode nodeA = planWithSubExpr;
 
@@ -361,7 +367,7 @@ namespace qpmodel.logic
             // nullify nodeA's filter: the rest is push to top filter. However,
             // if nodeA is a Filter|MarkJoin, keep its mark filter.
             var markerFilter = new ExprRef(new MarkerExpr(nodeBFilter.tableRefs_, inExpr.subqueryid_), 0);
-            var nodeAFilter = extractCurINExprFromNodeAFilter(nodeA, inExpr, markerFilter);
+            var nodeAFilter = extractCurINExprFromNodeAFilter(nodeA, inExpr, markerFilter, ref canReplace);
 
             // consider SQL ...a1 in select b1 from... 
             // a1 is outerExpr and b1 is selectExpr
@@ -405,7 +411,7 @@ namespace qpmodel.logic
         }
 
         // D Xs (Filter(T)) => Filter(D Xs T) 
-        LogicNode djoinOnRightFilter(LogicSingleJoin singleJoinNode, ScalarSubqueryExpr scalarExpr)
+        LogicNode djoinOnRightFilter(LogicSingleJoin singleJoinNode, ScalarSubqueryExpr scalarExpr, ref bool canReplace)
         {
             var nodeLeft = singleJoinNode.lchild_();
             var nodeSubquery = singleJoinNode.rchild_();
@@ -421,15 +427,21 @@ namespace qpmodel.logic
             var nodeLeftFilter = nodeLeft.filter_;
             if (nodeLeftFilter != null)
             {
-                // a1 > @1 and a2 > @2 and a3 > 2, scalarExpr = @1
-                //   keeplist: a1 > @1 and a3 > 2
-                //   andlist after removal: a2 > @2
-                //   nodeAFilter = a1 > @1 and a3 > 2
+                // OR-aware logic (same principle as existsToMarkJoin):
+                // For scalar subqueries, conjuncts CONTAIN the scalarExpr (e.g.,
+                // a1 = @scalar), so use VisitEachExists for non-OR conjuncts.
+                // For OR conjuncts, only remove if no extra subqueries in the OR.
                 //
                 var andlist = nodeLeftFilter.FilterToAndList();
                 var keeplist = andlist.Where(x => x.VisitEachExists(e => e.Equals(scalarExpr))).ToList();
-                andlist.RemoveAll(x => x.VisitEachExists(e => e.Equals(scalarExpr)));
-                if (andlist.Count == 0)
+                andlist.RemoveAll(x =>
+                    (!(x is LogicOrExpr) && x.VisitEachExists(e => e.Equals(scalarExpr))) ||
+                    ((x is LogicOrExpr) && !hasAnyExtraSubqueryExprInOR(x, scalarExpr)));
+
+                // if there is any (expr with @1 or @2), the root should be replaced
+                canReplace = andlist.Find(x => (x is LogicOrExpr) && hasAnyExtraSubqueryExprInOR(x, scalarExpr)) != null;
+
+                if (andlist.Count == 0 || canReplace)
                     nodeLeft.NullifyFilter();
                 else
                 {
@@ -524,7 +536,8 @@ namespace qpmodel.logic
             singleJoinNode.children_[1] = filterNode;
 
             // now we have convert it to a right filter plan
-            var newplan = djoinOnRightFilter(singleJoinNode, scalarExpr);
+            bool unusedCanReplace = false;
+            var newplan = djoinOnRightFilter(singleJoinNode, scalarExpr, ref unusedCanReplace);
             return newplan;
         }
 
@@ -1084,10 +1097,10 @@ namespace qpmodel.logic
                     newplan = existsToMarkJoin(planWithSubExpr, se, ref canRepalce);
                     break;
                 case ScalarSubqueryExpr ss:
-                    newplan = scalarToSingleJoin(planWithSubExpr, ss);
+                    newplan = scalarToSingleJoin(planWithSubExpr, ss, ref canRepalce);
                     break;
                 case InSubqueryExpr si:
-                    newplan = inToMarkJoin(planWithSubExpr, si);
+                    newplan = inToMarkJoin(planWithSubExpr, si, ref canRepalce);
                     break;
                 default:
                     break;
