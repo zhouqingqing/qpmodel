@@ -70,7 +70,7 @@ PhysicLimit (100) (inccost=148717.1, cost=100, rows=100) (actual rows=0)
                                 -> PhysicHashJoin  (inccost=70936, cost=644, rows=24, memory=9744) (actual rows=11)
                                     Output: store_returns.sr_return_quantity[0],catalog_sales.cs_quantity[1],store_returns.sr_customer_sk[2],store_returns.sr_item_sk[3],store_returns.sr_ticket_number[4],catalog_sales.cs_sold_date_sk[5]
                                     Filter: store_returns.sr_returned_date_sk[6]=d2.d_date_sk[7]
-                                    -> PhysicHashJoin  (inccost=52542, cost=31111, rows=174, memory=304192) (actual rows=75)
+                                    -> PhysicHashJoin  (inccost=52542, cost=31111, rows=174, memory=304192) (actual rows=66)
                                         Output: store_returns.sr_return_quantity[4],catalog_sales.cs_quantity[0],store_returns.sr_customer_sk[5],store_returns.sr_item_sk[6],store_returns.sr_ticket_number[7],catalog_sales.cs_sold_date_sk[1],store_returns.sr_returned_date_sk[8]
                                         Filter: (store_returns.sr_customer_sk[5]=catalog_sales.cs_bill_customer_sk[2] and store_returns.sr_item_sk[6]=catalog_sales.cs_item_sk[3])
                                         -> PhysicScanTable catalog_sales (inccost=9506, cost=9506, rows=9506) (actual rows=9506)

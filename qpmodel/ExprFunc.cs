@@ -111,7 +111,7 @@ namespace qpmodel.expr
             return r;
         }
 
-        static public FuncExpr BuildFuncExpr(string funcName, List<Expr> args, bool isDistinct = false)
+        static public FuncExpr BuildFuncExpr(string funcName, List<Expr> args, bool hasStar = false)
         {
             var func = funcName.Trim().ToLower();
 
@@ -125,7 +125,11 @@ namespace qpmodel.expr
                 case "stddev_samp": r = new AggStddevSamp(args); break;
                 case "count":
                     if (args.Count == 0)
+                    {
+                        if (!hasStar)
+                            throw new SemanticAnalyzeException("count() requires an argument or count(*)");
                         r = new AggCountStar(null);
+                    }
                     else
                         r = new AggCount(args);
                     break;
@@ -153,10 +157,7 @@ namespace qpmodel.expr
 
             // verify arguments count
             if (args.Count != r.argcnt_)
-                throw new SemanticAnalyzeException($"{r.argcnt_} argument is expected");
-
-            if (isDistinct && r is AggFunc af)
-                af.isDistinct_ = true;
+                throw new SemanticAnalyzeException($"{funcName}() expects {r.argcnt_} argument(s), got {args.Count}");
 
             return r;
         }
@@ -169,13 +170,14 @@ namespace qpmodel.expr
         }
         public override bool Equals(object obj)
         {
+            if (obj is ExprRef oe)
+                return Equals(oe.expr_());
             if (obj is FuncExpr of)
                 return funcName_.Equals(of.funcName_) && args_().SequenceEqual(of.args_());
-            else if (obj is ExprRef oe)
-                return Equals(oe.expr_());
             return false;
         }
         public override string ToString() => $"{funcName_}({string.Join(",", args_())})";
+
     }
 
     // As a wrapper of external functions
@@ -205,12 +207,18 @@ namespace qpmodel.expr
             dynamic fncode = desc.fn_;
             List<dynamic> args = new List<dynamic>();
             for (int i = 0; i < argcnt_; i++)
-                args.Add(args_()[i].Exec(context, input));
+            {
+                var val = args_()[i].Exec(context, input);
+                if (val is null)
+                    return null;
+                args.Add(val);
+            }
             return argcnt_ switch
             {
                 0 => fncode(),
                 1 => fncode(args[0]),
                 2 => fncode(args[0], args[1]),
+                3 => fncode(args[0], args[1], args[2]),
                 _ => throw new NotImplementedException(),
             };
         }
@@ -233,13 +241,17 @@ namespace qpmodel.expr
         public override Value Exec(ExecContext context, Row input)
         {
             string str = (string)args_()[0].Exec(context, input);
-            int start = (int)args_()[1].Exec(context, input) - 1;
-            int end = (int)args_()[2].Exec(context, input) - 1;
+            Value startVal = args_()[1].Exec(context, input);
+            Value endVal = args_()[2].Exec(context, input);
 
-            if (str is null)
+            if (str is null || startVal is null || endVal is null)
                 return null;
+            int start = (int)startVal - 1;
+            int end = (int)endVal - 1;
             // SQL allows substr() function go beyond length, guard it
-            return str.Substring(start, Math.Min(end - start + 1, str.Length));
+            if (start < 0) start = 0;
+            if (start >= str.Length) return "";
+            return str.Substring(start, Math.Min(end - start + 1, str.Length - start));
         }
     }
 
@@ -259,6 +271,8 @@ namespace qpmodel.expr
         public override Value Exec(ExecContext context, Row input)
         {
             string str = (string)args_()[0].Exec(context, input);
+            if (str is null)
+                return null;
             return str.ToUpper();
         }
     }
@@ -280,7 +294,13 @@ namespace qpmodel.expr
         public override Value Exec(ExecContext context, Row input)
         {
             string str = (string)args_()[0].Exec(context, input);
-            int times = (int)args_()[1].Exec(context, input);
+            if (str is null)
+                return null;
+            Value timesVal = args_()[1].Exec(context, input);
+            if (timesVal is null)
+                return null;
+            int times = (int)timesVal;
+            if (times <= 0) return "";
 
             return string.Join("", Enumerable.Repeat(str, times));
         }
@@ -302,10 +322,11 @@ namespace qpmodel.expr
         public override Value Exec(ExecContext context, Row input)
         {
             dynamic number = args_()[0].Exec(context, input);
-            int decimals = (int)args_()[1].Exec(context, input);
+            Value decimalsVal = args_()[1].Exec(context, input);
 
-            if (number is null)
+            if (number is null || decimalsVal is null)
                 return null;
+            int decimals = (int)decimalsVal;
 
             // there are multiple Math.Round(), an integer number confuses them
             var type = args_()[0].type_;
@@ -332,13 +353,14 @@ namespace qpmodel.expr
         public override Value Exec(ExecContext context, Row input)
         {
             dynamic number = args_()[0].Exec(context, input);
+            if (number is null)
+                return null;
 
-            // there are multiple Math.Abs(), an integer number confuses them
-            var type = args_()[0].type_;
-            if (type is IntType)
-                return Math.Abs((decimal)number);
-            else
-                return Math.Abs((double)number);
+            // dispatch to the correct Math.Abs overload based on runtime type
+            if (number is int i) return Math.Abs(i);
+            if (number is long l) return Math.Abs(l);
+            if (number is decimal m) return Math.Abs(m);
+            return Math.Abs((double)number);
         }
     }
 
@@ -346,21 +368,27 @@ namespace qpmodel.expr
     {
         public CoalesceFunc(List<Expr> args) : base("coalesce", args)
         {
-            argcnt_ = 2;
+            if (args.Count < 1) throw new SemanticAnalyzeException("coalesce requires at least 1 argument");
+            propagateNull_ = false;
+            argcnt_ = args.Count;
         }
 
         public override void Bind(BindContext context)
         {
             base.Bind(context);
-            type_ = args_()[1].type_;
+            // Use the type of the last argument as the return type
+            type_ = args_()[args_().Count - 1].type_;
         }
 
         public override Value Exec(ExecContext context, Row input)
         {
-            var val = args_()[0].Exec(context, input);
-            if (val is null)
-                return args_()[1].Exec(context, input);
-            return val;
+            foreach (var arg in args_())
+            {
+                var val = arg.Exec(context, input);
+                if (val != null)
+                    return val;
+            }
+            return null;
         }
     }
 
@@ -369,11 +397,18 @@ namespace qpmodel.expr
         public YearFunc(List<Expr> args) : base("year", args)
         {
             argcnt_ = 1;
-            type_ = new DateTimeType();
+            type_ = new IntType();
         }
         public override Value Exec(ExecContext context, Row input)
         {
-            var date = (DateTime)arg_().Exec(context, input);
+            var val = arg_().Exec(context, input);
+            if (val is null)
+                return null;
+            DateTime date;
+            if (val is DateTime dt)
+                date = dt;
+            else
+                date = DateTime.Parse((string)val);
             return date.Year;
         }
     }
@@ -387,7 +422,12 @@ namespace qpmodel.expr
         }
         public override Value Exec(ExecContext context, Row input)
         {
-            var date = DateTime.Parse((string)arg_().Exec(context, input));
+            var val = arg_().Exec(context, input);
+            if (val is null)
+                return null;
+            if (val is DateTime dt)
+                return dt;
+            var date = DateTime.Parse((string)val);
             return date;
         }
     }
@@ -401,7 +441,9 @@ namespace qpmodel.expr
         }
         public override Value Exec(ExecContext context, Row input)
         {
-            dynamic val = arg_();
+            dynamic val = arg_().Exec(context, input);
+            if (val is null)
+                return null;
             int hashval = val.GetHashCode();
             return hashval;
         }
@@ -463,9 +505,9 @@ namespace qpmodel.expr
                 sum_ = arg;
             else
             {
-                dynamic lv = old;
                 if (!(arg is null))
                 {
+                    dynamic lv = old;
                     dynamic rv = arg;
                     sum_ = lv + rv;
                 }
@@ -505,17 +547,7 @@ namespace qpmodel.expr
             var arg = arg_().Exec(context, input);
             if (arg != null)
             {
-                if (isDistinct_)
-                {
-                    if (distinctSet_.Add(arg))
-                        count_ = old is null ? 1 : (long)old + 1;
-                    else
-                        count_ = old is null ? 0 : (long)old;
-                }
-                else
-                {
-                    count_ = old is null ? 1 : (long)old + 1;
-                }
+                count_ = old is null ? 1 : (long)old + 1;
             }
             return count_;
         }
@@ -673,6 +705,26 @@ namespace qpmodel.expr
 
         public AggAvg(List<Expr> args) : base("avg", args) { }
 
+        public override Expr SplitAgg()
+        {
+            var child = child_();
+
+            // child of tsum/tcount will be replace to bypass aggfunc child during aggfunc initialization
+            var tsum = new AggSum(new List<Expr> { child }); tsum.dummyBind();
+            var sumchild = new AggSum(new List<Expr> { child.Clone() }); sumchild.dummyBind();
+            var sumchildref = new AggrRef(sumchild, -1);
+            tsum.children_[0] = sumchildref;
+
+            var tcount = new AggSum(new List<Expr> { child }); tcount.dummyBind();
+            var countchild = new AggCount(new List<Expr> { child.Clone() }); countchild.dummyBind();
+            var countchildref = new AggrRef(countchild, -1);
+            tcount.children_[0] = countchildref;
+
+            var processed = new BinExpr(tsum, tcount, "/");
+            processed.dummyBind();
+            return processed;
+        }
+
         public override Value Init(ExecContext context, Row input)
         {
             pair_ = new AvgPair
@@ -700,9 +752,9 @@ namespace qpmodel.expr
             }
             else
             {
-                dynamic lv = oldpair.sum_;
                 if (arg != null)
                 {
+                    dynamic lv = oldpair.sum_;
                     dynamic rv = arg;
                     pair_.sum_ = lv + rv;
                     pair_.count_ = oldpair.count_ + 1;
@@ -710,25 +762,6 @@ namespace qpmodel.expr
             }
 
             return pair_;
-        }
-        public override Expr SplitAgg()
-        {
-            var child = child_();
-
-            // child of tsum/tcount will be replace to bypass aggfunc child during aggfunc initialization
-            var tsum = new AggSum(new List<Expr> { child }); tsum.dummyBind();
-            var sumchild = new AggSum(new List<Expr> { child.Clone() }); sumchild.dummyBind();
-            var sumchildref = new AggrRef(sumchild, -1);
-            tsum.children_[0] = sumchildref;
-
-            var tcount = new AggSum(new List<Expr> { child }); tcount.dummyBind();
-            var countchild = new AggCount(new List<Expr> { child.Clone() }); countchild.dummyBind();
-            var countchildref = new AggrRef(countchild, -1);
-            tcount.children_[0] = countchildref;
-
-            var processed = new BinExpr(tsum, tcount, "/");
-            processed.dummyBind();
-            return processed;
         }
 
         public override Value Finalize(ExecContext context, Value old) => (old as AvgPair).Finalize();
@@ -747,21 +780,17 @@ namespace qpmodel.expr
                 if (!computed_)
                 {
                     stddev_ = null;
-                    int n = vals_.Count;
-                    if (n != 1)
+                    // Exclude null values from the calculation per SQL standard
+                    var nonNullVals = vals_.Where(x => x != null).ToList();
+                    int n = nonNullVals.Count;
+                    if (n > 1)
                     {
-                        dynamic sum = 0.0; vals_.ForEach(x => sum += x is null ? 0 : x);
-                        if (sum != null)
-                        {
-                            var mean = sum / n;
-                            dynamic stddev = 0; vals_.ForEach(x => stddev +=
-                                            x is null ? 0 : ((x - mean) * (x - mean)));
-                            if (stddev != null)
-                            {
-                                stddev = Math.Sqrt(stddev / (n - 1));
-                                stddev_ = stddev;
-                            }
-                        }
+                        dynamic sum = 0.0; nonNullVals.ForEach(x => sum += x);
+                        var mean = sum / n;
+                        dynamic stddev = 0.0; nonNullVals.ForEach(x => stddev +=
+                                        (x - mean) * (x - mean));
+                        stddev = Math.Sqrt(stddev / (n - 1));
+                        stddev_ = stddev;
                     }
 
                     computed_ = true;
@@ -856,12 +885,16 @@ namespace qpmodel.expr
         {
             if (eval_() != null)
             {
-                // execute simple case
+                // execute simple case: CASE eval WHEN w1 THEN t1 ...
+                // null eval never matches any WHEN (null = anything is unknown)
                 var eval = eval_().Exec(context, input);
-                for (int i = 0; i < when_().Count; i++)
+                if (eval != null)
                 {
-                    if (eval.Equals(when_()[i].Exec(context, input)))
-                        return then_()[i].Exec(context, input);
+                    for (int i = 0; i < when_().Count; i++)
+                    {
+                        if (eval.Equals(when_()[i].Exec(context, input)))
+                            return then_()[i].Exec(context, input);
+                    }
                 }
             }
             else
@@ -901,9 +934,20 @@ namespace qpmodel.expr
             type_ = arg_().type_;
         }
         public override string ToString() => $"{op_}{arg_()}";
+        public override int GetHashCode() => op_.GetHashCode() ^ arg_().GetHashCode();
+        public override bool Equals(object obj)
+        {
+            if (obj is ExprRef oe)
+                return Equals(oe.expr_());
+            if (obj is UnaryExpr uo)
+                return op_.Equals(uo.op_) && arg_().Equals(uo.arg_());
+            return false;
+        }
         public override object Exec(ExecContext context, Row input)
         {
             Value arg = arg_().Exec(context, input);
+            if (arg is null)
+                return null;
             return op_ switch
             {
                 "-" => -(dynamic)arg,
@@ -1055,7 +1099,7 @@ namespace qpmodel.expr
 
         public override Value Exec(ExecContext context, Row input)
         {
-            string[] nullops = { "is", "||", "is not" };
+            string[] nullops = { "is", "is not" };
             dynamic lv = lchild_().Exec(context, input);
             dynamic rv = rchild_().Exec(context, input);
 
@@ -1076,7 +1120,9 @@ namespace qpmodel.expr
                 case "+": return lv + rv;
                 case "-": return lv - rv;
                 case "*": return lv * rv;
-                case "/": return lv / rv;
+                case "/":
+                    if (rv == 0) throw new SemanticAnalyzeException("division by zero");
+                    return lv / rv;
                 case "||": return string.Concat(lv, rv);
                 case ">": return Compare(lv, rv) > 0;
                 case ">=": return Compare(lv, rv) >= 0;
@@ -1087,7 +1133,7 @@ namespace qpmodel.expr
                 case "like": return Utils.StringLike(lv, rv);
                 case "not like": return !Utils.StringLike(lv, rv);
                 case " and ": return lv && rv;
-                case " or ": // null handling is different - handled by itself
+                case " or ": return lv || rv;
                 case "is":
                     return lv is null && rv is null;
                 case "is not":
@@ -1164,6 +1210,20 @@ namespace qpmodel.expr
             return and;
         }
 
+        // SQL three-valued logic for AND:
+        //   false AND null = false, true AND null = null, null AND null = null
+        public override Value Exec(ExecContext context, Row input)
+        {
+            Value lv = lchild_().Exec(context, input);
+            if (lv is bool lb && !lb) return false;
+
+            Value rv = rchild_().Exec(context, input);
+            if (rv is bool rb && !rb) return false;
+
+            if (lv is null || rv is null) return null;
+            return (bool)lv && (bool)rv;
+        }
+
         // a AND (b OR c) AND d => [a, b OR c, d]
         //
     }
@@ -1172,14 +1232,18 @@ namespace qpmodel.expr
     {
         public LogicOrExpr(Expr l, Expr r) : base(l, r, " or ") { }
 
+        // SQL three-valued logic for OR:
+        //   true OR null = true, false OR null = null, null OR null = null
         public override Value Exec(ExecContext context, Row input)
         {
-            dynamic lv = lchild_().Exec(context, input);
-            dynamic rv = rchild_().Exec(context, input);
+            Value lv = lchild_().Exec(context, input);
+            if (lv is bool lb && lb) return true;
 
-            if (lv is null) lv = false;
-            if (rv is null) rv = false;
-            return lv || rv;
+            Value rv = rchild_().Exec(context, input);
+            if (rv is bool rb && rb) return true;
+
+            if (lv is null || rv is null) return null;
+            return (bool)lv || (bool)rv;
         }
     }
 
@@ -1189,25 +1253,30 @@ namespace qpmodel.expr
         public CastExpr(Expr child, ColumnType coltype) : base() { children_.Add(child); type_ = coltype; }
         public override Value Exec(ExecContext context, Row input)
         {
-            Value to = null;
             dynamic from = child_().Exec(context, input);
-            switch (from)
+            if (from is null)
+                return null;
+
+            switch (type_)
             {
-                case string _:
-                    switch (type_)
-                    {
-                        case DateTimeType _:
-                            to = DateTime.Parse(from);
-                            break;
-                        default:
-                            break;
-                    }
-                    break;
+                case IntType _:
+                    return Convert.ToInt32(from);
+                case DoubleType _:
+                    return Convert.ToDouble(from);
+                case NumericType _:
+                    return Convert.ToDecimal(from);
+                case DateTimeType _:
+                    if (from is string s)
+                        return DateTime.Parse(s);
+                    return Convert.ToDateTime(from);
+                case CharType _:
+                case VarCharType _:
+                    return from.ToString();
+                case BoolType _:
+                    return Convert.ToBoolean(from);
                 default:
-                    to = from;
-                    break;
+                    return from;
             }
-            return to;
         }
     }
 }

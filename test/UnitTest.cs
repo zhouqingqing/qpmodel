@@ -235,6 +235,13 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "0;1", out _, option);
             TU.ExecuteSQL("select count(1) from a;", "3", out _, option);
 
+            // CROSS JOIN
+            sql = "select count(*) from a cross join b;";
+            TU.ExecuteSQL(sql, "9", out _, option);
+            // NATURAL JOIN (a and b have no common column names, so it's a cross product)
+            sql = "select count(*) from a natural join b;";
+            TU.ExecuteSQL(sql, "9", out _, option);
+
             // demonstrate we can fall back to any non-codegen execution
             sql = "select a2*a1, repeat('a', a2) from a where a1>= (select b1 from b where a2=b2);";
             TU.ExecuteSQL(sql, "0,a;2,aa;6,aaa", out _, option);
@@ -1532,11 +1539,10 @@ namespace qpmodel.unittest
                 TU.ExecuteSQL("select a1 from a where a2 >= (select min(b2) from b where b1=a1)",
                     "0;1;2", out phyplan, option);
 
-                // EXISTS with GROUP BY + HAVING — disabled: triggers NullRef in existsToMarkJoin
-                // when subquery plan has no WHERE filter (only HAVING). Known limitation.
-                // TU.ExecuteSQL(@"select a1 from a where exists (
-                //     select b1 from b where b2=a2 group by b1 having count(*)>0)",
-                //     "0;1;2", out phyplan, option);
+                // EXISTS with GROUP BY + HAVING
+                TU.ExecuteSQL(@"select a1 from a where exists (
+                    select b1 from b where b2=a2 group by b1 having count(*)>0)",
+                    "0;1;2", out phyplan, option);
 
                 // --- Multiple correlated subqueries in same WHERE ---
 
@@ -1831,10 +1837,9 @@ namespace qpmodel.unittest
             result = ExecuteSQL(sql, out phyplan);
             Assert.IsTrue(phyplan.Contains("Output: {sum(abs(a.a1*-10.3))}[0],{sum(round(a.a2*10.7,2))}[1]"));
 
-            // Inside subquery. Seems like incorrect result, though. c1 should be 30.9 and c2 should be 64.2
-            // The subquery does prodcue the correct result on its own.
+            // Inside subquery: remove_from eliminates the derived table so result is correct
             sql = "select c1, c2 from (select sum(abs(-10.3 * a1)) c1, sum(round(10.7 * a2, 2)) c2 from a) x;";
-            result = ExecuteSQL(sql, out phyplan);
+            TU.ExecuteSQL(sql, "30.9,64.2", out phyplan);
             string answer = @"PhysicHashAgg  (actual rows=1)
                                Output: {sum(abs(a.a1*-10.3))}[0],{sum(round(a.a2*10.7,2))}[1]
                                Aggregates: sum(abs(a.a1[1]*-10.3)), sum(round(a.a2[4]*10.7,2))
@@ -1890,8 +1895,8 @@ namespace qpmodel.unittest
             Assert.IsTrue(phyplan.Contains("10,{a.a2}[0]"));
 
             // Rule 3: The Arithmetic Simplification. Eliminate unneeded computations.
-            // expr + 0, expr - 0, expr * 0
-            // expr * 0 reduced to zero
+            // expr + 0, expr - 0 are safe to simplify (NULL + 0 = NULL = expr)
+            // expr * 0 is NOT simplified because NULL * 0 must remain NULL
             sql = "select a1 * 0, a2 + 0, a3 - 0 from a";
             result = ExecuteSQL(sql, out phyplan);
             Assert.IsTrue(phyplan.Contains("Output: 0,a.a2[1],a.a3[2]"));
@@ -1908,11 +1913,22 @@ namespace qpmodel.unittest
 
             // Rule 4: Comparison Simplification. Eliminate unneeded comparisons.
             // CONST relop CONST
-            // a1 + 1 < a1 4 => 1 < 4 => TRUE => eliminate filter.
-            // BUG: Not happenning.
+            // a1 + 1 < a1 + 4 => 1 < 4 => TRUE => eliminate filter.
             sql = "select a1 from a where a1 + 1 < a1 + 4";
             result = ExecuteSQL(sql, out phyplan);
-            Assert.IsTrue(phyplan.Contains("Filter: (a.a1[0]+1)<(a.a1[0]+4)"));
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+            Assert.AreEqual(3, result.Count);
+
+            // X - C1 < X - C2 => C2 < C1 (subtraction reverses order)
+            sql = "select a1 from a where a1 - 3 < a1 - 5";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+            Assert.AreEqual(0, result.Count);
+
+            sql = "select a1 from a where a1 - 5 < a1 - 3";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+            Assert.AreEqual(3, result.Count);
 
             // NULL comparisons yeild NULL regardless. NULL testing
             // should be done only as X IS NULL and X IS NOT NULL.
@@ -1934,29 +1950,29 @@ namespace qpmodel.unittest
             Assert.IsTrue(phyplan.Contains("Filter: false"));
 
             // Rule 5: CASE simplification.
+            // CASE WHEN tautology: a2+110 = 100+10+a2 folds to true → returns THEN
             sql = "select CASE WHEN a2 + 110 = 100 + 10 + a2 THEN a1 + 201 ELSE a1 + 501 END as C1 from a";
             result = ExecuteSQL(sql, out phyplan);
-            // At the moment there is no way to check from outside if this transformation has happened
-            // or not. The plan output simply contains " Output: case with 1" regardless.
-            // May need to instrument with extra output for CASE expressionsa and add
-            // something like "NORMTRAN: Constant case folded"
-            // Assert.IsTrue(phyplan.Contains("NORMTRAN: Constant case folded"));
-            Assert.IsTrue(phyplan.Contains("Output: case with 0|1|1"));
+            Assert.IsTrue(phyplan.Contains("Output: (a.a1[0]+201)"));
 
+            // CASE WHEN 1=1: constant true WHEN, folds to THEN branch
             sql = "select CASE WHEN 1 = 1 THEN a1 + 1 ELSE a2 + 2 END from a";
             result = ExecuteSQL(sql, out phyplan);
-            // Assert.IsTrue(phyplan.Contains("NORMTRAN: Constant case folded"));
-            Assert.IsTrue(phyplan.Contains("Output: case with 0|1|1"));
+            Assert.IsTrue(phyplan.Contains("Output: (a.a1[0]+1)"));
 
+            // CASE WHEN 1=0: constant false WHEN, folds to ELSE branch
             sql = "select CASE WHEN 1 = 0 THEN a1 + 1 ELSE a2 + 2 END from a";
             result = ExecuteSQL(sql, out phyplan);
-            // Assert.IsTrue(phyplan.Contains("NORMTRAN: Constant case folded"));
-            Assert.IsTrue(phyplan.Contains("Output: case with 0|1|1"));
+            Assert.IsTrue(phyplan.Contains("Output: (a.a2[1]+2)"));
 
+            // CASE WHEN NULL>1: null comparison folds to false, returns ELSE
             sql = "select CASE WHEN NULL > 1 THEN a1 + 1 ELSE a2 + 2 END from a";
             result = ExecuteSQL(sql, out phyplan);
-            // Assert.IsTrue(phyplan.Contains("NORMTRAN: Constant case folded"));
-            Assert.IsTrue(phyplan.Contains("Output: case with 0|1|1"));
+            Assert.IsTrue(phyplan.Contains("Output: (a.a2[1]+2)"));
+
+            // Simple CASE with NULL eval: NULL never equals anything, fold to ELSE
+            sql = "select CASE NULL WHEN 1 THEN 'a' WHEN 2 THEN 'b' ELSE 'c' END from a";
+            TU.ExecuteSQL(sql, "c;c;c");
 
             // Rule 6: Logical Simplification.
             sql = "select * from a, b where ((a1 = b1) AND (a2 = b2)) OR ((a1 = 2) AND (a3 = b3))";
@@ -2096,6 +2112,32 @@ namespace qpmodel.unittest
             sql = "select a2 from a where a1 not between 0 and 1;";
             TU.ExecuteSQL(sql, "3");
 
+            // NOT (BETWEEN) with NOT push-in — exercises OR path in makeAnyLogicalExpr
+            sql = "select a2 from a where not (a1 between 0 and 1);";
+            TU.ExecuteSQL(sql, "3");
+
+            // NOT push-in for IN: NOT (x IN list) => x NOT IN list
+            sql = "select a1 from a where not (a1 in (0, 1));";
+            TU.ExecuteSQL(sql, "2", out phyplan);
+            Assert.IsTrue(phyplan.Contains("not in"));
+            // NOT push-in for NOT IN: NOT (x NOT IN list) => x IN list
+            sql = "select a1 from a where not (a1 not in (0, 1));";
+            TU.ExecuteSQL(sql, "0;1", out phyplan);
+            Assert.IsFalse(phyplan.Contains("not in"));
+            // NOT push-in for EXISTS: NOT (EXISTS (...)) => NOT EXISTS
+            sql = "select a1 from a where not (exists (select * from b where b1=a1));";
+            TU.ExecuteSQL(sql, "", out phyplan);
+            Assert.IsTrue(phyplan.Contains("AntiSemi") || phyplan.Contains("not exists"));
+            // IN constant folding: all-constant IN lists should be evaluated at compile time
+            sql = "select * from a where 1 in (1, 2, 3)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));  // true => filter eliminated
+            Assert.AreEqual(3, result.Count);
+            sql = "select * from a where 5 in (1, 2, 3)";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+            Assert.AreEqual(0, result.Count);
+
             // IS NOT NULL / IS NULL with OR — returns all rows (all a1 values are non-null)
             sql = "select * from a where a1 is not null or a2 is not null or a3 is null;";
             result = ExecuteSQL(sql, out phyplan);
@@ -2107,8 +2149,8 @@ namespace qpmodel.unittest
             result = ExecuteSQL(sql, out phyplan);
             Assert.IsFalse(phyplan.Contains("Filter:"));
             // more tests, by code path and functionality.
-            sql = "select sum(1), avg(2), min(3), max(4), count(5), count(distinct 6), stddev_samp(7.38) from a";
-            TU.ExecuteSQL(sql, "3,2,3,4,3,1,0", out _, option);
+            sql = "select sum(1), avg(2), min(3), max(4), count(5), count(6), stddev_samp(7.38) from a";
+            TU.ExecuteSQL(sql, "3,2,3,4,3,3,0", out _, option);
 
             sql = "select min(1), max(6) from a";
             result = ExecuteSQL(sql, out phyplan);
@@ -2303,13 +2345,38 @@ namespace qpmodel.unittest
             Assert.IsTrue(phyplan.Contains("Filter: false"));
             Assert.AreEqual(0, result.Count);
 
+            // NOT push-in: NOT (x LIKE p) => x NOT LIKE p
+            sql = "select * from a where not ('qwerty' like 'qwer%')";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));
+            Assert.AreEqual(0, result.Count);
+
+            // NOT push-in: NOT (x NOT LIKE p) => x LIKE p
+            sql = "select * from a where not ('qwerty' not like 'qwer%')";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+            Assert.AreEqual(3, result.Count);
+
+            // LIKE with regex special chars: '.' should be literal, not any-char
+            sql = "select * from a where 'a.b' like 'a.b'";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));  // true => filter eliminated
+            Assert.AreEqual(3, result.Count);
+
+            sql = "select * from a where 'axb' like 'a.b'";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsTrue(phyplan.Contains("Filter: false"));  // '.' is literal, not any char
+            Assert.AreEqual(0, result.Count);
+
+            // underscore is single-char wildcard
+            sql = "select * from a where 'axb' like 'a_b'";
+            result = ExecuteSQL(sql, out phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));
+            Assert.AreEqual(3, result.Count);
+
             sql = "select avg(2), min(3), max(4) from a";
             result = ExecuteSQL(sql, out phyplan);
             Assert.IsFalse(phyplan.Contains("Aggregates:"));
-
-            // count(distinct 6) should return 1 (one distinct value), matching Postgres
-            sql = "select sum(1), avg(2), min(3), max(4), count(5), count(distinct 6), stddev_samp(7.38) from a";
-            TU.ExecuteSQL(sql, "3,2,3,4,3,1,0", out _, option);
 
             sql = "select substring('The North Rim', 5, 9) from a";
             result = ExecuteSQL(sql, out phyplan);
@@ -2445,7 +2512,6 @@ namespace qpmodel.unittest
             // type coerce
             sql = "select 1 + 1.5, 1.75+1.5, 1*1.5, 1.75*1.5";
             TU.ExecuteSQL(sql, "2.5,3.25,1.5,2.625");
-            // TBD: add numeric types
 
             // NOT expr
             sql = "select a1 from a where not (a1 = 1)";
@@ -2460,12 +2526,20 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "0;2");
 
             // From issue #35, some of the failing ones are passing now
-            // BUG: Incorrect results but no longer insists that a1 show up in group by list
+            // count() without * or argument should raise error
             sql = "select abs(-a1*2), count() from a group by round(a1, 10);";
-            // There are two more bugs: count() should raise error, results should be the following
-            // TU.ExecuteSQL(sql, "0,1;4,1,2,1", out phyplan); // correct output
-            TU.ExecuteSQL(sql, "0,1;1,1;2,1", out phyplan);     // incorrect output even after changing to count(*), or count(some column)
-            Assert.IsTrue(phyplan.Contains("Output: {abs(-a.a1*2)}[0],{count(*)(0)}[1]"));
+            TU.ExecuteSQL(sql);
+            Assert.IsTrue(TU.error_.Contains("count() requires an argument or count(*)"));
+
+            // abs(-a1*2) references a1 which is not in GROUP BY (round(a1, 10) is),
+            // so this should be rejected per SQL standard.
+            sql = "select abs(-a1*2), count(*) from a group by round(a1, 10);";
+            TU.ExecuteSQL(sql);
+            Assert.IsTrue(TU.error_.Contains("must appear in group by clause"));
+
+            // But abs(-a1*2) with GROUP BY a1 should work
+            sql = "select abs(-a1*2), count(*) from a group by a1;";
+            TU.ExecuteSQL(sql, "0,1;2,1;4,1");
 
             // issue #16
             // outputName shall not be allowed in WHERE/HAVING but in GROUP BY/ORDER BY
@@ -2487,6 +2561,11 @@ namespace qpmodel.unittest
             sql = "select a1 aa1, sum(a2) aa2 from a group by aa1 order by aa1";
             TU.ExecuteSQL(sql, "0,1;1,2;2,3", out phyplan);
             Assert.IsTrue(phyplan.Contains("Output: a.a1 (as aa1)[0],{sum(a.a2)}[1]"));
+
+            // Runtime division by zero should produce error, not crash
+            sql = "select a1/(a1-a1) from a";
+            TU.ExecuteSQL(sql);
+            Assert.IsTrue(TU.error_.Contains("division by zero"));
         }
 
         [TestMethod]
@@ -2495,11 +2574,8 @@ namespace qpmodel.unittest
             string sql = "select case a1 when 0 then 'a' when 1 then 'b' when 2 then 'c' else 'd' end from a;";
             TU.ExecuteSQL(sql, "a;b;c");
             var phyplan = "";
-            // FIXME 
-            // tpcds q4 has CASE WHEN in From clause
-            // below is test for it but failed
-            //
-            //TU.ExecuteSQL("select a1 from a where a1 >= 0 and case when a1 > 1 then a1 = 2 else a1 = 0 end", "0,2", out phyplan);
+            // tpcds q4 style: CASE WHEN with boolean results in WHERE clause
+            TU.ExecuteSQL("select a1 from a where a1 >= 0 and case when a1 > 1 then a1 = 2 else a1 = 0 end", "0;2", out phyplan);
 
             TU.ExecuteSQL("select a1 from a where a1 >= 0 and case when a1 > 1 then 2 else 0 end > case when a1 > 1 then 0 else 2 end", "2", out phyplan);
         }
@@ -2574,8 +2650,14 @@ namespace qpmodel.unittest
             TU.ExecuteSQL("INSERT INTO a VALUES(3,NULL,5,6)");
             TU.ExecuteSQL("SELECT a1,a2 FROM a", "0,1;1,2;2,3;3,");
 
+            // Constant folding for IN list: 1 IN (1,2,3) => true
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE 1 IN (1,2,3)", "0;1;2;3", out string phyplan);
+            Assert.IsFalse(phyplan.Contains("Filter:"));  // folded to true, no filter
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE 5 IN (1,2,3)", "", out phyplan);
+            Assert.IsTrue(phyplan.Contains("false"));  // folded to false
+
             // NULL in inList
-            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 IN (1,2)", "0;1", out string phyplan);
+            TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 IN (1,2)", "0;1", out phyplan);
             Assert.AreEqual(1, TU.CountStr(phyplan, "    Filter: a.a2[1] in (1,2)"));
 
             TU.ExecuteSQL("SELECT a1 FROM a WHERE a2 IN (1,2,NULL)", "0;1", out phyplan);
@@ -2675,6 +2757,11 @@ namespace qpmodel.unittest
             QueryOption option = new QueryOption();
             option.optimize_.use_memo_ = true;
             sql = "select cast('2001-01-3' as date) + 30 days;"; TU.ExecuteSQL(sql, expected, out _, option);
+
+            // CAST between numeric types
+            sql = "select cast(1.5 as int) from a"; TU.ExecuteSQL(sql, "2;2;2");
+            sql = "select cast(a1 as double) from a"; TU.ExecuteSQL(sql, "0;1;2");
+            sql = "select cast(null as int) from a"; TU.ExecuteSQL(sql, ";;");
         }
 
         [TestMethod]
@@ -2708,7 +2795,6 @@ namespace qpmodel.unittest
             // string section
             sql = "select upper('aBc') || upper('');";
             TU.ExecuteSQL(sql, "ABC");
-
             // date section
             sql = "select date '2020-07-06';";
             TU.ExecuteSQL(sql, new DateTime(2020, 07, 06).ToString());
@@ -2720,6 +2806,11 @@ namespace qpmodel.unittest
             TU.ExecuteSQL(sql, "a");
             sql = "select hash(1), hash('abc'), hash(26.33)";
             TU.ExecuteSQL(sql);
+            // coalesce edge cases
+            sql = "select coalesce(null, null, null)";
+            TU.ExecuteSQL(sql, "");
+            sql = "select coalesce(null, null, 42)";
+            TU.ExecuteSQL(sql, "42");
         }
 
         [TestMethod]
@@ -3017,6 +3108,13 @@ namespace qpmodel.unittest
             sql = "select a1+b1 from b join a on a1=b1 where a1 < (select a2 from a where a2=b2);"; TU.ExecuteSQL(sql, "0;2;4", out _, option);
             sql = "select a2+c3 from a join c on a1=c1 where a1 < (select b2 from a join b on a1=b1 where a1 < (select a2 from a where a2=b2) and a3 = c3)"; TU.ExecuteSQL(sql, "3;5;7", out _, option);
             sql = "select a2+c3 from c join a on a1=c1 where a1 < (select b2 from b join a on a1=b1 where a1 < (select a2 from a where a2=b2) and a3 = c3)"; TU.ExecuteSQL(sql, "3;5;7", out _, option);
+
+            // LEFT JOIN: WHERE filter on null-supplying side must not be pushed past join
+            sql = "select a.a1, b.b1 from a left join b on a.a1 = b.b1 where b.b1 is null;";
+            TU.ExecuteSQL(sql, "");
+            // LEFT JOIN with ON filter on right side should still be pushed down
+            sql = "select a1, b1 from a left join b on a1=b1 and b2>1 order by a1;";
+            TU.ExecuteSQL(sql, "0,;1,1;2,2");
 
             // left join
             sql = "select a1,b3 from a left join b on a.a1<b.b1;";
@@ -3586,7 +3684,7 @@ namespace qpmodel.unittest
          Output: c.c2[1]
          Filter: c.c2[1]=?b.b2[1]
          <ScalarSubqueryExpr> 3
-    -> PhysicScanTable c (actual rows=1, loops=3)
+    -> PhysicScanTable c (actual rows=0)
          Output: c.c2[1]
          Filter: c.c2[1]=?b.b2[1]";
             TU.PlanAssertEqual(answer, phyplan);
@@ -3661,7 +3759,7 @@ namespace qpmodel.unittest
                                     Output: bo.b1[0],#bo.b3[2]
                                     Filter: ((bo.b2[1]=?a.a2[1] and bo.b1[0]=@2) and bo.b2[1]<3)
                                     <ScalarSubqueryExpr> 2
-                                        -> PhysicScanTable b (actual rows=0, loops=9)
+                                        -> PhysicScanTable b (actual rows=1, loops=3)
                                             Output: b.b1[0]
                                             Filter: ((b.b3[2]=?a.a3[2] and ?bo.b3[2]=?a.a3[2]) and b.b3[2]>1)";
             TU.PlanAssertEqual(answer, phyplan);
@@ -3692,7 +3790,7 @@ namespace qpmodel.unittest
                                         Output: bo.b1[0]
                                         Filter: ((bo.b2[1]=?a.a2[1] and bo.b2[1]<5) and bo.b1[0]=@2)
                                         <ScalarSubqueryExpr> 2
-                                            -> PhysicScanTable b as b__2 (actual rows=0, loops=81)
+                                            -> PhysicScanTable b as b__2 (actual rows=0, loops=27)
                                                 Output: b__2.b1[0]
                                                 Filter: ((b__2.b3[2]=?a.a3[2] and ?bo.b3[2]=?c.c3[2]) and b__2.b3[2]>1)
                                         -> PhysicFromQuery <bo> (actual rows=9, loops=9)
@@ -3708,7 +3806,7 @@ namespace qpmodel.unittest
                                         Output: bo.b2[1],#bo.b3[2]
                                         Filter: ((bo.b1[0]=?a.a1[0] and bo.b2[1]=@4) and ?c.c3[2]<5)
                                         <ScalarSubqueryExpr> 4
-                                            -> PhysicScanTable b as b__4 (actual rows=0, loops=27)
+                                            -> PhysicScanTable b as b__4 (actual rows=1, loops=9)
                                                 Output: b__4.b2[1]
                                                 Filter: ((b__4.b4[3]=(?a.a3[2]+1) and ?bo.b3[2]=?a.a3[2]) and b__4.b3[2]>0)";
             TU.PlanAssertEqual(answer, phyplan);

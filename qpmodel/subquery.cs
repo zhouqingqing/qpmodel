@@ -152,6 +152,8 @@ namespace qpmodel.logic
             // nodeB contains the join filter
             var nodeB = existExpr.query_.logicPlan_;
             var nodeBFilter = nodeB.filter_;
+            if (nodeBFilter is null)
+                return nodeA;
             nodeB.NullifyFilter();
 
             // nullify nodeA's filter: the rest is push to top filter. However,

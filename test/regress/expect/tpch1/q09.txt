@@ -30,11 +30,11 @@ group by
 order by
 	nation,
 	o_year desc
-Total cost: 17649764.1, memory=25806373
-PhysicOrder  (inccost=17649764.1, cost=0.1, rows=1, memory=41)
+Total cost: 17649764.1, memory=25806361
+PhysicOrder  (inccost=17649764.1, cost=0.1, rows=1, memory=37)
     Output: nation[0],o_year[1],{sum(amount)}[2]
     Order by: nation[0], o_year[1]
-    -> PhysicHashAgg  (inccost=17649764, cost=21, rows=1, memory=82)
+    -> PhysicHashAgg  (inccost=17649764, cost=21, rows=1, memory=74)
         Output: {nation}[0],{o_year}[1],{sum(amount)}[2]
         Aggregates: sum(amount[2])
         Group by: nation[0], o_year[1]

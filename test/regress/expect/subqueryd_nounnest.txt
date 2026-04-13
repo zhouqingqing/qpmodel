@@ -81,7 +81,7 @@ PhysicScanTable a (actual rows=2)
             Output: 1,#b.b1[0]
             Filter: (b.b1[0]=?a.a1[0] and @2)
             <ExistSubqueryExpr> 2
-                -> PhysicScanTable c (actual rows=0, loops=9)
+                -> PhysicScanTable c (actual rows=0, loops=3)
                     Output: 1
                     Filter: (c.c1[0]=?b.b1[0] and c.c2[1]>1)
 1

@@ -35,11 +35,11 @@ group by
 	o_year
 order by
 	o_year
-Total cost: 46784.1, memory=18970
-PhysicOrder  (inccost=46784.1, cost=0.1, rows=1, memory=16) (actual rows=2)
+Total cost: 46784.1, memory=15334
+PhysicOrder  (inccost=46784.1, cost=0.1, rows=1, memory=12) (actual rows=2)
     Output: o_year[0],{sum(case with 0|1|1)/sum(volume)(as mkt_share)}[1]
     Order by: o_year[0]
-    -> PhysicHashAgg  (inccost=46784, cost=9, rows=1, memory=32) (actual rows=2)
+    -> PhysicHashAgg  (inccost=46784, cost=9, rows=1, memory=24) (actual rows=2)
         Output: {o_year}[0],{sum(case with 0|1|1)}[1]/{sum(volume)}[2](as mkt_share)
         Aggregates: sum(case with 0|1|1), sum(volume[5])
         Group by: o_year[0]
@@ -85,7 +85,7 @@ PhysicOrder  (inccost=46784.1, cost=0.1, rows=1, memory=16) (actual rows=2)
                                         Output: s_nationkey[0],s_suppkey[1]
                                         -> PhysicScanTable supplier (inccost=10, cost=10, rows=10) (actual rows=1, loops=10)
                                             Output: s_nationkey[3],s_suppkey[0]
-                                    -> PhysicHashJoin  (inccost=16229, cost=8724, rows=1813, memory=14496) (actual rows=181, loops=10)
+                                    -> PhysicHashJoin  (inccost=16229, cost=8724, rows=1813, memory=10872) (actual rows=181, loops=10)
                                         Output: {year(o_orderdate)}[0],{l_extendedprice*(1-l_discount)(as volume)}[3],l_partkey[4],o_custkey[1],l_suppkey[5]
                                         Filter: l_orderkey[6]=o_orderkey[2]
                                         -> PhysicScanTable orders (inccost=1500, cost=1500, rows=453) (actual rows=45, loops=10)

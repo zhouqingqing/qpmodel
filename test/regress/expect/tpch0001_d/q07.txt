@@ -37,11 +37,11 @@ order by
 	supp_nation,
 	cust_nation,
 	l_year
-Total cost: 201571.1, memory=99258
-PhysicOrder  (inccost=201571.1, cost=0.1, rows=1, memory=66) (actual rows=0)
+Total cost: 201571.1, memory=99246
+PhysicOrder  (inccost=201571.1, cost=0.1, rows=1, memory=62) (actual rows=0)
     Output: supp_nation[0],cust_nation[1],l_year[2],{sum(volume)}[3]
     Order by: supp_nation[0], cust_nation[1], l_year[2]
-    -> PhysicHashAgg  (inccost=201571, cost=7488, rows=1, memory=132) (actual rows=0)
+    -> PhysicHashAgg  (inccost=201571, cost=7488, rows=1, memory=124) (actual rows=0)
         Output: {supp_nation}[0],{cust_nation}[1],{l_year}[2],{sum(volume)}[3]
         Aggregates: sum(volume[3])
         Group by: supp_nation[0], cust_nation[1], l_year[2]
