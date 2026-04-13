@@ -254,6 +254,14 @@ namespace qpmodel.expr
         }
         public InSubqueryExpr(Expr expr, SelectStmt query, bool hasNot) : base(query) { hasNot_ = hasNot; children_.Add(expr); }
 
+        // SQL three-valued logic for IN/NOT IN with nulls
+        Value InResult(bool found, bool hasNull)
+        {
+            if (found) return !hasNot_;
+            if (hasNull) return null;
+            return hasNot_;
+        }
+
         public override void Bind(BindContext context)
         {
             base.Bind(context);
@@ -276,9 +284,8 @@ namespace qpmodel.expr
             {
                 var hset = cachedVal_ as HashSet<Value>;
                 hasNull_ = hset.Contains(null);
-                var in_cache_flag = !(expr is null) && hset.Contains(expr); // null in (1,null)  false
-                // not in [.. null ..] = false
-                return hasNot_ ? (!hasNull_ && !in_cache_flag) : in_cache_flag;
+                bool in_cache_flag = !(expr is null) && hset.Contains(expr);
+                return InResult(in_cache_flag, hasNull_);
             }
 
             var set = new HashSet<Value>();
@@ -291,15 +298,15 @@ namespace qpmodel.expr
             hasNull_ = set.Contains(null);
             cachedVal_ = set;
             cachedValSet_ = true;
-            bool in_flag = set.Contains(expr);
-            return hasNot_ ? (!hasNull_ && !in_flag) : in_flag;
+            bool in_flag = !(expr is null) && set.Contains(expr);
+            return InResult(in_flag, hasNull_);
         }
     }
 
     // In List can be varaibles:
     //      select* from a where a1 in (1, 2, a2);
     //
-    public class InListExpr : Expr
+    public partial class InListExpr : Expr
     {
         internal bool hasNot_;
         internal Expr expr_() => children_[0];
@@ -314,14 +321,14 @@ namespace qpmodel.expr
 
         public override int GetHashCode()
         {
-            return expr_().GetHashCode() ^ inlist_().ListHashCode();
+            return expr_().GetHashCode() ^ inlist_().ListHashCode() ^ hasNot_.GetHashCode();
         }
         public override bool Equals(object obj)
         {
             if (obj is ExprRef or)
                 return Equals(or.expr_());
             else if (obj is InListExpr co)
-                return expr_().Equals(co.expr_()) && exprEquals(inlist_(), co.inlist_());
+                return hasNot_ == co.hasNot_ && expr_().Equals(co.expr_()) && exprEquals(inlist_(), co.inlist_());
             return false;
         }
 
@@ -333,12 +340,17 @@ namespace qpmodel.expr
             List<Value> inlist = new List<Value>();
             inlist_().ForEach(x => { inlist.Add(x.Exec(context, input)); });
 
-            // postgreSQL saw NULL as any posible value
-            // i.e. not in (null) is false
+            // SQL three-valued logic for IN:
+            //   v IN (a,b,null): true if match found, null if no match but null in list, false otherwise
+            //   v NOT IN (a,b,null): false if match found, null if no match but null in list, true otherwise
             var hasNull_ = inlist.Exists(x => x is null);
-
             var in_flag = inlist.Exists(v.Equals);
-            return hasNot_ ? (!hasNull_ && !in_flag) : in_flag;
+
+            if (in_flag)
+                return !hasNot_;
+            if (hasNull_)
+                return null;
+            return hasNot_;
         }
 
         public override string ToString()

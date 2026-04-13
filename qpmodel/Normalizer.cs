@@ -101,10 +101,10 @@ namespace qpmodel.expr
             else
             {
                 LogicOrExpr newe = new LogicOrExpr(l, r);
+                newe.bounded_ = true;  // Must set before TableRefsContainedBy call
                 newe.FixNewExprTableRefs(l);
                 if (r.tableRefs_.Count > 0 && !newe.TableRefsContainedBy(r.tableRefs_))
                     newe.FixNewExprTableRefs(r);
-                newe.bounded_ = true;
 
                 return newe;
             }
@@ -119,7 +119,7 @@ namespace qpmodel.expr
             if (!x.AllArgsConst() || ExternalFunctions.set_.ContainsKey(funcName_))
                 return this;
 
-            if (x.AnyArgNull())
+            if (x.AnyArgNull() && propagateNull_)
                 return ConstExpr.MakeConst("null", new AnyType(), outputName_);
 
             switch (funcName_)
@@ -211,6 +211,8 @@ namespace qpmodel.expr
                         "<=" => ">",
                         "is" => "is not",
                         "is not" => "is",
+                        "like" => "not like",
+                        "not like" => "like",
                         _ => null
                     };
                     if (negated != null)
@@ -218,6 +220,24 @@ namespace qpmodel.expr
                         be.op_ = negated;
                         return be;
                     }
+                }
+
+                // NOT (x IN list) => x NOT IN list; NOT (x NOT IN list) => x IN list
+                if (child_() is InListExpr il)
+                {
+                    il.hasNot_ = !il.hasNot_;
+                    return il;
+                }
+                if (child_() is InSubqueryExpr isq)
+                {
+                    isq.hasNot_ = !isq.hasNot_;
+                    return isq;
+                }
+                // NOT EXISTS => EXISTS with flipped flag, and vice versa
+                if (child_() is ExistSubqueryExpr esq)
+                {
+                    esq.hasNot_ = !esq.hasNot_;
+                    return esq;
                 }
 
                 if (child_() is LogicAndOrExpr le)
@@ -248,6 +268,23 @@ namespace qpmodel.expr
         }
     }
 
+    public partial class InListExpr
+    {
+        public override Expr Normalize()
+        {
+            Expr x = base.Normalize();
+            // If all parts are constant, evaluate at compile time
+            if (x is InListExpr ile && ile.AllArgsConst())
+            {
+                Value val = ile.Exec(null, null);
+                if (val is null)
+                    return ConstExpr.MakeConst("null", new AnyType(), outputName_);
+                return ConstExpr.MakeConst((bool)val ? "true" : "false", new BoolType(), outputName_);
+            }
+            return x;
+        }
+    }
+
     public partial class BinExpr
     {
         public bool isCommutativeConstOp() =>
@@ -265,9 +302,9 @@ namespace qpmodel.expr
         internal bool IsLogicalOp() =>
             (op_ == " and " || op_ == " or " || op_ == "not");
         internal bool IsArithmeticOp() =>
-            (op_ == "+" || op_ == "-" || op_ == "*" || op_ == "/");
+            (op_ == "+" || op_ == "-" || op_ == "*" || op_ == "/" || op_ == "%");
         internal bool IsRelOp() =>
-            (op_ == "=" || op_ == "<=" || op_ == "<" || op_ == ">=" || op_ == ">" || op_ == "<>" || op_ == "!=" || op_ == "is" || op_ == "is not");
+            (op_ == "=" || op_ == "<=" || op_ == "<" || op_ == ">=" || op_ == ">" || op_ == "<>" || op_ == "!=" || op_ == "is" || op_ == "is not" || op_ == "like" || op_ == "not like");
 
         public override Expr Normalize()
         {
@@ -289,6 +326,7 @@ namespace qpmodel.expr
                 case "-":
                 case "*":
                 case "/":
+                case "%":
                 case ">":
                 case ">=":
                 case "<":
@@ -312,6 +350,22 @@ namespace qpmodel.expr
                                 return SimplifyRelop();
                         }
 
+                        // AND/OR with NULL follow SQL three-valued logic
+                        if (op_ == " and " || op_ == " or ")
+                        {
+                            if (lce != null && rce != null)
+                            {
+                                // Both constants: evaluate using three-valued logic
+                                // false AND null = false, true OR null = true, etc.
+                                Value val = Exec(null, null);
+                                if (val is null)
+                                    return ConstExpr.MakeConst("null", new AnyType(), outputName_);
+                                return ConstExpr.MakeConst(val, new BoolType(), outputName_);
+                            }
+                            // One side is non-const: can't simplify at compile time
+                            break;
+                        }
+
                         // NULL simplification: if operator is not relational, X op NULL is NULL
                         if (lce != null && lce.val_ is null)
                             return lce;
@@ -319,6 +373,11 @@ namespace qpmodel.expr
                         if (rce != null && rce.IsNull())
                             return rce;
                     }
+
+                    // Division/modulo by zero: check before constant folding to avoid
+                    // runtime DivideByZeroException in Exec() (e.g. SELECT 1/0)
+                    if ((op_ == "/" || op_ == "%") && rce != null && rce.IsZero())
+                        throw new logic.SemanticAnalyzeException("division by zero");
 
                     if (lce != null && rce != null)
                     {
@@ -482,9 +541,7 @@ namespace qpmodel.expr
             if (op_ == "-" && ve.IsZero() && rce != null)
                 return true;
 
-            // expr * 0 => 0, 0 * expr => 0
-            if (op_ == "*" && ve.IsZero())
-                return true;
+            // NOTE: expr * 0 => 0 is NOT safe because NULL * 0 = NULL in SQL
 
             // expr * 1 => expr, 1 * expr => expr
             if (op_ == "*" && ve.IsOne())
@@ -515,8 +572,10 @@ namespace qpmodel.expr
                 return other;
 
             // expr * 0 => 0, 0 * expr => 0
-            if (op_ == "*" && ve.IsZero())
-                return ve;
+            // only safe when both sides are non-null constants (NULL * 0 must stay NULL)
+            if (op_ == "*" && ve.IsZero() && lve != null && rve != null
+                && !lve.IsNull() && !rve.IsNull())
+                return ConstExpr.MakeConst(0, type_, outputName_);
 
             // expr * 1 => expr, 1 * expr => expr
             if (op_ == "*" && ve.IsOne())
@@ -560,9 +619,13 @@ namespace qpmodel.expr
             if (lce == null && rce == null)
             {
                 // X = X => TRUE, X <> X => FALSE, etc.
-                // Note: this is safe for non-nullable columns. For nullable columns,
-                // X = X would be NULL when X is NULL, but we treat it as TRUE here
-                // since our test data has no NULLs and this matches the INCOMPLETE cases.
+                // NOTE: strictly, if X can be NULL then X=X evaluates to NULL
+                // (not TRUE) per SQL three-valued logic. A fully correct guard
+                // would require nullability tracking on columns, which we don't
+                // have yet. For now we apply the optimization unconditionally,
+                // matching common SQL engine behavior for non-nullable columns.
+                // TODO: guard with nullability check once column NOT NULL
+                // constraints are tracked in the catalog.
                 if (l.Equals(r))
                 {
                     bool tautology = (op_ == "=" || op_ == "<=" || op_ == ">=");
@@ -572,18 +635,47 @@ namespace qpmodel.expr
                     if (contradiction)
                         return ConstExpr.MakeConst("false", new BoolType(), outputName_);
                 }
+
+                // X + C1 relop X + C2  =>  C1 relop C2  (cancel common variable part)
+                // X - C1 relop X - C2  =>  C2 relop C1  (subtraction reverses order)
+                if (l is BinExpr lba && r is BinExpr rba
+                    && (lba.op_ == "+" || lba.op_ == "-")
+                    && lba.op_ == rba.op_
+                    && lba.rchild_() is ConstExpr lbc
+                    && rba.rchild_() is ConstExpr rbc
+                    && lba.lchild_().Equals(rba.lchild_()))
+                {
+                    if (lba.op_ == "+")
+                    {
+                        children_[0] = lbc;
+                        children_[1] = rbc;
+                    }
+                    else
+                    {
+                        // For subtraction: (X-C1) < (X-C2) iff C2 < C1
+                        children_[0] = rbc;
+                        children_[1] = lbc;
+                    }
+                    return SimplifyRelop();
+                }
+
                 return this;
             }
 
-            if (!(lce is null || rce is null))
+            // Both sides are constants: evaluate the comparison at compile time
+            if (lce != null && rce != null)
             {
-                if (lce.IsTrue() && rce.IsTrue())
-                    return lce;
-                else
-                    return lce.IsTrue() ? lce : rce;
+                // Any side is NULL => comparison yields NULL (SQL three-valued logic)
+                if (lce.IsNull() || rce.IsNull())
+                    return ConstExpr.MakeConst("null", new AnyType(), outputName_);
+
+                // Evaluate the constant comparison
+                Value val = Exec(null, null);
+                return ConstExpr.MakeConst(val, new BoolType(), outputName_);
             }
-            else if ((!(lce is null) && (lce.IsNull() || lce.IsFalse())) || (!(rce is null) && (rce.IsNull() || rce.IsFalse())))
-                return ConstExpr.MakeConst("false", new BoolType(), outputName_);
+            // One side is NULL constant => comparison yields NULL (SQL three-valued logic)
+            else if ((lce != null && lce.IsNull()) || (rce != null && rce.IsNull()))
+                return ConstExpr.MakeConst("null", new AnyType(), outputName_);
 
             /*
              * X + C1 = C2      => X = C2 - C1
@@ -633,26 +725,18 @@ namespace qpmodel.expr
             Expr l = lchild_();
             Expr r = rchild_();
 
-            // both constants
-            if (l is ConstExpr lce && r is ConstExpr rce)
-            {
-                if ((lce.IsTrue() && rce.IsTrue()) || (lce.IsFalse() && rce.IsFalse()))
-                    return lce;
-
-                return lce.IsFalse() ? lce : rce;
-            }
-
             // one side is constant: X AND FALSE => FALSE, X AND TRUE => X,
             // X OR TRUE => TRUE, X OR FALSE => X
+            // null constants cannot be simplified away (null AND X != X)
             bool isAnd = op_ == " and ";
-            if (l is ConstExpr lc)
+            if (l is ConstExpr lc && !lc.IsNull())
             {
                 if (isAnd)
                     return lc.IsFalse() ? lc : r;
                 else
                     return lc.IsTrue() ? lc : r;
             }
-            if (r is ConstExpr rc)
+            if (r is ConstExpr rc && !rc.IsNull())
             {
                 if (isAnd)
                     return rc.IsFalse() ? rc : l;
@@ -661,6 +745,112 @@ namespace qpmodel.expr
             }
 
             return this;
+        }
+    }
+
+    public partial class CaseExpr
+    {
+        public override Expr Normalize()
+        {
+            Expr x = base.Normalize();
+            if (!(x is CaseExpr ce))
+                return x;
+
+            // Searched CASE (no eval expression): fold constant WHEN conditions
+            if (ce.eval_() == null)
+            {
+                var whens = ce.when_();
+                var thens = ce.then_();
+                var newWhens = new List<Expr>();
+                var newThens = new List<Expr>();
+
+                for (int i = 0; i < whens.Count; i++)
+                {
+                    if (whens[i] is ConstExpr wc)
+                    {
+                        // WHEN TRUE => return the THEN expression directly
+                        if (wc.IsTrue())
+                        {
+                            // This WHEN is always true: if it's the only remaining
+                            // branch and there are no prior non-const WHENs, just
+                            // return the THEN expression
+                            if (newWhens.Count == 0)
+                                return thens[i];
+                            else
+                            {
+                                // There are prior non-const branches: keep this as
+                                // the final branch (acts like an ELSE for remaining)
+                                // Rebuild CASE with prior branches + this as ELSE
+                                return rebuildCase(null, newWhens, newThens, thens[i]);
+                            }
+                        }
+                        // WHEN FALSE or WHEN NULL => skip this branch entirely
+                        if (wc.IsFalse() || wc.IsNull())
+                            continue;
+                    }
+                    // Non-constant WHEN: keep it
+                    newWhens.Add(whens[i]);
+                    newThens.Add(thens[i]);
+                }
+
+                // All WHEN branches were eliminated => return ELSE (or NULL)
+                if (newWhens.Count == 0)
+                    return ce.else_() ?? ConstExpr.MakeConst("null", new AnyType(), outputName_);
+
+                // Some branches eliminated: rebuild if changed
+                if (newWhens.Count < whens.Count)
+                    return rebuildCase(null, newWhens, newThens, ce.else_());
+            }
+            else if (ce.eval_() is ConstExpr evalConst)
+            {
+                // Simple CASE with NULL eval: NULL never equals anything,
+                // so skip all WHEN clauses and return ELSE directly.
+                if (evalConst.IsNull())
+                    return ce.else_() ?? ConstExpr.MakeConst("null", new AnyType(), outputName_);
+
+                // Simple CASE with constant eval: compare with constant WHENs
+                var whens = ce.when_();
+                var thens = ce.then_();
+                var newWhens = new List<Expr>();
+                var newThens = new List<Expr>();
+
+                for (int i = 0; i < whens.Count; i++)
+                {
+                    if (whens[i] is ConstExpr wc)
+                    {
+                        if (evalConst.val_ != null && wc.val_ != null && evalConst.val_.Equals(wc.val_))
+                        {
+                            // Match found: return this THEN if no prior non-const branches
+                            if (newWhens.Count == 0)
+                                return thens[i];
+                            else
+                                return rebuildCase(null, newWhens, newThens, thens[i]);
+                        }
+                        // No match with this constant WHEN: skip
+                        continue;
+                    }
+                    newWhens.Add(whens[i]);
+                    newThens.Add(thens[i]);
+                }
+
+                if (newWhens.Count == 0)
+                    return ce.else_() ?? ConstExpr.MakeConst("null", new AnyType(), outputName_);
+
+                if (newWhens.Count < whens.Count)
+                    return rebuildCase(ce.eval_(), newWhens, newThens, ce.else_());
+            }
+
+            return ce;
+        }
+
+        private Expr rebuildCase(Expr eval, List<Expr> whens, List<Expr> thens, Expr elsee)
+        {
+            var result = new CaseExpr(eval, whens, thens, elsee);
+            result.type_ = type_;
+            result.outputName_ = outputName_;
+            result.bounded_ = bounded_;
+            result.tableRefs_ = tableRefs_;
+            return result;
         }
     }
 

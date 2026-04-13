@@ -239,22 +239,27 @@ namespace qpmodel.utils
         // postgreSQL don't support [A-Z]
         public static bool StringLike(this string s, string pattern)
         {
-            string regpattern = pattern;
-            if (!pattern.Contains("%"))
+            // Convert SQL LIKE pattern to regex:
+            // 1. Escape regex special chars (except % and _ which are SQL wildcards)
+            // 2. Convert % to .* and _ to .
+            // 3. Always anchor both ends
+            var sb = new System.Text.StringBuilder("^");
+            foreach (char c in pattern)
             {
-                regpattern = "^" + pattern + "$";
+                switch (c)
+                {
+                    case '%': sb.Append(".*"); break;
+                    case '_': sb.Append('.'); break;
+                    // Escape regex special characters
+                    case '.': case '^': case '$': case '*': case '+':
+                    case '?': case '(': case ')': case '[': case ']':
+                    case '{': case '}': case '\\': case '|':
+                        sb.Append('\\').Append(c); break;
+                    default: sb.Append(c); break;
+                }
             }
-            if (Regex.IsMatch(pattern, "[^%]+%"))
-            {
-                regpattern = "^" + regpattern;
-            }
-            else if (Regex.IsMatch(pattern, "%[^%]+"))
-            {
-                regpattern += "$";
-            }
-            regpattern = regpattern.Replace("%", ".*");
-            regpattern = regpattern.Replace("_", ".{1}");
-            return Regex.IsMatch(s, regpattern);
+            sb.Append('$');
+            return Regex.IsMatch(s, sb.ToString());
         }
 
         // a[0]+b[1] => a+b 
