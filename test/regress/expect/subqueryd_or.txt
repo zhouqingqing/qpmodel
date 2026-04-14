@@ -7,7 +7,7 @@ PhysicFilter  (actual rows=1)
         Filter: (a.a2[1]=b.b2[2] and b.b2[2]=a.a1[0])
         -> PhysicScanTable a (actual rows=3)
             Output: a.a1[0],a.a2[1]
-        -> PhysicScanTable b (actual rows=3, loops=3)
+        -> PhysicScanTable b (actual rows=3)
             Output: b.b2[1]
 2
 
@@ -20,7 +20,7 @@ PhysicFilter  (actual rows=3)
         Filter: (a.a2[1]=b.b2[2] and b.b2[2]=a.a1[0])
         -> PhysicScanTable a (actual rows=3)
             Output: a.a1[0],a.a2[1]
-        -> PhysicScanTable b (actual rows=3, loops=3)
+        -> PhysicScanTable b (actual rows=3)
             Output: b.b2[1]
 0
 1
