@@ -1712,61 +1712,222 @@ namespace qpmodel.physic
         public override void Exec(Action<Row> callback)
         {
             var isDerivedFromInClause = filterHasMarkerBinExpr(logic_.filter_);
-            Exec(callback, isDerivedFromInClause);
+            if (isDerivedFromInClause)
+                ExecHash(callback);
+            else
+                ExecNested(callback);
         }
-        public void Exec(Action<Row> callback, bool isDerivedFromInClause)
+
+        // Hash-based execution for IN/NOT IN derived MarkJoin (issue #272).
+        //
+        // The filter has two parts:
+        //   - Marker BinExpr: the IN-list equality (e.g., a2=b2)
+        //   - Residual: the correlation predicate (e.g., b1=a1)
+        //
+        // We hash the RIGHT side on the RESIDUAL equi-join keys (the correlation
+        // condition), then for each left row probe the hash table and evaluate
+        // the marker predicate for three-valued IN/NOT IN logic.
+        void ExecHash(Action<Row> callback)
         {
             ExecContext context = context_;
             var logic = logic_ as LogicMarkJoin;
             var filter = logic.filter_;
             bool semi = (logic_ is LogicMarkSemiJoin);
-            bool antisemi = (logic_ is LogicMarkAntiSemiJoin);
-            bool lIsNull = false; // l represent one row
-            bool RHasNull = false; // R represent a set of Row
-            bool RisEmpty = true;
-            Value marker = false; //false true null
-            int markerOrdinal = 0;
-            Debug.Assert(filter != null);
+
+            // Decompose the filter into marker predicate and residual.
+            var andList = filter.FilterToAndList();
+            var markerExpr = andList.Find(x => x is BinExpr xB && xB.IsMarkerBinExpr()) as BinExpr;
+            Debug.Assert(markerExpr != null);
+            andList.Remove(markerExpr);
+
+            // Extract equi-join keys from residual predicates for hashing.
+            var ltabrefs = lchild_().logic_.InclusiveTableRefs();
+            var leftKeys = new List<Expr>();
+            var rightKeys = new List<Expr>();
+            var nonEquiResidual = new List<Expr>();
+
+            foreach (var pred in andList)
+            {
+                if (pred is BinExpr be && be.op_ == "=")
+                {
+                    var lrefs = be.lchild_().tableRefs_;
+                    var rrefs = be.rchild_().tableRefs_;
+                    bool lOnLeft = lrefs != null && !lrefs.Except(ltabrefs).Any();
+                    bool rOnLeft = rrefs != null && !rrefs.Except(ltabrefs).Any();
+
+                    if (lOnLeft && !rOnLeft)
+                    {
+                        leftKeys.Add(be.lchild_());
+                        rightKeys.Add(be.rchild_());
+                        continue;
+                    }
+                    else if (rOnLeft && !lOnLeft)
+                    {
+                        leftKeys.Add(be.rchild_());
+                        rightKeys.Add(be.lchild_());
+                        continue;
+                    }
+                }
+                nonEquiResidual.Add(pred);
+            }
+
+            Expr nonEquiFilter = nonEquiResidual.Count > 0 ? FilterHelper.AndListToExpr(nonEquiResidual) : null;
+            int lColCount = lchild_().logic_.output_.Count;
+            int rColCount = rchild_().logic_.output_.Count;
+
+            // If no hashable residual keys, fall back to nested loop.
+            if (leftKeys.Count == 0)
+            {
+                ExecNestedInClause(callback, markerExpr, andList.Count > 0 ? FilterHelper.AndListToExpr(andList) : null);
+                return;
+            }
+
+            // Build hash table from right (subquery) side on residual keys.
+            var hm = new Dictionary<KeyList, List<Row>>();
+
+            rchild_().Exec(r =>
+            {
+                Row fakeLeft = new Row(lColCount);
+                Row combined = new Row(fakeLeft, r);
+                var keys = KeyList.ComputeKeys(context, rightKeys, combined);
+                if (keys.ColsHasNull())
+                    return; // NULL correlation keys never match
+                if (hm.TryGetValue(keys, out List<Row> existing))
+                    existing.Add(r);
+                else
+                    hm.Add(keys, new List<Row> { r });
+            });
+
+            // Probe with left (outer) side.
+            lchild_().Exec(l =>
+            {
+                bool lIsNull = l.ColsHasNull();
+                Value marker = false;
+                bool RHasNull = false;
+                bool RisEmpty = true;
+
+                var keys = KeyList.ComputeKeys(context, leftKeys, l);
+                if (!keys.ColsHasNull() && hm.TryGetValue(keys, out List<Row> matches))
+                {
+                    // Hash hit on correlation keys — now evaluate marker and non-equi residual
+                    foreach (var r in matches)
+                    {
+                        Row combined = new Row(l, r);
+
+                        // Check non-equi residual first
+                        if (nonEquiFilter != null)
+                        {
+                            var flag = nonEquiFilter.Exec(context, combined);
+                            if (!(flag is true))
+                                continue;
+                        }
+
+                        RisEmpty = false;
+                        if (r.ColsHasNull())
+                            RHasNull = true;
+
+                        // Evaluate the marker (IN-list equality) predicate
+                        if (markerExpr.Exec(context, combined) is true)
+                        {
+                            marker = true;
+                            break; // One match is enough for IN
+                        }
+                    }
+                }
+
+                // Three-valued NULL logic (same as original nested loop):
+                if (marker is false && RHasNull)
+                    marker = null;
+                if (lIsNull && RisEmpty)
+                    marker = false;
+
+                Row rr = new Row(rColCount);
+                Row n = new Row(l, rr);
+                n = ExecProject(n);
+
+                if (marker is null)
+                    fixMarkerValue(n, false);
+                else
+                {
+                    bool boolMarker = marker is true;
+                    fixMarkerValue(n, semi ? boolMarker : !boolMarker);
+                }
+
+                callback(n);
+            });
+        }
+
+        // Nested-loop fallback for IN-clause MarkJoin when no hashable keys found.
+        void ExecNestedInClause(Action<Row> callback, BinExpr markerExpr, Expr residualFilter)
+        {
+            ExecContext context = context_;
+            bool semi = (logic_ is LogicMarkSemiJoin);
+            int rColCount = rchild_().logic_.output_.Count;
 
             lchild_().Exec(l =>
             {
-                lIsNull = l.ColsHasNull();
+                bool lIsNull = l.ColsHasNull();
+                Value marker = false;
+                bool RHasNull = false;
+                bool RisEmpty = true;
+
+                rchild_().Exec(r =>
+                {
+                    Row combined = new Row(l, r);
+
+                    if (residualFilter != null)
+                    {
+                        var flag = residualFilter.Exec(context, combined);
+                        if (!(flag is true))
+                            return;
+                    }
+
+                    RisEmpty = false;
+                    if (r.ColsHasNull())
+                        RHasNull = true;
+
+                    if (markerExpr.Exec(context, combined) is true)
+                        marker = true;
+                });
+
+                if (marker is false && RHasNull)
+                    marker = null;
+                if (lIsNull && RisEmpty)
+                    marker = false;
+
+                Row rr = new Row(rColCount);
+                Row n = new Row(l, rr);
+                n = ExecProject(n);
+
+                if (marker is null)
+                    fixMarkerValue(n, false);
+                else
+                {
+                    bool boolMarker = marker is true;
+                    fixMarkerValue(n, semi ? boolMarker : !boolMarker);
+                }
+
+                callback(n);
+            });
+        }
+
+        // Nested-loop execution for EXISTS/NOT EXISTS derived MarkJoin.
+        void ExecNested(Action<Row> callback)
+        {
+            ExecContext context = context_;
+            var logic = logic_ as LogicMarkJoin;
+            var filter = logic.filter_;
+            bool semi = (logic_ is LogicMarkSemiJoin);
+            Value marker = false;
+
+            lchild_().Exec(l =>
+            {
                 marker = false;
                 rchild_().Exec(r =>
                 {
-                    Row n = new Row(l, r);
-                    if (isDerivedFromInClause)
+                    if (!(marker is true))
                     {
-                        if (!(r is null))
-                            RHasNull = r.ColsHasNull();
-                        var andList = filter.FilterToAndList();
-
-                        // SELECT a1 FROM a WHERE a1 = 3 and a2 NOT IN (SELECT b2 FROM b WHERE a1 < b1);
-                        // a1 < b1 will not produce marker 
-                        // a2 = b2 will produce marker 
-                        // if the markjoin is derived from IN clause, we need to judge if it is a empty
-                        //
-                        if (andList.Count >= 2)
-                        {
-                            var markerExpr = andList.Find(x => x is BinExpr xB && xB.IsMarkerBinExpr());
-                            andList.Remove(markerExpr);
-                            var excludeMarkerExpr = FilterHelper.AndListToExpr(andList);
-                            var flagE = excludeMarkerExpr.Exec(context, n);
-
-                            if (flagE is true)
-                                RisEmpty = false;
-                            else
-                                return;
-
-                            // there is at least one match, mark true
-                            if (markerExpr.Exec(context, n) is true)
-                                marker = true;
-                        }
-                        else if (filter.Exec(context, n) is true)
-                            marker = true;
-                    }
-                    else if (!(marker is true) && !isDerivedFromInClause)
-                    {
+                        Row n = new Row(l, r);
                         if (filter.Exec(context, n) is true)
                         {
                             marker = true;
@@ -1777,30 +1938,7 @@ namespace qpmodel.physic
                     }
                 });
 
-                if (isDerivedFromInClause)
-                {
-                    if (marker is false && RHasNull)
-                        marker = null;
-
-                    if (lIsNull && RisEmpty)
-                        marker = false;
-
-                    Row r = new Row(rchild_().logic_.output_.Count);
-                    Row n = new Row(l, r);
-                    n = ExecProject(n);
-
-                    markerOrdinal = findMarkerOrdinal();
-                    if (marker is null)
-                        fixMarkerValue(n, false);
-                    else
-                    {
-                        bool boolMarker = marker is true;
-                        fixMarkerValue(n, semi ? boolMarker : !boolMarker);
-                    }
-
-                    callback(n);
-                }
-                else if (!(marker is true) && !isDerivedFromInClause)
+                if (!(marker is true))
                 {
                     Row r = new Row(rchild_().logic_.output_.Count);
                     Row n = new Row(l, r);

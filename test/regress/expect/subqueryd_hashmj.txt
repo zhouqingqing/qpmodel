@@ -1,0 +1,68 @@
+select a1 from a where a2 in (select b2 from b where b2 = a1)
+PhysicFilter  (actual rows=0)
+    Output: a.a1[0]
+    Filter: {#marker@1}[1]
+    -> PhysicMarkJoin Left (actual rows=3)
+        Output: a.a1[0],{#marker@1}[1]
+        Filter: (a.a2[1]=b.b2[2] and b.b2[2]=a.a1[0])
+        -> PhysicScanTable a (actual rows=3)
+            Output: a.a1[0],a.a2[1]
+        -> PhysicScanTable b (actual rows=3)
+            Output: b.b2[1]
+
+
+select a1 from a where a2 not in (select b2 from b where b2 = a1)
+PhysicFilter  (actual rows=3)
+    Output: a.a1[0]
+    Filter: {#marker@1}[1]
+    -> PhysicMarkJoin Left (actual rows=3)
+        Output: a.a1[0],{#marker@1}[1]
+        Filter: (a.a2[1]=b.b2[2] and b.b2[2]=a.a1[0])
+        -> PhysicScanTable a (actual rows=3)
+            Output: a.a1[0],a.a2[1]
+        -> PhysicScanTable b (actual rows=3)
+            Output: b.b2[1]
+0
+1
+2
+
+select a1 from a where a1 in (select b1 from b where b2 = a2 and b3 > 2)
+PhysicFilter  (actual rows=2)
+    Output: a.a1[0]
+    Filter: {#marker@1}[1]
+    -> PhysicMarkJoin Left (actual rows=3)
+        Output: a.a1[0],{#marker@1}[1]
+        Filter: (a.a1[0]=b.b1[2] and b.b2[3]=a.a2[1])
+        -> PhysicScanTable a (actual rows=3)
+            Output: a.a1[0],a.a2[1]
+        -> PhysicScanTable b (actual rows=2)
+            Output: b.b1[0],b.b2[1]
+            Filter: b.b3[2]>2
+1
+2
+
+select a1 from a where a1 not in (select b1 from b where b2 = a2 and b3 > 2)
+PhysicFilter  (actual rows=1)
+    Output: a.a1[0]
+    Filter: {#marker@1}[1]
+    -> PhysicMarkJoin Left (actual rows=3)
+        Output: a.a1[0],{#marker@1}[1]
+        Filter: (a.a1[0]=b.b1[2] and b.b2[3]=a.a2[1])
+        -> PhysicScanTable a (actual rows=3)
+            Output: a.a1[0],a.a2[1]
+        -> PhysicScanTable b (actual rows=2)
+            Output: b.b1[0],b.b2[1]
+            Filter: b.b3[2]>2
+0
+
+select a1 from a where a2 in (select b2 from b where b3 > 2)
+PhysicScanTable a (actual rows=2)
+    Output: a.a1[0]
+    Filter: a.a2[1] in @1
+    <InSubqueryExpr> cached 1
+        -> PhysicScanTable b (actual rows=2)
+            Output: b.b2[1]
+            Filter: b.b3[2]>2
+1
+2
+
